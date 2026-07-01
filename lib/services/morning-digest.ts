@@ -124,7 +124,7 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
 
     const subject = totalActions > 0
       ? `${totalActions} action${totalActions !== 1 ? "s" : ""} to clear today`
-      : `Nothing urgent today — quick check-in`;
+      : `Nothing urgent today. Quick check-in`;
 
     const lines: string[] = [
       `${greeting}, ${d.name}.`,
@@ -135,7 +135,7 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
     if (overdueTx.length > 0) {
       lines.push(``, `Overdue chases (${overdueTx.length} file${overdueTx.length !== 1 ? "s" : ""}):`);
       for (const f of overdueTx.slice(0, 8)) {
-        lines.push(`  · ${f.address} — ${f.overdueChases} overdue`);
+        lines.push(`  · ${f.address}: ${f.overdueChases} overdue`);
       }
     }
     if (dueTodayTx.length > 0) {
@@ -148,7 +148,7 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
       lines.push(``, `Approaching exchange target:`);
       for (const f of exchangeSoon.slice(0, 8)) {
         const days = daysUntil(f.exchangeTarget!);
-        lines.push(`  · ${f.address} — target ${fmtDate(f.exchangeTarget!)} (${days === 0 ? "today" : `${days}d away`})`);
+        lines.push(`  · ${f.address}: target ${fmtDate(f.exchangeTarget!)} (${days === 0 ? "today" : `${days}d away`})`);
       }
     }
     if (totalActions === 0 && exchangeSoon.length === 0) {

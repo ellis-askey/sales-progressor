@@ -69,7 +69,7 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Reply to this email if you need a hand getting set up.`,
     ``,
-    `— The Sales Progressor team`,
+    `The Sales Progressor team`,
   ].join("\n");
 
   const bodyHtml = [
@@ -77,7 +77,7 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your account is ready. Add your first sale to start using the platform. You only pay when it exchanges.</p>`,
     ctaUrl ? ctaButton("Add a sale →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you need a hand getting set up.</p>`,
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 
   return {
@@ -162,7 +162,7 @@ export function buildStuckDay3(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Reply to this email if you'd like a hand getting going.`,
     ``,
-    `— The Sales Progressor team`,
+    `The Sales Progressor team`,
   ].join("\n");
 
   const bodyHtml = [
@@ -170,7 +170,7 @@ export function buildStuckDay3(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">You've added ${address} to Sales Progressor but haven't confirmed any milestones yet. The system starts working once the first few steps are ticked off.</p>`,
     ctaUrl ? ctaButton("Open the file →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you'd like a hand getting going.</p>`,
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 
   return {
@@ -197,7 +197,7 @@ export function buildFirstExchange(vars: TemplateVars): RetentionEmailResult {
     ``,
     `View the file: ${ctaUrl}`,
     ``,
-    `— The Sales Progressor team`,
+    `The Sales Progressor team`,
   ].join("\n");
 
   const bodyHtml = [
@@ -205,7 +205,7 @@ export function buildFirstExchange(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Contracts have exchanged on ${address}, your first sale through Sales Progressor.</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">An invoice for £59 will follow shortly.</p>`,
     ctaUrl ? ctaButton("View the file →", ctaUrl) : "",
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 
   return {
@@ -230,7 +230,7 @@ export function buildQuiet30d(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Add a sale: ${ctaUrl}`,
     ``,
-    `— The Sales Progressor team`,
+    `The Sales Progressor team`,
     ``,
     unsubscribeUrl ? unsubscribeFooterText(unsubscribeUrl) : "",
   ].join("\n");
@@ -239,7 +239,7 @@ export function buildQuiet30d(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">It's been a month since you last added a sale to Sales Progressor. Your account, files, and history are all still in place whenever you're ready.</p>`,
     ctaUrl ? ctaButton("Add a sale →", ctaUrl) : "",
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 
   return {
@@ -251,7 +251,7 @@ export function buildQuiet30d(vars: TemplateVars): RetentionEmailResult {
 }
 
 // ─── Email 5 — send_to_us_drop_21d ───────────────────────────────────────────
-// Sender: "Ellis — Sales Progressor" | No CTA button
+// Sender: "Ellis, Sales Progressor" | No CTA button
 
 export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
   const { firstName, unsubscribeUrl = "" } = vars;
@@ -286,7 +286,7 @@ export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
     subject,
     html: buildHtmlWrapper(bodyHtml, unsubscribeUrl ? unsubscribeFooterHtml(unsubscribeUrl) : undefined),
     text,
-    fromDisplayName: "Ellis — Sales Progressor",
+    fromDisplayName: "Ellis, Sales Progressor",
   };
 }
 
@@ -306,7 +306,7 @@ export function buildLastTouch60d(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Log in: ${ctaUrl}`,
     ``,
-    `— The Sales Progressor team`,
+    `The Sales Progressor team`,
     ``,
     unsubscribeUrl ? unsubscribeFooterText(unsubscribeUrl) : "",
   ].join("\n");
@@ -316,7 +316,7 @@ export function buildLastTouch60d(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">We're pausing the activation emails on your account.</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">You'll still get updates on any active files, and your account stays open. Add a sale or log back in any time to pick up where you left off.</p>`,
     ctaUrl ? ctaButton("Log in →", ctaUrl) : "",
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 
   return {

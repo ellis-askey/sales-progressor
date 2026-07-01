@@ -34,9 +34,9 @@ function classify(sampleSize: number): Confidence {
 }
 
 function confidenceLabel(c: Confidence): string {
-  if (c === "ready")      return "Ready — suggest swap";
-  if (c === "low_sample") return "Low sample — consider waiting";
-  return "Insufficient — wait";
+  if (c === "ready")      return "Ready: suggest swap";
+  if (c === "low_sample") return "Low sample: consider waiting";
+  return "Insufficient: wait";
 }
 
 function suggestedSwap(c: Confidence, current: number, computed: number | null): string {
@@ -60,21 +60,21 @@ export function renderMediansReadyText(payload: MediansReadyPayload): string {
   lines.push(`Hi Ellis,`);
   lines.push("");
   lines.push(
-    `${triggerTransactionCount} distinct transactions on the platform now have at least one completed milestone (non-reconciled). That's enough volume for the broad readiness signal to fire — some milestone codes have accumulated enough samples to support a confident swap from the hardcoded MILESTONE_DURATION_MEDIANS in lib/services/fees.ts to learned values.`,
+    `${triggerTransactionCount} distinct transactions on the platform now have at least one completed milestone (non-reconciled). That's enough volume for the broad readiness signal to fire. Some milestone codes have accumulated enough samples to support a confident swap from the hardcoded MILESTONE_DURATION_MEDIANS in lib/services/fees.ts to learned values.`,
   );
   lines.push("");
   lines.push(
-    `Heads-up before you action this: 50 transactions is the threshold for the email itself, not for every individual milestone to be confident. End-stage codes (VM19/VM20, PM26/PM27) will have far fewer samples than early-stage ones — see the per-row breakdown below.`,
+    `Heads-up before you action this: 50 transactions is the threshold for the email itself, not for every individual milestone to be confident. End-stage codes (VM19/VM20, PM26/PM27) will have far fewer samples than early-stage ones. See the per-row breakdown below.`,
   );
   lines.push("");
   lines.push(
     `Two reasonable paths:`,
   );
   lines.push(
-    `  1. Try a few examples first — swap only the rows tagged "Ready — suggest swap" (≥30 samples), leave the others on hardcoded values. Iterate as more data arrives.`,
+    `  1. Try a few examples first. Swap only the rows tagged "Ready: suggest swap" (≥30 samples), leave the others on hardcoded values. Iterate as more data arrives.`,
   );
   lines.push(
-    `  2. Wait until 100 transactions have flowed through. By then more end-stage milestones will cross the ≥30 bar and the platform-wide swap is more honest. This email won't re-fire — you'd need to remember to check.`,
+    `  2. Wait until 100 transactions have flowed through. By then more end-stage milestones will cross the ≥30 bar and the platform-wide swap is more honest. This email won't re-fire; you'd need to remember to check.`,
   );
   lines.push("");
   lines.push(`Per-milestone breakdown:`);
@@ -98,9 +98,9 @@ export function renderMediansReadyText(payload: MediansReadyPayload): string {
   lines.push("");
   lines.push(`See docs/active/ELLIS_MANUAL_TODO.md for the full sequence.`);
   lines.push("");
-  lines.push(`This email won't fire again — the SystemNotification row keyed "medians_ready" is now set.`);
+  lines.push(`This email won't fire again. The SystemNotification row keyed "medians_ready" is now set.`);
   lines.push("");
-  lines.push(`— Sales Progressor`);
+  lines.push(`Sales Progressor`);
 
   return lines.join("\n");
 }
@@ -145,19 +145,19 @@ export function renderMediansReadyHtml(payload: MediansReadyPayload): string {
   <p style="font-size:14px;margin:0 0 12px;">Hi Ellis,</p>
 
   <p style="font-size:14px;margin:0 0 12px;">
-    <strong>${triggerTransactionCount} distinct transactions</strong> on the platform now have at least one completed milestone (non-reconciled). That's enough volume for the broad readiness signal to fire — some milestone codes have accumulated enough samples to support a confident swap from the hardcoded <code>MILESTONE_DURATION_MEDIANS</code> in <code>lib/services/fees.ts</code> to learned values.
+    <strong>${triggerTransactionCount} distinct transactions</strong> on the platform now have at least one completed milestone (non-reconciled). That's enough volume for the broad readiness signal to fire. Some milestone codes have accumulated enough samples to support a confident swap from the hardcoded <code>MILESTONE_DURATION_MEDIANS</code> in <code>lib/services/fees.ts</code> to learned values.
   </p>
 
   <div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:10px 14px;margin:0 0 16px;border-radius:4px;">
     <p style="font-size:13px;margin:0;color:#78350f;">
-      <strong>Heads-up before you action this.</strong> 50 transactions is the threshold for this email firing, not the threshold for every individual milestone being confident. End-stage codes (VM19/VM20, PM26/PM27) will have far fewer samples than early-stage ones — see the per-row breakdown below.
+      <strong>Heads-up before you action this.</strong> 50 transactions is the threshold for this email firing, not the threshold for every individual milestone being confident. End-stage codes (VM19/VM20, PM26/PM27) will have far fewer samples than early-stage ones. See the per-row breakdown below.
     </p>
   </div>
 
   <p style="font-size:14px;margin:0 0 8px;"><strong>Two reasonable paths:</strong></p>
   <ol style="font-size:14px;margin:0 0 16px 20px;padding:0;">
-    <li style="margin-bottom:6px;"><strong>Try a few examples first.</strong> Swap only the rows tagged "Ready — suggest swap" (≥30 samples), leave the others on hardcoded values. Iterate as more data arrives.</li>
-    <li><strong>Wait until 100 transactions have flowed through.</strong> By then more end-stage milestones will cross the ≥30 bar and the platform-wide swap is more honest. <em>This email won't re-fire — you'd need to remember to check.</em></li>
+    <li style="margin-bottom:6px;"><strong>Try a few examples first.</strong> Swap only the rows tagged "Ready: suggest swap" (≥30 samples), leave the others on hardcoded values. Iterate as more data arrives.</li>
+    <li><strong>Wait until 100 transactions have flowed through.</strong> By then more end-stage milestones will cross the ≥30 bar and the platform-wide swap is more honest. <em>This email won't re-fire; you'd need to remember to check.</em></li>
   </ol>
 
   <h3 style="font-size:14px;font-weight:700;margin:20px 0 8px;">Per-milestone breakdown</h3>
@@ -190,7 +190,7 @@ export function renderMediansReadyHtml(payload: MediansReadyPayload): string {
 
   <hr style="border:none;border-top:0.5px solid #e2e8f0;margin:24px 0 12px;" />
   <p style="font-size:11px;color:#94a3b8;margin:0;">
-    This email won't fire again — the <code>SystemNotification</code> row keyed <code>medians_ready</code> is now set. To re-test, delete that row.
+    This email won't fire again. The <code>SystemNotification</code> row keyed <code>medians_ready</code> is now set. To re-test, delete that row.
   </p>
 </body>
 </html>`;

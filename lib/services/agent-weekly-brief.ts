@@ -102,7 +102,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       lines.push(``, `Approaching exchange (next 14 days):`);
       for (const f of exchangeSoon) {
         const days = daysUntil(f.expectedExchangeDate!);
-        lines.push(`  · ${f.address} — target ${fmtDate(f.expectedExchangeDate!)} (${days === 0 ? "today" : `${days}d`})`);
+        lines.push(`  · ${f.address}: target ${fmtDate(f.expectedExchangeDate!)} (${days === 0 ? "today" : `${days}d`})`);
       }
     }
 
@@ -112,7 +112,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
         const reasons: string[] = [];
         if (f.escalatedTasks > 0) reasons.push(`${f.escalatedTasks} escalated chase${f.escalatedTasks > 1 ? "s" : ""}`);
         if (f.lastActivityDaysAgo !== null && f.lastActivityDaysAgo > 14) reasons.push(`no activity in ${f.lastActivityDaysAgo} days`);
-        lines.push(`  · ${f.address} — ${reasons.join(", ")}`);
+        lines.push(`  · ${f.address}: ${reasons.join(", ")}`);
       }
     }
 
@@ -129,7 +129,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       lines.push(``, `Proactive alerts (AI-detected):`);
       for (const { file, flags } of agentFlaggedFiles) {
         const kinds = flags.map((f) => FLAG_LABELS[f.kind as keyof typeof FLAG_LABELS] ?? f.kind).join(", ");
-        lines.push(`  · ${file.address} — ${kinds}: ${flags[0].reason}`);
+        lines.push(`  · ${file.address}, ${kinds}: ${flags[0].reason}`);
       }
     }
 

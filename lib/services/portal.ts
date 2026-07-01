@@ -814,7 +814,7 @@ export async function logPortalMilestoneConfirm(
   if (tx.assignedUser?.email && wantsEmail(tx.assignedUser.id)) {
     sendEmail({
       to: tx.assignedUser.email,
-      subject: `Client confirmed: "${milestoneLabel}" — ${tx.propertyAddress}`,
+      subject: `Client confirmed: "${milestoneLabel}" at ${tx.propertyAddress}`,
       replyTo,
       text: [
         `Hi ${extractFirstName(tx.assignedUser.name)},`,
@@ -844,18 +844,18 @@ export async function logPortalMilestoneConfirm(
     const formattedPortalEventDate = eventDate
       ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : null;
-    const portalEventDateVar = formattedPortalEventDate ? ` — ${formattedPortalEventDate}` : "";
+    const portalEventDateVar = formattedPortalEventDate ? `, ${formattedPortalEventDate}` : "";
     const portalEventDateClause = formattedPortalEventDate
       ? `booked for ${formattedPortalEventDate}`
       : milestoneCode === "PM6" ? "a desktop valuation (no physical visit required)" : "";
     const isPortalDesktop = milestoneCode === "PM6" && !formattedPortalEventDate;
     const purchaserPhysicalNote = (milestoneCode === "PM6" && !isPortalDesktop)
-      ? " Their primary concern is that it's worth enough to secure their loan — it's not a structural survey and won't flag problems with the condition of the property."
+      ? " Their primary concern is that it's worth enough to secure their loan. It's not a structural survey and won't flag problems with the condition of the property."
       : "";
     const vendorVisitNote = milestoneCode === "PM6"
       ? isPortalDesktop
-        ? " No physical visit to the property is needed — the assessment is conducted remotely."
-        : " A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now."
+        ? " No physical visit to the property is needed. The assessment is conducted remotely."
+        : " A surveyor acting for the lender will visit to value the property. Access has been arranged, so nothing else for you to do right now."
       : "";
     // Mirrors the {completionDate} handling in sendRichMilestoneEmails —
     // see the comment there. Same fallback string so the portal-confirmed
@@ -911,7 +911,7 @@ export async function logPortalMilestoneConfirm(
     // contact and generic progress update to the other side.
     if (confirmingContact?.email && confirmingContact.portalToken) {
       const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
-      const confirmSubject = `Step confirmed — ${address}`;
+      const confirmSubject = `Step confirmed: ${address}`;
       const confirmText = [
         buildGreeting(confirmingContact.name),
         ``,
@@ -955,7 +955,7 @@ export async function logPortalMilestoneConfirm(
       ].join("\n");
       sendEmail({
         to: other.email!,
-        subject: `Progress update — ${address}`,
+        subject: `Progress update: ${address}`,
         text: otherText,
         replyTo,
         html: portalEmailHtml({
@@ -968,7 +968,7 @@ export async function logPortalMilestoneConfirm(
       otherIds.push(other.id);
     }
     if (otherIds.length > 0) {
-      logAutomatedEmail(transactionId, otherIds, `Progress update — ${address}`, `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`).catch(() => {});
+      logAutomatedEmail(transactionId, otherIds, `Progress update: ${address}`, `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`).catch(() => {});
     }
   }
 
@@ -1114,21 +1114,21 @@ export async function sendAdminMilestoneNotificationToPortal(
             weekday: "long", day: "numeric", month: "long", year: "numeric",
           })
         : null;
-      subject = `Your ${saleWord} has completed — ${address}`;
+      subject = `Your ${saleWord} has completed: ${address}`;
       headline = saleWord === "sale" ? "Sale complete!" : "Purchase complete!";
-      intro = `Congratulations — your ${saleWord} at <strong>${address}</strong> has completed${completionDateStr ? ` on <strong>${completionDateStr}</strong>` : ""}. The keys have been handed over and funds transferred.`;
+      intro = `Congratulations. Your ${saleWord} at <strong>${address}</strong> has completed${completionDateStr ? ` on <strong>${completionDateStr}</strong>` : ""}. The keys have been handed over and funds transferred.`;
     } else if (isReadyToExchange) {
-      subject = `Ready to exchange — ${address}`;
+      subject = `Ready to exchange: ${address}`;
       headline = "Ready to exchange";
       intro = `Your solicitor has confirmed everything is in place for your ${saleWord} at <strong>${address}</strong>. Exchange of contracts is imminent.`;
     } else if (dateStr) {
-      subject = `Date confirmed — ${address}`;
+      subject = `Date confirmed: ${address}`;
       headline = "Date confirmed";
       intro = `A date has been confirmed for your ${saleWord} at <strong>${address}</strong>.`;
       stepLabel = portalLabel;
       stepDate = dateStr;
     } else {
-      subject = `Progress update — ${address}`;
+      subject = `Progress update: ${address}`;
       headline = "Progress update";
       intro = `Your ${saleWord} at <strong>${address}</strong> is moving forward.`;
       stepLabel = portalLabel;
@@ -1136,7 +1136,7 @@ export async function sendAdminMilestoneNotificationToPortal(
 
     const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl });
     const lines = [`Hi ${firstName},`, "", intro.replace(/<[^>]+>/g, ""), ""];
-    if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? ` — ${stepDate}` : ""}`, "");
+    if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? `: ${stepDate}` : ""}`, "");
     lines.push(`View your portal: ${portalUrl}`);
 
     sendEmail({ to: c.email, subject, text: lines.join("\n"), html }).catch(() => {});
@@ -1259,7 +1259,7 @@ function richMilestoneEmailHtml({
     : "";
 
   const signatureBlock = isProgressor
-    ? `<p style="margin:0;font-size:12px;color:#8b91a3">Sales Progressor system — ${address}</p>`
+    ? `<p style="margin:0;font-size:12px;color:#8b91a3">Sales Progressor system: ${address}</p>`
     : serviceType === "self_managed"
       ? `<p style="margin:0;font-size:13px;color:#4a5162">Questions? Just reply to this email.</p>`
       : whatsappNumber
@@ -1480,19 +1480,19 @@ async function sendRichMilestoneEmails(
     ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : null;
   // {eventDate} — " on Monday, 7 May 2026" prefix or "" (used in PM9 opening/whatHappened)
-  const eventDateVar = formattedEventDate ? ` — ${formattedEventDate}` : "";
+  const eventDateVar = formattedEventDate ? `, ${formattedEventDate}` : "";
   // {eventDateClause} — full descriptive clause for PM6 (physical vs desktop valuation)
   const eventDateClause = formattedEventDate
     ? `booked for ${formattedEventDate}`
     : milestoneCode === "PM6" ? "a desktop valuation (no physical visit required)" : "";
   const isDesktop = milestoneCode === "PM6" && !formattedEventDate;
   const purchaserPhysicalNote = (milestoneCode === "PM6" && !isDesktop)
-    ? " Their primary concern is that it's worth enough to secure their loan — it's not a structural survey and won't flag problems with the condition of the property."
+    ? " Their primary concern is that it's worth enough to secure their loan. It's not a structural survey and won't flag problems with the condition of the property."
     : "";
   const vendorVisitNote = milestoneCode === "PM6"
     ? isDesktop
-      ? " No physical visit to the property is needed — the assessment is conducted remotely."
-      : " A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now."
+      ? " No physical visit to the property is needed. The assessment is conducted remotely."
+      : " A surveyor acting for the lender will visit to value the property. Access has been arranged, so nothing else for you to do right now."
     : "";
   // {completionDate} — referenced by VM19.vendorAgent ("Completion is set
   // for {completionDate}.") and any future exchange/completion copy that
@@ -1699,30 +1699,30 @@ function renderCompletionPackBody(args: {
     <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. The sale is now legally committed.</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
-      <li>Your solicitor will handle the transfer of funds — you don't need to be at the property.</li>
+      <li>Your solicitor will handle the transfer of funds. You don't need to be at the property.</li>
       <li>Read all utility meters (gas, electricity, water) before you leave for the last time.</li>
       <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).</li>
-      <li>Leave appliance manuals, warranties, and service records — the buyer is entitled to these.</li>
+      <li>Leave appliance manuals, warranties, and service records. The buyer is entitled to these.</li>
       <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
     </ul>`
     : `
     <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. Your purchase is now legally committed.</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
-      <li>Keep your phone on — your solicitor will call you when the funds have been transferred.</li>
+      <li>Keep your phone on. Your solicitor will call you when the funds have been transferred.</li>
       <li>Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.</li>
       <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
-      <li>From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.</li>
+      <li>From today, the property is at your risk. If your buildings insurance isn't already in place, arrange it as soon as possible.</li>
       <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
     </ul>`;
 
   const bodyPlain = side === "vendor"
-    ? `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
-    : `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+    ? `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds. You don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).\n- Leave appliance manuals, warranties, and service records. The buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
+    : `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on. Your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk. If your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
 
   const subject = side === "vendor"
-    ? `Contracts exchanged — what happens next for your sale`
-    : `Contracts exchanged — what happens next for your purchase`;
+    ? `Contracts exchanged: what happens next for your sale`
+    : `Contracts exchanged: what happens next for your purchase`;
 
   const greeting = buildGreeting(contact.name);
   const text = `${greeting}\n\n${bodyPlain}\n\nView your portal: ${portalUrl}`;
@@ -1784,7 +1784,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
     if (!vendorPlainForLog) vendorPlainForLog = body.text;
   }
   if (vendorIds.length > 0) {
-    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged — what happens next for your sale`, vendorPlainForLog).catch(() => {});
+    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged: what happens next for your sale`, vendorPlainForLog).catch(() => {});
   }
 
   const purchaserIds: string[] = [];
@@ -1796,7 +1796,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
     if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
   }
   if (purchaserIds.length > 0) {
-    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged — what happens next for your purchase`, purchaserPlainForLog).catch(() => {});
+    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged: what happens next for your purchase`, purchaserPlainForLog).catch(() => {});
   }
 }
 
@@ -1840,11 +1840,11 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
   const purchaserIds = ctx.purchasers.map((c) => c.id);
   if (vendorIds.length > 0) {
     const sampleBody = renderCompletionPackBody({ side: "vendor", contact: ctx.vendors[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
-    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged — what happens next for your sale`, sampleBody.text).catch(() => {});
+    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged: what happens next for your sale`, sampleBody.text).catch(() => {});
   }
   if (purchaserIds.length > 0) {
     const sampleBody = renderCompletionPackBody({ side: "purchaser", contact: ctx.purchasers[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
-    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged — what happens next for your purchase`, sampleBody.text).catch(() => {});
+    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged: what happens next for your purchase`, sampleBody.text).catch(() => {});
   }
 }
 

@@ -143,7 +143,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
 
   await sendEmail({
     to:      tx.assignedUser.email,
-    subject: `Message from ${contact.name} — ${tx.propertyAddress}`,
+    subject: `Message from ${contact.name}: ${tx.propertyAddress}`,
     text: [
       `Hi ${first},`,
       "",
@@ -216,7 +216,7 @@ export async function sendProgressorPortalReply(
     const portalUrl = `${base}/portal/${contact.portalToken}/updates`;
     sendEmail({
       to:      contact.email,
-      subject: `Message from ${progressorName} — ${address}`,
+      subject: `Message from ${progressorName}: ${address}`,
       text: [
         `Hi ${contact.name},`,
         "",

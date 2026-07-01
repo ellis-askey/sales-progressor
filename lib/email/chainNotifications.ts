@@ -78,12 +78,12 @@ export function buildLostBuyerEmailPayload({
   recipientTransactionId,
   unsubscribeUrl,
 }: CascadePayloadArgs): { subject: string; text: string; html: string } {
-  const subject = `Update on ${recipientAddress} — the buyer has pulled out`;
+  const subject = `Update on ${recipientAddress}: the buyer has pulled out`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `The buyer for your client's property at ${recipientAddress} has pulled out of the chain.`;
-  const follow = `Open the chain to let us know what's next — find a new buyer, or withdraw.`;
+  const follow = `Open the chain to let us know what's next: find a new buyer, or withdraw.`;
 
-  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
     heading: subject,
     body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
@@ -98,12 +98,12 @@ export function buildLostPurchaseEmailPayload({
   recipientTransactionId,
   unsubscribeUrl,
 }: CascadePayloadArgs): { subject: string; text: string; html: string } {
-  const subject = `Update on ${recipientAddress} — the onward purchase has fallen through`;
+  const subject = `Update on ${recipientAddress}: the onward purchase has fallen through`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `The property your client was buying has fallen through.`;
-  const follow = `Open the chain to let us know what's next — find a new purchase, proceed without one, or withdraw.`;
+  const follow = `Open the chain to let us know what's next: find a new purchase, proceed without one, or withdraw.`;
 
-  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
     heading: subject,
     body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
@@ -118,12 +118,12 @@ export function buildAskedToWaitEmailPayload({
   recipientTransactionId,
   unsubscribeUrl,
 }: CascadePayloadArgs): { subject: string; text: string; html: string } {
-  const subject = `Update on ${recipientAddress} — onward chain is re-forming`;
+  const subject = `Update on ${recipientAddress}: onward chain is re-forming`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `The onward chain is being re-formed.`;
   const follow = `Is your client happy to wait while a new sale is found? Open the chain to let us know: wait, or withdraw.`;
 
-  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
     heading: subject,
     body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
@@ -155,7 +155,7 @@ export function buildBuyerFoundEmailPayload({
   unsubscribeUrl,
   variant,
 }: CascadePayloadArgs & { variant: BuyerFoundVariant }): { subject: string; text: string; html: string } {
-  const subject = `Update on ${recipientAddress} — the chain has reformed below you`;
+  const subject = `Update on ${recipientAddress}: the chain has reformed below you`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
 
   // Three lead paragraphs; one follow-up that's the same across variants.
@@ -169,7 +169,7 @@ export function buildBuyerFoundEmailPayload({
         : `A new buyer has been secured for the property below you in the chain. You can disregard the earlier note about your buyer pulling out. The onward chain has reformed.`;
   const follow = `Open the chain to confirm your client's position and pick the file back up.`;
 
-  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
     heading: subject,
     body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
@@ -184,12 +184,12 @@ export function buildChainDetachedEmailPayload({
   recipientTransactionId,
   unsubscribeUrl,
 }: CascadePayloadArgs): { subject: string; text: string; html: string } {
-  const subject = `Update on ${recipientAddress} — your chain has been shortened`;
+  const subject = `Update on ${recipientAddress}: your chain has been shortened`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `The chain your client's file at ${recipientAddress} was part of has been split. The file above yours has been withdrawn, so your chain now stands on its own.`;
   const follow = `Open the chain to see how it now stands.`;
 
-  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
     heading: subject,
     body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
@@ -209,7 +209,7 @@ export function buildWaitNudgeEmailPayload({
   const lead = `Two weeks ago your client agreed to wait while the onward chain re-formed.`;
   const follow = `Is your client still waiting, or has the situation changed? Open the chain to update us.`;
 
-  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
     heading: subject,
     body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
@@ -443,7 +443,7 @@ export function buildDeclineEmailPayload({
   originatorTransactionId: string | null;
   unsubscribeUrl: string;
 }): { subject: string; text: string; html: string } {
-  const subject = `${stubAgentEmail} declined your invite — ${stubAddress}`;
+  const subject = `${stubAgentEmail} declined your invite: ${stubAddress}`;
   const ctaUrl = originatorTransactionId
     ? `${portalBase()}/agent/transactions/${originatorTransactionId}`
     : `${portalBase()}/agent/hub`;
@@ -454,7 +454,6 @@ export function buildDeclineEmailPayload({
     ``,
     `Open chain: ${ctaUrl}`,
     ``,
-    `—`,
     `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
     `Need help? support@thesalesprogressor.co.uk`,
   ].join("\n");
@@ -468,7 +467,7 @@ export function buildDeclineEmailPayload({
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
           <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
-          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(stubAgentEmail)} declined your invite — ${escapeHtml(stubAddress)}</h1>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(stubAgentEmail)} declined your invite: ${escapeHtml(stubAddress)}</h1>
           <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">The agent at ${escapeHtml(stubAgentEmail)} declined your invite for ${escapeHtml(stubAddress)}.</p>
           <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to update their details and resend, or remove them from the chain.</p>
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
@@ -500,7 +499,7 @@ export function buildExchangeEmailPayload({
   recipientTransactionId: string | null;
   unsubscribeUrl: string;
 }): { subject: string; text: string; html: string } {
-  const subject = `${exchangedAddress} has exchanged — chain update`;
+  const subject = `${exchangedAddress} has exchanged, chain update`;
   const ctaUrl = recipientTransactionId
     ? `${portalBase()}/agent/transactions/${recipientTransactionId}`
     : `${portalBase()}/agent/hub`;
@@ -511,7 +510,6 @@ export function buildExchangeEmailPayload({
     ``,
     `Open chain: ${ctaUrl}`,
     ``,
-    `—`,
     `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
     `Need help? support@thesalesprogressor.co.uk`,
   ].join("\n");
@@ -525,7 +523,7 @@ export function buildExchangeEmailPayload({
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
           <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
-          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(exchangedAddress)} has exchanged — chain update</h1>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(exchangedAddress)} has exchanged, chain update</h1>
           <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(exchangedAddress)} has exchanged contracts.</p>
           <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to see what this means for yours.</p>
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
@@ -557,7 +555,7 @@ export function buildCompletionEmailPayload({
   recipientTransactionId: string | null;
   unsubscribeUrl: string;
 }): { subject: string; text: string; html: string } {
-  const subject = `${completedAddress} has completed — chain update`;
+  const subject = `${completedAddress} has completed, chain update`;
   const ctaUrl = recipientTransactionId
     ? `${portalBase()}/agent/transactions/${recipientTransactionId}`
     : `${portalBase()}/agent/hub`;
@@ -568,7 +566,6 @@ export function buildCompletionEmailPayload({
     ``,
     `Open chain: ${ctaUrl}`,
     ``,
-    `—`,
     `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
     `Need help? support@thesalesprogressor.co.uk`,
   ].join("\n");
@@ -582,7 +579,7 @@ export function buildCompletionEmailPayload({
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
           <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
-          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(completedAddress)} has completed — chain update</h1>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(completedAddress)} has completed, chain update</h1>
           <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(completedAddress)} has completed.</p>
           <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to see what&apos;s next.</p>
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
@@ -681,7 +678,6 @@ export function buildCelebrationEmailPayload({
   const text = [
     `Every sale in your chain has completed.`,
     ``,
-    `—`,
     `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
     `Need help? support@thesalesprogressor.co.uk`,
   ].join("\n");
