@@ -484,6 +484,14 @@ export async function getAutomatedEmailsForTransaction(
       if (!row.lastChasedAt) continue;
       // Engagement gate
       if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
+      // Target milestone gate — parity with Kind 2 below. Without this a
+      // completed milestone still surfaces "chase X of 2" in Upcoming when
+      // the CCS row hasn't been cancelled. Belt-and-braces alongside the
+      // CCS cancellation on milestone-complete in lib/services/milestones.ts.
+      const targetDefId = defByCode.get(row.milestoneCode);
+      if (!targetDefId) continue;
+      const targetComp = completionByDefId.get(targetDefId);
+      if (!targetComp || targetComp.state !== "available") continue;
       // Snooze suppression — match the cron's chase-skip behaviour.
       if (snoozedCodes.has(row.milestoneCode)) continue;
       const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);

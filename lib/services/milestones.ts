@@ -673,6 +673,20 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
     console.error("[completeMilestone] autoCompleteRemindersForMilestone failed:", err);
   }
 
+  // Cancel any active ClientChaseState rows for this milestone. Without this,
+  // the "chase X of 2" record survives after the milestone completes and the
+  // /agent/transactions/[id] "Upcoming (predicted)" list keeps showing ghost
+  // chases for a milestone that's already done. Third stale-CCS case after
+  // withdrawn-file + old-buyer-round (see scripts/sweep-stale-ccs.ts).
+  try {
+    await db.clientChaseState.updateMany({
+      where: { transactionId: input.transactionId, milestoneCode: def.code, status: "active" },
+      data: { status: "cancelled" },
+    });
+  } catch (err) {
+    console.error("[completeMilestone] cancel ClientChaseState failed:", err);
+  }
+
   try {
     await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, tx);
   } catch (err) {

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
-import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders } from "@/lib/services/reminders";
+import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime } from "@/lib/services/reminders";
 import { completeMilestone } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
@@ -89,6 +89,65 @@ export async function wakeupReminderAction(logId: string, pathname: string) {
   const session = await requireSession();
   await wakeUpReminderLog(logId, getAccessScope(session));
   revalidatePath(pathname, "page");
+}
+
+// Agent chooses to chase this reminder BEFORE its scheduled start date. Creates
+// the ChaseTask that would normally be created by the cron's self-heal, and
+// wakes the reminder log so its nextDueDate is now — the drawer opens against
+// the returned task id so the agent can send immediately.
+// Idempotent: if a pending task already exists for the log, returns its id
+// without creating a duplicate.
+export async function chaseNowFromLogAction(
+  logId: string,
+  pathname: string,
+): Promise<{ taskId: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const log = await tx.reminderLog.findFirst({
+      where: scopeReminderLogWhere(scope, logId),
+      select: {
+        id: true,
+        transactionId: true,
+        status: true,
+        chaseTasks: {
+          where: { status: "pending" },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+    if (!log) throw new Error("Reminder log not found");
+    if (log.status !== "active") throw new Error("Reminder log is not active");
+
+    if (log.chaseTasks.length > 0) {
+      return { taskId: log.chaseTasks[0].id, transactionId: log.transactionId };
+    }
+
+    const task = await tx.chaseTask.create({
+      data: {
+        transactionId: log.transactionId,
+        reminderLogId: log.id,
+        dueDate: new Date(),
+        status: "pending",
+        priority: "normal",
+        chaseCount: 0,
+      },
+      select: { id: true },
+    });
+
+    await tx.reminderLog.update({
+      where: { id: log.id },
+      data: { nextDueDate: setUkChaseTime(new Date()), snoozedUntil: null },
+    });
+
+    return { taskId: task.id, transactionId: log.transactionId };
+  });
+
+  touchLastActivity(result.transactionId).catch(() => {});
+  revalidatePath(pathname, "page");
+  return { taskId: result.taskId };
 }
 
 export async function advanceChaseTaskAction(taskId: string, pathname: string) {
