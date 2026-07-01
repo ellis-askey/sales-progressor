@@ -61,3 +61,38 @@ Includes: all `verify-a2/a3/a4/a5/a5-precheck/a6/b1/b2/b2-precheck/b3/b4/b5/b6/b
 Pre-move safety checks:
 - All 84 moves grep-clean across `app/`, `lib/`, `components/`, `__tests__/`, `e2e/`
 - No `package.json` or `vercel.json` references
+
+### Wave K3 — 2026-07-01
+
+Final cull, 16 more moves + 2 log files deleted. Hard-delete target: **2026-07-15**. Reached the Phase 4 target of ≤ 15 tracked scripts.
+
+Moved to `_archive/`:
+- `build-chase-timings-spreadsheet.ts` (one-off report)
+- `ensure-playwright-test-user.ts` (superseded by `seed-playwright-director.ts`)
+- `export-logo.js` (one-off asset generation)
+- `insert-prod-terms-v4.ts` (v4 latest but one-time-per-env; comment-only reference in `app/billing-terms/page.tsx`)
+- `migrate-gap5.ts` (one-shot migration)
+- `migrate-john-desimone-to-via-properties.ts` (file-specific)
+- `render-chase-samples.ts` / `render-email-snapshot.ts` / `render-feature-reference-pdf.js` / `render-milestone-digest-sample.ts` (dev sample generators)
+- `seed-chain-closed-loop-fixtures.ts` / `seed-chain-fixtures.ts` (fixture-specific)
+- `seed-completions.ts` (K2 miss, caught during K3 sweep)
+- `seed-staging-test-data.ts` (staging one-off)
+- `verify-6b-render.sh` (one-off)
+- `help-screenshots/` directory (4 files: `capture.ts`, `playwright.config.ts`, `polish.ts`, `seed-artifacts.json` — help-doc generation tool, Phase-2-era, unused since)
+
+Deleted outright (log/artifact files, not scripts):
+- `scripts/backfill-rerun-output.txt`
+- `scripts/rehearsal-commit-6-output.txt`
+
+Also cleared local artifact directories `scripts/output/`, `scripts/snapshots/`, `scripts/screenshots/` — all gitignored, never committed. Local disk cleanup only.
+
+## Post-K3 state
+
+**Tracked scripts remaining: 14** (target ≤ 15). Full list in [SCRIPTS_REGISTRY.md](../../docs/SCRIPTS_REGISTRY.md).
+
+- 4 npm-script wrappers: `demo-verify`, `reset-demo`, `seed-demo`, `migrate-prod`
+- 1 build-time hook: `vercel-db-deploy`
+- 3 inventory tools: `inventory/{components,scripts,surfaces}.ts`
+- 3 dev / recurring maintenance: `reset-db`, `install-gitleaks-hook.sh`, `health-audit-prod`
+- 2 E2E fixtures: `seed-playwright-director`, `seed-test-accounts`
+- 1 cron library: `backfill-mode-profile`

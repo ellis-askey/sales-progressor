@@ -64,6 +64,78 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete only if the cron at `app/api/cron/backfill-mode-profile/route.ts` is also removed or refactored to inline the logic.
 - **Justification:** the census heuristic flagged this as `archive-delete` (looked like a one-shot backfill from the filename), but the tsc check caught the live import. Better to reclassify as ongoing than to promote to `lib/services/`, which would spread the module without behaviour change. Future refactor: move into `lib/services/` alongside other services, delete the script.
 
+### scripts/vercel-db-deploy.mjs
+
+- **Purpose:** Runs `prisma migrate deploy` conditionally on `VERCEL_ENV=production`. Called by `npm run build`.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered — established build-time hook.
+- **Deletion criteria:** delete only if Vercel replaces or removes the build-time hook path.
+- **Justification:** live build-time dependency; cannot be replaced with an npm script alone because of the conditional VERCEL_ENV branch.
+
+### scripts/migrate-prod.mjs
+
+- **Purpose:** Wrapper for `npm run db:migrate:prod`. Applies Prisma migrations to the production DB with confirmation prompts.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** delete when the equivalent workflow moves to a `/command/*` admin action.
+- **Justification:** critical production tool. Cannot be a plain npm script because of confirmation flow.
+
+### scripts/seed-demo.ts
+
+- **Purpose:** Seeds the demo dataset for local + staging via `npm run demo:seed`.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** delete when demo dataset seeding moves into a first-party CLI or is retired.
+- **Justification:** referenced by `demo:seed` in package.json; still active dev flow.
+
+### scripts/reset-demo.ts
+
+- **Purpose:** Resets the demo dataset via `npm run demo:reset`.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** paired with seed-demo — same criteria.
+- **Justification:** live npm script.
+
+### scripts/demo-verify.ts
+
+- **Purpose:** Verifies demo dataset state via `npm run demo:verify`.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** paired with seed-demo — same criteria.
+- **Justification:** live npm script.
+
+### scripts/reset-db.ts
+
+- **Purpose:** Development utility to reset the local DB.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** delete only if replaced by a first-party CLI.
+- **Justification:** local dev utility, not surface-eligible.
+
+### scripts/health-audit-prod.mjs
+
+- **Purpose:** Recurring production health audit; scanned during quarterly reviews.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** delete when health surfaces move to a `/command/insights` dashboard.
+- **Justification:** recurring maintenance tool; not user-facing.
+
+### scripts/install-gitleaks-hook.sh
+
+- **Purpose:** Installs the gitleaks pre-commit hook for local dev.
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** delete when the hook is bundled into a first-party tool.
+- **Justification:** dev-machine setup script; runs once per clone.
+
+### scripts/seed-test-accounts.ts
+
+- **Purpose:** Seeds test accounts used by the Playwright E2E suite (referenced in `e2e/README-package-d.md`).
+- **Lifetime:** `ongoing`
+- **Author:** grandfathered.
+- **Deletion criteria:** delete when the E2E suite is retired or migrates to a self-seeding fixture pattern.
+- **Justification:** paired with the E2E harness; alternative would be per-test seeding which is more expensive.
+
 ---
 
 ## Footnotes
