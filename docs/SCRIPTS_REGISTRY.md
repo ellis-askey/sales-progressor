@@ -56,6 +56,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** permanent. Re-run when adding new routes or when re-ordering the Phase 3 queue.
 - **Justification:** powers the Phase 3 surface queue in BUILD_PLAN.
 
+### scripts/backfill-mode-profile.ts
+
+- **Purpose:** Exports `backfillModeProfiles()` used by the daily cron at `/api/cron/backfill-mode-profile`. The script file is effectively a shared library that the cron route imports.
+- **Lifetime:** `ongoing`
+- **Author:** promoted-to-keep during Phase 4 K1 cull, 2026-07-01
+- **Deletion criteria:** delete only if the cron at `app/api/cron/backfill-mode-profile/route.ts` is also removed or refactored to inline the logic.
+- **Justification:** the census heuristic flagged this as `archive-delete` (looked like a one-shot backfill from the filename), but the tsc check caught the live import. Better to reclassify as ongoing than to promote to `lib/services/`, which would spread the module without behaviour change. Future refactor: move into `lib/services/` alongside other services, delete the script.
+
 ---
 
 ## Footnotes
