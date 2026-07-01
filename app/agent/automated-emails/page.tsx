@@ -22,7 +22,7 @@ const VALID_TABS = ["pending", "sent", "errored", "upcoming"] as const;
 
 function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, isHybridAdmin: boolean): string {
   if (fileLabel) return `Automated emails for ${fileLabel}.`;
-  if (role === "admin" || role === "superadmin" || isHybridAdmin) return "All automated emails across the platform.";
+  if (role === "admin" || role === "superadmin" || isHybridAdmin) return "All automated emails across every agency.";
   if (role === "sales_progressor") return "Automated emails for files assigned to you.";
   if (role === "negotiator") return "Automated emails for files assigned to you.";
   if (role === "director") {
