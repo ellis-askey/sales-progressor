@@ -196,6 +196,12 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | [components/completions/CompletionsGroupList.tsx:99](../components/completions/CompletionsGroupList.tsx) `<Link className="glass-card">` file row | Build `<CardLink>` primitive then migrate | grandfather | 2026-06-30 | Card primitive renders `<div>`, doesn't support `as` polymorphism for `<Link>` / `<a>`. Same pattern shape as `<Link className="agent-btn">` → ButtonLink-pending. New "CardLink"-pending pattern: when 3+ consumers force the issue, build a polymorphic Card primitive or a CardLink primitive. Currently only this one consumer — defer. Re-evaluated 2026-09-26 |
 | [components/completions/CompletionsGroupList.tsx:85](../components/completions/CompletionsGroupList.tsx) urgency-coloured group accordion | Migrate to canonical `Accordion` | grandfather | 2026-06-30 | Uses `agent-acc-hdr` as the clickable header (real Accordion.Header API match) but with custom urgency-colour CSS handling on child elements + custom `agent-acc-summary` span. `Accordion.Header` would need slot support for the leading dot + trailing summary; otherwise migration would collapse the summary into the children flex-gap row. Same shape as the two-zone header gap already grandfathered for MilestonePanel / AutomatedEmailsCard / RemindersSection. Re-evaluated 2026-09-26 |
 
+### Phase 3 Surface 7 grandfathers (auto-emails)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| `agent-kpi-card` utility class used exclusively on Surface 7 | Extract to canonical `<KpiCard>` primitive when a second consumer appears | grandfather | 2026-07-01 | Interactive stat card with hover / active / chevron-rotation-on-hover treatment (CSS at `agent-system.css:466-505`). Distinct from `<Card>` primitive (Card is a static surface; KpiCard is a link/button-shaped card with directional affordance). Currently only Surface 7 uses this pattern. Per Law 14, wait for a second consumer before extraction. Re-evaluated 2026-09-26 |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |

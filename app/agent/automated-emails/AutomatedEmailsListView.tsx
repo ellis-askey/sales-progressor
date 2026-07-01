@@ -270,7 +270,7 @@ function emptyCopy(tab: EmailListTab, mineOnly: boolean, showMineToggle: boolean
     return "No automated emails sent in the last 30 days yet.";
   }
   if (tab === "errored") {
-    return "No failed automated emails — everything's delivering cleanly.";
+    return "No failed automated emails. Everything's delivering cleanly.";
   }
   // upcoming
   if (mineOnly) {
