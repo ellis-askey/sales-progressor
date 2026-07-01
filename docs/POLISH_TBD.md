@@ -212,6 +212,13 @@ Surface 8 was closed as a no-op in [CLOSURE.md](phase-3/08-internal-dashboard/CL
 | `app/transactions/new/page.tsx` | Parallel AppShell new-sale form | tbd | 2026-07-01 | Same audit question. Sidebar link means it's referenced but not clear if it's still preferred over `/agent/transactions/new-v2` |
 | `app/admin/*` (audit, migrate, main) | Founder-only admin surfaces using AppShell. Separate scope from Phase 3 surface remediation | defer-Q3-2026 | 2026-07-01 | These are internal-only tools that were out of the original Phase 3 queue. Bundle into a Phase 3.5 admin-surface pass or leave until the founder decides they need remediation |
 
+### Phase 3 Surface 9 grandfathers (agent admin bundle)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| Surface 9 `agent-glass` cards (2 in `app/agent/analytics/page.tsx` L129 + L144, ghost preview stat cards) | Migrate to `<Card variant="agent-glass">` | grandfather | 2026-07-01 | Extends Surfaces 2-6 chrome entry. Surface 9 is the **6th consumer** of `agent-glass*`. Card primitive variant extension pending. Re-evaluated 2026-09-26 |
+| Analytics "+ Submit your first sale" `<Link className="agent-btn">` (`app/agent/analytics/page.tsx:114`) | Migrate to canonical `<ButtonLink>` primitive | grandfather | 2026-07-01 | Extends ButtonLink-pending entry. Total Link-styled `agent-btn` instances now: 6 across hub + transactions list + analytics |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |

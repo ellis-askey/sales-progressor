@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
 import { getSolicitorDirectoryForAgent } from "@/lib/services/solicitors";
@@ -77,7 +78,7 @@ export default async function AgentPartnersPage() {
         {isDirector && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* Preferred mortgage broker */}
-            <div className="glass-card p-6">
+            <Card padding="lg">
               <div className="mb-5">
                 <h2 className="text-sm font-bold text-slate-900/80 mb-1">Preferred mortgage broker</h2>
                 <p className="text-xs text-slate-900/50">
@@ -87,10 +88,10 @@ export default async function AgentPartnersPage() {
               <PreferredBrokerSettings
                 initialBroker={preferredBroker}
               />
-            </div>
+            </Card>
 
             {/* Recommended solicitors */}
-            <div className="glass-card p-6">
+            <Card padding="lg">
               <div className="mb-5">
                 <h2 className="text-sm font-bold text-slate-900/80 mb-1">Recommended solicitors</h2>
                 <p className="text-xs text-slate-900/50">
@@ -112,13 +113,13 @@ export default async function AgentPartnersPage() {
                 }))}
                 allFirms={allSolicitorFirms}
               />
-            </div>
+            </Card>
           </div>
         )}
 
         {/* Solicitor directory */}
         {firms.length === 0 ? (
-          <div className="glass-card" style={{ padding: "48px 32px", textAlign: "center" }}>
+          <Card padding="none" style={{ padding: "48px 32px", textAlign: "center" }}>
             <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               No solicitor firms yet
@@ -126,7 +127,7 @@ export default async function AgentPartnersPage() {
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
               Solicitors appear here once assigned to a transaction.
             </p>
-          </div>
+          </Card>
         ) : (
           firms.map((firm: SolicitorFirmWithStats) => <FirmCard key={firm.id} firm={firm} />)
         )}
@@ -148,7 +149,7 @@ function StatChip({ value, label }: { value: number; label: string }) {
 
 function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
   return (
-    <div className="glass-card" style={{ overflow: "hidden" }}>
+    <Card padding="none">
       {/* Firm header */}
       <div style={{
         padding: "14px 20px",
@@ -264,6 +265,6 @@ function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

@@ -23,7 +23,7 @@ A phased migration to bring Sales Progressor to the discipline standard of the C
 | 0 | Constitution & docs | 1 | Founder sign-off on 4 docs | ✓ **DONE** 2026-06-26 |
 | 1 | Inventory + regression harness | 2-3 | Census docs approved, harness running in CI | ✓ **DONE** 2026-06-26 (visual regression deferred to Phase 5) |
 | 2 | Canonical primitives + gallery | 4-9 | `/dev/gallery` walked + approved by founder on desktop + mobile | ✓ **DONE** 2026-06-29 (9 galleries, 18 canonical primitives) |
-| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surfaces 1-6 ✓ 2026-06-30; Surface 7 ✓ + Surface 8 closed as no-op 2026-07-01; Surface 9 next |
+| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surfaces 1-6 ✓ 2026-06-30; Surfaces 7 + 8 (closed no-op) + 9 ✓ 2026-07-01; Surface 10 (Command Centre) next |
 | 4 | Scripts cull (interleaved from Wk 8) | 8-26 | `scripts/` ≤ 15 files | not started |
 | 5 | Gates + enforcement | 27 | Pre-commit hooks + CI checks live (warn-only → block after 2 weeks) | not started |
 | 6 | Polish pass (ongoing) | 28+ | Healthy steady state | not started |
@@ -174,7 +174,7 @@ Order locked at Phase 0 sign-off: internal surfaces first (agent app for directo
 | 6 | Completions | `/agent/completions` | director, negotiator, SP, admin | Tied to revenue | 0.5 wk — **✓ DONE 2026-06-30** (1 PR H1: voice swap + 1 Card + 1 Button + Skeleton primitive sweep). 5th consumer of `agent-glass*` — Card primitive `variant="agent-glass"` extension now overwhelmingly justified. New CardLink-pending grandfather filed. |
 | 7 | Auto-emails | `/agent/automated-emails` | director, negotiator, SP, admin | Touched a lot in recent sessions. Route path was `/agent/auto-emails` in the original plan; actual is `/agent/automated-emails`. `/agent/transactions/[id]?tab=reminders` half is covered by Surface 1 Wave A4. | 0.5 wk — **✓ DONE 2026-07-01** (2-line PR I1: 2 voice swaps only). Remarkably clean surface — zero `agent-glass*` / `glass-card` / `agent-btn` / `agent-acc` / `agent-skeleton` / `createPortal`. New grandfather: `agent-kpi-card` pending 2nd consumer. |
 | 8 | Internal dashboard | `/dashboard` | — | The surface as scoped **does not exist**. `/dashboard/page.tsx` is a 5-line redirect to `/agent/hub`. Internal staff use `/agent/hub` (Surface 2) via `resolveInternalVisibility`. | 0 wk — **✓ CLOSED as no-op 2026-07-01**. See [CLOSURE.md](phase-3/08-internal-dashboard/CLOSURE.md). Adjacent AppShell parallel routes filed in POLISH_TBD as follow-up. |
-| 9 | Other agent admin | `/agent/account/*`, `/agent/admin`, `/agent/analytics`, `/agent/partners`, `/agent/my-files` | director, negotiator (mostly) | Lower urgency, bundled | 2 wks |
+| 9 | Other agent admin | `/agent/admin`, `/agent/analytics`, `/agent/partners` (2 phantom routes dropped: `/agent/account/*` and `/agent/my-files` never existed) | director, negotiator + founder | Lower urgency, bundled | 2 wks — **✓ DONE 2026-07-01** (1 PR J1: 8 Card swaps + 1 voice swap across 3 real files). 6th consumer of `agent-glass*`. |
 | 10 | Command Centre | `/command/*` | superadmin only | Founder-only. Low blast radius. Distinct visual system | 1 wk |
 | 11 | Portal — buyer/seller | `/portal/[token]/*` | Customer (buyers, sellers) | **Last** per "internal first" decision. Highest-stakes (customer-facing, no second chance). Lock in the discipline internally before exposing to customers | 1 wk |
 
