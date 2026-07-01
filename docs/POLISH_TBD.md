@@ -202,6 +202,16 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 |---|---|---|---|---|
 | `agent-kpi-card` utility class used exclusively on Surface 7 | Extract to canonical `<KpiCard>` primitive when a second consumer appears | grandfather | 2026-07-01 | Interactive stat card with hover / active / chevron-rotation-on-hover treatment (CSS at `agent-system.css:466-505`). Distinct from `<Card>` primitive (Card is a static surface; KpiCard is a link/button-shaped card with directional affordance). Currently only Surface 7 uses this pattern. Per Law 14, wait for a second consumer before extraction. Re-evaluated 2026-09-26 |
 
+### Phase 3 Surface 8 follow-up (AppShell parallel routes)
+
+Surface 8 was closed as a no-op in [CLOSURE.md](phase-3/08-internal-dashboard/CLOSURE.md) — `/dashboard` is a 5-line redirect to `/agent/hub`. But this surfaced adjacent work that needs its own audit:
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| `app/transactions/[id]/page.tsx` (454 lines) | Parallel AppShell-based file-detail. 1 `glass-card` at L307 + AppShell chrome. Uses the same delegate components as Surface 1 (already migrated). Audit whether it's still an active route or slated for removal | tbd | 2026-07-01 | AppShell.tsx sidebar links to `/transactions/new` so at least the new-sale route is still wired. If `/transactions/[id]` still gets traffic for admin/SP users, needs its own small remediation. If it's dead code, delete. Re-evaluated 2026-09-26 |
+| `app/transactions/new/page.tsx` | Parallel AppShell new-sale form | tbd | 2026-07-01 | Same audit question. Sidebar link means it's referenced but not clear if it's still preferred over `/agent/transactions/new-v2` |
+| `app/admin/*` (audit, migrate, main) | Founder-only admin surfaces using AppShell. Separate scope from Phase 3 surface remediation | defer-Q3-2026 | 2026-07-01 | These are internal-only tools that were out of the original Phase 3 queue. Bundle into a Phase 3.5 admin-surface pass or leave until the founder decides they need remediation |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |
