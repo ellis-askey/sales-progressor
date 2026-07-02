@@ -516,6 +516,159 @@ export async function getHubMomentum(vis: AgentVisibility) {
   return { thisMonth, lastMonth, percent };
 }
 
+// ── Wins card (hub polish PR 1) ──────────────────────────────────────────────
+//
+// Powers a "wins this month" card that always shows something, cascading
+// through 4 tiers so brand-new accounts still see a positive signal:
+//
+//   Tier 1 — has exchanges this month → celebrate exchanges + completions +
+//            fastest-exchange address
+//   Tier 2 — has completions but no exchanges → completions + steps-confirmed
+//   Tier 3 — no closings but activity → steps-confirmed-this-week + new files
+//   Tier 4 — brand new account (no activity) → motivational fallback (client
+//            renders the CTA; server just reports zeros)
+//
+// All counts are cross-tx and respect visibility scope (agent / progressor /
+// admin). Uses the same VM19/PM26 (exchange) + VM20/PM27 (completion)
+// milestone codes as getHubMomentum.
+
+export type HubWins = {
+  exchangesThisMonth: number;
+  exchangesLastMonth: number;
+  completionsThisMonth: number;
+  completionsLastMonth: number;
+  fastestExchangeDays: number | null;
+  fastestExchangeAddress: string | null;
+  stepsConfirmedThisWeek: number;
+  newFilesThisMonth: number;
+};
+
+export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // "This week" = last 7 days rolling, not calendar week (matches the
+  // "coming up" strip convention).
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+
+  const txWhere = buildTxWhere(vis);
+
+  const [exchangeDefs, completionDefs] = await Promise.all([
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM19", "PM26"] } },
+      select: { id: true },
+    }),
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true },
+    }),
+  ]);
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+  const completionDefIds = completionDefs.map((d) => d.id);
+
+  const [
+    exchangesThisMonth,
+    exchangesLastMonth,
+    completionsThisMonth,
+    completionsLastMonth,
+    fastestExchangeRows,
+    stepsConfirmedThisWeek,
+    newFilesThisMonth,
+  ] = await Promise.all([
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        completedAt: { gte: startOfThisMonth },
+        state: "complete",
+      },
+    }),
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+        state: "complete",
+      },
+    }),
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: completionDefIds },
+        completedAt: { gte: startOfThisMonth },
+        state: "complete",
+      },
+    }),
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: completionDefIds },
+        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+        state: "complete",
+      },
+    }),
+    // Fetch this month's exchange completions with their tx.createdAt so we can
+    // compute days-to-exchange in JS and pick the fastest.
+    prisma.milestoneCompletion.findMany({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        completedAt: { gte: startOfThisMonth },
+        state: "complete",
+      },
+      select: {
+        completedAt: true,
+        transaction: {
+          select: { createdAt: true, propertyAddress: true },
+        },
+      },
+    }),
+    // Any milestone confirmed in the last 7 days — this is the "steps
+    // confirmed" number used by tier 3 / secondary metric.
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        completedAt: { gte: sevenDaysAgo },
+        state: "complete",
+      },
+    }),
+    // Files created this month — used by tier 3 secondary metric.
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere,
+        createdAt: { gte: startOfThisMonth },
+      },
+    }),
+  ]);
+
+  // Compute fastest-exchange days + address across this month's rows.
+  let fastestExchangeDays: number | null = null;
+  let fastestExchangeAddress: string | null = null;
+  for (const row of fastestExchangeRows) {
+    if (!row.completedAt || !row.transaction?.createdAt) continue;
+    const days = Math.round(
+      (row.completedAt.getTime() - row.transaction.createdAt.getTime()) /
+        86400000,
+    );
+    if (days < 0) continue; // sanity
+    if (fastestExchangeDays === null || days < fastestExchangeDays) {
+      fastestExchangeDays = days;
+      fastestExchangeAddress = row.transaction.propertyAddress;
+    }
+  }
+
+  return {
+    exchangesThisMonth,
+    exchangesLastMonth,
+    completionsThisMonth,
+    completionsLastMonth,
+    fastestExchangeDays,
+    fastestExchangeAddress,
+    stepsConfirmedThisWeek,
+    newFilesThisMonth,
+  };
+}
+
 // ── Weekly exchange forecast (5 weeks) ───────────────────────────────────────
 
 export type WeekBucket = { label: string; count: number; isCurrentWeek: boolean };

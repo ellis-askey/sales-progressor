@@ -11,7 +11,7 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
-  getHubPipelineStats, getHubAttentionItems, getHubMomentum,
+  getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
 } from "@/lib/services/hub";
@@ -19,8 +19,8 @@ import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import {
   ExchangeForecastChart, ServiceSplitDonut,
-  MomentumRing,
 } from "@/components/hub/HubCharts";
+import { WinsCard } from "@/components/hub/WinsCard";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import { NewBuyersToAcknowledgeView } from "@/components/hub/NewBuyersToAcknowledgeView";
@@ -95,11 +95,11 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending] =
+  const [pipelineStats, attentionItems, wins, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
-      getHubMomentum(vis),
+      getHubWins(vis),
       getHubWeeklyForecast(vis),
       getHubServiceSplit(vis),
       getHubRecentActivity(vis),
@@ -191,9 +191,11 @@ export default async function HubPreviewPage() {
               </div>
             </div>
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Momentum</p>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 8, paddingBottom: 8 }}>
-                <div className="agent-skeleton" style={{ width: 80, height: 80, borderRadius: "50%" }} />
+              <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Wins this month</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+                <div className="agent-skeleton" style={{ width: 60, height: 30, borderRadius: 6 }} />
+                <div className="agent-skeleton" style={{ width: 120, height: 12, borderRadius: 4 }} />
+                <div className="agent-skeleton" style={{ width: 90, height: 10, borderRadius: 4 }} />
               </div>
             </div>
           </div>
@@ -359,7 +361,7 @@ export default async function HubPreviewPage() {
           <ChainSetupPendingView initialFiles={chainSetupPending} />
         </AnimatedSection>
 
-        {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}
+        {/* ── 5. Pipeline health + Wins this month ──────────────────────────── */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
 
           {/* Pipeline health card */}
@@ -573,49 +575,10 @@ export default async function HubPreviewPage() {
             </div>
           </div>
 
-          {/* Momentum card */}
-          <div className="agent-glass" style={{
-            padding: "20px 24px", display: "flex", flexDirection: "column",
-          }}>
-            <div className="agent-card-hdr-internal">
-              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Momentum</p>
-              <p className="agent-card-subtitle">Exchanges this month vs last</p>
-            </div>
-            <div style={{
-              flex: 1, display: "flex", alignItems: "center",
-              justifyContent: "center", paddingBottom: 8,
-            }}>
-              <MomentumRing percent={momentum.percent} />
-            </div>
-            {momentum.percent !== null && (
-              <div style={{
-                borderTop: "0.5px solid var(--agent-border-subtle)",
-                paddingTop: 12, marginTop: 4,
-                display: "flex", flexDirection: "column", gap: 5,
-              }}>
-                {[
-                  { label: "This month", count: momentum.thisMonth },
-                  { label: "Last month", count: momentum.lastMonth },
-                ].map(({ label, count }) => (
-                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                      {count} {count === 1 ? "exchange" : "exchanges"}
-                    </span>
-                  </div>
-                ))}
-                <p style={{
-                  margin: "4px 0 0", fontSize: 11, fontWeight: 500,
-                  color: momentum.percent >= 100 ? "var(--agent-success)" : "var(--agent-warning)",
-                  textAlign: "right",
-                }}>
-                  {momentum.percent >= 100
-                    ? momentum.percent === 100 ? "On pace with last month" : "Ahead of last month"
-                    : "Below last month"}
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Wins card — replaces the old Momentum card. Cascade tiers
+              inside pick what to celebrate (exchanges → completions →
+              steps confirmed → brand-new fallback). */}
+          <WinsCard wins={wins} />
         </div>
 
         {/* ── 4. Exchange forecast + Service split ───────────────────────────────── */}
