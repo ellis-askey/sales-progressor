@@ -684,23 +684,25 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
 
 // ── Pipeline at a glance — stage buckets (hub polish PR 2) ────────────────────
 //
-// Groups active files into 5 stages by "furthest milestone reached" for a
-// horizontal-flow visualization on the hub. Definitions are heuristic on
-// purpose — they're for a visual signal, not accounting:
+// Groups active files into 5 stages using the milestone engine's actual
+// gate codes — NOT raw completion counts (which the initial cut used
+// and got badly wrong, sending mid-legals files into "Ready"):
 //
-//   new         — active files with fewer than 5 milestone completions
-//                  (freshly onboarded, no meaningful legal traction yet)
-//   legals      — active files with 5..14 completions (solicitors + searches
-//                  + contracts in flight)
-//   ready       — active files with 15+ completions AND no exchange marker
-//                  (VM19/PM26) yet (both sides essentially ready)
-//   exchanging  — active files with VM19 OR PM26 completed AND not yet fully
-//                  completed (VM20/PM27 not both done)
-//   completed   — files with status=completed AND completedAt in the current
-//                  calendar year (visual "wins" bucket)
+//   new         — active, fewer than 5 completions on the current round
+//                  (fresh onboarding, no legal traction yet)
+//   legals      — active, 5+ completions but either VM18 OR PM25 (both
+//                  "ready to exchange" gates) NOT yet done
+//   ready       — active, VM18 AND PM25 both done, VM19/PM26 NOT both done
+//                  (actual "ready to exchange" per the milestone engine)
+//   exchanging  — active, VM19 or PM26 completed, VM20+PM27 NOT both done
+//                  (exchanged, awaiting completion)
+//   completed   — status=completed AND completionDate in the current year
 //
-// A single tx may only appear in one bucket; the buckets cascade from most-
-// advanced downward (completed > exchanging > ready > legals > new).
+// A single tx only appears in one bucket; cascade is most-advanced downward
+// (completed > exchanging > ready > legals > new).
+//
+// All milestoneCompletion filters carry roundScopedOR(activeRoundIds) so a
+// relisted file doesn't classify on its archived round's completions.
 
 export type HubPipelineStages = {
   new: number;
@@ -723,7 +725,16 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
   // pattern as getHubMomentum + getHubWins.
   const activeRoundIds = await loadActiveRoundIds(txWhere);
 
-  const [exchangeDefs, completionDefs] = await Promise.all([
+  // Look up the specific gate codes we need:
+  //   VM18 = vendor "ready to exchange" gate
+  //   PM25 = purchaser "ready to exchange" gate
+  //   VM19 / PM26 = exchange confirmation
+  //   VM20 / PM27 = completion confirmation
+  const [readyDefs, exchangeDefs, completionDefs] = await Promise.all([
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM18", "PM25"] } },
+      select: { id: true, code: true },
+    }),
     prisma.milestoneDefinition.findMany({
       where: { code: { in: ["VM19", "PM26"] } },
       select: { id: true },
@@ -733,13 +744,20 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       select: { id: true },
     }),
   ]);
+  const vm18Id = readyDefs.find((d) => d.code === "VM18")?.id;
+  const pm25Id = readyDefs.find((d) => d.code === "PM25")?.id;
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
   const completionDefIds = completionDefs.map((d) => d.id);
 
-  // Bucket most-advanced first, then split the active-non-exchanging pool
-  // into new / legals / ready by per-tx completion count.
-  const [completedYtd, exchanging, activeNonExchanging] = await Promise.all([
-    // completed = tx.status=completed (year to date)
+  if (!vm18Id || !pm25Id || exchangeDefIds.length < 2 || completionDefIds.length < 2) {
+    // Milestone engine hasn't been seeded — return zeros rather than crash.
+    return { new: 0, legals: 0, ready: 0, exchanging: 0, completed: 0 };
+  }
+
+  // Bucket most-advanced first, then split the remaining active pool.
+  const [completedYtd, exchanging, activePool] = await Promise.all([
+    // completed = tx.status=completed (year to date). Uses tx-level flags
+    // only, no MC filter, so no round scope needed here.
     prisma.propertyTransaction.count({
       where: {
         ...txWhere,
@@ -747,10 +765,10 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         completionDate: { gte: startOfYear },
       },
     }),
-    // exchanging = active with any exchange milestone done AND not yet fully
-    // completed (VM20 + PM27 not both done). All three MC nested filters
-    // carry the roundScopedOR so an ARCHIVED round's VM19/PM26/VM20/PM27
-    // can't misclassify a relisted file.
+    // exchanging = active with VM19 or PM26 completed AND not yet fully
+    // completed (VM20 + PM27 not both done). All MC filters scope to the
+    // current round via roundScopedOR — so a relisted file with an archived
+    // VM19 on the previous round no longer counts as "exchanging".
     prisma.propertyTransaction.count({
       where: {
         ...txWhere,
@@ -786,11 +804,10 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         },
       },
     }),
-    // Per-tx completion counts for active-and-not-yet-exchanging files.
-    // The NOT + _count filters BOTH need roundScopedOR: the NOT so we
-    // exclude files whose CURRENT round has exchanged (not files whose
-    // ARCHIVED round did), and the _count so a relisted file doesn't
-    // over-count archived completions when we bucket by count.
+    // Per-tx VM18/PM25/exchange-marker flags + total completion count for
+    // every active file that hasn't yet exchanged. We bucket in JS so we
+    // can key off the right gates rather than a raw count. One query, four
+    // computed booleans per row.
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
@@ -807,6 +824,14 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       },
       select: {
         id: true,
+        milestoneCompletions: {
+          where: {
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+            milestoneDefinitionId: { in: [vm18Id, pm25Id] },
+          },
+          select: { milestoneDefinitionId: true },
+        },
         _count: {
           select: {
             milestoneCompletions: {
@@ -821,13 +846,23 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
     }),
   ]);
 
-  // Split the active-not-exchanging pool into New / Legals / Ready by count.
+  // Bucket the active-not-yet-exchanging pool:
+  //   ready = VM18 AND PM25 both complete
+  //   new   = fewer than 5 completions on the current round
+  //   legals = everything else (5+ completions, but at least one ready-
+  //            gate not yet done)
   let newCount = 0, legalsCount = 0, readyCount = 0;
-  for (const tx of activeNonExchanging) {
-    const c = tx._count.milestoneCompletions;
-    if (c < 5) newCount++;
-    else if (c < 15) legalsCount++;
-    else readyCount++;
+  for (const tx of activePool) {
+    const completeIds = new Set(tx.milestoneCompletions.map((m) => m.milestoneDefinitionId));
+    const vm18Done = completeIds.has(vm18Id);
+    const pm25Done = completeIds.has(pm25Id);
+    if (vm18Done && pm25Done) {
+      readyCount++;
+    } else if (tx._count.milestoneCompletions < 5) {
+      newCount++;
+    } else {
+      legalsCount++;
+    }
   }
 
   return {
