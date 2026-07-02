@@ -1,17 +1,24 @@
+"use client";
+
 // Hub polish PR 2 — Pipeline at a glance visualization.
 //
 // Five connected stage circles: New → Legals → Ready → Exchanging → Completed.
-// Each shows the count for that bucket per getHubPipelineStages(vis).
+// Each shows the count for that bucket per getHubPipelineStages(vis), and on
+// hover / focus / tap reveals a glass bubble with per-stage stats (medians,
+// value locked, overdue counts, SLA hit rate). Data is already scoped to the
+// viewer's visibility upstream, so nothing role-specific in this component.
 //
 // Card lives in the "attention side" column on desktop; collapses to a
 // horizontal-scroll pill strip on mobile via the built-in overflow-x rule
 // on the outer container.
 
+import { useEffect, useRef, useState } from "react";
 import { HouseSimple, FileText, Handshake, ArrowsClockwise, Key } from "@phosphor-icons/react/dist/ssr";
 import type { HubPipelineStages } from "@/lib/services/hub";
+import { PipelineStageHover, type StageKey } from "./PipelineStageHover";
 
 type Stage = {
-  key: keyof HubPipelineStages;
+  key: StageKey;
   label: string;
   Icon: typeof HouseSimple;
   iconBg: string;
@@ -28,8 +35,34 @@ const STAGES: Stage[] = [
 ];
 
 export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
-  const totalActive = stages.new + stages.legals + stages.ready + stages.exchanging;
-  const anyProgress = totalActive > 0 || stages.completed > 0;
+  const totalActive = stages.new.count + stages.legals.count + stages.ready.count + stages.exchanging.count;
+  const anyProgress = totalActive > 0 || stages.completed.count > 0;
+
+  // Which stage's bubble is currently open. On desktop, mouseover sets it,
+  // mouseout clears. On mobile / keyboard, tap or focus sets it and Escape
+  // / outside-tap clears.
+  const [openKey, setOpenKey] = useState<StageKey | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openKey === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenKey(null);
+    };
+    const onOutside = (e: Event) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpenKey(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onOutside);
+    window.addEventListener("touchstart", onOutside);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onOutside);
+      window.removeEventListener("touchstart", onOutside);
+    };
+  }, [openKey]);
 
   return (
     <div className="agent-glass" style={{ padding: "20px 24px" }}>
@@ -45,22 +78,35 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
           Add your first sale and it will land in the <strong style={{ color: "var(--agent-text-primary)" }}>New</strong> column here.
         </p>
       ) : (
-        <div style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 4,
-          overflowX: "auto",
-          paddingBottom: 4,
-        }}>
+        <div
+          ref={containerRef}
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 4,
+            overflowX: "auto",
+            overflowY: "visible",
+            paddingBottom: 4,
+          }}
+        >
           {STAGES.map((stage, i) => (
-            <div key={stage.key} style={{ display: "flex", alignItems: "flex-start", gap: 4, flex: 1, minWidth: 0 }}>
+            <div
+              key={stage.key}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 4,
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
               <StageNode
-                Icon={stage.Icon}
-                label={stage.label}
-                count={stages[stage.key]}
-                iconBg={stage.iconBg}
-                iconColor={stage.iconColor}
-                ringColor={stage.ringColor}
+                stage={stage}
+                stages={stages}
+                open={openKey === stage.key}
+                onOpen={() => setOpenKey(stage.key)}
+                onClose={() => setOpenKey(null)}
+                onToggle={() => setOpenKey(openKey === stage.key ? null : stage.key)}
               />
               {i < STAGES.length - 1 && <StageConnector />}
             </div>
@@ -72,34 +118,60 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
 }
 
 function StageNode({
-  Icon, label, count, iconBg, iconColor, ringColor,
+  stage, stages, open, onOpen, onClose, onToggle,
 }: {
-  Icon: typeof HouseSimple;
-  label: string;
-  count: number;
-  iconBg: string;
-  iconColor: string;
-  ringColor: string;
+  stage: Stage;
+  stages: HubPipelineStages;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onToggle: () => void;
 }) {
+  const stats = stages[stage.key];
+  const count = stats.count;
   const dim = count === 0;
+  const Icon = stage.Icon;
+
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 8,
-      flex: "0 0 auto",
-      minWidth: 78,
-      opacity: dim ? 0.6 : 1,
-      transition: "opacity 200ms ease",
-    }}>
+    <div
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      aria-label={`${stage.label}: ${count}`}
+      onMouseEnter={onOpen}
+      onMouseLeave={onClose}
+      onFocus={onOpen}
+      onBlur={onClose}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        flex: "0 0 auto",
+        minWidth: 78,
+        opacity: dim ? 0.6 : 1,
+        transition: "opacity 200ms ease",
+        cursor: "pointer",
+        outline: "none",
+      }}
+    >
       <div style={{
         width: 56, height: 56, borderRadius: "50%",
-        background: iconBg,
-        border: `1.5px solid ${ringColor}`,
+        background: stage.iconBg,
+        border: `1.5px solid ${stage.ringColor}`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: iconColor,
+        color: stage.iconColor,
         boxShadow: dim ? "none" : "0 1px 3px rgba(15,23,42,0.06)",
+        transition: "transform 160ms ease, box-shadow 160ms ease",
+        transform: open ? "translateY(-2px)" : "none",
       }}>
         <Icon size={22} weight="regular" />
       </div>
@@ -121,10 +193,19 @@ function StageNode({
         fontWeight: 500,
         textAlign: "center",
       }}>
-        {label}
+        {stage.label}
       </p>
+      {open && renderHover(stage.key, stages)}
     </div>
   );
+}
+
+function renderHover(key: StageKey, stages: HubPipelineStages) {
+  if (key === "new")        return <PipelineStageHover stage="new"        stats={stages.new} />;
+  if (key === "legals")     return <PipelineStageHover stage="legals"     stats={stages.legals} />;
+  if (key === "ready")      return <PipelineStageHover stage="ready"      stats={stages.ready} />;
+  if (key === "exchanging") return <PipelineStageHover stage="exchanging" stats={stages.exchanging} />;
+  return                          <PipelineStageHover stage="completed"  stats={stages.completed} />;
 }
 
 function StageConnector() {

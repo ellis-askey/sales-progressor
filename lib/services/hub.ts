@@ -704,17 +704,87 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
 // All milestoneCompletion filters carry roundScopedOR(activeRoundIds) so a
 // relisted file doesn't classify on its archived round's completions.
 
+// Per-stage stats surface into the hover popovers on PipelineAtAGlance.
+// Every metric respects the same visibility scope as the bucket counts —
+// director/negotiator see agency-scoped, sales_progressor sees assigned,
+// admin sees everything. All null/optional fields mean "no data yet" for
+// the empty-state renderer.
+export type StageStatsNew = {
+  count: number;
+  oldestDays: number | null;
+  newThisWeek: number;
+  quietFiles: number;
+};
+
+export type StageStatsLegals = {
+  count: number;
+  vendorBlocking: number;
+  buyerBlocking: number;
+  bothBlocking: number;
+  medianDaysInLegals: number | null;
+};
+
+export type StageStatsReady = {
+  count: number;
+  overdueToExchange: number;
+  medianDaysToExchange: number | null;
+  totalValueLocked: number | null;
+};
+
+export type StageStatsExchanging = {
+  count: number;
+  completingThisWeek: number;
+  medianDaysSinceExchange: number | null;
+  totalValueClosing: number | null;
+};
+
+export type StageStatsCompleted = {
+  count: number;
+  totalValueClosed: number | null;
+  medianDaysToComplete: number | null;
+  slaHitRate: number | null;
+};
+
 export type HubPipelineStages = {
-  new: number;
-  legals: number;
-  ready: number;
-  exchanging: number;
-  completed: number;
+  new: StageStatsNew;
+  legals: StageStatsLegals;
+  ready: StageStatsReady;
+  exchanging: StageStatsExchanging;
+  completed: StageStatsCompleted;
+};
+
+function daysBetween(a: Date, b: Date): number {
+  return Math.floor((a.getTime() - b.getTime()) / 86400000);
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+    : sorted[mid];
+}
+
+function sumPence(values: Array<number | null>): number | null {
+  const nonNull = values.filter((v): v is number => v !== null);
+  if (nonNull.length === 0) return null;
+  return nonNull.reduce((a, b) => a + b, 0);
+}
+
+const EMPTY_STAGES: HubPipelineStages = {
+  new: { count: 0, oldestDays: null, newThisWeek: 0, quietFiles: 0 },
+  legals: { count: 0, vendorBlocking: 0, buyerBlocking: 0, bothBlocking: 0, medianDaysInLegals: null },
+  ready: { count: 0, overdueToExchange: 0, medianDaysToExchange: null, totalValueLocked: null },
+  exchanging: { count: 0, completingThisWeek: 0, medianDaysSinceExchange: null, totalValueClosing: null },
+  completed: { count: 0, totalValueClosed: null, medianDaysToComplete: null, slaHitRate: null },
 };
 
 export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPipelineStages> {
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const in7Days = new Date(now.getTime() + 7 * 86400000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
   const txWhere = buildTxWhere(vis);
   // PHASE 1 4d (a)-CLASS — pre-load active buyer round ids so the cross-tx
   // milestoneCompletions filters below scope to (file-level vendor rows)
@@ -750,26 +820,36 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
   const completionDefIds = completionDefs.map((d) => d.id);
 
   if (!vm18Id || !pm25Id || exchangeDefIds.length < 2 || completionDefIds.length < 2) {
-    // Milestone engine hasn't been seeded — return zeros rather than crash.
-    return { new: 0, legals: 0, ready: 0, exchanging: 0, completed: 0 };
+    // Milestone engine hasn't been seeded — return empty stats rather than crash.
+    return EMPTY_STAGES;
   }
 
   // Bucket most-advanced first, then split the remaining active pool.
-  const [completedYtd, exchanging, activePool] = await Promise.all([
-    // completed = tx.status=completed (year to date). Uses tx-level flags
-    // only, no MC filter, so no round scope needed here.
-    prisma.propertyTransaction.count({
+  const [completedRows, exchangingRows, activePool] = await Promise.all([
+    // completed (year to date). Fetch createdAt/completionDate/priceAtExchange
+    // for median-days-to-complete + total-value-closed + SLA hit rate.
+    prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "completed",
         completionDate: { gte: startOfYear },
       },
+      select: {
+        id: true,
+        createdAt: true,
+        completionDate: true,
+        priceAtExchange: true,
+        purchasePrice: true,
+        twelveWeekTarget: true,
+      },
     }),
     // exchanging = active with VM19 or PM26 completed AND not yet fully
-    // completed (VM20 + PM27 not both done). All MC filters scope to the
-    // current round via roundScopedOR — so a relisted file with an archived
-    // VM19 on the previous round no longer counts as "exchanging".
-    prisma.propertyTransaction.count({
+    // completed. Widened from count to findMany so we can attach:
+    //   - completingThisWeek     (completionDate within next 7 days)
+    //   - medianDaysSinceExchange (earliest VM19/PM26 completedAt)
+    //   - totalValueClosing      (sum purchasePrice)
+    // All MC filters scope to the current round via roundScopedOR.
+    prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
@@ -803,11 +883,26 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
           ],
         },
       },
+      select: {
+        id: true,
+        completionDate: true,
+        purchasePrice: true,
+        milestoneCompletions: {
+          where: {
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+            milestoneDefinitionId: { in: exchangeDefIds },
+          },
+          select: { completedAt: true },
+          orderBy: { completedAt: "asc" },
+          take: 1,
+        },
+      },
     }),
-    // Per-tx VM18/PM25/exchange-marker flags + total completion count for
-    // every active file that hasn't yet exchanged. We bucket in JS so we
-    // can key off the right gates rather than a raw count. One query, four
-    // computed booleans per row.
+    // Active-not-yet-exchanging pool. Widened select carries every field
+    // needed for New / Legals / Ready popovers. milestoneCompletions is
+    // now ALL completed rows (was VM18/PM25 only) so we can derive both
+    // gate booleans AND first-completion-at from the same fetch.
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
@@ -824,53 +919,126 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       },
       select: {
         id: true,
+        createdAt: true,
+        lastActivityAt: true,
+        expectedExchangeDate: true,
+        purchasePrice: true,
         milestoneCompletions: {
           where: {
             state: "complete",
             OR: roundScopedOR(activeRoundIds),
-            milestoneDefinitionId: { in: [vm18Id, pm25Id] },
           },
-          select: { milestoneDefinitionId: true },
-        },
-        _count: {
-          select: {
-            milestoneCompletions: {
-              where: {
-                state: "complete",
-                OR: roundScopedOR(activeRoundIds),
-              },
-            },
-          },
+          select: { milestoneDefinitionId: true, completedAt: true },
+          orderBy: { completedAt: "asc" },
         },
       },
     }),
   ]);
 
-  // Bucket the active-not-yet-exchanging pool:
-  //   ready = VM18 AND PM25 both complete
-  //   new   = fewer than 5 completions on the current round
-  //   legals = everything else (5+ completions, but at least one ready-
-  //            gate not yet done)
-  let newCount = 0, legalsCount = 0, readyCount = 0;
+  // Bucket the active-not-yet-exchanging pool + accumulate per-stage stats.
+  const newFiles: typeof activePool = [];
+  const legalsFiles: typeof activePool = [];
+  const readyFiles: typeof activePool = [];
+
+  let vendorBlocking = 0, buyerBlocking = 0, bothBlocking = 0;
+
   for (const tx of activePool) {
-    const completeIds = new Set(tx.milestoneCompletions.map((m) => m.milestoneDefinitionId));
+    const completions = tx.milestoneCompletions;
+    const completeIds = new Set(completions.map((m) => m.milestoneDefinitionId));
     const vm18Done = completeIds.has(vm18Id);
     const pm25Done = completeIds.has(pm25Id);
     if (vm18Done && pm25Done) {
-      readyCount++;
-    } else if (tx._count.milestoneCompletions < 5) {
-      newCount++;
+      readyFiles.push(tx);
+    } else if (completions.length < 5) {
+      newFiles.push(tx);
     } else {
-      legalsCount++;
+      legalsFiles.push(tx);
+      // In legals: PM25 missing = buyer-side, VM18 missing = vendor-side.
+      // If both missing, count as "both" so the three add up to legals.count.
+      if (!vm18Done && !pm25Done) bothBlocking++;
+      else if (!vm18Done) vendorBlocking++;
+      else buyerBlocking++;
     }
   }
 
+  // NEW stats
+  const newOldest = newFiles.length > 0
+    ? Math.max(...newFiles.map((t) => daysBetween(now, t.createdAt)))
+    : null;
+  const newThisWeek = newFiles.filter((t) => t.createdAt >= sevenDaysAgo).length;
+  const quietFiles = newFiles.filter((t) => !t.lastActivityAt || t.lastActivityAt < sevenDaysAgo).length;
+
+  // LEGALS stats — median days since first completion (proxy for "days in legals")
+  const legalsDurations = legalsFiles
+    .map((t) => t.milestoneCompletions[0]?.completedAt)
+    .filter((d): d is Date => d != null)
+    .map((d) => daysBetween(now, d));
+  const medianDaysInLegals = median(legalsDurations);
+
+  // READY stats
+  const readyOverdue = readyFiles.filter((t) => t.expectedExchangeDate && t.expectedExchangeDate < now).length;
+  const readyDaysToExchange = readyFiles
+    .map((t) => t.expectedExchangeDate)
+    .filter((d): d is Date => d != null)
+    .map((d) => daysBetween(d, now));
+  const medianDaysToExchange = median(readyDaysToExchange);
+  const totalValueLocked = sumPence(readyFiles.map((t) => t.purchasePrice));
+
+  // EXCHANGING stats
+  const completingThisWeek = exchangingRows.filter(
+    (t) => t.completionDate && t.completionDate >= now && t.completionDate <= in7Days,
+  ).length;
+  const exchangeMarkerDates = exchangingRows
+    .map((t) => t.milestoneCompletions[0]?.completedAt)
+    .filter((d): d is Date => d != null)
+    .map((d) => daysBetween(now, d));
+  const medianDaysSinceExchange = median(exchangeMarkerDates);
+  const totalValueClosing = sumPence(exchangingRows.map((t) => t.purchasePrice));
+
+  // COMPLETED stats — prefer priceAtExchange (billing snapshot) over
+  // live purchasePrice, but fall back if the snapshot is missing.
+  const completedDurations = completedRows
+    .filter((t) => t.completionDate != null)
+    .map((t) => daysBetween(t.completionDate!, t.createdAt));
+  const medianDaysToComplete = median(completedDurations);
+  const totalValueClosed = sumPence(completedRows.map((t) => t.priceAtExchange ?? t.purchasePrice));
+  // SLA hit rate = share of completions where completionDate <= twelveWeekTarget.
+  const slaEligible = completedRows.filter((t) => t.twelveWeekTarget != null && t.completionDate != null);
+  const slaHits = slaEligible.filter((t) => t.completionDate! <= t.twelveWeekTarget!).length;
+  const slaHitRate = slaEligible.length > 0 ? slaHits / slaEligible.length : null;
+
   return {
-    new: newCount,
-    legals: legalsCount,
-    ready: readyCount,
-    exchanging,
-    completed: completedYtd,
+    new: {
+      count: newFiles.length,
+      oldestDays: newOldest,
+      newThisWeek,
+      quietFiles,
+    },
+    legals: {
+      count: legalsFiles.length,
+      vendorBlocking,
+      buyerBlocking,
+      bothBlocking,
+      medianDaysInLegals,
+    },
+    ready: {
+      count: readyFiles.length,
+      overdueToExchange: readyOverdue,
+      medianDaysToExchange,
+      totalValueLocked,
+    },
+    exchanging: {
+      count: exchangingRows.length,
+      completingThisWeek,
+      medianDaysSinceExchange,
+      totalValueClosing,
+    },
+    completed: {
+      count: completedRows.length,
+      totalValueClosed,
+      medianDaysToComplete,
+      slaHitRate,
+    },
   };
 }
 
