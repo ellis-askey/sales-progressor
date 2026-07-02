@@ -669,6 +669,152 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
   };
 }
 
+// ── Pipeline at a glance — stage buckets (hub polish PR 2) ────────────────────
+//
+// Groups active files into 5 stages by "furthest milestone reached" for a
+// horizontal-flow visualization on the hub. Definitions are heuristic on
+// purpose — they're for a visual signal, not accounting:
+//
+//   new         — active files with fewer than 5 milestone completions
+//                  (freshly onboarded, no meaningful legal traction yet)
+//   legals      — active files with 5..14 completions (solicitors + searches
+//                  + contracts in flight)
+//   ready       — active files with 15+ completions AND no exchange marker
+//                  (VM19/PM26) yet (both sides essentially ready)
+//   exchanging  — active files with VM19 OR PM26 completed AND not yet fully
+//                  completed (VM20/PM27 not both done)
+//   completed   — files with status=completed AND completedAt in the current
+//                  calendar year (visual "wins" bucket)
+//
+// A single tx may only appear in one bucket; the buckets cascade from most-
+// advanced downward (completed > exchanging > ready > legals > new).
+
+export type HubPipelineStages = {
+  new: number;
+  legals: number;
+  ready: number;
+  exchanging: number;
+  completed: number;
+};
+
+export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPipelineStages> {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const txWhere = buildTxWhere(vis);
+
+  const [exchangeDefs, completionDefs] = await Promise.all([
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM19", "PM26"] } },
+      select: { id: true },
+    }),
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true },
+    }),
+  ]);
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+  const completionDefIds = completionDefs.map((d) => d.id);
+
+  // Bucket most-advanced first so we can subtract for cascade.
+  const [completedYtd, exchanging, ready, activeCompletionCounts] = await Promise.all([
+    // completed = tx.status=completed (year to date)
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere,
+        status: "completed",
+        completionDate: { gte: startOfYear },
+      },
+    }),
+    // exchanging = active with any exchange milestone done
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere,
+        status: "active",
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: exchangeDefIds },
+            state: "complete",
+          },
+        },
+        // and NOT already fully completed
+        NOT: {
+          AND: [
+            { milestoneCompletions: { some: { milestoneDefinitionId: completionDefIds[0], state: "complete" } } },
+            { milestoneCompletions: { some: { milestoneDefinitionId: completionDefIds[1], state: "complete" } } },
+          ],
+        },
+      },
+    }),
+    // ready = active with 15+ completions AND no exchange marker
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              milestoneDefinitionId: { in: exchangeDefIds },
+              state: "complete",
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            milestoneCompletions: { where: { state: "complete" } },
+          },
+        },
+      },
+    }),
+    // Grab per-tx completion counts for active non-exchanging tx so we can
+    // sort into New / Legals / Ready buckets. Two queries would be cleaner
+    // but this is a hub read, not a hot path.
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              milestoneDefinitionId: { in: exchangeDefIds },
+              state: "complete",
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            milestoneCompletions: { where: { state: "complete" } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  // Split the active-not-exchanging pool into New / Legals / Ready by count.
+  let newCount = 0, legalsCount = 0, readyCount = 0;
+  for (const tx of activeCompletionCounts) {
+    const c = tx._count.milestoneCompletions;
+    if (c < 5) newCount++;
+    else if (c < 15) legalsCount++;
+    else readyCount++;
+  }
+  // `ready` query is used just for its shape reuse (same select).
+  void ready;
+
+  return {
+    new: newCount,
+    legals: legalsCount,
+    ready: readyCount,
+    exchanging,
+    completed: completedYtd,
+  };
+}
+
 // ── Weekly exchange forecast (5 weeks) ───────────────────────────────────────
 
 export type WeekBucket = { label: string; count: number; isCurrentWeek: boolean };

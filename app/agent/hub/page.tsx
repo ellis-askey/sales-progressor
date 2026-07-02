@@ -14,6 +14,7 @@ import {
   getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
+  getHubPipelineStages,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -21,6 +22,7 @@ import {
   ExchangeForecastChart, ServiceSplitDonut,
 } from "@/components/hub/HubCharts";
 import { WinsCard } from "@/components/hub/WinsCard";
+import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import { NewBuyersToAcknowledgeView } from "@/components/hub/NewBuyersToAcknowledgeView";
@@ -95,7 +97,7 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, wins, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending] =
+  const [pipelineStats, attentionItems, wins, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending, pipelineStages] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -108,6 +110,7 @@ export default async function HubPreviewPage() {
       getExpiredHolds(vis),
       getHubRelistsToAcknowledge(vis),
       getHubChainSetupPending(vis),
+      getHubPipelineStages(vis),
     ]);
 
   // Derived values
@@ -360,6 +363,12 @@ export default async function HubPreviewPage() {
           <NewBuyersToAcknowledgeView initialRounds={relistsToAcknowledge} />
           <ChainSetupPendingView initialFiles={chainSetupPending} />
         </AnimatedSection>
+
+        {/* ── 4b. Pipeline at a glance — hub polish PR 2 ─────────────────────────
+          * Five connected stage circles (New → Legals → Ready → Exchanging →
+          * Completed) as a horizontal-flow visualization. Data from
+          * getHubPipelineStages(vis). */}
+        <PipelineAtAGlance stages={pipelineStages} />
 
         {/* ── 5. Pipeline health + Wins this month ──────────────────────────── */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
