@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { Clock, ArrowRight, HouseSimple } from "@phosphor-icons/react/dist/ssr";
 
 export type AttentionItem = {
   id: string;
@@ -87,6 +87,19 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
               }}
               className="agent-hover-row"
             >
+              {/* PR 3 iconography: stage-coloured house icon in place of the
+                  old text-only row. Icon colour keys to the urgency band so
+                  the file reads as "a place" not "a record" and inherits the
+                  same colour-code the border-left already carries. */}
+              <div style={{
+                width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                background: s.bg,
+                color: s.color,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: `0.5px solid ${s.border}`,
+              }}>
+                <HouseSimple size={16} weight="regular" />
+              </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{
                   margin: 0, fontSize: 12, fontWeight: 500,

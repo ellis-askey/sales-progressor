@@ -32,7 +32,7 @@ import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight, Warning, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, ArrowRight, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,6 +64,53 @@ function fmtCompact(pence: number): string {
   if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (p >= 1_000)     return `£${Math.round(p / 1_000)}k`;
   return `£${Math.round(p)}`;
+}
+
+// PR 3 iconography: pick the right icon + tint for the activity ribbon
+// based on the kind + description string. The RecentActivity type only
+// carries `kind: "comm" | "milestone"` so we pattern-match on the
+// server-set description ("Email sent...", "Call logged", etc.) rather
+// than change the service shape.
+function pickActivityGlyph(kind: "comm" | "milestone", description: string): {
+  Icon: typeof CheckCircle;
+  bg: string;
+  color: string;
+} {
+  if (kind === "milestone") {
+    return {
+      Icon: CheckCircle,
+      bg: "var(--agent-success-bg)",
+      color: "var(--agent-success)",
+    };
+  }
+  const d = description.toLowerCase();
+  if (d.includes("whatsapp")) {
+    return {
+      Icon: ChatCircleText,
+      bg: "rgba(37, 211, 102, 0.10)",
+      color: "#128c7e",
+    };
+  }
+  if (d.includes("call")) {
+    return {
+      Icon: Phone,
+      bg: "rgba(59, 130, 246, 0.10)",
+      color: "#1d4ed8",
+    };
+  }
+  if (d.includes("sms")) {
+    return {
+      Icon: ChatText,
+      bg: "rgba(139, 92, 246, 0.10)",
+      color: "#6d28d9",
+    };
+  }
+  // email / letter / update received / default comm
+  return {
+    Icon: Envelope,
+    bg: "var(--agent-coral-bg-tint)",
+    color: "var(--agent-coral-deep)",
+  };
 }
 
 function timeAgo(date: Date): string {
@@ -609,6 +656,31 @@ export default async function HubPreviewPage() {
               </p>
             ) : (
               <>
+                {/* PR 3 iconography: house icon caps above each forecast bar
+                    keyed to the count (filled for current week + any bar with
+                    exchanges, outlined otherwise). Mirrors the mock's
+                    "house on the roofline" motif. */}
+                <div style={{
+                  display: "flex", justifyContent: "space-around",
+                  marginBottom: 4,
+                }}>
+                  {weeklyForecast.map((w, i) => (
+                    <div key={i} style={{
+                      flex: 1, display: "flex", justifyContent: "center",
+                      color: w.isCurrentWeek
+                        ? "var(--agent-coral-deep)"
+                        : w.count > 0
+                          ? "var(--agent-coral)"
+                          : "var(--agent-text-muted)",
+                      opacity: w.count === 0 ? 0.4 : 1,
+                    }}>
+                      <HouseSimple
+                        size={16}
+                        weight={w.isCurrentWeek || w.count > 0 ? "fill" : "regular"}
+                      />
+                    </div>
+                  ))}
+                </div>
                 <ExchangeForecastChart data={weeklyForecast} />
                 <div style={{
                   display: "flex", justifyContent: "space-around",
@@ -764,13 +836,21 @@ export default async function HubPreviewPage() {
             style={{ padding: "12px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-              <div style={{
-                width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                background: "var(--agent-coral)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <Plus size={12} weight="bold" color="var(--agent-text-on-coral)" />
-              </div>
+              {(() => {
+                // PR 3 iconography: per-type icon on activity ribbon.
+                const { Icon, bg, color } = pickActivityGlyph(recentActivity.kind, recentActivity.description);
+                return (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                    background: bg,
+                    color,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: "0.5px solid rgba(15,23,42,0.06)",
+                  }}>
+                    <Icon size={14} weight="fill" />
+                  </div>
+                );
+              })()}
               <div style={{ minWidth: 0 }}>
                 <p style={{
                   margin: 0, fontSize: 12, fontWeight: 500,
