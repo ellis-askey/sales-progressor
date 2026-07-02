@@ -698,31 +698,9 @@ export default async function HubPreviewPage() {
               </p>
             ) : (
               <>
-                {/* PR 3 iconography: house icon caps above each forecast bar
-                    keyed to the count (filled for current week + any bar with
-                    exchanges, outlined otherwise). Mirrors the mock's
-                    "house on the roofline" motif. */}
-                <div style={{
-                  display: "flex", justifyContent: "space-around",
-                  marginBottom: 4,
-                }}>
-                  {weeklyForecast.map((w, i) => (
-                    <div key={i} style={{
-                      flex: 1, display: "flex", justifyContent: "center",
-                      color: w.isCurrentWeek
-                        ? "var(--agent-coral-deep)"
-                        : w.count > 0
-                          ? "var(--agent-coral)"
-                          : "var(--agent-text-muted)",
-                      opacity: w.count === 0 ? 0.4 : 1,
-                    }}>
-                      <HouseSimple
-                        size={16}
-                        weight={w.isCurrentWeek || w.count > 0 ? "fill" : "regular"}
-                      />
-                    </div>
-                  ))}
-                </div>
+                {/* House icons now ride on top of each bar via a LabelList
+                    inside ExchangeForecastChart, so they follow bar height
+                    rather than sitting in a fixed row. */}
                 <ExchangeForecastChart data={weeklyForecast} />
                 <div style={{
                   display: "flex", justifyContent: "space-around",

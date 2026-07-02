@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import {
   BarChart, Bar, Cell, Tooltip, ResponsiveContainer,
-  PieChart, Pie,
+  PieChart, Pie, LabelList,
 } from "recharts";
 import type { WeekBucket } from "@/lib/services/hub";
 
@@ -117,10 +117,78 @@ function ForecastTooltip({ active, payload }: TooltipProps) {
   );
 }
 
+// PR 3 iconography (revised after user note): house glyph rides ON TOP of
+// each bar rather than a static row above. recharts hands us (x, y, width,
+// value) per bar via LabelList.content, and (x, y) already point at the
+// top-left corner of the label slot for the bar — so we anchor the 16x16
+// house there and centre-align. Empty bars still get a house (dimmed +
+// outline) so the roofline shape reads across the whole 5-week strip.
+type LabelProps = {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  value?: number | string | Array<number | string> | null;
+  index?: number;
+};
+
+const toNum = (v: number | string | undefined): number =>
+  typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) || 0 : 0;
+
+function ForecastHouseLabel(entries: WeekBucket[]) {
+  const HouseLabel = (props: LabelProps) => {
+    const x = toNum(props.x);
+    const y = toNum(props.y);
+    const width = toNum(props.width);
+    const index = props.index ?? 0;
+    const entry = entries[index];
+    if (!entry) return null;
+    const filled = entry.isCurrentWeek || entry.count > 0;
+    const color = entry.isCurrentWeek
+      ? "var(--agent-coral-deep)"
+      : entry.count > 0
+        ? "var(--agent-coral)"
+        : "var(--agent-text-muted)";
+    const opacity = entry.count === 0 ? 0.4 : 1;
+    const size = 14;
+    // Bar top: y (recharts provides the label slot y aligned with bar top).
+    // Nudge up by size + 2px so the house sits above rather than clipping the
+    // bar top. Centre horizontally in the bar column.
+    const cx = x + width / 2;
+    const cy = y - 2;
+    return (
+      <g transform={`translate(${cx - size / 2}, ${cy - size})`} opacity={opacity} style={{ color }}>
+        {/* Phosphor HouseSimple path — kept inline so the label can be a
+            single SVG element in the recharts tree. Fill vs outline keys
+            off the current-week / has-count state. */}
+        {filled ? (
+          <path
+            d="M12 20V13.5H10.5V20H4.5V10.7L11.4 4.5L18.5 10.7V20H12Z M2 11.6L11.4 3.3L21 11.6V21.5H10.5V15H12V20H19.5V11L11.4 4L3.5 11V20H10.5V15H12V13.5H4.5V21.5H2V11.6Z"
+            transform="scale(0.72)"
+            fill="currentColor"
+          />
+        ) : (
+          <path
+            d="M2 11.6L11.4 3.3L21 11.6V21.5H2V11.6ZM3.5 12L11.4 5L19.5 12V20H4.5V12H3.5Z"
+            transform="scale(0.72)"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          />
+        )}
+      </g>
+    );
+  };
+  HouseLabel.displayName = "ForecastHouseLabel";
+  return HouseLabel;
+}
+
 export function ExchangeForecastChart({ data }: { data: WeekBucket[] }) {
+  const HouseLabel = ForecastHouseLabel(data);
   return (
-    <ResponsiveContainer width="100%" height={60}>
-      <BarChart data={data} barSize={14} margin={{ top: 2, right: 4, left: 4, bottom: 0 }}>
+    // Height bumped from 60 -> 80 so the house has room to sit above the
+    // tallest bar without clipping the top of the chart.
+    <ResponsiveContainer width="100%" height={80}>
+      <BarChart data={data} barSize={14} margin={{ top: 18, right: 4, left: 4, bottom: 0 }}>
         <Tooltip
           content={<ForecastTooltip />}
           cursor={{ fill: "rgba(var(--agent-coral-base-rgb),0.07)", radius: 4 }}
@@ -137,6 +205,18 @@ export function ExchangeForecastChart({ data }: { data: WeekBucket[] }) {
               }
             />
           ))}
+          {/* LabelList with a custom content function: recharts calls it
+              per bar with the bar's rendered (x, y, width), so the house
+              always sits on the actual top of the bar, not a fixed row.
+              recharts' LabelContentType wants a function returning
+              ReactElement, so we wrap and swap null for a fragment. */}
+          <LabelList
+            dataKey="count"
+            content={(props) => {
+              const el = HouseLabel(props as LabelProps);
+              return el ?? <g />;
+            }}
+          />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
