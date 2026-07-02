@@ -440,30 +440,46 @@ export default async function HubPreviewPage() {
                     color: "var(--agent-coral)",
                     href: "/agent/transactions",
                     delta: pipelineStats.newThisMonth > 0 ? `+${pipelineStats.newThisMonth} this month` : null,
+                    deltaTone: "up" as const,
                   },
                   {
                     value: pipelineStats.exchangingSoon.toLocaleString(),
                     label: "Exchanging soon",
                     color: "var(--agent-success)",
                     href: pipelineStats.exchangingSoon > 0 ? "/agent/transactions?filter=exchanging-next-30-days" : null,
-                    delta: null,
+                    // PR 4 trend: subset carved out from exchangingSoon (30d
+                    // window). Free — data already in comingUp.
+                    delta: pipelineStats.comingUp.exchangingThisWeek > 0
+                      ? `${pipelineStats.comingUp.exchangingThisWeek} this week`
+                      : null,
+                    deltaTone: "up" as const,
                   },
                   {
                     value: attentionFileCount.toLocaleString(),
                     label: "Need attention",
                     color: escalatedCount > 0 ? "var(--agent-danger)" : attentionFileCount > 0 ? "var(--agent-warning)" : "var(--agent-text-primary)",
                     href: attentionFileCount > 0 ? "/agent/work-queue" : null,
-                    delta: null,
+                    // PR 4 trend: escalated count already computed at the top
+                    // of the render. Escalated files are the loudest signal.
+                    delta: escalatedCount > 0
+                      ? `${escalatedCount} escalated`
+                      : attentionFileCount === 0 ? "All clear" : null,
+                    deltaTone: (escalatedCount > 0 ? "down" : "up") as "up" | "down" | "flat",
                   },
                   {
                     value: fmtCurrency(pipelineStats.pipelineValuePence),
                     label: "Pipeline value",
                     color: "var(--agent-text-primary)",
                     href: null,
-                    delta: null,
+                    // PR 4 trend: closing this month (in pence, format for
+                    // readability). Data already computed via comingUp.
+                    delta: pipelineStats.comingUp.closingThisMonth.total > 0
+                      ? `${fmtCurrency(pipelineStats.comingUp.closingThisMonth.total)} this month`
+                      : null,
+                    deltaTone: "up" as const,
                   },
-                ] as { value: string; label: string; color: string; href: string | null; delta: string | null }[]
-              ).map(({ value, label, color, href, delta }, i) => {
+                ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat" }[]
+              ).map(({ value, label, color, href, delta, deltaTone }, i) => {
                 const inner = (
                   <>
                     <span style={{
@@ -481,7 +497,12 @@ export default async function HubPreviewPage() {
                     </span>
                     {delta && (
                       <span style={{
-                        fontSize: 10, color: "var(--agent-success)",
+                        fontSize: 10,
+                        color: deltaTone === "down"
+                          ? "var(--agent-warning)"
+                          : deltaTone === "flat"
+                            ? "var(--agent-text-muted)"
+                            : "var(--agent-success)",
                         fontWeight: 500, textAlign: "center",
                       }}>
                         {delta}
@@ -788,38 +809,58 @@ export default async function HubPreviewPage() {
               </div>
             </div>
 
+            {/* PR 4 info pill: role-specific service-split summary sits in a
+                tinted pill row rather than a paragraph, so it reads as a
+                distinct fact rather than a caption. */}
             <div style={{
               borderTop: "0.5px solid var(--agent-border-subtle)",
               paddingTop: 12, marginTop: 12,
             }}>
               {serviceSplit.outsourced > 0 ? (
-                <p style={{
-                  margin: 0, fontSize: 12,
-                  color: "var(--agent-text-secondary)", lineHeight: 1.6,
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 12px",
+                  background: "var(--agent-coral-bg-tint)",
+                  border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.20)",
+                  borderRadius: 10,
                 }}>
-                  {isAdmin ? (
-                    <>Our team is actively progressing{" "}
-                      <strong style={{ color: "var(--agent-text-primary)" }}>
-                        {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
-                      </strong>
-                      {" "}across all client agencies.
-                    </>
-                  ) : (
-                    <>Our team is handling{" "}
-                      <strong style={{ color: "var(--agent-text-primary)" }}>
-                        {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
-                      </strong>
-                      {savedHours > 0 && (
-                        <>, saving you around{" "}
-                          <strong style={{ color: "var(--agent-coral-deep)" }}>
-                            {savedHours} hours
-                          </strong>{" "}
-                          this week
-                        </>
-                      )}
-                    </>
-                  )}
-                </p>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                    background: "rgba(var(--agent-coral-base-rgb),0.14)",
+                    color: "var(--agent-coral-deep)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <HouseSimple size={14} weight="fill" />
+                  </div>
+                  <p style={{
+                    margin: 0, fontSize: 12,
+                    color: "var(--agent-text-secondary)", lineHeight: 1.5,
+                  }}>
+                    {isAdmin ? (
+                      <>We&apos;re progressing{" "}
+                        <strong style={{ color: "var(--agent-text-primary)" }}>
+                          {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
+                        </strong>
+                        {" "}across all client agencies.
+                      </>
+                    ) : (
+                      <>Our team is handling{" "}
+                        <strong style={{ color: "var(--agent-text-primary)" }}>
+                          {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
+                        </strong>
+                        {savedHours > 0 && (
+                          <>, saving you around{" "}
+                            <strong style={{ color: "var(--agent-coral-deep)" }}>
+                              {savedHours} hours
+                            </strong>{" "}
+                            this week
+                          </>
+                        )}
+                        .
+                      </>
+                    )}
+                  </p>
+                </div>
               ) : (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
                   {isAdmin ? "All files are self-managed by their agencies." : "All files are self-managed."}
