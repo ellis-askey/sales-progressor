@@ -552,6 +552,13 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
 
   const txWhere = buildTxWhere(vis);
+  // PHASE 1 4d (a)-CLASS — pre-load active buyer round ids so every cross-tx
+  // MilestoneCompletion filter below can scope to (file-level vendor rows)
+  // UNION (rows on the active buyer round). Without this, a relisted file
+  // would count its ARCHIVED-round exchange/completion milestones as
+  // "wins this month" — inflating the Trophy tier for files whose current
+  // buyer round hasn't exchanged yet. Same pattern as getHubMomentum.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   const [exchangeDefs, completionDefs] = await Promise.all([
     prisma.milestoneDefinition.findMany({
@@ -581,6 +588,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
         milestoneDefinitionId: { in: exchangeDefIds },
         completedAt: { gte: startOfThisMonth },
         state: "complete",
+        OR: roundScopedOR(activeRoundIds),
       },
     }),
     prisma.milestoneCompletion.count({
@@ -589,6 +597,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
         milestoneDefinitionId: { in: exchangeDefIds },
         completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
         state: "complete",
+        OR: roundScopedOR(activeRoundIds),
       },
     }),
     prisma.milestoneCompletion.count({
@@ -597,6 +606,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
         milestoneDefinitionId: { in: completionDefIds },
         completedAt: { gte: startOfThisMonth },
         state: "complete",
+        OR: roundScopedOR(activeRoundIds),
       },
     }),
     prisma.milestoneCompletion.count({
@@ -605,6 +615,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
         milestoneDefinitionId: { in: completionDefIds },
         completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
         state: "complete",
+        OR: roundScopedOR(activeRoundIds),
       },
     }),
     // Fetch this month's exchange completions with their tx.createdAt so we can
@@ -615,6 +626,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
         milestoneDefinitionId: { in: exchangeDefIds },
         completedAt: { gte: startOfThisMonth },
         state: "complete",
+        OR: roundScopedOR(activeRoundIds),
       },
       select: {
         completedAt: true,
@@ -630,6 +642,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
         transaction: txWhere,
         completedAt: { gte: sevenDaysAgo },
         state: "complete",
+        OR: roundScopedOR(activeRoundIds),
       },
     }),
     // Files created this month — used by tier 3 secondary metric.
@@ -701,6 +714,14 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 1);
   const txWhere = buildTxWhere(vis);
+  // PHASE 1 4d (a)-CLASS — pre-load active buyer round ids so the cross-tx
+  // milestoneCompletions filters below scope to (file-level vendor rows)
+  // UNION (rows on the active buyer round). Without this, a relisted file
+  // could bucket into "exchanging" purely on the strength of an ARCHIVED
+  // round's VM19/PM26 completion, or bucket as "ready" because its total
+  // completion count (archived + new) crosses the 15-threshold. Same
+  // pattern as getHubMomentum + getHubWins.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   const [exchangeDefs, completionDefs] = await Promise.all([
     prisma.milestoneDefinition.findMany({
@@ -727,7 +748,9 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       },
     }),
     // exchanging = active with any exchange milestone done AND not yet fully
-    // completed (VM20 + PM27 not both done).
+    // completed (VM20 + PM27 not both done). All three MC nested filters
+    // carry the roundScopedOR so an ARCHIVED round's VM19/PM26/VM20/PM27
+    // can't misclassify a relisted file.
     prisma.propertyTransaction.count({
       where: {
         ...txWhere,
@@ -736,18 +759,38 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
           some: {
             milestoneDefinitionId: { in: exchangeDefIds },
             state: "complete",
+            OR: roundScopedOR(activeRoundIds),
           },
         },
         NOT: {
           AND: [
-            { milestoneCompletions: { some: { milestoneDefinitionId: completionDefIds[0], state: "complete" } } },
-            { milestoneCompletions: { some: { milestoneDefinitionId: completionDefIds[1], state: "complete" } } },
+            {
+              milestoneCompletions: {
+                some: {
+                  milestoneDefinitionId: completionDefIds[0],
+                  state: "complete",
+                  OR: roundScopedOR(activeRoundIds),
+                },
+              },
+            },
+            {
+              milestoneCompletions: {
+                some: {
+                  milestoneDefinitionId: completionDefIds[1],
+                  state: "complete",
+                  OR: roundScopedOR(activeRoundIds),
+                },
+              },
+            },
           ],
         },
       },
     }),
     // Per-tx completion counts for active-and-not-yet-exchanging files.
-    // One findMany is sufficient — we bucket in JS below.
+    // The NOT + _count filters BOTH need roundScopedOR: the NOT so we
+    // exclude files whose CURRENT round has exchanged (not files whose
+    // ARCHIVED round did), and the _count so a relisted file doesn't
+    // over-count archived completions when we bucket by count.
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
@@ -757,6 +800,7 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
             some: {
               milestoneDefinitionId: { in: exchangeDefIds },
               state: "complete",
+              OR: roundScopedOR(activeRoundIds),
             },
           },
         },
@@ -765,7 +809,12 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         id: true,
         _count: {
           select: {
-            milestoneCompletions: { where: { state: "complete" } },
+            milestoneCompletions: {
+              where: {
+                state: "complete",
+                OR: roundScopedOR(activeRoundIds),
+              },
+            },
           },
         },
       },
