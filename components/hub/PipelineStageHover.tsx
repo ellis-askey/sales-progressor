@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CSSProperties, ReactNode } from "react";
 import type {
   StageStatsNew,
@@ -19,11 +21,11 @@ import type {
 export type StageKey = "new" | "legals" | "ready" | "exchanging" | "completed";
 
 export type StageHoverProps =
-  | { stage: "new"; stats: StageStatsNew }
-  | { stage: "legals"; stats: StageStatsLegals }
-  | { stage: "ready"; stats: StageStatsReady }
-  | { stage: "exchanging"; stats: StageStatsExchanging }
-  | { stage: "completed"; stats: StageStatsCompleted };
+  | { stage: "new"; stats: StageStatsNew; anchor: DOMRect | null }
+  | { stage: "legals"; stats: StageStatsLegals; anchor: DOMRect | null }
+  | { stage: "ready"; stats: StageStatsReady; anchor: DOMRect | null }
+  | { stage: "exchanging"; stats: StageStatsExchanging; anchor: DOMRect | null }
+  | { stage: "completed"; stats: StageStatsCompleted; anchor: DOMRect | null };
 
 function formatCurrency(pence: number | null): string {
   if (pence === null) return "–";
@@ -45,13 +47,45 @@ function formatPercent(fraction: number | null): string {
   return `${Math.round(fraction * 100)}%`;
 }
 
-const bubbleStyle: CSSProperties = {
-  position: "absolute",
-  bottom: "calc(100% + 12px)",
-  left: "50%",
-  transform: "translateX(-50%)",
-  minWidth: 200,
-  maxWidth: 240,
+// Bubble is rendered into a portal on document.body so it escapes the
+// pipeline strip's overflow-x context (which would otherwise clip it).
+// We compute a fixed viewport position from the circle's bounding rect,
+// preferring above the circle but flipping below if it would clip the
+// top of the viewport.
+const BUBBLE_WIDTH = 224;
+const BUBBLE_GAP = 12;
+
+function positionFor(anchor: DOMRect): { style: CSSProperties; placement: "above" | "below" } {
+  const centreX = anchor.left + anchor.width / 2;
+  // Clamp the bubble horizontally so it stays inside the viewport with an
+  // 8px margin — small screens with a stage near the edge don't lose it.
+  const halfWidth = BUBBLE_WIDTH / 2;
+  const minLeft = 8;
+  const maxLeft = window.innerWidth - BUBBLE_WIDTH - 8;
+  const rawLeft = centreX - halfWidth;
+  const left = Math.max(minLeft, Math.min(maxLeft, rawLeft));
+
+  // Room above? If not, place below.
+  const roomAbove = anchor.top;
+  const placement: "above" | "below" = roomAbove > 140 ? "above" : "below";
+
+  const top = placement === "above"
+    ? anchor.top - BUBBLE_GAP
+    : anchor.bottom + BUBBLE_GAP;
+
+  return {
+    style: {
+      position: "fixed",
+      top,
+      left,
+      transform: placement === "above" ? "translateY(-100%)" : "none",
+      width: BUBBLE_WIDTH,
+    },
+    placement,
+  };
+}
+
+const bubbleBaseStyle: CSSProperties = {
   padding: "12px 14px",
   borderRadius: 12,
   background: "var(--agent-surface-elevated)",
@@ -59,23 +93,31 @@ const bubbleStyle: CSSProperties = {
   boxShadow: "0 12px 32px rgba(15,23,42,0.14), 0 2px 6px rgba(15,23,42,0.06)",
   backdropFilter: "blur(16px) saturate(1.1)",
   WebkitBackdropFilter: "blur(16px) saturate(1.1)",
-  zIndex: 20,
+  zIndex: 60,
   pointerEvents: "none",
   animation: "enter 140ms cubic-bezier(0.4,0,0.2,1)",
 };
 
-const arrowStyle: CSSProperties = {
-  position: "absolute",
-  top: "100%",
-  left: "50%",
-  transform: "translateX(-50%) rotate(45deg)",
-  width: 10,
-  height: 10,
-  marginTop: -5,
-  background: "var(--agent-surface-elevated)",
-  borderRight: "0.5px solid var(--agent-glass-border)",
-  borderBottom: "0.5px solid var(--agent-glass-border)",
-};
+function arrowStyleFor(placement: "above" | "below", anchor: DOMRect, bubbleLeft: number): CSSProperties {
+  // The arrow points at the circle centre. Because the bubble may be
+  // clamped horizontally, compute the arrow's left offset inside the
+  // bubble from the anchor centre X.
+  const centreX = anchor.left + anchor.width / 2;
+  const arrowLeft = Math.max(12, Math.min(BUBBLE_WIDTH - 12, centreX - bubbleLeft));
+  const base: CSSProperties = {
+    position: "absolute",
+    left: arrowLeft,
+    transform: "translateX(-50%) rotate(45deg)",
+    width: 10,
+    height: 10,
+    background: "var(--agent-surface-elevated)",
+    borderRight: "0.5px solid var(--agent-glass-border)",
+    borderBottom: "0.5px solid var(--agent-glass-border)",
+  };
+  return placement === "above"
+    ? { ...base, top: "100%", marginTop: -5 }
+    : { ...base, bottom: "100%", marginBottom: -5, borderRight: "none", borderBottom: "none", borderLeft: "0.5px solid var(--agent-glass-border)", borderTop: "0.5px solid var(--agent-glass-border)" };
+}
 
 const rowStyle: CSSProperties = {
   display: "flex",
@@ -94,12 +136,24 @@ const valueStyle: CSSProperties = {
 };
 
 export function PipelineStageHover(props: StageHoverProps) {
-  return (
-    <div style={bubbleStyle} role="tooltip">
-      <div style={arrowStyle} />
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !props.anchor) return null;
+
+  const { style: posStyle, placement } = positionFor(props.anchor);
+  const bubbleLeft = typeof posStyle.left === "number" ? posStyle.left : 0;
+
+  const bubble = (
+    <div style={{ ...bubbleBaseStyle, ...posStyle }} role="tooltip">
+      <div style={arrowStyleFor(placement, props.anchor, bubbleLeft)} />
       {renderBody(props)}
     </div>
   );
+
+  return createPortal(bubble, document.body);
 }
 
 function renderBody(props: StageHoverProps): ReactNode {

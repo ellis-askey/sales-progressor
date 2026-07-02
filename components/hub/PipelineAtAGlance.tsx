@@ -132,8 +132,26 @@ function StageNode({
   const dim = count === 0;
   const Icon = stage.Icon;
 
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (nodeRef.current) setAnchor(nodeRef.current.getBoundingClientRect());
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
+
   return (
     <div
+      ref={nodeRef}
       role="button"
       tabIndex={0}
       aria-expanded={open}
@@ -195,17 +213,17 @@ function StageNode({
       }}>
         {stage.label}
       </p>
-      {open && renderHover(stage.key, stages)}
+      {open && renderHover(stage.key, stages, anchor)}
     </div>
   );
 }
 
-function renderHover(key: StageKey, stages: HubPipelineStages) {
-  if (key === "new")        return <PipelineStageHover stage="new"        stats={stages.new} />;
-  if (key === "legals")     return <PipelineStageHover stage="legals"     stats={stages.legals} />;
-  if (key === "ready")      return <PipelineStageHover stage="ready"      stats={stages.ready} />;
-  if (key === "exchanging") return <PipelineStageHover stage="exchanging" stats={stages.exchanging} />;
-  return                          <PipelineStageHover stage="completed"  stats={stages.completed} />;
+function renderHover(key: StageKey, stages: HubPipelineStages, anchor: DOMRect | null) {
+  if (key === "new")        return <PipelineStageHover stage="new"        stats={stages.new}        anchor={anchor} />;
+  if (key === "legals")     return <PipelineStageHover stage="legals"     stats={stages.legals}     anchor={anchor} />;
+  if (key === "ready")      return <PipelineStageHover stage="ready"      stats={stages.ready}      anchor={anchor} />;
+  if (key === "exchanging") return <PipelineStageHover stage="exchanging" stats={stages.exchanging} anchor={anchor} />;
+  return                          <PipelineStageHover stage="completed"  stats={stages.completed}  anchor={anchor} />;
 }
 
 function StageConnector() {
