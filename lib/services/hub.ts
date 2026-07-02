@@ -516,6 +516,329 @@ export async function getHubMomentum(vis: AgentVisibility) {
   return { thisMonth, lastMonth, percent };
 }
 
+// ── Wins card (hub polish PR 1) ──────────────────────────────────────────────
+//
+// Powers a "wins this month" card that always shows something, cascading
+// through 4 tiers so brand-new accounts still see a positive signal:
+//
+//   Tier 1 — has exchanges this month → celebrate exchanges + completions +
+//            fastest-exchange address
+//   Tier 2 — has completions but no exchanges → completions + steps-confirmed
+//   Tier 3 — no closings but activity → steps-confirmed-this-week + new files
+//   Tier 4 — brand new account (no activity) → motivational fallback (client
+//            renders the CTA; server just reports zeros)
+//
+// All counts are cross-tx and respect visibility scope (agent / progressor /
+// admin). Uses the same VM19/PM26 (exchange) + VM20/PM27 (completion)
+// milestone codes as getHubMomentum.
+
+export type HubWins = {
+  exchangesThisMonth: number;
+  exchangesLastMonth: number;
+  completionsThisMonth: number;
+  completionsLastMonth: number;
+  fastestExchangeDays: number | null;
+  fastestExchangeAddress: string | null;
+  stepsConfirmedThisWeek: number;
+  newFilesThisMonth: number;
+};
+
+export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // "This week" = last 7 days rolling, not calendar week (matches the
+  // "coming up" strip convention).
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+
+  const txWhere = buildTxWhere(vis);
+  // PHASE 1 4d (a)-CLASS — pre-load active buyer round ids so every cross-tx
+  // MilestoneCompletion filter below can scope to (file-level vendor rows)
+  // UNION (rows on the active buyer round). Without this, a relisted file
+  // would count its ARCHIVED-round exchange/completion milestones as
+  // "wins this month" — inflating the Trophy tier for files whose current
+  // buyer round hasn't exchanged yet. Same pattern as getHubMomentum.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
+  const [exchangeDefs, completionDefs] = await Promise.all([
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM19", "PM26"] } },
+      select: { id: true },
+    }),
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true },
+    }),
+  ]);
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+  const completionDefIds = completionDefs.map((d) => d.id);
+
+  const [
+    exchangesThisMonth,
+    exchangesLastMonth,
+    completionsThisMonth,
+    completionsLastMonth,
+    fastestExchangeRows,
+    stepsConfirmedThisWeek,
+    newFilesThisMonth,
+  ] = await Promise.all([
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        completedAt: { gte: startOfThisMonth },
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
+    }),
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
+    }),
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: completionDefIds },
+        completedAt: { gte: startOfThisMonth },
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
+    }),
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: completionDefIds },
+        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
+    }),
+    // Fetch this month's exchange completions with their tx.createdAt so we can
+    // compute days-to-exchange in JS and pick the fastest.
+    prisma.milestoneCompletion.findMany({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        completedAt: { gte: startOfThisMonth },
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
+      select: {
+        completedAt: true,
+        transaction: {
+          select: { createdAt: true, propertyAddress: true },
+        },
+      },
+    }),
+    // Any milestone confirmed in the last 7 days — this is the "steps
+    // confirmed" number used by tier 3 / secondary metric.
+    prisma.milestoneCompletion.count({
+      where: {
+        transaction: txWhere,
+        completedAt: { gte: sevenDaysAgo },
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
+    }),
+    // Files created this month — used by tier 3 secondary metric.
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere,
+        createdAt: { gte: startOfThisMonth },
+      },
+    }),
+  ]);
+
+  // Compute fastest-exchange days + address across this month's rows.
+  let fastestExchangeDays: number | null = null;
+  let fastestExchangeAddress: string | null = null;
+  for (const row of fastestExchangeRows) {
+    if (!row.completedAt || !row.transaction?.createdAt) continue;
+    const days = Math.round(
+      (row.completedAt.getTime() - row.transaction.createdAt.getTime()) /
+        86400000,
+    );
+    if (days < 0) continue; // sanity
+    if (fastestExchangeDays === null || days < fastestExchangeDays) {
+      fastestExchangeDays = days;
+      fastestExchangeAddress = row.transaction.propertyAddress;
+    }
+  }
+
+  return {
+    exchangesThisMonth,
+    exchangesLastMonth,
+    completionsThisMonth,
+    completionsLastMonth,
+    fastestExchangeDays,
+    fastestExchangeAddress,
+    stepsConfirmedThisWeek,
+    newFilesThisMonth,
+  };
+}
+
+// ── Pipeline at a glance — stage buckets (hub polish PR 2) ────────────────────
+//
+// Groups active files into 5 stages by "furthest milestone reached" for a
+// horizontal-flow visualization on the hub. Definitions are heuristic on
+// purpose — they're for a visual signal, not accounting:
+//
+//   new         — active files with fewer than 5 milestone completions
+//                  (freshly onboarded, no meaningful legal traction yet)
+//   legals      — active files with 5..14 completions (solicitors + searches
+//                  + contracts in flight)
+//   ready       — active files with 15+ completions AND no exchange marker
+//                  (VM19/PM26) yet (both sides essentially ready)
+//   exchanging  — active files with VM19 OR PM26 completed AND not yet fully
+//                  completed (VM20/PM27 not both done)
+//   completed   — files with status=completed AND completedAt in the current
+//                  calendar year (visual "wins" bucket)
+//
+// A single tx may only appear in one bucket; the buckets cascade from most-
+// advanced downward (completed > exchanging > ready > legals > new).
+
+export type HubPipelineStages = {
+  new: number;
+  legals: number;
+  ready: number;
+  exchanging: number;
+  completed: number;
+};
+
+export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPipelineStages> {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const txWhere = buildTxWhere(vis);
+  // PHASE 1 4d (a)-CLASS — pre-load active buyer round ids so the cross-tx
+  // milestoneCompletions filters below scope to (file-level vendor rows)
+  // UNION (rows on the active buyer round). Without this, a relisted file
+  // could bucket into "exchanging" purely on the strength of an ARCHIVED
+  // round's VM19/PM26 completion, or bucket as "ready" because its total
+  // completion count (archived + new) crosses the 15-threshold. Same
+  // pattern as getHubMomentum + getHubWins.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
+  const [exchangeDefs, completionDefs] = await Promise.all([
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM19", "PM26"] } },
+      select: { id: true },
+    }),
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true },
+    }),
+  ]);
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+  const completionDefIds = completionDefs.map((d) => d.id);
+
+  // Bucket most-advanced first, then split the active-non-exchanging pool
+  // into new / legals / ready by per-tx completion count.
+  const [completedYtd, exchanging, activeNonExchanging] = await Promise.all([
+    // completed = tx.status=completed (year to date)
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere,
+        status: "completed",
+        completionDate: { gte: startOfYear },
+      },
+    }),
+    // exchanging = active with any exchange milestone done AND not yet fully
+    // completed (VM20 + PM27 not both done). All three MC nested filters
+    // carry the roundScopedOR so an ARCHIVED round's VM19/PM26/VM20/PM27
+    // can't misclassify a relisted file.
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere,
+        status: "active",
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: exchangeDefIds },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
+        NOT: {
+          AND: [
+            {
+              milestoneCompletions: {
+                some: {
+                  milestoneDefinitionId: completionDefIds[0],
+                  state: "complete",
+                  OR: roundScopedOR(activeRoundIds),
+                },
+              },
+            },
+            {
+              milestoneCompletions: {
+                some: {
+                  milestoneDefinitionId: completionDefIds[1],
+                  state: "complete",
+                  OR: roundScopedOR(activeRoundIds),
+                },
+              },
+            },
+          ],
+        },
+      },
+    }),
+    // Per-tx completion counts for active-and-not-yet-exchanging files.
+    // The NOT + _count filters BOTH need roundScopedOR: the NOT so we
+    // exclude files whose CURRENT round has exchanged (not files whose
+    // ARCHIVED round did), and the _count so a relisted file doesn't
+    // over-count archived completions when we bucket by count.
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              milestoneDefinitionId: { in: exchangeDefIds },
+              state: "complete",
+              OR: roundScopedOR(activeRoundIds),
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            milestoneCompletions: {
+              where: {
+                state: "complete",
+                OR: roundScopedOR(activeRoundIds),
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  // Split the active-not-exchanging pool into New / Legals / Ready by count.
+  let newCount = 0, legalsCount = 0, readyCount = 0;
+  for (const tx of activeNonExchanging) {
+    const c = tx._count.milestoneCompletions;
+    if (c < 5) newCount++;
+    else if (c < 15) legalsCount++;
+    else readyCount++;
+  }
+
+  return {
+    new: newCount,
+    legals: legalsCount,
+    ready: readyCount,
+    exchanging,
+    completed: completedYtd,
+  };
+}
+
 // ── Weekly exchange forecast (5 weeks) ───────────────────────────────────────
 
 export type WeekBucket = { label: string; count: number; isCurrentWeek: boolean };

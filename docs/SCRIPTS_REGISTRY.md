@@ -160,6 +160,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** paired with pre-commit hook.
 - **Justification:** critical fallback; complements install.sh.
 
+### scripts/seed-billy-hub-preview.ts
+
+- **Purpose:** Seeds the `ellisaskey+billy@googlemail.com` account on staging with ~20 test transactions spread across the five pipeline-at-a-glance stages (new/legals/ready/exchanging/completed) plus expected exchange dates that populate the diary + forecast. Powers the hub-polish PR 1 + PR 2 preview.
+- **Lifetime:** `one-shot`
+- **Author:** CC (hub polish preview), 2026-07-02
+- **Deletion criteria:** delete once Billy has viewed the polished hub and confirmed direction. Ideally within 2 weeks.
+- **Justification:** required exactly-once data population for a specific test account on staging. Refuses to run against prod DB at runtime. Idempotent — safe to re-run.
+
 ---
 
 ## Footnotes

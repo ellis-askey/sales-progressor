@@ -11,16 +11,18 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
-  getHubPipelineStats, getHubAttentionItems, getHubMomentum,
+  getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
+  getHubPipelineStages,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import {
   ExchangeForecastChart, ServiceSplitDonut,
-  MomentumRing,
 } from "@/components/hub/HubCharts";
+import { WinsCard } from "@/components/hub/WinsCard";
+import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import { NewBuyersToAcknowledgeView } from "@/components/hub/NewBuyersToAcknowledgeView";
@@ -30,7 +32,7 @@ import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight, Warning, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, ArrowRight, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,10 +45,30 @@ function getGreeting(name: string): string {
     const hour = parseInt(hourStr, 10);
     const prefix =
       hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    return `${prefix}, ${extractFirstName(name)}`;
+    // PR 5 header: add a waving hand for a warmer read on the daily
+    // landing page. Kept out of the greeting variable used in the empty
+    // state so the empty branch still reads neutrally.
+    return `${prefix}, ${extractFirstName(name)} 👋`;
   } catch {
     return `Hello, ${extractFirstName(name)}`;
   }
+}
+
+// PR 5 header: pick a subtitle that matches what the hub is actually
+// telling the user, keyed off role. Was previously the flat "Here's what
+// matters today." — this reads warmer + more specific.
+//
+// Uses hasAdminPowers (isAdmin) rather than the raw role string so a
+// hybrid admin (director with admin powers) still gets the platform-wide
+// subtitle — matches the pipeline-health card's existing subtitle logic.
+function getSubtitle(isAdmin: boolean, isProgressor: boolean): string {
+  if (isAdmin) {
+    return "Here's what's happening across the platform today.";
+  }
+  if (isProgressor) {
+    return "Here's what's happening with your assigned files today.";
+  }
+  return "Here's what's happening with your pipeline today.";
 }
 
 function fmtCurrency(pence: number): string {
@@ -62,6 +84,53 @@ function fmtCompact(pence: number): string {
   if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (p >= 1_000)     return `£${Math.round(p / 1_000)}k`;
   return `£${Math.round(p)}`;
+}
+
+// PR 3 iconography: pick the right icon + tint for the activity ribbon
+// based on the kind + description string. The RecentActivity type only
+// carries `kind: "comm" | "milestone"` so we pattern-match on the
+// server-set description ("Email sent...", "Call logged", etc.) rather
+// than change the service shape.
+function pickActivityGlyph(kind: "comm" | "milestone", description: string): {
+  Icon: typeof CheckCircle;
+  bg: string;
+  color: string;
+} {
+  if (kind === "milestone") {
+    return {
+      Icon: CheckCircle,
+      bg: "var(--agent-success-bg)",
+      color: "var(--agent-success)",
+    };
+  }
+  const d = description.toLowerCase();
+  if (d.includes("whatsapp")) {
+    return {
+      Icon: ChatCircleText,
+      bg: "rgba(37, 211, 102, 0.10)",
+      color: "#128c7e",
+    };
+  }
+  if (d.includes("call")) {
+    return {
+      Icon: Phone,
+      bg: "rgba(59, 130, 246, 0.10)",
+      color: "#1d4ed8",
+    };
+  }
+  if (d.includes("sms")) {
+    return {
+      Icon: ChatText,
+      bg: "rgba(139, 92, 246, 0.10)",
+      color: "#6d28d9",
+    };
+  }
+  // email / letter / update received / default comm
+  return {
+    Icon: Envelope,
+    bg: "var(--agent-coral-bg-tint)",
+    color: "var(--agent-coral-deep)",
+  };
 }
 
 function timeAgo(date: Date): string {
@@ -95,11 +164,11 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending] =
+  const [pipelineStats, attentionItems, wins, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending, pipelineStages] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
-      getHubMomentum(vis),
+      getHubWins(vis),
       getHubWeeklyForecast(vis),
       getHubServiceSplit(vis),
       getHubRecentActivity(vis),
@@ -108,6 +177,7 @@ export default async function HubPreviewPage() {
       getExpiredHolds(vis),
       getHubRelistsToAcknowledge(vis),
       getHubChainSetupPending(vis),
+      getHubPipelineStages(vis),
     ]);
 
   // Derived values
@@ -119,6 +189,7 @@ export default async function HubPreviewPage() {
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
   const greeting       = getGreeting(session.user.name ?? "there");
+  const subtitle       = getSubtitle(isAdmin, isProgressor);
   const isEmpty        = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
 
   // ── Empty state ─────────────────────────────────────────────────────────────
@@ -126,7 +197,7 @@ export default async function HubPreviewPage() {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-        <PageHeader title={greeting} subtitle="Here's what matters today.">
+        <PageHeader title={greeting} subtitle={subtitle}>
           {canCreateSale && (
             <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
               <Plus size={14} weight="bold" />
@@ -191,9 +262,11 @@ export default async function HubPreviewPage() {
               </div>
             </div>
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Momentum</p>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 8, paddingBottom: 8 }}>
-                <div className="agent-skeleton" style={{ width: 80, height: 80, borderRadius: "50%" }} />
+              <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Wins this month</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+                <div className="agent-skeleton" style={{ width: 60, height: 30, borderRadius: 6 }} />
+                <div className="agent-skeleton" style={{ width: 120, height: 12, borderRadius: 4 }} />
+                <div className="agent-skeleton" style={{ width: 90, height: 10, borderRadius: 4 }} />
               </div>
             </div>
           </div>
@@ -359,7 +432,13 @@ export default async function HubPreviewPage() {
           <ChainSetupPendingView initialFiles={chainSetupPending} />
         </AnimatedSection>
 
-        {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}
+        {/* ── 4b. Pipeline at a glance — hub polish PR 2 ─────────────────────────
+          * Five connected stage circles (New → Legals → Ready → Exchanging →
+          * Completed) as a horizontal-flow visualization. Data from
+          * getHubPipelineStages(vis). */}
+        <PipelineAtAGlance stages={pipelineStages} />
+
+        {/* ── 5. Pipeline health + Wins this month ──────────────────────────── */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
 
           {/* Pipeline health card */}
@@ -382,30 +461,46 @@ export default async function HubPreviewPage() {
                     color: "var(--agent-coral)",
                     href: "/agent/transactions",
                     delta: pipelineStats.newThisMonth > 0 ? `+${pipelineStats.newThisMonth} this month` : null,
+                    deltaTone: "up" as const,
                   },
                   {
                     value: pipelineStats.exchangingSoon.toLocaleString(),
                     label: "Exchanging soon",
                     color: "var(--agent-success)",
                     href: pipelineStats.exchangingSoon > 0 ? "/agent/transactions?filter=exchanging-next-30-days" : null,
-                    delta: null,
+                    // PR 4 trend: subset carved out from exchangingSoon (30d
+                    // window). Free — data already in comingUp.
+                    delta: pipelineStats.comingUp.exchangingThisWeek > 0
+                      ? `${pipelineStats.comingUp.exchangingThisWeek} this week`
+                      : null,
+                    deltaTone: "up" as const,
                   },
                   {
                     value: attentionFileCount.toLocaleString(),
                     label: "Need attention",
                     color: escalatedCount > 0 ? "var(--agent-danger)" : attentionFileCount > 0 ? "var(--agent-warning)" : "var(--agent-text-primary)",
                     href: attentionFileCount > 0 ? "/agent/work-queue" : null,
-                    delta: null,
+                    // PR 4 trend: escalated count already computed at the top
+                    // of the render. Escalated files are the loudest signal.
+                    delta: escalatedCount > 0
+                      ? `${escalatedCount} escalated`
+                      : attentionFileCount === 0 ? "All clear" : null,
+                    deltaTone: (escalatedCount > 0 ? "down" : "up") as "up" | "down" | "flat",
                   },
                   {
                     value: fmtCurrency(pipelineStats.pipelineValuePence),
                     label: "Pipeline value",
                     color: "var(--agent-text-primary)",
                     href: null,
-                    delta: null,
+                    // PR 4 trend: closing this month (in pence, format for
+                    // readability). Data already computed via comingUp.
+                    delta: pipelineStats.comingUp.closingThisMonth.total > 0
+                      ? `${fmtCurrency(pipelineStats.comingUp.closingThisMonth.total)} this month`
+                      : null,
+                    deltaTone: "up" as const,
                   },
-                ] as { value: string; label: string; color: string; href: string | null; delta: string | null }[]
-              ).map(({ value, label, color, href, delta }, i) => {
+                ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat" }[]
+              ).map(({ value, label, color, href, delta, deltaTone }, i) => {
                 const inner = (
                   <>
                     <span style={{
@@ -423,7 +518,12 @@ export default async function HubPreviewPage() {
                     </span>
                     {delta && (
                       <span style={{
-                        fontSize: 10, color: "var(--agent-success)",
+                        fontSize: 10,
+                        color: deltaTone === "down"
+                          ? "var(--agent-warning)"
+                          : deltaTone === "flat"
+                            ? "var(--agent-text-muted)"
+                            : "var(--agent-success)",
                         fontWeight: 500, textAlign: "center",
                       }}>
                         {delta}
@@ -573,49 +673,10 @@ export default async function HubPreviewPage() {
             </div>
           </div>
 
-          {/* Momentum card */}
-          <div className="agent-glass" style={{
-            padding: "20px 24px", display: "flex", flexDirection: "column",
-          }}>
-            <div className="agent-card-hdr-internal">
-              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Momentum</p>
-              <p className="agent-card-subtitle">Exchanges this month vs last</p>
-            </div>
-            <div style={{
-              flex: 1, display: "flex", alignItems: "center",
-              justifyContent: "center", paddingBottom: 8,
-            }}>
-              <MomentumRing percent={momentum.percent} />
-            </div>
-            {momentum.percent !== null && (
-              <div style={{
-                borderTop: "0.5px solid var(--agent-border-subtle)",
-                paddingTop: 12, marginTop: 4,
-                display: "flex", flexDirection: "column", gap: 5,
-              }}>
-                {[
-                  { label: "This month", count: momentum.thisMonth },
-                  { label: "Last month", count: momentum.lastMonth },
-                ].map(({ label, count }) => (
-                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                      {count} {count === 1 ? "exchange" : "exchanges"}
-                    </span>
-                  </div>
-                ))}
-                <p style={{
-                  margin: "4px 0 0", fontSize: 11, fontWeight: 500,
-                  color: momentum.percent >= 100 ? "var(--agent-success)" : "var(--agent-warning)",
-                  textAlign: "right",
-                }}>
-                  {momentum.percent >= 100
-                    ? momentum.percent === 100 ? "On pace with last month" : "Ahead of last month"
-                    : "Below last month"}
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Wins card — replaces the old Momentum card. Cascade tiers
+              inside pick what to celebrate (exchanges → completions →
+              steps confirmed → brand-new fallback). */}
+          <WinsCard wins={wins} />
         </div>
 
         {/* ── 4. Exchange forecast + Service split ───────────────────────────────── */}
@@ -637,6 +698,31 @@ export default async function HubPreviewPage() {
               </p>
             ) : (
               <>
+                {/* PR 3 iconography: house icon caps above each forecast bar
+                    keyed to the count (filled for current week + any bar with
+                    exchanges, outlined otherwise). Mirrors the mock's
+                    "house on the roofline" motif. */}
+                <div style={{
+                  display: "flex", justifyContent: "space-around",
+                  marginBottom: 4,
+                }}>
+                  {weeklyForecast.map((w, i) => (
+                    <div key={i} style={{
+                      flex: 1, display: "flex", justifyContent: "center",
+                      color: w.isCurrentWeek
+                        ? "var(--agent-coral-deep)"
+                        : w.count > 0
+                          ? "var(--agent-coral)"
+                          : "var(--agent-text-muted)",
+                      opacity: w.count === 0 ? 0.4 : 1,
+                    }}>
+                      <HouseSimple
+                        size={16}
+                        weight={w.isCurrentWeek || w.count > 0 ? "fill" : "regular"}
+                      />
+                    </div>
+                  ))}
+                </div>
                 <ExchangeForecastChart data={weeklyForecast} />
                 <div style={{
                   display: "flex", justifyContent: "space-around",
@@ -744,38 +830,58 @@ export default async function HubPreviewPage() {
               </div>
             </div>
 
+            {/* PR 4 info pill: role-specific service-split summary sits in a
+                tinted pill row rather than a paragraph, so it reads as a
+                distinct fact rather than a caption. */}
             <div style={{
               borderTop: "0.5px solid var(--agent-border-subtle)",
               paddingTop: 12, marginTop: 12,
             }}>
               {serviceSplit.outsourced > 0 ? (
-                <p style={{
-                  margin: 0, fontSize: 12,
-                  color: "var(--agent-text-secondary)", lineHeight: 1.6,
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 12px",
+                  background: "var(--agent-coral-bg-tint)",
+                  border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.20)",
+                  borderRadius: 10,
                 }}>
-                  {isAdmin ? (
-                    <>Our team is actively progressing{" "}
-                      <strong style={{ color: "var(--agent-text-primary)" }}>
-                        {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
-                      </strong>
-                      {" "}across all client agencies.
-                    </>
-                  ) : (
-                    <>Our team is handling{" "}
-                      <strong style={{ color: "var(--agent-text-primary)" }}>
-                        {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
-                      </strong>
-                      {savedHours > 0 && (
-                        <>, saving you around{" "}
-                          <strong style={{ color: "var(--agent-coral-deep)" }}>
-                            {savedHours} hours
-                          </strong>{" "}
-                          this week
-                        </>
-                      )}
-                    </>
-                  )}
-                </p>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                    background: "rgba(var(--agent-coral-base-rgb),0.14)",
+                    color: "var(--agent-coral-deep)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <HouseSimple size={14} weight="fill" />
+                  </div>
+                  <p style={{
+                    margin: 0, fontSize: 12,
+                    color: "var(--agent-text-secondary)", lineHeight: 1.5,
+                  }}>
+                    {isAdmin ? (
+                      <>We&apos;re progressing{" "}
+                        <strong style={{ color: "var(--agent-text-primary)" }}>
+                          {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
+                        </strong>
+                        {" "}across all client agencies.
+                      </>
+                    ) : (
+                      <>Our team is handling{" "}
+                        <strong style={{ color: "var(--agent-text-primary)" }}>
+                          {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
+                        </strong>
+                        {savedHours > 0 && (
+                          <>, saving you around{" "}
+                            <strong style={{ color: "var(--agent-coral-deep)" }}>
+                              {savedHours} hours
+                            </strong>{" "}
+                            this week
+                          </>
+                        )}
+                        .
+                      </>
+                    )}
+                  </p>
+                </div>
               ) : (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
                   {isAdmin ? "All files are self-managed by their agencies." : "All files are self-managed."}
@@ -792,13 +898,21 @@ export default async function HubPreviewPage() {
             style={{ padding: "12px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-              <div style={{
-                width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                background: "var(--agent-coral)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <Plus size={12} weight="bold" color="var(--agent-text-on-coral)" />
-              </div>
+              {(() => {
+                // PR 3 iconography: per-type icon on activity ribbon.
+                const { Icon, bg, color } = pickActivityGlyph(recentActivity.kind, recentActivity.description);
+                return (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                    background: bg,
+                    color,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: "0.5px solid rgba(15,23,42,0.06)",
+                  }}>
+                    <Icon size={14} weight="fill" />
+                  </div>
+                );
+              })()}
               <div style={{ minWidth: 0 }}>
                 <p style={{
                   margin: 0, fontSize: 12, fontWeight: 500,
@@ -824,6 +938,162 @@ export default async function HubPreviewPage() {
             </Link>
           </div>
         )}
+
+        {/* ── 6. Pro tip banner (hub polish PR 5) ─────────────────────────────
+          * Contextual nudge picked from the current state of the pipeline.
+          * The cascade fires the loudest signal first (stalled → escalated →
+          * exchanging-this-week → attention count) and falls through to a
+          * neutral-positive fallback when the pipeline is quiet. */}
+        {(() => {
+          type Tip = { copy: React.ReactNode; href: string | null };
+          const stalledCount = pipelineStats.stalled.count;
+
+          let tip: Tip | null = null;
+          if (stalledCount > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {stalledCount} {stalledCount === 1 ? "file hasn't" : "files haven't"} had an update in 14+ days.
+                  </strong>{" "}
+                  A quick chase now could keep your pipeline moving.
+                </>
+              ),
+              href: "/agent/work-queue",
+            };
+          } else if (escalatedCount > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {escalatedCount} {escalatedCount === 1 ? "reminder" : "reminders"} escalated.
+                  </strong>{" "}
+                  Clearing these first keeps everything downstream on track.
+                </>
+              ),
+              href: "/agent/work-queue",
+            };
+          } else if (next7Days > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {next7Days} {next7Days === 1 ? "file exchanging" : "files exchanging"} this week.
+                  </strong>{" "}
+                  Give each one a final ready-check before Friday.
+                </>
+              ),
+              href: "/agent/transactions?filter=exchanging-this-week",
+            };
+          } else if (attentionFileCount > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {attentionFileCount} {attentionFileCount === 1 ? "file needs" : "files need"} a bit of attention today.
+                  </strong>{" "}
+                  Clearing these before end-of-day is the fastest win.
+                </>
+              ),
+              href: "/agent/work-queue",
+            };
+          } else if (pipelineStats.activeFiles > 0) {
+            // Role-branched copy for the "healthy pipeline" tier — the
+            // generic "add your next sale" nudge is agent-centric and
+            // doesn't fit the progressor (can't create sales) or admin
+            // (platform view, not their own pipeline to add to).
+            if (isAdmin) {
+              tip = {
+                copy: (
+                  <>
+                    <strong style={{ color: "var(--agent-text-primary)" }}>Platform is ticking along nicely.</strong>{" "}
+                    A good moment to spot-check risk trends or review the analytics view.
+                  </>
+                ),
+                href: "/agent/analytics",
+              };
+            } else if (isProgressor) {
+              tip = {
+                copy: (
+                  <>
+                    <strong style={{ color: "var(--agent-text-primary)" }}>All your assigned files are healthy.</strong>{" "}
+                    A great moment to spot-check the trickier ones or catch up on notes.
+                  </>
+                ),
+                href: "/agent/transactions",
+              };
+            } else {
+              tip = {
+                copy: (
+                  <>
+                    <strong style={{ color: "var(--agent-text-primary)" }}>Pipeline is looking healthy.</strong>{" "}
+                    A great moment to add your next sale or nudge a chain forward.
+                  </>
+                ),
+                href: canCreateSale ? "/agent/transactions/new-v2" : null,
+              };
+            }
+          }
+
+          if (!tip) return null;
+
+          const inner = (
+            <>
+              <div style={{
+                width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                background: "rgba(245, 158, 11, 0.10)",
+                color: "#b45309",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "0.5px solid rgba(245, 158, 11, 0.30)",
+              }}>
+                <Lightbulb size={16} weight="fill" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "#b45309",
+                }}>
+                  Pro tip
+                </p>
+                <p style={{
+                  margin: "2px 0 0", fontSize: 13,
+                  color: "var(--agent-text-secondary)", lineHeight: 1.5,
+                }}>
+                  {tip.copy}
+                </p>
+              </div>
+              {tip.href && (
+                <ArrowRight
+                  size={16}
+                  color="var(--agent-text-muted)"
+                  weight="bold"
+                  style={{ flexShrink: 0 }}
+                />
+              )}
+            </>
+          );
+
+          const wrapperStyle: React.CSSProperties = {
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "12px 16px",
+            background: "rgba(255, 251, 235, 0.75)",
+            border: "0.5px solid rgba(245, 158, 11, 0.22)",
+            borderRadius: "var(--agent-radius-xl)",
+            textDecoration: "none",
+          };
+
+          return tip.href ? (
+            <Link href={tip.href} className="agent-hover-row" style={wrapperStyle}>
+              {inner}
+            </Link>
+          ) : (
+            <div style={wrapperStyle}>{inner}</div>
+          );
+        })()}
       </div>
     </div>
   );
