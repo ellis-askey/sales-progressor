@@ -32,7 +32,7 @@ import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, ArrowRight, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,10 +45,26 @@ function getGreeting(name: string): string {
     const hour = parseInt(hourStr, 10);
     const prefix =
       hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    return `${prefix}, ${extractFirstName(name)}`;
+    // PR 5 header: add a waving hand for a warmer read on the daily
+    // landing page. Kept out of the greeting variable used in the empty
+    // state so the empty branch still reads neutrally.
+    return `${prefix}, ${extractFirstName(name)} 👋`;
   } catch {
     return `Hello, ${extractFirstName(name)}`;
   }
+}
+
+// PR 5 header: pick a subtitle that matches what the hub is actually
+// telling the user, keyed off role. Was previously the flat "Here's what
+// matters today." — this reads warmer + more specific.
+function getSubtitle(role: string, isProgressor: boolean): string {
+  if (role === "admin" || role === "superadmin") {
+    return "Here's what's happening across the platform today.";
+  }
+  if (isProgressor) {
+    return "Here's what's happening with your assigned files today.";
+  }
+  return "Here's what's happening with your pipeline today.";
 }
 
 function fmtCurrency(pence: number): string {
@@ -169,6 +185,7 @@ export default async function HubPreviewPage() {
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
   const greeting       = getGreeting(session.user.name ?? "there");
+  const subtitle       = getSubtitle(role, isProgressor);
   const isEmpty        = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
 
   // ── Empty state ─────────────────────────────────────────────────────────────
@@ -176,7 +193,7 @@ export default async function HubPreviewPage() {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-        <PageHeader title={greeting} subtitle="Here's what matters today.">
+        <PageHeader title={greeting} subtitle={subtitle}>
           {canCreateSale && (
             <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
               <Plus size={14} weight="bold" />
@@ -917,6 +934,136 @@ export default async function HubPreviewPage() {
             </Link>
           </div>
         )}
+
+        {/* ── 6. Pro tip banner (hub polish PR 5) ─────────────────────────────
+          * Contextual nudge picked from the current state of the pipeline.
+          * The cascade fires the loudest signal first (stalled → escalated →
+          * exchanging-this-week → attention count) and falls through to a
+          * neutral-positive fallback when the pipeline is quiet. */}
+        {(() => {
+          type Tip = { copy: React.ReactNode; href: string | null };
+          const stalledCount = pipelineStats.stalled.count;
+
+          let tip: Tip | null = null;
+          if (stalledCount > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {stalledCount} {stalledCount === 1 ? "file hasn't" : "files haven't"} had an update in 14+ days.
+                  </strong>{" "}
+                  A quick chase now could keep your pipeline moving.
+                </>
+              ),
+              href: "/agent/work-queue",
+            };
+          } else if (escalatedCount > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {escalatedCount} {escalatedCount === 1 ? "reminder" : "reminders"} escalated.
+                  </strong>{" "}
+                  Clearing these first keeps everything downstream on track.
+                </>
+              ),
+              href: "/agent/work-queue",
+            };
+          } else if (next7Days > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {next7Days} {next7Days === 1 ? "file exchanging" : "files exchanging"} this week.
+                  </strong>{" "}
+                  Give each one a final ready-check before Friday.
+                </>
+              ),
+              href: "/agent/transactions?filter=exchanging-this-week",
+            };
+          } else if (attentionFileCount > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>
+                    {attentionFileCount} {attentionFileCount === 1 ? "file needs" : "files need"} a bit of attention today.
+                  </strong>{" "}
+                  Clearing these before end-of-day is the fastest win.
+                </>
+              ),
+              href: "/agent/work-queue",
+            };
+          } else if (pipelineStats.activeFiles > 0) {
+            tip = {
+              copy: (
+                <>
+                  <strong style={{ color: "var(--agent-text-primary)" }}>Pipeline is looking healthy.</strong>{" "}
+                  A great moment to add your next sale or nudge a chain forward.
+                </>
+              ),
+              href: canCreateSale ? "/agent/transactions/new-v2" : null,
+            };
+          }
+
+          if (!tip) return null;
+
+          const inner = (
+            <>
+              <div style={{
+                width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                background: "rgba(245, 158, 11, 0.10)",
+                color: "#b45309",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "0.5px solid rgba(245, 158, 11, 0.30)",
+              }}>
+                <Lightbulb size={16} weight="fill" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "#b45309",
+                }}>
+                  Pro tip
+                </p>
+                <p style={{
+                  margin: "2px 0 0", fontSize: 13,
+                  color: "var(--agent-text-secondary)", lineHeight: 1.5,
+                }}>
+                  {tip.copy}
+                </p>
+              </div>
+              {tip.href && (
+                <ArrowRight
+                  size={16}
+                  color="var(--agent-text-muted)"
+                  weight="bold"
+                  style={{ flexShrink: 0 }}
+                />
+              )}
+            </>
+          );
+
+          const wrapperStyle: React.CSSProperties = {
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "12px 16px",
+            background: "rgba(255, 251, 235, 0.75)",
+            border: "0.5px solid rgba(245, 158, 11, 0.22)",
+            borderRadius: "var(--agent-radius-xl)",
+            textDecoration: "none",
+          };
+
+          return tip.href ? (
+            <Link href={tip.href} className="agent-hover-row" style={wrapperStyle}>
+              {inner}
+            </Link>
+          ) : (
+            <div style={wrapperStyle}>{inner}</div>
+          );
+        })()}
       </div>
     </div>
   );
