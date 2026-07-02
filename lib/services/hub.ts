@@ -715,8 +715,9 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
   const completionDefIds = completionDefs.map((d) => d.id);
 
-  // Bucket most-advanced first so we can subtract for cascade.
-  const [completedYtd, exchanging, ready, activeCompletionCounts] = await Promise.all([
+  // Bucket most-advanced first, then split the active-non-exchanging pool
+  // into new / legals / ready by per-tx completion count.
+  const [completedYtd, exchanging, activeNonExchanging] = await Promise.all([
     // completed = tx.status=completed (year to date)
     prisma.propertyTransaction.count({
       where: {
@@ -725,7 +726,8 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         completionDate: { gte: startOfYear },
       },
     }),
-    // exchanging = active with any exchange milestone done
+    // exchanging = active with any exchange milestone done AND not yet fully
+    // completed (VM20 + PM27 not both done).
     prisma.propertyTransaction.count({
       where: {
         ...txWhere,
@@ -736,7 +738,6 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
             state: "complete",
           },
         },
-        // and NOT already fully completed
         NOT: {
           AND: [
             { milestoneCompletions: { some: { milestoneDefinitionId: completionDefIds[0], state: "complete" } } },
@@ -745,32 +746,8 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         },
       },
     }),
-    // ready = active with 15+ completions AND no exchange marker
-    prisma.propertyTransaction.findMany({
-      where: {
-        ...txWhere,
-        status: "active",
-        NOT: {
-          milestoneCompletions: {
-            some: {
-              milestoneDefinitionId: { in: exchangeDefIds },
-              state: "complete",
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        _count: {
-          select: {
-            milestoneCompletions: { where: { state: "complete" } },
-          },
-        },
-      },
-    }),
-    // Grab per-tx completion counts for active non-exchanging tx so we can
-    // sort into New / Legals / Ready buckets. Two queries would be cleaner
-    // but this is a hub read, not a hot path.
+    // Per-tx completion counts for active-and-not-yet-exchanging files.
+    // One findMany is sufficient — we bucket in JS below.
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
@@ -797,14 +774,12 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
 
   // Split the active-not-exchanging pool into New / Legals / Ready by count.
   let newCount = 0, legalsCount = 0, readyCount = 0;
-  for (const tx of activeCompletionCounts) {
+  for (const tx of activeNonExchanging) {
     const c = tx._count.milestoneCompletions;
     if (c < 5) newCount++;
     else if (c < 15) legalsCount++;
     else readyCount++;
   }
-  // `ready` query is used just for its shape reuse (same select).
-  void ready;
 
   return {
     new: newCount,

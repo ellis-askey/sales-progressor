@@ -57,8 +57,12 @@ function getGreeting(name: string): string {
 // PR 5 header: pick a subtitle that matches what the hub is actually
 // telling the user, keyed off role. Was previously the flat "Here's what
 // matters today." — this reads warmer + more specific.
-function getSubtitle(role: string, isProgressor: boolean): string {
-  if (role === "admin" || role === "superadmin") {
+//
+// Uses hasAdminPowers (isAdmin) rather than the raw role string so a
+// hybrid admin (director with admin powers) still gets the platform-wide
+// subtitle — matches the pipeline-health card's existing subtitle logic.
+function getSubtitle(isAdmin: boolean, isProgressor: boolean): string {
+  if (isAdmin) {
     return "Here's what's happening across the platform today.";
   }
   if (isProgressor) {
@@ -185,7 +189,7 @@ export default async function HubPreviewPage() {
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
   const greeting       = getGreeting(session.user.name ?? "there");
-  const subtitle       = getSubtitle(role, isProgressor);
+  const subtitle       = getSubtitle(isAdmin, isProgressor);
   const isEmpty        = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
 
   // ── Empty state ─────────────────────────────────────────────────────────────
@@ -994,15 +998,41 @@ export default async function HubPreviewPage() {
               href: "/agent/work-queue",
             };
           } else if (pipelineStats.activeFiles > 0) {
-            tip = {
-              copy: (
-                <>
-                  <strong style={{ color: "var(--agent-text-primary)" }}>Pipeline is looking healthy.</strong>{" "}
-                  A great moment to add your next sale or nudge a chain forward.
-                </>
-              ),
-              href: canCreateSale ? "/agent/transactions/new-v2" : null,
-            };
+            // Role-branched copy for the "healthy pipeline" tier — the
+            // generic "add your next sale" nudge is agent-centric and
+            // doesn't fit the progressor (can't create sales) or admin
+            // (platform view, not their own pipeline to add to).
+            if (isAdmin) {
+              tip = {
+                copy: (
+                  <>
+                    <strong style={{ color: "var(--agent-text-primary)" }}>Platform is ticking along nicely.</strong>{" "}
+                    A good moment to spot-check risk trends or review the analytics view.
+                  </>
+                ),
+                href: "/agent/analytics",
+              };
+            } else if (isProgressor) {
+              tip = {
+                copy: (
+                  <>
+                    <strong style={{ color: "var(--agent-text-primary)" }}>All your assigned files are healthy.</strong>{" "}
+                    A great moment to spot-check the trickier ones or catch up on notes.
+                  </>
+                ),
+                href: "/agent/transactions",
+              };
+            } else {
+              tip = {
+                copy: (
+                  <>
+                    <strong style={{ color: "var(--agent-text-primary)" }}>Pipeline is looking healthy.</strong>{" "}
+                    A great moment to add your next sale or nudge a chain forward.
+                  </>
+                ),
+                href: canCreateSale ? "/agent/transactions/new-v2" : null,
+              };
+            }
           }
 
           if (!tip) return null;
