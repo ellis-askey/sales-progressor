@@ -160,6 +160,22 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** paired with pre-commit hook.
 - **Justification:** critical fallback; complements install.sh.
 
+### scripts/audit-broken-postcodes.mjs
+
+- **Purpose:** Read-only audit that finds every `PropertyTransaction.propertyAddress` (and `ChainLink.stubPropertyAddress`) where the UK postcode segment matches the postcode regex but isn't already uppercase. Prints the list; makes no writes.
+- **Lifetime:** `one-shot`
+- **Author:** CC (postcode normalisation, hub polish arc), 2026-07-03
+- **Deletion criteria:** delete once `fix-broken-postcodes.mjs` has run against prod and the audit returns zero rows for two consecutive runs.
+- **Justification:** paired with the runtime fix (normaliser at every write path — `createTransaction`, `stubFields`, claim-signup route). Retro-audit needs raw SQL against prod, not a first-party admin action.
+
+### scripts/fix-broken-postcodes.mjs
+
+- **Purpose:** One-shot retroactive fix that uppercases mixed-case postcode segments in existing `PropertyTransaction.propertyAddress` and `ChainLink.stubPropertyAddress` rows. Dry-run by default; `--commit` to write.
+- **Lifetime:** `one-shot`
+- **Author:** CC (postcode normalisation, hub polish arc), 2026-07-03
+- **Deletion criteria:** delete after the audit (see above) returns zero rows across staging + prod for two consecutive runs.
+- **Justification:** legacy row backfill. Runtime writes are now normalised, so this only cleans up historical data. Not surface-eligible.
+
 ### scripts/seed-billy-hub-preview.ts
 
 - **Purpose:** Seeds the `ellisaskey+billy@googlemail.com` account on staging with ~20 test transactions spread across the five pipeline-at-a-glance stages (new/legals/ready/exchanging/completed) plus expected exchange dates that populate the diary + forecast. Powers the hub-polish PR 1 + PR 2 preview.
