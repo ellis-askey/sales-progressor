@@ -413,12 +413,12 @@ export function PropertyHero({
         }}>
           <StatCell
             label="Sale price"
-            value={price ?? "—"}
+            value={price ?? "–"}
             data-sensitive="true"
           />
           <StatCell
             label="Sale type"
-            value={purchaseType ? formatPurchaseType(purchaseType) : "—"}
+            value={purchaseType ? formatPurchaseType(purchaseType) : "–"}
           />
           <StatCell
             label="Progress"
