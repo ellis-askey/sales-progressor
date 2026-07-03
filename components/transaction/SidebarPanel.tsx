@@ -11,10 +11,16 @@
 // underlying query runs per request.
 
 import { prisma } from "@/lib/prisma";
-import { getMilestonesCached } from "@/lib/services/cached-fetchers";
+import {
+  getMilestonesCached,
+  getReminderLogsCached,
+  getActivityTimelineCached,
+} from "@/lib/services/cached-fetchers";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { totalHoldMs } from "@/lib/services/hold-duration";
-import { TransactionSidebar } from "@/components/transaction/TransactionSidebar";
+import { countOverdue } from "@/lib/reminders/classify";
+import { requireSession } from "@/lib/session";
+import { AgentFileSidebar } from "@/components/transaction/AgentFileSidebar";
 import type { ClientType, PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
 type SidebarTransaction = {
@@ -87,7 +93,11 @@ export async function SidebarPanel({
     .catch(() => null);
   const activeRoundCreatedAt = activeRound?.createdAt ?? null;
 
-  const [milestoneData, brokerRow, fileTimeSessions, assignedUser, agentUser, recommendedFirms] = await Promise.all([
+  // Session lookup — small, used only to hide "Message agent" when the
+  // viewer IS the file's owner agent.
+  const session = await requireSession().catch(() => null);
+
+  const [milestoneData, brokerRow, fileTimeSessions, assignedUser, agentUser, recommendedFirms, reminderLogs, activityEntries, contactPortal] = await Promise.all([
     getMilestonesCached(transaction.id, agencyId).catch(() => null),
 
     prisma.propertyTransaction.findFirst({
@@ -141,6 +151,20 @@ export async function SidebarPanel({
         })).filter((r: { name: string }) => Boolean(r.name)))
         .catch(() => null as Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null)
       : Promise.resolve(null as Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null),
+
+    // Cached fetchers — already used by OverviewPanel via React.cache so
+    // these are effectively free here on the request.
+    getReminderLogsCached(transaction.id, agencyId).catch(() => []),
+    getActivityTimelineCached(transaction.id, agencyId).catch(() => []),
+
+    // First vendor contact with a portal token — powers the "Open in client
+    // portal" quick link. Falls back to null (link hidden) when no vendor
+    // has been sent a portal invite yet.
+    prisma.contact.findFirst({
+      where: { propertyTransactionId: transaction.id, roleType: "vendor", portalToken: { not: null } },
+      select: { portalToken: true },
+      orderBy: { createdAt: "asc" },
+    }).catch(() => null),
   ]);
 
   // ── Progress + key dates (milestone-driven) ────────────────────────────
@@ -212,8 +236,44 @@ export async function SidebarPanel({
     hasLiveSession,
   };
 
+  // Risk input for the Sale-health row — mirrors the OverviewPanel
+  // computation exactly. Reminder logs + activity are cached so this
+  // pulls from the same request-scoped cache.
+  const onHold = transaction.status === "on_hold";
+  const overdueCount = onHold ? 0 : countOverdue(reminderLogs, new Date());
+  const escalatedCount = reminderLogs.flatMap((l) =>
+    l.chaseTasks.filter((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated"),
+  ).length;
+  const lastMilestoneCompletion = allMilestones
+    .filter((m) => m.isComplete && m.completion?.completedAt)
+    .sort((a, b) => new Date(b.completion!.completedAt!).getTime() - new Date(a.completion!.completedAt!).getTime())[0];
+  const lastMilestoneCompletedAt = lastMilestoneCompletion?.completion?.completedAt ?? null;
+  const stuckReference = lastMilestoneCompletedAt && activeRoundCreatedAt
+    ? new Date(Math.max(new Date(lastMilestoneCompletedAt).getTime(), activeRoundCreatedAt.getTime()))
+    : lastMilestoneCompletedAt;
+  const daysStuckOnMilestone = stuckReference
+    ? Math.floor((Date.now() - new Date(stuckReference).getTime()) / 86400000)
+    : null;
+  const lastActivityMs = activityEntries.length > 0
+    ? new Date((activityEntries[0] as { at: Date }).at).getTime()
+    : null;
+  const daysSinceLastActivity = lastActivityMs
+    ? Math.floor((Date.now() - lastActivityMs) / 86400000)
+    : null;
+  const riskInput = {
+    onTrack: progress.onTrack,
+    escalatedTaskCount: escalatedCount,
+    overdueTaskCount: overdueCount,
+    daysSinceLastActivity,
+    daysStuckOnMilestone,
+  };
+
+  const primaryPortalHref = contactPortal?.portalToken
+    ? `/portal/${contactPortal.portalToken}`
+    : null;
+
   return (
-    <TransactionSidebar
+    <AgentFileSidebar
       transaction={{
         id: transaction.id,
         propertyAddress: transaction.propertyAddress,
@@ -244,12 +304,15 @@ export async function SidebarPanel({
       keyDates={keyDates}
       exchangeConfirmed={exchangeConfirmed}
       fileTime={fileTime}
-      isInternal={isInternal}
       hideCommercialFields={isProgressor && !isAdminRole}
       agentSlot={agentSlot}
+      riskInput={riskInput}
+      currentUserId={session?.user?.id ?? null}
+      primaryPortalHref={primaryPortalHref}
     />
   );
-  // isAgentRole reserved for future progress-tooltip variants; explicit
-  // mention here keeps it from being flagged as an unused prop by TS.
+  // isInternal + isAgentRole reserved for future variants; explicit
+  // reference here keeps TS from flagging as unused.
+  void isInternal;
   void isAgentRole;
 }

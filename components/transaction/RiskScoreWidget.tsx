@@ -14,7 +14,7 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
   const cfg = RISK_CONFIG[level];
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    <div id="risk-score" className="glass-card overflow-hidden rounded-[12px]" style={{ scrollMarginTop: 100 }}>
       <div className="agent-card-hdr">
         <h3 className="agent-card-title">Fall-through risk</h3>
       </div>
