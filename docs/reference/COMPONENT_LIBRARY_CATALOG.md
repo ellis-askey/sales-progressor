@@ -392,6 +392,9 @@ Patterns that genuinely belong to one domain. Listed for completeness — these 
 - **`RoundChip`** — sale-history chip with hover-reveal "View previous sale". Possibly a candidate for `Pill` variant; defer the call.
 - **`StatusControl`** — status dropdown with confirmation modal. File-detail-specific.
 - **`AutomationStopModal`** — confirm-then-cancel-flow, file-detail-specific.
+- **`MilestoneTimelineStrip`** — 6-stage summary strip (Instructed → Completion) on the file Overview tab. Added 2026-07-03 with the Overview restyle. Reads the display-stage mapping in [lib/milestones/display-stages.ts](../../lib/milestones/display-stages.ts). Promote to `components/ui/` if a second surface needs it.
+- **`NextActionCard`** — highest-priority-thing-to-do tile on the file Overview tab. Added 2026-07-03 with the Overview restyle. Wired to the top-priority reminder in `OverviewPanel`. Promote if the portal / hub ever surface the same primitive.
+- **`QuickLinksCard`** — small sidebar card with a stack of icon-and-label rows (portal / documents / secure message). Added 2026-07-03 with the Overview restyle. Small, could promote to `components/ui/` quickly if a second sidebar needs it.
 
 Each gets a one-line "why" in the eventual catalog. If a domain folder has 5+ components, that folder needs a `README.md` listing them per [Law 14](../../CLAUDE.md#law-14--every-ui-element-is-a-library-component).
 
