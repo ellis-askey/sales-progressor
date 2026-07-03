@@ -31,7 +31,8 @@ import type { ActivityEntry } from "@/lib/services/comms";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
 import { AutomationControls } from "@/components/transaction/AutomationControls";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
-import { NextMilestoneWidget, type MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
+import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
+import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { RemindersWidget } from "@/components/transaction/RemindersWidget";
 import { RecentActivityWidget } from "@/components/transaction/RecentActivityWidget";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
@@ -230,6 +231,23 @@ export async function OverviewPanel({
     pendingChaseCount: l.chaseTasks.filter((t: { status: string }) => t.status === "pending").length,
   }));
 
+  // NextActionCard input — top non-snoozed reminder + its earliest pending
+  // chase task ID. The card falls back to the next milestone if no reminder
+  // is active. Kept to a single call-to-action per file, not one per side.
+  const topActiveReminder = activeReminders
+    .filter((l) => !l.snoozedUntil || new Date(l.snoozedUntil) <= now)
+    .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0] ?? null;
+  const topPendingTaskId = topActiveReminder
+    ? topActiveReminder.chaseTasks.find((t: { status: string }) => t.status === "pending")?.id ?? null
+    : null;
+  const nextActionReminder = topActiveReminder
+    ? {
+        ruleName: topActiveReminder.reminderRule.name,
+        topTaskId: topPendingTaskId,
+        nextDueDate: topActiveReminder.nextDueDate,
+      }
+    : null;
+
   // ── Next-step computation per side ─────────────────────────────────────
   const computeSideState = makeComputeMilestoneSideState(transaction.completionDate, todayUKStr);
   const vendorSideState: MilestoneSideState = milestoneData
@@ -324,10 +342,22 @@ export async function OverviewPanel({
         lastContactedByContactId={lastContactedByContactId}
       />
 
-      <NextMilestoneWidget
+      {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +
+          purchaser NextMilestoneWidget replaced here 2026-07-03: the
+          new card surfaces ONE call-to-action from the top reminder
+          (or a milestone fallback), matching the mock. Detailed per-
+          side next-milestone view still lives on the Steps tab. */}
+      <NextActionCardConsumer
         transactionId={transaction.id}
-        vendorSide={vendorSideState}
-        purchaserSide={purchaserSideState}
+        pathname={`/agent/transactions/${transaction.id}`}
+        reminder={nextActionReminder}
+        fallbackMilestone={
+          vendorSideState.state === "hasNext"
+            ? { name: vendorSideState.milestone.name, code: vendorSideState.milestone.code }
+            : purchaserSideState.state === "hasNext"
+              ? { name: purchaserSideState.milestone.name, code: purchaserSideState.milestone.code }
+              : null
+        }
       />
 
       <RemindersWidget reminders={topReminders} totalActive={actionableCount} />
