@@ -67,7 +67,7 @@ function formatStageDate(stage: MilestoneStage): string {
   if (stage.forecastDate) {
     return `~ ${formatDate(stage.forecastDate)}`;
   }
-  return "—";
+  return "–";
 }
 
 export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] }) {

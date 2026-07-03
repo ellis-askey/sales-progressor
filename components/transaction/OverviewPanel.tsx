@@ -40,6 +40,8 @@ import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { TransactionNotes } from "@/components/transaction/TransactionNotes";
+import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
+import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { Card } from "@/components/ui/Card";
 import type { PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
@@ -70,6 +72,7 @@ type Props = {
     status: TransactionStatus;
     createdAt: Date;
     overridePredictedDate: Date | null;
+    expectedExchangeDate: Date | null;
     completionDate: Date | null;
     clientEmailsPaused: boolean;
     chainLinkId?: string | null;
@@ -269,6 +272,17 @@ export async function OverviewPanel({
     daysStuckOnMilestone,
   };
 
+  // ── 6-stage summary strip (Overview restyle 2026-07-03) ────────────────
+  const allMilestoneRows = [
+    ...(milestoneData?.vendor ?? []),
+    ...(milestoneData?.purchaser ?? []),
+  ];
+  const displayStages: MilestoneStage[] = resolveDisplayStages(allMilestoneRows, {
+    expectedExchangeDate: transaction.expectedExchangeDate ?? null,
+    overridePredictedDate: transaction.overridePredictedDate ?? null,
+    targetCompletionDate: transaction.completionDate ?? null,
+  });
+
   // ── Internal notes (filtered activity) ─────────────────────────────────
   const internalNotes = (activityEntries as ActivityEntry[])
     .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> =>
@@ -280,6 +294,13 @@ export async function OverviewPanel({
 
   return (
     <div className="space-y-5">
+      {/* 6-stage summary strip - the file's headline read at a glance.
+          Sits above the FileHealthBanner so the visual entry to the
+          Overview tab is progress-first, not warnings-first. */}
+      <div className="agent-glass" style={{ padding: "18px 22px" }}>
+        <MilestoneTimelineStrip stages={displayStages} />
+      </div>
+
       <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
       {(transaction.status === "active" || transaction.status === "on_hold") && (

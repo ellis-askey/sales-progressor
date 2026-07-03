@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
+import { HouseSimple } from "@phosphor-icons/react/dist/ssr";
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { formatDate } from "@/lib/utils";
@@ -29,7 +30,7 @@ type Props = {
   transactionId?: string;
   hideServiceTypeBadge?: boolean;
   /** Pass-through to StatusControl so the withdraw success toast can tail
-   *  "— chain notified" only when the transaction is actually chain-linked. */
+   *  " chain notified" only when the transaction is actually chain-linked. */
   inChain?: boolean;
   /** When true, the service-type pill becomes an interactive control that
    *  reveals a swap icon on hover and opens a confirm-and-switch modal.
@@ -62,7 +63,15 @@ const TRACK_BAR: Record<string, string> = {
   at_risk:   "bg-amber-400",
   off_track: "bg-red-500",
   unknown:   "bg-blue-400",
-  on_hold:   "bg-slate-300", // neutral grey — file is frozen, no track signal
+  on_hold:   "bg-slate-300", // neutral grey  file is frozen, no track signal
+};
+
+const TRACK_PILL: Record<string, { label: string; color: string; bg: string }> = {
+  on_track:  { label: "On track",   color: "#047857", bg: "rgba(16, 185, 129, 0.14)" },
+  at_risk:   { label: "At risk",    color: "#b45309", bg: "rgba(245, 158, 11, 0.14)" },
+  off_track: { label: "Off track",  color: "#b91c1c", bg: "rgba(220, 38, 38, 0.14)"  },
+  unknown:   { label: "Just started", color: "#1d4ed8", bg: "rgba(59, 130, 246, 0.12)" },
+  on_hold:   { label: "On hold",    color: "#475569", bg: "rgba(100, 116, 139, 0.14)" },
 };
 
 function formatPrice(pence: number | null): string | null {
@@ -86,6 +95,100 @@ function formatPurchaseType(p: PurchaseType): string {
   return { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" }[p] ?? p;
 }
 
+function formatElapsed(from: Date): string {
+  const now = new Date();
+  const days = Math.max(0, Math.floor((now.getTime() - from.getTime()) / 86400000));
+  const weeks = Math.floor(days / 7);
+  const remDays = days - weeks * 7;
+  if (weeks === 0) {
+    if (days === 0) return "Landed today";
+    return days === 1 ? "1 day elapsed" : `${days} days elapsed`;
+  }
+  const weekLabel = weeks === 1 ? "1 week" : `${weeks} weeks`;
+  if (remDays === 0) return `${weekLabel} elapsed`;
+  const dayLabel = remDays === 1 ? "1 day" : `${remDays} days`;
+  return `${weekLabel} ${dayLabel} elapsed`;
+}
+
+// Inline progress ring for the hero. Kept private to PropertyHero so the
+// sidebar's ring (which lives in TransactionSidebar) stays untouched
+// during this migration.
+function HeroProgressRing({ percent }: { percent: number }) {
+  const size = 118;
+  const strokeWidth = 8;
+  const r = size / 2 - strokeWidth - 2;
+  const circ = 2 * Math.PI * r;
+  const target = circ * (1 - Math.min(100, Math.max(0, percent)) / 100);
+
+  const [mounted, setMounted] = useState(false);
+  const [offset, setOffset] = useState(circ);
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const prefersRM = typeof window !== "undefined"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setReduced(prefersRM);
+    setMounted(true);
+    if (prefersRM) {
+      setOffset(target);
+      return;
+    }
+    setOffset(circ);
+    const t = setTimeout(() => setOffset(target), 60);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cx = size / 2;
+  const cy = size / 2;
+
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ transform: "rotate(-90deg)", overflow: "visible" }}
+      >
+        <circle
+          cx={cx} cy={cy} r={r}
+          fill="none"
+          stroke="rgba(160, 120, 80, 0.18)"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={cx} cy={cy} r={r}
+          fill="none"
+          stroke="var(--agent-coral-deep)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={mounted ? offset : circ}
+          style={{
+            transition: reduced ? "none" : "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)",
+            filter: percent > 0 ? "drop-shadow(0 0 6px rgba(var(--agent-coral-rgb), 0.5))" : "none",
+          }}
+        />
+      </svg>
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <span style={{
+          fontSize: 26,
+          fontWeight: 700,
+          color: "var(--agent-text-primary)",
+          fontVariantNumeric: "tabular-nums",
+          letterSpacing: "-0.02em",
+        }}>{percent}%</span>
+      </div>
+    </div>
+  );
+}
+
 export function PropertyHero({
   address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false,
 }: Props) {
@@ -95,15 +198,20 @@ export function PropertyHero({
   const days = exchangeDate ? daysUntil(new Date(exchangeDate)) : null;
   const price = formatPrice(purchasePrice);
   const [switchModalOpen, setSwitchModalOpen] = useState(false);
-  // Admin-only interactive pill: only enabled when we have all the inputs the
-  // server action needs and the viewer is allowed. Falls back to the static
-  // span render for everyone else (byte-identical to today).
   const canSwitchService = isAdminViewer && !!transactionId && !!serviceType && !hideServiceTypeBadge;
-  // backHref="/agent/transactions" since 2026-05-12 merge; "/agent/dashboard" kept
-  // for any legacy callers (now extinct in-tree but defensive against external use).
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
   if (isAgent) {
+    // ─────────────────────────────────────────────────────────────────
+    // Agent path (light warm cream + coral).
+    // 2026-07-03 Overview-restyle rewrite: house glyph on the left, big
+    // progress ring on the right, pills row between address + agent
+    // meta, stat row (Sale price / Sale type / Progress %) along the
+    // bottom edge in place of the old 4px coral bar. Hero is shared
+    // page shell — visible on every tab.
+    // ─────────────────────────────────────────────────────────────────
+    const track = TRACK_PILL[onTrack];
+    const elapsedText = createdAt ? formatElapsed(new Date(createdAt)) : null;
     const metaParts = [
       assignedUserName ?? null,
       createdAt != null ? `Added on ${formatDate(createdAt)}` : null,
@@ -122,21 +230,70 @@ export function PropertyHero({
         borderRadius: "14px 14px 0 0",
         overflow: "hidden",
       }}>
-        <div style={{ padding: "16px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <div>
-            <Link
-              href={backHref}
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 11, marginBottom: 8, display: "block", textDecoration: "none" }}
-            >
-              ← Back
-            </Link>
+        {/* Back link row */}
+        <div style={{ padding: "12px 20px 0" }}>
+          <Link
+            href={backHref}
+            className="agent-link agent-link-muted"
+            style={{ fontSize: 11, display: "inline-block", textDecoration: "none" }}
+          >
+            ← Back
+          </Link>
+        </div>
+
+        {/* Main row: glyph + address column + ring */}
+        <div style={{
+          padding: "10px 20px 20px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 20,
+        }}>
+          {/* House glyph */}
+          <div style={{
+            width: 92,
+            height: 92,
+            borderRadius: 22,
+            background: "rgba(var(--agent-coral-rgb), 0.10)",
+            border: "0.5px solid rgba(var(--agent-coral-rgb), 0.20)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--agent-coral-deep)",
+            flexShrink: 0,
+          }}>
+            <HouseSimple size={44} weight="regular" />
+          </div>
+
+          {/* Address column */}
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h1
               data-sensitive="true"
-              style={{ fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", margin: "0 0 8px", letterSpacing: "-0.015em", lineHeight: 1.2 }}
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: "var(--agent-text-primary)",
+                margin: "0 0 2px",
+                letterSpacing: "-0.015em",
+                lineHeight: 1.2,
+              }}
             >
-              {address}
+              {line1}
             </h1>
+            {line2 && (
+              <p
+                data-sensitive="true"
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: 13,
+                  color: "var(--agent-text-secondary)",
+                  lineHeight: 1.35,
+                }}
+              >
+                {line2}
+              </p>
+            )}
+
+            {/* Pills row */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               {transactionId
                 ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
@@ -167,10 +324,6 @@ export function PropertyHero({
                 if (!canSwitchService) {
                   return <span style={baseStyle}>{label}</span>;
                 }
-                // Admin viewer: interactive pill. Hover reveals the swap arrow
-                // (existing .v2-swap-arrow rotates 180deg on .v2-swap-btn:hover
-                // via the rule in agent-system.css). Reserve the arrow's slot
-                // with opacity-0 so the pill width doesn't jump on hover.
                 return (
                   <>
                     <button
@@ -204,21 +357,74 @@ export function PropertyHero({
                   </>
                 );
               })()}
-              {metaText && (
-                <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{metaText}</span>
-              )}
               {roundChipSlot}
             </div>
+
+            {/* Agent meta */}
+            {metaText && (
+              <p style={{
+                margin: "10px 0 0",
+                fontSize: 12,
+                color: "var(--agent-text-muted)",
+              }}>{metaText}</p>
+            )}
           </div>
+
+          {/* Progress ring stack */}
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <HeroProgressRing percent={percent} />
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: track.color,
+              background: track.bg,
+              borderRadius: 6,
+              padding: "3px 9px",
+              whiteSpace: "nowrap",
+            }}>{track.label}</span>
+            {elapsedText && (
+              <span style={{
+                fontSize: 11,
+                color: "var(--agent-text-muted)",
+                whiteSpace: "nowrap",
+              }}>{elapsedText}</span>
+            )}
+          </div>
+
           {flagSlot}
         </div>
-        <div style={{ height: 4, background: "rgba(30,45,74,0.08)", position: "relative", overflow: "hidden" }}>
-          <div style={{
-            position: "absolute", left: 0, top: 0, bottom: 0,
-            width: `${Math.max(percent, 2)}%`,
-            background: "linear-gradient(90deg, var(--agent-coral-deep), var(--agent-coral-light))",
-            transition: "width 700ms ease-out",
-          }} />
+
+        {/* Stat row (Sale price / Sale type / Progress %). Replaces the
+            old thin coral progress bar. Subtle top border keeps the
+            visual seam between the main hero body and the stat strip. */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 24,
+          padding: "14px 24px",
+          borderTop: "0.5px solid var(--agent-border-default)",
+          background: "rgba(255, 255, 255, 0.35)",
+        }}>
+          <StatCell
+            label="Sale price"
+            value={price ?? "—"}
+            data-sensitive="true"
+          />
+          <StatCell
+            label="Sale type"
+            value={purchaseType ? formatPurchaseType(purchaseType) : "—"}
+          />
+          <StatCell
+            label="Progress"
+            value={`${percent}%`}
+            valueColor="var(--agent-coral-deep)"
+          />
         </div>
       </div>
     );
@@ -322,6 +528,38 @@ export function PropertyHero({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCell({
+  label, value, valueColor, "data-sensitive": sensitive,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+  "data-sensitive"?: string;
+}) {
+  return (
+    <div>
+      <p style={{
+        margin: 0,
+        fontSize: 10,
+        fontWeight: 600,
+        color: "var(--agent-text-muted)",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+      }}>{label}</p>
+      <p
+        data-sensitive={sensitive}
+        style={{
+          margin: "3px 0 0",
+          fontSize: 15,
+          fontWeight: 600,
+          color: valueColor ?? "var(--agent-text-primary)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >{value}</p>
     </div>
   );
 }
