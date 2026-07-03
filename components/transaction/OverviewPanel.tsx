@@ -345,6 +345,7 @@ export async function OverviewPanel({
         )}
         automatedEmailCounts={automatedEmailCounts}
         lastContactedByContactId={lastContactedByContactId}
+        layout="grid"
       />
 
       {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +

@@ -100,6 +100,7 @@ export function ContactsSection({
   portalViewDates = {},
   automatedEmailCounts = {},
   lastContactedByContactId = {},
+  layout = "list",
 }: {
   transactionId: string;
   contacts: Contact[];
@@ -114,6 +115,12 @@ export function ContactsSection({
   // getLastContactedByContact in lib/services/comms.ts. Drives the
   // freshness pill in the secondary row.
   lastContactedByContactId?: Record<string, string>;
+  // 2026-07-03 Overview restyle: "grid" renders contacts as a 2-column
+  // tile grid (used on the agent Overview tab). "list" is the original
+  // stacked-rows layout used everywhere else. Rows are still full-width
+  // when they're in edit mode or when the Add form is open, so state
+  // and forms behave identically in both layouts.
+  layout?: "list" | "grid";
 }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
@@ -283,14 +290,28 @@ export function ContactsSection({
 
       {/* Contact rows */}
       {contacts.length > 0 && (
-        <div>
+        <div style={layout === "grid" ? {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          gap: 10,
+          padding: 12,
+        } : undefined}>
           {contacts.map((contact) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
             const isEditing = editingId === contact.id;
             const isExiting = exitingId === contact.id;
+            const rowContainerStyle: React.CSSProperties = layout === "grid"
+              ? {
+                  border: "0.5px solid var(--agent-border-default)",
+                  borderRadius: 12,
+                  background: "var(--agent-surface-elevated)",
+                  overflow: "hidden",
+                  gridColumn: isEditing || isExiting ? "1 / -1" : "auto",
+                }
+              : { borderBottom: "0.5px solid var(--agent-border-default)" };
             return (
-              <div key={contact.id} style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}>
+              <div key={contact.id} style={rowContainerStyle}>
                 {/* Display row — always visible */}
                 <div className="agent-entity-row" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
                   {/* Avatar */}
