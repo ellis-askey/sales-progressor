@@ -10,6 +10,7 @@ import {
 } from "@/lib/services/fees";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { getMilestoneShortLabel } from "@/lib/chase/milestone-glossary";
+import { normaliseAddressString } from "@/lib/utils/address";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE 1 commit 4d — chains.ts disposition.
@@ -600,7 +601,10 @@ function stubFields(stub: {
   stubNotes?: string | null;
 }) {
   return {
-    stubPropertyAddress: titleCase(stub.stubPropertyAddress),
+    // titleCase handles street + town casing; normaliseAddressString then
+    // uppercases the postcode segment which titleCase leaves mixed-case
+    // ("lu7 0rz" → "Lu7 0rz" via titleCase → "LU7 0RZ" via normaliser).
+    stubPropertyAddress: normaliseAddressString(titleCase(stub.stubPropertyAddress)),
     stubAgencyName: titleCase(stub.stubAgencyName),
     stubAgentEmail: stub.stubAgentEmail?.toLowerCase().trim() ?? null,
     stubAgentName: stub.stubAgentName?.trim() ?? null,
@@ -675,7 +679,7 @@ export async function updateChainLinkStub(
     where: { id: linkId },
     data: {
       stubPropertyAddress: data.stubPropertyAddress
-        ? titleCase(data.stubPropertyAddress)
+        ? normaliseAddressString(titleCase(data.stubPropertyAddress))
         : undefined,
       stubAgencyName: data.stubAgencyName
         ? titleCase(data.stubAgencyName)

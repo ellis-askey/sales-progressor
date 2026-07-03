@@ -187,9 +187,15 @@ function StageNode({
         border: `1.5px solid ${stage.ringColor}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         color: stage.iconColor,
-        boxShadow: dim ? "none" : "0 1px 3px rgba(15,23,42,0.06)",
-        transition: "transform 160ms ease, box-shadow 160ms ease",
-        transform: open ? "translateY(-2px)" : "none",
+        // Strip has overflow-x: auto (mobile scroll), which per CSS spec
+        // implicitly clips the vertical axis too. A translateY affordance
+        // would clip the top of the circle — swap for a shadow bump.
+        boxShadow: dim
+          ? "none"
+          : open
+            ? "0 4px 12px rgba(15,23,42,0.14), 0 1px 3px rgba(15,23,42,0.06)"
+            : "0 1px 3px rgba(15,23,42,0.06)",
+        transition: "box-shadow 160ms ease",
       }}>
         <Icon size={22} weight="regular" />
       </div>

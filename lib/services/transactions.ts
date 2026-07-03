@@ -9,6 +9,7 @@ import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
 import { recordEvent } from "@/lib/command/events/write";
 import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { normaliseAddressString } from "@/lib/utils/address";
 
 export async function listTransactions(
   agencyId: string,
@@ -850,6 +851,13 @@ async function buildChaseRuleSnapshot(): Promise<Record<string, {
 }
 
 export async function createTransaction(input: CreateTransactionInput) {
+  // Belt-and-braces postcode normalisation at the service layer. Every caller
+  // (server actions, API routes, seeds, external integrations) hits this
+  // path, so postcodes always land uppercase in the DB regardless of whether
+  // the caller remembered to normalise. Idempotent — an already-normalised
+  // address passes through unchanged. Guarded by "8 Goodwins Mead" bug 2026-07-02.
+  const normalisedAddress = normaliseAddressString(input.propertyAddress);
+
   // Anchor the 12-week target to createdAt when supplied (admin migration),
   // otherwise to now (standard create). Same date drives expectedExchangeDate.
   const anchor = input.createdAt ?? new Date();
@@ -878,7 +886,7 @@ export async function createTransaction(input: CreateTransactionInput) {
 
     const created = await tx.propertyTransaction.create({
     data: {
-      propertyAddress: input.propertyAddress,
+      propertyAddress: normalisedAddress,
       agencyId: input.agencyId,
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
       chaseRuleSnapshot,

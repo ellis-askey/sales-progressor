@@ -98,7 +98,11 @@ const bubbleBaseStyle: CSSProperties = {
   // the viewport and the bubble flips above the header.
   zIndex: 300,
   pointerEvents: "none",
-  animation: "enter 140ms cubic-bezier(0.4,0,0.2,1)",
+  // opacity-only fade so the animation doesn't clobber the inline
+  // transform (translateY(-100%)) that anchors the bubble above the
+  // circle. `enter` animates translateY and would flash the bubble
+  // below the anchor for a frame before snapping into place.
+  animation: "enter-fade 140ms cubic-bezier(0.4,0,0.2,1)",
 };
 
 function arrowStyleFor(placement: "above" | "below", anchor: DOMRect, bubbleLeft: number): CSSProperties {

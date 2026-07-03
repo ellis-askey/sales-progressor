@@ -16,6 +16,7 @@ import { reconcileClaimMilestonesAction } from "@/app/actions/milestones";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
 import { sendClaimWelcomeIfNotSent } from "@/lib/emails/send-claim-welcome";
+import { normaliseAddressString } from "@/lib/utils/address";
 import type { Tenure, PurchaseType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -157,7 +158,12 @@ export async function POST(req: NextRequest) {
 
       const newTxn = await tx.propertyTransaction.create({
         data: {
-          propertyAddress: link.stubPropertyAddress ?? "",
+          // Belt-and-braces normalisation. Stubs upstream go through
+          // stubFields() which now normalises, but claim signup is the
+          // last write and does its own propertyTransaction.create rather
+          // than routing through createTransaction() — so a normaliser at
+          // this boundary catches any residual pre-fix stubs still in the DB.
+          propertyAddress: normaliseAddressString(link.stubPropertyAddress ?? ""),
           agencyId,
           agentUserId: session.user.id,
           progressedBy: "agent",
