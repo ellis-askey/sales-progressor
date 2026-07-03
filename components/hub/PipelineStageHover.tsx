@@ -93,7 +93,10 @@ const bubbleBaseStyle: CSSProperties = {
   boxShadow: "0 12px 32px rgba(15,23,42,0.14), 0 2px 6px rgba(15,23,42,0.06)",
   backdropFilter: "blur(16px) saturate(1.1)",
   WebkitBackdropFilter: "blur(16px) saturate(1.1)",
-  zIndex: 60,
+  // Shell topbar dropdown is 200, sidebar 100. Stay above both so the
+  // bubble never gets covered when a stage circle is near the top of
+  // the viewport and the bubble flips above the header.
+  zIndex: 300,
   pointerEvents: "none",
   animation: "enter 140ms cubic-bezier(0.4,0,0.2,1)",
 };

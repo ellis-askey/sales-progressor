@@ -30,7 +30,7 @@ const STAGES: Stage[] = [
   { key: "new",        label: "New",        Icon: HouseSimple,      iconBg: "rgba(16, 185, 129, 0.10)", iconColor: "#047857", ringColor: "rgba(16, 185, 129, 0.35)" },
   { key: "legals",     label: "Legals",     Icon: FileText,          iconBg: "rgba(59, 130, 246, 0.10)", iconColor: "#1d4ed8", ringColor: "rgba(59, 130, 246, 0.35)" },
   { key: "ready",      label: "Ready",      Icon: Handshake,         iconBg: "rgba(245, 158, 11, 0.10)", iconColor: "#b45309", ringColor: "rgba(245, 158, 11, 0.35)" },
-  { key: "exchanging", label: "Exchanging", Icon: ArrowsClockwise,   iconBg: "rgba(139, 92, 246, 0.10)", iconColor: "#6d28d9", ringColor: "rgba(139, 92, 246, 0.35)" },
+  { key: "exchanging", label: "Exchanged",  Icon: ArrowsClockwise,   iconBg: "rgba(139, 92, 246, 0.10)", iconColor: "#6d28d9", ringColor: "rgba(139, 92, 246, 0.35)" },
   { key: "completed",  label: "Completed",  Icon: Key,               iconBg: "rgba(16, 185, 129, 0.12)", iconColor: "#065f46", ringColor: "rgba(16, 185, 129, 0.35)" },
 ];
 

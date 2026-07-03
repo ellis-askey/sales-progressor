@@ -489,21 +489,37 @@ export async function getHubMomentum(vis: AgentVisibility) {
   // including an archived round's previous PM26/VM19 alongside the
   // new round's. exchangedAt-canonical principle (relist precondition)
   // prevents the practical case.
+  //
+  // 2026-07-03 correctness fix: count DISTINCT transactions with any
+  // in-window exchange completion, not raw completion rows. Each
+  // exchange writes two rows (VM19 vendor + PM26 purchaser) so counting
+  // rows doubled the visible number.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
   const [thisMonth, lastMonth] = await Promise.all([
-    prisma.milestoneCompletion.count({
+    prisma.propertyTransaction.count({
       where: {
-        transaction: txWhere,
-        milestoneDefinitionId: { in: exchangeDefIds },
-        completedAt: { gte: startOfThisMonth },
-        state: "complete",
+        ...txWhere,
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: exchangeDefIds },
+            completedAt: { gte: startOfThisMonth },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
       },
     }),
-    prisma.milestoneCompletion.count({
+    prisma.propertyTransaction.count({
       where: {
-        transaction: txWhere,
-        milestoneDefinitionId: { in: exchangeDefIds },
-        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
-        state: "complete",
+        ...txWhere,
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: exchangeDefIds },
+            completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
       },
     }),
   ]);
@@ -582,40 +598,60 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
     stepsConfirmedThisWeek,
     newFilesThisMonth,
   ] = await Promise.all([
-    prisma.milestoneCompletion.count({
+    // 2026-07-03 correctness fix: distinct-file counts, not row counts.
+    // Each exchange writes two rows (VM19 vendor + PM26 purchaser) and
+    // each completion writes two (VM20 + PM27). Counting rows doubled
+    // every wins-card number. Same pattern as getHubPipelineStages.
+    prisma.propertyTransaction.count({
       where: {
-        transaction: txWhere,
-        milestoneDefinitionId: { in: exchangeDefIds },
-        completedAt: { gte: startOfThisMonth },
-        state: "complete",
-        OR: roundScopedOR(activeRoundIds),
+        ...txWhere,
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: exchangeDefIds },
+            completedAt: { gte: startOfThisMonth },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
       },
     }),
-    prisma.milestoneCompletion.count({
+    prisma.propertyTransaction.count({
       where: {
-        transaction: txWhere,
-        milestoneDefinitionId: { in: exchangeDefIds },
-        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
-        state: "complete",
-        OR: roundScopedOR(activeRoundIds),
+        ...txWhere,
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: exchangeDefIds },
+            completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
       },
     }),
-    prisma.milestoneCompletion.count({
+    prisma.propertyTransaction.count({
       where: {
-        transaction: txWhere,
-        milestoneDefinitionId: { in: completionDefIds },
-        completedAt: { gte: startOfThisMonth },
-        state: "complete",
-        OR: roundScopedOR(activeRoundIds),
+        ...txWhere,
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: completionDefIds },
+            completedAt: { gte: startOfThisMonth },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
       },
     }),
-    prisma.milestoneCompletion.count({
+    prisma.propertyTransaction.count({
       where: {
-        transaction: txWhere,
-        milestoneDefinitionId: { in: completionDefIds },
-        completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
-        state: "complete",
-        OR: roundScopedOR(activeRoundIds),
+        ...txWhere,
+        milestoneCompletions: {
+          some: {
+            milestoneDefinitionId: { in: completionDefIds },
+            completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
       },
     }),
     // Fetch this month's exchange completions with their tx.createdAt so we can
