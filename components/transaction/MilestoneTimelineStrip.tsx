@@ -12,19 +12,31 @@
 // stays on the Steps tab, untouched — this is a summary read.
 
 import type { ReactNode } from "react";
-import { Check } from "@phosphor-icons/react/dist/ssr";
+import { Check, HouseSimple, FileText, MagnifyingGlass, ChatCircleText, Handshake, Key } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { formatDate } from "@/lib/utils";
+import type { DisplayStageKey } from "@/lib/milestones/display-stages";
 
 export type StageStatus = "complete" | "active" | "pending";
 
+// Icons are looked up here rather than passed in, so the resolved stage
+// data can flow from a Server Component to this Client Component without
+// crossing the RSC serialisation boundary (2026-07-03 outage fix).
+const STAGE_ICON: Record<DisplayStageKey, Icon> = {
+  instructed: HouseSimple,
+  draft_pack: FileText,
+  searches:   MagnifyingGlass,
+  enquiries:  ChatCircleText,
+  exchange:   Handshake,
+  completion: Key,
+};
+
 export type MilestoneStage = {
-  key: string;
+  key: DisplayStageKey;
   name: string;
   status: StageStatus;
   completedAt?: Date | null;
   forecastDate?: Date | null;
-  Icon: Icon;
 };
 
 const STAGE_TONES: Record<StageStatus, {
@@ -108,7 +120,7 @@ export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] })
 
 function StageNode({ stage }: { stage: MilestoneStage }): ReactNode {
   const tone = STAGE_TONES[stage.status];
-  const Icon = stage.Icon;
+  const Icon = STAGE_ICON[stage.key];
   const size = 44;
   const ringWidth = stage.status === "active" ? 2 : 1.5;
 

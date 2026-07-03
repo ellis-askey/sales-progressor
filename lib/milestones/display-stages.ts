@@ -31,8 +31,10 @@
 //     vendor timeline (mirrors the Steps tab convention).
 //   - Completion = VM20 (seller received completion confirmation).
 
-import { HouseSimple, FileText, MagnifyingGlass, ChatCircleText, Handshake, Key } from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
+// Icons are NOT stored here so this module stays server-serializable.
+// Passing a React component from a Server Component to a Client
+// Component fails at render (2026-07-03 outage). The client-side strip
+// looks up the icon from its own map keyed by DisplayStageKey.
 
 export type DisplayStageKey = "instructed" | "draft_pack" | "searches" | "enquiries" | "exchange" | "completion";
 
@@ -40,16 +42,15 @@ export type DisplayStageDef = {
   key: DisplayStageKey;
   name: string;
   anchorCode: string;
-  Icon: Icon;
 };
 
 export const DISPLAY_STAGES: DisplayStageDef[] = [
-  { key: "instructed", name: "Instructed", anchorCode: "VM1",  Icon: HouseSimple      },
-  { key: "draft_pack", name: "Draft pack", anchorCode: "VM7",  Icon: FileText         },
-  { key: "searches",   name: "Searches",   anchorCode: "PM8",  Icon: MagnifyingGlass  },
-  { key: "enquiries",  name: "Enquiries",  anchorCode: "PM14", Icon: ChatCircleText   },
-  { key: "exchange",   name: "Exchange",   anchorCode: "VM19", Icon: Handshake        },
-  { key: "completion", name: "Completion", anchorCode: "VM20", Icon: Key              },
+  { key: "instructed", name: "Instructed", anchorCode: "VM1"  },
+  { key: "draft_pack", name: "Draft pack", anchorCode: "VM7"  },
+  { key: "searches",   name: "Searches",   anchorCode: "PM8"  },
+  { key: "enquiries",  name: "Enquiries",  anchorCode: "PM14" },
+  { key: "exchange",   name: "Exchange",   anchorCode: "VM19" },
+  { key: "completion", name: "Completion", anchorCode: "VM20" },
 ];
 
 export type MilestoneRowForStages = {
@@ -64,7 +65,6 @@ export type ResolvedStage = {
   status: "complete" | "active" | "pending";
   completedAt: Date | null;
   forecastDate: Date | null;
-  Icon: Icon;
 };
 
 export type ForecastInputs = {
@@ -116,6 +116,5 @@ export function resolveDisplayStages(
     status: r.isComplete ? "complete" : i === activeIndex ? "active" : "pending",
     completedAt: r.completedAt,
     forecastDate: r.forecastDate,
-    Icon: r.def.Icon,
   }));
 }
