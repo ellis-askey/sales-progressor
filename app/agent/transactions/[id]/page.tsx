@@ -382,6 +382,7 @@ export default async function AgentTransactionDetailPage({
               currentUserId={session.user.id}
               currentUserName={session.user.name ?? ""}
               recommendedFirms={null}
+              isEllis={session.user.email === "ellis@thesalesprogressor.co.uk"}
             />
             <RevealPing slotId="overview" />
           </Suspense>

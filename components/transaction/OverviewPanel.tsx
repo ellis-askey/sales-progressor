@@ -43,6 +43,7 @@ import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { TransactionNotes } from "@/components/transaction/TransactionNotes";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
+import { AiSummaryCard } from "@/components/transaction/AiSummaryCard";
 import { Card } from "@/components/ui/Card";
 import type { PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
@@ -92,6 +93,9 @@ type Props = {
   currentUserId: string;
   currentUserName: string;
   recommendedFirms?: Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null;
+  // Ellis-only AI summary prototype toggle. When true, the AiSummaryCard
+  // renders below the reminders widget on the Overview tab.
+  isEllis?: boolean;
 };
 
 const EXCHANGE_MILESTONES = new Set(["VM19", "PM26"]);
@@ -137,6 +141,7 @@ export async function OverviewPanel({
   currentUserId,
   currentUserName,
   recommendedFirms,
+  isEllis = false,
 }: Props) {
   // Pass 3c: pre-load the active round's createdAt so progress + risk
   // calculations can anchor on the active sale's start. Without this the
@@ -361,6 +366,11 @@ export async function OverviewPanel({
       />
 
       <RemindersWidget reminders={topReminders} totalActive={actionableCount} />
+
+      {/* Ellis-only AI summary card. Same gate as the header modal button
+          at app/agent/transactions/[id]/page.tsx line 357-361. */}
+      {isEllis && <AiSummaryCard transactionId={transaction.id} />}
+
       <RecentActivityWidget entries={activityEntries} />
 
       <Card id="chain-section" padding="none">
