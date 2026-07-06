@@ -40,10 +40,10 @@ export function TransactionStatsStrip({ purchasePrice, purchaseType, expectedExc
       display: "grid",
       gridTemplateColumns: "1fr 1fr 1fr",
       alignItems: "center",
-      padding: "20px 24px",
+      padding: "14px 18px",
       background: "var(--agent-surface-elevated)",
       border: "0.5px solid rgba(15, 23, 42, 0.06)",
-      borderRadius: 14,
+      borderRadius: 10,
     }}>
       <StatCell label="Sale price" value={formatPrice(purchasePrice)} data-sensitive="true" />
       <StatCell
@@ -71,12 +71,12 @@ function StatCell({
 }) {
   return (
     <div style={{
-      paddingLeft: divider === "left" ? 24 : 0,
-      borderLeft: divider === "left" ? "1px solid rgba(15, 23, 42, 0.08)" : "none",
+      paddingLeft: divider === "left" ? 18 : 0,
+      borderLeft: divider === "left" ? "1px solid rgba(15, 23, 42, 0.06)" : "none",
     }}>
       <p style={{
         margin: 0,
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: 600,
         color: "var(--agent-text-muted)",
         textTransform: "uppercase",
@@ -85,12 +85,12 @@ function StatCell({
       <p
         data-sensitive={sensitive}
         style={{
-          margin: "6px 0 0",
-          fontSize: 28,
-          fontWeight: 700,
+          margin: "4px 0 0",
+          fontSize: 16,
+          fontWeight: 600,
           color: valueColor ?? "var(--agent-text-primary)",
-          lineHeight: 1.15,
-          letterSpacing: "-0.02em",
+          lineHeight: 1.2,
+          letterSpacing: "-0.01em",
           fontVariantNumeric: "tabular-nums",
         }}
       >{value}</p>

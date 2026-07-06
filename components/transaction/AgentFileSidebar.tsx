@@ -199,9 +199,9 @@ export function AgentFileSidebar({
   const showMessageAgent = !!(agentUser && agentUser.email && currentUserId !== agentUser.id);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ─── 1. Sale health ────────────────────────────────────────────── */}
-      <div style={{ padding: "16px 18px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
+      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -268,7 +268,7 @@ export function AgentFileSidebar({
       </div>
 
       {/* ─── 2. Key dates ─────────────────────────────────────────────── */}
-      <div style={{ padding: "16px 18px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
+      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -378,7 +378,7 @@ export function AgentFileSidebar({
 
       {/* ─── 3. Agent ─────────────────────────────────────────────────── */}
       {agentUser && (
-        <div style={{ padding: "16px 18px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
+        <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -422,7 +422,7 @@ export function AgentFileSidebar({
       )}
 
       {/* ─── 4. Fees ──────────────────────────────────────────────────── */}
-      <div style={{ padding: "16px 18px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
+      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{

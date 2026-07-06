@@ -312,8 +312,8 @@ export default async function AgentTransactionDetailPage({
         tenure={transaction.tenure ?? null}
         purchaseType={transaction.purchaseType ?? null}
       />
-      {/* ── Zone 1: Hero ── (48px bottom margin) */}
-      <div style={{ marginBottom: 48 }}>
+      {/* ── Zone 1: Hero ── */}
+      <div style={{ marginBottom: 20 }}>
         <PropertyHero
           address={transaction.propertyAddress}
           agencyName={transaction.agency.name}
@@ -348,8 +348,8 @@ export default async function AgentTransactionDetailPage({
         />
       </div>
 
-      {/* ── Zone 2: Transaction stats strip ── (32px bottom margin) */}
-      <div style={{ marginBottom: 32 }}>
+      {/* ── Zone 2: Transaction stats strip ── */}
+      <div style={{ marginBottom: 16 }}>
         <TransactionStatsStrip
           purchasePrice={transaction.purchasePrice ?? null}
           purchaseType={transaction.purchaseType ?? null}
@@ -373,9 +373,8 @@ export default async function AgentTransactionDetailPage({
           <div style={{
             background: "var(--agent-surface-elevated)",
             border: "0.5px solid rgba(15, 23, 42, 0.06)",
-            borderRadius: 14,
-            padding: "18px 24px",
-            boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
+            borderRadius: 10,
+            padding: "12px 18px",
           }}>
             <MilestoneTimelineStrip
               stages={resolveDisplayStages(

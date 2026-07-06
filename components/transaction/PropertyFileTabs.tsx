@@ -169,7 +169,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         {/* Zone 4 - always-visible full-width slot between the tab bar
             and the content grid. Used for the milestone journey strip. */}
         {beforeContent && (
-          <div style={{ marginTop: 24, marginBottom: 40 }}>
+          <div style={{ marginTop: 16, marginBottom: 20 }}>
             {beforeContent}
           </div>
         )}

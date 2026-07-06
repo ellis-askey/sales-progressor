@@ -114,8 +114,8 @@ function formatElapsed(from: Date): string {
 // sidebar's ring (which lives in TransactionSidebar) stays untouched
 // during this migration.
 function HeroProgressRing({ percent }: { percent: number }) {
-  const size = 90;
-  const strokeWidth = 6;
+  const size = 72;
+  const strokeWidth = 5;
   const r = size / 2 - strokeWidth - 2;
   const circ = 2 * Math.PI * r;
   const target = circ * (1 - Math.min(100, Math.max(0, percent)) / 100);
@@ -178,7 +178,7 @@ function HeroProgressRing({ percent }: { percent: number }) {
         justifyContent: "center",
       }}>
         <span style={{
-          fontSize: 20,
+          fontSize: 15,
           fontWeight: 700,
           color: "var(--agent-text-primary)",
           fontVariantNumeric: "tabular-nums",
@@ -233,67 +233,53 @@ export function PropertyHero({
         background: "transparent",
         overflow: "visible",
       }}>
-        {/* Subtle radial gradient behind the hero. Sits under everything
-            (pointer-events off) so it does not intercept clicks. Uses a
-            very faint coral wash to add a focal point without decoration. */}
-        <div aria-hidden style={{
-          position: "absolute",
-          inset: "-24px -16px 0 -16px",
-          background: "radial-gradient(ellipse at 65% 20%, rgba(var(--agent-coral-rgb), 0.10) 0%, rgba(var(--agent-coral-rgb), 0.03) 40%, transparent 70%)",
-          pointerEvents: "none",
-          zIndex: 0,
-        }} />
-
         {/* Back link row */}
-        <div style={{ position: "relative", padding: "12px 4px 0" }}>
+        <div style={{ padding: "8px 4px 0" }}>
           <Link
             href={backHref}
             className="agent-link agent-link-muted"
-            style={{ fontSize: 12, display: "inline-block", textDecoration: "none" }}
+            style={{ fontSize: 11, display: "inline-block", textDecoration: "none" }}
           >
             ← Back to files
           </Link>
         </div>
 
-        {/* Main row: property icon tile + title column + ring container */}
+        {/* Main row: property icon tile + title column + ring */}
         <div style={{
           position: "relative",
-          padding: "20px 4px 4px",
+          padding: "8px 4px 0",
           display: "flex",
-          alignItems: "stretch",
-          gap: 28,
+          alignItems: "flex-start",
+          gap: 16,
         }}>
-          {/* Property icon tile - large square, subtle gradient, coral
-              duotone house glyph. Sized to align with the ring container
-              height on the right so the hero has a clear baseline. */}
+          {/* Property icon tile - compact square, subtle gradient. Sized
+              to sit alongside the title, not dominate the hero. */}
           <div style={{
-            width: 200,
-            height: 200,
-            borderRadius: 20,
-            background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.18) 0%, rgba(var(--agent-coral-rgb), 0.06) 100%)",
-            border: "0.5px solid rgba(var(--agent-coral-rgb), 0.22)",
+            width: 56,
+            height: 56,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.16) 0%, rgba(var(--agent-coral-rgb), 0.06) 100%)",
+            border: "0.5px solid rgba(var(--agent-coral-rgb), 0.20)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: "var(--agent-coral-deep)",
             flexShrink: 0,
-            boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
           }}>
-            <HouseSimple size={92} weight="duotone" />
+            <HouseSimple size={28} weight="regular" />
           </div>
 
-          {/* Title column - flex-column so pills + meta stack cleanly
-              under the address block */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start", paddingTop: 4 }}>
+          {/* Title column */}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
             <h1
               data-sensitive="true"
               style={{
-                fontSize: 32,
-                fontWeight: 700,
+                fontSize: 20,
+                fontWeight: 600,
                 color: "var(--agent-text-primary)",
-                margin: "0 0 4px",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.15,
+                margin: "0 0 2px",
+                letterSpacing: "-0.015em",
+                lineHeight: 1.25,
               }}
             >
               {line1}
@@ -302,10 +288,9 @@ export function PropertyHero({
               <p
                 data-sensitive="true"
                 style={{
-                  margin: "0 0 20px",
-                  fontSize: 16,
-                  fontWeight: 500,
-                  color: "var(--agent-text-secondary)",
+                  margin: "0 0 10px",
+                  fontSize: 13,
+                  color: "var(--agent-text-muted)",
                   lineHeight: 1.35,
                 }}
               >
@@ -383,43 +368,29 @@ export function PropertyHero({
             {/* Agent meta - Ellis Askey · Added on 20 May 2026 */}
             {metaText && (
               <p style={{
-                margin: "18px 0 0",
-                fontSize: 14,
+                margin: "10px 0 0",
+                fontSize: 12,
                 color: "var(--agent-text-muted)",
                 lineHeight: 1.4,
               }}>{metaText}</p>
             )}
           </div>
 
-          {/* Progress ring - bare, no container. Ring is a headline
-              visual on the peachy backdrop; the "on track" signal lives
-              in the Sale health sidebar card so we don't display it
-              twice in the same eyeline. Only the elapsed-time caption
-              stays underneath for context. */}
+          {/* Progress ring - bare, compact. Small elapsed caption
+              below. On-track signal lives in the Sale health card so
+              we don't render it twice. */}
           <div style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
+            justifyContent: "flex-start",
+            gap: 6,
             flexShrink: 0,
-            position: "relative",
           }}>
-            {/* Faint coral glow behind the ring — accent, not decoration */}
-            <div aria-hidden style={{
-              position: "absolute",
-              inset: "-24% -30% 40% -30%",
-              background: "radial-gradient(ellipse at center, rgba(var(--agent-coral-rgb), 0.18) 0%, transparent 60%)",
-              filter: "blur(12px)",
-              pointerEvents: "none",
-            }} />
-            <div style={{ position: "relative" }}>
-              <HeroProgressRing percent={percent} />
-            </div>
+            <HeroProgressRing percent={percent} />
             {elapsedText && (
               <span style={{
-                position: "relative",
-                fontSize: 12,
+                fontSize: 11,
                 color: "var(--agent-text-muted)",
                 whiteSpace: "nowrap",
               }}>{elapsedText}</span>
