@@ -106,8 +106,14 @@ export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] })
             display: "flex",
             alignItems: "flex-start",
             gap: 4,
-            flex: 1,
-            minWidth: 0,
+            // 2026-07-06: was `flex: 1, minWidth: 0` which let stages
+            // shrink below their content on narrow viewports, causing
+            // the stage names + dates to overlap. `flex: 1 0 92px`
+            // keeps them growing to fill on desktop but never lets
+            // them shrink below 92px, so overflow-x: auto on the
+            // container properly kicks in and the strip becomes
+            // horizontally-scrollable on mobile.
+            flex: "1 0 92px",
           }}
         >
           <StageNode stage={stage} />
@@ -159,7 +165,7 @@ function StageNode({ stage }: { stage: MilestoneStage }): ReactNode {
           <Icon size={18} weight="regular" />
         )}
       </div>
-      <div style={{ textAlign: "center", minWidth: 0 }}>
+      <div style={{ textAlign: "center", minWidth: 0, maxWidth: 92, overflow: "hidden" }}>
         <p style={{
           margin: 0,
           fontSize: 12,
@@ -167,6 +173,8 @@ function StageNode({ stage }: { stage: MilestoneStage }): ReactNode {
           color: tone.labelColor,
           lineHeight: 1.3,
           whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}>{stage.name}</p>
         <p style={{
           margin: "2px 0 0",
@@ -175,6 +183,8 @@ function StageNode({ stage }: { stage: MilestoneStage }): ReactNode {
           lineHeight: 1.3,
           fontWeight: stage.status === "active" ? 600 : 400,
           whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}>{formatStageDate(stage)}</p>
       </div>
     </div>

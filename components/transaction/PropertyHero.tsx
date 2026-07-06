@@ -113,9 +113,8 @@ function formatElapsed(from: Date): string {
 // Inline progress ring for the hero. Kept private to PropertyHero so the
 // sidebar's ring (which lives in TransactionSidebar) stays untouched
 // during this migration.
-function HeroProgressRing({ percent }: { percent: number }) {
-  const size = 72;
-  const strokeWidth = 5;
+function HeroProgressRing({ percent, size = 72 }: { percent: number; size?: number }) {
+  const strokeWidth = size >= 64 ? 5 : 4;
   const r = size / 2 - strokeWidth - 2;
   const circ = 2 * Math.PI * r;
   const target = circ * (1 - Math.min(100, Math.max(0, percent)) / 100);
@@ -178,7 +177,7 @@ function HeroProgressRing({ percent }: { percent: number }) {
         justifyContent: "center",
       }}>
         <span style={{
-          fontSize: 15,
+          fontSize: size >= 64 ? 15 : 12,
           fontWeight: 700,
           color: "var(--agent-text-primary)",
           fontVariantNumeric: "tabular-nums",
@@ -213,7 +212,8 @@ export function PropertyHero({
     const elapsedText = createdAt ? formatElapsed(new Date(createdAt)) : null;
     const metaParts = [
       assignedUserName ?? null,
-      createdAt != null ? `Added on ${formatDate(createdAt)}` : null,
+      createdAt != null ? `Added ${formatDate(createdAt)}` : null,
+      elapsedText,
     ].filter(Boolean);
     const metaText = metaParts.join(" · ");
 
@@ -244,29 +244,39 @@ export function PropertyHero({
           </Link>
         </div>
 
-        {/* Main row: property icon tile + title column + ring */}
-        <div style={{
+        {/* Main row: property icon tile + title column + ring
+            Desktop: tile on left, title column, ring on right.
+            Mobile (< md): tile hidden, ring replaces it in the top-left
+            slot, title column takes the rest of the row width. Right
+            ring hidden. Everything below (address, pills, meta) flows
+            full-width below the ring on mobile. */}
+        <div className="agent-hero-row" style={{
           position: "relative",
           padding: "8px 4px 0",
           display: "flex",
           alignItems: "flex-start",
           gap: 16,
         }}>
-          {/* Property icon tile - compact square, subtle gradient. Sized
-              to sit alongside the title, not dominate the hero. */}
-          <div style={{
+          {/* Desktop-only property icon tile */}
+          <div className="hidden md:flex" style={{
             width: 56,
             height: 56,
             borderRadius: 12,
             background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.16) 0%, rgba(var(--agent-coral-rgb), 0.06) 100%)",
             border: "0.5px solid rgba(var(--agent-coral-rgb), 0.20)",
-            display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: "var(--agent-coral-deep)",
             flexShrink: 0,
           }}>
             <HouseSimple size={28} weight="regular" />
+          </div>
+
+          {/* Mobile-only ring - sits in the tile's slot. Small (56px)
+              so it doesn't dominate. No caption underneath (elapsed is
+              in the meta line now). */}
+          <div className="md:hidden" style={{ flexShrink: 0 }}>
+            <HeroProgressRing percent={percent} size={56} />
           </div>
 
           {/* Title column */}
@@ -376,25 +386,16 @@ export function PropertyHero({
             )}
           </div>
 
-          {/* Progress ring - bare, compact. Small elapsed caption
-              below. On-track signal lives in the Sale health card so
-              we don't render it twice. */}
-          <div style={{
-            display: "flex",
+          {/* Desktop-only ring on the right. Elapsed caption removed -
+              it lives in the meta line above so we don't render it
+              twice. On-track signal lives in the Sale health card. */}
+          <div className="hidden md:flex" style={{
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "flex-start",
-            gap: 6,
             flexShrink: 0,
           }}>
             <HeroProgressRing percent={percent} />
-            {elapsedText && (
-              <span style={{
-                fontSize: 11,
-                color: "var(--agent-text-muted)",
-                whiteSpace: "nowrap",
-              }}>{elapsedText}</span>
-            )}
           </div>
 
           {flagSlot}
