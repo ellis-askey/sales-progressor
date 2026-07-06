@@ -61,29 +61,26 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
       el.style.setProperty("--tab-bar-blur", `${blur}px`);
 
       if (heroConnected) {
-        // Switch when the tab bar actually reaches the top of the viewport (sticky kicks in)
+        // 2026-07-06 restyle pass 2 — no card chrome on the tab bar. Tabs
+        // sit as text-only strip on the peachy backdrop when not stuck.
+        // When stuck (scrolled), enable the glass-nav backdrop-blur so the
+        // tab labels stay readable over content.
         const stuck = el.getBoundingClientRect().top <= 0;
         if (!stuck) {
           el.classList.remove("glass-nav");
-          el.style.background = "var(--agent-surface-elevated)";
-          el.style.backdropFilter = "blur(24px)";
-          el.style.setProperty("-webkit-backdrop-filter", "blur(24px)");
-          el.style.borderTop = "0.5px solid var(--agent-border-default)";
-          el.style.borderLeft = "0.5px solid var(--agent-border-default)";
-          el.style.borderRight = "0.5px solid var(--agent-border-default)";
-          el.style.borderBottom = "0.5px solid var(--agent-border-default)";
-          el.style.borderRadius = "0 0 14px 14px";
-          el.style.overflow = "hidden";
+          el.style.background = "transparent";
+          el.style.backdropFilter = "";
+          el.style.setProperty("-webkit-backdrop-filter", "");
+          el.style.border = "none";
+          el.style.borderRadius = "0";
+          el.style.overflow = "visible";
           el.style.boxShadow = "none";
         } else {
           el.classList.add("glass-nav");
           el.style.background = "";
           el.style.backdropFilter = "";
           el.style.setProperty("-webkit-backdrop-filter", "");
-          el.style.borderTop = "";
-          el.style.borderLeft = "";
-          el.style.borderRight = "";
-          el.style.borderBottom = "";
+          el.style.border = "";
           el.style.borderRadius = "";
           el.style.overflow = "";
           el.style.boxShadow = "";

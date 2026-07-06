@@ -30,7 +30,7 @@ export type QuickLinksCardProps = {
 export function QuickLinksCard({ title = "Quick links", links }: QuickLinksCardProps) {
   if (links.length === 0) return null;
   return (
-    <div className="agent-glass" style={{ padding: "16px 18px" }}>
+    <div style={{ padding: "16px 18px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
       <p className="agent-eyebrow" style={{ marginBottom: 10 }}>{title}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {links.map((link) => (

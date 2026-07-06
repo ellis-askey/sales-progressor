@@ -312,8 +312,13 @@ export function ContactsSection({
               : { borderBottom: "0.5px solid var(--agent-border-default)" };
             return (
               <div key={contact.id} style={rowContainerStyle}>
-                {/* Display row — always visible */}
-                <div className="agent-entity-row" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                {/* Display row — always visible. In grid layout the
+                    contents stack vertically inside each tile (avatar +
+                    name/role row on top, contact info below, actions
+                    row at the bottom) to match the 2026-07-06 mock. */}
+                <div className="agent-entity-row" style={layout === "grid"
+                  ? { padding: "12px 14px", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8 }
+                  : { padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
                   {/* Avatar */}
                   <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
 

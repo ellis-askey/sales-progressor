@@ -19,7 +19,6 @@
 
 import type { ReactNode } from "react";
 import { useTabContext } from "./TabContext";
-import { Card } from "@/components/ui/Card";
 import {
   CheckCircle,
   MinusCircle,
@@ -118,10 +117,17 @@ export function RecentActivityWidget({ entries }: Props) {
     }
   }
 
+  // 2026-07-06 restyle pass 2 — lighter container. Solid white surface
+  // with a soft border, no strong glass elevation, tighter spacing.
   return (
-    <Card padding="none">
-      <div className="agent-card-hdr">
-        <h3 className="agent-card-title">Recent activity</h3>
+    <div style={{
+      background: "var(--agent-surface-elevated)",
+      border: "0.5px solid rgba(15, 23, 42, 0.06)",
+      borderRadius: 14,
+      overflow: "hidden",
+    }}>
+      <div style={{ padding: "12px 16px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Activity</h3>
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11 }}>
           View all →
         </button>
@@ -165,7 +171,7 @@ export function RecentActivityWidget({ entries }: Props) {
           ))}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 

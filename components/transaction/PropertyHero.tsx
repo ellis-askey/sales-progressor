@@ -218,17 +218,13 @@ export function PropertyHero({
     ].filter(Boolean);
     const metaText = metaParts.join(" · ");
 
+    // 2026-07-06 restyle pass 2 — hero sits directly on the peachy
+    // backdrop (no white card wrapper) to match the mock. Divider before
+    // the stat row is the only visual seam.
     return (
-      <div className="property-hero-glass animate-enter" style={{
-        background: "var(--agent-surface-elevated)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        borderTop: "0.5px solid var(--agent-border-default)",
-        borderLeft: "0.5px solid var(--agent-border-default)",
-        borderRight: "0.5px solid var(--agent-border-default)",
-        borderBottom: "none",
-        borderRadius: "14px 14px 0 0",
-        overflow: "hidden",
+      <div className="animate-enter" style={{
+        background: "transparent",
+        overflow: "visible",
       }}>
         {/* Back link row */}
         <div style={{ padding: "12px 20px 0" }}>
@@ -400,16 +396,17 @@ export function PropertyHero({
           {flagSlot}
         </div>
 
-        {/* Stat row (Sale price / Sale type / Progress %). Replaces the
-            old thin coral progress bar. Subtle top border keeps the
-            visual seam between the main hero body and the stat strip. */}
+        {/* Stat row (Sale price / Sale type / Progress %). Subtle
+            top divider is the only visual seam between the pills row
+            above and this strip. No background - blends with the
+            peachy backdrop per the 2026-07-06 mock. */}
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr",
           gap: 24,
-          padding: "14px 24px",
-          borderTop: "0.5px solid var(--agent-border-default)",
-          background: "rgba(255, 255, 255, 0.35)",
+          padding: "18px 24px 8px",
+          borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
+          background: "transparent",
         }}>
           <StatCell
             label="Sale price"

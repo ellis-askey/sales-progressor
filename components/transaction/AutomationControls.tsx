@@ -33,6 +33,10 @@ type Props = {
   transactionId: string;
   initialClientEmailsPaused: boolean;
   status: "active" | "on_hold";
+  // 2026-07-06 restyle pass 2 — "row" strips the card chrome for the
+  // relocated slot at the tail of the Overview tab. Default "card"
+  // matches the previous shape for any other consumer.
+  variant?: "card" | "row";
 };
 
 type Mode = "active" | "paused" | "on_hold";
@@ -52,6 +56,7 @@ export function AutomationControls({
   transactionId,
   initialClientEmailsPaused,
   status,
+  variant = "card",
 }: Props) {
   const [paused, setPaused] = useState(initialClientEmailsPaused);
   const [currentStatus, setCurrentStatus] = useState<"active" | "on_hold">(status);
@@ -116,15 +121,17 @@ export function AutomationControls({
     });
   }
 
+  const isRow = variant === "row";
   return (
     <>
       <div
         className="agent-reveal-in"
         style={{
-          background: "var(--agent-surface-elevated)",
-          border: "1px solid rgba(15,23,42,0.08)",
-          borderRadius: 10,
-          padding: "10px 16px",
+          background: isRow ? "transparent" : "var(--agent-surface-elevated)",
+          border: isRow ? "none" : "1px solid rgba(15,23,42,0.08)",
+          borderTop: isRow ? "0.5px solid rgba(15, 23, 42, 0.08)" : undefined,
+          borderRadius: isRow ? 0 : 10,
+          padding: isRow ? "12px 4px" : "10px 16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",

@@ -60,10 +60,11 @@ export function NextActionCard({
 
   return (
     <div
-      className="agent-glass"
       style={{
         padding: "16px 18px",
         background: "linear-gradient(180deg, rgba(var(--agent-coral-rgb), 0.05) 0%, var(--agent-surface-elevated) 60%)",
+        border: "0.5px solid rgba(var(--agent-coral-rgb), 0.14)",
+        borderRadius: 14,
         position: "relative",
       }}
     >

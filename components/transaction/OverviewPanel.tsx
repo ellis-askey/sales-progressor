@@ -318,21 +318,19 @@ export async function OverviewPanel({
   return (
     <div className="space-y-5">
       {/* 6-stage summary strip - the file's headline read at a glance.
-          Sits above the FileHealthBanner so the visual entry to the
-          Overview tab is progress-first, not warnings-first. */}
-      <div className="agent-glass" style={{ padding: "18px 22px" }}>
+          2026-07-06 restyle pass 2: solid white surface + tighter padding
+          to match the mock. */}
+      <div style={{
+        background: "var(--agent-surface-elevated)",
+        border: "0.5px solid rgba(15, 23, 42, 0.06)",
+        borderRadius: 14,
+        padding: "16px 20px",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
+      }}>
         <MilestoneTimelineStrip stages={displayStages} />
       </div>
 
       <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
-
-      {(transaction.status === "active" || transaction.status === "on_hold") && (
-        <AutomationControls
-          transactionId={transaction.id}
-          initialClientEmailsPaused={transaction.clientEmailsPaused}
-          status={transaction.status as "active" | "on_hold"}
-        />
-      )}
 
       <ContactsSection
         transactionId={transaction.id}
@@ -426,6 +424,18 @@ export async function OverviewPanel({
       <RiskScoreWidget input={riskInput} />
       <PropertyIntelCard transactionId={transaction.id} />
       <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={currentUserName} />
+
+      {/* Automation on this file - relocated 2026-07-06 from the top of
+          Overview to the tail. Small row (styled via variant="row" prop)
+          instead of the big card the top slot used. */}
+      {(transaction.status === "active" || transaction.status === "on_hold") && (
+        <AutomationControls
+          transactionId={transaction.id}
+          initialClientEmailsPaused={transaction.clientEmailsPaused}
+          status={transaction.status as "active" | "on_hold"}
+          variant="row"
+        />
+      )}
 
       {/* isDirectorRole reserved for future director-only widgets in this tab. */}
       {isDirectorRole ? null : null}

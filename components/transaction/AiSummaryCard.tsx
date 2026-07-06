@@ -11,7 +11,7 @@
 //   error      - inline error + retry.
 
 import { useState, useTransition } from "react";
-import { Sparkle, ShieldCheck, CalendarBlank, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { Sparkle, ShieldCheck, CalendarBlank, WarningCircle, Robot, ChatCircleDots } from "@phosphor-icons/react/dist/ssr";
 import { generateTransactionSummaryAction, type SummaryJson } from "@/app/actions/transaction-summary";
 
 function formatDateMaybe(s: string): string {
@@ -44,12 +44,21 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
 
   return (
     <div
-      className="agent-glass"
       style={{
-        padding: "16px 18px",
-        background: "linear-gradient(180deg, rgba(255, 107, 74, 0.04) 0%, var(--agent-surface-elevated) 65%)",
+        position: "relative",
+        padding: "16px 90px 16px 18px",
+        minHeight: 96,
+        background: "var(--agent-surface-elevated)",
+        border: "0.5px solid rgba(15, 23, 42, 0.06)",
+        borderRadius: 14,
+        overflow: "hidden",
+        // 2026-07-06 restyle pass 2 - mascot glyph in the corner, per the
+        // mock. Uses Phosphor Robot + ChatCircleDots stacked (no
+        // generated imagery per prior user note). Right padding reserves
+        // space so text never overlaps the mascot.
       }}
     >
+      <MascotGlyph />
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -177,5 +186,53 @@ function Chip({
       <Icon size={12} weight="regular" />
       {label}
     </span>
+  );
+}
+
+// Small mascot in the bottom-right corner of the AI summary card. Phosphor
+// Robot glyph inside a coral-tinted rounded square + a tiny ChatCircleDots
+// bubble hovering above its head. Purely decorative; aria-hidden.
+function MascotGlyph() {
+  return (
+    <div aria-hidden style={{
+      position: "absolute",
+      right: 12,
+      bottom: 12,
+      display: "flex",
+      alignItems: "flex-end",
+      gap: 2,
+      pointerEvents: "none",
+      opacity: 0.9,
+    }}>
+      <div style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 42,
+        height: 42,
+        borderRadius: 10,
+        background: "rgba(var(--agent-coral-rgb), 0.10)",
+        border: "0.5px solid rgba(var(--agent-coral-rgb), 0.24)",
+        color: "var(--agent-coral-deep)",
+      }}>
+        <Robot size={24} weight="duotone" />
+      </div>
+      <div style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 22,
+        height: 22,
+        borderRadius: 999,
+        marginBottom: 22,
+        marginLeft: -4,
+        background: "white",
+        border: "0.5px solid rgba(15, 23, 42, 0.08)",
+        color: "var(--agent-text-secondary)",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+      }}>
+        <ChatCircleDots size={12} weight="fill" />
+      </div>
+    </div>
   );
 }
