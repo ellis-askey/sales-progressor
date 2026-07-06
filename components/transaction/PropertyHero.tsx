@@ -114,8 +114,8 @@ function formatElapsed(from: Date): string {
 // sidebar's ring (which lives in TransactionSidebar) stays untouched
 // during this migration.
 function HeroProgressRing({ percent }: { percent: number }) {
-  const size = 118;
-  const strokeWidth = 8;
+  const size = 90;
+  const strokeWidth = 6;
   const r = size / 2 - strokeWidth - 2;
   const circ = 2 * Math.PI * r;
   const target = circ * (1 - Math.min(100, Math.max(0, percent)) / 100);
@@ -178,7 +178,7 @@ function HeroProgressRing({ percent }: { percent: number }) {
         justifyContent: "center",
       }}>
         <span style={{
-          fontSize: 26,
+          fontSize: 20,
           fontWeight: 700,
           color: "var(--agent-text-primary)",
           fontVariantNumeric: "tabular-nums",
@@ -210,7 +210,6 @@ export function PropertyHero({
     // bottom edge in place of the old 4px coral bar. Hero is shared
     // page shell — visible on every tab.
     // ─────────────────────────────────────────────────────────────────
-    const track = TRACK_PILL[onTrack];
     const elapsedText = createdAt ? formatElapsed(new Date(createdAt)) : null;
     const metaParts = [
       assignedUserName ?? null,
@@ -303,7 +302,7 @@ export function PropertyHero({
               <p
                 data-sensitive="true"
                 style={{
-                  margin: "0 0 16px",
+                  margin: "0 0 20px",
                   fontSize: 16,
                   fontWeight: 500,
                   color: "var(--agent-text-secondary)",
@@ -392,17 +391,12 @@ export function PropertyHero({
             )}
           </div>
 
-          {/* Progress ring container - the ring gets its own soft
-              elevated white card so it reads as a discrete component
-              rather than a floating element. Includes the ring, the
-              on-track pill, and the elapsed-time text. */}
+          {/* Progress ring - bare, no container. Ring is a headline
+              visual on the peachy backdrop; the "on track" signal lives
+              in the Sale health sidebar card so we don't display it
+              twice in the same eyeline. Only the elapsed-time caption
+              stays underneath for context. */}
           <div style={{
-            width: 224,
-            padding: "22px 20px 18px",
-            background: "var(--agent-surface-elevated)",
-            border: "0.5px solid rgba(15, 23, 42, 0.06)",
-            borderRadius: 18,
-            boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -411,28 +405,17 @@ export function PropertyHero({
             flexShrink: 0,
             position: "relative",
           }}>
-            {/* Soft blur glow behind the ring - very subtle, sits under
-                the SVG so the whole card has a warm focal core */}
+            {/* Faint coral glow behind the ring — accent, not decoration */}
             <div aria-hidden style={{
               position: "absolute",
-              inset: "10% 20% 40% 20%",
-              background: "radial-gradient(ellipse at center, rgba(var(--agent-coral-rgb), 0.16) 0%, transparent 70%)",
-              filter: "blur(16px)",
+              inset: "-24% -30% 40% -30%",
+              background: "radial-gradient(ellipse at center, rgba(var(--agent-coral-rgb), 0.18) 0%, transparent 60%)",
+              filter: "blur(12px)",
               pointerEvents: "none",
             }} />
             <div style={{ position: "relative" }}>
               <HeroProgressRing percent={percent} />
             </div>
-            <span style={{
-              position: "relative",
-              fontSize: 12,
-              fontWeight: 600,
-              color: track.color,
-              background: track.bg,
-              borderRadius: 999,
-              padding: "3px 11px",
-              whiteSpace: "nowrap",
-            }}>{track.label}</span>
             {elapsedText && (
               <span style={{
                 position: "relative",

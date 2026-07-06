@@ -88,6 +88,17 @@ const PHASE_LABELS: Record<string, string> = {
   post_exchange: "Exchanged",
 };
 
+// Local Risk-level labels for the Sale-health row.
+// RISK_CONFIG.low.label = "On track" globally (used by RiskScoreWidget and
+// RiskBadgeWithPopover), but here we want the risk level to read Low /
+// Medium / High so it doesn't duplicate the file's on-track pill at the
+// top of the same card. Scoped override, no global change.
+const RISK_LEVEL_LABEL: Record<string, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+};
+
 const TRACK_HEALTH: Record<string, { label: string; blurb: string; color: string; bg: string }> = {
   on_track:  { label: "On track",   blurb: "Everything looks good.",                       color: "#047857", bg: "rgba(16, 185, 129, 0.14)" },
   at_risk:   { label: "At risk",    blurb: "Behind the 12-week pace.",                     color: "#b45309", bg: "rgba(245, 158, 11, 0.14)" },
@@ -205,54 +216,30 @@ export function AgentFileSidebar({
           </div>
         </div>
 
-        <p style={{
-          margin: "0 0 12px",
-          fontSize: 12,
-          color: "var(--agent-text-muted)",
-          lineHeight: 1.5,
-        }}>{health.blurb}</p>
-
-        {/* Progress bar */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Progress</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{progress.percent}%</span>
-          </div>
-          <div style={{
-            height: 6,
-            background: "rgba(15, 23, 42, 0.06)",
-            borderRadius: 999,
-            overflow: "hidden",
-          }}>
-            <div style={{
-              height: "100%",
-              width: `${Math.max(progress.percent, 2)}%`,
-              background: "linear-gradient(90deg, var(--agent-coral-deep), var(--agent-coral))",
-              borderRadius: 999,
-              transition: "width 700ms ease-out",
-            }} />
-          </div>
+        {/* 2026-07-06 audit fix: blurb line dropped (redundant with the
+            pill above), Progress bar dropped (redundant with hero ring
+            + stats strip). Card is now pill + rows + link. */}
+        <div style={{ marginTop: 4 }}>
+          <SidebarRow label="Time on file" value={fileTime && fileTime.totalSeconds > 0 ? fmtTime(fileTime.totalSeconds) : formatElapsedDays(progress.daysElapsed)} />
+          {progress.fileLevelPhase && (
+            <SidebarRow label="Stage" value={PHASE_LABELS[progress.fileLevelPhase] ?? progress.fileLevelPhase} />
+          )}
+          {riskConfig && (
+            <SidebarRow
+              label="Risk level"
+              value={<span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 12, fontWeight: 600, color: riskConfig.color,
+                background: riskConfig.bg,
+                padding: "2px 8px",
+                borderRadius: 6,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: riskConfig.dot }} />
+                {RISK_LEVEL_LABEL[risk!.level] ?? riskConfig.label}
+              </span>}
+            />
+          )}
         </div>
-
-        <SidebarRow label="Time on file" value={fileTime && fileTime.totalSeconds > 0 ? fmtTime(fileTime.totalSeconds) : formatElapsedDays(progress.daysElapsed)} />
-        {progress.fileLevelPhase && (
-          <SidebarRow label="Stage" value={PHASE_LABELS[progress.fileLevelPhase] ?? progress.fileLevelPhase} />
-        )}
-        {riskConfig && (
-          <SidebarRow
-            label="Risk level"
-            value={<span style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              fontSize: 12, fontWeight: 600, color: riskConfig.color,
-              background: riskConfig.bg,
-              padding: "2px 8px",
-              borderRadius: 6,
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: riskConfig.dot }} />
-              {riskConfig.label}
-            </span>}
-          />
-        )}
 
         <button
           type="button"

@@ -1,15 +1,21 @@
 // Zone 2 of the file-detail page — a single unified strip of three
-// stats (Sale price / Sale type / Progress). Sits below the hero and
-// above the tab bar. No card chrome; just a horizontal band with
-// thin vertical dividers between columns so it reads as one component
-// rather than three floating text blocks.
+// stats (Sale price / Sale type / Expected exchange). Sits below the
+// hero and above the tab bar. No card chrome; just a horizontal band
+// with thin vertical dividers between columns so it reads as one
+// component rather than three floating text blocks.
+//
+// 2026-07-06 audit fix: 3rd column was Progress %, which duplicated the
+// ring in the hero above AND the progress bar in the Sale health
+// sidebar card. Swapped for Expected exchange - the most operationally
+// useful stat after price and type.
 
 import type { PurchaseType } from "@prisma/client";
 
 type Props = {
   purchasePrice: number | null;
   purchaseType: PurchaseType | null;
-  percent: number;
+  expectedExchangeDate: Date | null;
+  overridePredictedDate: Date | null;
 };
 
 function formatPrice(pence: number | null): string {
@@ -22,7 +28,13 @@ function formatPurchaseType(p: PurchaseType | null): string {
   return { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" }[p] ?? p;
 }
 
-export function TransactionStatsStrip({ purchasePrice, purchaseType, percent }: Props) {
+function formatExchangeDate(d: Date | null): string {
+  if (!d) return "–";
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+export function TransactionStatsStrip({ purchasePrice, purchaseType, expectedExchangeDate, overridePredictedDate }: Props) {
+  const exchangeDate = overridePredictedDate ?? expectedExchangeDate;
   return (
     <div style={{
       display: "grid",
@@ -40,9 +52,8 @@ export function TransactionStatsStrip({ purchasePrice, purchaseType, percent }: 
         divider="left"
       />
       <StatCell
-        label="Progress"
-        value={`${percent}%`}
-        valueColor="var(--agent-coral-deep)"
+        label="Expected exchange"
+        value={formatExchangeDate(exchangeDate)}
         divider="left"
       />
     </div>

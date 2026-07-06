@@ -353,7 +353,8 @@ export default async function AgentTransactionDetailPage({
         <TransactionStatsStrip
           purchasePrice={transaction.purchasePrice ?? null}
           purchaseType={transaction.purchaseType ?? null}
-          percent={progress.percent}
+          expectedExchangeDate={transaction.expectedExchangeDate ?? null}
+          overridePredictedDate={transaction.overridePredictedDate ?? null}
         />
       </div>
 
