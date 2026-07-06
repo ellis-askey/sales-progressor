@@ -38,7 +38,9 @@ const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
 // Matches the established pattern from listTransactions (dashboard)
 function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths — checked first; agent callers have internalMode undefined and skip these.
-  if (vis.internalMode === "admin_all") return {};
+  // admin_all: internal team only touches outsourced files. Filter added
+  // 2026-07-06 alongside sibling bugs in reminders.ts + work-queue.ts.
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" };
   if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
   // Agent paths (director / negotiator) — unchanged.
   if (vis.seeAll) {
@@ -52,7 +54,7 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
 // Nested filter for relations (no agencyId — already on the parent model)
 function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths.
-  if (vis.internalMode === "admin_all") return {};
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" };
   if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
   // Agent paths — unchanged.
   if (vis.seeAll) {
@@ -1617,7 +1619,9 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
   // their own agency / firm.
   let txWhere: Prisma.PropertyTransactionWhereInput;
   if (vis.internalMode === "admin_all") {
-    txWhere = { status: "active", chainSetupPending: true };
+    // Internal team only progresses outsourced files — same rule as
+    // buildTxWhere above.
+    txWhere = { status: "active", chainSetupPending: true, serviceType: "outsourced" };
   } else if (vis.internalMode === "assigned") {
     txWhere = { status: "active", chainSetupPending: true, assignedUserId: vis.userId };
   } else if (vis.seeAll) {

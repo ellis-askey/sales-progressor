@@ -33,7 +33,11 @@ export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg:
 
 export function txWhereWorkQueue(vis: AgentVisibility) {
   // Internal staff paths — checked first; agent callers have internalMode undefined.
-  if (vis.internalMode === "admin_all") return {};
+  // admin_all: filter to outsourced only. Internal team never progresses
+  // self_managed files (those belong to the customer agency and appear on
+  // the agency's own work queue). Fixed 2026-07-06 alongside the sibling
+  // bug in lib/services/reminders.ts:260.
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
   if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
   // Agent paths — unchanged.
   if (vis.seeAll) {

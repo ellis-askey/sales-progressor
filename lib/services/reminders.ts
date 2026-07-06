@@ -258,7 +258,12 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   // also skip on-hold files so nothing fires automatically while they're frozen.
   let txWhere: Record<string, unknown>;
   if (vis.internalMode === "admin_all") {
-    txWhere = { status: "active" as const };
+    // Internal team (admin/superadmin) only progresses outsourced files.
+    // Self-managed files belong to their agency and appear on that agency's
+    // own reminder queue — surfacing them here (bug pre-2026-07-06, spotted
+    // via "8 Goodwins Mead" on Cesare & Co) forces the internal team to
+    // wade past sales they don't touch.
+    txWhere = { status: "active" as const, serviceType: "outsourced" as const };
   } else if (vis.internalMode === "assigned") {
     txWhere = { assignedUserId: vis.userId, status: "active" as const, serviceType: "outsourced" as const };
   } else {
