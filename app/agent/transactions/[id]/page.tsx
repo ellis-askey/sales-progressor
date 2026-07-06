@@ -40,6 +40,9 @@ import { totalHoldMs } from "@/lib/services/hold-duration";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
+import { TransactionStatsStrip } from "@/components/transaction/TransactionStatsStrip";
+import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
+import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
 import { AiSummaryButton } from "@/components/transaction/AiSummaryButton";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
@@ -309,45 +312,85 @@ export default async function AgentTransactionDetailPage({
         tenure={transaction.tenure ?? null}
         purchaseType={transaction.purchaseType ?? null}
       />
-      <PropertyHero
-        address={transaction.propertyAddress}
-        agencyName={transaction.agency.name}
-        status={transaction.status}
-        tenure={transaction.tenure ?? null}
-        purchaseType={transaction.purchaseType ?? null}
-        purchasePrice={transaction.purchasePrice ?? null}
-        exchangeDate={transaction.expectedExchangeDate ?? null}
-        percent={progress.percent}
-        onTrack={progress.onTrack}
-        serviceType={transaction.serviceType}
-        hideServiceTypeBadge={false}
-        backHref="/agent/transactions"
-        assignedUserName={assignedDisplayName}
-        createdAt={transaction.createdAt}
-        transactionId={transaction.id}
-        inChain={!!transaction.chainLinkId}
-        isAdminViewer={isAdminRole}
-        roundChipSlot={
-          <RoundChip
-            transactionId={transaction.id}
-            status={transaction.status}
-            activeRoundNumber={transaction.activeBuyerRound?.roundNumber ?? null}
-            activeBuyerName={
-              transaction.contacts.find(
-                (c) => c.roleType === "purchaser",
-              )?.name ?? null
-            }
-            buyerRounds={transaction.buyerRounds ?? []}
-          />
-        }
-      />
+      {/* ── Zone 1: Hero ── (48px bottom margin) */}
+      <div style={{ marginBottom: 48 }}>
+        <PropertyHero
+          address={transaction.propertyAddress}
+          agencyName={transaction.agency.name}
+          status={transaction.status}
+          tenure={transaction.tenure ?? null}
+          purchaseType={transaction.purchaseType ?? null}
+          purchasePrice={transaction.purchasePrice ?? null}
+          exchangeDate={transaction.expectedExchangeDate ?? null}
+          percent={progress.percent}
+          onTrack={progress.onTrack}
+          serviceType={transaction.serviceType}
+          hideServiceTypeBadge={false}
+          backHref="/agent/transactions"
+          assignedUserName={assignedDisplayName}
+          createdAt={transaction.createdAt}
+          transactionId={transaction.id}
+          inChain={!!transaction.chainLinkId}
+          isAdminViewer={isAdminRole}
+          roundChipSlot={
+            <RoundChip
+              transactionId={transaction.id}
+              status={transaction.status}
+              activeRoundNumber={transaction.activeBuyerRound?.roundNumber ?? null}
+              activeBuyerName={
+                transaction.contacts.find(
+                  (c) => c.roleType === "purchaser",
+                )?.name ?? null
+              }
+              buyerRounds={transaction.buyerRounds ?? []}
+            />
+          }
+        />
+      </div>
 
+      {/* ── Zone 2: Transaction stats strip ── (32px bottom margin) */}
+      <div style={{ marginBottom: 32 }}>
+        <TransactionStatsStrip
+          purchasePrice={transaction.purchasePrice ?? null}
+          purchaseType={transaction.purchaseType ?? null}
+          percent={progress.percent}
+        />
+      </div>
+
+      {/* ── Zone 3: Navigation + Zone 4: Milestone strip (in beforeContent)
+             + Zone 5: Content grid ── all inside PropertyFileTabs.
+           Milestone strip is computed on the page critical path here and
+           passed as `beforeContent` so it renders full-width, above the
+           tab content grid, on every tab (Zone 4 per spec). */}
       <RevealCoordinator slots={["sidebar", "overview"]}>
       <PropertyFileTabs
         tabs={tabs}
         sidebar={sidebar}
         initialTab={initialTab}
         heroConnected
+        beforeContent={
+          <div style={{
+            background: "var(--agent-surface-elevated)",
+            border: "0.5px solid rgba(15, 23, 42, 0.06)",
+            borderRadius: 14,
+            padding: "18px 24px",
+            boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
+          }}>
+            <MilestoneTimelineStrip
+              stages={resolveDisplayStages(
+                [
+                  ...(milestoneData?.vendor ?? []),
+                  ...(milestoneData?.purchaser ?? []),
+                ],
+                {
+                  expectedExchangeDate: transaction.expectedExchangeDate ?? null,
+                  overridePredictedDate: transaction.overridePredictedDate ?? null,
+                  targetCompletionDate: transaction.completionDate ?? null,
+                },
+              ) as MilestoneStage[]}
+            />
+          </div>
+        }
         rightSlot={
           (() => {
             const internal =

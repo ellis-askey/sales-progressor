@@ -41,8 +41,6 @@ import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { TransactionNotes } from "@/components/transaction/TransactionNotes";
-import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
-import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { AiSummaryCard } from "@/components/transaction/AiSummaryCard";
 import { Card } from "@/components/ui/Card";
 import type { PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
@@ -295,16 +293,8 @@ export async function OverviewPanel({
     daysStuckOnMilestone,
   };
 
-  // ── 6-stage summary strip (Overview restyle 2026-07-03) ────────────────
-  const allMilestoneRows = [
-    ...(milestoneData?.vendor ?? []),
-    ...(milestoneData?.purchaser ?? []),
-  ];
-  const displayStages: MilestoneStage[] = resolveDisplayStages(allMilestoneRows, {
-    expectedExchangeDate: transaction.expectedExchangeDate ?? null,
-    overridePredictedDate: transaction.overridePredictedDate ?? null,
-    targetCompletionDate: transaction.completionDate ?? null,
-  });
+  // Milestone strip moved to page level (Zone 4 - always visible, above
+  // the tab content grid). See app/agent/transactions/[id]/page.tsx.
 
   // ── Internal notes (filtered activity) ─────────────────────────────────
   const internalNotes = (activityEntries as ActivityEntry[])
@@ -316,20 +306,7 @@ export async function OverviewPanel({
     .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
   return (
-    <div className="space-y-5">
-      {/* 6-stage summary strip - the file's headline read at a glance.
-          2026-07-06 restyle pass 2: solid white surface + tighter padding
-          to match the mock. */}
-      <div style={{
-        background: "var(--agent-surface-elevated)",
-        border: "0.5px solid rgba(15, 23, 42, 0.06)",
-        borderRadius: 14,
-        padding: "16px 20px",
-        boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
-      }}>
-        <MilestoneTimelineStrip stages={displayStages} />
-      </div>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
       <ContactsSection

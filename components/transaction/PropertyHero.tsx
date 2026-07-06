@@ -218,59 +218,83 @@ export function PropertyHero({
     ].filter(Boolean);
     const metaText = metaParts.join(" · ");
 
-    // 2026-07-06 restyle pass 2 — hero sits directly on the peachy
-    // backdrop (no white card wrapper) to match the mock. Divider before
-    // the stat row is the only visual seam.
+    // 2026-07-06 pass 3 — page-level structural redesign.
+    // Hero renders on the peachy backdrop with:
+    //   - Left: large property icon tile + title (32/700) + address
+    //     (16/500) + status/tenure/purchase-type/service pills + agent
+    //     meta (14/muted).
+    //   - Right: ring wrapped in its OWN soft-elevated container so it
+    //     reads as a component, not a floating element.
+    // Stat row lifted OUT to TransactionStatsStrip (Zone 2). Ring
+    // container padding/proportions tuned so the whole hero baseline
+    // aligns with the sidebar rhythm.
     return (
       <div className="animate-enter" style={{
+        position: "relative",
         background: "transparent",
         overflow: "visible",
       }}>
+        {/* Subtle radial gradient behind the hero. Sits under everything
+            (pointer-events off) so it does not intercept clicks. Uses a
+            very faint coral wash to add a focal point without decoration. */}
+        <div aria-hidden style={{
+          position: "absolute",
+          inset: "-24px -16px 0 -16px",
+          background: "radial-gradient(ellipse at 65% 20%, rgba(var(--agent-coral-rgb), 0.10) 0%, rgba(var(--agent-coral-rgb), 0.03) 40%, transparent 70%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }} />
+
         {/* Back link row */}
-        <div style={{ padding: "12px 20px 0" }}>
+        <div style={{ position: "relative", padding: "12px 4px 0" }}>
           <Link
             href={backHref}
             className="agent-link agent-link-muted"
-            style={{ fontSize: 11, display: "inline-block", textDecoration: "none" }}
+            style={{ fontSize: 12, display: "inline-block", textDecoration: "none" }}
           >
-            ← Back
+            ← Back to files
           </Link>
         </div>
 
-        {/* Main row: glyph + address column + ring */}
+        {/* Main row: property icon tile + title column + ring container */}
         <div style={{
-          padding: "10px 20px 20px",
+          position: "relative",
+          padding: "20px 4px 4px",
           display: "flex",
-          alignItems: "flex-start",
-          gap: 20,
+          alignItems: "stretch",
+          gap: 28,
         }}>
-          {/* House glyph */}
+          {/* Property icon tile - large square, subtle gradient, coral
+              duotone house glyph. Sized to align with the ring container
+              height on the right so the hero has a clear baseline. */}
           <div style={{
-            width: 92,
-            height: 92,
-            borderRadius: 22,
-            background: "rgba(var(--agent-coral-rgb), 0.10)",
-            border: "0.5px solid rgba(var(--agent-coral-rgb), 0.20)",
+            width: 200,
+            height: 200,
+            borderRadius: 20,
+            background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.18) 0%, rgba(var(--agent-coral-rgb), 0.06) 100%)",
+            border: "0.5px solid rgba(var(--agent-coral-rgb), 0.22)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: "var(--agent-coral-deep)",
             flexShrink: 0,
+            boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
           }}>
-            <HouseSimple size={44} weight="regular" />
+            <HouseSimple size={92} weight="duotone" />
           </div>
 
-          {/* Address column */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Title column - flex-column so pills + meta stack cleanly
+              under the address block */}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start", paddingTop: 4 }}>
             <h1
               data-sensitive="true"
               style={{
-                fontSize: 22,
+                fontSize: 32,
                 fontWeight: 700,
                 color: "var(--agent-text-primary)",
-                margin: "0 0 2px",
-                letterSpacing: "-0.015em",
-                lineHeight: 1.2,
+                margin: "0 0 4px",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.15,
               }}
             >
               {line1}
@@ -279,8 +303,9 @@ export function PropertyHero({
               <p
                 data-sensitive="true"
                 style={{
-                  margin: "0 0 10px",
-                  fontSize: 13,
+                  margin: "0 0 16px",
+                  fontSize: 16,
+                  fontWeight: 500,
                   color: "var(--agent-text-secondary)",
                   lineHeight: 1.35,
                 }}
@@ -356,37 +381,62 @@ export function PropertyHero({
               {roundChipSlot}
             </div>
 
-            {/* Agent meta */}
+            {/* Agent meta - Ellis Askey · Added on 20 May 2026 */}
             {metaText && (
               <p style={{
-                margin: "10px 0 0",
-                fontSize: 12,
+                margin: "18px 0 0",
+                fontSize: 14,
                 color: "var(--agent-text-muted)",
+                lineHeight: 1.4,
               }}>{metaText}</p>
             )}
           </div>
 
-          {/* Progress ring stack */}
+          {/* Progress ring container - the ring gets its own soft
+              elevated white card so it reads as a discrete component
+              rather than a floating element. Includes the ring, the
+              on-track pill, and the elapsed-time text. */}
           <div style={{
+            width: 224,
+            padding: "22px 20px 18px",
+            background: "var(--agent-surface-elevated)",
+            border: "0.5px solid rgba(15, 23, 42, 0.06)",
+            borderRadius: 18,
+            boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 8,
+            justifyContent: "center",
+            gap: 10,
             flexShrink: 0,
+            position: "relative",
           }}>
-            <HeroProgressRing percent={percent} />
+            {/* Soft blur glow behind the ring - very subtle, sits under
+                the SVG so the whole card has a warm focal core */}
+            <div aria-hidden style={{
+              position: "absolute",
+              inset: "10% 20% 40% 20%",
+              background: "radial-gradient(ellipse at center, rgba(var(--agent-coral-rgb), 0.16) 0%, transparent 70%)",
+              filter: "blur(16px)",
+              pointerEvents: "none",
+            }} />
+            <div style={{ position: "relative" }}>
+              <HeroProgressRing percent={percent} />
+            </div>
             <span style={{
-              fontSize: 11,
+              position: "relative",
+              fontSize: 12,
               fontWeight: 600,
               color: track.color,
               background: track.bg,
-              borderRadius: 6,
-              padding: "3px 9px",
+              borderRadius: 999,
+              padding: "3px 11px",
               whiteSpace: "nowrap",
             }}>{track.label}</span>
             {elapsedText && (
               <span style={{
-                fontSize: 11,
+                position: "relative",
+                fontSize: 12,
                 color: "var(--agent-text-muted)",
                 whiteSpace: "nowrap",
               }}>{elapsedText}</span>
@@ -394,34 +444,6 @@ export function PropertyHero({
           </div>
 
           {flagSlot}
-        </div>
-
-        {/* Stat row (Sale price / Sale type / Progress %). Subtle
-            top divider is the only visual seam between the pills row
-            above and this strip. No background - blends with the
-            peachy backdrop per the 2026-07-06 mock. */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 24,
-          padding: "18px 24px 8px",
-          borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
-          background: "transparent",
-        }}>
-          <StatCell
-            label="Sale price"
-            value={price ?? "–"}
-            data-sensitive="true"
-          />
-          <StatCell
-            label="Sale type"
-            value={purchaseType ? formatPurchaseType(purchaseType) : "–"}
-          />
-          <StatCell
-            label="Progress"
-            value={`${percent}%`}
-            valueColor="var(--agent-coral-deep)"
-          />
         </div>
       </div>
     );
@@ -529,34 +551,3 @@ export function PropertyHero({
   );
 }
 
-function StatCell({
-  label, value, valueColor, "data-sensitive": sensitive,
-}: {
-  label: string;
-  value: string;
-  valueColor?: string;
-  "data-sensitive"?: string;
-}) {
-  return (
-    <div>
-      <p style={{
-        margin: 0,
-        fontSize: 10,
-        fontWeight: 600,
-        color: "var(--agent-text-muted)",
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-      }}>{label}</p>
-      <p
-        data-sensitive={sensitive}
-        style={{
-          margin: "3px 0 0",
-          fontSize: 15,
-          fontWeight: 600,
-          color: valueColor ?? "var(--agent-text-primary)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >{value}</p>
-    </div>
-  );
-}

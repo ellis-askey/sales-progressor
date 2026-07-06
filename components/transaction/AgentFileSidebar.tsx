@@ -188,7 +188,7 @@ export function AgentFileSidebar({
   const showMessageAgent = !!(agentUser && agentUser.email && currentUserId !== agentUser.id);
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* ─── 1. Sale health ────────────────────────────────────────────── */}
       <div style={{ padding: "16px 18px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>

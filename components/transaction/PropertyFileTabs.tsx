@@ -20,12 +20,16 @@ type Props = {
   // Optional right-aligned slot next to the tab bar. Used for internal-staff
   // controls (e.g. PortalConfirmEmailToggle). Hidden when null.
   rightSlot?: React.ReactNode;
+  // 2026-07-06 pass 3 - Zone 4 slot. Rendered between the tab bar and
+  // the content grid, spanning full width. Used by the file-detail page
+  // for the always-visible milestone journey strip.
+  beforeContent?: React.ReactNode;
 };
 
 // Module-scoped: persists across SPA navigations for the browser session
 let _sessionSidebarOpen = false;
 
-export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected, rightSlot }: Props) {
+export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected, rightSlot, beforeContent }: Props) {
   const [active, setActive] = useState(() => {
     if (initialTab && tabs.some((t) => t.key === initialTab)) return initialTab;
     return tabs[0].key;
@@ -161,6 +165,14 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
             )}
           </div>
         </div>
+
+        {/* Zone 4 - always-visible full-width slot between the tab bar
+            and the content grid. Used for the milestone journey strip. */}
+        {beforeContent && (
+          <div style={{ marginTop: 24, marginBottom: 40 }}>
+            {beforeContent}
+          </div>
+        )}
 
         {/* Mobile/tablet collapsible sidebar — hidden on lg+ */}
         <div className="lg:hidden border-b border-white/20">
