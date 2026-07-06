@@ -59,23 +59,25 @@ function StatCell({
   return (
     <div style={{
       display: "flex",
-      alignItems: "center",
-      gap: 12,
-      paddingLeft: divider === "left" ? 18 : 0,
+      alignItems: "flex-start",
+      gap: 10,
+      paddingLeft: divider === "left" ? 14 : 0,
       borderLeft: divider === "left" ? "1px solid rgba(15, 23, 42, 0.06)" : "none",
     }}>
-      <span style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        background: "rgba(var(--agent-coral-rgb), 0.12)",
-        color: "var(--agent-coral-deep)",
-        flexShrink: 0,
-      }}>
-        <Icon size={16} weight="regular" />
+      <span
+        className="stat-cell-icon"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 8,
+          background: "rgba(var(--agent-coral-rgb), 0.12)",
+          color: "var(--agent-coral-deep)",
+          flexShrink: 0,
+          marginTop: 1,
+        }}
+      >
+        <Icon size={14} weight="regular" />
       </span>
       <div style={{ minWidth: 0 }}>
         <p style={{
@@ -88,14 +90,15 @@ function StatCell({
         }}>{label}</p>
         <p
           data-sensitive={sensitive}
+          className="stat-cell-value"
           style={{
             margin: "2px 0 0",
-            fontSize: 16,
             fontWeight: 600,
             color: valueColor ?? "var(--agent-text-primary)",
             lineHeight: 1.2,
             letterSpacing: "-0.01em",
             fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
           }}
         >{value}</p>
       </div>

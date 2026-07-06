@@ -279,7 +279,9 @@ export function PropertyHero({
             <HeroProgressRing percent={percent} size={56} />
           </div>
 
-          {/* Title column */}
+          {/* Title column - title + address only. Pills + meta moved to
+              their own row below the hero-row so on mobile they can
+              start at page-left (not indented under the address). */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
             <h1
               data-sensitive="true"
@@ -298,7 +300,7 @@ export function PropertyHero({
               <p
                 data-sensitive="true"
                 style={{
-                  margin: "0 0 10px",
+                  margin: 0,
                   fontSize: 13,
                   color: "var(--agent-text-muted)",
                   lineHeight: 1.35,
@@ -306,83 +308,6 @@ export function PropertyHero({
               >
                 {line2}
               </p>
-            )}
-
-            {/* Pills row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              {transactionId
-                ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
-                : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
-              }
-              {tenure && (
-                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-                  {formatTenure(tenure)}
-                </span>
-              )}
-              {purchaseType && (
-                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-                  {formatPurchaseType(purchaseType)}
-                </span>
-              )}
-              {!hideServiceTypeBadge && serviceType && (() => {
-                const isSelf = serviceType === "self_managed";
-                const label = isSelf ? "Self-managed" : "With progressor";
-                const baseStyle: React.CSSProperties = {
-                  fontSize: 10,
-                  fontWeight: 500,
-                  color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
-                  background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
-                  borderRadius: 6,
-                  padding: "2px 7px",
-                  whiteSpace: "nowrap",
-                };
-                if (!canSwitchService) {
-                  return <span style={baseStyle}>{label}</span>;
-                }
-                return (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setSwitchModalOpen(true)}
-                      title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
-                      className="v2-swap-btn group"
-                      style={{
-                        ...baseStyle,
-                        border: "none",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      {label}
-                      <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
-                        ⇄
-                      </span>
-                    </button>
-                    {transactionId && (
-                      <SwitchServiceTypeModal
-                        open={switchModalOpen}
-                        transactionId={transactionId}
-                        current={serviceType}
-                        onClose={() => setSwitchModalOpen(false)}
-                      />
-                    )}
-                  </>
-                );
-              })()}
-              {roundChipSlot}
-            </div>
-
-            {/* Agent meta - Ellis Askey · Added on 20 May 2026 */}
-            {metaText && (
-              <p style={{
-                margin: "10px 0 0",
-                fontSize: 12,
-                color: "var(--agent-text-muted)",
-                lineHeight: 1.4,
-              }}>{metaText}</p>
             )}
           </div>
 
@@ -399,6 +324,87 @@ export function PropertyHero({
           </div>
 
           {flagSlot}
+        </div>
+
+        {/* Pills + meta row - full width below the hero row. On mobile
+            this starts at page-left. On desktop it indents 72px so it
+            aligns with the title/address column (tile 56 + gap 16). */}
+        <div className="agent-hero-meta" style={{ marginTop: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {transactionId
+              ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
+              : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+            }
+            {tenure && (
+              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                {formatTenure(tenure)}
+              </span>
+            )}
+            {purchaseType && (
+              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                {formatPurchaseType(purchaseType)}
+              </span>
+            )}
+            {!hideServiceTypeBadge && serviceType && (() => {
+              const isSelf = serviceType === "self_managed";
+              const label = isSelf ? "Self-managed" : "With progressor";
+              const baseStyle: React.CSSProperties = {
+                fontSize: 10,
+                fontWeight: 500,
+                color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
+                background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
+                borderRadius: 6,
+                padding: "2px 7px",
+                whiteSpace: "nowrap",
+              };
+              if (!canSwitchService) {
+                return <span style={baseStyle}>{label}</span>;
+              }
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSwitchModalOpen(true)}
+                    title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
+                    className="v2-swap-btn group"
+                    style={{
+                      ...baseStyle,
+                      border: "none",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {label}
+                    <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
+                      ⇄
+                    </span>
+                  </button>
+                  {transactionId && (
+                    <SwitchServiceTypeModal
+                      open={switchModalOpen}
+                      transactionId={transactionId}
+                      current={serviceType}
+                      onClose={() => setSwitchModalOpen(false)}
+                    />
+                  )}
+                </>
+              );
+            })()}
+            {roundChipSlot}
+          </div>
+
+          {/* Agent meta - "Ellis Askey · Added 22 Jun · 2 weeks elapsed" */}
+          {metaText && (
+            <p style={{
+              margin: "8px 0 0",
+              fontSize: 12,
+              color: "var(--agent-text-muted)",
+              lineHeight: 1.4,
+            }}>{metaText}</p>
+          )}
         </div>
       </div>
     );

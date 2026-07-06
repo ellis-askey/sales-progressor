@@ -659,6 +659,44 @@
     }
   }
 
+  /* PropertyHero pills + meta row.
+   * Desktop: indent 72px so pills/meta align under the title/address column
+   *   (accounts for the 56px tile + 16px gap in the hero row).
+   * Mobile:  no indent - the pills + meta start at page-left below the
+   *   hero row so they don't feel cramped under the ring.
+   */
+  .agent-hero-meta {
+    padding-left: 72px;
+  }
+  @media (max-width: 767px) {
+    .agent-hero-meta {
+      padding-left: 0;
+    }
+  }
+
+  /* TransactionStatsStrip - responsive icon + value.
+   * Icon shrinks 32 -> 26 on mobile so the label/value column has more
+   * room. Value shrinks 16 -> 13 on mobile so long strings like
+   * "14 Sept 2026" and "Cash buyer" fit on one line inside the 3-column
+   * grid on a narrow viewport.
+   */
+  .stat-cell-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .stat-cell-value {
+    font-size: 16px;
+  }
+  @media (max-width: 767px) {
+    .stat-cell-icon {
+      width: 26px;
+      height: 26px;
+    }
+    .stat-cell-value {
+      font-size: 13px;
+    }
+  }
+
   .agent-textarea {
     width: 100%;
     background: rgba(255, 255, 255, 0.52);
