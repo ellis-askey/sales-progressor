@@ -35,6 +35,7 @@ type SidebarTransaction = {
   overridePredictedDate: Date | null;
   completionDate: Date | null;
   createdAt: Date;
+  lastActivityAt?: Date | null;
   serviceType: "self_managed" | "outsourced" | null;
   freeOnExchange?: boolean | null;
   agentFeeAmount: number | null;
@@ -309,6 +310,7 @@ export async function SidebarPanel({
       riskInput={riskInput}
       currentUserId={session?.user?.id ?? null}
       primaryPortalHref={primaryPortalHref}
+      lastActivityAt={transaction.lastActivityAt ?? null}
     />
   );
   // isInternal + isAgentRole reserved for future variants; explicit

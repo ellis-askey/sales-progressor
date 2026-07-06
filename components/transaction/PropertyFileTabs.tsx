@@ -169,7 +169,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         {/* Zone 4 - always-visible full-width slot between the tab bar
             and the content grid. Used for the milestone journey strip. */}
         {beforeContent && (
-          <div style={{ marginTop: 16, marginBottom: 20 }}>
+          <div style={{ marginTop: 12, marginBottom: 4 }}>
             {beforeContent}
           </div>
         )}
@@ -195,7 +195,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         </div>
 
         {/* Tab content + desktop sidebar */}
-        <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}py-5 lg:py-7 flex flex-col lg:flex-row gap-5 lg:gap-7 lg:items-start`}>
+        <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}pt-3 pb-5 lg:pb-7 flex flex-col lg:flex-row gap-4 lg:gap-5 lg:items-start`}>
           <div className="flex-1 min-w-0 relative">
             {tabs.map((tab, i) => (
               <div

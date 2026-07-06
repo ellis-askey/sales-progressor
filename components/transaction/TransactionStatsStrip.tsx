@@ -1,14 +1,8 @@
 // Zone 2 of the file-detail page — a single unified strip of three
-// stats (Sale price / Sale type / Expected exchange). Sits below the
-// hero and above the tab bar. No card chrome; just a horizontal band
-// with thin vertical dividers between columns so it reads as one
-// component rather than three floating text blocks.
-//
-// 2026-07-06 audit fix: 3rd column was Progress %, which duplicated the
-// ring in the hero above AND the progress bar in the Sale health
-// sidebar card. Swapped for Expected exchange - the most operationally
-// useful stat after price and type.
+// stats with a small coral icon per column.
 
+import { Tag, Receipt, CalendarBlank } from "@phosphor-icons/react/dist/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import type { PurchaseType } from "@prisma/client";
 
 type Props = {
@@ -45,24 +39,17 @@ export function TransactionStatsStrip({ purchasePrice, purchaseType, expectedExc
       border: "0.5px solid rgba(15, 23, 42, 0.06)",
       borderRadius: 10,
     }}>
-      <StatCell label="Sale price" value={formatPrice(purchasePrice)} data-sensitive="true" />
-      <StatCell
-        label="Sale type"
-        value={formatPurchaseType(purchaseType)}
-        divider="left"
-      />
-      <StatCell
-        label="Expected exchange"
-        value={formatExchangeDate(exchangeDate)}
-        divider="left"
-      />
+      <StatCell Icon={Tag}           label="Sale price"        value={formatPrice(purchasePrice)}          data-sensitive="true" />
+      <StatCell Icon={Receipt}       label="Sale type"         value={formatPurchaseType(purchaseType)}   divider="left" />
+      <StatCell Icon={CalendarBlank} label="Expected exchange" value={formatExchangeDate(exchangeDate)}   divider="left" />
     </div>
   );
 }
 
 function StatCell({
-  label, value, valueColor, divider, "data-sensitive": sensitive,
+  Icon, label, value, valueColor, divider, "data-sensitive": sensitive,
 }: {
+  Icon: Icon;
   label: string;
   value: string;
   valueColor?: string;
@@ -71,29 +58,47 @@ function StatCell({
 }) {
   return (
     <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
       paddingLeft: divider === "left" ? 18 : 0,
       borderLeft: divider === "left" ? "1px solid rgba(15, 23, 42, 0.06)" : "none",
     }}>
-      <p style={{
-        margin: 0,
-        fontSize: 10,
-        fontWeight: 600,
-        color: "var(--agent-text-muted)",
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-      }}>{label}</p>
-      <p
-        data-sensitive={sensitive}
-        style={{
-          margin: "4px 0 0",
-          fontSize: 16,
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: "rgba(var(--agent-coral-rgb), 0.12)",
+        color: "var(--agent-coral-deep)",
+        flexShrink: 0,
+      }}>
+        <Icon size={16} weight="regular" />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <p style={{
+          margin: 0,
+          fontSize: 10,
           fontWeight: 600,
-          color: valueColor ?? "var(--agent-text-primary)",
-          lineHeight: 1.2,
-          letterSpacing: "-0.01em",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >{value}</p>
+          color: "var(--agent-text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+        }}>{label}</p>
+        <p
+          data-sensitive={sensitive}
+          style={{
+            margin: "2px 0 0",
+            fontSize: 16,
+            fontWeight: 600,
+            color: valueColor ?? "var(--agent-text-primary)",
+            lineHeight: 1.2,
+            letterSpacing: "-0.01em",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >{value}</p>
+      </div>
     </div>
   );
 }

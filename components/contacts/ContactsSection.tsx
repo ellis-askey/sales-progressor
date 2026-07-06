@@ -9,7 +9,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
-import { Envelope, ArrowSquareOut } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple } from "@phosphor-icons/react";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { ContactRowMenu } from "./ContactRowMenu";
@@ -69,6 +69,21 @@ const EMPTY_FORM = {
   roleType: "vendor" as ContactRole,
   email:    "",
   phone:    "",
+};
+
+// Small icon button style for the grid-tile action row (phone / email /
+// WhatsApp). Renders as a rounded square, muted background, muted icon.
+const tileIconBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 28,
+  height: 28,
+  borderRadius: 7,
+  background: "rgba(15, 23, 42, 0.04)",
+  color: "var(--agent-text-secondary)",
+  textDecoration: "none",
+  transition: "background 140ms ease",
 };
 
 const INPUT = "glass-input w-full px-3 py-2 text-sm";
@@ -276,13 +291,24 @@ export function ContactsSection({
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Contacts</h3>
-          {contacts.length > 0 && <span className="agent-badge">{contacts.length}</span>}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: layout === "grid" ? "none" : "0.5px solid var(--agent-border-default)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Small coral house icon in a tinted square, per 2026-07-06 mock */}
+          <span style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 26, height: 26, borderRadius: 7,
+            background: "rgba(var(--agent-coral-rgb), 0.12)",
+            color: "var(--agent-coral-deep)",
+          }}>
+            <HouseSimple size={14} weight="regular" />
+          </span>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
+          {contacts.length > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" }}>{contacts.length}</span>
+          )}
         </div>
         {!showForm && (
-          <button onClick={() => setShowForm(true)} className="agent-link" style={{ fontSize: 11 }}>
+          <button onClick={() => setShowForm(true)} className="agent-link" style={{ fontSize: 12, fontWeight: 500 }}>
             + Add contact
           </button>
         )}
@@ -310,15 +336,90 @@ export function ContactsSection({
                   gridColumn: isEditing || isExiting ? "1 / -1" : "auto",
                 }
               : { borderBottom: "0.5px solid var(--agent-border-default)" };
+            const gridDisplayMode = layout === "grid" && !isEditing && !isExiting;
             return (
               <div key={contact.id} style={rowContainerStyle}>
-                {/* Display row — always visible. In grid layout the
-                    contents stack vertically inside each tile (avatar +
-                    name/role row on top, contact info below, actions
-                    row at the bottom) to match the 2026-07-06 mock. */}
-                <div className="agent-entity-row" style={layout === "grid"
-                  ? { padding: "12px 14px", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8 }
-                  : { padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                {/* ── Grid mode display tile (2026-07-06 mock) ────────────
+                    Layout: avatar + name/role top, viewed timestamp top-
+                    right, phone above email, action icons + View details
+                    at the bottom. Wire clicks to real handlers - tel:,
+                    mailto:, WhatsApp, and the existing edit flow for
+                    "View details" so no dead controls (Law 13). */}
+                {gridDisplayMode && (
+                  <div style={{ padding: "14px 16px", position: "relative" }}>
+                    {contact.portalToken && portalViewDates[contact.id] && (
+                      <span style={{
+                        position: "absolute", top: 14, right: 16,
+                        fontSize: 11, color: "var(--agent-text-muted)",
+                      }}>
+                        Viewed {fmtRelative(portalViewDates[contact.id])}
+                      </span>
+                    )}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
+                      <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <span data-sensitive="true" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, borderRadius: 4, padding: "1px 6px", background: ROLE_PILL_BG[r], color: roleColour(r) }}>
+                            <RoleIcon role={r} size={11} />
+                            {roleLabel(r)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 12 }}>
+                      {contact.phone && (
+                        <span data-sensitive="true" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>{contact.phone}</span>
+                      )}
+                      {contact.email && (
+                        <span data-sensitive="true" style={{
+                          fontSize: 12, color: "var(--agent-text-secondary)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>{contact.email}</span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {contact.phone && (
+                          <a href={`tel:${contact.phone}`} title="Call" style={tileIconBtnStyle}>
+                            <Phone size={14} weight="regular" />
+                          </a>
+                        )}
+                        {contact.email && (
+                          <a href={emailHref(contact.email, contact.roleType, address)} title="Email" style={tileIconBtnStyle}>
+                            <EnvelopeSimple size={14} weight="regular" />
+                          </a>
+                        )}
+                        {contact.phone && (
+                          <a href={whatsappHref(contact.phone)} title="WhatsApp" style={tileIconBtnStyle}>
+                            <ChatCircleText size={14} weight="regular" />
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(contact)}
+                        className="agent-link"
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: "var(--agent-coral-deep)",
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        View details →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── List mode display (original) ─────────────────────── */}
+                {!gridDisplayMode && (
+                <div className="agent-entity-row" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
                   {/* Avatar */}
                   <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
 
@@ -432,6 +533,7 @@ export function ContactsSection({
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Edit form — slides in below, always animates out on close */}
                 {(isEditing || isExiting) && (

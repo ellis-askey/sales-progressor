@@ -79,6 +79,9 @@ type Props = {
   // For the "Open in client portal" quick link — the first vendor
   // contact with a portal token. If unset, the link is hidden.
   primaryPortalHref?: string | null;
+  // 2026-07-06 mock: Last activity timestamp on the file, shown as a
+  // relative-time row in the Sale health card.
+  lastActivityAt?: Date | null;
 };
 
 const PHASE_LABELS: Record<string, string> = {
@@ -106,6 +109,20 @@ const TRACK_HEALTH: Record<string, { label: string; blurb: string; color: string
   unknown:   { label: "Just started", blurb: "Not enough activity yet to score.",          color: "#1d4ed8", bg: "rgba(59, 130, 246, 0.12)" },
   on_hold:   { label: "On hold",    blurb: "Frozen, no signals accumulating.",             color: "#475569", bg: "rgba(100, 116, 139, 0.14)" },
 };
+
+function fmtLastActivity(at: Date | null | undefined): string | null {
+  if (!at) return null;
+  const now = new Date();
+  const d = new Date(at);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfEvent = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((startOfToday.getTime() - startOfEvent.getTime()) / 86400000);
+  const timeText = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (diffDays <= 0) return `Today, ${timeText}`;
+  if (diffDays === 1) return `Yesterday, ${timeText}`;
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 function fmtTime(seconds: number): string {
   if (seconds < 60) return "Under a minute";
@@ -142,6 +159,7 @@ export function AgentFileSidebar({
   riskInput,
   currentUserId,
   primaryPortalHref,
+  lastActivityAt,
 }: Props) {
   const [showEditDrawer, setShowEditDrawer] = useState(false);
   const { setActiveTab } = useTabContext();
@@ -228,17 +246,38 @@ export function AgentFileSidebar({
             <SidebarRow
               label="Risk level"
               value={<span style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
                 fontSize: 12, fontWeight: 600, color: riskConfig.color,
-                background: riskConfig.bg,
-                padding: "2px 8px",
-                borderRadius: 6,
               }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: riskConfig.dot }} />
                 {RISK_LEVEL_LABEL[risk!.level] ?? riskConfig.label}
               </span>}
             />
           )}
+          {fmtLastActivity(lastActivityAt) && (
+            <SidebarRow label="Last activity" value={fmtLastActivity(lastActivityAt)!} />
+          )}
+        </div>
+
+        {/* Health meter - subtle bar at the bottom of the card, tinted by
+            onTrack. Not a duplicate of the hero ring (that's the number
+            reading); this is a color-coded visual health indicator for
+            the whole card. 2026-07-06 mock addition. */}
+        <div style={{
+          marginTop: 12,
+          height: 4,
+          background: "rgba(15, 23, 42, 0.05)",
+          borderRadius: 999,
+          overflow: "hidden",
+        }}>
+          <div style={{
+            height: "100%",
+            width: `${Math.max(progress.percent, 4)}%`,
+            background: progress.onTrack === "on_track" ? "var(--agent-success, #10b981)"
+              : progress.onTrack === "at_risk" ? "var(--agent-warning, #f59e0b)"
+              : progress.onTrack === "off_track" ? "var(--agent-danger, #ef4444)"
+              : "rgba(15, 23, 42, 0.2)",
+            borderRadius: 999,
+            transition: "width 700ms ease-out",
+          }} />
         </div>
 
         <button

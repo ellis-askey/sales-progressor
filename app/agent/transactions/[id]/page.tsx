@@ -243,6 +243,7 @@ export default async function AgentTransactionDetailPage({
             overridePredictedDate: transaction.overridePredictedDate ?? null,
             completionDate: transaction.completionDate ?? null,
             createdAt: transaction.createdAt,
+            lastActivityAt: transaction.lastActivityAt ?? null,
             serviceType: transaction.serviceType ?? null,
             freeOnExchange: transaction.freeOnExchange ?? null,
             agentFeeAmount: transaction.agentFeeAmount ?? null,
