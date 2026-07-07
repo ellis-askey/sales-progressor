@@ -217,6 +217,77 @@ export function PropertyHero({
     ].filter(Boolean);
     const metaText = metaParts.join(" · ");
 
+    // Pills + meta rendering, shared between the desktop in-row column
+    // and the mobile below-row wrapper. State (switchModalOpen) is
+    // single-instance so both renderings share the same modal.
+    const pillsAndMeta = (
+      <>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {transactionId
+            ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
+            : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+          }
+          {tenure && (
+            <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+              {formatTenure(tenure)}
+            </span>
+          )}
+          {purchaseType && (
+            <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+              {formatPurchaseType(purchaseType)}
+            </span>
+          )}
+          {!hideServiceTypeBadge && serviceType && (() => {
+            const isSelf = serviceType === "self_managed";
+            const label = isSelf ? "Self-managed" : "With progressor";
+            const baseStyle: React.CSSProperties = {
+              fontSize: 10,
+              fontWeight: 500,
+              color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
+              background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
+              borderRadius: 6,
+              padding: "2px 7px",
+              whiteSpace: "nowrap",
+            };
+            if (!canSwitchService) {
+              return <span style={baseStyle}>{label}</span>;
+            }
+            return (
+              <button
+                type="button"
+                onClick={() => setSwitchModalOpen(true)}
+                title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
+                className="v2-swap-btn group"
+                style={{
+                  ...baseStyle,
+                  border: "none",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontFamily: "inherit",
+                }}
+              >
+                {label}
+                <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
+                  ⇄
+                </span>
+              </button>
+            );
+          })()}
+          {roundChipSlot}
+        </div>
+        {metaText && (
+          <p style={{
+            margin: "8px 0 0",
+            fontSize: 12,
+            color: "var(--agent-text-muted)",
+            lineHeight: 1.4,
+          }}>{metaText}</p>
+        )}
+      </>
+    );
+
     // 2026-07-06 pass 3 — page-level structural redesign.
     // Hero renders on the peachy backdrop with:
     //   - Left: large property icon tile + title (32/700) + address
@@ -311,13 +382,29 @@ export function PropertyHero({
             )}
           </div>
 
+          {/* Desktop-only pills + meta column - sits INSIDE the hero
+              row between the title/address column and the ring, so the
+              whole header stays on a single row and the vertical height
+              shrinks. Mobile still renders these below the row (see the
+              agent-hero-meta wrapper further down). */}
+          <div className="hidden md:flex" style={{
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            flexShrink: 0,
+            gap: 0,
+            maxWidth: 320,
+          }}>
+            {pillsAndMeta}
+          </div>
+
           {/* Desktop-only ring on the right. Elapsed caption removed -
               it lives in the meta line above so we don't render it
               twice. On-track signal lives in the Sale health card. */}
           <div className="hidden md:flex" style={{
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "flex-start",
+            justifyContent: "center",
             flexShrink: 0,
           }}>
             <HeroProgressRing percent={percent} />
@@ -326,86 +413,23 @@ export function PropertyHero({
           {flagSlot}
         </div>
 
-        {/* Pills + meta row - full width below the hero row. On mobile
-            this starts at page-left. On desktop it indents 72px so it
-            aligns with the title/address column (tile 56 + gap 16). */}
-        <div className="agent-hero-meta" style={{ marginTop: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            {transactionId
-              ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
-              : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
-            }
-            {tenure && (
-              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-                {formatTenure(tenure)}
-              </span>
-            )}
-            {purchaseType && (
-              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-                {formatPurchaseType(purchaseType)}
-              </span>
-            )}
-            {!hideServiceTypeBadge && serviceType && (() => {
-              const isSelf = serviceType === "self_managed";
-              const label = isSelf ? "Self-managed" : "With progressor";
-              const baseStyle: React.CSSProperties = {
-                fontSize: 10,
-                fontWeight: 500,
-                color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
-                background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
-                borderRadius: 6,
-                padding: "2px 7px",
-                whiteSpace: "nowrap",
-              };
-              if (!canSwitchService) {
-                return <span style={baseStyle}>{label}</span>;
-              }
-              return (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setSwitchModalOpen(true)}
-                    title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
-                    className="v2-swap-btn group"
-                    style={{
-                      ...baseStyle,
-                      border: "none",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {label}
-                    <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
-                      ⇄
-                    </span>
-                  </button>
-                  {transactionId && (
-                    <SwitchServiceTypeModal
-                      open={switchModalOpen}
-                      transactionId={transactionId}
-                      current={serviceType}
-                      onClose={() => setSwitchModalOpen(false)}
-                    />
-                  )}
-                </>
-              );
-            })()}
-            {roundChipSlot}
-          </div>
-
-          {/* Agent meta - "Ellis Askey · Added 22 Jun · 2 weeks elapsed" */}
-          {metaText && (
-            <p style={{
-              margin: "8px 0 0",
-              fontSize: 12,
-              color: "var(--agent-text-muted)",
-              lineHeight: 1.4,
-            }}>{metaText}</p>
-          )}
+        {/* Mobile-only pills + meta row - full width below the hero
+            row, starts at page-left (see .agent-hero-meta CSS which
+            zeros the padding on < md and hides entirely on >= md). */}
+        <div className="agent-hero-meta md:hidden" style={{ marginTop: 12 }}>
+          {pillsAndMeta}
         </div>
+
+        {/* Single-instance service-type switch modal - triggered from
+            either the desktop-row pill or the mobile-below-row pill. */}
+        {canSwitchService && transactionId && serviceType && (
+          <SwitchServiceTypeModal
+            open={switchModalOpen}
+            transactionId={transactionId}
+            current={serviceType}
+            onClose={() => setSwitchModalOpen(false)}
+          />
+        )}
       </div>
     );
   }

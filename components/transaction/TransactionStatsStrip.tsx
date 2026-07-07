@@ -1,5 +1,6 @@
 // Zone 2 of the file-detail page — a single unified strip of three
-// stats with a small coral icon per column.
+// stats with a small coral icon per column. Labels + date value shrink
+// on mobile so the 3-column grid stays readable on narrow viewports.
 
 import { Tag, Receipt, CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -27,6 +28,12 @@ function formatExchangeDate(d: Date | null): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatExchangeDateShort(d: Date | null): string {
+  if (!d) return "–";
+  const dt = new Date(d);
+  return `${dt.getDate()}/${dt.getMonth() + 1}/${String(dt.getFullYear()).slice(-2)}`;
+}
+
 export function TransactionStatsStrip({ purchasePrice, purchaseType, expectedExchangeDate, overridePredictedDate }: Props) {
   const exchangeDate = overridePredictedDate ?? expectedExchangeDate;
   return (
@@ -39,9 +46,24 @@ export function TransactionStatsStrip({ purchasePrice, purchaseType, expectedExc
       border: "0.5px solid rgba(15, 23, 42, 0.06)",
       borderRadius: 10,
     }}>
-      <StatCell Icon={Tag}           label="Sale price"        value={formatPrice(purchasePrice)}          data-sensitive="true" />
-      <StatCell Icon={Receipt}       label="Sale type"         value={formatPurchaseType(purchaseType)}   divider="left" />
-      <StatCell Icon={CalendarBlank} label="Expected exchange" value={formatExchangeDate(exchangeDate)}   divider="left" />
+      <StatCell
+        Icon={Tag}
+        label={<><span className="hidden md:inline">Sale price</span><span className="md:hidden">Price</span></>}
+        value={formatPrice(purchasePrice)}
+        data-sensitive="true"
+      />
+      <StatCell
+        Icon={Receipt}
+        label={<><span className="hidden md:inline">Sale type</span><span className="md:hidden">Type</span></>}
+        value={formatPurchaseType(purchaseType)}
+        divider="left"
+      />
+      <StatCell
+        Icon={CalendarBlank}
+        label={<><span className="hidden md:inline">Expected exchange</span><span className="md:hidden">Expected</span></>}
+        value={<><span className="hidden md:inline">{formatExchangeDate(exchangeDate)}</span><span className="md:hidden">{formatExchangeDateShort(exchangeDate)}</span></>}
+        divider="left"
+      />
     </div>
   );
 }
@@ -50,8 +72,8 @@ function StatCell({
   Icon, label, value, valueColor, divider, "data-sensitive": sensitive,
 }: {
   Icon: Icon;
-  label: string;
-  value: string;
+  label: React.ReactNode;
+  value: React.ReactNode;
   valueColor?: string;
   divider?: "left";
   "data-sensitive"?: string;

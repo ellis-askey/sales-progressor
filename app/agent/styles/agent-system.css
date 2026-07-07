@@ -659,19 +659,14 @@
     }
   }
 
-  /* PropertyHero pills + meta row.
-   * Desktop: indent 72px so pills/meta align under the title/address column
-   *   (accounts for the 56px tile + 16px gap in the hero row).
-   * Mobile:  no indent - the pills + meta start at page-left below the
-   *   hero row so they don't feel cramped under the ring.
+  /* PropertyHero mobile-only pills + meta row (below the hero row).
+   * On >= md the pills + meta live INSIDE the hero row (middle column
+   * between title/address and the ring), so this wrapper is hidden via
+   * Tailwind's md:hidden class in the JSX. On < md it renders at
+   * page-left with no padding.
    */
   .agent-hero-meta {
-    padding-left: 72px;
-  }
-  @media (max-width: 767px) {
-    .agent-hero-meta {
-      padding-left: 0;
-    }
+    padding-left: 0;
   }
 
   /* TransactionStatsStrip - responsive icon + value.
