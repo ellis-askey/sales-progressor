@@ -19,6 +19,33 @@ import {
 
 const STAGING_PROJECT_ID = "etidawkbqctarmsdjoxp";
 
+/**
+ * Add PgBouncer-compatibility params to a Prisma datasource URL.
+ *
+ * Supabase's pooled connection URLs (port 6543 / pooler.supabase.co) run
+ * in transaction-mode pooling, which multiplexes prepared statements
+ * across backend connections. Prisma's default prepared-statement
+ * caching then hits `prepared statement "sN" does not exist` errors
+ * mid-run because the statement was prepared on a different backend.
+ *
+ * `pgbouncer=true` tells Prisma to skip prepared-statement caching
+ * (safe with transaction pooling). `connection_limit=1` prevents
+ * concurrent queries from clashing on the same backend during long
+ * batch operations like the demo seed.
+ *
+ * Idempotent - if either flag is already present the URL is returned
+ * unchanged.
+ */
+function withPgBouncerFlags(url: string): string {
+  if (!url) return url;
+  const parts: string[] = [];
+  if (!/[?&]pgbouncer=/.test(url)) parts.push("pgbouncer=true");
+  if (!/[?&]connection_limit=/.test(url)) parts.push("connection_limit=1");
+  if (parts.length === 0) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${parts.join("&")}`;
+}
+
 async function requireSuperAdmin() {
   const session = await getServerSession(authOptions);
   if (!session?.user || !hasSuperAdminPowers(session)) redirect("/dashboard");
@@ -74,7 +101,17 @@ export async function resetDemoAction(confirmText: string): Promise<ResetDemoRes
   // staging via STAGING_DATABASE_URL — the only cross-env connection in
   // the app. Every other surface continues to use lib/prisma.ts (which
   // reads DATABASE_URL) and stays on its own environment.
-  const prisma = new PrismaClient({ datasourceUrl: targetUrl });
+  //
+  // 2026-07-07 fix: append PgBouncer-compatible query params before
+  // instantiating. Supabase's default pooled URL uses transaction-mode
+  // pooling (port 6543 or pooler.supabase.co), which multiplexes
+  // prepared statements across connections and breaks Prisma's default
+  // behaviour with `prepared statement "sN" does not exist` errors
+  // (Postgres code 26000). `pgbouncer=true` disables prepared statement
+  // caching; `connection_limit=1` prevents concurrent queries from
+  // clashing on the same backend. Idempotent - won't double-append if
+  // the URL already has one of these.
+  const prisma = new PrismaClient({ datasourceUrl: withPgBouncerFlags(targetUrl) });
   try {
     const manifest = await runSeedDemo(prisma);
     revalidatePath("/command/admin/demo");
