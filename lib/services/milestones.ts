@@ -11,7 +11,7 @@ import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import { recordEvent } from "@/lib/command/events/write";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import type { MilestoneScope } from "@/lib/services/milestone-scope";
-import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
+import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType, PrismaClient } from "@prisma/client";
 
 // Internal helper: fetch the transaction's active round id and build a
 // forRound(activeBuyerRoundId, transactionId) scope. Used by every read
@@ -122,9 +122,17 @@ export async function initializeMilestoneCompletions(
   // omit to skip the stamping for callers that haven't migrated yet
   // (currently no such callers — createTransactionAction is the only
   // entry point and now passes the round).
-  buyerRoundId?: string | null
+  buyerRoundId?: string | null,
+  // 2026-07-07: optional client override. When omitted uses the default
+  // singleton (@/lib/prisma). Supplied by scripts/seed-demo.ts so it can
+  // run against a cross-env Prisma client (STAGING_DATABASE_URL) without
+  // milestone writes leaking back to the DATABASE_URL Prisma pool - the
+  // FK on transactionId would then fail because the parent row lives
+  // in a different DB.
+  db?: Prisma.TransactionClient | PrismaClient
 ) {
-  const defs = await prisma.milestoneDefinition.findMany({
+  const client = db ?? prisma;
+  const defs = await client.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
   });
 
@@ -159,7 +167,7 @@ export async function initializeMilestoneCompletions(
   // Vendor-side rows stay file-level (buyerRoundId NULL).
   await Promise.all(
     defs.map(async (def) => {
-      const existing = await prisma.milestoneCompletion.findFirst({
+      const existing = await client.milestoneCompletion.findFirst({
         where: { transactionId, milestoneDefinitionId: def.id },
         select: { id: true },
       });
@@ -168,7 +176,7 @@ export async function initializeMilestoneCompletions(
       const isAvail = availableCodes.has(def.code);
       const state = isNr ? "not_required" : isAvail ? "available" : "locked";
       const stampRoundId = def.side === "purchaser" ? (buyerRoundId ?? null) : null;
-      await prisma.milestoneCompletion.create({
+      await client.milestoneCompletion.create({
         data: {
           transactionId,
           milestoneDefinitionId: def.id,
@@ -534,7 +542,14 @@ export type CompleteMilestoneInput = {
   completedAt?: Date;
 };
 
-export async function completeMilestone(input: CompleteMilestoneInput, tx?: Prisma.TransactionClient) {
+export async function completeMilestone(
+  input: CompleteMilestoneInput,
+  // 2026-07-07: widened from Prisma.TransactionClient to also accept a
+  // standalone PrismaClient. scripts/seed-demo.ts passes its cross-env
+  // client (STAGING_DATABASE_URL) here so milestone writes land in the
+  // same DB as the parent PropertyTransaction row.
+  tx?: Prisma.TransactionClient | PrismaClient,
+) {
   const db = tx ?? prisma;
 
   const def = await db.milestoneDefinition.findUnique({
@@ -661,14 +676,20 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   // (drawer-fills-then-fails sequence). Throw was inside this side-effect
   // chain; the surgical wraps isolate side effects from the row save.
 
+  // Cast tx to Prisma.TransactionClient when passing to helpers that
+  // haven't been widened to accept a full PrismaClient. A standalone
+  // PrismaClient structurally satisfies the TransactionClient surface
+  // for CRUD ops, so this cast is safe at runtime.
+  const txForHelpers = tx as Prisma.TransactionClient | undefined;
+
   try {
-    await unlockDirectDependents(input.transactionId, def.code, tx);
+    await unlockDirectDependents(input.transactionId, def.code, txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] unlockDirectDependents failed:", err);
   }
 
   try {
-    await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", tx);
+    await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] autoCompleteRemindersForMilestone failed:", err);
   }
@@ -688,7 +709,7 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   }
 
   try {
-    await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, tx);
+    await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] maybeUnlockExchangeGate failed:", err);
   }
@@ -754,7 +775,7 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   // helper's NULL-guarded updateMany ensures only the first call writes billedAtExchange.
   // See lib/services/billing-trigger.ts for the full reasoning.
   try {
-    await maybeStampExchange(input.transactionId, def.code, tx);
+    await maybeStampExchange(input.transactionId, def.code, txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] maybeStampExchange failed:", err);
   }

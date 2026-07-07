@@ -895,7 +895,13 @@ export async function runSeedDemo(prisma: PrismaClient): Promise<SeedManifest> {
     // side-effects (dependents unlocking, exchange-gate unlocking, exchange
     // stamps for VM19/PM26, last-activity touch) fire correctly.
     const { initializeMilestoneCompletions } = await import("../lib/services/milestones");
-    await initializeMilestoneCompletions(tx.id, fx.tenure, fx.purchaseType, ownerUserId, tx.activeBuyerRoundId);
+    // 2026-07-07: pass the seed's own PrismaClient (bound to
+    // STAGING_DATABASE_URL when the reset is triggered from production
+    // runtime). Without this the service uses @/lib/prisma which reads
+    // DATABASE_URL - a different DB - and MilestoneCompletion writes
+    // FK-fail because the parent PropertyTransaction row lives in
+    // staging, not prod.
+    await initializeMilestoneCompletions(tx.id, fx.tenure, fx.purchaseType, ownerUserId, tx.activeBuyerRoundId, prisma);
 
     const codes = PROGRESSION[fx.key];
     // Spread completedAt across the file's lifetime so the Updates feed
@@ -922,7 +928,7 @@ export async function runSeedDemo(prisma: PrismaClient): Promise<SeedManifest> {
             ? { kind: "contact", id: firstPurchaserContactId!, name: fx.purchaserContacts[0].name }
             : { kind: "user", id: ownerUserId, name: fx.ownedBy === "director" ? "Sarah Whitcomb" : "James Patel" },
           completedAt,
-        });
+        }, prisma); // seed's cross-env client, see initializeMilestoneCompletions above
       } catch (e) {
         // Prerequisite errors are non-fatal in seed (e.g. fixture cherry-picks
         // codes whose chain may not be fully resolved). Log + continue.
