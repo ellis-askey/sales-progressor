@@ -50,19 +50,38 @@ export const DEMO_NEGOTIATOR_PASSWORD = "FairviewDemo2!";
 /**
  * Resolves which DB URL the demo seed should target.
  *
- *   - If STAGING_DATABASE_URL is set, use it. This is the production-runtime
- *     path: prod's DATABASE_URL points at prod, so the Reset Demo server
- *     action explicitly routes the seed to staging via this env var. The
- *     ONLY cross-environment connection in the app.
- *   - Otherwise fall back to DATABASE_URL. This is the staging-runtime path
- *     (Vercel staging deploy) and the CLI path (npm run demo:seed against a
- *     .env that's already staging).
+ * Preference order (most compatible first):
+ *   1. STAGING_DIRECT_URL - Supabase direct connection to the staging
+ *      project (port 5432, db.PROJECT.supabase.co). No PgBouncer. Handles
+ *      prepared statements and concurrent queries natively. This is the
+ *      RIGHT choice for batch operations like a seed. Matches the
+ *      DIRECT_URL Prisma pattern used by prisma/schema.prisma for
+ *      migrations.
+ *   2. STAGING_DATABASE_URL - Supabase pooled connection (port 6543 /
+ *      pooler.supabase.co). Fallback for when only the pooled URL is
+ *      configured. Requires the pgbouncer=true flag to skip prepared
+ *      statement caching (added downstream in demo-reset.ts) - even so,
+ *      long batch operations can hit connection-pool timeouts.
+ *   3. DATABASE_URL - staging-runtime + CLI paths where the whole env is
+ *      already pointed at staging.
  *
  * The returned URL is then validated by assertDemoSafe — so a misconfigured
- * STAGING_DATABASE_URL pointing at prod by accident still gets blocked.
+ * env var pointing at prod by accident still gets blocked.
  */
 export function resolveDemoTargetUrl(): string {
-  return process.env.STAGING_DATABASE_URL ?? process.env.DATABASE_URL ?? "";
+  return (
+    process.env.STAGING_DIRECT_URL ??
+    process.env.STAGING_DATABASE_URL ??
+    process.env.DATABASE_URL ??
+    ""
+  );
+}
+
+// Public so demo-reset.ts can distinguish "we're on the direct URL, skip
+// the PgBouncer flag mangling" from "we're on the pooled URL, must add
+// pgbouncer=true".
+export function isDemoTargetDirectUrl(): boolean {
+  return Boolean(process.env.STAGING_DIRECT_URL);
 }
 
 export function assertDemoSafe(url?: string): void {
