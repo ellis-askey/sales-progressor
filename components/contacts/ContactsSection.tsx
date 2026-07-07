@@ -322,7 +322,18 @@ export function ContactsSection({
           gap: 10,
           padding: 12,
         } : undefined}>
-          {contacts.map((contact) => {
+          {(() => {
+            // 2026-07-07 audit: vendor always left column, purchaser always
+            // right column. Sort by role (vendor → purchaser → other), then
+            // by createdAt within each role. Grid auto-fills in that order.
+            const ROLE_ORDER: Record<string, number> = { vendor: 0, purchaser: 1 };
+            return [...contacts].sort((a, b) => {
+              const orderA = ROLE_ORDER[a.roleType] ?? 2;
+              const orderB = ROLE_ORDER[b.roleType] ?? 2;
+              if (orderA !== orderB) return orderA - orderB;
+              return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            });
+          })().map((contact) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
             const isEditing = editingId === contact.id;
@@ -346,15 +357,10 @@ export function ContactsSection({
                     mailto:, WhatsApp, and the existing edit flow for
                     "View details" so no dead controls (Law 13). */}
                 {gridDisplayMode && (
-                  <div style={{ padding: "14px 16px", position: "relative" }}>
-                    {contact.portalToken && portalViewDates[contact.id] && (
-                      <span style={{
-                        position: "absolute", top: 14, right: 16,
-                        fontSize: 11, color: "var(--agent-text-muted)",
-                      }}>
-                        Viewed {fmtRelative(portalViewDates[contact.id])}
-                      </span>
-                    )}
+                  <div style={{ padding: "14px 16px" }}>
+                    {/* Header: avatar + name/role + viewed timestamp
+                        under the name (2026-07-07 audit: previous
+                        top-right position clashed with the role pill). */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
                       <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -365,37 +371,60 @@ export function ContactsSection({
                             {roleLabel(r)}
                           </span>
                         </div>
+                        {contact.portalToken && portalViewDates[contact.id] && (
+                          <p style={{
+                            margin: "3px 0 0",
+                            fontSize: 11,
+                            color: "var(--agent-text-muted)",
+                          }}>
+                            Viewed {fmtRelative(portalViewDates[contact.id])}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 12 }}>
+
+                    {/* Contact-method rows - each row has its text on the
+                        left, actions on the right. Phone gets call + chat
+                        icons; email gets the email icon. Only render a
+                        row when its target field exists. */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                       {contact.phone && (
-                        <span data-sensitive="true" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>{contact.phone}</span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <span data-sensitive="true" style={{
+                            fontSize: 12, color: "var(--agent-text-secondary)",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            minWidth: 0, flex: 1,
+                          }}>{contact.phone}</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                            <a href={`tel:${contact.phone}`} title="Call" style={tileIconBtnStyle}>
+                              <Phone size={14} weight="regular" />
+                            </a>
+                            <a href={whatsappHref(contact.phone)} title="WhatsApp" style={tileIconBtnStyle}>
+                              <ChatCircleText size={14} weight="regular" />
+                            </a>
+                          </span>
+                        </div>
                       )}
                       {contact.email && (
-                        <span data-sensitive="true" style={{
-                          fontSize: 12, color: "var(--agent-text-secondary)",
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        }}>{contact.email}</span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <span data-sensitive="true" style={{
+                            fontSize: 12, color: "var(--agent-text-secondary)",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            minWidth: 0, flex: 1,
+                          }}>{contact.email}</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                            <a href={emailHref(contact.email, contact.roleType, address)} title="Email" style={tileIconBtnStyle}>
+                              <EnvelopeSimple size={14} weight="regular" />
+                            </a>
+                          </span>
+                        </div>
                       )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {contact.phone && (
-                          <a href={`tel:${contact.phone}`} title="Call" style={tileIconBtnStyle}>
-                            <Phone size={14} weight="regular" />
-                          </a>
-                        )}
-                        {contact.email && (
-                          <a href={emailHref(contact.email, contact.roleType, address)} title="Email" style={tileIconBtnStyle}>
-                            <EnvelopeSimple size={14} weight="regular" />
-                          </a>
-                        )}
-                        {contact.phone && (
-                          <a href={whatsappHref(contact.phone)} title="WhatsApp" style={tileIconBtnStyle}>
-                            <ChatCircleText size={14} weight="regular" />
-                          </a>
-                        )}
-                      </div>
+
+                    {/* Edit link - right-aligned. Was "View details ->" but
+                        we're already viewing details on this tile, so the
+                        button actually starts the inline edit flow. */}
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <button
                         type="button"
                         onClick={() => startEdit(contact)}
@@ -411,7 +440,7 @@ export function ContactsSection({
                           fontFamily: "inherit",
                         }}
                       >
-                        View details →
+                        Edit
                       </button>
                     </div>
                   </div>
