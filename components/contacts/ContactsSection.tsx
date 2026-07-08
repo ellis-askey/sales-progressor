@@ -421,10 +421,55 @@ export function ContactsSection({
                       )}
                     </div>
 
-                    {/* Edit link - right-aligned. Was "View details ->" but
-                        we're already viewing details on this tile, so the
-                        button actually starts the inline edit flow. */}
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    {/* Portal actions (vendor + purchaser contacts only).
+                        2026-07-08 restore: dropped during the tile
+                        redesign, re-added here on the same row as Edit
+                        so all per-contact actions live in one place.
+                          - No token yet          -> "Set up portal"
+                          - Token + email         -> "Send invite" (primary) + copy-link icon
+                          - Token, no email       -> copy-link icon only
+                    */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        {(role === "vendor" || role === "purchaser") && (
+                          contact.portalToken ? (
+                            <>
+                              {contact.email && (
+                                <button
+                                  type="button"
+                                  onClick={() => sendInvite(contact.portalToken!, contact.id)}
+                                  disabled={inviting === contact.id}
+                                  className="agent-btn agent-btn-xs agent-btn-primary"
+                                >
+                                  {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => copyPortalLink(contact.portalToken!)}
+                                title="Copy portal link"
+                                aria-label="Copy portal link"
+                                style={tileIconBtnStyle}
+                              >
+                                {copied === contact.portalToken ? (
+                                  <span style={{ fontSize: 10, fontWeight: 600 }}>✓</span>
+                                ) : (
+                                  <ArrowSquareOut size={14} weight="regular" />
+                                )}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setupPortalToken(contact.id)}
+                              disabled={generatingToken === contact.id}
+                              className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                            >
+                              {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
+                            </button>
+                          )
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => startEdit(contact)}
@@ -438,6 +483,7 @@ export function ContactsSection({
                           padding: 0,
                           cursor: "pointer",
                           fontFamily: "inherit",
+                          flexShrink: 0,
                         }}
                       >
                         Edit
