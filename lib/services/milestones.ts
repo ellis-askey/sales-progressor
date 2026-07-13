@@ -165,6 +165,15 @@ export async function initializeMilestoneCompletions(
   // Phase 1 commit 3: purchaser-side rows get stamped with the supplied
   // buyerRoundId so subsequent round-scoped reads (commit 4) find them.
   // Vendor-side rows stay file-level (buyerRoundId NULL).
+  // 2026-07-13 fix (Chunk 1e): each per-def create wraps its own try/catch
+  // that swallows P2002 (unique constraint violation). Between the
+  // findFirst check and the create, a concurrent process (parallel init,
+  // a cron-triggered re-eval that spins up rows) can insert the same
+  // (transactionId, milestoneDefinitionId) row - the partial unique
+  // index then throws on our create. Ignoring the duplicate here is
+  // safe: the row exists in the desired state; we didn't win but the
+  // outcome is the same. Prevents "file creation failed" toasts when
+  // the file itself was actually created successfully.
   await Promise.all(
     defs.map(async (def) => {
       const existing = await client.milestoneCompletion.findFirst({
@@ -176,17 +185,23 @@ export async function initializeMilestoneCompletions(
       const isAvail = availableCodes.has(def.code);
       const state = isNr ? "not_required" : isAvail ? "available" : "locked";
       const stampRoundId = def.side === "purchaser" ? (buyerRoundId ?? null) : null;
-      await client.milestoneCompletion.create({
-        data: {
-          transactionId,
-          milestoneDefinitionId: def.id,
-          state,
-          notRequiredReason: isNr ? "Auto-set at file creation" : null,
-          completedById: createdById ?? null,
-          buyerRoundId: stampRoundId,
-          createdAt: now,
-        },
-      });
+      try {
+        await client.milestoneCompletion.create({
+          data: {
+            transactionId,
+            milestoneDefinitionId: def.id,
+            state,
+            notRequiredReason: isNr ? "Auto-set at file creation" : null,
+            completedById: createdById ?? null,
+            buyerRoundId: stampRoundId,
+            createdAt: now,
+          },
+        });
+      } catch (err) {
+        const code = (err as { code?: string })?.code;
+        if (code !== "P2002") throw err;
+        // Concurrent init already created this row - no-op.
+      }
     })
   );
 
