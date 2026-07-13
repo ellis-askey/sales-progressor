@@ -529,11 +529,23 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
   const candidates: EscalationCandidate[] = [];
 
   for (const row of rows) {
+    // 2026-07-13 fix (Chunk 1d): clamp any future-dated anchor to `now`
+    // before doing the silence math. If bad data (clock skew, browser
+    // clock drift, test fixture, manual data patch) puts lastEngagedAt
+    // or firstChasedAt in the future, daysBetween(now, futureDate)
+    // returns negative and the silence check (>= 14) silently passes as
+    // false forever - the row escapes escalation. Clamp so future dates
+    // read as "now" and the check behaves as if there was engagement
+    // right this moment. Row still processes normally on subsequent
+    // cron runs once real time catches up.
+    const lastEngagedAt = row.lastEngagedAt && row.lastEngagedAt > now ? now : row.lastEngagedAt;
+    const firstChasedAt = row.firstChasedAt && row.firstChasedAt > now ? now : row.firstChasedAt;
+
     // 14-day silence path. Anchor = max(lastEngagedAt, firstChasedAt).
     // If no engagement ever, anchor = firstChasedAt.
-    const silenceAnchor = row.lastEngagedAt && row.firstChasedAt && row.lastEngagedAt > row.firstChasedAt
-      ? row.lastEngagedAt
-      : row.firstChasedAt;
+    const silenceAnchor = lastEngagedAt && firstChasedAt && lastEngagedAt > firstChasedAt
+      ? lastEngagedAt
+      : firstChasedAt;
     if (silenceAnchor && daysBetween(now, silenceAnchor) >= CLIENT_CHASE_SILENCE_DAYS) {
       candidates.push({
         stateId: row.id,
@@ -549,13 +561,18 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
     //   - chaseCount >= 2
     //   - last chase happened AND the repeat window has closed since
     //   - no engagement since last chase
-    if (row.chaseCount >= CLIENT_CHASE_COUNT_CAP && row.lastChasedAt) {
+    //
+    // 2026-07-13 fix (Chunk 1d): also clamp lastChasedAt to `now` if
+    // it's future-dated - otherwise addDays(future, repeat) pushes
+    // windowEnd even further into the future and the row never escalates.
+    const lastChasedAt = row.lastChasedAt && row.lastChasedAt > now ? now : row.lastChasedAt;
+    if (row.chaseCount >= CLIENT_CHASE_COUNT_CAP && lastChasedAt) {
       const repeat = repeatFor(row.transactionId, row.milestoneCode);
       if (repeat == null) continue; // no rule for this code (data hygiene)
-      const windowEnd = addDays(row.lastChasedAt, repeat);
+      const windowEnd = addDays(lastChasedAt, repeat);
       if (now < windowEnd) continue;
       // Engagement gate: if engaged AFTER last chase, NOT a silence event.
-      if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
+      if (lastEngagedAt && lastEngagedAt > lastChasedAt) continue;
       candidates.push({
         stateId: row.id,
         transactionId: row.transactionId,
