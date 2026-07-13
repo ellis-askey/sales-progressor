@@ -167,6 +167,16 @@ export async function confirmMilestoneAction(input: {
     throw err;
   }
 
+  // 2026-07-13 fix (Chunk 2a): sync re-eval so any reminder rules that
+  // were dormant waiting on this milestone's eventDate (typically a
+  // rule anchored on it with useEventDate=true) wake up immediately.
+  // Previously deferred to the 04:00 cron - so if an agent set the
+  // eventDate on confirmation and expected the follow-up chases to
+  // start, they'd see nothing happen until the next day.
+  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+    console.error("[confirmMilestoneAction] reminder re-eval failed", err);
+  });
+
   // Single revalidate after all DB writes (primary + bilateral counterpart)
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
@@ -845,6 +855,16 @@ export async function confirmExchangeReconciliationAction(input: {
     maxWait: 10000,
   });
 
+  // 2026-07-13 fix (Chunk 2a): sync re-eval so any reminder rules that
+  // were dormant waiting on the reconciled milestones' eventDate wake up
+  // immediately. Reconciliation sets eventDates on VM19/PM26 (or their
+  // bilateral counterparts) and any earlier milestones the sweep closed;
+  // without this call a follow-up chase anchored on those events would
+  // sit idle until the next 04:00 cron.
+  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+    console.error("[confirmExchangeReconciliationAction] reminder re-eval failed", err);
+  });
+
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
 
@@ -1075,6 +1095,15 @@ export async function reconcileClaimMilestonesAction(input: {
       // Continue with the rest — partial reconciliation is better than none
     }
   }
+
+  // 2026-07-13 fix (Chunk 2a): sync re-eval so any reminder rules that
+  // were dormant waiting on a reconciled milestone's eventDate wake up
+  // immediately. reconcile-on-claim writes eventDate on every applied code
+  // - without this call any follow-up chases anchored on those events
+  // would only start after the next 04:00 cron.
+  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+    console.error("[reconcileClaimMilestonesAction] reminder re-eval failed", err);
+  });
 
   revalidateTx(input.transactionId);
   return { applied };
