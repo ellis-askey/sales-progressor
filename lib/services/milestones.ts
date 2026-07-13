@@ -673,6 +673,12 @@ export async function completeMilestone(
         confirmedByPortal,
         summaryText,
         notRequiredReason: null,
+        // 2026-07-13 (Chunk 6a): if the row was previously NR'd, flipping
+        // to "complete" should drop the NR attribution so the timeline
+        // doesn't render both "marked not required by X" and "completed
+        // by Y" on the same milestone.
+        notRequiredById: null,
+        notRequiredAt: null,
       },
     });
     wonRace = updateResult.count > 0;
@@ -987,6 +993,10 @@ export async function bulkCompleteMilestones(
               completedById,
               summaryText: summaryTexts[i],
               notRequiredReason: null,
+              // 2026-07-13 (Chunk 6a): clear NR attribution when bulk-
+              // completing a previously-NR'd row too.
+              notRequiredById: null,
+              notRequiredAt: null,
             },
           });
         }
@@ -1065,6 +1075,13 @@ export async function reverseMilestone(
       reconciledAtExchange: false,
       reconciledAtClaim: false,
       outOfOrderCompletion: false,
+      // 2026-07-13 (Chunk 6a): clear NR attribution too. Reversing an NR'd
+      // milestone shouldn't leave a "marked not required by X on Y" trace
+      // that the timeline could still surface — the completion row now
+      // represents a fresh, unactioned milestone.
+      notRequiredById: null,
+      notRequiredAt: null,
+      notRequiredReason: null,
     },
   });
 
@@ -1137,6 +1154,11 @@ export async function bulkReverseMilestones(
           reconciledAtExchange: false,
           reconciledAtClaim: false,
           outOfOrderCompletion: false,
+          // 2026-07-13 (Chunk 6a): mirror reverseMilestone — clear NR
+          // attribution on cascade reversals too.
+          notRequiredById: null,
+          notRequiredAt: null,
+          notRequiredReason: null,
         },
       });
     })
@@ -1186,6 +1208,12 @@ export async function markNotRequired(
       where: { transactionId, milestoneDefinitionId, ...milestoneScopeWhere(scope) },
       select: { id: true },
     });
+    // 2026-07-13 (Chunk 6a): stamp NR attribution on the dedicated fields.
+    // Keep completedById set (existing timeline reads still key off it) but
+    // add notRequiredById + notRequiredAt so the UI can render "Marked not
+    // required by X on Y" distinct from a real completion. Both cleared on
+    // undo (reverseMilestone / bulkReverseMilestones / executeUndoMilestone).
+    const nowTs = new Date();
     if (existing) {
       return ptx.milestoneCompletion.update({
         where: { id: existing.id },
@@ -1195,6 +1223,8 @@ export async function markNotRequired(
           summaryText: null,
           completedById,
           notRequiredReason: reason,
+          notRequiredById: completedById,
+          notRequiredAt: nowTs,
         },
       });
     }
@@ -1210,6 +1240,8 @@ export async function markNotRequired(
         state: "not_required",
         completedById,
         notRequiredReason: reason,
+        notRequiredById: completedById,
+        notRequiredAt: nowTs,
         buyerRoundId: newDef?.side === "purchaser" ? activeBuyerRoundId : null,
       },
     });
@@ -1287,6 +1319,10 @@ export async function bulkMarkNotRequired(
     // PROCESS between the parallel find phase and the parallel update
     // phase gets missed. Sequential guarantees each find→(update|create)
     // observes the state produced by the previous iteration.
+    // 2026-07-13 (Chunk 6a): stamp NR attribution on the dedicated fields
+    // for every cascaded sibling too. The cascade share the primary actor
+    // and timestamp — one user action, one moment in time.
+    const nowTs = new Date();
     for (const defId of milestoneDefinitionIds) {
       const existing = await ptx.milestoneCompletion.findFirst({
         where: { transactionId, milestoneDefinitionId: defId, ...milestoneScopeWhere(scope) },
@@ -1300,6 +1336,8 @@ export async function bulkMarkNotRequired(
             completedAt: null,
             summaryText: null,
             notRequiredReason: reason,
+            notRequiredById: completedById,
+            notRequiredAt: nowTs,
           },
         });
       } else {
@@ -1310,6 +1348,8 @@ export async function bulkMarkNotRequired(
             state: "not_required",
             completedById,
             notRequiredReason: reason,
+            notRequiredById: completedById,
+            notRequiredAt: nowTs,
             buyerRoundId: sideMap.get(defId) === "purchaser" ? activeBuyerRoundId : null,
           },
         });
@@ -1596,6 +1636,9 @@ export async function executeUndoMilestone(input: {
           completedById: null,
           summaryText: null,
           notRequiredReason: null,
+          // 2026-07-13 (Chunk 6a): clear NR attribution alongside reason.
+          notRequiredById: null,
+          notRequiredAt: null,
           reconciledAtExchange: false,
           outOfOrderCompletion: false,
         },
@@ -1616,6 +1659,9 @@ export async function executeUndoMilestone(input: {
           completedById: null,
           summaryText: null,
           notRequiredReason: null,
+          // 2026-07-13 (Chunk 6a): clear NR attribution alongside reason.
+          notRequiredById: null,
+          notRequiredAt: null,
           reconciledAtExchange: false,
           outOfOrderCompletion: false,
         },

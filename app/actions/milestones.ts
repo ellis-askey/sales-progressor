@@ -772,6 +772,13 @@ export async function confirmExchangeReconciliationAction(input: {
                 eventDate: dateStr ? new Date(dateStr) : null,
                 completedById: session.user.id,
                 notRequiredReason: null,
+                // 2026-07-13 (Chunk 6a): if the row was previously NR'd,
+                // reconciling it to "complete" should drop the NR
+                // attribution too. Without this the timeline would say
+                // "Sam marked not required" alongside "auto-reconciled
+                // at exchange" — contradictory.
+                notRequiredById: null,
+                notRequiredAt: null,
                 reconciledAtExchange: true,
               },
             });
@@ -1069,6 +1076,10 @@ export async function reconcileClaimMilestonesAction(input: {
               eventDate: eventDateObj,
               completedById: session.user.id,
               notRequiredReason: null,
+              // 2026-07-13 (Chunk 6a): drop stale NR attribution on the
+              // rare case of NR'd row being claim-reconciled to complete.
+              notRequiredById: null,
+              notRequiredAt: null,
               reconciledAtClaim: true,
               summaryText,
             },
@@ -1215,6 +1226,11 @@ export async function migrateCompleteMilestonesAction(input: {
               eventDate: eventDateForCompletion,
               completedById: completerId,
               notRequiredReason: null,
+              // 2026-07-13 (Chunk 6a): admin migration - if the row was
+              // previously NR'd, complete it cleanly without dragging
+              // the NR attribution forward.
+              notRequiredById: null,
+              notRequiredAt: null,
               summaryText: null,
             },
           });

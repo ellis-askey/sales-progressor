@@ -114,6 +114,7 @@ model User {
   agentFiles           PropertyTransaction[] @relation("AgentFiles")
   pausedTransactions   PropertyTransaction[] @relation("PausedTransactions")
   milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
+  markedNotRequired    MilestoneCompletion[] @relation("NotRequiredBy")
   chaseTasks           ChaseTask[]
   communications       OutboundMessage[]     @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
@@ -750,6 +751,13 @@ model MilestoneCompletion {
   // without prematurely marking the milestone complete.
   expectedDate          DateTime?
   notRequiredReason     String?
+  // NR-specific attribution. Distinct from completedById/completedAt which
+  // track the last actor to flip TO the "complete" state. When a milestone
+  // moves to "not_required", these capture who did it + when — so the
+  // timeline can render "Marked not required by Sam · 3 Jul" without
+  // conflating NR with a real completion. Cleared on undo.
+  notRequiredById       String?
+  notRequiredAt         DateTime?
   completedById         String?
   confirmedByPortal     Boolean        @default(false)
   summaryText           String?
@@ -772,6 +780,7 @@ model MilestoneCompletion {
   transaction         PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   milestoneDefinition MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
   completedBy         User?               @relation("CompletedBy", fields: [completedById], references: [id])
+  notRequiredBy       User?               @relation("NotRequiredBy", fields: [notRequiredById], references: [id])
 
   @@index([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])

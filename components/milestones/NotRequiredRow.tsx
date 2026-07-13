@@ -59,8 +59,8 @@ export function NotRequiredRow({ def, transactionId }: Props) {
           {def.completion?.notRequiredReason && (
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2, fontStyle: "italic" }}>{def.completion.notRequiredReason}</p>
           )}
-          {def.completion?.completedAt && (
-            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>{formatDate(def.completion.completedAt)}</p>
+          {(def.completion?.notRequiredAt ?? def.completion?.completedAt) && (
+            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>{formatDate((def.completion?.notRequiredAt ?? def.completion?.completedAt) as Date)}</p>
           )}
         </div>
         <button
