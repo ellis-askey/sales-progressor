@@ -1279,24 +1279,31 @@ export async function bulkMarkNotRequired(
       select: { id: true, side: true },
     });
     const sideMap = new Map(defs.map((d) => [d.id, d.side]));
-    await Promise.all(
-      milestoneDefinitionIds.map(async (defId) => {
-        const existing = await ptx.milestoneCompletion.findFirst({
-          where: { transactionId, milestoneDefinitionId: defId, ...milestoneScopeWhere(scope) },
-          select: { id: true },
+    // 2026-07-13 fix (Chunk 2d): serialise the writes inside the
+    // transaction. Prisma over PgBouncer transaction pooling can
+    // interleave parallel operations from Promise.all across backend
+    // connections, weakening the isolation the outer $transaction is
+    // supposed to give us. A milestone completion created BY ANOTHER
+    // PROCESS between the parallel find phase and the parallel update
+    // phase gets missed. Sequential guarantees each find→(update|create)
+    // observes the state produced by the previous iteration.
+    for (const defId of milestoneDefinitionIds) {
+      const existing = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId, milestoneDefinitionId: defId, ...milestoneScopeWhere(scope) },
+        select: { id: true },
+      });
+      if (existing) {
+        await ptx.milestoneCompletion.update({
+          where: { id: existing.id },
+          data: {
+            state: "not_required",
+            completedAt: null,
+            summaryText: null,
+            notRequiredReason: reason,
+          },
         });
-        if (existing) {
-          return ptx.milestoneCompletion.update({
-            where: { id: existing.id },
-            data: {
-              state: "not_required",
-              completedAt: null,
-              summaryText: null,
-              notRequiredReason: reason,
-            },
-          });
-        }
-        return ptx.milestoneCompletion.create({
+      } else {
+        await ptx.milestoneCompletion.create({
           data: {
             transactionId,
             milestoneDefinitionId: defId,
@@ -1306,8 +1313,8 @@ export async function bulkMarkNotRequired(
             buyerRoundId: sideMap.get(defId) === "purchaser" ? activeBuyerRoundId : null,
           },
         });
-      })
-    );
+      }
+    }
   });
 }
 
