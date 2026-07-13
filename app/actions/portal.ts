@@ -129,7 +129,9 @@ export async function portalConfirmFromRespondAction(input: {
           milestoneCode: input.milestoneCode,
           status: "active",
         },
-        data: { status: "completed" },
+        // 2026-07-13 (Chunk 6f): reason surfaces "the client confirmed
+        // via the portal" in the chase-history panel.
+        data: { status: "completed", statusReason: "portal_confirmed" },
       });
     }
   }

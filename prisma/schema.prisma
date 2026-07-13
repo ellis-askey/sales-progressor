@@ -2119,6 +2119,13 @@ model ClientChaseState {
   lastChasedAt  DateTime?
   lastEngagedAt DateTime?
   status        String    @default("active")
+  // Human-readable reason for the current status. Set when the row leaves
+  // "active" (escalation reason: chase_count / silence_14d; cancellation
+  // reason: milestone_reversed / milestone_completed / relist / hold /
+  // portal_confirmed). Null on active rows and on rows whose transition
+  // pre-dates this field. Read by the file's chase-history panel to
+  // explain "why did this stop" without the reader inferring from silence.
+  statusReason  String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
