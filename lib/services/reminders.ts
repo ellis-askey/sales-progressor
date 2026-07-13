@@ -220,13 +220,25 @@ export async function getReminderLogsForTransaction(
       codes.add(code);
       byReason.set(reason, codes);
     }
-    Promise.all(
-      Array.from(byReason.entries()).flatMap(([reason, codes]) =>
-        Array.from(codes).map((code) =>
-          autoCompleteRemindersForMilestone(transactionId, code, reason),
+    // 2026-07-13 fix (Chunk 1a): await the cleanup instead of firing it
+    // and forgetting. The previous fire-and-forget left a race window
+    // where a concurrent request could read the same orphan as "active",
+    // create a fresh ChaseTask, and end up with a task attached to a
+    // log that was about to be cancelled - the task then vanished from
+    // the work queue without leaving any trace in the activity feed.
+    // Cost is a small amount of extra latency on this read; benefit is
+    // tasks never disappear inexplicably.
+    try {
+      await Promise.all(
+        Array.from(byReason.entries()).flatMap(([reason, codes]) =>
+          Array.from(codes).map((code) =>
+            autoCompleteRemindersForMilestone(transactionId, code, reason),
+          ),
         ),
-      ),
-    ).catch((err) => console.error("[getReminderLogsForTransaction] orphan cleanup failed:", err));
+      );
+    } catch (err) {
+      console.error("[getReminderLogsForTransaction] orphan cleanup failed:", err);
+    }
   }
   const orphanIds = new Set(orphans.map((o) => o.id));
   const visible = logs.filter((l) => !orphanIds.has(l.id));
