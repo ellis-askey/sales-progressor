@@ -2627,12 +2627,24 @@ export async function relistTransactionImpl(
     };
   });
 
-  // ───── Post-commit fire-and-forget ─────────────────────────────────────
-  // Reminder re-evaluation — rebuilds round-N+1 buyer-side schedule AND
-  // any vendor reminders whose anchor was a reset VM code.
-  void evaluateTransactionReminders(tx.id).catch((err) => {
+  // ───── Post-commit reminder re-evaluation ──────────────────────────────
+  // Rebuilds round-N+1 buyer-side schedule AND any vendor reminders whose
+  // anchor was a reset VM code.
+  //
+  // 2026-07-13 fix (Chunk 1b): was fire-and-forget. Between commit and
+  // this call finishing there was a window where the file's PM logs were
+  // cancelled but round-N+1's fresh logs didn't yet exist - if the
+  // reminder engine cron happened to scan during that window the file
+  // could receive a rogue chase against the old buyer OR miss the
+  // switchover entirely. Now awaited so the action doesn't return until
+  // the switchover is complete. Failure here is logged but doesn't fail
+  // the relist itself (the transaction has already committed and the
+  // next scheduled cron run will self-heal).
+  try {
+    await evaluateTransactionReminders(tx.id);
+  } catch (err) {
     console.error("[relist] reminder re-evaluation failed", err);
-  });
+  }
 
   // STEP 12c — closed-loop chain arc (2026-06-05): BUYER_FOUND cascade
   // upward + chain-invite if the relist modal collected an onward agent.
