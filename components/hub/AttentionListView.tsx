@@ -8,6 +8,12 @@ export type AttentionItem = {
   urgency: "escalated" | "overdue" | "due_today";
   reminderName: string;
   transaction: { id: string; propertyAddress: string };
+  // 2026-07-13 (Chunk 8): rendered as a tooltip on the Escalated pill so
+  // the hover explains WHY the row was flagged. All three null when the
+  // engine auto-escalated or the item isn't escalated at all.
+  escalationReason?: string | null;
+  escalatedAt?: Date | null;
+  escalatedByName?: string | null;
 };
 
 const URGENCY_STYLE = {
@@ -116,9 +122,16 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
                   {item.reminderName}
                 </p>
               </div>
-              <span style={{
-                fontSize: 11, fontWeight: 600, color: s.color, flexShrink: 0,
-              }}>
+              <span
+                style={{
+                  fontSize: 11, fontWeight: 600, color: s.color, flexShrink: 0,
+                }}
+                title={item.urgency === "escalated"
+                  ? (item.escalationReason || item.escalatedAt)
+                    ? `Escalated${item.escalatedByName ? ` by ${item.escalatedByName}` : ""}${item.escalatedAt ? ` on ${new Date(item.escalatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}${item.escalationReason ? ` - ${item.escalationReason}` : ""}`
+                    : "Auto-escalated - no response after repeated chases"
+                  : undefined}
+              >
                 {s.label}
               </span>
             </Link>

@@ -122,6 +122,11 @@ export type ReminderLogWithRule = {
     chaseCount: number;
     dueDate: Date;
     fallbackKind: string | null;
+    // 2026-07-13 (Chunk 8): manual-escalation trio - null on engine-triggered
+    // escalations. Read by the tooltip on the "Escalated" chip.
+    escalationReason: string | null;
+    escalatedAt: Date | null;
+    escalatedBy: { name: string | null } | null;
     communications: { createdAt: Date; method: string | null }[];
   }[];
 };
@@ -173,6 +178,12 @@ export async function getReminderLogsForTransaction(
         chaseTasks: {
           select: {
             id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
+            // 2026-07-13 (Chunk 8): mirror getAgentReminderLogs shape so
+            // the reminders panel on file-detail can render the same
+            // Escalated tooltip as the work queue.
+            escalationReason: true,
+            escalatedAt: true,
+            escalatedBy: { select: { name: true } },
             communications: {
               where: { type: "outbound" },
               orderBy: { createdAt: "desc" },
@@ -306,6 +317,14 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
         where: { status: "pending" },
         select: {
           id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
+          // 2026-07-13 (Chunk 8): expose the manual-escalation trio so the
+          // work-queue can tooltip "escalated by X on Y - reason: Z" on the
+          // Escalated chip. All three null on engine-triggered escalations
+          // (cadence rule fires without a user), and the tooltip falls
+          // back to a generic "auto-escalated after N chases" line.
+          escalationReason: true,
+          escalatedAt: true,
+          escalatedBy: { select: { name: true } },
           communications: {
             where: { type: "outbound" },
             orderBy: { createdAt: "desc" },

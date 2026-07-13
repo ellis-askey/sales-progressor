@@ -1162,6 +1162,12 @@ export type HubAttentionItem = {
   reminderName: string;
   transaction: { id: string; propertyAddress: string };
   nextDueDate: Date;
+  // 2026-07-13 (Chunk 8): manual-escalation trio - all null when the
+  // engine auto-flipped, or when the item isn't escalated at all. Read
+  // by the tooltip on the Sale Health / Attention list's Escalated pill.
+  escalationReason: string | null;
+  escalatedAt: Date | null;
+  escalatedByName: string | null;
 };
 
 export async function getHubAttentionItems(
@@ -1200,7 +1206,13 @@ export async function getHubAttentionItems(
       snoozedUntil: true,
       chaseTasks: {
         where: { status: "pending" },
-        select: { status: true, priority: true, chaseCount: true },
+        select: {
+          status: true, priority: true, chaseCount: true,
+          // 2026-07-13 (Chunk 8): needed to build the Escalated tooltip.
+          escalationReason: true,
+          escalatedAt: true,
+          escalatedBy: { select: { name: true } },
+        },
         take: 1,
       },
     },
@@ -1213,12 +1225,16 @@ export async function getHubAttentionItems(
     .map((log) => {
       const bucket = classifyReminder(log, now);
       if (bucket !== "escalated" && bucket !== "overdue" && bucket !== "due_today") return null;
+      const task = log.chaseTasks[0];
       return {
         id: log.id,
         urgency: bucket as HubAttentionItem["urgency"],
         reminderName: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
         transaction: log.transaction,
         nextDueDate: log.nextDueDate,
+        escalationReason: task?.escalationReason ?? null,
+        escalatedAt: task?.escalatedAt ?? null,
+        escalatedByName: task?.escalatedBy?.name ?? null,
       };
     })
     .filter((x): x is HubAttentionItem => x !== null);

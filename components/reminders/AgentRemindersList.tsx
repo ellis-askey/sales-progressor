@@ -438,8 +438,19 @@ function SideColumn({
                 </p>
                 {(() => {
                   const displayedChases = Math.max(optimisticChases[task.id] ?? 0, task.chaseCount);
+                  // 2026-07-13 (Chunk 8): tooltip on the Escalated label. If
+                  // a human flipped this (escalatedById set), show who + when
+                  // + why. If the engine flipped it (all three null), fall
+                  // back to a plain-English cadence line so hover is never
+                  // empty. Not rendered as a chip - just a title attr on the
+                  // existing urgencyLabel line.
+                  const escalationTooltip = task.priority === "escalated"
+                    ? (task.escalationReason || task.escalatedAt)
+                      ? `Escalated${task.escalatedBy?.name ? ` by ${task.escalatedBy.name}` : ""}${task.escalatedAt ? ` on ${formatDate(task.escalatedAt)}` : ""}${task.escalationReason ? ` - ${task.escalationReason}` : ""}`
+                      : "Auto-escalated - no response after repeated chases"
+                    : undefined;
                   return (urgencyLabel || displayedChases > 0) && (
-                    <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
+                    <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }} title={escalationTooltip}>
                       {urgencyLabel}
                       {displayedChases > 0 && (
                         <span style={{ display: "block", color: "var(--agent-text-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>
