@@ -592,6 +592,17 @@ export async function executeUndoMilestoneAction(input: {
     completedByName: session.user.name ?? "",
   });
 
+  // 2026-07-13 fix (Chunk 2b): sync re-eval after an undo. executeUndoMilestone
+  // cancels any active logs whose target/anchor is one of the reversed
+  // milestones, but it does NOT create new logs for rules whose target is
+  // now uncompleted again (e.g., undoing an NR flips the target back to
+  // "available", which the engine reads as "not done yet" and would spin
+  // up a fresh chase for on the next 04:00 pass). We spin them up now so
+  // the timeline stays coherent with the user's action.
+  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+    console.error("[executeUndoMilestoneAction] reminder re-eval failed", err);
+  });
+
   revalidateTx(input.transactionId);
 }
 
