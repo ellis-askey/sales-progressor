@@ -615,6 +615,20 @@ export async function completeMilestone(
 
   // Find-then-update-or-create: see comment above initializeMilestoneCompletions
   // for why the compound upsert key no longer exists.
+  //
+  // 2026-07-13 fix (Chunk 1c): first-writer-wins on concurrent confirms.
+  // When two agents click Done on the same milestone within a fraction
+  // of a second, both findFirst calls used to see the same
+  // pre-completion row, then both would update it - the LATER writer's
+  // completedById + completedAt would silently overwrite the earlier
+  // one, leading to wrong attribution in the activity feed and downstream
+  // side effects firing twice.
+  //
+  // Now: the update path uses updateMany with a state filter so only
+  // one call actually writes. The other call's updateMany returns
+  // count=0 and we return early with the row as it stands (side effects
+  // already ran for the winner). The create path catches P2002
+  // (unique-constraint violation) and treats it as "someone else won".
   const existingForComplete = await db.milestoneCompletion.findFirst({
     where: {
       transactionId: input.transactionId,
@@ -623,20 +637,39 @@ export async function completeMilestone(
     },
     select: { id: true },
   });
-  const completion = existingForComplete
-    ? await db.milestoneCompletion.update({
-        where: { id: existingForComplete.id },
-        data: {
-          state: "complete",
-          completedAt: input.completedAt ?? new Date(),
-          eventDate: input.eventDate ?? null,
-          completedById,
-          confirmedByPortal,
-          summaryText,
-          notRequiredReason: null,
-        },
-      })
-    : await db.milestoneCompletion.create({
+
+  let completion: Awaited<ReturnType<typeof db.milestoneCompletion.update>>;
+  let wonRace = true;
+
+  if (existingForComplete) {
+    // Update path: conditional write via updateMany. Only lands the
+    // write if the row is NOT already in "complete" state - so the
+    // second concurrent confirmer's updateMany matches 0 rows.
+    const updateResult = await db.milestoneCompletion.updateMany({
+      where: {
+        id: existingForComplete.id,
+        state: { not: "complete" },
+      },
+      data: {
+        state: "complete",
+        completedAt: input.completedAt ?? new Date(),
+        eventDate: input.eventDate ?? null,
+        completedById,
+        confirmedByPortal,
+        summaryText,
+        notRequiredReason: null,
+      },
+    });
+    wonRace = updateResult.count > 0;
+    completion = await db.milestoneCompletion.findUniqueOrThrow({
+      where: { id: existingForComplete.id },
+    });
+  } else {
+    // Create path: try to create; if the partial unique index catches
+    // a concurrent create (P2002) we lost the race and re-fetch the
+    // existing row.
+    try {
+      completion = await db.milestoneCompletion.create({
         data: {
           transactionId: input.transactionId,
           milestoneDefinitionId: input.milestoneDefinitionId,
@@ -652,6 +685,28 @@ export async function completeMilestone(
           buyerRoundId: def.side === "purchaser" ? activeBuyerRoundId : null,
         },
       });
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code !== "P2002") throw err;
+      // Concurrent create won the race. Re-fetch and return early.
+      completion = await db.milestoneCompletion.findFirstOrThrow({
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: input.milestoneDefinitionId,
+          ...milestoneScopeWhere(scope),
+        },
+      });
+      wonRace = false;
+    }
+  }
+
+  if (!wonRace) {
+    // Another concurrent completeMilestone call already wrote this row.
+    // Side effects (unlockDirectDependents, autoCompleteRemindersForMilestone,
+    // maybeStampExchange etc.) have already run for the winner - skip
+    // them here so they don't fire twice.
+    return completion;
+  }
 
   // Post-state-write side effects (lines 641-738).
   //
