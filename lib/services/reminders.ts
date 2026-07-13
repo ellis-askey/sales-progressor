@@ -600,7 +600,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
           await deactivateLog(
             transactionId,
             rule.id,
-            "Anchor milestone was reconciled at claim without an eventDate — no anchor available for scheduling",
+            "Waiting on a real date for the earlier step before we can chase this one",
             assignedUserId,
           );
           continue;
@@ -627,7 +627,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
         await deactivateLog(
           transactionId,
           rule.id,
-          "Awaiting completion date — exchange not yet recorded",
+          "Waiting for exchange to record the completion date",
           assignedUserId,
         );
         continue;

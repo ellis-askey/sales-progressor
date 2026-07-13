@@ -643,10 +643,10 @@ export async function changeStatusAction(
       //    Idempotent via status="active" precondition.
       const ccsResult = await ptx.clientChaseState.updateMany({
         where: { transactionId, status: "active" },
-        // 2026-07-13 (Chunk 6f): the file is being withdrawn - stamp
-        // "sale_fell_through" so the chase-history panel says the same
-        // thing the ReminderLog statusReason on line 617 already says.
-        data: { status: "cancelled", statusReason: "sale_fell_through" },
+        // 2026-07-13 (Chunk 6f/7): stamp the SAME plain-English string
+        // the ReminderLog statusReason on line 617 uses so the two models
+        // read consistently in the chase-history panel.
+        data: { status: "cancelled", statusReason: "sale fell through" },
       });
 
       // 4. Close any open TransactionHoldPeriods. Belt-and-braces beyond
@@ -1849,7 +1849,7 @@ export async function confirmSaleDetailsAction(input: {
       });
       await ptx.reminderLog.updateMany({
         where: { id: { in: logIds } },
-        data: { status: "inactive", statusReason: "Marked not required — sale details changed" },
+        data: { status: "inactive", statusReason: "Marked not required after sale details changed" },
       });
     }
 

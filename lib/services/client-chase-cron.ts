@@ -592,14 +592,16 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
 export async function escalateClientChaseState(
   candidate: EscalationCandidate,
 ): Promise<{ escalated: boolean }> {
-  // 2026-07-13 (Chunk 6f): stamp the reason so the chase-history panel
-  // can say "escalated after 14 days silence" vs "escalated at the 2-chase
-  // cap" without callers reconstructing it from surrounding fields. The
-  // candidate.reason enum ("chase_count" | "silence_14d") is preserved
-  // verbatim - user-facing rendering happens at the read site.
+  // 2026-07-13 (Chunk 6f/7): stamp a plain-English reason on the flip so
+  // the chase-history panel reads WYSIWYG - no per-key lookup table needed
+  // at the read site. Matches the existing ReminderLog.statusReason
+  // convention (also plain English).
+  const reasonCopy = candidate.reason === "chase_count"
+    ? "Client chased twice with no reply"
+    : "Client went 14 days without a reply";
   const result = await prisma.clientChaseState.updateMany({
     where: { id: candidate.stateId, status: "active" },
-    data: { status: "escalated", statusReason: candidate.reason },
+    data: { status: "escalated", statusReason: reasonCopy },
   });
   return { escalated: result.count === 1 };
 }

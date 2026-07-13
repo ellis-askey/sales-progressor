@@ -776,13 +776,11 @@ export async function completeMilestone(
   // chases for a milestone that's already done. Third stale-CCS case after
   // withdrawn-file + old-buyer-round (see scripts/sweep-stale-ccs.ts).
   try {
-    // 2026-07-13 (Chunk 6f): record why the chase state moved to cancelled.
-    // Without the reason, an agent seeing "cancelled" in the chase-history
-    // panel has to guess whether it was the milestone completing, a relist,
-    // or a manual sweep. Explicit is friendlier.
+    // 2026-07-13 (Chunk 6f/7): record why the chase state moved to
+    // cancelled - plain English so the chase-history panel reads WYSIWYG.
     await db.clientChaseState.updateMany({
       where: { transactionId: input.transactionId, milestoneCode: def.code, status: "active" },
-      data: { status: "cancelled", statusReason: "milestone_completed" },
+      data: { status: "cancelled", statusReason: "Milestone confirmed" },
     });
   } catch (err) {
     console.error("[completeMilestone] cancel ClientChaseState failed:", err);
