@@ -853,7 +853,18 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
       act(taskIds[0] ?? "", () => Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, "/agent/work-queue"))));
     }, 150);
   }
-  function handleEscalate(taskId: string) { act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue")); }
+  function handleEscalate(taskId: string) {
+    // 2026-07-13 (Chunk 6d/e): capture a reason on the manual escalation
+    // so the escalated chip can show WHY on hover (Chunk 8) and the file's
+    // activity feed records who did it and why. Empty/cancel is fine - the
+    // action still escalates, just without a reason. window.prompt is
+    // consistent with the other lightweight confirms in this codebase and
+    // avoids adding a new modal in this pass.
+    const reason = typeof window !== "undefined"
+      ? window.prompt("Why are you escalating this chase?") ?? undefined
+      : undefined;
+    act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue", reason));
+  }
   function handleWakeup(logId: string) {
     setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
     setTimeout(() => {

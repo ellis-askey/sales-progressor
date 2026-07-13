@@ -1019,6 +1019,13 @@ export async function applyChaseToTask(chaseTaskId: string): Promise<void> {
         chaseCount: newChaseCount,
         priority: "normal",
         lastChasedAt: new Date(nowTs),
+        // 2026-07-13 (Chunk 6d): chasing the row through clears the manual
+        // escalation trio. If a fresh escalation lands later it should
+        // capture a NEW reason + actor + moment, not resurface the stale
+        // one from a previous cycle.
+        escalationReason: null,
+        escalatedAt: null,
+        escalatedById: null,
       },
     }),
     prisma.reminderLog.update({

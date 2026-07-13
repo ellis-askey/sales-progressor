@@ -186,7 +186,7 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
   revalidatePath(pathname, "page");
 }
 
-export async function escalateTaskAction(taskId: string, pathname: string) {
+export async function escalateTaskAction(taskId: string, pathname: string, reason?: string) {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const task = await prisma.chaseTask.findFirst({
@@ -200,12 +200,43 @@ export async function escalateTaskAction(taskId: string, pathname: string) {
   });
   if (!task) throw new Error("Task not found");
   const wasEscalated = task.priority === "escalated";
-  await prisma.chaseTask.update({ where: { id: taskId }, data: { priority: "escalated" } });
+  // 2026-07-13 (Chunk 6d): store the reason + who + when on the ChaseTask
+  // so the escalated chip can surface it on hover. reason is optional -
+  // callers that don't collect one (bulk actions, keyboard-shortcut path)
+  // still work; reason stays null.
+  const trimmedReason = reason?.trim() || null;
+  await prisma.chaseTask.update({
+    where: { id: taskId },
+    data: {
+      priority: "escalated",
+      escalationReason: trimmedReason,
+      escalatedAt: new Date(),
+      escalatedById: session.user.id,
+    },
+  });
 
-  // Fire push only on the transition non-escalated -> escalated.
+  // Fire push + activity-feed entry only on the transition
+  // non-escalated → escalated. Skipping when already escalated avoids
+  // double-notify if the user clicks Escalate twice on the same row.
   if (!wasEscalated) {
     const milestoneLabel = task.reminderLog?.reminderRule?.name?.replace(/^Chase:\s*/i, "") ?? null;
     pushChaseEscalation(task.transactionId, milestoneLabel).catch(() => {});
+
+    // 2026-07-13 (Chunk 6e): write to the activity feed so the file owner
+    // can see the escalation happened (with who + why) even if the chip
+    // gets chased-through and cleared. Fire-and-forget - a feed failure
+    // shouldn't roll back the escalation write above.
+    const label = milestoneLabel ?? "chase";
+    const suffix = trimmedReason ? ` — reason: ${trimmedReason}` : "";
+    prisma.outboundMessage.create({
+      data: {
+        transactionId: task.transactionId,
+        type: "internal_note",
+        contactIds: [],
+        content: `${session.user.name ?? "Someone"} escalated "${label}"${suffix}`,
+        createdById: session.user.id,
+      },
+    }).catch(() => {});
   }
 
   revalidatePath(pathname, "page");
