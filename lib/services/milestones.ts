@@ -1049,9 +1049,23 @@ export async function reverseMilestone(
   if (!row) {
     throw new Error(`MilestoneCompletion not found for tx=${transactionId} def=${milestoneDefinitionId}`);
   }
+  // 2026-07-13 fix (Chunk 2c): also clear reconciledAtExchange and
+  // reconciledAtClaim + outOfOrderCompletion. Without this, undoing a
+  // milestone that was previously reconciled at exchange or claim left
+  // those flags TRUE with state=available. Downstream logic that reads
+  // the flag (progress %, phase detection, risk scoring) then behaves
+  // as if the milestone was still past-exchange even after the undo.
   await db.milestoneCompletion.update({
     where: { id: row.id },
-    data: { state: "available", completedAt: null, completedById: null, summaryText: null },
+    data: {
+      state: "available",
+      completedAt: null,
+      completedById: null,
+      summaryText: null,
+      reconciledAtExchange: false,
+      reconciledAtClaim: false,
+      outOfOrderCompletion: false,
+    },
   });
 
   await db.outboundMessage.create({
@@ -1108,9 +1122,22 @@ export async function bulkReverseMilestones(
       if (!row) {
         throw new Error(`MilestoneCompletion not found for tx=${transactionId} def=${defId}`);
       }
+      // 2026-07-13 fix (Chunk 2c): clear reconciled flags on cascade
+      // reversals too - matches the primary reverse path in
+      // reverseMilestone. Same reasoning: state=locked with
+      // reconciledAtExchange=true would mislead every downstream
+      // reader that keys off the flag.
       await db.milestoneCompletion.update({
         where: { id: row.id },
-        data: { state: "locked", completedAt: null, completedById: null, summaryText: null },
+        data: {
+          state: "locked",
+          completedAt: null,
+          completedById: null,
+          summaryText: null,
+          reconciledAtExchange: false,
+          reconciledAtClaim: false,
+          outOfOrderCompletion: false,
+        },
       });
     })
   );
