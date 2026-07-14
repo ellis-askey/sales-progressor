@@ -50,6 +50,7 @@ export function ChainDrawer({
     }
   }
   const [chain, setChain] = useState<ChainV2 | null>(null);
+  const [notAParticipant, setNotAParticipant] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
   const [declineDismissed, setDeclineDismissed] = useState(false);
@@ -119,6 +120,12 @@ export function ChainDrawer({
       }
 
       setChain(next);
+      // 2026-07-14: when the API gates the viewer out (chain exists but
+      // they're not a chain participant AND not internal staff) it now
+      // returns notAParticipant: true so we can render honest copy instead
+      // of the "No chain yet + Create" empty state - the latter set up an
+      // accidental double-create trap.
+      setNotAParticipant(data.notAParticipant === true);
       setPendingNotifications(data.pendingNotifications ?? []);
       setDirectional(data.directional ?? {});
     } catch {
@@ -287,8 +294,22 @@ export function ChainDrawer({
             </div>
           )}
 
+          {/* Chain exists but the viewer isn't a chain participant AND isn't
+              internal staff. The API returns notAParticipant: true for this
+              case so we render honest copy - "there IS a chain, you just
+              can't see it" - instead of the misleading "No chain yet"
+              empty state that would show a Create button and trap the user
+              in a double-create error. */}
+          {!loading && !chain && notAParticipant && (
+            <EmptyState
+              icon={<ChainIcon />}
+              title="This file is in a chain"
+              description="Only agents in the chain can see the details. Ask the person who added it if you need to see it."
+            />
+          )}
+
           {/* No chain linked */}
-          {!loading && !chain && (
+          {!loading && !chain && !notAParticipant && (
             <EmptyState
               icon={<ChainIcon />}
               title="No chain yet"

@@ -59,13 +59,33 @@ export function canAddBelow(link: LinkPermissionData, userId: string): boolean {
   return isOriginator(link, userId) || isClaimer(link, userId);
 }
 
-// View the full chain (address, agency, % progress on all nodes)
-// Requires the user to be a participant — i.e. they have at least one claimed link
-// OR they are the originator of any link in the chain.
+// Internal staff roles that see every chain on every file they can access.
+// Matches the wider access-scope model in lib/security/access-scope.ts: these
+// roles have platform-wide (or assigned-file-wide) transaction visibility, so
+// gating the chain drawer behind per-link membership would falsely hide chains
+// they legitimately need to progress. Customer-agency roles (director /
+// negotiator / viewer) still go through the participant check.
+const INTERNAL_ROLES_SEE_ALL_CHAINS = new Set(["admin", "superadmin", "sales_progressor"]);
+
+// View the full chain (address, agency, % progress on all nodes).
+//
+// Two paths through this check:
+//   - Internal staff (admin / superadmin / sales_progressor) → always true.
+//     They already see every transaction they touch; hiding the chain from
+//     them was the source of the "No chain yet + Create" trap on Taylor's
+//     83 Highfield Road file (2026-07-14).
+//   - Everyone else → must be a participant (created or claimed at least one
+//     link in this chain). Same rule as before this file was extended.
+//
+// The `role` argument is optional so existing test callers keep working — a
+// missing role falls through to the participant check, which is the safest
+// default. Production callers always pass session.user.role.
 export function canViewChain(
   allLinks: ChainLinkSummary[],
   userId: string,
+  role?: string | null,
 ): boolean {
+  if (role && INTERNAL_ROLES_SEE_ALL_CHAINS.has(role)) return true;
   return allLinks.some(
     (l) => l.claimedByUserId === userId || l.createdByUserId === userId,
   );

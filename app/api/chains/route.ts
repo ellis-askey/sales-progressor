@@ -38,8 +38,17 @@ export async function GET(req: NextRequest) {
       claimedByUserId: l.claimedByUserId,
       createdByUserId: l.createdByUserId,
     }));
-    if (!canViewChain(allLinks, session.user.id)) {
-      return NextResponse.json({ chain: null });
+    // 2026-07-14: pass role so internal staff (admin / superadmin /
+    // sales_progressor) bypass the participant check. Everyone else stays
+    // gated by membership.
+    //
+    // When gated out we now surface an explicit flag so the drawer can
+    // render "This file is in a chain" honest copy instead of the "No
+    // chain yet + Create" empty state — the latter was misleading (chain
+    // does exist) AND set up a double-create trap that immediately errored
+    // with "Transaction already in a chain".
+    if (!canViewChain(allLinks, session.user.id, session.user.role)) {
+      return NextResponse.json({ chain: null, notAParticipant: true });
     }
 
     // Cascade-notification augmentation: per-link directional state for badges
