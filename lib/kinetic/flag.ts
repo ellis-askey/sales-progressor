@@ -8,7 +8,12 @@ type SessionLike = {
 };
 
 // Roles that see the Kinetic hub in Stage 1.
-const INTERNAL_ROLES = new Set(["admin", "superadmin", "sales_progressor"]);
+// EMPTY during rebuild — first attempt shipped 2026-07-26 was a
+// severe regression (lost pipeline-at-a-glance, wins detail, forecast
+// chart, service donut, activity feed, pro tip, holds card, etc).
+// Reverting to legacy for all users while the Kinetic hub is rebuilt
+// to genuine parity + Kinetic visual language. Re-enable when ready.
+const INTERNAL_ROLES = new Set<string>([]);
 
 // Stage 2 — populate with agency IDs to canary specific customer agencies.
 // e.g. new Set(["cmou19l8j0000n4djh2enonr7"]) for Akeman.
