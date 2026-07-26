@@ -103,13 +103,25 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* ─── Mini stats row ─── */
+/* ─── Mini stats row (legacy from first attempt — retained) ─── */
 .miniStatsRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
   margin-bottom: 40px;
   align-items: start;
+}
+
+/* Two-column row for Wins + Service split */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  margin-bottom: 32px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .twoCol { grid-template-columns: 1fr; }
 }
 
 /* ─── Panel primitive (reused in child components via className export) ─ */

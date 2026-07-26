@@ -1,18 +1,24 @@
 import Link from "next/link";
-import type { HubUnassignedFile, HubRelistAck } from "@/lib/services/hub";
+import type { HubUnassignedFile, HubRelistAck, HubChainSetupPending } from "@/lib/services/hub";
 import styles from "./internal-only-cards.module.css";
 
 export function InternalOnlyCards({
   isInternal,
   unassignedFiles,
   relistsToAcknowledge,
+  chainSetupPending,
 }: {
   isInternal: boolean;
   unassignedFiles: HubUnassignedFile[];
   relistsToAcknowledge: HubRelistAck[];
+  chainSetupPending: HubChainSetupPending[];
 }) {
   if (!isInternal) return null;
-  if (unassignedFiles.length === 0 && relistsToAcknowledge.length === 0) return null;
+  if (
+    unassignedFiles.length === 0 &&
+    relistsToAcknowledge.length === 0 &&
+    chainSetupPending.length === 0
+  ) return null;
 
   return (
     <section className={styles.section}>
@@ -56,6 +62,28 @@ export function InternalOnlyCards({
               ))}
               {relistsToAcknowledge.length > 4 && (
                 <div className={styles.moreLine}>+ {relistsToAcknowledge.length - 4} more</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {chainSetupPending.length > 0 && (
+          <div className={styles.panel}>
+            <div className={styles.label}>Chain setup pending</div>
+            <div className={styles.value}>{chainSetupPending.length}</div>
+            <div className={styles.rows}>
+              {chainSetupPending.slice(0, 4).map((c) => (
+                <Link
+                  key={c.transactionId}
+                  href={`/agent/transactions/${c.transactionId}`}
+                  className={styles.row}
+                >
+                  <span className={styles.rowAddress}>{c.propertyAddress}</span>
+                  <span className={styles.rowMeta}>{c.newBuyerName ?? c.agencyName ?? "New buyer"}</span>
+                </Link>
+              ))}
+              {chainSetupPending.length > 4 && (
+                <div className={styles.moreLine}>+ {chainSetupPending.length - 4} more</div>
               )}
             </div>
           </div>

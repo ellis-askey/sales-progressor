@@ -1,14 +1,8 @@
-// Kinetic Depth hub — Stage 1 target for internal roles (admin, superadmin,
-// sales_progressor). Same data fetches as legacy-hub.tsx — different
-// presentation. When rollout completes and every agency is on this hub,
-// legacy-hub.tsx gets deleted and this becomes the only version.
-//
-// Composition follows the pattern validated in /dev/vibe:
-//   1. Attention hero — action list, not KPI splash
-//   2. Mini stats — real bar charts + contextual line
-//   3. File grid — status lead + address anchor + next-action block
-//                  + progress prose + quiet people footer
-//   4. Cross-agency insight cards (internal only — quiet for agents)
+// Kinetic Depth hub — Stage 1 target for internal roles.
+// Renders every section legacy renders, using the same 12 hub service
+// functions. Presentation is Kinetic Depth (dark, glass, gradient
+// accents, motion). When rollout completes and every agency is on this
+// hub, legacy-hub.tsx gets deleted and this becomes the only version.
 
 import type React from "react";
 import Link from "next/link";
@@ -19,11 +13,23 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubWins,
-  getHubServiceSplit, getHubUnassignedFiles, getHubRelistsToAcknowledge,
+  getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity,
+  getHubDiary, getHubUnassignedFiles, getExpiredHolds,
+  getHubRelistsToAcknowledge, getHubChainSetupPending,
+  getHubPipelineStages,
 } from "@/lib/services/hub";
 import { AttentionRowList } from "@/components/kinetic/hub/AttentionRowList";
-import { KineticMiniStat } from "@/components/kinetic/hub/KineticMiniStat";
+import { KineticDiaryStrip } from "@/components/kinetic/hub/KineticDiaryStrip";
+import { HoldsNeedingAttention } from "@/components/kinetic/hub/HoldsNeedingAttention";
 import { InternalOnlyCards } from "@/components/kinetic/hub/InternalOnlyCards";
+import { PipelineAtAGlance } from "@/components/kinetic/hub/PipelineAtAGlance";
+import { PipelineHealthTiles } from "@/components/kinetic/hub/PipelineHealthTiles";
+import { StalledFilesWarning } from "@/components/kinetic/hub/StalledFilesWarning";
+import { WinsPanel } from "@/components/kinetic/hub/WinsPanel";
+import { ServiceSplitDonut } from "@/components/kinetic/hub/ServiceSplitDonut";
+import { ExchangeForecastChart } from "@/components/kinetic/hub/ExchangeForecastChart";
+import { RecentActivityFeed } from "@/components/kinetic/hub/RecentActivityFeed";
+import { ProTipBanner } from "@/components/kinetic/hub/ProTipBanner";
 import styles from "@/components/kinetic/hub/kinetic-hub.module.css";
 
 function getGreeting(name: string): string {
@@ -50,18 +56,42 @@ export default async function KineticHub() {
     ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, wins, serviceSplit, unassignedFiles, relistsToAcknowledge] =
-    await Promise.all([
-      getHubPipelineStats(vis),
-      getHubAttentionItems(vis),
-      getHubWins(vis),
-      getHubServiceSplit(vis),
-      getHubUnassignedFiles(vis),
-      getHubRelistsToAcknowledge(vis),
-    ]);
+  // All 12 hub services in one Promise.all — same set as legacy.
+  const [
+    pipelineStats, attentionItems, wins, weeklyForecast, serviceSplit,
+    recentActivity, diaryItems, unassignedFiles, expiredHolds,
+    relistsToAcknowledge, chainSetupPending, pipelineStages,
+  ] = await Promise.all([
+    getHubPipelineStats(vis),
+    getHubAttentionItems(vis),
+    getHubWins(vis),
+    getHubWeeklyForecast(vis),
+    getHubServiceSplit(vis),
+    getHubRecentActivity(vis),
+    getHubDiary(vis),
+    getHubUnassignedFiles(vis),
+    getExpiredHolds(vis),
+    getHubRelistsToAcknowledge(vis),
+    getHubChainSetupPending(vis),
+    getHubPipelineStages(vis),
+  ]);
 
+  // Derived
+  const escalatedCount = attentionItems.filter((i) => i.urgency === "escalated").length;
+  const overdueCount   = attentionItems.filter((i) => i.urgency === "overdue").length;
   const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
   const greeting = getGreeting(session.user.name ?? "there");
+  const stalledCount = pipelineStats.stalled.count;
+
+  // Signals feeding the pro-tip banner
+  const proTipSignals = {
+    chasesQuietFiles: stalledCount,
+    clientSilentFiles: 0, // wired properly when audit item #6 lands
+    needAssignCount: unassignedFiles.length,
+    chainSetupPendingCount: chainSetupPending.length,
+    holdsExpiredCount: expiredHolds.length,
+    escalatedCount,
+  };
 
   return (
     <div className={styles.root}>
@@ -76,7 +106,7 @@ export default async function KineticHub() {
                 {attentionFileCount === 1 ? "file needs" : "files need"} attention today
               </>
             ) : (
-              <>You&rsquo;re all caught up</>
+              <>You&rsquo;re all clear this morning</>
             )}
           </div>
         </div>
@@ -88,7 +118,13 @@ export default async function KineticHub() {
         )}
       </header>
 
-      {/* Attention list — the anchor of the page */}
+      {/* Today's diary strip (hidden when empty) */}
+      <KineticDiaryStrip items={diaryItems} />
+
+      {/* Holds needing attention — top-priority intervention */}
+      <HoldsNeedingAttention items={expiredHolds} />
+
+      {/* Big attention list — anchor of the page */}
       {attentionItems.length > 0 && (
         <section className={styles.section}>
           <AttentionRowList items={attentionItems.slice(0, 6)} />
@@ -101,43 +137,58 @@ export default async function KineticHub() {
         </section>
       )}
 
-      {/* Mini stats — with bar charts + contextual lines */}
-      <section className={styles.miniStatsRow}>
-        <KineticMiniStat
-          label="Active files"
-          value={pipelineStats.activeFiles}
-          bars={[pipelineStats.activeFiles]}
-          contextLine={pipelineStats.newThisMonth > 0 ? `${pipelineStats.newThisMonth} new this month` : "No new this month"}
-          caption="Live pipeline"
-        />
-        <KineticMiniStat
-          label="Exchanged this month"
-          value={wins.exchangesThisMonth}
-          bars={[wins.exchangesLastMonth, wins.exchangesThisMonth]}
-          contextLine={
-            wins.exchangesLastMonth === 0
-              ? "First exchange in this window"
-              : wins.exchangesThisMonth >= wins.exchangesLastMonth
-                ? `+${wins.exchangesThisMonth - wins.exchangesLastMonth} vs last month`
-                : `${wins.exchangesThisMonth - wins.exchangesLastMonth} vs last month`
-          }
-          caption="This vs last month"
-        />
-        <KineticMiniStat
-          label="Service mix"
-          value={serviceSplit.selfManaged + serviceSplit.outsourced}
-          bars={[serviceSplit.selfManaged, serviceSplit.outsourced]}
-          contextLine={`${serviceSplit.outsourced} outsourced · ${serviceSplit.selfManaged} self-managed`}
-          caption="Active files by service"
-        />
-      </section>
-
-      {/* Cross-agency cards for internal — quiet for agents (component decides) */}
+      {/* Cross-agency work stack — internal only, quiet for agents */}
       <InternalOnlyCards
         isInternal={isInternalStaff}
         unassignedFiles={unassignedFiles}
         relistsToAcknowledge={relistsToAcknowledge}
+        chainSetupPending={chainSetupPending}
       />
+
+      {/* Pipeline at a glance — 5 stage tiles */}
+      <PipelineAtAGlance stages={pipelineStages} />
+
+      {/* Pipeline health — 4 KPIs */}
+      <PipelineHealthTiles
+        activeFiles={pipelineStats.activeFiles}
+        newThisMonth={pipelineStats.newThisMonth}
+        exchangingSoon={pipelineStats.exchangingSoon}
+        exchangingThisWeek={pipelineStats.comingUp.exchangingThisWeek}
+        next30Days={weeklyForecast.reduce((s, w) => s + w.count, 0)}
+        needAttention={attentionFileCount}
+        escalated={escalatedCount}
+        overdue={overdueCount}
+        pipelineValuePence={pipelineStats.pipelineValuePence}
+        closingThisMonthPence={pipelineStats.comingUp.closingThisMonth.total}
+      />
+
+      {/* Stalled files warning row */}
+      <StalledFilesWarning count={stalledCount} />
+
+      {/* Wins + Service split, two columns */}
+      <section className={styles.twoCol}>
+        <WinsPanel wins={wins} />
+        <ServiceSplitDonut
+          selfManaged={serviceSplit.selfManaged}
+          outsourced={serviceSplit.outsourced}
+          isInternal={isInternalStaff}
+        />
+      </section>
+
+      {/* Exchange forecast — full-width chart */}
+      <section className={styles.section}>
+        <ExchangeForecastChart forecast={weeklyForecast} />
+      </section>
+
+      {/* Recent activity — single latest item (service returns one today; component ready to accept more) */}
+      {recentActivity && (
+        <section className={styles.section}>
+          <RecentActivityFeed activity={recentActivity} />
+        </section>
+      )}
+
+      {/* Pro tip banner — contextual */}
+      <ProTipBanner signals={proTipSignals} />
     </div>
   );
 }
