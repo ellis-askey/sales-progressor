@@ -230,7 +230,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, agencyModeProfile }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed" }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, agencyModeProfile, kineticEnabled }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -272,7 +272,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   }
 
   return (
-    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-night={nightOn ? "" : undefined} style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-night={nightOn ? "" : undefined} data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
 
       {/* Aurora background */}
       <div aria-hidden="true" style={{

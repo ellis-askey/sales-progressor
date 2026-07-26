@@ -1,0 +1,73 @@
+/* ─── Kinetic Depth · shell token overrides ─────────────────────────────
+   When the shell has data-kinetic="true" (agent layout applies this via
+   the feature flag in lib/kinetic/flag.ts) every agent-system token flips
+   to the Kinetic Depth palette. The existing shell components read
+   through these variables, so the frame goes dark without any component
+   code change. The pages inside the shell decide whether to render their
+   old-look or new-look content.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.agent-shell-root[data-kinetic="true"] {
+  /* Core surface + text */
+  --agent-bg-base: #05070F;
+  --agent-bg-elevated: #0A0F26;
+  --agent-surface: rgba(255, 255, 255, 0.055);
+  --agent-surface-elevated: rgba(255, 255, 255, 0.075);
+  --agent-surface-hover: rgba(255, 255, 255, 0.1);
+  --agent-surface-overlay: rgba(255, 255, 255, 0.02);
+
+  --agent-text-primary: rgba(255, 255, 255, 0.96);
+  --agent-text-secondary: rgba(255, 255, 255, 0.72);
+  --agent-text-muted: rgba(255, 255, 255, 0.52);
+  --agent-text-disabled: rgba(255, 255, 255, 0.32);
+
+  --agent-border-default: 0.5px solid rgba(255, 255, 255, 0.1);
+  --agent-border-subtle: 0.5px solid rgba(255, 255, 255, 0.06);
+  --agent-border-strong: 0.5px solid rgba(255, 255, 255, 0.18);
+
+  /* Accent — cyan/magenta gradient tokens plus a coral fallback so
+     legacy coral references still land on-brand for the new system */
+  --agent-accent-a: #00E5FF;
+  --agent-accent-b: #FF3BC8;
+  --agent-accent-a-glow: rgba(0, 229, 255, 0.55);
+  --agent-accent-b-glow: rgba(255, 59, 200, 0.5);
+
+  --agent-coral: var(--agent-accent-a);
+  --agent-coral-deep: var(--agent-accent-b);
+  --agent-coral-light: var(--agent-accent-a);
+  --agent-coral-rgb: 0, 229, 255;
+  --agent-coral-base-rgb: 0, 229, 255;
+  --agent-coral-bg-tint: rgba(0, 229, 255, 0.08);
+
+  /* Signal colours — kept vivid on dark */
+  --agent-success: #4AFFB3;
+  --agent-success-bg: rgba(74, 255, 179, 0.1);
+  --agent-warning: #FFAA1F;
+  --agent-warning-bg: rgba(255, 170, 31, 0.1);
+  --agent-danger: rgba(255, 92, 122, 1);
+  --agent-danger-rgb: 255, 92, 122;
+  --agent-danger-bg: rgba(255, 92, 122, 0.1);
+}
+
+/* Aurora / plasma background layer — the current shell has an animated
+   SVG turbulence pattern behind it (see AgentShell.tsx line ~283). In
+   kinetic mode we swap it for the deep-navy gradient + colour orbs from
+   /dev/vibe, so the whole viewport feels of a piece. */
+.agent-shell-root[data-kinetic="true"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(23, 51, 102, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 80% at 90% 80%, rgba(52, 24, 88, 0.75) 0%, transparent 55%),
+    linear-gradient(180deg, #06091A 0%, #0A0F26 45%, #0D1330 100%);
+  pointer-events: none;
+}
+
+/* Suppress the plasma SVG in kinetic mode — the gradient above is the
+   backdrop. Keeps the shell readable without changing shell JSX. */
+.agent-shell-root[data-kinetic="true"] svg[style*="agent-plasma"],
+.agent-shell-root[data-kinetic="true"] rect[filter*="agent-plasma"] {
+  display: none !important;
+}
