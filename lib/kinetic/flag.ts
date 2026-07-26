@@ -8,12 +8,13 @@ type SessionLike = {
 };
 
 // Roles that see the Kinetic hub in Stage 1.
-// Re-enabled 2026-07-26 after the parity rebuild (12 hub services, 13
-// kinetic components) - now covers every legacy section: holds, attention,
-// pipeline-at-a-glance, pipeline health, wins, exchange forecast, service
-// split donut, activity feed, pro tip, diary, plus internal-only cards
-// (unassigned, relist, chain setup pending).
-const INTERNAL_ROLES = new Set<string>(["admin", "superadmin", "sales_progressor"]);
+// EMPTY again after second regression 2026-07-26 - inline hold actions
+// (extend hold with date picker, pause client emails) were not carried
+// forward from ExpiredHoldsCard. Strategy conversation open with the
+// founder on whether wholesale rebuild is the right approach vs
+// layer-on-top-of-legacy or incremental-swap. Do not re-enable without
+// that call being made.
+const INTERNAL_ROLES = new Set<string>([]);
 
 // Stage 2 — populate with agency IDs to canary specific customer agencies.
 // e.g. new Set(["cmou19l8j0000n4djh2enonr7"]) for Akeman.
