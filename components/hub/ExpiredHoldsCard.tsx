@@ -191,7 +191,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
             </div>
 
             {showExtenderFor === item.transactionId ? (
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <div data-testid="hub-expired-holds-extender" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="date"
                   value={extenderDate}

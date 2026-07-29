@@ -191,7 +191,7 @@ export default async function LegacyHub() {
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (isEmpty) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <div data-testid="hub-empty-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
         <PageHeader title={greeting} subtitle={subtitle}>
           {canCreateSale && (
@@ -330,7 +330,7 @@ export default async function LegacyHub() {
 
   // ── Full hub ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
       <PageHeader title={greeting} subtitle="Here's what matters today.">
         {canCreateSale && (
@@ -539,11 +539,12 @@ export default async function LegacyHub() {
                     href={href}
                     style={{ ...cellStyle, textDecoration: "none" }}
                     className="agent-press-cell"
+                    aria-label={label}
                   >
                     {inner}
                   </Link>
                 ) : (
-                  <div key={i} style={cellStyle}>{inner}</div>
+                  <div key={i} style={cellStyle} aria-label={label}>{inner}</div>
                 );
               })}
             </div>
@@ -754,7 +755,7 @@ export default async function LegacyHub() {
           </div>
 
           {/* Service split — hidden for sales_progressor; relabelled for admin */}
-          {(!isProgressor || isAdmin) && <div className="agent-glass" style={{ padding: "20px 24px" }}>
+          {(!isProgressor || isAdmin) && <div data-testid="hub-service-split" className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who’s managing"}</p>
               <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : "Files you manage and files our team handles."}</p>
@@ -1061,11 +1062,11 @@ export default async function LegacyHub() {
           };
 
           return tip.href ? (
-            <Link href={tip.href} className="agent-hover-row" style={wrapperStyle}>
+            <Link href={tip.href} className="agent-hover-row" style={wrapperStyle} data-testid="hub-pro-tip">
               {inner}
             </Link>
           ) : (
-            <div style={wrapperStyle}>{inner}</div>
+            <div style={wrapperStyle} data-testid="hub-pro-tip">{inner}</div>
           );
         })()}
       </div>
