@@ -18,6 +18,7 @@ import {
   executeUndoMilestone,
   unlockDirectDependents,
   maybeUnlockExchangeGate,
+  maybeAutoCompleteTransaction,
 } from "@/lib/services/milestones";
 export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
@@ -37,7 +38,6 @@ import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
-import { recordEvent } from "@/lib/command/events/write";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -224,77 +224,16 @@ export async function confirmMilestoneAction(input: {
   // (file failed); on_hold means the agent paused deliberately and must
   // re-activate first (locked decision 2026-06-19). Already-completed is
   // an idempotent no-op.
+  // The gate + flip now lives in the shared maybeAutoCompleteTransaction so
+  // every confirm path (and the nightly completion-safety-net cron) shares one
+  // source of truth. Behaviour here is unchanged: only completion codes
+  // trigger it, the helper is defensive (never throws), and we revalidate only
+  // when it actually flipped.
   if (def?.code === "VM20" || def?.code === "PM27") {
-    try {
-      const flipTx = await prisma.propertyTransaction.findUnique({
-        where: { id: input.transactionId },
-        select: { id: true, status: true, activeBuyerRoundId: true, agencyId: true },
-      });
-      if (flipTx && flipTx.status === "active") {
-        // Round-scoped completion check — same shape as the manual gate
-        // in updateTransactionStatus (app/actions/transactions.ts ~line
-        // 488-505). Vendor VMs are file-level (buyerRoundId IS NULL);
-        // PM27 belongs to the active round.
-        const flipScope = forRound(flipTx.activeBuyerRoundId ?? null, input.transactionId);
-        const completionDefs = await prisma.milestoneDefinition.findMany({
-          where: { code: { in: ["VM20", "PM27"] } },
-          select: { id: true, code: true },
-        });
-        const completed = await prisma.milestoneCompletion.findMany({
-          where: {
-            transactionId: input.transactionId,
-            milestoneDefinitionId: { in: completionDefs.map((d) => d.id) },
-            state: "complete",
-            ...milestoneScopeWhere(flipScope),
-          },
-          select: { milestoneDefinitionId: true },
-        });
-        const completedDefIds = new Set(completed.map((c) => c.milestoneDefinitionId));
-        const vm20Def = completionDefs.find((d) => d.code === "VM20");
-        const pm27Def = completionDefs.find((d) => d.code === "PM27");
-        const bothComplete = !!(vm20Def && pm27Def && completedDefIds.has(vm20Def.id) && completedDefIds.has(pm27Def.id));
-
-        if (bothComplete) {
-          await prisma.propertyTransaction.update({
-            where: { id: input.transactionId },
-            data: { status: "completed" },
-          });
-
-          // Activity-feed line, voice-passed against docs/reference/VOICE.md
-          // (passive past tense for celebratory news; no system self-
-          // references; no milestone codes user-facing; "both parties" is
-          // the established phrase for vendor+purchaser pair).
-          await prisma.outboundMessage.create({
-            data: {
-              transactionId: input.transactionId,
-              type: "internal_note",
-              contactIds: [],
-              content: "Marked as completed. Both parties have confirmed.",
-              createdById: session.user.id,
-            },
-          });
-
-          // Command Centre event log — mirror the manual-flip path so
-          // analytics/dashboards see a single coherent stream of status
-          // changes. The trigger metadata distinguishes auto from manual.
-          await recordEvent({
-            type: "transaction_status_changed",
-            agencyId: flipTx.agencyId || undefined,
-            userId: session.user.id,
-            entityType: "PropertyTransaction",
-            entityId: input.transactionId,
-            metadata: { from: "active", to: "completed", trigger: "milestone_auto_completion" },
-          });
-
-          revalidateTx(input.transactionId);
-        }
-      }
-    } catch (err) {
-      // Defensive — never let an auto-flip failure throw out of the confirm
-      // action. The milestone confirm itself already succeeded; status
-      // flipping is a knock-on convenience.
-      console.error("[confirmMilestoneAction] auto status flip failed:", err);
-    }
+    const flipped = await maybeAutoCompleteTransaction(input.transactionId, {
+      actorUserId: session.user.id,
+    });
+    if (flipped) revalidateTx(input.transactionId);
   }
 
   // Push to subscribed portal contacts (fire-and-forget)

@@ -10,6 +10,7 @@ import {
   markNotRequiredWithCascade,
   reverseMilestoneWithCascade,
   bulkCompleteMilestones,
+  maybeAutoCompleteTransaction,
 } from "@/lib/services/milestones";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
@@ -112,6 +113,13 @@ export async function POST(req: NextRequest) {
 
         return primary;
       });
+
+      // Flip the file to "completed" once both completion milestones are in.
+      // Shared gate (lib/services/milestones.ts) — runs after the transaction
+      // so both bilateral rows are committed. Defensive: never throws.
+      if (def?.code === "VM20" || def?.code === "PM27") {
+        await maybeAutoCompleteTransaction(transactionId, { actorUserId: session.user.id });
+      }
 
       return NextResponse.json(result, { status: 201 });
     }

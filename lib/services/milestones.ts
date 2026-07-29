@@ -31,6 +31,104 @@ async function getActiveRoundScope(
   return forRound(row?.activeBuyerRoundId ?? null, transactionId);
 }
 
+/**
+ * Flip a transaction to "completed" once BOTH completion milestones (VM20 +
+ * PM27) are confirmed on the active round.
+ *
+ * THE single source of truth for completion auto-flip. Historically this
+ * logic lived inline in confirmMilestoneAction only, so completions confirmed
+ * through any other path (the /api/milestones route, exchange reconciliation,
+ * chase-task "Done", reconcile-claim, portal self-confirm) wrote VM20/PM27 as
+ * complete but left the file stuck on status="active". Every completion entry
+ * point now calls this, and the nightly completion-safety-net cron calls it
+ * across all live files, so a finished sale can never silently sit in the
+ * active list regardless of how it was confirmed.
+ *
+ * Idempotent + defensive by design:
+ *   - only flips from "active" (withdrawn is terminal; on_hold is a deliberate
+ *     pause the agent must lift first; already-completed is a no-op)
+ *   - requires BOTH sides complete on the active round (same gate the manual
+ *     StatusControl uses)
+ *   - never throws — a flip failure must never break the caller that triggered
+ *     it (the milestone confirm itself has already succeeded)
+ *
+ * @param opts.actorUserId  the confirming user, when there is one. Drives the
+ *   on-file activity note (skipped for the unattended cron) and the event
+ *   trigger label ("milestone_auto_completion" vs "completion_safety_net").
+ * @returns true if it flipped the status this call, false otherwise.
+ */
+export async function maybeAutoCompleteTransaction(
+  transactionId: string,
+  opts?: { actorUserId?: string | null },
+): Promise<boolean> {
+  try {
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { id: true, status: true, activeBuyerRoundId: true, agencyId: true },
+    });
+    if (!tx || tx.status !== "active") return false;
+
+    const scope = forRound(tx.activeBuyerRoundId ?? null, transactionId);
+    const completionDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true, code: true },
+    });
+    const completed = await prisma.milestoneCompletion.findMany({
+      where: {
+        transactionId,
+        milestoneDefinitionId: { in: completionDefs.map((d) => d.id) },
+        state: "complete",
+        ...milestoneScopeWhere(scope),
+      },
+      select: { milestoneDefinitionId: true },
+    });
+    const done = new Set(completed.map((c) => c.milestoneDefinitionId));
+    const vm20 = completionDefs.find((d) => d.code === "VM20");
+    const pm27 = completionDefs.find((d) => d.code === "PM27");
+    const bothComplete = !!(vm20 && pm27 && done.has(vm20.id) && done.has(pm27.id));
+    if (!bothComplete) return false;
+
+    await prisma.propertyTransaction.update({
+      where: { id: transactionId },
+      data: { status: "completed" },
+    });
+
+    // Activity-feed line, voice-passed against docs/reference/VOICE.md. Only
+    // when a real user triggered it — the cron has no author.
+    if (opts?.actorUserId) {
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: "Marked as completed. Both parties have confirmed.",
+          createdById: opts.actorUserId,
+        },
+      });
+    }
+
+    // Command Centre event log — trigger metadata distinguishes the confirm
+    // paths from the safety-net sweep.
+    await recordEvent({
+      type: "transaction_status_changed",
+      agencyId: tx.agencyId || undefined,
+      userId: opts?.actorUserId || undefined,
+      entityType: "PropertyTransaction",
+      entityId: transactionId,
+      metadata: {
+        from: "active",
+        to: "completed",
+        trigger: opts?.actorUserId ? "milestone_auto_completion" : "completion_safety_net",
+      },
+    });
+
+    return true;
+  } catch (err) {
+    console.error("[maybeAutoCompleteTransaction] flip failed:", transactionId, err);
+    return false;
+  }
+}
+
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   weight: number;
   completion: MilestoneCompletion | null;
