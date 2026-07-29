@@ -184,9 +184,17 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete once Billy has viewed the polished hub and confirmed direction. Ideally within 2 weeks.
 - **Justification:** required exactly-once data population for a specific test account on staging. Refuses to run against prod DB at runtime. Idempotent — safe to re-run.
 
+### scripts/backfill-completed-status.mjs
+
+- **Purpose:** One-shot data fix. (1) Flip to `status='completed'` the outsourced files that have a completion milestone (VM20 or PM27) confirmed but were left stuck on `active` because the old inline gate required BOTH sides to trigger the flip. (2) Null out the one Contact whose `email` field holds a phone number (Emma O'Connell, 20 Williamson Way — phone already lives in `.phone`). Prints before/after evidence; writes run inside one transaction.
+- **Lifetime:** `one-shot`
+- **Author:** CC (completion auto-flip refactor + safety-net cron), 2026-07-28
+- **Deletion criteria:** delete once the 2026-07-28 backfill has run against prod and the nightly `completion-safety-net` cron has been live for one week with a clean sweep.
+- **Justification:** legacy row backfill for files that were completed under the old single-path gate. The runtime fix (shared `maybeAutoCompleteTransaction` helper + nightly cron) prevents new instances of this state, so this script only cleans up historical data.
+
 ---
 
 ## Footnotes
 
 - Companion docs: [CLAUDE.md Law 15](../CLAUDE.md#law-15--scripts-must-justify), [BUILD_PLAN.md Phase 4](BUILD_PLAN.md#phase-4--scripts-cull-interleaved-from-week-8).
-- Last updated: 2026-06-26.
+- Last updated: 2026-07-28.
