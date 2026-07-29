@@ -192,6 +192,30 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete once the 2026-07-28 backfill has run against prod and the nightly `completion-safety-net` cron has been live for one week with a clean sweep.
 - **Justification:** legacy row backfill for files that were completed under the old single-path gate. The runtime fix (shared `maybeAutoCompleteTransaction` helper + nightly cron) prevents new instances of this state, so this script only cleans up historical data.
 
+### scripts/annual-leave-name-check.mjs
+
+- **Purpose:** Read-only. Builds the recipient list for the 2026 annual-leave notice (every vendor/purchaser contact on an active outsourced file that has an email and is not unsubscribed) and prints a name-approval table: raw stored name → proposed "Hi ___" greeting → flags on anything that looks wrong (title + surname only, company name, joint parties, missing name, comma format). Writes `docs/annual-leave-name-check-2026.md`.
+- **Lifetime:** `one-shot`
+- **Author:** CC (annual-leave 2026-07-30 send), 2026-07-27
+- **Deletion criteria:** delete once the 2026 annual-leave send is completed and signed off.
+- **Justification:** name-quality QA gate that has to look at prod contact rows before the send goes out. Not surface-eligible: it is a one-time operator step, not an ongoing agency-facing action.
+
+### scripts/generate-annual-leave-emails.mjs
+
+- **Purpose:** One-shot generator. Pulls every active outsourced transaction from prod, produces two annual-leave notification emails per file (vendor + purchaser), writes `docs/annual-leave-emails-2026-07-30.md` for review before send.
+- **Lifetime:** `one-shot`
+- **Author:** CC (annual-leave 2026-07-30 send), 2026-07-27
+- **Deletion criteria:** delete once the 2026 annual-leave send is completed.
+- **Justification:** preview step so the drafts can be reviewed as a single document before the send script goes live.
+
+### scripts/annual-leave-send.mjs
+
+- **Purpose:** Sends the 2026 annual-leave notice to every buyer/seller on an active outsourced file. Three modes: default = preview (writes `docs/annual-leave-emails-final.md`, sends nothing); `--test` = representative samples to `ellisaskey@googlemail.com`; `--send` = full batch to real recipients (guarded).
+- **Lifetime:** `one-shot`
+- **Author:** CC (annual-leave 2026-07-30 send), 2026-07-28
+- **Deletion criteria:** delete once the 2026 annual-leave send is completed.
+- **Justification:** one-off notice tied to a specific date range (30 July - 10 August 2026). Not surface-eligible: template + recipient shape are specific to this event and would rot if kept as a general feature.
+
 ---
 
 ## Footnotes

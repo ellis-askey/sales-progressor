@@ -1,0 +1,252 @@
+<title>Annual-leave notice — name approval</title>
+<style>
+  :root{
+    --ground:#FAF8F5; --surface:#FFFFFF; --surface-2:#F3F0EB; --line:#E4DED5;
+    --ink:#1C1815; --muted:#6E665D; --faint:#9A9186;
+    --accent:#D8542F; --flag:#B7791F; --flag-bg:#FBF3E2; --dup:#2F6FB0; --dup-bg:#EAF1F8; --good:#2E7D57;
+    --shadow:0 1px 2px rgba(28,24,21,.05),0 8px 24px rgba(28,24,21,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --ground:#15120F; --surface:#1E1A16; --surface-2:#262019; --line:#332C24;
+      --ink:#F1ECE4; --muted:#A79D90; --faint:#786E62;
+      --accent:#FF7A54; --flag:#E0A94A; --flag-bg:#2A2214; --dup:#7FB0DE; --dup-bg:#15212C; --good:#63C295;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.35); }
+  }
+  :root[data-theme="light"]{ --ground:#FAF8F5; --surface:#FFFFFF; --surface-2:#F3F0EB; --line:#E4DED5; --ink:#1C1815; --muted:#6E665D; --faint:#9A9186; --accent:#D8542F; --flag:#B7791F; --flag-bg:#FBF3E2; --dup:#2F6FB0; --dup-bg:#EAF1F8; --good:#2E7D57; }
+  :root[data-theme="dark"]{ --ground:#15120F; --surface:#1E1A16; --surface-2:#262019; --line:#332C24; --ink:#F1ECE4; --muted:#A79D90; --faint:#786E62; --accent:#FF7A54; --flag:#E0A94A; --flag-bg:#2A2214; --dup:#7FB0DE; --dup-bg:#15212C; --good:#63C295; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 28px 96px;}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:34px;line-height:1.1;margin:.3em 0 .15em;letter-spacing:-.01em;text-wrap:balance;}
+  .lede{color:var(--muted);font-size:15px;max-width:60ch;margin:0;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:32px 0;}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);}
+  .stat .n{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .stat.flag .n{color:var(--flag)} .stat.dup .n{color:var(--dup)}
+  .stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+  h2{font-family:Georgia,serif;font-weight:600;font-size:21px;margin:40px 0 4px;}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px;}
+  .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  @media(max-width:720px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);}
+  .flag-card{border-left:3px solid var(--flag)} .dup-card{border-left:3px solid var(--dup)}
+  .card-h{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .chip{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;}
+  .chip-flag{background:var(--flag-bg);color:var(--flag)} .chip-dup{background:var(--dup-bg);color:var(--dup)}
+  .card-loc{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .card-body{display:flex;flex-direction:column;gap:6px;}
+  .card-body>div{display:flex;gap:10px;align-items:baseline;}
+  .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);width:66px;flex-shrink:0;}
+  .val{font-size:15px;font-weight:500;} .val.bad{color:var(--flag)} .val.good{color:var(--good)}
+  .card-why{font-size:13px;color:var(--muted);margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);margin-top:18px;}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:760px;}
+  thead th{position:sticky;top:0;background:var(--surface-2);color:var(--muted);text-align:left;
+    font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line);}
+  tbody td{padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface);}
+  tbody tr:last-child td{border-bottom:none}
+  .num{color:var(--faint);font-variant-numeric:tabular-nums;width:34px;}
+  .stored{color:var(--muted)} .greet{font-weight:600;} .email{color:var(--muted);font-size:12.5px;}
+  .note{font-size:12px;color:var(--muted);}
+  tr.flag td{background:var(--flag-bg)} tr.flag .greet{color:var(--flag)} tr.flag .note{color:var(--flag);font-weight:500;}
+  tr.dup td{background:var(--dup-bg)} tr.dup .note{color:var(--dup);}
+  .skip h2{margin-top:48px}
+  footer{margin-top:40px;color:var(--faint);font-size:12.5px;}
+</style>
+<div class="wrap">
+  <span class="eyebrow">Sales Progression · Akeman Residential</span>
+  <h1>Annual-leave notice — name check</h1>
+  <p class="lede">Every buyer and seller on an active outsourced file, with the greeting each would receive. Review the <strong>Hi&nbsp;___</strong> column, then approve or correct. Nothing sends until you do.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="n">123</div><div class="k">Emails to send</div></div>
+    <div class="stat flag"><div class="n">5</div><div class="k">Names flagged</div></div>
+    <div class="stat dup"><div class="n">3</div><div class="k">Duplicate inboxes</div></div>
+    <div class="stat"><div class="n">6</div><div class="k">Skipped</div></div>
+  </div>
+
+  <h2>Decisions needed</h2>
+  <p class="sub">These 8 are the only ones that need a call. The other 112 are ordinary first names.</p>
+  <div class="cards"><div class="card flag-card"><div class="card-h"><span class="chip chip-flag">Name</span><span class="card-loc">1 Church Road · Buyer</span></div>
+      <div class="card-body"><div><span class="lbl">Stored</span><span class="val">Mr Cook</span></div>
+      <div><span class="lbl">Would say</span><span class="val bad">Hi Cook</span></div>
+      <div><span class="lbl">Suggest</span><span class="val good">Hi Mr Cook</span></div></div>
+      <p class="card-why">TITLE + SURNAME — "Hi Cook" is a surname, not a first name</p></div>
+<div class="card flag-card"><div class="card-h"><span class="chip chip-flag">Name</span><span class="card-loc">40 Albert Street · Buyer</span></div>
+      <div class="card-body"><div><span class="lbl">Stored</span><span class="val">Mr Passera</span></div>
+      <div><span class="lbl">Would say</span><span class="val bad">Hi Passera</span></div>
+      <div><span class="lbl">Suggest</span><span class="val good">Hi Mr Passera</span></div></div>
+      <p class="card-why">TITLE + SURNAME — "Hi Passera" is a surname, not a first name</p></div>
+<div class="card flag-card"><div class="card-h"><span class="chip chip-flag">Name</span><span class="card-loc">73 Jutland House · Seller</span></div>
+      <div class="card-body"><div><span class="lbl">Stored</span><span class="val">Mr Oladokun</span></div>
+      <div><span class="lbl">Would say</span><span class="val bad">Hi Oladokun</span></div>
+      <div><span class="lbl">Suggest</span><span class="val good">Hi Mr Oladokun</span></div></div>
+      <p class="card-why">TITLE + SURNAME — "Hi Oladokun" is a surname, not a first name</p></div>
+<div class="card flag-card"><div class="card-h"><span class="chip chip-flag">Name</span><span class="card-loc">8 Brambling Crescent · Seller</span></div>
+      <div class="card-body"><div><span class="lbl">Stored</span><span class="val">Miss Gillespie</span></div>
+      <div><span class="lbl">Would say</span><span class="val bad">Hi Gillespie</span></div>
+      <div><span class="lbl">Suggest</span><span class="val good">Hi Miss Gillespie</span></div></div>
+      <p class="card-why">TITLE + SURNAME — "Hi Gillespie" is a surname, not a first name</p></div>
+<div class="card flag-card"><div class="card-h"><span class="chip chip-flag">Name</span><span class="card-loc">98 Hillcrest Road · Seller</span></div>
+      <div class="card-body"><div><span class="lbl">Stored</span><span class="val">Bamsy Estates Ltd</span></div>
+      <div><span class="lbl">Would say</span><span class="val bad">Hi Bamsy</span></div>
+      <div><span class="lbl">Suggest</span><span class="val good">Hi there  (or a named contact if known)</span></div></div>
+      <p class="card-why">looks like a COMPANY/FIRM name</p></div>
+<div class="card dup-card"><div class="card-h"><span class="chip chip-dup">Duplicate inbox</span><span class="card-loc">s.r.leek1@gmail.com</span></div>
+      <div class="card-body"><div><span class="lbl">Goes to</span><span class="val">Simon (18 Station Road · Buyer), Simon (22 Williamson Way · Seller)</span></div></div>
+      <p class="card-why">Same person is party to two files — they'd receive two copies of the same notice.</p></div>
+<div class="card dup-card"><div class="card-h"><span class="chip chip-dup">Duplicate inbox</span><span class="card-loc">nlrleek@gmail.com</span></div>
+      <div class="card-body"><div><span class="lbl">Goes to</span><span class="val">Nicola (18 Station Road · Buyer), Nicola (22 Williamson Way · Seller)</span></div></div>
+      <p class="card-why">Same person is party to two files — they'd receive two copies of the same notice.</p></div>
+<div class="card dup-card"><div class="card-h"><span class="chip chip-dup">Duplicate inbox</span><span class="card-loc">derizzio@yahoo.com</span></div>
+      <div class="card-body"><div><span class="lbl">Goes to</span><span class="val">Earl (46 Ramilles Close · Seller), Donarita (46 Ramilles Close · Seller)</span></div></div>
+      <p class="card-why">Two people share this inbox on the same file — sending both means two greetings to one mailbox.</p></div></div>
+
+  <h2>All recipients</h2>
+  <p class="sub">123 emails. Amber rows are flagged names; blue rows go to an inbox that appears more than once.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Property</th><th>Side</th><th>Stored name</th><th>Hi ___</th><th>Email</th><th>Note</th></tr></thead>
+    <tbody><tr class=""><td class="num">1</td><td>1 Church Road</td><td>Seller</td><td class="stored">Mr James Harman</td><td class="greet">James</td><td class="email">jamesharman19@icloud.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">2</td><td>1 Church Road</td><td>Seller</td><td class="stored">Mrs Laura Harman</td><td class="greet">Laura</td><td class="email">lturner98@outlook.com</td><td class="note"></td></tr>
+<tr class="flag"><td class="num">3</td><td>1 Church Road</td><td>Buyer</td><td class="stored">Mr Cook</td><td class="greet">Cook</td><td class="email">dave.cook.70@gmail.com</td><td class="note">⚠ TITLE + SURNAME — "Hi Cook" is a surname, not a first name</td></tr>
+<tr class=""><td class="num">4</td><td>1 The Kiplings</td><td>Seller</td><td class="stored">Miss Gayle Adam</td><td class="greet">Gayle</td><td class="email">Gayleadam@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">5</td><td>1 The Kiplings</td><td>Buyer</td><td class="stored">Mr Raja Rasheed</td><td class="greet">Raja</td><td class="email">arfanivicky@yahoo.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">6</td><td>118 Hadley Grange</td><td>Seller</td><td class="stored">Mr Anthony Lodge</td><td class="greet">Anthony</td><td class="email">anthony.lodge@me.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">7</td><td>118 Hadley Grange</td><td>Buyer</td><td class="stored">Mr Sadik Karadag</td><td class="greet">Sadik</td><td class="email">ciyaresh@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">8</td><td>11a John Eliot Close</td><td>Seller</td><td class="stored">Mrs Tracey O'Neill</td><td class="greet">Tracey</td><td class="email">wstockltd@aol.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">9</td><td>11a John Eliot Close</td><td>Seller</td><td class="stored">Peter O'Neill</td><td class="greet">Peter</td><td class="email">buzbys123@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">10</td><td>11a John Eliot Close</td><td>Buyer</td><td class="stored">Miss Hollie Justice</td><td class="greet">Hollie</td><td class="email">hollie.justice@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">11</td><td>11a John Eliot Close</td><td>Buyer</td><td class="stored">Mr Ben Scott</td><td class="greet">Ben</td><td class="email">ben.scott51@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">12</td><td>124 Leaforis Road</td><td>Seller</td><td class="stored">Miss Selin Aklan</td><td class="greet">Selin</td><td class="email">selin91@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">13</td><td>124 Leaforis Road</td><td>Buyer</td><td class="stored">Mr Adnan Segmen</td><td class="greet">Adnan</td><td class="email">a.segmen@live.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">14</td><td>131 Amesbury Avenue</td><td>Seller</td><td class="stored">Dr Velma Bryan</td><td class="greet">Velma</td><td class="email">vbryan35@googlemail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">15</td><td>131 Amesbury Avenue</td><td>Buyer</td><td class="stored">Mr Meir Goldberg</td><td class="greet">Meir</td><td class="email">markgoldberg614@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">16</td><td>14 Cedar Green</td><td>Seller</td><td class="stored">Mr Neil Emery</td><td class="greet">Neil</td><td class="email">nemery500@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">17</td><td>14 Cedar Green</td><td>Buyer</td><td class="stored">Mr Danut Carjan</td><td class="greet">Danut</td><td class="email">danutcarjan82@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">18</td><td>14 Cedar Green</td><td>Buyer</td><td class="stored">Mrs Ana Maria Pricopi</td><td class="greet">Ana</td><td class="email">ana.carjan@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">19</td><td>15 Bushy Avenue</td><td>Seller</td><td class="stored">Mrs Fleur Scarratt</td><td class="greet">Fleur</td><td class="email">fleur.scarratt@longmores.law</td><td class="note"></td></tr>
+<tr class=""><td class="num">20</td><td>15 Bushy Avenue</td><td>Buyer</td><td class="stored">Miss Acelya Agcadag</td><td class="greet">Acelya</td><td class="email">acelyaagcadag2003@outlook.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">21</td><td>16 Chiffinch Gardens</td><td>Seller</td><td class="stored">Mrs Tina Hole</td><td class="greet">Tina</td><td class="email">tinahole1@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">22</td><td>16 Chiffinch Gardens</td><td>Buyer</td><td class="stored">Miss Amy Barrett</td><td class="greet">Amy</td><td class="email">amyb1316@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">23</td><td>16 Chiffinch Gardens</td><td>Buyer</td><td class="stored">Mr Craig Hardy</td><td class="greet">Craig</td><td class="email">craig.hardy7@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">24</td><td>17 Bushy Avenue</td><td>Seller</td><td class="stored">Mr Paul Aberdein</td><td class="greet">Paul</td><td class="email">paberdein@aol.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">25</td><td>17 Bushy Avenue</td><td>Seller</td><td class="stored">Mrs Tracey Aberdein</td><td class="greet">Tracey</td><td class="email">t.aberdein@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">26</td><td>17 Bushy Avenue</td><td>Buyer</td><td class="stored">Mr David Ekong</td><td class="greet">David</td><td class="email">dekong88@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">27</td><td>17 Bushy Avenue</td><td>Buyer</td><td class="stored">Mrs Phoebe Ekong</td><td class="greet">Phoebe</td><td class="email">mrspekong@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">28</td><td>176 Perrysfield Road</td><td>Seller</td><td class="stored">Mr Doug Bilyard</td><td class="greet">Doug</td><td class="email">art15an@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">29</td><td>176 Perrysfield Road</td><td>Buyer</td><td class="stored">Mr Armet Can</td><td class="greet">Armet</td><td class="email">kkardelenn1@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">30</td><td>18 Commissioner Road</td><td>Seller</td><td class="stored">Mr Gabriel Kifle</td><td class="greet">Gabriel</td><td class="email">kiflegabriel2@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">31</td><td>18 Commissioner Road</td><td>Seller</td><td class="stored">Mrs Senat Kifle</td><td class="greet">Senat</td><td class="email">senukifle@yahoo.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">32</td><td>18 Commissioner Road</td><td>Buyer</td><td class="stored">Mrs Anita Holman</td><td class="greet">Anita</td><td class="email">abungeruk@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">33</td><td>18 Station Road</td><td>Seller</td><td class="stored">Mr Mick Browne</td><td class="greet">Mick</td><td class="email">mick@platingequipment.co.uk</td><td class="note"></td></tr>
+<tr class="dup"><td class="num">34</td><td>18 Station Road</td><td>Buyer</td><td class="stored">Mr Simon Leek</td><td class="greet">Simon</td><td class="email">s.r.leek1@gmail.com</td><td class="note">↔ also emailed on another file</td></tr>
+<tr class="dup"><td class="num">35</td><td>18 Station Road</td><td>Buyer</td><td class="stored">Mrs Nicola Leek</td><td class="greet">Nicola</td><td class="email">nlrleek@gmail.com</td><td class="note">↔ also emailed on another file</td></tr>
+<tr class=""><td class="num">36</td><td>19 Bodge Piece</td><td>Seller</td><td class="stored">Miss Lauren Saunders</td><td class="greet">Lauren</td><td class="email">Laurensaunders2@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">37</td><td>19 Bodge Piece</td><td>Seller</td><td class="stored">Mr James Giffin</td><td class="greet">James</td><td class="email">g1ff1n@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">38</td><td>19 Bodge Piece</td><td>Buyer</td><td class="stored">Mrs Jennifer Robinson</td><td class="greet">Jennifer</td><td class="email">drob1948@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">39</td><td>20 Williamson Way</td><td>Seller</td><td class="stored">Mr Tom Newton</td><td class="greet">Tom</td><td class="email">Tom.newton@tapespec.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">40</td><td>20 Williamson Way</td><td>Seller</td><td class="stored">Mrs Hannah Newton</td><td class="greet">Hannah</td><td class="email">hbutler_lee@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">41</td><td>20 Williamson Way</td><td>Buyer</td><td class="stored">Mr Luke O'Connell</td><td class="greet">Luke</td><td class="email">loconnell001@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">42</td><td>20 Williamson Way</td><td>Buyer</td><td class="stored">Mrs Emma O'Connell</td><td class="greet">Emma</td><td class="email">07964 496 712</td><td class="note"></td></tr>
+<tr class=""><td class="num">43</td><td>21 Mandelyns</td><td>Seller</td><td class="stored">Mr Nick Parsons</td><td class="greet">Nick</td><td class="email">Nick.p56@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">44</td><td>21 Mandelyns</td><td>Seller</td><td class="stored">Mrs Mary Parsons</td><td class="greet">Mary</td><td class="email">marymcparsons@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">45</td><td>21 Mandelyns</td><td>Buyer</td><td class="stored">Mr Oliver Fradgley</td><td class="greet">Oliver</td><td class="email">o.fradgley@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">46</td><td>21 Mandelyns</td><td>Buyer</td><td class="stored">Mrs Candice Fradgley</td><td class="greet">Candice</td><td class="email">candicefradgley@gmail.com</td><td class="note"></td></tr>
+<tr class="dup"><td class="num">47</td><td>22 Williamson Way</td><td>Seller</td><td class="stored">Mr Simon Leek</td><td class="greet">Simon</td><td class="email">s.r.leek1@gmail.com</td><td class="note">↔ also emailed on another file</td></tr>
+<tr class="dup"><td class="num">48</td><td>22 Williamson Way</td><td>Seller</td><td class="stored">Mrs Nicola Leek</td><td class="greet">Nicola</td><td class="email">nlrleek@gmail.com</td><td class="note">↔ also emailed on another file</td></tr>
+<tr class=""><td class="num">49</td><td>22 Williamson Way</td><td>Buyer</td><td class="stored">Mr Steve Ayres</td><td class="greet">Steve</td><td class="email">steve@firstfortrophies.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">50</td><td>22 Williamson Way</td><td>Buyer</td><td class="stored">Mrs Penny Ayres</td><td class="greet">Penny</td><td class="email">penny@firstfortrophies.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">51</td><td>22a Main Road South</td><td>Seller</td><td class="stored">Miss Rosie Unwin</td><td class="greet">Rosie</td><td class="email">rmunwin90@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">52</td><td>22a Main Road South</td><td>Seller</td><td class="stored">Mr Kiran Moritz</td><td class="greet">Kiran</td><td class="email">kiranjmoritz@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">53</td><td>22a Main Road South</td><td>Buyer</td><td class="stored">Mr Peter Sikora</td><td class="greet">Peter</td><td class="email">decorator.sikora@googlemail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">54</td><td>28 Cobb Road</td><td>Seller</td><td class="stored">Miss Louise Bandle</td><td class="greet">Louise</td><td class="email">Louisebandle@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">55</td><td>28 Cobb Road</td><td>Buyer</td><td class="stored">Miss Charlotte Lutt</td><td class="greet">Charlotte</td><td class="email">charlottelutt@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">56</td><td>28 Cobb Road</td><td>Buyer</td><td class="stored">Mr Lyes Titouah</td><td class="greet">Lyes</td><td class="email">lyestitouah1@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">57</td><td>29 Berwick Way</td><td>Seller</td><td class="stored">Mr Thomas Chan</td><td class="greet">Thomas</td><td class="email">cks6376@yahoo.com.hk</td><td class="note"></td></tr>
+<tr class=""><td class="num">58</td><td>29 Berwick Way</td><td>Buyer</td><td class="stored">Mrs Kimberly Moorehead-Lane</td><td class="greet">Kimberly</td><td class="email">kimberlyjane3@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">59</td><td>29 Sears Drive</td><td>Seller</td><td class="stored">Mr William Dyer</td><td class="greet">William</td><td class="email">29tring@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">60</td><td>29 Sears Drive</td><td>Buyer</td><td class="stored">Miss Phoebe Borrowdale</td><td class="greet">Phoebe</td><td class="email">Phoebeborrowdale@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">61</td><td>29 Sears Drive</td><td>Buyer</td><td class="stored">Mr Josh Rose</td><td class="greet">Josh</td><td class="email">josharose8@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">62</td><td>3 Bosanquet Road</td><td>Seller</td><td class="stored">Mr Marsden Amner</td><td class="greet">Marsden</td><td class="email">mardie@aacartons.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">63</td><td>3 Bosanquet Road</td><td>Buyer</td><td class="stored">Miss Catherine McGoldrick</td><td class="greet">Catherine</td><td class="email">cathmcgoldrick@aol.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">64</td><td>3 Bosanquet Road</td><td>Buyer</td><td class="stored">Mr Eoin Griffin</td><td class="greet">Eoin</td><td class="email">eoin6366@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">65</td><td>30 Jessica Mews</td><td>Seller</td><td class="stored">Mr Mark Wood</td><td class="greet">Mark</td><td class="email">markwood62@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">66</td><td>30 Jessica Mews</td><td>Seller</td><td class="stored">Mrs Joanne Wood</td><td class="greet">Joanne</td><td class="email">nikewood@outlook.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">67</td><td>30 Jessica Mews</td><td>Buyer</td><td class="stored">Mr Szabolcs Endrodi</td><td class="greet">Szabolcs</td><td class="email">mr.szabolcs.endrodi@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">68</td><td>30 Jessica Mews</td><td>Buyer</td><td class="stored">Mrs Ivett Kecsmar</td><td class="greet">Ivett</td><td class="email">kvette89@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">69</td><td>36 Nathaniel Walk</td><td>Seller</td><td class="stored">Miss Kate Brown</td><td class="greet">Kate</td><td class="email">brown_kate@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">70</td><td>36 Nathaniel Walk</td><td>Buyer</td><td class="stored">Mr Chris Powell</td><td class="greet">Chris</td><td class="email">chris.i.powell@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">71</td><td>36 Nathaniel Walk</td><td>Buyer</td><td class="stored">Mrs Ide Powell</td><td class="greet">Ide</td><td class="email">ide.cremin@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">72</td><td>39 Penton Drive</td><td>Seller</td><td class="stored">Miss Claudia Castiglione</td><td class="greet">Claudia</td><td class="email">c.castiglione80@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">73</td><td>39 Penton Drive</td><td>Buyer</td><td class="stored">Mr Cem Kadakal</td><td class="greet">Cem</td><td class="email">cemkadakal@yahoo.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">74</td><td>39a Darnley Road</td><td>Seller</td><td class="stored">Adele Maxwell-Harrison</td><td class="greet">Adele</td><td class="email">adelem1@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">75</td><td>39a Darnley Road</td><td>Buyer</td><td class="stored">Mark Bamber</td><td class="greet">Mark</td><td class="email">markbamber2001@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">76</td><td>4 Old Oak Gardens</td><td>Seller</td><td class="stored">Mr Joe Court</td><td class="greet">Joe</td><td class="email">Joecourt@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">77</td><td>4 Old Oak Gardens</td><td>Buyer</td><td class="stored">Miss Livia Benova</td><td class="greet">Livia</td><td class="email">livia.benova@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">78</td><td>40 Albert Street</td><td>Seller</td><td class="stored">Mr Adrian Clewlow</td><td class="greet">Adrian</td><td class="email">clewlowalf@me.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">79</td><td>40 Albert Street</td><td>Seller</td><td class="stored">Ms Angie Clewlow</td><td class="greet">Angie</td><td class="email">angieclewlow@me.com</td><td class="note"></td></tr>
+<tr class="flag"><td class="num">80</td><td>40 Albert Street</td><td>Buyer</td><td class="stored">Mr Passera</td><td class="greet">Passera</td><td class="email">Dpassera@fastmail.com</td><td class="note">⚠ TITLE + SURNAME — "Hi Passera" is a surname, not a first name</td></tr>
+<tr class=""><td class="num">81</td><td>40 Tresco Road</td><td>Seller</td><td class="stored">Mr Pete Stevens</td><td class="greet">Pete</td><td class="email">pete@petestevens.net</td><td class="note"></td></tr>
+<tr class=""><td class="num">82</td><td>40 Tresco Road</td><td>Buyer</td><td class="stored">Miss Jane Bayler</td><td class="greet">Jane</td><td class="email">jane@janebayler.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">83</td><td>40 Tresco Road</td><td>Buyer</td><td class="stored">Mr Simon Wright</td><td class="greet">Simon</td><td class="email">simonmwright@mail.com</td><td class="note"></td></tr>
+<tr class="dup"><td class="num">84</td><td>46 Ramilles Close</td><td>Seller</td><td class="stored">Mr Earl D. Wilson</td><td class="greet">Earl</td><td class="email">derizzio@yahoo.com</td><td class="note">↔ also emailed on another file</td></tr>
+<tr class="dup"><td class="num">85</td><td>46 Ramilles Close</td><td>Seller</td><td class="stored">Mrs Donarita E. Wilson</td><td class="greet">Donarita</td><td class="email">derizzio@yahoo.com</td><td class="note">↔ also emailed on another file</td></tr>
+<tr class=""><td class="num">86</td><td>46 Ramilles Close</td><td>Buyer</td><td class="stored">Mr Adam James Dawson</td><td class="greet">Adam</td><td class="email">dawson.a.j@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">87</td><td>5 Clarkes Spring</td><td>Seller</td><td class="stored">Mr John McKenna</td><td class="greet">John</td><td class="email">johnjamesmck@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">88</td><td>5 Clarkes Spring</td><td>Seller</td><td class="stored">Mrs Kate McKenna</td><td class="greet">Kate</td><td class="email">katemckennacw@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">89</td><td>5 Clarkes Spring</td><td>Buyer</td><td class="stored">Miss Nadia Shahrestani</td><td class="greet">Nadia</td><td class="email">nadia.shahrestani16@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">90</td><td>5 Clarkes Spring</td><td>Buyer</td><td class="stored">Mr Richard Thornhill</td><td class="greet">Richard</td><td class="email">richard.thornhill34@yahoo.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">91</td><td>54 Launcelot Road</td><td>Seller</td><td class="stored">Mr Rodney Scott</td><td class="greet">Rodney</td><td class="email">rodneyscott733@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">92</td><td>54 Launcelot Road</td><td>Seller</td><td class="stored">Ms Cheryl Beckford</td><td class="greet">Cheryl</td><td class="email">vbeckford2024@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">93</td><td>54 Launcelot Road</td><td>Buyer</td><td class="stored">Miss Esther Conteh</td><td class="greet">Esther</td><td class="email">econteh1995@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">94</td><td>6 Primrose Terrace</td><td>Seller</td><td class="stored">Mrs Alison Williams</td><td class="greet">Alison</td><td class="email">alison.williams1964@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">95</td><td>6 Primrose Terrace</td><td>Buyer</td><td class="stored">Miss Heather Davies</td><td class="greet">Heather</td><td class="email">heatherlouisedavies@googlemail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">96</td><td>6 Primrose Terrace</td><td>Buyer</td><td class="stored">Mr Michael Smith</td><td class="greet">Michael</td><td class="email">mikeyshotgun@googlemail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">97</td><td>67 Pelham Road South</td><td>Seller</td><td class="stored">Mr Martyn Spiers</td><td class="greet">Martyn</td><td class="email">natalie_spiers@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">98</td><td>67 Pelham Road South</td><td>Buyer</td><td class="stored">Mr Aqib Malik</td><td class="greet">Aqib</td><td class="email">aqibmalikarshad@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">99</td><td>7 East Flint</td><td>Seller</td><td class="stored">Elizabeth James</td><td class="greet">Elizabeth</td><td class="email">ejames3126@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">100</td><td>7 East Flint</td><td>Buyer</td><td class="stored">Mr Fatbardh Cuni</td><td class="greet">Fatbardh</td><td class="email">rg.sin89@icloud.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">101</td><td>7 Woodlands</td><td>Seller</td><td class="stored">Miss Kerry Hickson</td><td class="greet">Kerry</td><td class="email">kerryleehickson@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">102</td><td>7 Woodlands</td><td>Seller</td><td class="stored">Mr David Nethersole</td><td class="greet">David</td><td class="email">david.nethersole@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">103</td><td>7 Woodlands</td><td>Buyer</td><td class="stored">Miss Jessica Flynn</td><td class="greet">Jessica</td><td class="email">jessflynn@msn.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">104</td><td>7 Woodlands</td><td>Buyer</td><td class="stored">Mr Jamie Compton</td><td class="greet">Jamie</td><td class="email">jamiecompton@me.com</td><td class="note"></td></tr>
+<tr class="flag"><td class="num">105</td><td>73 Jutland House</td><td>Seller</td><td class="stored">Mr Oladokun</td><td class="greet">Oladokun</td><td class="email">dokunekunola@gmail.com</td><td class="note">⚠ TITLE + SURNAME — "Hi Oladokun" is a surname, not a first name</td></tr>
+<tr class=""><td class="num">106</td><td>73 Jutland House</td><td>Buyer</td><td class="stored">Mr George Bontoft</td><td class="greet">George</td><td class="email">georgebontoft@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">107</td><td>75 The Meadway</td><td>Seller</td><td class="stored">Miss Keisha Stevens</td><td class="greet">Keisha</td><td class="email">stevens.keisha86@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">108</td><td>75 The Meadway</td><td>Buyer</td><td class="stored">Miss Matilda Boustred</td><td class="greet">Matilda</td><td class="email">tillyboustred@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">109</td><td>75 The Meadway</td><td>Buyer</td><td class="stored">Mr Declan Sharpe</td><td class="greet">Declan</td><td class="email">declansharpe@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class="flag"><td class="num">110</td><td>8 Brambling Crescent</td><td>Seller</td><td class="stored">Miss Gillespie</td><td class="greet">Gillespie</td><td class="email">magillespie@hotmail.com</td><td class="note">⚠ TITLE + SURNAME — "Hi Gillespie" is a surname, not a first name</td></tr>
+<tr class=""><td class="num">111</td><td>8 Brambling Crescent</td><td>Seller</td><td class="stored">Mr Abdullah Haque</td><td class="greet">Abdullah</td><td class="email">asim95@hotmail.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">112</td><td>8 Brambling Crescent</td><td>Buyer</td><td class="stored">Miss Molly Winfield</td><td class="greet">Molly</td><td class="email">mollywinfield@outlook.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">113</td><td>8 Brambling Crescent</td><td>Buyer</td><td class="stored">Mr Ben Tyson</td><td class="greet">Ben</td><td class="email">benmtyson06@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">114</td><td>8 Teviot Close</td><td>Seller</td><td class="stored">Mr Mark Longhurst</td><td class="greet">Mark</td><td class="email">mark.longhurst2@btinternet.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">115</td><td>8 Teviot Close</td><td>Buyer</td><td class="stored">Mrs Amanda Podciborski</td><td class="greet">Amanda</td><td class="email">amanda.capon@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">116</td><td>83 Highfield Road</td><td>Seller</td><td class="stored">Mr Ben Palser</td><td class="greet">Ben</td><td class="email">benjaminjamespalser@me.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">117</td><td>83 Highfield Road</td><td>Seller</td><td class="stored">Mrs Jessica Palser</td><td class="greet">Jessica</td><td class="email">jessicaaprilryan@gmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">118</td><td>83 Highfield Road</td><td>Buyer</td><td class="stored">Mrs Suzy Ruck</td><td class="greet">Suzy</td><td class="email">suzyruck@yahoo.co.uk</td><td class="note"></td></tr>
+<tr class=""><td class="num">119</td><td>97 Stavordale Road</td><td>Buyer</td><td class="stored">Mr Lazio Mikulyak</td><td class="greet">Lazio</td><td class="email">mktati727@gmail.com</td><td class="note"></td></tr>
+<tr class="flag"><td class="num">120</td><td>98 Hillcrest Road</td><td>Seller</td><td class="stored">Bamsy Estates Ltd</td><td class="greet">Bamsy</td><td class="email">brooke@homekeyestates.co.uk</td><td class="note">⚠ looks like a COMPANY/FIRM name</td></tr>
+<tr class=""><td class="num">121</td><td>98 Hillcrest Road</td><td>Buyer</td><td class="stored">Mr Besnik Sadiku</td><td class="greet">Besnik</td><td class="email">bes_niki005@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">122</td><td>Unit 1</td><td>Seller</td><td class="stored">Mr Stephen Parr</td><td class="greet">Stephen</td><td class="email">sw.parr@hotmail.com</td><td class="note"></td></tr>
+<tr class=""><td class="num">123</td><td>Unit 1</td><td>Buyer</td><td class="stored">Mr Sunny Bimbhra</td><td class="greet">Sunny</td><td class="email">sunny@ebc-info.com</td><td class="note"></td></tr></tbody>
+  </table></div>
+
+  <div class="skip"><h2>Skipped — not emailed</h2>
+  <p class="sub">6 contacts: no email on record, or unsubscribed.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Property</th><th>Side</th><th>Stored name</th><th>Email</th><th>Reason</th></tr></thead>
+    <tbody><tr><td>19 Bodge Piece</td><td>Buyer</td><td>Mr David Robinson</td><td class="email">—</td><td class="note">no email on file</td></tr>
+<tr><td>29 Sears Drive</td><td>Seller</td><td>Miss Lauren Rhodes-Smith</td><td class="email">—</td><td class="note">no email on file</td></tr>
+<tr><td>4 Old Oak Gardens</td><td>Seller</td><td>Ms Lydia Fribbins</td><td class="email">—</td><td class="note">no email on file</td></tr>
+<tr><td>40 Albert Street</td><td>Buyer</td><td>Mrs Passera</td><td class="email">—</td><td class="note">no email on file</td></tr>
+<tr><td>97 Stavordale Road</td><td>Seller</td><td>Bright Apinoko</td><td class="email">bapinoko@hotmail.com</td><td class="note">UNSUBSCRIBED</td></tr>
+<tr><td>98 Hillcrest Road</td><td>Seller</td><td>Aba Weinberger</td><td class="email">—</td><td class="note">no email on file</td></tr></tbody>
+  </table></div></div>
+
+  <footer>Generated 2026-07-28 from live data · read-only · no emails sent</footer>
+</div>
