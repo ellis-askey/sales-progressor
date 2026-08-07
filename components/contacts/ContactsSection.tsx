@@ -766,7 +766,7 @@ export function ContactsSection({
                           label="Email"
                           icon={<EnvelopeSimple size={13} weight="regular" />}
                           disabled={!contact.email}
-                          title={contact.email ? (optedOut ? "Client has opted out — send manually with care" : "Email") : "No email on file"}
+                          title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"}
                         />
                         <RowKebab
                           contactName={contact.name}
