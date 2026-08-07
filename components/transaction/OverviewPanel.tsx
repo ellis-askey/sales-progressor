@@ -57,6 +57,7 @@ type Contact = {
   portalToken: string | null;
   createdAt: Date;
   lastVisitedPortalAt?: Date | null;
+  unsubscribedAt?: Date | null;
 };
 
 type SolicitorContact = { id: string; name: string; phone: string | null; email: string | null };
@@ -320,7 +321,6 @@ export async function OverviewPanel({
         )}
         automatedEmailCounts={automatedEmailCounts}
         lastContactedByContactId={lastContactedByContactId}
-        layout="grid"
       />
 
       {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +

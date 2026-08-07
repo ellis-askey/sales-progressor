@@ -1,7 +1,29 @@
 "use client";
 // components/contacts/ContactsSection.tsx
-// Shows existing contacts and an inline form to add new ones.
-// Light theme. Applies titleCase to contact names before saving.
+//
+// Premium SaaS-style contacts card. Rewritten 2026-07-08 from the previous
+// grid/list dual layout. Every card is a full-width row with:
+//   - Left column: avatar + identity + contact details
+//   - Right column: Call / WhatsApp / Email actions + Portal status card
+//   - Kebab overflow (Edit / Delete) top-right
+//
+// Vendors always render before purchasers; other roles fall to the bottom.
+//
+// Portal card has three states:
+//   - not_invited: grey dot,  "Not invited yet",  CTA: Send invite
+//   - invited:     amber dot, "Invite sent",      CTA: Resend invite + copy-link
+//   - active:      green dot, "Active",           info: last viewed relative
+//
+// Opted-out contacts (Contact.unsubscribedAt) show a small "Opted out"
+// pill next to the email row. Email button stays functional so the agent
+// can still send a manual one-off if needed.
+//
+// Delete goes through a confirmation modal (Modal primitive) rather than
+// firing immediately.
+//
+// Mobile breakpoint: the right column drops below the left column below
+// the medium breakpoint (~720px). The Portal card stays inside the row
+// on both breakpoints so the visual grouping is preserved.
 
 import { useState, useTransition } from "react";
 import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
@@ -9,10 +31,10 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
-import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple } from "@phosphor-icons/react";
+import { Modal } from "@/components/ui/Modal";
+import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple } from "@phosphor-icons/react";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
-import { ContactRowMenu } from "./ContactRowMenu";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -50,6 +72,8 @@ type Contact = {
   roleType: string;
   portalToken: string | null;
   createdAt: Date;
+  lastVisitedPortalAt?: Date | null;
+  unsubscribedAt?: Date | null;
 };
 
 function fmtRelative(date: Date): string {
@@ -71,41 +95,310 @@ const EMPTY_FORM = {
   phone:    "",
 };
 
-// Small icon button style for the grid-tile action row (phone / email /
-// WhatsApp). Renders as a rounded square, muted background, muted icon.
-const tileIconBtnStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 28,
-  height: 28,
-  borderRadius: 7,
-  background: "rgba(15, 23, 42, 0.04)",
-  color: "var(--agent-text-secondary)",
-  textDecoration: "none",
-  transition: "background 140ms ease",
-};
-
 const INPUT = "glass-input w-full px-3 py-2 text-sm";
 const SELECT = "glass-input w-full px-3 py-2 text-sm pr-8";
 
-// Threshold ladder for the per-contact automated-email pill. The count is
-// "chase emails sent to this contact in the rolling 7 days" (see
-// getAutomatedEmailCountsByContact in lib/services/comms.ts). With a
-// 7-day window the thresholds tighten: 3+ in a week is worth a glance,
-// 5+ is approaching daily and likely needs intervention.
+// Rolling-7-day chase-email thresholds, unchanged from previous impl.
 const AUTO_EMAIL_AMBER_AT = 3;
 const AUTO_EMAIL_RED_AT = 5;
 
 function autoEmailTone(count: number): { bg: string; fg: string } | null {
   if (count <= 0) return null;
-  if (count >= AUTO_EMAIL_RED_AT) {
-    return { bg: "rgba(var(--agent-danger-rgb), 0.10)", fg: "var(--agent-danger)" };
-  }
-  if (count >= AUTO_EMAIL_AMBER_AT) {
-    return { bg: "rgba(var(--agent-warning-rgb), 0.10)", fg: "var(--agent-warning)" };
-  }
+  if (count >= AUTO_EMAIL_RED_AT) return { bg: "rgba(var(--agent-danger-rgb), 0.10)", fg: "var(--agent-danger)" };
+  if (count >= AUTO_EMAIL_AMBER_AT) return { bg: "rgba(var(--agent-warning-rgb), 0.10)", fg: "var(--agent-warning)" };
   return { bg: "rgba(15,23,42,0.06)", fg: "var(--agent-text-muted)" };
+}
+
+// ── Portal state resolver ──────────────────────────────────────────────
+// Three visible states + a "no portal at all" case for non-vendor/purchaser
+// roles (solicitors, brokers etc.). Consumers read this once per row.
+type PortalState = "none" | "not_invited" | "invited" | "active";
+
+function resolvePortalState(contact: Contact, lastViewed: Date | undefined): PortalState {
+  const role = asRole(contact.roleType);
+  if (role !== "vendor" && role !== "purchaser") return "none";
+  if (!contact.portalToken) return "not_invited";
+  if (lastViewed) return "active";
+  return "invited";
+}
+
+// ── Communication action button ────────────────────────────────────────
+function CommsButton({
+  href,
+  label,
+  icon,
+  disabled,
+  title,
+}: {
+  href?: string;
+  label: string;
+  icon: React.ReactNode;
+  disabled?: boolean;
+  title?: string;
+}) {
+  const style: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    fontSize: 12,
+    fontWeight: 500,
+    color: disabled ? "var(--agent-text-muted)" : "var(--agent-text-secondary)",
+    padding: "7px 12px",
+    borderRadius: 8,
+    border: "0.5px solid var(--agent-border-default)",
+    background: "var(--agent-surface-elevated)",
+    textDecoration: "none",
+    minWidth: 88,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
+    transition: "background 140ms ease, border-color 140ms ease",
+  };
+  if (disabled || !href) {
+    return (
+      <button type="button" disabled title={title} style={style}>
+        {icon}
+        <span>{label}</span>
+      </button>
+    );
+  }
+  return (
+    <a href={href} title={title} style={style}>
+      {icon}
+      <span>{label}</span>
+    </a>
+  );
+}
+
+// ── Portal status card ─────────────────────────────────────────────────
+function PortalStatusCard({
+  state,
+  lastViewed,
+  hasEmail,
+  onSendInvite,
+  onSetupToken,
+  onCopyLink,
+  inviting,
+  inviteSent,
+  generatingToken,
+  copied,
+}: {
+  state: PortalState;
+  lastViewed: Date | undefined;
+  hasEmail: boolean;
+  onSendInvite: () => void;
+  onSetupToken: () => void;
+  onCopyLink: () => void;
+  inviting: boolean;
+  inviteSent: boolean;
+  generatingToken: boolean;
+  copied: boolean;
+}) {
+  if (state === "none") return null;
+
+  const dot = state === "active" ? "#16a34a" : state === "invited" ? "#d97706" : "#94a3b8";
+  const statusLabel = state === "active"
+    ? "Active"
+    : state === "invited"
+      ? (hasEmail ? "Invite sent" : "Portal link ready")
+      : "Not invited yet";
+  const subLabel = state === "active" && lastViewed ? `Last viewed ${fmtRelative(lastViewed)}` : null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 12px",
+        borderRadius: 10,
+        border: "0.5px solid var(--agent-border-default)",
+        background: "var(--agent-surface-elevated)",
+        flex: 1,
+        minWidth: 0,
+      }}
+    >
+      {/* Icon square */}
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: state === "active" ? "rgba(22,163,74,0.10)" : state === "invited" ? "rgba(217,119,6,0.10)" : "rgba(148,163,184,0.14)",
+          color: state === "active" ? "#16a34a" : state === "invited" ? "#d97706" : "#64748b",
+          flexShrink: 0,
+        }}
+      >
+        <GlobeSimple size={16} weight="regular" />
+      </span>
+
+      {/* Status text */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>Portal access</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-muted)" }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
+          {statusLabel}
+          {subLabel && <span style={{ marginLeft: 2 }}>· {subLabel}</span>}
+        </span>
+      </div>
+
+      {/* CTA cluster */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {state === "not_invited" && (
+          <button
+            type="button"
+            onClick={onSetupToken}
+            disabled={generatingToken}
+            className="agent-btn agent-btn-xs agent-btn-primary"
+            title={hasEmail ? "Generate portal link and email the invite to this contact" : "Generate portal link so you can share it manually (no email on file to send an invite to)"}
+          >
+            {generatingToken ? "Setting up…" : (hasEmail ? "Send invite" : "Set up link")}
+          </button>
+        )}
+        {state === "invited" && (
+          <>
+            {hasEmail && (
+              <button
+                type="button"
+                onClick={onSendInvite}
+                disabled={inviting}
+                className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+              >
+                {inviteSent ? "✓ Sent" : inviting ? "Sending…" : "Resend invite"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onCopyLink}
+              title="Copy portal link"
+              aria-label="Copy portal link"
+              className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+              style={{ minWidth: 34, padding: "0 8px" }}
+            >
+              {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
+            </button>
+          </>
+        )}
+        {state === "active" && (
+          <button
+            type="button"
+            onClick={onCopyLink}
+            title="Copy portal link"
+            aria-label="Copy portal link"
+            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+            style={{ minWidth: 34, padding: "0 8px" }}
+          >
+            {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Kebab overflow menu ────────────────────────────────────────────────
+function RowKebab({
+  onEdit,
+  onDelete,
+  contactName,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  contactName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Actions for ${contactName}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          border: "0.5px solid var(--agent-border-default)",
+          background: "var(--agent-surface-elevated)",
+          color: "var(--agent-text-muted)",
+          cursor: "pointer",
+        }}
+      >
+        <DotsThreeVertical size={16} weight="bold" />
+      </button>
+      {open && (
+        <>
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 1499 }}
+          />
+          <div
+            role="menu"
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              right: 0,
+              minWidth: 140,
+              padding: 4,
+              borderRadius: 10,
+              border: "0.5px solid var(--agent-border-default)",
+              background: "var(--agent-surface-elevated)",
+              boxShadow: "0 8px 24px rgba(15,23,42,0.10)",
+              zIndex: 1500,
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpen(false); onEdit(); }}
+              style={menuItemStyle("var(--agent-text-primary)")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.05)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <PencilSimple size={14} weight="regular" />
+              Edit
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpen(false); onDelete(); }}
+              style={menuItemStyle("var(--agent-danger)")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220,38,38,0.06)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <Trash size={14} weight="regular" />
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function menuItemStyle(color: string): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    padding: "8px 10px",
+    fontSize: 12,
+    fontWeight: 500,
+    color,
+    background: "transparent",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    textAlign: "left",
+  };
 }
 
 export function ContactsSection({
@@ -115,27 +408,13 @@ export function ContactsSection({
   portalViewDates = {},
   automatedEmailCounts = {},
   lastContactedByContactId = {},
-  layout = "list",
 }: {
   transactionId: string;
   contacts: Contact[];
   address?: string;
   portalViewDates?: Record<string, Date>;
-  // Map of contactId -> count of automated emails fired against this file.
-  // Hidden when count=0; tone shifts amber at 5, red at 10. Drives the
-  // "is this person being over-chased?" signal on each row.
   automatedEmailCounts?: Record<string, number>;
-  // Map of contactId -> ISO timestamp of the latest qualifying outbound
-  // event for that contact. Missing key = never contacted. Computed by
-  // getLastContactedByContact in lib/services/comms.ts. Drives the
-  // freshness pill in the secondary row.
   lastContactedByContactId?: Record<string, string>;
-  // 2026-07-03 Overview restyle: "grid" renders contacts as a 2-column
-  // tile grid (used on the agent Overview tab). "list" is the original
-  // stacked-rows layout used everywhere else. Rows are still full-width
-  // when they're in edit mode or when the Add form is open, so state
-  // and forms behave identically in both layouts.
-  layout?: "list" | "grid";
 }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
@@ -143,7 +422,6 @@ export function ContactsSection({
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [exitingId, setExitingId] = useState<string | null>(null);
@@ -153,6 +431,8 @@ export function ContactsSection({
   const [inviting, setInviting] = useState<string | null>(null);
   const [inviteSent, setInviteSent] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -185,7 +465,16 @@ export function ContactsSection({
   async function setupPortalToken(contactId: string) {
     setGeneratingToken(contactId);
     try {
-      await generatePortalTokenAction(contactId, transactionId);
+      const { portalToken } = await generatePortalTokenAction(contactId, transactionId);
+      // If the contact has an email, chain the invite send in the same user
+      // action so "Send invite" from the not-invited state is a single click.
+      // If there's no email, we just leave the token generated — the state
+      // will transition to "invited" (button label "Portal link ready") so
+      // the agent can copy the link and share it manually.
+      const contact = contacts.find((c) => c.id === contactId);
+      if (portalToken && contact?.email) {
+        await sendInvite(portalToken, contactId);
+      }
     } finally {
       setGeneratingToken(null);
     }
@@ -196,9 +485,6 @@ export function ContactsSection({
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  // Translate a server-thrown DUPLICATE_CONTACT_FIELD error into a
-  // human-readable line for the inline pill. Falls back to the raw
-  // message when the error has a different shape.
   function describeContactError(err: unknown): string {
     if (err instanceof Error) {
       if (err.message === "DUPLICATE_CONTACT_FIELD") {
@@ -223,8 +509,6 @@ export function ContactsSection({
         await createContactAction(snap);
         setForm(EMPTY_FORM);
       } catch (err: unknown) {
-        // Restore the form values so the agent can edit without retyping
-        // and surface the friendly error message.
         setForm(formSnap);
         setError(describeContactError(err));
         setShowForm(true);
@@ -254,16 +538,12 @@ export function ContactsSection({
     setEditSaving(true);
     setEditError(null);
     const snap = { id: contactId, transactionId, name: titleCase(editForm.name), phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null, email: editForm.email.trim() || null };
-    // Don't close the edit row until we know the save succeeded — that
-    // way if the server rejects a duplicate we can render the error pill
-    // inline on the still-open row.
     startTransition(async () => {
       try {
         await updateContactAction(snap);
         if (snap.phone || snap.email) {
           window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasContactDetails: true } }));
         }
-        // Success — animate the edit row closed.
         setExitingId(contactId);
         setTimeout(() => {
           setEditingId(null);
@@ -277,23 +557,38 @@ export function ContactsSection({
     });
   }
 
-  function handleDelete(contactId: string) {
-    setDeleting(contactId);
+  function requestDelete(contact: Contact) {
+    setConfirmDelete(contact);
+  }
+
+  function performDelete() {
+    if (!confirmDelete) return;
+    const contactId = confirmDelete.id;
+    setDeleting(true);
     startTransition(async () => {
       try {
         await deleteContactAction(contactId, transactionId);
+        setConfirmDelete(null);
       } finally {
-        setDeleting(null);
+        setDeleting(false);
       }
     });
   }
 
+  // ── Sorted contacts: vendor → purchaser → other, then createdAt ────
+  const ROLE_ORDER: Record<string, number> = { vendor: 0, purchaser: 1 };
+  const sortedContacts = [...contacts].sort((a, b) => {
+    const oa = ROLE_ORDER[a.roleType] ?? 2;
+    const ob = ROLE_ORDER[b.roleType] ?? 2;
+    if (oa !== ob) return oa - ob;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: layout === "grid" ? "none" : "0.5px solid var(--agent-border-default)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Small coral house icon in a tinted square, per 2026-07-06 mock */}
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 26, height: 26, borderRadius: 7,
@@ -302,337 +597,224 @@ export function ContactsSection({
           }}>
             <HouseSimple size={14} weight="regular" />
           </span>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
-          {contacts.length > 0 && (
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" }}>{contacts.length}</span>
-          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
+              {contacts.length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", padding: "1px 7px", borderRadius: 10, background: "rgba(15,23,42,0.06)" }}>
+                  {contacts.length}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</span>
+          </div>
         </div>
         {!showForm && (
-          <button onClick={() => setShowForm(true)} className="agent-link" style={{ fontSize: 12, fontWeight: 500 }}>
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="agent-btn agent-btn-sm agent-btn-primary"
+          >
             + Add contact
           </button>
         )}
       </div>
 
-      {/* Contact rows */}
-      {contacts.length > 0 && (
-        <div style={layout === "grid" ? {
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          gap: 10,
-          padding: 12,
-        } : undefined}>
-          {(() => {
-            // 2026-07-07 audit: vendor always left column, purchaser always
-            // right column. Sort by role (vendor → purchaser → other), then
-            // by createdAt within each role. Grid auto-fills in that order.
-            const ROLE_ORDER: Record<string, number> = { vendor: 0, purchaser: 1 };
-            return [...contacts].sort((a, b) => {
-              const orderA = ROLE_ORDER[a.roleType] ?? 2;
-              const orderB = ROLE_ORDER[b.roleType] ?? 2;
-              if (orderA !== orderB) return orderA - orderB;
-              return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-            });
-          })().map((contact) => {
+      {/* Contact cards, stacked full-width */}
+      {sortedContacts.length > 0 && (
+        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+          {sortedContacts.map((contact) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
             const isEditing = editingId === contact.id;
             const isExiting = exitingId === contact.id;
-            const rowContainerStyle: React.CSSProperties = layout === "grid"
-              ? {
+            const lastViewed = portalViewDates[contact.id];
+            const portalState = resolvePortalState(contact, lastViewed);
+            const optedOut = contact.unsubscribedAt != null;
+            const autoCount = automatedEmailCounts[contact.id] ?? 0;
+            const autoTone = autoEmailTone(autoCount);
+
+            return (
+              <div
+                key={contact.id}
+                className="contacts-row"
+                style={{
                   border: "0.5px solid var(--agent-border-default)",
                   borderRadius: 12,
                   background: "var(--agent-surface-elevated)",
                   overflow: "hidden",
-                  gridColumn: isEditing || isExiting ? "1 / -1" : "auto",
-                }
-              : { borderBottom: "0.5px solid var(--agent-border-default)" };
-            const gridDisplayMode = layout === "grid" && !isEditing && !isExiting;
-            return (
-              <div key={contact.id} style={rowContainerStyle}>
-                {/* ── Grid mode display tile (2026-07-06 mock) ────────────
-                    Layout: avatar + name/role top, viewed timestamp top-
-                    right, phone above email, action icons + View details
-                    at the bottom. Wire clicks to real handlers - tel:,
-                    mailto:, WhatsApp, and the existing edit flow for
-                    "View details" so no dead controls (Law 13). */}
-                {gridDisplayMode && (
-                  <div style={{ padding: "14px 16px" }}>
-                    {/* Header: avatar + name/role + viewed timestamp
-                        under the name (2026-07-07 audit: previous
-                        top-right position clashed with the role pill). */}
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                      <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <span data-sensitive="true" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
+                  transition: "box-shadow 160ms ease, border-color 160ms ease",
+                }}
+              >
+                {!isEditing && !isExiting && (
+                  <div
+                    className="contacts-row-body"
+                    style={{
+                      padding: "14px 16px",
+                      display: "flex",
+                      gap: 16,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    {/* ── Left column: identity + contact details ── */}
+                    <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 0 }}>
+                      <div className="agent-avatar agent-avatar-md" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
+                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                        {/* Name + role */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span data-sensitive="true" style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, borderRadius: 4, padding: "1px 6px", background: ROLE_PILL_BG[r], color: roleColour(r) }}>
                             <RoleIcon role={r} size={11} />
                             {roleLabel(r)}
                           </span>
                         </div>
-                        {contact.portalToken && portalViewDates[contact.id] && (
-                          <p style={{
-                            margin: "3px 0 0",
-                            fontSize: 11,
-                            color: "var(--agent-text-muted)",
-                          }}>
-                            Viewed {fmtRelative(portalViewDates[contact.id])}
-                          </p>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Contact-method rows - each row has its text on the
-                        left, actions on the right. Phone gets call + chat
-                        icons; email gets the email icon. Only render a
-                        row when its target field exists. */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-                      {contact.phone && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                          <span data-sensitive="true" style={{
-                            fontSize: 12, color: "var(--agent-text-secondary)",
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            minWidth: 0, flex: 1,
-                          }}>{contact.phone}</span>
-                          <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                            <a href={`tel:${contact.phone}`} title="Call" style={tileIconBtnStyle}>
-                              <Phone size={14} weight="regular" />
-                            </a>
-                            <a href={whatsappHref(contact.phone)} title="WhatsApp" style={tileIconBtnStyle}>
-                              <ChatCircleText size={14} weight="regular" />
-                            </a>
-                          </span>
-                        </div>
-                      )}
-                      {contact.email && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                          <span data-sensitive="true" style={{
-                            fontSize: 12, color: "var(--agent-text-secondary)",
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            minWidth: 0, flex: 1,
-                          }}>{contact.email}</span>
-                          <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                            <a href={emailHref(contact.email, contact.roleType, address)} title="Email" style={tileIconBtnStyle}>
-                              <EnvelopeSimple size={14} weight="regular" />
-                            </a>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Portal actions (vendor + purchaser contacts only).
-                        2026-07-08 restore: dropped during the tile
-                        redesign, re-added here on the same row as Edit
-                        so all per-contact actions live in one place.
-                          - No token yet          -> "Set up portal"
-                          - Token + email         -> "Send invite" (primary) + copy-link icon
-                          - Token, no email       -> copy-link icon only
-                    */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                        {(role === "vendor" || role === "purchaser") && (
-                          contact.portalToken ? (
-                            <>
-                              {contact.email && (
-                                <button
-                                  type="button"
-                                  onClick={() => sendInvite(contact.portalToken!, contact.id)}
-                                  disabled={inviting === contact.id}
-                                  className="agent-btn agent-btn-xs agent-btn-primary"
-                                >
-                                  {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => copyPortalLink(contact.portalToken!)}
-                                title="Copy portal link"
-                                aria-label="Copy portal link"
-                                style={tileIconBtnStyle}
-                              >
-                                {copied === contact.portalToken ? (
-                                  <span style={{ fontSize: 10, fontWeight: 600 }}>✓</span>
-                                ) : (
-                                  <ArrowSquareOut size={14} weight="regular" />
-                                )}
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setupPortalToken(contact.id)}
-                              disabled={generatingToken === contact.id}
-                              className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                        {/* Status pills row: last contacted, chase count, opted out */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
+                          {autoTone && (
+                            <span
+                              title={autoCount >= AUTO_EMAIL_RED_AT
+                                ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days — likely over-chasing; consider pausing client emails`
+                                : autoCount >= AUTO_EMAIL_AMBER_AT
+                                  ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days — review chase cadence`
+                                  : `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days`}
+                              style={{
+                                display: "inline-flex", alignItems: "center", gap: 3,
+                                fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+                                background: autoTone.bg, color: autoTone.fg,
+                              }}
                             >
-                              {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
-                            </button>
-                          )
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(contact)}
-                        className="agent-link"
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: "var(--agent-coral-deep)",
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                          flexShrink: 0,
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                )}
+                              <Envelope size={11} weight="fill" />
+                              {`${autoCount} chase${autoCount === 1 ? "" : "s"} this week`}
+                            </span>
+                          )}
+                          {optedOut && (
+                            <span
+                              title="This client has opted out of automated emails via the unsubscribe link."
+                              style={{
+                                display: "inline-flex", alignItems: "center", gap: 3,
+                                fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+                                background: "rgba(148,163,184,0.14)", color: "#64748b",
+                              }}
+                            >
+                              Opted out
+                            </span>
+                          )}
+                        </div>
 
-                {/* ── List mode display (original) ─────────────────────── */}
-                {!gridDisplayMode && (
-                <div className="agent-entity-row" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-                  {/* Avatar */}
-                  <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
-
-                  {/* Name + contact details */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="agent-entity-name-row" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span data-sensitive="true" style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, borderRadius: 4, padding: "1px 6px", background: ROLE_PILL_BG[r], color: roleColour(r) }}>
-                        <RoleIcon role={r} size={11} />
-                        {roleLabel(r)}
-                      </span>
-                      {contact.portalToken && portalViewDates[contact.id] && (
-                        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>
-                          Viewed {fmtRelative(portalViewDates[contact.id])}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                      {contact.phone && (
-                        <a data-sensitive="true" href={whatsappHref(contact.phone)} className="agent-link agent-link-muted" style={{ fontSize: 10 }}>
-                          {contact.phone}
-                        </a>
-                      )}
-                      {contact.email && (
-                        <a data-sensitive="true" href={emailHref(contact.email, contact.roleType, address)} className="agent-link agent-link-muted" style={{ fontSize: 10 }}>
-                          {contact.email}
-                        </a>
-                      )}
-                      <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
-                      {(() => {
-                        const n = automatedEmailCounts[contact.id] ?? 0;
-                        const tone = autoEmailTone(n);
-                        if (!tone) return null;
-                        // Count is rolling-7-day chase emails — see
-                        // getAutomatedEmailCountsByContact + tooltip below.
-                        const label = `${n} chase${n === 1 ? "" : "s"} this week`;
-                        const title = n >= AUTO_EMAIL_RED_AT
-                          ? `${n} automated chase email${n === 1 ? "" : "s"} sent to this contact in the last 7 days — likely over-chasing; consider pausing client emails`
-                          : n >= AUTO_EMAIL_AMBER_AT
-                            ? `${n} automated chase email${n === 1 ? "" : "s"} sent to this contact in the last 7 days — review chase cadence`
-                            : `${n} automated chase email${n === 1 ? "" : "s"} sent to this contact in the last 7 days`;
-                        return (
-                          <span
-                            title={title}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 3,
-                              fontSize: 10,
-                              fontWeight: 600,
-                              padding: "1px 6px",
-                              borderRadius: 4,
-                              background: tone.bg,
-                              color: tone.fg,
-                            }}
-                          >
-                            <Envelope size={11} weight="fill" />
-                            {label}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Action buttons — portal + edit/remove when not editing */}
-                  {!isEditing && (
-                    <div className="agent-entity-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                      {(role === "vendor" || role === "purchaser") && (
-                        contact.portalToken ? (
-                          <>
-                            {contact.email && (
-                              <button
-                                onClick={() => sendInvite(contact.portalToken!, contact.id)}
-                                disabled={inviting === contact.id}
-                                className="agent-btn agent-btn-xs agent-btn-primary"
-                              >
-                                {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => copyPortalLink(contact.portalToken!)}
+                        {/* Phone + email rows */}
+                        {contact.phone && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                            <a
+                              data-sensitive="true"
+                              href={`tel:${contact.phone}`}
                               className="agent-link agent-link-muted"
-                              style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 3 }}
-                              title="Copy portal link"
+                              style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                             >
-                              {copied === contact.portalToken ? (
-                                "✓ Copied"
-                              ) : (
-                                <>
-                                  Portal
-                                  <ArrowSquareOut size={11} weight="bold" />
-                                </>
-                              )}
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setupPortalToken(contact.id)}
-                            disabled={generatingToken === contact.id}
-                            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-                          >
-                            {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
-                          </button>
-                        )
-                      )}
-                      <ContactRowMenu
-                        contactName={contact.name}
-                        onEdit={() => startEdit(contact)}
-                        onRemove={() => handleDelete(contact.id)}
-                      />
+                              {contact.phone}
+                            </a>
+                          </div>
+                        )}
+                        {contact.email && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                            <a
+                              data-sensitive="true"
+                              href={emailHref(contact.email, contact.roleType, address)}
+                              className="agent-link agent-link-muted"
+                              style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            >
+                              {contact.email}
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* ── Right column: comms actions + portal ── */}
+                    <div
+                      className="contacts-row-right"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        alignItems: "stretch",
+                        minWidth: 340,
+                        maxWidth: 380,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+                        <CommsButton
+                          href={contact.phone ? `tel:${contact.phone}` : undefined}
+                          label="Call"
+                          icon={<Phone size={13} weight="regular" />}
+                          disabled={!contact.phone}
+                          title={contact.phone ? "Call" : "No phone number on file"}
+                        />
+                        <CommsButton
+                          href={contact.phone ? whatsappHref(contact.phone) : undefined}
+                          label="WhatsApp"
+                          icon={<ChatCircleText size={13} weight="regular" />}
+                          disabled={!contact.phone}
+                          title={contact.phone ? "WhatsApp" : "No phone number on file"}
+                        />
+                        <CommsButton
+                          href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined}
+                          label="Email"
+                          icon={<EnvelopeSimple size={13} weight="regular" />}
+                          disabled={!contact.email}
+                          title={contact.email ? (optedOut ? "Client has opted out — send manually with care" : "Email") : "No email on file"}
+                        />
+                        <RowKebab
+                          contactName={contact.name}
+                          onEdit={() => startEdit(contact)}
+                          onDelete={() => requestDelete(contact)}
+                        />
+                      </div>
+                      {portalState !== "none" && (
+                        <PortalStatusCard
+                          state={portalState}
+                          lastViewed={lastViewed}
+                          hasEmail={!!contact.email}
+                          onSendInvite={() => contact.portalToken && sendInvite(contact.portalToken, contact.id)}
+                          onSetupToken={() => setupPortalToken(contact.id)}
+                          onCopyLink={() => contact.portalToken && copyPortalLink(contact.portalToken)}
+                          inviting={inviting === contact.id}
+                          inviteSent={inviteSent === contact.id}
+                          generatingToken={generatingToken === contact.id}
+                          copied={copied === contact.portalToken}
+                        />
+                      )}
+                    </div>
+                  </div>
                 )}
 
-                {/* Edit form — slides in below, always animates out on close */}
+                {/* Edit form — slides in below */}
                 {(isEditing || isExiting) && (
                   <div
                     className={isExiting ? "agent-reveal-out" : "agent-reveal-in"}
-                    style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 6 }}
+                    style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6 }}
                   >
                     <input
                       value={editForm.name}
                       onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                       placeholder="Full name"
-                      className="glass-input w-full px-3 py-2 text-sm"
+                      className={INPUT}
                     />
                     <input
                       value={editForm.phone}
                       onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                       placeholder="Phone"
-                      className="glass-input w-full px-3 py-2 text-sm"
+                      className={INPUT}
                     />
                     <input
                       value={editForm.email}
                       onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
                       placeholder="Email"
-                      className="glass-input w-full px-3 py-2 text-sm"
+                      className={INPUT}
                     />
                     {editError && editingId === contact.id && (
                       <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
@@ -659,7 +841,7 @@ export function ContactsSection({
         </div>
       )}
 
-      {/* Empty state (no contacts, no form) */}
+      {/* Empty state */}
       {contacts.length === 0 && !showForm && (
         <EmptyState
           compact
@@ -668,7 +850,7 @@ export function ContactsSection({
         />
       )}
 
-      {/* ── Add contact form ─────────────────────────────────────────────── */}
+      {/* Add contact form */}
       {showForm && (
         <div className={`p-5${contacts.length > 0 ? " border-t border-white/20" : ""}`}>
           <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
@@ -678,26 +860,13 @@ export function ContactsSection({
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
                   Full name <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                  placeholder="Full name or company"
-                  className={INPUT}
-                />
+                <input type="text" name="name" value={form.name} onChange={handleChange} required placeholder="Full name or company" className={INPUT} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
                   Role <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="roleType"
-                  value={form.roleType}
-                  onChange={handleChange}
-                  className={SELECT}
-                >
+                <select name="roleType" value={form.roleType} onChange={handleChange} className={SELECT}>
                   {CONTACT_ROLES.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
@@ -705,25 +874,11 @@ export function ContactsSection({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="name@example.com"
-                  className={INPUT}
-                />
+                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" className={INPUT} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Phone</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                  placeholder="07700 900 000"
-                  className={INPUT}
-                />
+                <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="07700 900 000" className={INPUT} />
               </div>
             </div>
 
@@ -734,11 +889,7 @@ export function ContactsSection({
             )}
 
             <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || isPending}
-                className="agent-btn agent-btn-sm agent-btn-primary"
-              >
+              <button type="submit" disabled={loading || isPending} className="agent-btn agent-btn-sm agent-btn-primary">
                 {loading ? "Adding…" : "Add contact"}
               </button>
               <button
@@ -752,6 +903,64 @@ export function ContactsSection({
           </form>
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <Modal
+          open={true}
+          onClose={() => { if (!deleting) setConfirmDelete(null); }}
+          size="sm"
+          ariaLabel="Remove contact"
+        >
+          <Modal.Header>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              Remove contact
+            </h2>
+          </Modal.Header>
+          <Modal.Body>
+            <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
+              Remove <strong>{confirmDelete.name}</strong> from this file? Their portal access will be revoked and they'll no longer receive updates.
+            </p>
+          </Modal.Body>
+          <Modal.Footer>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(null)}
+              disabled={deleting}
+              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={performDelete}
+              disabled={deleting}
+              className="agent-btn agent-btn-sm"
+              style={{
+                background: "var(--agent-danger)",
+                color: "white",
+                borderColor: "var(--agent-danger)",
+              }}
+            >
+              {deleting ? "Removing…" : "Remove"}
+            </button>
+          </Modal.Footer>
+        </Modal>
+      )}
+
+      {/* Mobile responsive rules */}
+      <style jsx>{`
+        @media (max-width: 720px) {
+          :global(.contacts-row-body) {
+            flex-direction: column !important;
+          }
+          :global(.contacts-row-right) {
+            min-width: 0 !important;
+            max-width: none !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -131,7 +131,10 @@ export async function deleteContactAction(contactId: string, transactionId: stri
   revalidateTx(transactionId);
 }
 
-export async function generatePortalTokenAction(contactId: string, transactionId: string) {
+export async function generatePortalTokenAction(
+  contactId: string,
+  transactionId: string,
+): Promise<{ portalToken: string }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const txWhere = scopeOwnershipWhere(scope, transactionId);
@@ -140,10 +143,12 @@ export async function generatePortalTokenAction(contactId: string, transactionId
     select: { id: true, portalToken: true },
   });
   if (!existing) throw new Error("Contact not found");
-  if (existing.portalToken) return; // already has one
+  if (existing.portalToken) return { portalToken: existing.portalToken };
+  const token = randomUUID();
   await prisma.contact.update({
     where: { id: contactId },
-    data: { portalToken: randomUUID() },
+    data: { portalToken: token },
   });
   revalidateTx(transactionId);
+  return { portalToken: token };
 }
