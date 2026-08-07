@@ -7,6 +7,7 @@ import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
+import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 
 type Props = {
   entries: ActivityEntry[];
@@ -442,11 +443,50 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                                 </div>
                               </div>
                             </div>
-                          ) : (
-                            <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
-                              {displayContent}
-                            </p>
-                          )}
+                          ) : (() => {
+                            // Automated system emails have portal deep-links + an
+                            // unsubscribe URL baked into their content. Hide the
+                            // raw URLs; surface the portal deep-link as a small
+                            // clickable pill so the agent can still open the
+                            // client's response page in a new tab.
+                            const stripped = entry.isAutomated
+                              ? stripCommsLinksForAgent(displayContent)
+                              : { text: displayContent, portalLinks: [] };
+                            return (
+                              <>
+                                <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
+                                  {stripped.text}
+                                </p>
+                                {stripped.portalLinks.length > 0 && (
+                                  <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                    {stripped.portalLinks.map((url) => (
+                                      <a
+                                        key={url}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          color: "var(--agent-coral-deep)",
+                                          padding: "3px 8px",
+                                          borderRadius: 6,
+                                          border: "0.5px solid var(--agent-border-default)",
+                                          background: "var(--agent-surface-glass)",
+                                          textDecoration: "none",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                      >
+                                        → Open response page
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
 
                           {/* Footer: author pill + timestamp + edited indicator */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { P } from "@/components/portal/portal-ui";
+import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 
 type MethodStyle = { label: string; bg: string; color: string };
 
@@ -170,7 +171,7 @@ export default async function PortalUpdatesPage({
                       </span>
                     )}
                     <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>
-                      {entry.content}
+                      {stripCommsLinksSilent(entry.content)}
                     </p>
                     <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
                       {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
