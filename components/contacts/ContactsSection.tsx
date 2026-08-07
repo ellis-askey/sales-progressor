@@ -32,7 +32,9 @@ import { createContactAction, updateContactAction, deleteContactAction, generate
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Modal } from "@/components/ui/Modal";
-import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { WhatsappGroupModal } from "./WhatsappGroupModal";
+import { PropertyPhotoField } from "./PropertyPhotoField";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 
@@ -408,6 +410,8 @@ export function ContactsSection({
   portalViewDates = {},
   automatedEmailCounts = {},
   lastContactedByContactId = {},
+  whatsappGroupInviteUrl = null,
+  photoUrl = null,
 }: {
   transactionId: string;
   contacts: Contact[];
@@ -415,6 +419,12 @@ export function ContactsSection({
   portalViewDates?: Record<string, Date>;
   automatedEmailCounts?: Record<string, number>;
   lastContactedByContactId?: Record<string, string>;
+  // Optional WhatsApp group invite link the agent has already saved.
+  // Null when the agent hasn't set one up yet — Phase 1 of the modal.
+  whatsappGroupInviteUrl?: string | null;
+  // Signed URL for the current property photo (or null). Feeds the
+  // PropertyPhotoField preview so it doesn't have to fetch itself.
+  photoUrl?: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
@@ -433,6 +443,7 @@ export function ContactsSection({
   const [generatingToken, setGeneratingToken] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -587,18 +598,20 @@ export function ContactsSection({
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26, borderRadius: 7,
-            background: "rgba(var(--agent-coral-rgb), 0.12)",
-            color: "var(--agent-coral-deep)",
-          }}>
-            <HouseSimple size={14} weight="regular" />
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          {/* Property photo (agent-only). Compact tile + upload/replace/remove. */}
+          <PropertyPhotoField transactionId={transactionId} initialUrl={photoUrl} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 22, height: 22, borderRadius: 6,
+                background: "rgba(var(--agent-coral-rgb), 0.12)",
+                color: "var(--agent-coral-deep)",
+              }}>
+                <HouseSimple size={12} weight="regular" />
+              </span>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
               {contacts.length > 0 && (
                 <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", padding: "1px 7px", borderRadius: 10, background: "rgba(15,23,42,0.06)" }}>
@@ -609,15 +622,27 @@ export function ContactsSection({
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</span>
           </div>
         </div>
-        {!showForm && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <button
             type="button"
-            onClick={() => setShowForm(true)}
-            className="agent-btn agent-btn-sm agent-btn-primary"
+            onClick={() => setWhatsappOpen(true)}
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            title={whatsappGroupInviteUrl ? "Invite clients to the group" : "Set up a WhatsApp group for this sale"}
           >
-            + Add contact
+            <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
+            {whatsappGroupInviteUrl ? "WhatsApp group" : "Set up WhatsApp group"}
           </button>
-        )}
+          {!showForm && (
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="agent-btn agent-btn-sm agent-btn-primary"
+            >
+              + Add contact
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Contact cards, stacked full-width */}
@@ -947,6 +972,16 @@ export function ContactsSection({
           </Modal.Footer>
         </Modal>
       )}
+
+      {/* WhatsApp group helper modal */}
+      <WhatsappGroupModal
+        open={whatsappOpen}
+        onClose={() => setWhatsappOpen(false)}
+        transactionId={transactionId}
+        address={address}
+        contacts={contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone, roleType: c.roleType }))}
+        currentInviteUrl={whatsappGroupInviteUrl}
+      />
 
       {/* Mobile responsive rules */}
       <style jsx>{`

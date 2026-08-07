@@ -14,12 +14,13 @@ function getClient() {
 export async function uploadToStorage(
   path: string,
   buffer: Buffer,
-  mimeType: string
+  mimeType: string,
+  options: { upsert?: boolean } = {},
 ): Promise<string> {
   const client = getClient();
   const { error } = await client.storage
     .from(BUCKET)
-    .upload(path, buffer, { contentType: mimeType, upsert: false });
+    .upload(path, buffer, { contentType: mimeType, upsert: options.upsert ?? false });
   if (error) throw new Error(`Storage upload failed: ${error.message}`);
   return path;
 }

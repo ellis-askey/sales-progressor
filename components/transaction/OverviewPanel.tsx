@@ -81,6 +81,10 @@ type Props = {
     referralFee: number | null;
     holdPeriods: Array<{ startedAt: Date; endedAt: Date | null }>;
     contacts: Contact[];
+    whatsappGroupInviteUrl?: string | null;
+    // Storage path (from the DB row). OverviewPanel signs a fresh URL
+    // internally per render for the ContactsSection preview.
+    photoStoragePath?: string | null;
     vendorSolicitorFirm?: SolicitorFirm | null;
     vendorSolicitorContact?: SolicitorContact | null;
     purchaserSolicitorFirm?: SolicitorFirm | null;
@@ -156,6 +160,19 @@ export async function OverviewPanel({
     .catch(() => null);
   const activeRoundCreatedAt = activeRound?.createdAt ?? null;
   const progressAnchor = activeRoundCreatedAt ?? transaction.createdAt;
+
+  // Sign the property-photo URL per render for the ContactsSection preview.
+  // Signed URLs expire after an hour; re-signing each render keeps the
+  // preview reliable across long-lived tabs.
+  let photoUrl: string | null = null;
+  if (transaction.photoStoragePath) {
+    try {
+      const { getSignedUrl } = await import("@/lib/supabase-storage");
+      photoUrl = await getSignedUrl(transaction.photoStoragePath, 3600);
+    } catch (err) {
+      console.warn("[OverviewPanel] failed to sign property-photo URL", err);
+    }
+  }
 
   const [
     milestoneData,
@@ -321,6 +338,8 @@ export async function OverviewPanel({
         )}
         automatedEmailCounts={automatedEmailCounts}
         lastContactedByContactId={lastContactedByContactId}
+        whatsappGroupInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
+        photoUrl={photoUrl}
       />
 
       {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +

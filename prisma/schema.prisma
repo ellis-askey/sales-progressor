@@ -280,6 +280,23 @@ model PropertyTransaction {
 
   lastActivityAt DateTime?
 
+  // Agent-provided WhatsApp group invite URL for this file. Populated after
+  // the agent creates a group manually in WhatsApp and pastes the invite
+  // link (e.g. https://chat.whatsapp.com/XXXXXX). When set, the agent can
+  // one-click a personalised "join the group" WhatsApp message to each
+  // client contact. Not surfaced on the client portal — invites go via
+  // WhatsApp, not the portal.
+  whatsappGroupInviteUrl String?
+
+  // Optional property photo the agent uploads. photoStoragePath is relative
+  // to the transaction-documents bucket (e.g. property-photos/{txId}.jpg);
+  // photoUploadedAt supports cache-busting the signed URL. Rendered as a
+  // hero image on the client portal; absent = no image rendered (no
+  // dashed placeholder, no broken state). Single photo per file — re-uploads
+  // overwrite.
+  photoStoragePath String?
+  photoUploadedAt  DateTime?
+
   // Per-file pause toggle for automated client-facing chase emails. When
   // true, the client-chase cron skips digest enqueue for this file. The
   // chase clock keeps running underneath and escalation still fires —

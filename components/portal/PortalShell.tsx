@@ -15,10 +15,14 @@ type Props = {
   propertyAddress: string;
   agencyName: string;
   vapidPublicKey: string;
+  // Optional signed URL for the property photo. When present renders as a
+  // hero image below the header; when null the header sits on its own
+  // (no dashed placeholder, no broken state).
+  photoUrl?: string | null;
   children: React.ReactNode;
 };
 
-export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, children }: Props) {
+export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, photoUrl, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
 
@@ -71,6 +75,27 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
           </div>
         </div>
       </div>
+
+      {/* Property photo hero — rendered under the header on the home tab
+          only. Absent when no photo has been uploaded; no dashed
+          placeholder in that case. Kept off the respond page to preserve
+          its single-task focus. */}
+      {photoUrl && isHome && (
+        <div className="max-w-lg mx-auto px-4 pt-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoUrl}
+            alt={propertyAddress}
+            style={{
+              width: "100%",
+              maxHeight: 220,
+              objectFit: "cover",
+              borderRadius: 14,
+              boxShadow: P.shadowSm,
+            }}
+          />
+        </div>
+      )}
 
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">

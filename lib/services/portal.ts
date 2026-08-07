@@ -240,12 +240,26 @@ async function getPortalDataInner(token: string) {
       createdAt: true,
       overridePredictedDate: true,
       activeBuyerRoundId: true,
+      photoStoragePath: true,
+      photoUploadedAt: true,
       agency: { select: { name: true } },
     },
   });
   if (!tx) return null;
 
   const postcode = extractPostcode(tx.propertyAddress);
+
+  // Sign a fresh URL for the hero photo if one is set. Signed URLs expire
+  // after an hour; we mint on read so the page always ships a fresh one.
+  let photoUrl: string | null = null;
+  if (tx.photoStoragePath) {
+    try {
+      const { getSignedUrl } = await import("@/lib/supabase-storage");
+      photoUrl = await getSignedUrl(tx.photoStoragePath, 3600);
+    } catch (err) {
+      console.warn("[portal] failed to sign property-photo URL", err);
+    }
+  }
 
   return {
     contact,
@@ -263,6 +277,7 @@ async function getPortalDataInner(token: string) {
       createdAt: tx.createdAt,
       overridePredictedDate: tx.overridePredictedDate,
       activeBuyerRoundId: tx.activeBuyerRoundId,
+      photoUrl,
     },
   };
 }
