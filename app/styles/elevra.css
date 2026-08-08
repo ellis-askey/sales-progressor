@@ -1,0 +1,84 @@
+/*
+ * elevra.css — page-level backgrounds ported from Elevra PWA
+ * (src/index.css) on 2026-08-08.
+ *
+ * Provides two <html>-level themes keyed on `data-theme`:
+ *   [data-theme="light"]  — Apple-Bento wash: peach + lavender + warm halo +
+ *                            cyan sheen over #f6f8fc
+ *   [data-theme="dark"]   — Cyan + lime radial ambients over #0a0e17
+ *
+ * The layered radial-gradient ambients are the natural fallback for
+ * WebGL (Iridescence in light, SoftAurora in dark) via <AppBackground/>.
+ * If WebGL fails, the CSS backdrop still reads as the intended aesthetic.
+ *
+ * SCOPE (2026-08-08 pass, per user decision):
+ *   - Backgrounds ONLY. Card surfaces, borders, existing agent tokens
+ *     (--agent-bg-*, --agent-surface-*) are UNCHANGED. That means agent
+ *     coral warm cards still render on top of the light bento, and dark
+ *     glass sidebar on top of the aurora. Cards will get their own pass
+ *     next.
+ *
+ * WIRING: this file is imported into agent + dashboard layouts. The
+ * ThemeMode toggle writes data-theme="light|dark" on <html>. When no
+ * data-theme is set, [data-theme="light"] block does NOT apply, so the
+ * default falls through to the `:root` block (which is dark by default,
+ * matching Elevra PWA's behaviour).
+ */
+
+/* Default (== dark). Matches Elevra PWA's :root block. */
+:root,
+:root[data-theme="dark"] {
+  --c-bg: #0a0e17;
+
+  /* Cyan + lime radial ambients — the classic dark Aurora atmosphere. */
+  --bg-ambient-1: radial-gradient(60% 40% at 15% 10%, rgba(56, 225, 255, 0.08), transparent 70%);
+  --bg-ambient-2: radial-gradient(50% 35% at 85% 90%, rgba(168, 255, 96, 0.05), transparent 70%);
+  --bg-ambient-3: radial-gradient(0% 0% at 0% 0%, transparent, transparent);
+  --bg-ambient-4: radial-gradient(0% 0% at 0% 0%, transparent, transparent);
+}
+
+/* Light — Apple-Bento wash over #f6f8fc. */
+:root[data-theme="light"] {
+  --c-bg: #f6f8fc;
+
+  --bg-ambient-1: radial-gradient(75% 55% at 8% 6%, rgba(255, 188, 168, 0.28), transparent 72%);
+  --bg-ambient-2: radial-gradient(70% 50% at 92% 12%, rgba(196, 180, 255, 0.26), transparent 72%);
+  --bg-ambient-3: radial-gradient(85% 60% at 50% 96%, rgba(255, 208, 176, 0.30), transparent 75%);
+  --bg-ambient-4: radial-gradient(40% 28% at 50% -4%, rgba(56, 225, 255, 0.16), transparent 70%);
+}
+
+/*
+ * Apply the ambients on <html> so they persist across route changes and
+ * sit behind the AppBackground WebGL layer without a stacking-context
+ * conflict. background-attachment: fixed pins the gradients to the
+ * viewport instead of scrolling with the page.
+ */
+html.elevra-bg {
+  background-color: var(--c-bg);
+  background-image:
+    var(--bg-ambient-4),
+    var(--bg-ambient-1),
+    var(--bg-ambient-2),
+    var(--bg-ambient-3);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color-scheme: light dark;
+}
+
+/*
+ * iOS pearlescent fallback for the WebGL Iridescence layer. iOS Safari
+ * flashes on every scroll frame when backdrop-filter cards sit above a
+ * fixed WebGL canvas, so <AppBackground/> renders this class instead of
+ * mounting Iridescence on iOS devices. Same palette, painted via layered
+ * radial gradients rather than a shader. Static rather than animated
+ * because filter/transform animations reintroduce the flash.
+ */
+.iridescence-fallback-ios {
+  background:
+    radial-gradient(60vmax 45vmax at 22% 26%, rgba(255, 200, 230, 0.38), transparent 58%),
+    radial-gradient(55vmax 45vmax at 80% 66%, rgba(180, 220, 255, 0.38), transparent 58%),
+    radial-gradient(65vmax 52vmax at 50% 92%, rgba(210, 255, 220, 0.28), transparent 62%),
+    radial-gradient(50vmax 40vmax at 12% 82%, rgba(255, 220, 190, 0.32), transparent 55%),
+    radial-gradient(55vmax 45vmax at 92% 16%, rgba(215, 195, 255, 0.34), transparent 58%),
+    #ffffff;
+}
