@@ -108,37 +108,41 @@
 /* ────────────────────────────────────────────────────────────────────── */
 /*  Family 02 — Apple liquid                                              */
 /*  Vibrancy + saturation. Recommended: v16 (top-edge specular).          */
+/*  Blur bumped 2026-08-08 to heavy-frost level (48-64px). Elevra's       */
+/*  original 12-40px values were too weak against the SP aurora; even     */
+/*  with the stacking-context fix, the moving background bled through.    */
+/*  Ellis's brief: "heavy frost does — that's the blur I want".           */
 /* ────────────────────────────────────────────────────────────────────── */
 .glass-v06 {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px) saturate(1.5);
-  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  backdrop-filter: blur(48px) saturate(1.5);
+  -webkit-backdrop-filter: blur(48px) saturate(1.5);
 }
 .glass-v11 {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-  -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
+  backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
+  -webkit-backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
 }
 .glass-v07 {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(24px) saturate(2) brightness(1.10);
-  -webkit-backdrop-filter: blur(24px) saturate(2) brightness(1.10);
+  backdrop-filter: blur(56px) saturate(2) brightness(1.10);
+  -webkit-backdrop-filter: blur(56px) saturate(2) brightness(1.10);
 }
 .glass-v20 {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.20);
   border-top: 1px solid rgba(255, 255, 255, 0.30);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   border-left: 1px solid rgba(255, 255, 255, 0.10);
   border-right: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(24px) saturate(1.8) brightness(1.05);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8) brightness(1.05);
+  backdrop-filter: blur(56px) saturate(1.8) brightness(1.05);
+  -webkit-backdrop-filter: blur(56px) saturate(1.8) brightness(1.05);
 }
 /* v16 — top-edge specular. RECOMMENDED for family 02.
    Uses a gradient border trick: outer box is a linear gradient, inner is
@@ -150,58 +154,62 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 30%, rgba(255, 255, 255, 0.02) 100%) border-box;
   border: 1px solid transparent;
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
 /*  Family 03 — Tinted                                                    */
 /*  Coloured glass for callouts. Recommended: v10 (accent tint).          */
+/*  Blur bumped 2026-08-08 (see Family 02 note).                          */
 /* ────────────────────────────────────────────────────────────────────── */
 .glass-v10 {
-  background: rgba(var(--c-glass-accent-rgb), 0.08);
+  background: rgba(var(--c-glass-accent-rgb), 0.16);
   border: 1px solid rgba(var(--c-glass-accent-rgb), 0.30);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v08 {
-  background: rgba(91, 140, 255, 0.10);
+  background: rgba(91, 140, 255, 0.20);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v09 {
-  background: rgba(255, 194, 75, 0.08);
+  background: rgba(255, 194, 75, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v21 {
-  background: rgba(0, 0, 0, 0.30);
+  background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
 /*  Family 04 — Bordered / framed                                         */
 /*  Structure over fill. Recommended: v15 (gradient hairline).            */
+/*  Blur bumped 2026-08-08 (see Family 02 note). v14 (border-only) keeps  */
+/*  transparent background — the whole point is the frame; strong blur    */
+/*  behind it still gives the frost feel.                                 */
 /* ────────────────────────────────────────────────────────────────────── */
 .glass-v12 {
-  background: rgba(255, 255, 255, 0.10);
-  border: 2px solid rgba(255, 255, 255, 0.20);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v14 {
-  background: transparent;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.20);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 /* v15 — brand-gradient hairline. RECOMMENDED for family 04. */
 .glass-v15 {
@@ -210,18 +218,18 @@
     linear-gradient(135deg, rgba(56, 225, 255, 0.6) 0%, rgba(91, 140, 255, 0.2) 100%) border-box;
   border: 1px solid transparent;
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v13 {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow:
     0 12px 28px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -235,8 +243,8 @@
   background: var(--c-glass-panel-bg);
   border: 1px solid var(--c-glass-row-border);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v17::before {
   content: "";
@@ -254,11 +262,11 @@
 /* v18 — bento dual-glow. RECOMMENDED for family 05. */
 .glass-v18 {
   position: relative;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 .glass-v18::before {
   content: "";
@@ -277,17 +285,17 @@
   box-shadow:
     0 2px 12px rgba(0, 0, 0, 0.35),
     inset 0 0 32px rgba(56, 225, 255, 0.18);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 
 .glass-v22 {
   position: relative;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(56px);
+  -webkit-backdrop-filter: blur(56px);
 }
 .glass-v22::before {
   content: "";
@@ -302,6 +310,101 @@
     rgba(255, 143, 163, 0.08) 65%,
     rgba(168, 255, 96, 0.10) 100%
   );
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+/*  Family 06 — Bespoke glassmorphism                                     */
+/*  Added 2026-08-08 (Ellis's ask: "add a few extra bespoke options like  */
+/*  the ones found in this site"). Five distinctive glassmorphism looks   */
+/*  that go further than the ported Elevra families — multi-layered      */
+/*  inner highlights, pastel gradient tints, chromatic borders, curved-  */
+/*  lens depth, and a warm SP-brand variant that bridges Elevra frost    */
+/*  with the coral identity.                                              */
+/* ────────────────────────────────────────────────────────────────────── */
+
+/* v23 — Neuro-frost. Classic dashboard glassmorphism: heavy frost with
+   a dual inner highlight (bright top-left, faint dark bottom-right) that
+   gives the card a subtle curved-glass bezel feel. Reads well on any
+   background. */
+.glass-v23 {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.35),
+    inset -1px -1px 0 rgba(15, 26, 46, 0.06),
+    0 8px 24px rgba(15, 26, 46, 0.08),
+    0 2px 4px rgba(15, 26, 46, 0.04);
+  backdrop-filter: blur(48px) saturate(1.4);
+  -webkit-backdrop-filter: blur(48px) saturate(1.4);
+}
+
+/* v24 — Pastel dream. Soft pink→cyan tint overlaid on heavy frost.
+   Feels like Apple Health / Fitness cards. Good for cards you want to
+   feel "friendly" without being loud. */
+.glass-v24 {
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(255, 200, 220, 0.18) 0%, rgba(180, 220, 255, 0.18) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    0 12px 32px rgba(15, 26, 46, 0.06);
+  backdrop-filter: blur(52px) saturate(1.5);
+  -webkit-backdrop-filter: blur(52px) saturate(1.5);
+}
+
+/* v25 — Chromatic edge. Rainbow gradient border (cyan → lavender → rose
+   → lime) with a frosted body. Border-image gradient trick same as v15
+   but four hues instead of two. Best used sparingly (one signature card
+   per page). */
+.glass-v25 {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)) padding-box,
+    linear-gradient(135deg,
+      rgba(56, 225, 255, 0.75) 0%,
+      rgba(179, 131, 255, 0.65) 33%,
+      rgba(255, 143, 163, 0.60) 66%,
+      rgba(168, 255, 96, 0.55) 100%) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    0 12px 32px rgba(15, 26, 46, 0.10),
+    0 2px 4px rgba(15, 26, 46, 0.04);
+  backdrop-filter: blur(48px) saturate(1.5);
+  -webkit-backdrop-filter: blur(48px) saturate(1.5);
+}
+
+/* v26 — Deep-lens frost. Very heavy blur + a subtle vertical background
+   gradient (lighter top, darker bottom) that fakes the curvature of a
+   real glass lens. Specular top edge + soft ground-shadow. Premium
+   hero-card treatment. */
+.glass-v26 {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.10) 100%) padding-box,
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0.08) 40%, rgba(255, 255, 255, 0.02) 100%) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    0 20px 48px rgba(15, 26, 46, 0.12),
+    0 4px 8px rgba(15, 26, 46, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(64px) saturate(1.6);
+  -webkit-backdrop-filter: blur(64px) saturate(1.6);
+}
+
+/* v27 — Warm frost (Sales-Progressor coral). Bridges the Elevra frost
+   with SP's coral brand identity. Warm cream tint over frost, coral
+   hairline border, gentle warm inner glow. Best when you want the
+   glassmorphism aesthetic without departing from SP's palette. */
+.glass-v27 {
+  background:
+    linear-gradient(180deg, rgba(255, 245, 235, 0.30) 0%, rgba(255, 255, 255, 0.18) 100%);
+  border: 1px solid rgba(var(--agent-coral-rgb), 0.20);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 20px rgba(var(--agent-coral-rgb), 0.05),
+    0 10px 28px rgba(var(--agent-coral-rgb), 0.08),
+    0 2px 4px rgba(15, 26, 46, 0.04);
+  backdrop-filter: blur(48px) saturate(1.3);
+  -webkit-backdrop-filter: blur(48px) saturate(1.3);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -326,15 +429,20 @@
 /*  Mobile softening — reduce blur radius below the lg breakpoint so      */
 /*  compositors don't tank on phones. Matches Elevra's approach.          */
 /* ────────────────────────────────────────────────────────────────────── */
+/* Mobile softening — density family keeps its spectrum feel; the other
+ * families still get proper frost on mobile (blur 28-32px). 2026-08-08:
+ * these were previously stripped down so hard that the mobile glass
+ * looked identical to the desktop see-through issue. Ellis wants heavy
+ * frost, even on phones. */
 @media (max-width: 1023px) {
   .glass-v02 { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
   .glass-v04 { backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
   .glass-v03 { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   .glass-v05 { backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); }
-  .glass-v06 { backdrop-filter: blur(8px) saturate(1.3); -webkit-backdrop-filter: blur(8px) saturate(1.3); }
-  .glass-v11 { backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); }
-  .glass-v07 { backdrop-filter: blur(14px) saturate(1.6); -webkit-backdrop-filter: blur(14px) saturate(1.6); }
-  .glass-v20 { backdrop-filter: blur(14px) saturate(1.5); -webkit-backdrop-filter: blur(14px) saturate(1.5); }
+  .glass-v06 { backdrop-filter: blur(28px) saturate(1.4); -webkit-backdrop-filter: blur(28px) saturate(1.4); }
+  .glass-v11 { backdrop-filter: blur(32px) saturate(1.6); -webkit-backdrop-filter: blur(32px) saturate(1.6); }
+  .glass-v07 { backdrop-filter: blur(30px) saturate(1.7); -webkit-backdrop-filter: blur(30px) saturate(1.7); }
+  .glass-v20 { backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); }
   .glass-v16,
   .glass-v10,
   .glass-v08,
@@ -347,9 +455,17 @@
   .glass-v17,
   .glass-v18,
   .glass-v19,
-  .glass-v22 {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+  .glass-v22,
+  .glass-v23,
+  .glass-v24,
+  .glass-v25,
+  .glass-v27 {
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+  }
+  .glass-v26 {
+    backdrop-filter: blur(36px) saturate(1.4);
+    -webkit-backdrop-filter: blur(36px) saturate(1.4);
   }
 }
 

@@ -12,7 +12,8 @@ export type GlassVariantId =
   | "v06" | "v07" | "v11" | "v16" | "v20"
   | "v08" | "v09" | "v10" | "v21"
   | "v12" | "v13" | "v14" | "v15"
-  | "v17" | "v18" | "v19" | "v22";
+  | "v17" | "v18" | "v19" | "v22"
+  | "v23" | "v24" | "v25" | "v26" | "v27";
 
 export const DEFAULT_VARIANT: GlassVariantId = "v00";
 
@@ -23,6 +24,7 @@ const ALL_VARIANT_IDS: ReadonlySet<GlassVariantId> = new Set<GlassVariantId>([
   "v08", "v09", "v10", "v21",
   "v12", "v13", "v14", "v15",
   "v17", "v18", "v19", "v22",
+  "v23", "v24", "v25", "v26", "v27",
 ]);
 
 export function isGlassVariantId(v: unknown): v is GlassVariantId {
@@ -177,6 +179,28 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
       { id: "v17", label: "Noise-textured",   technique: "glass body · 8% SVG grain overlay" },
       { id: "v19", label: "Inner glow",       technique: "glass body · inset accent glow" },
       { id: "v22", label: "Iridescent",       technique: "multi-hue diagonal sheen overlay" },
+    ],
+  },
+  {
+    id: "bespoke",
+    label: "Bespoke",
+    intro:
+      "Distinctive glassmorphism looks added for Sales Progressor. Heavier frost, layered inner highlights, and options that bridge Elevra's palette with SP's warm coral identity.",
+    bestFor: [
+      "Signature cards that need to stand out from the plain frost families",
+      "Cards where a subtle warm or pastel tone reads better than raw glass",
+      "Hero surfaces that need a curved-lens depth cue",
+    ],
+    avoid: [
+      "Using every bespoke variant on the same screen (they compete)",
+      "Body-text-heavy surfaces for v25 (chromatic edge reads as decoration, not chrome)",
+    ],
+    variants: [
+      { id: "v23", label: "Neuro-frost",     technique: "heavy frost · dual inner-highlight bezel", recommended: true, recommendedFor: "Cleanest bespoke card. Reads well on any background." },
+      { id: "v24", label: "Pastel dream",    technique: "pink→cyan pastel tint · very heavy frost" },
+      { id: "v25", label: "Chromatic edge",  technique: "4-hue rainbow border · frost body" },
+      { id: "v26", label: "Deep-lens frost", technique: "curved-lens vertical gradient · 64px blur" },
+      { id: "v27", label: "Warm frost (SP)", technique: "coral-tinted warm frost · SP brand bridge" },
     ],
   },
 ];

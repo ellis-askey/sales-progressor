@@ -170,9 +170,16 @@ body {
 
 /* ─── Glass Page stacking context ────────────────────────────────────────── */
 
+/* 2026-08-08 Design Lab fix: dropped `z-index: 0` from this rule. The
+ * explicit z-index was creating a stacking-context bubble around the
+ * page content, which prevented backdrop-filter on GlassCards inside
+ * .glass-page from sampling the fixed WebGL AppBackground (mounted at
+ * position: fixed; z-index: -10 outside .glass-page). Without a
+ * neighbouring stacking-context, backdrop-filter can reach the WebGL
+ * layer and the frost actually blurs the aurora. `position: relative`
+ * stays so descendants can still position: absolute against it. */
 .glass-page {
   position: relative;
-  z-index: 0;
   min-height: 100vh;
 }
 
