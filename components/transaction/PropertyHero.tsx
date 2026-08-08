@@ -297,6 +297,13 @@ export function PropertyHero({
     // since the column is now a flex child, the gradient always sits at
     // the column's own right edge and moves left/right with it as the
     // content column grows or shrinks.
+    // Photo fades to TRANSPARENT (not to a fixed surface colour) so the
+    // card's own variant background shows through the fade zone. Before
+    // 2026-08-08 this faded to `var(--agent-surface-elevated)` — coral
+    // warm cream. That produced a visible seam once the card's variant
+    // changed (v22 iridescent, v03 glass, etc.) because the gradient's
+    // endpoint no longer matched the card. Fixing with a CSS mask on the
+    // img itself; the overlay div is gone.
     const photoColumnDesktop = photoUrl ? (
       <div aria-hidden className="hidden md:block" style={{
         flex: "0 1 380px",
@@ -306,17 +313,30 @@ export function PropertyHero({
         pointerEvents: "none",
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 45%, var(--agent-surface-elevated) 98%)" }} />
+        <img
+          src={photoUrl}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+          }}
+        />
       </div>
     ) : (
+      // Fallback (no photo): coral wash fades to transparent so the card
+      // variant reads through the right edge, same principle as the
+      // photo case above.
       <div aria-hidden className="hidden md:flex" style={{
         flex: "0 1 380px",
         minWidth: 240,
         position: "relative",
         alignSelf: "stretch",
         pointerEvents: "none",
-        background: "linear-gradient(115deg, rgba(var(--agent-coral-rgb), 0.14) 0%, rgba(var(--agent-coral-rgb), 0.04) 60%, var(--agent-surface-elevated) 98%)",
+        background: "linear-gradient(115deg, rgba(var(--agent-coral-rgb), 0.14) 0%, rgba(var(--agent-coral-rgb), 0.04) 60%, transparent 100%)",
         alignItems: "center",
         justifyContent: "center",
         color: "rgba(var(--agent-coral-rgb), 0.35)",
@@ -328,13 +348,22 @@ export function PropertyHero({
     const photoLayerMobile = photoUrl ? (
       <div aria-hidden className="md:hidden" style={{ position: "relative", height: 148, pointerEvents: "none" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, var(--agent-surface-elevated) 100%)" }} />
+        <img
+          src={photoUrl}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            maskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
+          }}
+        />
       </div>
     ) : (
       <div aria-hidden className="md:hidden" style={{
         position: "relative", height: 84, pointerEvents: "none",
-        background: "linear-gradient(180deg, rgba(var(--agent-coral-rgb), 0.12) 0%, var(--agent-surface-elevated) 100%)",
+        background: "linear-gradient(180deg, rgba(var(--agent-coral-rgb), 0.12) 0%, transparent 100%)",
         display: "flex", alignItems: "center", justifyContent: "center",
         color: "rgba(var(--agent-coral-rgb), 0.35)",
       }}>
