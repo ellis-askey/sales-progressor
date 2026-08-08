@@ -458,6 +458,10 @@ export async function changeStatusAction(
   // splitChainAtBoundary. Caller (StatusControl) collects via the
   // structured radio picker in the withdraw modal.
   withdrawalReason: WithdrawalReason | null = null,
+  // When status === "on_hold", the optional free-text "why" captured in the
+  // hold modal. Stored on the TransactionHoldPeriod row and surfaced by the
+  // hub's holds-needing-attention card.
+  holdReason: string | null = null,
 ) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -590,6 +594,7 @@ export async function changeStatusAction(
           startedAt: new Date(),
           startedById: session.user.id,
           plannedEndAt: plannedEndAtDate,
+          reason: holdReason?.trim() ? holdReason.trim().slice(0, 500) : null,
         },
       });
     }

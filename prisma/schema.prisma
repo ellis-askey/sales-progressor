@@ -509,6 +509,10 @@ model TransactionHoldPeriod {
   // holds" widget: surfaces files whose plannedEndAt has passed but no
   // human has yet decided to take off hold or extend.
   plannedEndAt  DateTime?
+  // Free-text why-on-hold, captured at hold time (optional). Surfaced on
+  // the hub's holds-needing-attention card so the take-off/extend decision
+  // can be made without opening the file.
+  reason        String?
   createdAt     DateTime  @default(now())
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)

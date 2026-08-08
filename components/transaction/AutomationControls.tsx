@@ -97,13 +97,13 @@ export function AutomationControls({
     });
   }
 
-  function handleChoice(choice: "pause" | "hold", plannedEndAt: Date | null) {
+  function handleChoice(choice: "pause" | "hold", plannedEndAt: Date | null, reason: string | null) {
     setError(null);
     startTransition(async () => {
       const result =
         choice === "pause"
           ? await pauseClientEmails(transactionId)
-          : await putFileOnHold(transactionId, plannedEndAt);
+          : await putFileOnHold(transactionId, plannedEndAt, reason);
       if (result.ok) {
         if (choice === "pause") setPaused(true);
         else setCurrentStatus("on_hold");

@@ -434,6 +434,11 @@ export type ExpiredHoldItem = {
   plannedEndAt: Date;
   startedAt: Date;
   agencyName: string | null;
+  // Free-text why-on-hold captured when the hold was placed. Null for holds
+  // placed before the reason field existed, or when the user skipped it.
+  reason: string | null;
+  // Name of the user who placed the hold.
+  placedByName: string | null;
 };
 
 export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHoldItem[]> {
@@ -453,6 +458,8 @@ export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHold
       transactionId: true,
       plannedEndAt: true,
       startedAt: true,
+      reason: true,
+      startedBy: { select: { name: true } },
       transaction: {
         select: {
           propertyAddress: true,
@@ -471,6 +478,8 @@ export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHold
       plannedEndAt: r.plannedEndAt as Date,
       startedAt: r.startedAt,
       agencyName: r.transaction.agency?.name ?? null,
+      reason: r.reason,
+      placedByName: r.startedBy?.name ?? null,
     }));
 }
 

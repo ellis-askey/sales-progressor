@@ -6,9 +6,10 @@
 //   2. If hold was picked, ask for a planned return date — quick-picks
 //      (7d / 14d / 30d), specific date, or "indefinitely"
 //
-// Returns the chosen plannedEndAt (Date or null for indefinitely) so the
-// parent can pass it through to putFileOnHold. Pause path doesn't carry a
-// date; onPick fires with choice="pause" + plannedEndAt=null.
+// Returns the chosen plannedEndAt (Date or null for indefinitely) plus an
+// optional free-text reason so the parent can pass both through to
+// putFileOnHold. Pause path doesn't carry a date or reason; onPick fires
+// with choice="pause" + plannedEndAt=null + reason=null.
 
 import { useState } from "react";
 import { ArrowRight } from "@phosphor-icons/react";
@@ -18,7 +19,7 @@ import { Modal } from "@/components/ui/Modal";
 type Choice = "pause" | "hold";
 
 type Props = {
-  onPick: (choice: Choice, plannedEndAt: Date | null) => void;
+  onPick: (choice: Choice, plannedEndAt: Date | null, reason: string | null) => void;
   onClose: () => void;
   isPending: boolean;
 };
@@ -42,15 +43,16 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [step, setStep] = useState<"choose" | "hold-date">("choose");
   const [customDate, setCustomDate] = useState("");
+  const [reason, setReason] = useState("");
 
   function handleHoldIndefinite() {
-    onPick("hold", null);
+    onPick("hold", null, reason.trim() || null);
   }
   function handleHoldCustom() {
     if (!customDate) return;
     const d = new Date(customDate);
     d.setHours(9, 0, 0, 0);
-    onPick("hold", d);
+    onPick("hold", d, reason.trim() || null);
   }
 
   // Note: previously Escape on hold-date stepped back to "choose"; the
@@ -87,7 +89,7 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
                 <ChooserCard
                   title="Pause client emails"
                   description="No automated chases will send. The team still sees reminders so they can chase manually. Chase clock keeps running."
-                  onClick={() => onPick("pause", null)}
+                  onClick={() => onPick("pause", null, null)}
                   disabled={isPending}
                 />
                 <ChooserCard
@@ -141,6 +143,21 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
                       Put on hold
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", display: "block", marginBottom: 6 }}>
+                    Reason <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    maxLength={500}
+                    placeholder="Waiting for buyer searches, probate, chain issue…"
+                    className="glass-input"
+                    style={{ width: "100%", padding: "10px 12px", fontSize: 13 }}
+                  />
                 </div>
 
                 <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12, marginTop: 4 }}>

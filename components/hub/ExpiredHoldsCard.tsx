@@ -7,6 +7,11 @@
 // transition). When the last row leaves, the whole card disappears and
 // the layout below shifts up.
 //
+// 2026-08-08 layout pass (founder mock): icon header + count chip,
+// collapsible body, per-row accent bar, overdue pill, hold-started date,
+// placed-by attribution and the captured hold reason. All behaviour
+// (resume modal, inline extender, row collapse, toasts) unchanged.
+//
 // Surface lives on the hub at /agent/hub. The parent server component
 // fetches via getExpiredHolds(vis) and passes the initial list down. If
 // the prop is empty we render nothing — the card is opt-in by presence.
@@ -15,6 +20,17 @@ import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import {
+  Warning,
+  HouseLine,
+  Clock,
+  CalendarBlank,
+  CalendarPlus,
+  User,
+  Check,
+  CaretDown,
+  Note,
+} from "@phosphor-icons/react";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -34,17 +50,24 @@ function tomorrowAt9(): Date {
   return d;
 }
 
-function daysAgo(d: Date): string {
+function overdueLabel(d: Date): string {
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
-  if (diff < 1) return "today";
-  if (diff < 2) return "yesterday";
-  return `${diff} days ago`;
+  if (diff < 1) return "Due back today";
+  if (diff < 2) return "Overdue by 1 day";
+  return `Overdue by ${diff} days`;
 }
+
+function formatShortDate(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+const DANGER = "var(--agent-danger, #C73E3E)";
 
 export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldItem[] }) {
   const { toast } = useAgentToast();
   const { theme, isNight } = usePortalTheme();
   const [items, setItems] = useState<ExpiredHoldItem[]>(initialItems);
+  const [collapsed, setCollapsed] = useState(false);
   const [showExtenderFor, setShowExtenderFor] = useState<string | null>(null);
   const [extenderDate, setExtenderDate] = useState<string>("");
   const [cardExiting, setCardExiting] = useState(false);
@@ -123,122 +146,275 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
         overflow: "hidden",
       }}
     >
-      <div
+      {/* ── Header — icon badge + title + count chip, chevron toggles body ── */}
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        aria-expanded={!collapsed}
         style={{
+          width: "100%",
           padding: "12px 16px",
-          borderBottom: "0.5px solid rgba(15,23,42,0.08)",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
+          gap: 12,
+          background: "transparent",
+          border: "none",
+          borderBottom: collapsed ? "none" : "0.5px solid rgba(15,23,42,0.08)",
+          cursor: "pointer",
+          textAlign: "left",
         }}
       >
-        <div>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
-            Holds needing attention
-          </p>
-          <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            background: "rgba(199,62,62,0.10)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            color: DANGER,
+          }}
+        >
+          <Warning size={17} weight="bold" />
+        </span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              Holds needing attention
+            </span>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                minWidth: 18,
+                height: 18,
+                padding: "0 5px",
+                borderRadius: 999,
+                background: "rgba(15,23,42,0.06)",
+                color: "var(--agent-text-secondary)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {items.length}
+            </span>
+          </span>
+          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
             {items.length === 1
               ? "1 file was meant to come off hold by now."
               : `${items.length} files were meant to come off hold by now.`}
-          </p>
-        </div>
+          </span>
+        </span>
         <span
+          aria-hidden
           style={{
-            fontSize: 10,
-            fontWeight: 700,
-            background: "rgba(217,119,6,0.12)",
-            color: "#b45309",
-            padding: "2px 8px",
-            borderRadius: 999,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
+            color: "var(--agent-text-muted)",
+            display: "flex",
+            alignItems: "center",
+            transition: "transform 180ms ease",
+            transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
           }}
         >
-          On hold
+          <CaretDown size={14} weight="bold" />
         </span>
-      </div>
+      </button>
 
-      <div ref={listRef}>
-        {items.map((item) => (
-          <div
-            key={item.transactionId}
-            style={{
-              padding: "10px 16px",
-              borderBottom: "0.5px solid rgba(15,23,42,0.06)",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-              <Link
-                href={`/agent/transactions/${item.transactionId}`}
+      {/* ── Rows ── */}
+      {!collapsed && (
+        <div ref={listRef} style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map((item) => (
+            <div
+              key={item.transactionId}
+              style={{
+                position: "relative",
+                borderRadius: 10,
+                background: "rgba(199,62,62,0.035)",
+                border: "0.5px solid rgba(15,23,42,0.06)",
+                borderLeft: `3px solid ${DANGER}`,
+                padding: "12px 14px",
+              }}
+            >
+              {/* Top line: house icon + address/agency + ON HOLD pill */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 999,
+                    background: "rgba(199,62,62,0.10)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    color: DANGER,
+                    marginTop: 1,
+                  }}
+                >
+                  <HouseLine size={15} weight="bold" />
+                </span>
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <Link
+                    href={`/agent/transactions/${item.transactionId}`}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--agent-text-primary)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {item.propertyAddress}
+                  </Link>
+                  {item.agencyName && (
+                    <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                      {item.agencyName}
+                    </p>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    background: "rgba(15,23,42,0.06)",
+                    color: "var(--agent-text-secondary)",
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    flexShrink: 0,
+                  }}
+                >
+                  On hold
+                </span>
+              </div>
+
+              {/* Meta strip: overdue pill · hold started · placed by */}
+              <div
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--agent-text-primary)",
-                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  marginTop: 10,
+                  fontSize: 11,
+                  color: "var(--agent-text-muted)",
                 }}
               >
-                {item.propertyAddress}
-              </Link>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                Was due back {daysAgo(item.plannedEndAt)}
-                {item.agencyName ? ` · ${item.agencyName}` : ""}
-              </p>
-            </div>
-
-            {showExtenderFor === item.transactionId ? (
-              <div data-testid="hub-expired-holds-extender" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <input
-                  type="date"
-                  value={extenderDate}
-                  onChange={(e) => setExtenderDate(e.target.value)}
-                  min={formatDateInput(tomorrowAt9())}
-                  className="glass-input"
-                  style={{ padding: "6px 10px", fontSize: 12 }}
-                  autoFocus
-                />
-                <button
-                  onClick={() => {
-                    if (!extenderDate) return;
-                    // Guard against hand-typed past dates — `min` is only a
-                    // picker hint. Server also rejects, this is the fast UX.
-                    if (extenderDate < formatDateInput(tomorrowAt9())) {
-                      toast.error("Pick a future date");
-                      return;
-                    }
-                    handleExtend(item.transactionId, new Date(extenderDate));
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontWeight: 600,
+                    color: DANGER,
+                    background: "rgba(199,62,62,0.10)",
+                    padding: "3px 9px",
+                    borderRadius: 999,
                   }}
-                  disabled={!extenderDate || extenderDate < formatDateInput(tomorrowAt9())}
-                  className="agent-btn agent-btn-xs agent-btn-primary"
                 >
-                  Set date
-                </button>
-                <button
-                  onClick={() => handleExtend(item.transactionId, null)}
-                  className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-                  title="Hold indefinitely. Won't auto-surface again."
+                  <Clock size={12} weight="bold" />
+                  {overdueLabel(item.plannedEndAt)}
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <CalendarBlank size={12} />
+                  Hold started {formatShortDate(item.startedAt)}
+                </span>
+                {item.placedByName && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <User size={12} />
+                    Placed by {item.placedByName}
+                  </span>
+                )}
+              </div>
+
+              {/* Reason line — only when one was captured at hold time */}
+              {item.reason && (
+                <p
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 5,
+                    margin: "8px 0 0",
+                    fontSize: 11,
+                    color: "var(--agent-text-secondary)",
+                    lineHeight: 1.5,
+                  }}
                 >
-                  Indefinitely
-                </button>
-                <button onClick={closeExtender} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
+                  <Note size={12} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    <strong style={{ fontWeight: 600, color: "var(--agent-text-primary)" }}>Reason:</strong>{" "}
+                    {item.reason}
+                  </span>
+                </p>
+              )}
+
+              {/* Actions — extender swaps in place of the two buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                {showExtenderFor === item.transactionId ? (
+                  <div data-testid="hub-expired-holds-extender" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      type="date"
+                      value={extenderDate}
+                      onChange={(e) => setExtenderDate(e.target.value)}
+                      min={formatDateInput(tomorrowAt9())}
+                      className="glass-input"
+                      style={{ padding: "6px 10px", fontSize: 12 }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        if (!extenderDate) return;
+                        // Guard against hand-typed past dates — `min` is only a
+                        // picker hint. Server also rejects, this is the fast UX.
+                        if (extenderDate < formatDateInput(tomorrowAt9())) {
+                          toast.error("Pick a future date");
+                          return;
+                        }
+                        handleExtend(item.transactionId, new Date(extenderDate));
+                      }}
+                      disabled={!extenderDate || extenderDate < formatDateInput(tomorrowAt9())}
+                      className="agent-btn agent-btn-xs agent-btn-primary"
+                    >
+                      Set date
+                    </button>
+                    <button
+                      onClick={() => handleExtend(item.transactionId, null)}
+                      className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                      title="Hold indefinitely. Won't auto-surface again."
+                    >
+                      Indefinitely
+                    </button>
+                    <button onClick={closeExtender} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => openResume(item.transactionId, item.propertyAddress)}
+                      className="agent-btn agent-btn-sm agent-btn-primary"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                    >
+                      <Check size={13} weight="bold" />
+                      Take off hold
+                    </button>
+                    <button
+                      onClick={() => openExtender(item.transactionId)}
+                      className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                    >
+                      <CalendarPlus size={13} weight="bold" />
+                      Extend hold
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => openResume(item.transactionId, item.propertyAddress)} className="agent-btn agent-btn-sm agent-btn-primary">
-                  Take off hold
-                </button>
-                <button onClick={() => openExtender(item.transactionId)} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">
-                  Extend
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {resumeFor && createPortal(
         <div

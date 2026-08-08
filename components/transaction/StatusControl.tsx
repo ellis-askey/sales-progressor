@@ -89,6 +89,9 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [holdDate, setHoldDate]     = useState("");
+  // Optional "why is this going on hold" — stored on the hold period and
+  // shown on the hub's holds-needing-attention card.
+  const [holdReason, setHoldReason] = useState("");
   // Closed-loop arc (2026-06-05): the withdraw modal now collects a
   // structured WithdrawalReason (drives chain cascade direction) AND a
   // free-text detail (the existing fallThroughReason — preserved for
@@ -130,6 +133,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
       // Ask for a return date so the file resurfaces in the hub's expired-
       // holds card when due. Or "indefinitely" — same as passing null.
       setHoldDate("");
+      setHoldReason("");
       setShowHoldModal(true);
       return;
     }
@@ -150,6 +154,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     fallThroughReason: string | null,
     plannedEndAt: Date | null,
     withdrawalReason: WithdrawalReason | null = null,
+    reasonForHold: string | null = null,
   ) {
     setSaving(true);
     // Pre-transition optimistic flip so the badge updates the instant the
@@ -157,7 +162,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     setOptimisticStatus(status);
     startTransition(async () => {
       try {
-        await changeStatusAction(transactionId, status, fallThroughReason, plannedEndAt, withdrawalReason);
+        await changeStatusAction(transactionId, status, fallThroughReason, plannedEndAt, withdrawalReason, reasonForHold);
         const label =
           status === "active"    ? "File active" :
           status === "on_hold"   ? "File on hold" :
@@ -213,11 +218,11 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     const d = new Date(holdDate);
     d.setHours(9, 0, 0, 0);
     setShowHoldModal(false);
-    applyStatus("on_hold", null, d);
+    applyStatus("on_hold", null, d, null, holdReason.trim() || null);
   }
   function confirmHoldIndefinite() {
     setShowHoldModal(false);
-    applyStatus("on_hold", null, null);
+    applyStatus("on_hold", null, null, null, holdReason.trim() || null);
   }
 
   return (
@@ -461,6 +466,18 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                   Pick a future date — the file needs to come back to you, not behind you.
                 </p>
               )}
+
+              <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5 mt-4">
+                Reason <span style={{ color: "rgba(15,23,42,0.4)", fontWeight: 400 }}>&nbsp;(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                maxLength={500}
+                placeholder="Waiting for buyer searches, probate, chain issue…"
+                className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+              />
 
               <div className="flex gap-3 pt-5">
                 <button

@@ -80,6 +80,9 @@ export async function putFileOnHold(
   // Planned return date (UI: "Come back to this on") — null/undefined means
   // "indefinitely" (no auto-surface in the hub's expired-holds widget).
   plannedEndAt?: Date | string | null,
+  // Optional free-text "why is this going on hold" — stored on the hold
+  // period and surfaced by the hub's holds-needing-attention card.
+  reason?: string | null,
 ): Promise<ActionResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -118,6 +121,7 @@ export async function putFileOnHold(
         startedAt: now,
         startedById: session.user.id,
         plannedEndAt: plannedEndAtDate,
+        reason: reason?.trim() ? reason.trim().slice(0, 500) : null,
       },
     }),
   ]);
