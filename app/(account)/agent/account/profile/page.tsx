@@ -75,21 +75,25 @@ export default async function AccountProfilePage({
         />
       </section>
 
-      <div style={{ borderTop: HAIRLINE }} />
-
-      {/* 2. Branch theme */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Branch theme
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Your personal theme — visible only to you, not your whole branch. Applies instantly.
-          </p>
-        </div>
-        <ThemePickerPlain currentTheme={currentTheme} currentMobileTheme={currentMobileTheme} />
-      </section>
-
+      {/* 2. Branch theme — hidden 2026-08-08 as part of the Elevra-backgrounds
+             pass. Six-theme picker (sunset/coastal/…) replaced by the single
+             light/dark toggle in the topbar. Preferences remain in the DB and
+             the picker source (`ThemePickerPlain`, `themes.css`) is kept for
+             a potential revert. To restore: uncomment this section.
+        <div style={{ borderTop: HAIRLINE }} />
+        <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
+              Branch theme
+            </h2>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+              Your personal theme — visible only to you, not your whole branch. Applies instantly.
+            </p>
+          </div>
+          <ThemePickerPlain currentTheme={currentTheme} currentMobileTheme={currentMobileTheme} />
+        </section>
+        <div style={{ borderTop: HAIRLINE }} />
+      */}
       <div style={{ borderTop: HAIRLINE }} />
 
       {/* 3. Sending addresses */}
