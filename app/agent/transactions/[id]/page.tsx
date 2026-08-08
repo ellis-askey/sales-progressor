@@ -230,10 +230,22 @@ export default async function AgentTransactionDetailPage({
     progress.fileLevelPhase = detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase;
   }
 
-  const assignedDisplayName =
-    (transaction.assignedUser as { name?: string | null } | null)?.name ??
-    agentUser?.name ??
-    null;
+  // "Managing this file" name in the hero. Rules (locked 2026-08-08):
+  //   outsourced  → the assigned progressor (sales_progressor). Null if
+  //                 no one is assigned yet — the hero renders "Not
+  //                 assigned yet" in that case.
+  //   self_managed → the file's own agent (director or negotiator).
+  //                 agentUserId always reflects who currently owns the
+  //                 file (ReassignOwnerControl updates it on reassign),
+  //                 so this covers both "creator" and "reassigned by
+  //                 director" cases in one pull.
+  // The old logic ("assignedUser || agentUser") showed the customer
+  // agency's agent on outsourced files that hadn't been picked up yet,
+  // which read as "this agency staff member is managing the file" — the
+  // opposite of the truth. Fixed here.
+  const assignedDisplayName = transaction.serviceType === "outsourced"
+    ? ((transaction.assignedUser as { name?: string | null } | null)?.name ?? null)
+    : (agentUser?.name ?? null);
 
   // Tab strip — badges (counts on Reminders + To-Do) update via
   // TabBadgeReporter once the relevant panels stream in.

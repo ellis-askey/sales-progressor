@@ -440,8 +440,15 @@ export function PropertyHero({
           )}
 
           {/* Stat row — absorbs the old Zone-2 stats strip. 2×2 on
-              mobile, 4-up on desktop. "–" for anything unset. */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-4" style={{ marginTop: 20 }}>
+              mobile, 4-up on desktop. Desktop grid gives the "Expected
+              exchange" cell 1.35fr (vs 1fr for the other three) so the
+              4-digit-year date ("21 Oct 2026") fits without truncating
+              to "21 Oct 2…". Mobile keeps the equal 2-col layout. "–"
+              for anything unset. */}
+          <div
+            className="grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.35fr] gap-x-4 gap-y-4"
+            style={{ marginTop: 20 }}
+          >
             <HeroStatCell Icon={CurrencyGbp} label="Sale price" value={price ?? "–"} sensitive />
             <HeroStatCell Icon={UserCircle} label="Purchase type" value={purchaseType ? formatPurchaseType(purchaseType) : "–"} />
             <HeroStatCell Icon={HouseSimple} label="Tenure" value={tenure ? formatTenure(tenure) : "–"} />
@@ -465,7 +472,14 @@ export function PropertyHero({
             gap: 14,
             flexWrap: "wrap",
           }}>
-            {assignedUserName && (
+            {/* "Managing this file" row.
+                - With a name: coral avatar + name + subtitle.
+                - Without: muted "?" chip + "Not assigned yet" as the
+                  primary line, with "Managing this file" underneath as
+                  the subtitle so the layout stays consistent.
+                Selection logic lives in the page (service-type-aware) —
+                the hero just renders whatever it's given. */}
+            {assignedUserName ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
                 <span aria-hidden style={{
                   width: 32,
@@ -483,6 +497,31 @@ export function PropertyHero({
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>
                     {assignedUserName}
+                  </span>
+                  <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                    Managing this file
+                  </span>
+                </span>
+              </span>
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                <span aria-hidden style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: "rgba(15,23,42,0.06)",
+                  color: "var(--agent-text-muted)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 15,
+                  fontWeight: 500,
+                  flexShrink: 0,
+                  fontStyle: "italic",
+                }}>?</span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)", lineHeight: 1.25 }}>
+                    Not assigned yet
                   </span>
                   <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>
                     Managing this file
