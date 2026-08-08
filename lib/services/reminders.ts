@@ -439,7 +439,27 @@ export async function getChaseTasksForTransaction(transactionId: string, scope: 
 
 // ─── Core engine ──────────────────────────────────────────────────────────────
 
-export async function evaluateTransactionReminders(transactionId: string) {
+export async function evaluateTransactionReminders(
+  transactionId: string,
+  opts?: { anchorCodes?: string[] },
+) {
+  // opts.anchorCodes is a performance filter, not a behaviour change.
+  //
+  // Without it, every confirm-path caller re-evaluates all ~40 seeded reminder
+  // rules, each doing 3-5 serial queries — 6-10 seconds of the click. When the
+  // caller knows which milestone codes just changed, passing them here filters
+  // the rules query to (a) rules anchored on those codes (their nextDueDate
+  // needs recomputing now the anchor has a completedAt), (b) rules targeting
+  // those codes (deactivation — autoCompleteRemindersForMilestone already
+  // does this, filter kept for defence-in-depth), and (c) all exchange-gated
+  // rules (an exchange gate might have just unlocked, so any rule with
+  // requiresExchangeReady=true must be re-checked regardless of anchor).
+  // Rules matching none of these have no reason to re-evaluate on this
+  // specific confirm — skipping them is safe.
+  //
+  // Callers that don't know a specific code (nightly cron, bulk migrate, etc.)
+  // omit the opt and get the original behaviour (all rules).
+  //
   // CRITICAL ROUND-SCOPING: this is the chase engine. Reading archived
   // rounds' PMs here would cause every rule to misfire post-relist:
   // a target marked complete on the OLD round would deactivate the
@@ -502,9 +522,22 @@ export async function evaluateTransactionReminders(transactionId: string) {
     return c && (c.state === "complete" || c.state === "not_required");
   });
 
-  // Load all active reminder rules
+  // Load reminder rules — filtered by anchorCodes when the caller passed
+  // them (see the opts.anchorCodes comment on this function's signature).
+  const anchorCodes = opts?.anchorCodes?.filter(Boolean) ?? [];
   const rules = await prisma.reminderRule.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(anchorCodes.length > 0
+        ? {
+            OR: [
+              { anchorMilestone: { code: { in: anchorCodes } } },
+              { targetMilestoneCode: { in: anchorCodes } },
+              { requiresExchangeReady: true },
+            ],
+          }
+        : {}),
+    },
     include: { anchorMilestone: true },
   });
 

@@ -173,7 +173,17 @@ export async function confirmMilestoneAction(input: {
   // Previously deferred to the 04:00 cron - so if an agent set the
   // eventDate on confirmation and expected the follow-up chases to
   // start, they'd see nothing happen until the next day.
-  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+  //
+  // 2026-08-08: pass anchorCodes so the engine loops over ~1-8 relevant
+  // rules instead of all ~40. Same behavioural guarantee (any rule anchored
+  // on this code, targeting this code, or exchange-gated is still checked);
+  // 6-10 seconds cheaper per click.
+  const anchorCodesForEval = [def?.code, counterCode].filter(
+    (c): c is string => typeof c === "string",
+  );
+  await evaluateTransactionReminders(input.transactionId, {
+    anchorCodes: anchorCodesForEval,
+  }).catch((err) => {
     console.error("[confirmMilestoneAction] reminder re-eval failed", err);
   });
 
@@ -818,7 +828,20 @@ export async function confirmExchangeReconciliationAction(input: {
   // bilateral counterparts) and any earlier milestones the sweep closed;
   // without this call a follow-up chase anchored on those events would
   // sit idle until the next 04:00 cron.
-  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+  //
+  // 2026-08-08: pass anchorCodes (primary + bilateral counterpart + every
+  // outstanding code the sweep just closed) so the engine loops over the
+  // relevant rules instead of all ~40. Same behavioural guarantee — any
+  // exchange-gated rule is still checked because the filter always includes
+  // requiresExchangeReady=true rules.
+  const anchorCodesForEval = [
+    def.code,
+    counterCode,
+    ...outstandingDefs.map((d) => d.code),
+  ].filter((c): c is string => typeof c === "string");
+  await evaluateTransactionReminders(input.transactionId, {
+    anchorCodes: anchorCodesForEval,
+  }).catch((err) => {
     console.error("[confirmExchangeReconciliationAction] reminder re-eval failed", err);
   });
 
