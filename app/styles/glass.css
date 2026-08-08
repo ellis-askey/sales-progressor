@@ -314,97 +314,120 @@
 
 /* ────────────────────────────────────────────────────────────────────── */
 /*  Family 06 — Bespoke glassmorphism                                     */
-/*  Added 2026-08-08 (Ellis's ask: "add a few extra bespoke options like  */
-/*  the ones found in this site"). Five distinctive glassmorphism looks   */
-/*  that go further than the ported Elevra families — multi-layered      */
-/*  inner highlights, pastel gradient tints, chromatic borders, curved-  */
-/*  lens depth, and a warm SP-brand variant that bridges Elevra frost    */
-/*  with the coral identity.                                              */
+/*  Replaced 2026-08-08 (Ellis: "replace them with these 5 as the         */
+/*  bespoke ones") with five recipes he supplied — masked dual-edge       */
+/*  borders, Apple liquid glass, a specular glow bar, a contrast lens     */
+/*  and the classic Uiverse frost bar. Each adapted from its demo         */
+/*  context to a single card class: brand coral in place of the demos'    */
+/*  blue, no remote images, contrast tuned for the app backdrop.          */
 /* ────────────────────────────────────────────────────────────────────── */
 
-/* v23 — Neuro-frost. Classic dashboard glassmorphism: heavy frost with
-   a dual inner highlight (bright top-left, faint dark bottom-right) that
-   gives the card a subtle curved-glass bezel feel. Reads well on any
-   background. */
+/* v23 — Liquid glass (Apple). From Ellis's snippet 2/4: the layered
+   .glass-filter / .glass-overlay / .glass-specular stack collapsed into
+   one class — saturate + brightness vibrancy, white 25% overlay, dual
+   specular inset, springy hover transition. (The SVG lens-distortion
+   filter from the demo is omitted — it needs an inline SVG per page.) */
 .glass-v23 {
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
   box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.35),
-    inset -1px -1px 0 rgba(15, 26, 46, 0.06),
-    0 8px 24px rgba(15, 26, 46, 0.08),
-    0 2px 4px rgba(15, 26, 46, 0.04);
-  backdrop-filter: blur(48px) saturate(1.4);
-  -webkit-backdrop-filter: blur(48px) saturate(1.4);
+    inset 1px 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 0 5px rgba(255, 255, 255, 0.75),
+    0 6px 6px rgba(0, 0, 0, 0.2),
+    0 0 20px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(4px) saturate(120%) brightness(1.15);
+  -webkit-backdrop-filter: blur(4px) saturate(120%) brightness(1.15);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 2.2);
 }
 
-/* v24 — Pastel dream. Soft pink→cyan tint overlaid on heavy frost.
-   Feels like Apple Health / Fitness cards. Good for cards you want to
-   feel "friendly" without being loud. */
+/* v24 — Specular glow bar. From Ellis's snippet 3: inner white glow ring
+   + outer halo, with two radial ellipse highlights (mirrored top sheen,
+   full-bleed bottom bloom) as pseudo layers. pointer-events none so the
+   sheen never blocks clicks. */
 .glass-v24 {
   position: relative;
-  background:
-    linear-gradient(135deg, rgba(255, 200, 220, 0.18) 0%, rgba(180, 220, 255, 0.18) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+  background: transparent;
+  border: none;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.40),
-    0 12px 32px rgba(15, 26, 46, 0.06);
-  backdrop-filter: blur(52px) saturate(1.5);
-  -webkit-backdrop-filter: blur(52px) saturate(1.5);
+    0 0 5px 1px #fff inset,
+    0 0 15px rgba(255, 255, 255, 0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.glass-v24::before,
+.glass-v24::after {
+  content: "";
+  background: radial-gradient(ellipse, rgba(238, 238, 238, 0), rgba(255, 255, 255, 0.40));
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+  scale: 1.25;
+  pointer-events: none;
+}
+.glass-v24::before {
+  height: 55%;
+  scale: 1 -1;
+  mask: linear-gradient(transparent, black);
+  -webkit-mask: linear-gradient(transparent, black);
 }
 
-/* v25 — Chromatic edge. Rainbow gradient border (cyan → lavender → rose
-   → lime) with a frosted body. Border-image gradient trick same as v15
-   but four hues instead of two. Best used sparingly (one signature card
-   per page). */
+/* v25 — Masked duo edge. From Ellis's snippet 1 (the credit-card demo):
+   two 1px borders on opposing mask gradients — a white edge lit from the
+   top-left, a coral edge rising from the bottom-right — over a soft
+   left-to-right white glass fade. Coral replaces the demo's blue. */
 .glass-v25 {
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)) padding-box,
-    linear-gradient(135deg,
-      rgba(56, 225, 255, 0.75) 0%,
-      rgba(179, 131, 255, 0.65) 33%,
-      rgba(255, 143, 163, 0.60) 66%,
-      rgba(168, 255, 96, 0.55) 100%) border-box;
-  border: 1px solid transparent;
-  box-shadow:
-    0 12px 32px rgba(15, 26, 46, 0.10),
-    0 2px 4px rgba(15, 26, 46, 0.04);
-  backdrop-filter: blur(48px) saturate(1.5);
-  -webkit-backdrop-filter: blur(48px) saturate(1.5);
+  position: relative;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.05));
+  border: none;
+  box-shadow: 0 0.25em 0.375em rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.glass-v25::before,
+.glass-v25::after {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.glass-v25::before {
+  border: 1px solid #fff;
+  mask-image: linear-gradient(135deg, #fff, transparent 50%);
+  -webkit-mask-image: linear-gradient(135deg, #fff, transparent 50%);
+}
+.glass-v25::after {
+  border: 1px solid rgba(var(--agent-coral-rgb), 0.9);
+  mask-image: linear-gradient(135deg, transparent 50%, #fff);
+  -webkit-mask-image: linear-gradient(135deg, transparent 50%, #fff);
 }
 
-/* v26 — Deep-lens frost. Very heavy blur + a subtle vertical background
-   gradient (lighter top, darker bottom) that fakes the curvature of a
-   real glass lens. Specular top edge + soft ground-shadow. Premium
-   hero-card treatment. */
+/* v26 — Contrast lens. From Ellis's snippet 5 (the roaming magnifier):
+   blur + contrast punch so what's behind the card pops like it's under
+   curved glass, thin white lens-edge highlight. Contrast tamed from the
+   demo's 500% to stay readable behind card content. */
 .glass-v26 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.10) 100%) padding-box,
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0.08) 40%, rgba(255, 255, 255, 0.02) 100%) border-box;
-  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
   box-shadow:
-    0 20px 48px rgba(15, 26, 46, 0.12),
-    0 4px 8px rgba(15, 26, 46, 0.06),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(64px) saturate(1.6);
-  -webkit-backdrop-filter: blur(64px) saturate(1.6);
+    0.1em 0.1em 0 rgba(255, 255, 255, 0.20),
+    inset 0 0 24px rgba(255, 255, 255, 0.28),
+    0 12px 32px rgba(0, 0, 0, 0.10);
+  backdrop-filter: blur(24px) contrast(1.35) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) contrast(1.35) saturate(1.2);
 }
 
-/* v27 — Warm frost (Sales-Progressor coral). Bridges the Elevra frost
-   with SP's coral brand identity. Warm cream tint over frost, coral
-   hairline border, gentle warm inner glow. Best when you want the
-   glassmorphism aesthetic without departing from SP's palette. */
+/* v27 — Classic frost bar. From Ellis's snippet 4 (the Uiverse music
+   bar): white 15% body, 8px blur, crisp 18% white hairline, deep soft
+   drop shadow. The most "canonical glassmorphism" of the family. */
 .glass-v27 {
-  background:
-    linear-gradient(180deg, rgba(255, 245, 235, 0.30) 0%, rgba(255, 255, 255, 0.18) 100%);
-  border: 1px solid rgba(var(--agent-coral-rgb), 0.20);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 0 20px rgba(var(--agent-coral-rgb), 0.05),
-    0 10px 28px rgba(var(--agent-coral-rgb), 0.08),
-    0 2px 4px rgba(15, 26, 46, 0.04);
-  backdrop-filter: blur(48px) saturate(1.3);
-  -webkit-backdrop-filter: blur(48px) saturate(1.3);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(13, 38, 38, 0.30);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -455,17 +478,25 @@
   .glass-v17,
   .glass-v18,
   .glass-v19,
-  .glass-v22,
-  .glass-v23,
-  .glass-v24,
-  .glass-v25,
-  .glass-v27 {
+  .glass-v22 {
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
   }
+  /* Bespoke family (2026-08-08 recipes): these are light-blur looks by
+     design, so mobile only trims, never bulldozes to 28px. v23 keeps its
+     desktop filter (4px is already cheap). */
+  .glass-v24,
+  .glass-v25 {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
   .glass-v26 {
-    backdrop-filter: blur(36px) saturate(1.4);
-    -webkit-backdrop-filter: blur(36px) saturate(1.4);
+    backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
+  }
+  .glass-v27 {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 }
 

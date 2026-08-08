@@ -185,22 +185,22 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
     id: "bespoke",
     label: "Bespoke",
     intro:
-      "Distinctive glassmorphism looks added for Sales Progressor. Heavier frost, layered inner highlights, and options that bridge Elevra's palette with SP's warm coral identity.",
+      "Ellis's five hand-picked glassmorphism recipes (2026-08-08). Apple liquid glass, a specular glow bar, masked dual-edge borders, a contrast lens and the classic frost bar — each adapted from its source demo to sit on the app backdrop.",
     bestFor: [
       "Signature cards that need to stand out from the plain frost families",
-      "Cards where a subtle warm or pastel tone reads better than raw glass",
-      "Hero surfaces that need a curved-lens depth cue",
+      "Hero surfaces (liquid glass + masked duo carry the most identity)",
+      "Bars and strips (glow bar + classic frost were born as bars)",
     ],
     avoid: [
       "Using every bespoke variant on the same screen (they compete)",
-      "Body-text-heavy surfaces for v25 (chromatic edge reads as decoration, not chrome)",
+      "Dense data grids under v26 (the contrast punch fights small text)",
     ],
     variants: [
-      { id: "v23", label: "Neuro-frost",     technique: "heavy frost · dual inner-highlight bezel", recommended: true, recommendedFor: "Cleanest bespoke card. Reads well on any background." },
-      { id: "v24", label: "Pastel dream",    technique: "pink→cyan pastel tint · very heavy frost" },
-      { id: "v25", label: "Chromatic edge",  technique: "4-hue rainbow border · frost body" },
-      { id: "v26", label: "Deep-lens frost", technique: "curved-lens vertical gradient · 64px blur" },
-      { id: "v27", label: "Warm frost (SP)", technique: "coral-tinted warm frost · SP brand bridge" },
+      { id: "v23", label: "Liquid glass",     technique: "white 25% · specular inset · saturate + brighten · springy hover", recommended: true, recommendedFor: "The Apple liquid-glass look. Strong hero + card default." },
+      { id: "v24", label: "Specular glow bar", technique: "inner glow ring · mirrored radial sheen layers" },
+      { id: "v25", label: "Masked duo edge",   technique: "white edge top-left + coral edge bottom-right, opposing masks" },
+      { id: "v26", label: "Contrast lens",     technique: "blur 24px · contrast 1.35 · lens-edge highlight" },
+      { id: "v27", label: "Classic frost bar", technique: "white 15% · blur 8px · 18% hairline · deep soft shadow" },
     ],
   },
 ];
