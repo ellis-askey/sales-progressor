@@ -10,6 +10,7 @@
 // 2026-08-08.
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { X, RotateCcw, Download, Sparkle } from "lucide-react";
 import { useGlassPicks } from "@/lib/glass/context";
 import {
@@ -90,7 +91,12 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   if (!open) return null;
 
-  return (
+  // Portalled to <body>: the drawer mounts inside the topbar, whose
+  // backdrop-filter makes it a containing block for position:fixed
+  // descendants — without the portal the drawer pins to the BAR, not
+  // the viewport, and renders clipped (Ellis screenshot, 2026-08-08,
+  // after the app-wide blur restoration made topbar blur real).
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -330,6 +336,7 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
           </button>
         </footer>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
