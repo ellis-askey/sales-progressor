@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
 import { isThemeMode, type ThemeMode } from "@/lib/agent/theme-mode";
+import { isGlassVariantId, DEFAULT_VARIANT } from "@/lib/glass/variants";
 import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
 import { pushToUser } from "@/lib/services/push";
 
@@ -254,6 +255,53 @@ export async function updateAgentPushPrefAction(input: {
   });
 
   return { ok: true as const, key: input.key, value: input.value };
+}
+
+// Design Lab (Ellis-only) — persists the per-card glass-variant picks
+// on User.agentPreferences.glassPicks. Read-merge-write so other prefs
+// (theme, themeMode, notifications) are preserved. Input is sanitised:
+// unknown variant IDs are dropped, and any pick equal to the default
+// (v00) is removed since it's the fallback. Empty JSON is a valid
+// input (used by the "Reset all" button in the drawer).
+// 2026-08-08.
+export async function updateGlassPicksAction(picks: Record<string, string>) {
+  const session = await requireSession();
+
+  const cleaned: Record<string, string> = {};
+  if (picks && typeof picks === "object") {
+    for (const [k, v] of Object.entries(picks)) {
+      if (typeof k !== "string" || k.length === 0) continue;
+      if (!isGlassVariantId(v)) continue;
+      if (v === DEFAULT_VARIANT) continue;
+      cleaned[k] = v;
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: {
+        ...existingPrefs,
+        glassPicks: cleaned,
+      },
+    },
+  });
+
+  // No revalidatePath — the DOM has already updated optimistically via
+  // GlassPicksContext state; a route revalidation would just churn the
+  // whole page.
+
+  return { ok: true as const, count: Object.keys(cleaned).length };
 }
 
 // Retention email opt-out lives on its own column (not in agentPreferences

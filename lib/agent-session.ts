@@ -22,6 +22,7 @@ import {
   type MobileAgentTheme,
 } from "@/lib/agent/themes";
 import { readThemeModeFromPrefs, type ThemeMode } from "@/lib/agent/theme-mode";
+import { isGlassVariantId, type GlassVariantId } from "@/lib/glass/variants";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 
@@ -70,6 +71,11 @@ export type AgentSessionContext = {
   // still use the old --agent-* palette. themeMode drives the Elevra
   // background layer + the toggle in the topbar.
   themeMode: ThemeMode;
+  // Design Lab (Ellis-only): per-card glass-variant picks. Empty {} for
+  // non-Ellis users so their tagged cards render as defaultVariant every
+  // time. Written to User.agentPreferences.glassPicks by
+  // updateGlassPicksAction. 2026-08-08.
+  glassPicks: Record<string, GlassVariantId>;
   chainDeclineNotif: string | null;
   // Agency.modeProfile — drives the conditional copy in the welcome tour.
   // Defaults to "self_progressed" if the user has no agency (shouldn't
@@ -102,6 +108,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
+  const glassPicks = readGlassPicksFromPrefs(userRecord?.agentPreferences);
   const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
   const agencyModeProfile = userRecord?.agency?.modeProfile ?? "self_progressed";
 
@@ -114,10 +121,27 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     mobileTheme,
     nightModePref,
     themeMode,
+    glassPicks,
     chainDeclineNotif,
     agencyModeProfile,
   };
 });
+
+/** Reads Design-Lab glass picks off the agentPreferences JSON blob.
+ *  Sanitises unknown keys / variant IDs so a bad DB row can't crash the
+ *  layout. Empty object for anyone who hasn't picked anything. */
+function readGlassPicksFromPrefs(prefs: unknown): Record<string, GlassVariantId> {
+  if (!prefs || typeof prefs !== "object") return {};
+  const blob = (prefs as { glassPicks?: unknown }).glassPicks;
+  if (!blob || typeof blob !== "object") return {};
+  const out: Record<string, GlassVariantId> = {};
+  for (const [k, v] of Object.entries(blob as Record<string, unknown>)) {
+    if (typeof k === "string" && k.length > 0 && isGlassVariantId(v)) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 /**
  * Director-only guard. Use in the billing-chrome layout — negotiators get

@@ -7,6 +7,7 @@ import { resolveAgentSession } from "@/lib/agent-session";
 import { shouldSeeKineticShell } from "@/lib/kinetic/flag";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { AppBackground } from "@/components/decor/AppBackground";
+import { GlassPicksProvider } from "@/lib/glass/context";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
 import "./styles/kinetic-shell.css";
@@ -20,7 +21,7 @@ import "@/app/styles/elevra.css";
 import "@/app/styles/glass.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, themeMode, chainDeclineNotif, agencyModeProfile } =
+  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, themeMode, glassPicks, chainDeclineNotif, agencyModeProfile } =
     await resolveAgentSession();
 
   const kineticEnabled = shouldSeeKineticShell(session);
@@ -33,6 +34,10 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       {/* WebGL backdrop: SoftAurora on dark, Iridescence on light,
           CSS fallback on iOS. Reads data-theme on <html> and swaps live. */}
       <AppBackground />
+      {/* Design Lab (Ellis-only) — provides per-card glass-variant picks
+          via context. Empty for anyone who hasn't set picks, so their
+          tagged cards render as their defaultVariant (v00 = today). */}
+      <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
         <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} themeMode={themeMode} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled}>
           {chainDeclineNotif && (
@@ -45,6 +50,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
         {!isInternalStaff && <FeedbackWidget checklistAware userId={session.user.id} />}
         <AgentInstallPrompt />
       </AgentToaster>
+      </GlassPicksProvider>
     </div>
   );
 }
