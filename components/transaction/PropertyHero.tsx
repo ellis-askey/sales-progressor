@@ -269,37 +269,51 @@ export function PropertyHero({
           type="button"
           onClick={() => setSwitchModalOpen(true)}
           title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
-          className="v2-swap-btn group"
+          className="v2-swap-btn"
           style={{
             ...baseStyle,
             border: "none",
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
-            gap: 4,
             fontFamily: "inherit",
           }}
         >
           {label}
-          <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
-            ⇄
-          </span>
+          {/* Arrow collapses to 0-width at rest via .v2-swap-arrow (CSS in
+              agent-system.css). Expands + rotates on hover so the pill
+              sizes to just the label unless the user hovers. */}
+          <span className="v2-swap-arrow" aria-hidden>⇄</span>
         </button>
       );
     })();
 
-    // Photo layer (desktop: left panel fading right into the card
-    // surface; mobile: top strip fading down). Fallback keeps the same
-    // slot so the layout is identical with or without a photo.
-    const photoLayerDesktop = photoUrl ? (
-      <div aria-hidden className="hidden md:block" style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "46%", pointerEvents: "none" }}>
+    // Desktop photo COLUMN — flex child (was absolute-positioned before
+    // the 2026-08-08 refactor). `flex: 0 1 380px` means: ideal width 380px,
+    // shrinks as content demands more room, min-width: 240 stops it from
+    // disappearing on tight viewports (photo still reads as a real photo).
+    // The right-edge gradient fades the photo into the card surface —
+    // since the column is now a flex child, the gradient always sits at
+    // the column's own right edge and moves left/right with it as the
+    // content column grows or shrinks.
+    const photoColumnDesktop = photoUrl ? (
+      <div aria-hidden className="hidden md:block" style={{
+        flex: "0 1 380px",
+        minWidth: 240,
+        position: "relative",
+        alignSelf: "stretch",
+        pointerEvents: "none",
+      }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 45%, var(--agent-surface-elevated) 98%)" }} />
       </div>
     ) : (
       <div aria-hidden className="hidden md:flex" style={{
-        position: "absolute", top: 0, bottom: 0, left: 0, width: "46%",
+        flex: "0 1 380px",
+        minWidth: 240,
+        position: "relative",
+        alignSelf: "stretch",
         pointerEvents: "none",
         background: "linear-gradient(115deg, rgba(var(--agent-coral-rgb), 0.14) 0%, rgba(var(--agent-coral-rgb), 0.04) 60%, var(--agent-surface-elevated) 98%)",
         alignItems: "center",
@@ -336,61 +350,30 @@ export function PropertyHero({
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         overflow: "hidden",
       }}>
-        {photoLayerDesktop}
+        {/* Mobile photo strip — stacks above the content (unchanged). */}
         {photoLayerMobile}
 
-        {/* Back link — floats over the photo corner. Glass pill so it
-            stays readable over any photo; darker treatment when a real
-            photo is behind it. */}
-        <Link
-          href={backHref}
-          style={{
-            position: "absolute",
-            top: 14,
-            left: 14,
-            zIndex: 2,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            textDecoration: "none",
-            padding: "6px 12px",
-            borderRadius: 999,
-            color: photoUrl ? "#fff" : "var(--agent-text-secondary)",
-            background: photoUrl ? "rgba(15,23,42,0.38)" : "rgba(15,23,42,0.06)",
-            backdropFilter: photoUrl ? "blur(8px)" : undefined,
-            WebkitBackdropFilter: photoUrl ? "blur(8px)" : undefined,
-          }}
-        >
-          <ArrowLeft size={13} weight="bold" />
-          Back to files
-        </Link>
+        {/* Desktop card body: flex row so the content column can grow to
+            fit its stats and the photo column shrinks to whatever's left
+            (down to its 240px minimum). The old layout pinned the photo
+            at width: 46% absolute-positioned and gave the content column
+            a hard-coded margin-left: 42%, so long values like
+            "Cash from Proceeds" or "21 Oct 2026" hit the ellipsis
+            regardless of viewport. New layout is content-driven —
+            2026-08-08 second-pass fix. */}
+        <div className="md:flex" style={{ position: "relative" }}>
+          {photoColumnDesktop}
 
-        {/* Role-gated header controls (AI summary + portal emails) —
-            top-right, on a soft glass strip so they read over photo or
-            surface alike. Hidden when the page passes nothing. */}
-        {topRightSlot && (
-          <div className="agent-hero-topright" style={{
-            position: "absolute",
-            top: 14,
-            right: 14,
-            zIndex: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
+          {/* Content column: takes all remaining space; minWidth: 0 lets
+              its children (h1, stat labels) shrink honourably rather than
+              refusing to fit and blowing out the flex layout. */}
+          <div style={{
+            flex: "1 1 auto",
+            minWidth: 0,
+            position: "relative",
+            zIndex: 1,
+            padding: "18px 22px 20px",
           }}>
-            {topRightSlot}
-          </div>
-        )}
-
-        {/* Content column — desktop sits right of the photo; mobile
-            flows under the photo strip. */}
-        <div className="md:ml-[42%]" style={{
-          position: "relative",
-          zIndex: 1,
-          padding: "18px 22px 20px",
-        }}>
           {/* Status + progress row. Top padding on desktop clears the
               floating top-right controls. */}
           <div className="md:pt-8" style={{
@@ -439,14 +422,16 @@ export function PropertyHero({
             </p>
           )}
 
-          {/* Stat row — absorbs the old Zone-2 stats strip. 2×2 on
-              mobile, 4-up on desktop. Desktop grid gives the "Expected
-              exchange" cell 1.35fr (vs 1fr for the other three) so the
-              4-digit-year date ("21 Oct 2026") fits without truncating
-              to "21 Oct 2…". Mobile keeps the equal 2-col layout. "–"
-              for anything unset. */}
+          {/* Stat row — absorbs the old Zone-2 stats strip.
+              Desktop: flex-wrap with auto-sized cells. Each cell takes
+              exactly the width its content needs (icon + label + value);
+              cells wrap to a second row if the container gets too narrow.
+              This replaces the equal-grid approach — no cell can dominate
+              and truncate its neighbours; long values like
+              "Cash from Proceeds" or "21 Oct 2026" render in full.
+              Mobile: 2-col grid keeps the compact symmetrical layout. */}
           <div
-            className="grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.35fr] gap-x-4 gap-y-4"
+            className="grid grid-cols-2 gap-x-4 gap-y-4 md:flex md:flex-wrap md:gap-x-6"
             style={{ marginTop: 20 }}
           >
             <HeroStatCell Icon={CurrencyGbp} label="Sale price" value={price ?? "–"} sensitive />
@@ -559,7 +544,55 @@ export function PropertyHero({
           </div>
 
           {flagSlot}
+          </div>
         </div>
+
+        {/* Back link — floats over the photo corner. Glass pill so it
+            stays readable over any photo; darker treatment when a real
+            photo is behind it. Positioned absolute against the outer
+            card (which is position: relative), so its position is
+            unaffected by the flex-row split above. */}
+        <Link
+          href={backHref}
+          style={{
+            position: "absolute",
+            top: 14,
+            left: 14,
+            zIndex: 2,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            textDecoration: "none",
+            padding: "6px 12px",
+            borderRadius: 999,
+            color: photoUrl ? "#fff" : "var(--agent-text-secondary)",
+            background: photoUrl ? "rgba(15,23,42,0.38)" : "rgba(15,23,42,0.06)",
+            backdropFilter: photoUrl ? "blur(8px)" : undefined,
+            WebkitBackdropFilter: photoUrl ? "blur(8px)" : undefined,
+          }}
+        >
+          <ArrowLeft size={13} weight="bold" />
+          Back to files
+        </Link>
+
+        {/* Role-gated header controls (AI summary + portal emails) —
+            top-right, on a soft glass strip so they read over photo or
+            surface alike. Hidden when the page passes nothing. */}
+        {topRightSlot && (
+          <div className="agent-hero-topright" style={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}>
+            {topRightSlot}
+          </div>
+        )}
 
         {/* Single-instance service-type switch modal. */}
         {canSwitchService && transactionId && serviceType && (
