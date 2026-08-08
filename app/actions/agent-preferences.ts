@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
+import { isThemeMode, type ThemeMode } from "@/lib/agent/theme-mode";
 import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
 import { pushToUser } from "@/lib/services/push";
 
@@ -73,6 +74,46 @@ export async function updateAgentMobileTheme(mobileTheme: MobileAgentTheme) {
   revalidatePath("/agent", "layout");
 
   return { ok: true as const, mobileTheme };
+}
+
+// Elevra-backgrounds pass, 2026-08-08. Persists the three-state theme axis
+// ("system" | "light" | "dark") on User.agentPreferences.themeMode.
+// Read-merge-write so other prefs (theme, mobileTheme, nightMode,
+// notifications) are preserved. The client-side toggle updates the DOM
+// optimistically before this action returns — success just makes it
+// survive a reload / cross-device.
+export async function updateThemeMode(themeMode: ThemeMode) {
+  const session = await requireSession();
+
+  if (!isThemeMode(themeMode)) {
+    return { ok: false as const, error: "Invalid theme mode" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: {
+        ...existingPrefs,
+        themeMode,
+      },
+    },
+  });
+
+  // No revalidatePath — the DOM already reflects the change (via the
+  // client-side toggle) and a revalidate would flush cached page data
+  // needlessly.
+
+  return { ok: true as const, themeMode };
 }
 
 export async function updateAgentNightMode(nightMode: boolean | null) {
