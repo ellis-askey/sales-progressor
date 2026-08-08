@@ -21,6 +21,7 @@ import {
   type AgentTheme,
   type MobileAgentTheme,
 } from "@/lib/agent/themes";
+import { readThemeModeFromPrefs, type ThemeMode } from "@/lib/agent/theme-mode";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 
@@ -63,6 +64,12 @@ export type AgentSessionContext = {
   theme: AgentTheme;
   mobileTheme: MobileAgentTheme;
   nightModePref: boolean | null;
+  // Elevra-backgrounds pass, 2026-08-08. Three-state theme axis
+  // ("system" | "light" | "dark"). Separate from `theme` above (sunset/coastal/
+  // etc.) — that legacy field stays for card/token compatibility while cards
+  // still use the old --agent-* palette. themeMode drives the Elevra
+  // background layer + the toggle in the topbar.
+  themeMode: ThemeMode;
   chainDeclineNotif: string | null;
   // Agency.modeProfile — drives the conditional copy in the welcome tour.
   // Defaults to "self_progressed" if the user has no agency (shouldn't
@@ -94,6 +101,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
+  const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
   const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
   const agencyModeProfile = userRecord?.agency?.modeProfile ?? "self_progressed";
 
@@ -105,6 +113,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     theme,
     mobileTheme,
     nightModePref,
+    themeMode,
     chainDeclineNotif,
     agencyModeProfile,
   };

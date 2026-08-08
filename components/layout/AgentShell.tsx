@@ -8,6 +8,8 @@ import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
+import type { ThemeMode } from "@/lib/agent/theme-mode";
+import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
@@ -230,7 +232,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, agencyModeProfile, kineticEnabled }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, themeMode, agencyModeProfile, kineticEnabled }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; themeMode: ThemeMode; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -274,27 +276,9 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   return (
     <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-night={nightOn ? "" : undefined} data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
 
-      {/* Aurora background */}
-      <div aria-hidden="true" style={{
-        position: "fixed", inset: 0, zIndex: -1,
-        background: "var(--agent-bg-base)",
-        overflow: "hidden",
-      }}>
-        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-          <defs>
-            <filter id="agent-plasma">
-              <feTurbulence type="turbulence" baseFrequency="0.009 0.006" numOctaves={4} seed={5}>
-                <animate attributeName="baseFrequency" dur="32s" values="0.009 0.006; 0.014 0.010; 0.007 0.012; 0.011 0.007; 0.009 0.006" repeatCount="indefinite" />
-              </feTurbulence>
-              <feColorMatrix type="saturate" values="0" />
-            </filter>
-          </defs>
-          <rect width="100%" height="100%" filter="url(#agent-plasma)" opacity={0.08} />
-        </svg>
-        <div style={{ position: "absolute", top: "-8%", left: "-22%", width: "144%", height: 380, borderRadius: "50%", background: "var(--agent-aurora-band1)", filter: "blur(80px)", mixBlendMode: "multiply", animation: "agent-aurora-down-a 13s ease-in-out infinite", willChange: "transform" }} />
-        <div style={{ position: "absolute", top: "28%", left: "-22%", width: "144%", height: 340, borderRadius: "50%", background: "var(--agent-aurora-band2)", filter: "blur(80px)", mixBlendMode: "multiply", animation: "agent-aurora-up-b 19s ease-in-out infinite", animationDelay: "-6s", willChange: "transform" }} />
-        <div style={{ position: "absolute", top: "55%", left: "-22%", width: "144%", height: 360, borderRadius: "50%", background: "var(--agent-aurora-band3)", filter: "blur(80px)", mixBlendMode: "multiply", animation: "agent-aurora-down-c 15s ease-in-out infinite", animationDelay: "-9s", willChange: "transform" }} />
-      </div>
+      {/* Elevra-backgrounds pass, 2026-08-08: the old plasma-SVG + coral
+          aurora was removed. Backdrop now lives in <AppBackground /> mounted
+          from app/agent/layout.tsx, driven by data-theme on <html>. */}
 
       {/* Sticky nav bar */}
       <header className="agent-topbar">
@@ -331,6 +315,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             {`As of ${formatAgentTime(refreshedAt)}`}
           </button>
           <div className="hidden md:block"><SolidModeToggle /></div>
+          <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>
           <AgentBell userKey={session.user.email ?? session.user.id} />
           <div className="hidden md:block"><UserDropdown session={session} role={role} /></div>
         </div>
