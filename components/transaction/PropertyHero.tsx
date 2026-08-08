@@ -372,11 +372,10 @@ export function PropertyHero({
     );
 
     return (
-      // Design Lab: `property-hero`. Default codified to v03 (Standard
-      // glass, Density family — Elevra's production default) after Ellis's
-      // 2026-08-08 pass. Ellis's DB pick still overrides this; other
-      // users now see v03 too instead of v00.
-      <GlassCard glassId="property-hero" label="Property hero" defaultVariant="v03" className="animate-enter" style={{
+      // Design Lab: `property-hero`. Default v27 (Classic frost bar,
+      // Bespoke family) per Ellis's final pick set, 2026-08-08 evening
+      // pass. Ellis's DB pick still overrides this.
+      <GlassCard glassId="property-hero" label="Property hero" defaultVariant="v27" className="animate-enter" style={{
         position: "relative",
         borderRadius: 18,
         overflow: "hidden",

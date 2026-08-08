@@ -6,6 +6,7 @@ import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { SavingPulse } from "@/components/ui/SavingPulse";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -528,9 +529,10 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   const purchaserHasReferral = referredFirmId != null && purchaserState.firm?.id === referredFirmId;
 
   return (
-    <div style={{
-      background: "var(--agent-surface-elevated)",
-      border: "0.5px solid rgba(15, 23, 42, 0.06)",
+    // Design Lab: `overview-solicitors`. Default v05 (Heavy frost) per
+    // Ellis's final pick set, 2026-08-08 evening pass. Surface treatment
+    // (background/border) moved from inline styles to the variant class.
+    <GlassCard glassId="overview-solicitors" label="Overview · Solicitors" defaultVariant="v05" style={{
       borderRadius: 10,
       overflow: "hidden",
     }}>
@@ -587,6 +589,6 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           onRemove={handlePurchaserRemove}
         />
       </div>
-    </div>
+    </GlassCard>
   );
 }

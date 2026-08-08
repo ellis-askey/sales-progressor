@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type PricePaid = { date: string; amount: number; propertyType: string; newBuild: boolean; estateType: string };
 type Epc = { rating: string; score: number | null; propertyType: string; floorArea: number | null; builtForm: string; inspectionDate: string };
@@ -48,7 +49,10 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
   }, [transactionId]);
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    // Design Lab: `overview-property-intel`. Default v05 (Heavy frost)
+    // per Ellis's final pick set, 2026-08-08 evening pass. Replaces the
+    // legacy glass-card class — surface now comes from the variant.
+    <GlassCard glassId="overview-property-intel" label="Overview · Property intel" defaultVariant="v05" className="overflow-hidden rounded-[12px]">
       <div className="agent-card-hdr">
         <div>
           <p className="agent-card-title">Property Intel</p>
@@ -159,6 +163,6 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
           </div>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 }

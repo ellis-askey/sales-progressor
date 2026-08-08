@@ -44,11 +44,12 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
   const noRisks = watchOuts === "" || watchOuts === "None" || watchOuts === "No risks identified";
 
   return (
-    // Design Lab: `overview-ai-summary` (Ellis-only card). Default v22.
+    // Design Lab: `overview-ai-summary` (Ellis-only card). Default v05
+    // (final pick set 2026-08-08).
     <GlassCard
       glassId="overview-ai-summary"
       label="Overview · AI summary"
-      defaultVariant="v22"
+      defaultVariant="v05"
       style={{
         position: "relative",
         padding: "16px 90px 16px 18px",

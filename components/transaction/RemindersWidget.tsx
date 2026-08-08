@@ -21,8 +21,8 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
   const { setActiveTab } = useTabContext();
 
   return (
-    // Design Lab: `overview-reminders`. Default v22.
-    <GlassCard glassId="overview-reminders" label="Overview · Reminders" defaultVariant="v22" className="overflow-hidden" style={{ borderRadius: 12 }}>
+    // Design Lab: `overview-reminders`. Default v05 (final pick set 2026-08-08).
+    <GlassCard glassId="overview-reminders" label="Overview · Reminders" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 12 }}>
       {/* Header */}
       <div className="agent-card-hdr">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -429,7 +429,7 @@ export default async function AgentTransactionDetailPage({
         initialTab={initialTab}
         heroConnected
         beforeContent={
-          <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v00" style={{
+          <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" style={{
             borderRadius: 10,
             padding: "12px 18px",
           }}>

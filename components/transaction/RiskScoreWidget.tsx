@@ -15,8 +15,8 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
   const cfg = RISK_CONFIG[level];
 
   return (
-    // Design Lab: `overview-risk`. Default v22.
-    <GlassCard glassId="overview-risk" label="Overview · Fall-through risk" defaultVariant="v22" id="risk-score" className="overflow-hidden" style={{ scrollMarginTop: 100, borderRadius: 12 }}>
+    // Design Lab: `overview-risk`. Default v05 (final pick set 2026-08-08).
+    <GlassCard glassId="overview-risk" label="Overview · Fall-through risk" defaultVariant="v05" id="risk-score" className="overflow-hidden" style={{ scrollMarginTop: 100, borderRadius: 12 }}>
       <div className="agent-card-hdr">
         <h3 className="agent-card-title">Fall-through risk</h3>
       </div>

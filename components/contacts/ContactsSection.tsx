@@ -597,12 +597,11 @@ export function ContactsSection({
   });
 
   return (
-    // Design Lab: `contacts-card`. Default codified to v22 (Iridescent,
-    // Decorative family) after Ellis's 2026-08-08 pass. The overflow +
+    // Design Lab: `contacts-card`. Default v05 (Heavy frost) per Ellis's
+    // final pick set, 2026-08-08 evening pass. The overflow +
     // border-radius stay on the wrapper so nested contact rows still
-    // clip correctly, and the ::before iridescent overlay is anchored
-    // to the wrapper's border-radius via `inherit`.
-    <GlassCard glassId="contacts-card" label="Contacts card" defaultVariant="v22" className="overflow-hidden" style={{ borderRadius: 12 }}>
+    // clip correctly.
+    <GlassCard glassId="contacts-card" label="Contacts card" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 12 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>

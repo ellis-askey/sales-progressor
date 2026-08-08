@@ -118,9 +118,9 @@ export function RecentActivityWidget({ entries }: Props) {
     }
   }
 
-  // Design Lab: `overview-recent-activity`. Default v22.
+  // Design Lab: `overview-recent-activity`. Default v05 (final pick set 2026-08-08).
   return (
-    <GlassCard glassId="overview-recent-activity" label="Overview · Recent activity" defaultVariant="v22" style={{
+    <GlassCard glassId="overview-recent-activity" label="Overview · Recent activity" defaultVariant="v05" style={{
       borderRadius: 14,
       overflow: "hidden",
     }}>

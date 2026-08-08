@@ -60,13 +60,14 @@ export function NextActionCard({
   const due = DUE_TONE[dueTone];
 
   return (
-    // Design Lab: `overview-next-action`. Default v22 (Iridescent) per
-    // Ellis's 2026-08-08 pass. Coral tint / border stripped from the
-    // inline style — surface treatment lives in the glass variant class.
+    // Design Lab: `overview-next-action`. Default v15 (Gradient hairline)
+    // per Ellis's final pick set, 2026-08-08 evening pass. Coral tint /
+    // border stripped from the inline style — surface treatment lives in
+    // the glass variant class.
     <GlassCard
       glassId="overview-next-action"
       label="Overview · Next action"
-      defaultVariant="v22"
+      defaultVariant="v15"
       style={{
         padding: "16px 18px",
         borderRadius: 14,
