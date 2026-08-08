@@ -7,6 +7,7 @@ import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft }
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { formatDate } from "@/lib/utils";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Props = {
   address: string;
@@ -342,12 +343,12 @@ export function PropertyHero({
     );
 
     return (
-      <div className="animate-enter" style={{
+      // Design Lab: `property-hero` — background / border / shadow move
+      // out of the inline style into the .glass-vNN class supplied by
+      // GlassCard (v00 baseline reproduces today's coral warm look).
+      <GlassCard glassId="property-hero" label="Property hero" className="animate-enter" style={{
         position: "relative",
-        background: "var(--agent-surface-elevated)",
         borderRadius: 18,
-        border: "0.5px solid rgba(15,23,42,0.06)",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         overflow: "hidden",
       }}>
         {/* Mobile photo strip — stacks above the content (unchanged). */}
@@ -603,7 +604,7 @@ export function PropertyHero({
             onClose={() => setSwitchModalOpen(false)}
           />
         )}
-      </div>
+      </GlassCard>
     );
   }
 

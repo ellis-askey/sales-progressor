@@ -37,6 +37,7 @@ import { WhatsappGroupModal } from "./WhatsappGroupModal";
 import { PropertyPhotoField } from "./PropertyPhotoField";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -596,7 +597,12 @@ export function ContactsSection({
   });
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    // Design Lab: `contacts-card` — surface treatment picked in the Ellis-only
+    // Design Lab drawer. Was `.glass-card` (dashboard-legacy translucent
+    // gradient); v00 baseline reproduces the today-look via
+    // `background: var(--agent-surface-elevated)`. The overflow + border-radius
+    // stay on the wrapper so nested contact rows still clip correctly.
+    <GlassCard glassId="contacts-card" label="Contacts card" className="overflow-hidden" style={{ borderRadius: 12 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -996,6 +1002,6 @@ export function ContactsSection({
           }
         }
       `}</style>
-    </div>
+    </GlassCard>
   );
 }

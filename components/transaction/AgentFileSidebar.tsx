@@ -28,6 +28,7 @@ import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsD
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
 import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt } from "@phosphor-icons/react";
+import { GlassCard } from "@/components/glass/GlassCard";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
@@ -219,7 +220,7 @@ export function AgentFileSidebar({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ─── 1. Sale health ────────────────────────────────────────────── */}
-      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
+      <GlassCard glassId="sidebar-sale-health" label="Sidebar · Sale health" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -304,10 +305,10 @@ export function AgentFileSidebar({
         >
           View health details →
         </button>
-      </div>
+      </GlassCard>
 
       {/* ─── 2. Key dates ─────────────────────────────────────────────── */}
-      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
+      <GlassCard glassId="sidebar-key-dates" label="Sidebar · Key dates" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -413,11 +414,11 @@ export function AgentFileSidebar({
         >
           View full forecast →
         </button>
-      </div>
+      </GlassCard>
 
       {/* ─── 3. Agent ─────────────────────────────────────────────────── */}
       {agentUser && (
-        <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
+        <GlassCard glassId="sidebar-agent" label="Sidebar · Agent" style={{ padding: "14px 16px", borderRadius: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -457,11 +458,11 @@ export function AgentFileSidebar({
           )}
 
           {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
-        </div>
+        </GlassCard>
       )}
 
       {/* ─── 4. Fees ──────────────────────────────────────────────────── */}
-      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 10 }}>
+      <GlassCard glassId="sidebar-fees" label="Sidebar · Fees" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
@@ -520,10 +521,10 @@ export function AgentFileSidebar({
             />
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* ─── 5. Quick links ──────────────────────────────────────────── */}
-      <div style={{ padding: "14px 16px", background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(15, 23, 42, 0.06)", borderRadius: 14 }}>
+      <GlassCard glassId="sidebar-quick-links" label="Sidebar · Quick links" style={{ padding: "14px 16px", borderRadius: 14 }}>
         <p style={{
           margin: "0 0 8px",
           fontSize: 10,
@@ -547,7 +548,7 @@ export function AgentFileSidebar({
             onClick={() => setActiveTab("activity")}
           />
         </div>
-      </div>
+      </GlassCard>
 
       {showEditDrawer && (
         <EditSaleDetailsDrawer
