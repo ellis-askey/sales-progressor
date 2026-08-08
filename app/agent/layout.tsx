@@ -15,6 +15,9 @@ import "./styles/kinetic-shell.css";
 // data-theme={"sunset"|...} on .agent-shell-root (different selector,
 // different token names). Cards still read --agent-* tokens.
 import "@/app/styles/elevra.css";
+// Design Lab (Ellis-only) — 22 glass variant classes + v00 baseline.
+// Dormant until GlassCard consumers land in commit C. See file docstring.
+import "@/app/styles/glass.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, themeMode, chainDeclineNotif, agencyModeProfile } =
