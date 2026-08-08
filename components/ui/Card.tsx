@@ -14,6 +14,8 @@
 
 import type { ReactNode, HTMLAttributes } from "react";
 import { forwardRef } from "react";
+import { GlassCard } from "@/components/glass/GlassCard";
+import type { GlassVariantId } from "@/lib/glass/variants";
 
 type Variant = "glass" | "solid";
 type Padding = "none" | "sm" | "md" | "lg";
@@ -43,6 +45,16 @@ export type CardProps = HTMLAttributes<HTMLDivElement> & {
   interactive?: boolean;
   // Renders a subtle skeleton overlay. The Card stays visible underneath.
   loading?: boolean;
+  // Design Lab tagging (2026-08-08). When glassId is set, the Card's
+  // surface chrome is delegated to GlassCard so the card appears in the
+  // Design Lab picker and honours Ellis's per-card variant picks. The
+  // default variant is v03 (Standard glass), the closest catalog match
+  // to the legacy glass-card look, so untouched cards render the same.
+  // Note: ref forwarding is not supported in tagged mode (GlassCard
+  // doesn't forward refs) — none of the tagged call sites use refs.
+  glassId?: string;
+  glassLabel?: string;
+  glassDefault?: GlassVariantId;
   children?: ReactNode;
 };
 
@@ -53,13 +65,15 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     interactive = false,
     loading = false,
     className = "",
+    glassId,
+    glassLabel,
+    glassDefault,
     children,
     ...rest
   },
   ref,
 ) {
-  const baseClasses = [
-    variantMap[variant],
+  const sharedClasses = [
     paddingMap[padding],
     "rounded-[12px] overflow-hidden",
     interactive && "cursor-pointer transition-shadow hover:shadow-lg focus-within:ring-2 focus-within:ring-[#FF6B4A]/30",
@@ -69,8 +83,8 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     .filter(Boolean)
     .join(" ");
 
-  return (
-    <div ref={ref} className={baseClasses} {...rest}>
+  const inner = (
+    <>
       {children}
       {loading && (
         <div
@@ -78,6 +92,28 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
           className="absolute inset-0 bg-white/40 backdrop-blur-sm animate-pulse rounded-[12px]"
         />
       )}
+    </>
+  );
+
+  // Design-Lab-tagged mode: GlassCard supplies the surface (variant class
+  // + data-glass-* attributes); the Card keeps padding/radius/behaviour.
+  if (glassId) {
+    return (
+      <GlassCard
+        glassId={glassId}
+        label={glassLabel ?? glassId}
+        defaultVariant={glassDefault ?? "v03"}
+        className={sharedClasses}
+        {...rest}
+      >
+        {inner}
+      </GlassCard>
+    );
+  }
+
+  return (
+    <div ref={ref} className={`${variantMap[variant]} ${sharedClasses}`.trim()} {...rest}>
+      {inner}
     </div>
   );
 });

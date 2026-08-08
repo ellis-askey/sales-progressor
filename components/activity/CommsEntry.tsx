@@ -9,6 +9,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PasteWhatsAppPanel, type ImportableContact } from "@/components/activity/PasteWhatsAppPanel";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Contact = { id: string; name: string; roleType: string; phone?: string | null };
 type Solicitor = { id: string; name: string; role: string; phone?: string | null };
@@ -149,7 +150,9 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
   const allContacts = contacts.length + (solicitors?.length ?? 0);
 
   return (
-    <div className="glass-card rounded-[12px]" style={{ position: "relative", zIndex: 30 }}>
+    // Design Lab: `activity-comms-entry`. Default v03 — closest catalog
+    // match to the legacy glass-card chrome this replaced (2026-08-08).
+    <GlassCard glassId="activity-comms-entry" label="Activity · Log a communication" defaultVariant="v03" className="rounded-[12px]" style={{ position: "relative", zIndex: 30 }}>
       {/* ── Channel row ──────────────────────────────────────────────────── */}
       <div
         style={{
@@ -432,6 +435,6 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
           </div>
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }

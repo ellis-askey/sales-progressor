@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { PaperPlaneTilt, CaretDown, Warning } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type VerifiedEmail = { id: string; email: string; status: string };
 
@@ -91,7 +92,9 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
   }
 
   return (
-    <div className="glass-card p-4 space-y-3">
+    // Design Lab: `activity-compose-email`. Default v03 — closest catalog
+    // match to the legacy glass-card chrome this replaced (2026-08-08).
+    <GlassCard glassId="activity-compose-email" label="Activity · Compose email" defaultVariant="v03" className="p-4 space-y-3 rounded-[12px]">
       <p className="text-sm font-semibold text-slate-900/80">Compose email</p>
 
       {/* From */}
@@ -175,6 +178,6 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
           </button>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 }

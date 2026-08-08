@@ -412,7 +412,7 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
   const hasAny = !fileOnHold && (data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0);
 
   return (
-    <Card padding="none" className="mb-3">
+    <Card glassId="reminders-automated-emails" glassLabel="Reminders · Automated emails" padding="none" className="mb-3">
       <div
         className="agent-acc-hdr"
         style={{ cursor: "pointer", borderBottom: open ? undefined : "none" }}
