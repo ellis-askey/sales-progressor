@@ -67,6 +67,7 @@ import { SidebarPanelSkeleton, TabPanelSkeleton } from "@/components/transaction
 import { RevealCoordinator, RevealSlot, RevealPing } from "@/components/transaction/RevealCoordinator";
 import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
 type Timing = { label: string; ms: number };
@@ -428,9 +429,7 @@ export default async function AgentTransactionDetailPage({
         initialTab={initialTab}
         heroConnected
         beforeContent={
-          <div style={{
-            background: "var(--agent-surface-elevated)",
-            border: "0.5px solid rgba(15, 23, 42, 0.06)",
+          <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v00" style={{
             borderRadius: 10,
             padding: "12px 18px",
           }}>
@@ -447,7 +446,7 @@ export default async function AgentTransactionDetailPage({
                 },
               ) as MilestoneStage[]}
             />
-          </div>
+          </GlassCard>
         }
       >
         {/* Tab 0: Overview */}

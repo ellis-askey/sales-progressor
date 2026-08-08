@@ -13,6 +13,7 @@
 import { useState, useTransition } from "react";
 import { Sparkle, ShieldCheck, CalendarBlank, WarningCircle, Robot, ChatCircleDots } from "@phosphor-icons/react/dist/ssr";
 import { generateTransactionSummaryAction, type SummaryJson } from "@/app/actions/transaction-summary";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 function formatDateMaybe(s: string): string {
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
@@ -43,19 +44,17 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
   const noRisks = watchOuts === "" || watchOuts === "None" || watchOuts === "No risks identified";
 
   return (
-    <div
+    // Design Lab: `overview-ai-summary` (Ellis-only card). Default v22.
+    <GlassCard
+      glassId="overview-ai-summary"
+      label="Overview · AI summary"
+      defaultVariant="v22"
       style={{
         position: "relative",
         padding: "16px 90px 16px 18px",
         minHeight: 96,
-        background: "var(--agent-surface-elevated)",
-        border: "0.5px solid rgba(15, 23, 42, 0.06)",
         borderRadius: 14,
         overflow: "hidden",
-        // 2026-07-06 restyle pass 2 - mascot glyph in the corner, per the
-        // mock. Uses Phosphor Robot + ChatCircleDots stacked (no
-        // generated imagery per prior user note). Right padding reserves
-        // space so text never overlaps the mascot.
       }}
     >
       <MascotGlyph />
@@ -154,7 +153,7 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
           </div>
         </>
       )}
-    </div>
+    </GlassCard>
   );
 }
 

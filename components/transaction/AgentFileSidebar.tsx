@@ -220,7 +220,7 @@ export function AgentFileSidebar({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ─── 1. Sale health ────────────────────────────────────────────── */}
-      <GlassCard glassId="sidebar-sale-health" label="Sidebar · Sale health" style={{ padding: "14px 16px", borderRadius: 10 }}>
+      <GlassCard glassId="sidebar-sale-health" label="Sidebar · Sale health" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -308,7 +308,7 @@ export function AgentFileSidebar({
       </GlassCard>
 
       {/* ─── 2. Key dates ─────────────────────────────────────────────── */}
-      <GlassCard glassId="sidebar-key-dates" label="Sidebar · Key dates" style={{ padding: "14px 16px", borderRadius: 10 }}>
+      <GlassCard glassId="sidebar-key-dates" label="Sidebar · Key dates" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -418,7 +418,7 @@ export function AgentFileSidebar({
 
       {/* ─── 3. Agent ─────────────────────────────────────────────────── */}
       {agentUser && (
-        <GlassCard glassId="sidebar-agent" label="Sidebar · Agent" style={{ padding: "14px 16px", borderRadius: 10 }}>
+        <GlassCard glassId="sidebar-agent" label="Sidebar · Agent" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -462,7 +462,7 @@ export function AgentFileSidebar({
       )}
 
       {/* ─── 4. Fees ──────────────────────────────────────────────────── */}
-      <GlassCard glassId="sidebar-fees" label="Sidebar · Fees" style={{ padding: "14px 16px", borderRadius: 10 }}>
+      <GlassCard glassId="sidebar-fees" label="Sidebar · Fees" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
@@ -524,7 +524,7 @@ export function AgentFileSidebar({
       </GlassCard>
 
       {/* ─── 5. Quick links ──────────────────────────────────────────── */}
-      <GlassCard glassId="sidebar-quick-links" label="Sidebar · Quick links" style={{ padding: "14px 16px", borderRadius: 14 }}>
+      <GlassCard glassId="sidebar-quick-links" label="Sidebar · Quick links" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 14 }}>
         <p style={{
           margin: "0 0 8px",
           fontSize: 10,

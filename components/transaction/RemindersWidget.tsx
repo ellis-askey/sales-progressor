@@ -2,6 +2,7 @@
 
 import { useTabContext } from "./TabContext";
 import { formatDate, daysUntil } from "@/lib/utils";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type ReminderItem = {
   id: string;
@@ -20,7 +21,8 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
   const { setActiveTab } = useTabContext();
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    // Design Lab: `overview-reminders`. Default v22.
+    <GlassCard glassId="overview-reminders" label="Overview · Reminders" defaultVariant="v22" className="overflow-hidden" style={{ borderRadius: 12 }}>
       {/* Header */}
       <div className="agent-card-hdr">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -72,6 +74,6 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
           })}
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }

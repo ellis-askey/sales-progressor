@@ -17,6 +17,7 @@
 
 import { Fire, CalendarBlank, DotsThree, Phone, EnvelopeSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 export type NextActionKind = "chase" | "milestone" | "reminder";
 
@@ -59,11 +60,15 @@ export function NextActionCard({
   const due = DUE_TONE[dueTone];
 
   return (
-    <div
+    // Design Lab: `overview-next-action`. Default v22 (Iridescent) per
+    // Ellis's 2026-08-08 pass. Coral tint / border stripped from the
+    // inline style — surface treatment lives in the glass variant class.
+    <GlassCard
+      glassId="overview-next-action"
+      label="Overview · Next action"
+      defaultVariant="v22"
       style={{
         padding: "16px 18px",
-        background: "linear-gradient(180deg, rgba(var(--agent-coral-rgb), 0.05) 0%, var(--agent-surface-elevated) 60%)",
-        border: "0.5px solid rgba(var(--agent-coral-rgb), 0.14)",
         borderRadius: 14,
         position: "relative",
       }}
@@ -165,7 +170,7 @@ export function NextActionCard({
           </IconButton>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 }
 

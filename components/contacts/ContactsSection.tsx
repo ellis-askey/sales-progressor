@@ -597,12 +597,12 @@ export function ContactsSection({
   });
 
   return (
-    // Design Lab: `contacts-card` — surface treatment picked in the Ellis-only
-    // Design Lab drawer. Was `.glass-card` (dashboard-legacy translucent
-    // gradient); v00 baseline reproduces the today-look via
-    // `background: var(--agent-surface-elevated)`. The overflow + border-radius
-    // stay on the wrapper so nested contact rows still clip correctly.
-    <GlassCard glassId="contacts-card" label="Contacts card" className="overflow-hidden" style={{ borderRadius: 12 }}>
+    // Design Lab: `contacts-card`. Default codified to v22 (Iridescent,
+    // Decorative family) after Ellis's 2026-08-08 pass. The overflow +
+    // border-radius stay on the wrapper so nested contact rows still
+    // clip correctly, and the ::before iridescent overlay is anchored
+    // to the wrapper's border-radius via `inherit`.
+    <GlassCard glassId="contacts-card" label="Contacts card" defaultVariant="v22" className="overflow-hidden" style={{ borderRadius: 12 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>

@@ -132,16 +132,10 @@ export function PropertyPhotoField({
           {uploading ? "Uploading…" : "+ Photo"}
         </button>
       )}
-      {previewUrl && !uploading && (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="agent-link"
-          style={{ fontSize: 12 }}
-        >
-          Replace
-        </button>
-      )}
+      {/* Replace text-button removed 2026-08-08 — it stole horizontal
+          space from the Contacts card header, pushing "Set up WhatsApp
+          group" + "+ Add contact" onto a second row. To swap the photo:
+          click the X to remove, then + Photo to re-upload. */}
     </div>
   );
 }

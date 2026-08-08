@@ -7,6 +7,7 @@ import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { withErrorToast } from "@/lib/agent/actionToast";
 import { SavingPulse } from "@/components/ui/SavingPulse";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Note = {
   id: string;
@@ -96,7 +97,8 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
   }
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    // Design Lab: `overview-notes`. Default v22.
+    <GlassCard glassId="overview-notes" label="Overview · Notes" defaultVariant="v22" className="overflow-hidden" style={{ borderRadius: 12 }}>
       <div className="agent-card-hdr">
         <h3 className="agent-card-title">Notes</h3>
       </div>
@@ -178,6 +180,6 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
 
         {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
       </div>
-    </div>
+    </GlassCard>
   );
 }

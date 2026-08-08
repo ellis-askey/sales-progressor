@@ -30,6 +30,7 @@ import {
 } from "@phosphor-icons/react";
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { Icon } from "@phosphor-icons/react";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Props = {
   entries: ActivityEntry[];
@@ -117,12 +118,9 @@ export function RecentActivityWidget({ entries }: Props) {
     }
   }
 
-  // 2026-07-06 restyle pass 2 — lighter container. Solid white surface
-  // with a soft border, no strong glass elevation, tighter spacing.
+  // Design Lab: `overview-recent-activity`. Default v22.
   return (
-    <div style={{
-      background: "var(--agent-surface-elevated)",
-      border: "0.5px solid rgba(15, 23, 42, 0.06)",
+    <GlassCard glassId="overview-recent-activity" label="Overview · Recent activity" defaultVariant="v22" style={{
       borderRadius: 14,
       overflow: "hidden",
     }}>
@@ -171,7 +169,7 @@ export function RecentActivityWidget({ entries }: Props) {
           ))}
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }
 

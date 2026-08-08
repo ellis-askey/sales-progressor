@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { saveBrokerReferralAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Props = {
   transactionId: string;
@@ -67,7 +68,8 @@ export function BrokerSection({
         )}
       </div>
 
-      <div className="glass-card px-5 py-4 space-y-4">
+      {/* Design Lab: `overview-broker`. Default v22. */}
+      <GlassCard glassId="overview-broker" label="Overview · Broker" defaultVariant="v22" className="px-5 py-4 space-y-4">
         {/* Broker identity */}
         <div>
           <p className="text-sm font-semibold text-slate-900/80">{brokerFirmName}</p>
@@ -135,7 +137,7 @@ export function BrokerSection({
             </span>
           </div>
         )}
-      </div>
+      </GlassCard>
     </section>
   );
 }

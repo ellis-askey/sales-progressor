@@ -343,10 +343,11 @@ export function PropertyHero({
     );
 
     return (
-      // Design Lab: `property-hero` — background / border / shadow move
-      // out of the inline style into the .glass-vNN class supplied by
-      // GlassCard (v00 baseline reproduces today's coral warm look).
-      <GlassCard glassId="property-hero" label="Property hero" className="animate-enter" style={{
+      // Design Lab: `property-hero`. Default codified to v03 (Standard
+      // glass, Density family — Elevra's production default) after Ellis's
+      // 2026-08-08 pass. Ellis's DB pick still overrides this; other
+      // users now see v03 too instead of v00.
+      <GlassCard glassId="property-hero" label="Property hero" defaultVariant="v03" className="animate-enter" style={{
         position: "relative",
         borderRadius: 18,
         overflow: "hidden",
