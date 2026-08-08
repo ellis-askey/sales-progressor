@@ -10,6 +10,7 @@ import type { UserRole } from "@prisma/client";
 import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import type { ThemeMode } from "@/lib/agent/theme-mode";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
+import { DesignLabToggle } from "@/components/glass/DesignLabToggle";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
@@ -316,6 +317,11 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </button>
           <div className="hidden md:block"><SolidModeToggle /></div>
           <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>
+          {/* Design Lab — Ellis-only per-card glass picker. Invisible for
+              everyone else so it doesn't clutter the topbar. */}
+          {session.user.email === "ellis@thesalesprogressor.co.uk" && (
+            <div className="hidden md:block"><DesignLabToggle /></div>
+          )}
           <AgentBell userKey={session.user.email ?? session.user.id} />
           <div className="hidden md:block"><UserDropdown session={session} role={role} /></div>
         </div>
