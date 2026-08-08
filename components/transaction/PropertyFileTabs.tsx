@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
+import { House, ListChecks, Bell, CheckSquare, Pulse } from "@phosphor-icons/react/dist/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 
@@ -9,7 +11,19 @@ type TabBadgeUpdater = (key: string, count: number) => void;
 const TabBadgeContext = createContext<TabBadgeUpdater | null>(null);
 export function useTabBadge() { return useContext(TabBadgeContext); }
 
-type Tab = { key: string; label: string; badge?: number };
+// Optional per-tab icon, referenced by string key so the tabs array can
+// cross the server → client boundary (component refs can't). Unknown or
+// missing keys simply render no icon, so existing consumers are
+// unaffected.
+const TAB_ICONS: Record<string, Icon> = {
+  house: House,
+  steps: ListChecks,
+  bell: Bell,
+  todo: CheckSquare,
+  activity: Pulse,
+};
+
+type Tab = { key: string; label: string; badge?: number; icon?: string };
 
 type Props = {
   tabs: Tab[];
@@ -134,6 +148,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
               {tabs.map((tab, i) => {
                 const isActive = active === tab.key;
                 const badgeCount = badges[tab.key] ?? 0;
+                const TabIcon = tab.icon ? TAB_ICONS[tab.icon] : undefined;
                 return (
                   <button
                     key={tab.key}
@@ -142,6 +157,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
                     aria-selected={isActive}
                     className="agent-tab flex-shrink-0"
                   >
+                    {TabIcon && <TabIcon size={15} weight={isActive ? "fill" : "regular"} aria-hidden />}
                     {tab.label}
                     {badgeCount > 0 && (
                       <span

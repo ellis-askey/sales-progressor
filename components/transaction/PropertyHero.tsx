@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
-import { HouseSimple } from "@phosphor-icons/react/dist/ssr";
+import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { formatDate } from "@/lib/utils";
@@ -36,6 +36,17 @@ type Props = {
    *  reveals a swap icon on hover and opens a confirm-and-switch modal.
    *  Set from the page-level `hasAdminPowers(session)` check. */
   isAdminViewer?: boolean;
+  // 2026-08-08 hero redesign — signed URL for the property photo
+  // (PropertyTransaction.photoStoragePath, signed server-side on read).
+  // Null when no photo uploaded; the hero renders a coral gradient +
+  // house glyph fallback in the same slot.
+  photoUrl?: string | null;
+  // Manual predicted-exchange override. The hero's "Expected exchange"
+  // stat prefers this over exchangeDate, matching the old stats strip.
+  overridePredictedDate?: Date | string | null;
+  // Role-gated header controls (AI summary, portal-emails toggle) built
+  // at the page level and floated in the hero's top-right corner.
+  topRightSlot?: React.ReactNode;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -110,86 +121,102 @@ function formatElapsed(from: Date): string {
   return `${weekLabel} ${dayLabel} elapsed`;
 }
 
-// Inline progress ring for the hero. Kept private to PropertyHero so the
-// sidebar's ring (which lives in TransactionSidebar) stays untouched
-// during this migration.
-function HeroProgressRing({ percent, size = 72 }: { percent: number; size?: number }) {
-  const strokeWidth = size >= 64 ? 5 : 4;
-  const r = size / 2 - strokeWidth - 2;
-  const circ = 2 * Math.PI * r;
-  const target = circ * (1 - Math.min(100, Math.max(0, percent)) / 100);
-
-  const [mounted, setMounted] = useState(false);
-  const [offset, setOffset] = useState(circ);
+// Inline progress bar for the hero — replaces the old ring (2026-08-08
+// redesign). Animated fill on mount (900ms, matches the ring's sweep),
+// honours prefers-reduced-motion.
+function HeroProgressBar({ percent }: { percent: number }) {
+  const clamped = Math.min(100, Math.max(0, percent));
+  const [width, setWidth] = useState(0);
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
     const prefersRM = typeof window !== "undefined"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setReduced(prefersRM);
-    setMounted(true);
     if (prefersRM) {
-      setOffset(target);
+      setWidth(clamped);
       return;
     }
-    setOffset(circ);
-    const t = setTimeout(() => setOffset(target), 60);
+    const t = setTimeout(() => setWidth(clamped), 60);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cx = size / 2;
-  const cy = size / 2;
-
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ transform: "rotate(-90deg)", overflow: "visible" }}
-      >
-        <circle
-          cx={cx} cy={cy} r={r}
-          fill="none"
-          stroke="rgba(160, 120, 80, 0.18)"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={cx} cy={cy} r={r}
-          fill="none"
-          stroke="var(--agent-coral-deep)"
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={mounted ? offset : circ}
-          style={{
-            transition: reduced ? "none" : "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)",
-            filter: percent > 0 ? "drop-shadow(0 0 6px rgba(var(--agent-coral-rgb), 0.5))" : "none",
-          }}
-        />
-      </svg>
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
+    <div style={{ width: "100%" }}>
+      <p style={{ margin: "0 0 6px", fontSize: 12, color: "var(--agent-text-muted)", textAlign: "right" }}>
         <span style={{
-          fontSize: size >= 64 ? 15 : 12,
           fontWeight: 700,
           color: "var(--agent-text-primary)",
           fontVariantNumeric: "tabular-nums",
-          letterSpacing: "-0.02em",
-        }}>{percent}%</span>
+        }}>{clamped}%</span>{" "}
+        complete
+      </p>
+      <div style={{ height: 5, borderRadius: 999, background: "rgba(15,23,42,0.08)", overflow: "hidden" }}>
+        <div style={{
+          height: "100%",
+          borderRadius: 999,
+          background: "var(--agent-coral)",
+          width: `${Math.max(width, clamped > 0 ? 2 : 0)}%`,
+          transition: reduced ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }} />
       </div>
     </div>
   );
 }
 
+// Stat cell for the hero's merged stat row (absorbs the old Zone-2
+// TransactionStatsStrip — sale price / purchase type / tenure / expected
+// exchange now live inside the hero).
+function HeroStatCell({
+  Icon, label, value, sensitive,
+}: {
+  Icon: typeof CurrencyGbp;
+  label: string;
+  value: string;
+  sensitive?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+      <span style={{
+        width: 32,
+        height: 32,
+        borderRadius: 999,
+        background: "rgba(var(--agent-coral-rgb), 0.12)",
+        color: "var(--agent-coral-deep)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}>
+        <Icon size={16} weight="regular" />
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <span
+          data-sensitive={sensitive ? "true" : undefined}
+          style={{
+            display: "block",
+            fontSize: 15,
+            fontWeight: 600,
+            color: "var(--agent-text-primary)",
+            letterSpacing: "-0.01em",
+            lineHeight: 1.25,
+            fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >{value}</span>
+        <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>
+          {label}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -203,225 +230,299 @@ export function PropertyHero({
   if (isAgent) {
     // ─────────────────────────────────────────────────────────────────
     // Agent path (light warm cream + coral).
-    // 2026-07-03 Overview-restyle rewrite: house glyph on the left, big
-    // progress ring on the right, pills row between address + agent
-    // meta, stat row (Sale price / Sale type / Progress %) along the
-    // bottom edge in place of the old 4px coral bar. Hero is shared
-    // page shell — visible on every tab.
+    // 2026-08-08 hero redesign (founder mock): property photo fills the
+    // left of an elevated card and fades into the surface; content
+    // column on the right carries status + progress bar, big address,
+    // a 4-cell stat row (absorbs the old Zone-2 stats strip: price /
+    // purchase type / tenure / expected exchange), then a meta row
+    // (managing agent, file age + added date, service-type pill, round
+    // chip). Role-gated header controls float top-right via
+    // topRightSlot. No photo → coral gradient + house glyph fallback
+    // in the same slot.
     // ─────────────────────────────────────────────────────────────────
     const elapsedText = createdAt ? formatElapsed(new Date(createdAt)) : null;
-    const metaParts = [
-      assignedUserName ?? null,
-      createdAt != null ? `Added ${formatDate(createdAt)}` : null,
-      elapsedText,
-    ].filter(Boolean);
-    const metaText = metaParts.join(" · ");
+    const exchangeStat = overridePredictedDate ?? exchangeDate;
+    const initials = assignedUserName
+      ? assignedUserName.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+      : null;
 
-    // Pills + meta rendering, shared between the desktop in-row column
-    // and the mobile below-row wrapper. State (switchModalOpen) is
-    // single-instance so both renderings share the same modal.
-    const pillsAndMeta = (
-      <>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {transactionId
-            ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
-            : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
-          }
-          {tenure && (
-            <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-              {formatTenure(tenure)}
-            </span>
-          )}
-          {purchaseType && (
-            <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-              {formatPurchaseType(purchaseType)}
-            </span>
-          )}
-          {!hideServiceTypeBadge && serviceType && (() => {
-            const isSelf = serviceType === "self_managed";
-            const label = isSelf ? "Self-managed" : "With progressor";
-            const baseStyle: React.CSSProperties = {
-              fontSize: 10,
-              fontWeight: 500,
-              color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
-              background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
-              borderRadius: 6,
-              padding: "2px 7px",
-              whiteSpace: "nowrap",
-            };
-            if (!canSwitchService) {
-              return <span style={baseStyle}>{label}</span>;
-            }
-            return (
-              <button
-                type="button"
-                onClick={() => setSwitchModalOpen(true)}
-                title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
-                className="v2-swap-btn group"
-                style={{
-                  ...baseStyle,
-                  border: "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontFamily: "inherit",
-                }}
-              >
-                {label}
-                <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
-                  ⇄
-                </span>
-              </button>
-            );
-          })()}
-          {roundChipSlot}
-        </div>
-        {metaText && (
-          <p style={{
-            margin: "8px 0 0",
-            fontSize: 12,
-            color: "var(--agent-text-muted)",
-            lineHeight: 1.4,
-          }}>{metaText}</p>
-        )}
-      </>
+    // Service-type pill — same behaviour as before the redesign: static
+    // label for most users; admins get the hover-swap control that opens
+    // the confirm-and-switch modal.
+    const servicePill = !hideServiceTypeBadge && serviceType && (() => {
+      const isSelf = serviceType === "self_managed";
+      const label = isSelf ? "Self-managed" : "With progressor";
+      const baseStyle: React.CSSProperties = {
+        fontSize: 11,
+        fontWeight: 600,
+        color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
+        background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
+        borderRadius: 999,
+        padding: "4px 10px",
+        whiteSpace: "nowrap",
+      };
+      if (!canSwitchService) {
+        return <span style={baseStyle}>{label}</span>;
+      }
+      return (
+        <button
+          type="button"
+          onClick={() => setSwitchModalOpen(true)}
+          title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
+          className="v2-swap-btn group"
+          style={{
+            ...baseStyle,
+            border: "none",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontFamily: "inherit",
+          }}
+        >
+          {label}
+          <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
+            ⇄
+          </span>
+        </button>
+      );
+    })();
+
+    // Photo layer (desktop: left panel fading right into the card
+    // surface; mobile: top strip fading down). Fallback keeps the same
+    // slot so the layout is identical with or without a photo.
+    const photoLayerDesktop = photoUrl ? (
+      <div aria-hidden className="hidden md:block" style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "46%", pointerEvents: "none" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 45%, var(--agent-surface-elevated) 98%)" }} />
+      </div>
+    ) : (
+      <div aria-hidden className="hidden md:flex" style={{
+        position: "absolute", top: 0, bottom: 0, left: 0, width: "46%",
+        pointerEvents: "none",
+        background: "linear-gradient(115deg, rgba(var(--agent-coral-rgb), 0.14) 0%, rgba(var(--agent-coral-rgb), 0.04) 60%, var(--agent-surface-elevated) 98%)",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "rgba(var(--agent-coral-rgb), 0.35)",
+      }}>
+        <HouseSimple size={96} weight="thin" />
+      </div>
     );
 
-    // 2026-07-06 pass 3 — page-level structural redesign.
-    // Hero renders on the peachy backdrop with:
-    //   - Left: large property icon tile + title (32/700) + address
-    //     (16/500) + status/tenure/purchase-type/service pills + agent
-    //     meta (14/muted).
-    //   - Right: ring wrapped in its OWN soft-elevated container so it
-    //     reads as a component, not a floating element.
-    // Stat row lifted OUT to TransactionStatsStrip (Zone 2). Ring
-    // container padding/proportions tuned so the whole hero baseline
-    // aligns with the sidebar rhythm.
+    const photoLayerMobile = photoUrl ? (
+      <div aria-hidden className="md:hidden" style={{ position: "relative", height: 148, pointerEvents: "none" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, var(--agent-surface-elevated) 100%)" }} />
+      </div>
+    ) : (
+      <div aria-hidden className="md:hidden" style={{
+        position: "relative", height: 84, pointerEvents: "none",
+        background: "linear-gradient(180deg, rgba(var(--agent-coral-rgb), 0.12) 0%, var(--agent-surface-elevated) 100%)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "rgba(var(--agent-coral-rgb), 0.35)",
+      }}>
+        <HouseSimple size={44} weight="thin" />
+      </div>
+    );
+
     return (
       <div className="animate-enter" style={{
         position: "relative",
-        background: "transparent",
-        overflow: "visible",
+        background: "var(--agent-surface-elevated)",
+        borderRadius: 18,
+        border: "0.5px solid rgba(15,23,42,0.06)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+        overflow: "hidden",
       }}>
-        {/* Back link row */}
-        <div style={{ padding: "8px 4px 0" }}>
-          <Link
-            href={backHref}
-            className="agent-link agent-link-muted"
-            style={{ fontSize: 11, display: "inline-block", textDecoration: "none" }}
-          >
-            ← Back to files
-          </Link>
-        </div>
+        {photoLayerDesktop}
+        {photoLayerMobile}
 
-        {/* Main row: property icon tile + title column + ring
-            Desktop: tile on left, title column, ring on right.
-            Mobile (< md): tile hidden, ring replaces it in the top-left
-            slot, title column takes the rest of the row width. Right
-            ring hidden. Everything below (address, pills, meta) flows
-            full-width below the ring on mobile. */}
-        <div className="agent-hero-row" style={{
-          position: "relative",
-          padding: "8px 4px 0",
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 16,
-        }}>
-          {/* Desktop-only property icon tile */}
-          <div className="hidden md:flex" style={{
-            width: 56,
-            height: 56,
-            borderRadius: 12,
-            background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.16) 0%, rgba(var(--agent-coral-rgb), 0.06) 100%)",
-            border: "0.5px solid rgba(var(--agent-coral-rgb), 0.20)",
+        {/* Back link — floats over the photo corner. Glass pill so it
+            stays readable over any photo; darker treatment when a real
+            photo is behind it. */}
+        <Link
+          href={backHref}
+          style={{
+            position: "absolute",
+            top: 14,
+            left: 14,
+            zIndex: 2,
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
-            color: "var(--agent-coral-deep)",
-            flexShrink: 0,
+            gap: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            textDecoration: "none",
+            padding: "6px 12px",
+            borderRadius: 999,
+            color: photoUrl ? "#fff" : "var(--agent-text-secondary)",
+            background: photoUrl ? "rgba(15,23,42,0.38)" : "rgba(15,23,42,0.06)",
+            backdropFilter: photoUrl ? "blur(8px)" : undefined,
+            WebkitBackdropFilter: photoUrl ? "blur(8px)" : undefined,
+          }}
+        >
+          <ArrowLeft size={13} weight="bold" />
+          Back to files
+        </Link>
+
+        {/* Role-gated header controls (AI summary + portal emails) —
+            top-right, on a soft glass strip so they read over photo or
+            surface alike. Hidden when the page passes nothing. */}
+        {topRightSlot && (
+          <div className="agent-hero-topright" style={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}>
-            <HouseSimple size={28} weight="regular" />
+            {topRightSlot}
+          </div>
+        )}
+
+        {/* Content column — desktop sits right of the photo; mobile
+            flows under the photo strip. */}
+        <div className="md:ml-[42%]" style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "18px 22px 20px",
+        }}>
+          {/* Status + progress row. Top padding on desktop clears the
+              floating top-right controls. */}
+          <div className="md:pt-8" style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}>
+            <div style={{ flexShrink: 0 }}>
+              {transactionId
+                ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
+                : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+              }
+            </div>
+            <div style={{ flex: "1 1 180px", maxWidth: 280, minWidth: 150 }}>
+              <HeroProgressBar percent={percent} />
+            </div>
           </div>
 
-          {/* Mobile-only ring - sits in the tile's slot. Small (56px)
-              so it doesn't dominate. No caption underneath (elapsed is
-              in the meta line now). */}
-          <div className="md:hidden" style={{ flexShrink: 0 }}>
-            <HeroProgressRing percent={percent} size={56} />
-          </div>
-
-          {/* Title column - title + address only. Pills + meta moved to
-              their own row below the hero-row so on mobile they can
-              start at page-left (not indented under the address). */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <h1
+          {/* Address */}
+          <h1
+            data-sensitive="true"
+            style={{
+              fontSize: "clamp(26px, 3.2vw, 40px)",
+              fontWeight: 700,
+              color: "var(--agent-text-primary)",
+              margin: "14px 0 0",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.12,
+            }}
+          >
+            {line1}
+          </h1>
+          {line2 && (
+            <p
               data-sensitive="true"
               style={{
-                fontSize: 20,
-                fontWeight: 600,
-                color: "var(--agent-text-primary)",
-                margin: "0 0 2px",
-                letterSpacing: "-0.015em",
-                lineHeight: 1.25,
+                margin: "6px 0 0",
+                fontSize: 15,
+                color: "var(--agent-text-muted)",
+                lineHeight: 1.35,
               }}
             >
-              {line1}
-            </h1>
-            {line2 && (
-              <p
-                data-sensitive="true"
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "var(--agent-text-muted)",
-                  lineHeight: 1.35,
-                }}
-              >
-                {line2}
-              </p>
-            )}
+              {line2}
+            </p>
+          )}
+
+          {/* Stat row — absorbs the old Zone-2 stats strip. 2×2 on
+              mobile, 4-up on desktop. "–" for anything unset. */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-4" style={{ marginTop: 20 }}>
+            <HeroStatCell Icon={CurrencyGbp} label="Sale price" value={price ?? "–"} sensitive />
+            <HeroStatCell Icon={UserCircle} label="Purchase type" value={purchaseType ? formatPurchaseType(purchaseType) : "–"} />
+            <HeroStatCell Icon={HouseSimple} label="Tenure" value={tenure ? formatTenure(tenure) : "–"} />
+            <HeroStatCell
+              Icon={CalendarBlank}
+              label="Expected exchange"
+              value={exchangeStat
+                ? new Date(exchangeStat).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                : "–"}
+            />
           </div>
 
-          {/* Desktop-only pills + meta column - sits INSIDE the hero
-              row between the title/address column and the ring, so the
-              whole header stays on a single row and the vertical height
-              shrinks. Mobile still renders these below the row (see the
-              agent-hero-meta wrapper further down). */}
-          <div className="hidden md:flex" style={{
-            flexDirection: "column",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            flexShrink: 0,
-            gap: 0,
-            maxWidth: 320,
-          }}>
-            {pillsAndMeta}
-          </div>
-
-          {/* Desktop-only ring on the right. Elapsed caption removed -
-              it lives in the meta line above so we don't render it
-              twice. On-track signal lives in the Sale health card. */}
-          <div className="hidden md:flex" style={{
-            flexDirection: "column",
+          {/* Meta row — managing agent, file age, service pill, round
+              chip. Divided from the stats by a hairline. */}
+          <div style={{
+            marginTop: 18,
+            paddingTop: 14,
+            borderTop: "0.5px solid rgba(15,23,42,0.08)",
+            display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
+            gap: 14,
+            flexWrap: "wrap",
           }}>
-            <HeroProgressRing percent={percent} />
+            {assignedUserName && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                <span aria-hidden style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: "rgba(var(--agent-coral-rgb), 0.14)",
+                  color: "var(--agent-coral-deep)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}>{initials}</span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>
+                    {assignedUserName}
+                  </span>
+                  <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                    Managing this file
+                  </span>
+                </span>
+              </span>
+            )}
+            {elapsedText && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
+                <span aria-hidden style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: "rgba(15,23,42,0.05)",
+                  color: "var(--agent-text-muted)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}><Clock size={15} /></span>
+                <span>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>
+                    {elapsedText.replace(" elapsed", "")}
+                  </span>
+                  <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                    {createdAt ? `Added ${formatDate(createdAt)}` : "File age"}
+                  </span>
+                </span>
+              </span>
+            )}
+            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {servicePill}
+              {roundChipSlot}
+            </span>
           </div>
 
           {flagSlot}
         </div>
 
-        {/* Mobile-only pills + meta row - full width below the hero
-            row, starts at page-left (see .agent-hero-meta CSS which
-            zeros the padding on < md and hides entirely on >= md). */}
-        <div className="agent-hero-meta md:hidden" style={{ marginTop: 12 }}>
-          {pillsAndMeta}
-        </div>
-
-        {/* Single-instance service-type switch modal - triggered from
-            either the desktop-row pill or the mobile-below-row pill. */}
+        {/* Single-instance service-type switch modal. */}
         {canSwitchService && transactionId && serviceType && (
           <SwitchServiceTypeModal
             open={switchModalOpen}

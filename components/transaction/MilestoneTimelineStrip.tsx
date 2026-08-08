@@ -1,35 +1,28 @@
 "use client";
 
-// Overview restyle 2026-07-03 — 6-stage summary of a file's journey.
-// One row of coloured circles: Instructed / Draft pack / Searches /
-// Enquiries / Exchange / Completion. Each stage carries:
-//   - complete  → filled emerald circle + white tick + real completedAt date
-//   - active    → white circle with coral ring + stage icon + "In progress"
-//   - pending   → hollow slate outline + muted stage icon + forecast date (if any)
+// 6-stage summary of a file's journey: Instructed / Draft pack /
+// Searches / Enquiries / Exchange / Completion.
 //
-// Data feeds from the milestone engine via a small mapping constant
-// (see lib/milestones/display-stages.ts). Full detailed milestone list
-// stays on the Steps tab, untouched — this is a summary read.
+// 2026-08-08 hero redesign: stage circles now carry their number rather
+// than an icon (mock direction) —
+//   - complete  → emerald ring + tick + real completedAt date
+//   - active    → coral ring + coral stage number + "In progress"
+//   - pending   → slate outline + muted number + forecast date or "Pending"
+// plus a "View timeline" button on the right that switches to the Steps
+// tab via TabContext (the strip renders inside PropertyFileTabs'
+// beforeContent slot, so the context is always live on this page).
+//
+// Data feeds from the milestone engine via lib/milestones/display-stages.
+// Full detailed milestone list stays on the Steps tab — this is a
+// summary read.
 
 import type { ReactNode } from "react";
-import { Check, HouseSimple, FileText, MagnifyingGlass, ChatCircleText, Handshake, Key } from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { Check, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { formatDate } from "@/lib/utils";
 import type { DisplayStageKey } from "@/lib/milestones/display-stages";
+import { useTabContext } from "./TabContext";
 
 export type StageStatus = "complete" | "active" | "pending";
-
-// Icons are looked up here rather than passed in, so the resolved stage
-// data can flow from a Server Component to this Client Component without
-// crossing the RSC serialisation boundary (2026-07-03 outage fix).
-const STAGE_ICON: Record<DisplayStageKey, Icon> = {
-  instructed: HouseSimple,
-  draft_pack: FileText,
-  searches:   MagnifyingGlass,
-  enquiries:  ChatCircleText,
-  exchange:   Handshake,
-  completion: Key,
-};
 
 export type MilestoneStage = {
   key: DisplayStageKey;
@@ -79,56 +72,69 @@ function formatStageDate(stage: MilestoneStage): string {
   if (stage.forecastDate) {
     return `~ ${formatDate(stage.forecastDate)}`;
   }
-  return "–";
+  return "Pending";
 }
 
 export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] }) {
+  const { setActiveTab } = useTabContext();
   if (stages.length === 0) return null;
 
   return (
-    <div
-      role="list"
-      aria-label="File progress stages"
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 4,
-        overflowX: "auto",
-        overflowY: "visible",
-        padding: "4px 4px 4px",
-      }}
-    >
-      {stages.map((stage, i) => (
-        <div
-          key={stage.key}
-          role="listitem"
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 4,
-            // 2026-07-06: was `flex: 1, minWidth: 0` which let stages
-            // shrink below their content on narrow viewports, causing
-            // the stage names + dates to overlap. `flex: 1 0 92px`
-            // keeps them growing to fill on desktop but never lets
-            // them shrink below 92px, so overflow-x: auto on the
-            // container properly kicks in and the strip becomes
-            // horizontally-scrollable on mobile.
-            flex: "1 0 92px",
-          }}
-        >
-          <StageNode stage={stage} />
-          {i < stages.length - 1 && <StageConnector prevComplete={stage.status === "complete"} />}
-        </div>
-      ))}
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        role="list"
+        aria-label="File progress stages"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 4,
+          overflowX: "auto",
+          overflowY: "visible",
+          padding: "4px 4px 4px",
+        }}
+      >
+        {stages.map((stage, i) => (
+          <div
+            key={stage.key}
+            role="listitem"
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 4,
+              // 2026-07-06: was `flex: 1, minWidth: 0` which let stages
+              // shrink below their content on narrow viewports, causing
+              // the stage names + dates to overlap. `flex: 1 0 92px`
+              // keeps them growing to fill on desktop but never lets
+              // them shrink below 92px, so overflow-x: auto on the
+              // container properly kicks in and the strip becomes
+              // horizontally-scrollable on mobile.
+              flex: "1 0 92px",
+            }}
+          >
+            <StageNode stage={stage} index={i + 1} />
+            {i < stages.length - 1 && <StageConnector prevComplete={stage.status === "complete"} />}
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => setActiveTab("milestones")}
+        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, alignSelf: "center" }}
+      >
+        View timeline
+        <CaretRight size={12} weight="bold" />
+      </button>
     </div>
   );
 }
 
-function StageNode({ stage }: { stage: MilestoneStage }): ReactNode {
+function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): ReactNode {
   const tone = STAGE_TONES[stage.status];
-  const Icon = STAGE_ICON[stage.key];
-  const size = 44;
-  const ringWidth = stage.status === "active" ? 2 : 1.5;
+  const size = 40;
+  const ringWidth = 2;
 
   return (
     <div
@@ -160,9 +166,11 @@ function StageNode({ stage }: { stage: MilestoneStage }): ReactNode {
         }}
       >
         {stage.status === "complete" ? (
-          <Check size={20} weight="bold" />
+          <Check size={18} weight="bold" />
         ) : (
-          <Icon size={18} weight="regular" />
+          <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+            {index}
+          </span>
         )}
       </div>
       <div style={{ textAlign: "center", minWidth: 0, maxWidth: 92, overflow: "hidden" }}>
@@ -196,7 +204,7 @@ function StageConnector({ prevComplete }: { prevComplete: boolean }) {
     <div style={{
       flex: 1,
       minWidth: 12,
-      marginTop: 22, // circle centre = size/2 = 22
+      marginTop: 20, // circle centre = size/2 = 20
       height: 1,
       display: "flex",
       alignItems: "center",
@@ -205,8 +213,8 @@ function StageConnector({ prevComplete }: { prevComplete: boolean }) {
       <div style={{
         width: "100%",
         borderTop: prevComplete
-          ? "1px solid rgba(16, 185, 129, 0.35)"
-          : "1px dashed rgba(15, 23, 42, 0.15)",
+          ? "2px solid rgba(16, 185, 129, 0.45)"
+          : "2px dashed rgba(15, 23, 42, 0.12)",
       }} />
     </div>
   );

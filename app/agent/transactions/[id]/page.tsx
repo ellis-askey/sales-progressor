@@ -40,7 +40,6 @@ import { totalHoldMs } from "@/lib/services/hold-duration";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
-import { TransactionStatsStrip } from "@/components/transaction/TransactionStatsStrip";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
@@ -134,7 +133,7 @@ export default async function AgentTransactionDetailPage({
   // condition it used before so nothing changes for non-director loads.
   const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
 
-  const [agentUser, spSenderIdentityResolved, assignableAgentsResolved] = await Promise.all([
+  const [agentUser, spSenderIdentityResolved, assignableAgentsResolved, heroPhotoUrl] = await Promise.all([
     // Agent user lookup — small ID query for the hero's assignedUserName fallback.
     transaction.agentUserId
       ? timed("s1:agentUser",
@@ -178,6 +177,20 @@ export default async function AgentTransactionDetailPage({
     showReassign && session.user.agencyId
       ? listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
       : Promise.resolve([] as Awaited<ReturnType<typeof listAssignableAgentsForAgency>>),
+
+    // Hero photo — sign a fresh URL on read (1h expiry) when the file has
+    // a property photo, mirroring the portal's pattern. Null on failure
+    // so the hero falls back to its gradient + house glyph slot.
+    (async (): Promise<string | null> => {
+      if (!transaction.photoStoragePath) return null;
+      try {
+        const { getSignedUrl } = await import("@/lib/supabase-storage");
+        return await getSignedUrl(transaction.photoStoragePath, 3600);
+      } catch (err) {
+        console.warn("[file-detail] failed to sign property-photo URL", err);
+        return null;
+      }
+    })(),
   ]);
 
   const spSenderIdentity = spSenderIdentityResolved;
@@ -225,12 +238,37 @@ export default async function AgentTransactionDetailPage({
   // Tab strip — badges (counts on Reminders + To-Do) update via
   // TabBadgeReporter once the relevant panels stream in.
   const tabs = [
-    { key: "overview",   label: "Overview" },
-    { key: "milestones", label: "Steps" },
-    { key: "reminders",  label: "Reminders", badge: 0 },
-    { key: "todos",      label: "To-Do", badge: 0 },
-    { key: "activity",   label: "Activity" },
+    { key: "overview",   label: "Overview", icon: "house" },
+    { key: "milestones", label: "Steps", icon: "steps" },
+    { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
+    { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
+    { key: "activity",   label: "Activity", icon: "activity" },
   ];
+
+  // Role-gated header controls — 2026-08-08 hero redesign: these moved
+  // from the tab bar's rightSlot into the hero's top-right corner (one
+  // home per control, no same-screen duplication). Gates unchanged:
+  // AI summary is Ellis-only, portal-emails toggle is internal staff.
+  const heroTopRightSlot = (() => {
+    const internal =
+      session.user.role === "sales_progressor" ||
+      session.user.role === "admin" ||
+      session.user.role === "superadmin";
+    const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";
+    if (!internal && !isEllis) return null;
+    return (
+      <>
+        {isEllis && <AiSummaryButton transactionId={transaction.id} />}
+        {internal && (
+          <PortalConfirmEmailToggle
+            transactionId={transaction.id}
+            initialValue={transaction.suppressPortalConfirmEmails}
+            pathname={`/agent/transactions/${transaction.id}`}
+          />
+        )}
+      </>
+    );
+  })();
 
   // (showReassign + assignableAgents resolved above alongside agentUser
   // + spSenderIdentity — see the Promise.all after the critical-path fan-out.)
@@ -343,6 +381,9 @@ export default async function AgentTransactionDetailPage({
           transactionId={transaction.id}
           inChain={!!transaction.chainLinkId}
           isAdminViewer={isAdminRole}
+          photoUrl={heroPhotoUrl}
+          overridePredictedDate={transaction.overridePredictedDate ?? null}
+          topRightSlot={heroTopRightSlot}
           roundChipSlot={
             <RoundChip
               transactionId={transaction.id}
@@ -359,15 +400,9 @@ export default async function AgentTransactionDetailPage({
         />
       </div>
 
-      {/* ── Zone 2: Transaction stats strip ── */}
-      <div style={{ marginBottom: 16 }}>
-        <TransactionStatsStrip
-          purchasePrice={transaction.purchasePrice ?? null}
-          purchaseType={transaction.purchaseType ?? null}
-          expectedExchangeDate={transaction.expectedExchangeDate ?? null}
-          overridePredictedDate={transaction.overridePredictedDate ?? null}
-        />
-      </div>
+      {/* Zone 2 (stats strip) retired 2026-08-08 — sale price / purchase
+          type / tenure / expected exchange now live inside the hero's
+          stat row. */}
 
       {/* ── Zone 3: Navigation + Zone 4: Milestone strip (in beforeContent)
              + Zone 5: Content grid ── all inside PropertyFileTabs.
@@ -401,28 +436,6 @@ export default async function AgentTransactionDetailPage({
               ) as MilestoneStage[]}
             />
           </div>
-        }
-        rightSlot={
-          (() => {
-            const internal =
-              session.user.role === "sales_progressor" ||
-              session.user.role === "admin" ||
-              session.user.role === "superadmin";
-            const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";
-            if (!internal && !isEllis) return null;
-            return (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {isEllis && <AiSummaryButton transactionId={transaction.id} />}
-                {internal && (
-                  <PortalConfirmEmailToggle
-                    transactionId={transaction.id}
-                    initialValue={transaction.suppressPortalConfirmEmails}
-                    pathname={`/agent/transactions/${transaction.id}`}
-                  />
-                )}
-              </div>
-            );
-          })()
         }
       >
         {/* Tab 0: Overview */}
