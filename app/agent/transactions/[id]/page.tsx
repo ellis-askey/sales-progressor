@@ -126,24 +126,33 @@ export default async function AgentTransactionDetailPage({
   // Internal staff bypass: getTransactionByScope already enforces access scope above.
   if (!isInternalStaff && !isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
 
-  // Agent user lookup — small ID query for the hero's assignedUserName fallback.
-  const agentUser = transaction.agentUserId
-    ? await timed("s1:agentUser",
-        prisma.user.findUnique({
-          where: { id: transaction.agentUserId },
-          select: { id: true, name: true, email: true, firmName: true },
-        }),
-        perfTimings)
-    : null;
+  // 2026-08-08 perf: three post-tx lookups (agentUser, sp-sender-identity
+  // chain, director-only assignable agents) used to await one after the
+  // other, ~200-300ms total on internal-staff loads. None depend on each
+  // other's result, so they run as a single Promise.all — max of the three
+  // instead of sum. assignableAgents' fetch is guarded by the same
+  // condition it used before so nothing changes for non-director loads.
+  const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
 
-  // SP/admin sender identity for the ActivityPanel ComposeEmail. We
-  // resolve this in the page so the panel doesn't have to re-derive
-  // the role flags; the chain (verifiedDomain → userVerifiedEmail) is
-  // still small enough to sit on the critical path.
-  let spSenderIdentity: { name: string; email: string } | undefined;
-  if (isInternalStaff && (isProgressor || isAdminRole)) {
-    const agencyId = transaction.agencyId;
-    if (agencyId) {
+  const [agentUser, spSenderIdentityResolved, assignableAgentsResolved] = await Promise.all([
+    // Agent user lookup — small ID query for the hero's assignedUserName fallback.
+    transaction.agentUserId
+      ? timed("s1:agentUser",
+          prisma.user.findUnique({
+            where: { id: transaction.agentUserId },
+            select: { id: true, name: true, email: true, firmName: true },
+          }),
+          perfTimings)
+      : Promise.resolve(null),
+
+    // SP/admin sender identity for the ActivityPanel ComposeEmail. Two
+    // serial DB round-trips (verifiedDomain → userVerifiedEmail) but the
+    // whole chain is one branch of this parallel, so it doesn't block the
+    // other two lookups.
+    (async (): Promise<{ name: string; email: string } | undefined> => {
+      if (!isInternalStaff || (!isProgressor && !isAdminRole)) return undefined;
+      const agencyId = transaction.agencyId;
+      if (!agencyId) return { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
       const domain = await prisma.verifiedDomain.findFirst({
         where: { agencyId, status: "verified" },
         select: { id: true },
@@ -158,13 +167,21 @@ export default async function AgentTransactionDetailPage({
             select: { email: true },
           })
         : null;
-      spSenderIdentity = userEmail
+      return userEmail
         ? { name: session.user.name!, email: userEmail.email }
         : { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
-    } else {
-      spSenderIdentity = { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
-    }
-  }
+    })(),
+
+    // Director-only reassign picker data. Only fetched when the viewer is a
+    // director AND the file is self-managed. The "1 or fewer agents" branch
+    // returns an empty list so the picker silently hides.
+    showReassign && session.user.agencyId
+      ? listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
+      : Promise.resolve([] as Awaited<ReturnType<typeof listAssignableAgentsForAgency>>),
+  ]);
+
+  const spSenderIdentity = spSenderIdentityResolved;
+  const assignableAgents = assignableAgentsResolved;
 
   // ── Hero-level progress (derived from the critical-path milestones) ───
   const allMilestones = [
@@ -215,15 +232,8 @@ export default async function AgentTransactionDetailPage({
     { key: "activity",   label: "Activity" },
   ];
 
-  // Director-only reassign picker data. Only fetched when the viewer is a
-  // director AND the file is self-managed (outsourced files have a
-  // progressor assigned through a different flow and the director doesn't
-  // own the assignment there). The "1 or fewer agents" branch returns
-  // an empty list so the picker silently hides.
-  const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
-  const assignableAgents = showReassign && session.user.agencyId
-    ? await listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
-    : [];
+  // (showReassign + assignableAgents resolved above alongside agentUser
+  // + spSenderIdentity — see the Promise.all after the critical-path fan-out.)
 
   const totalServerMs = Math.round(performance.now() - perfStart);
 

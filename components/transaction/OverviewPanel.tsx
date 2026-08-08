@@ -151,30 +151,15 @@ export async function OverviewPanel({
   // Overview right-rail reads "off track / 8 weeks elapsed" on a freshly-
   // relisted file (the Pass 3b page-level fix isn't enough — Overview
   // recomputes progress in this component using its own anchor).
-  const activeRound = await prisma.propertyTransaction
-    .findUnique({
-      where: { id: transaction.id },
-      select: { activeBuyerRound: { select: { createdAt: true } } },
-    })
-    .then((r) => r?.activeBuyerRound ?? null)
-    .catch(() => null);
-  const activeRoundCreatedAt = activeRound?.createdAt ?? null;
-  const progressAnchor = activeRoundCreatedAt ?? transaction.createdAt;
-
-  // Sign the property-photo URL per render for the ContactsSection preview.
-  // Signed URLs expire after an hour; re-signing each render keeps the
-  // preview reliable across long-lived tabs.
-  let photoUrl: string | null = null;
-  if (transaction.photoStoragePath) {
-    try {
-      const { getSignedUrl } = await import("@/lib/supabase-storage");
-      photoUrl = await getSignedUrl(transaction.photoStoragePath, 3600);
-    } catch (err) {
-      console.warn("[OverviewPanel] failed to sign property-photo URL", err);
-    }
-  }
-
+  //
+  // 2026-08-08 perf: activeRound + photo signed-URL moved INTO the
+  // Promise.all below. Both used to await serially before the main fan-out
+  // (activeRound = 1 DB round-trip; getSignedUrl = 1 Supabase Storage
+  // network call). Neither controls flow into the fan-out; both results
+  // are read only after the Promise.all resolves.
   const [
+    activeRound,
+    photoUrl,
     milestoneData,
     reminderLogs,
     activityEntries,
@@ -183,6 +168,26 @@ export async function OverviewPanel({
     brokerRow,
     currentUserNotifications,
   ] = await Promise.all([
+    prisma.propertyTransaction
+      .findUnique({
+        where: { id: transaction.id },
+        select: { activeBuyerRound: { select: { createdAt: true } } },
+      })
+      .then((r) => r?.activeBuyerRound ?? null)
+      .catch(() => null),
+
+    // Sign the property-photo URL per render for the ContactsSection preview.
+    // Signed URLs expire after an hour; re-signing each render keeps the
+    // preview reliable across long-lived tabs. Null if no photo uploaded.
+    transaction.photoStoragePath
+      ? import("@/lib/supabase-storage")
+          .then(({ getSignedUrl }) => getSignedUrl(transaction.photoStoragePath!, 3600))
+          .catch((err) => {
+            console.warn("[OverviewPanel] failed to sign property-photo URL", err);
+            return null as string | null;
+          })
+      : Promise.resolve(null as string | null),
+
     getMilestonesCached(transaction.id, agencyId).catch(() => null),
     getReminderLogsCached(transaction.id, agencyId).catch(() => []),
     getActivityTimelineCached(transaction.id, agencyId).catch(() => []),
@@ -207,6 +212,9 @@ export async function OverviewPanel({
       select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
     }).catch(() => null),
   ]);
+
+  const activeRoundCreatedAt = activeRound?.createdAt ?? null;
+  const progressAnchor = activeRoundCreatedAt ?? transaction.createdAt;
 
   // ── Progress + on-track signal (driven by milestones + holds) ──────────
   const allMilestones = [

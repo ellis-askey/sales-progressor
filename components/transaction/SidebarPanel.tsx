@@ -85,20 +85,36 @@ export async function SidebarPanel({
   // change" at relist. The activeRound.createdAt fetch is still needed
   // below for the progress anchor (B3 file-detail), so kept the fetch but
   // dropped the FileTimeSession scope filter.
-  const activeRound = await prisma.propertyTransaction
-    .findUnique({
-      where: { id: transaction.id },
-      select: { activeBuyerRound: { select: { createdAt: true } } },
-    })
-    .then((r) => r?.activeBuyerRound ?? null)
-    .catch(() => null);
-  const activeRoundCreatedAt = activeRound?.createdAt ?? null;
+  //
+  // 2026-08-08 perf: activeRound + session moved INTO the Promise.all below.
+  // They used to await serially before the main fan-out (adding two full
+  // round-trips to the panel's critical path). Neither controls flow into
+  // the fan-out; activeRound.createdAt is only read after the Promise.all
+  // resolves (progressAnchor + stuckReference), and session is only read
+  // into currentUserId on the child props at line 311.
+  const [
+    activeRound,
+    session,
+    milestoneData,
+    brokerRow,
+    fileTimeSessions,
+    assignedUser,
+    agentUser,
+    recommendedFirms,
+    reminderLogs,
+    activityEntries,
+    contactPortal,
+  ] = await Promise.all([
+    prisma.propertyTransaction
+      .findUnique({
+        where: { id: transaction.id },
+        select: { activeBuyerRound: { select: { createdAt: true } } },
+      })
+      .then((r) => r?.activeBuyerRound ?? null)
+      .catch(() => null),
 
-  // Session lookup — small, used only to hide "Message agent" when the
-  // viewer IS the file's owner agent.
-  const session = await requireSession().catch(() => null);
+    requireSession().catch(() => null),
 
-  const [milestoneData, brokerRow, fileTimeSessions, assignedUser, agentUser, recommendedFirms, reminderLogs, activityEntries, contactPortal] = await Promise.all([
     getMilestonesCached(transaction.id, agencyId).catch(() => null),
 
     prisma.propertyTransaction.findFirst({
@@ -167,6 +183,8 @@ export async function SidebarPanel({
       orderBy: { createdAt: "asc" },
     }).catch(() => null),
   ]);
+
+  const activeRoundCreatedAt = activeRound?.createdAt ?? null;
 
   // ── Progress + key dates (milestone-driven) ────────────────────────────
   const allMilestones = [
