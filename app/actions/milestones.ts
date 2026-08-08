@@ -850,6 +850,21 @@ export async function confirmExchangeReconciliationAction(input: {
     }
   }
 
+  // Auto-flip tx.status to "completed" once both completion milestones land.
+  // The reconciliation path writes VM20 + PM27 (bilateral) inside the
+  // $transaction above; without this call the file stays "active" until the
+  // 03:45 UTC completion-safety-net cron catches it. Surfaced 2026-08-08 on
+  // four files completed via this action (18 Commissioner, 17 Bushy,
+  // 29 Sears, 54 Launcelot) — all four sat in the Active tab while both
+  // completion milestones were already ticked. Same helper + same gate as
+  // confirmMilestoneAction line 232.
+  if (def.code === "VM20" || def.code === "PM27") {
+    const flipped = await maybeAutoCompleteTransaction(input.transactionId, {
+      actorUserId: session.user.id,
+    });
+    if (flipped) revalidateTx(input.transactionId);
+  }
+
   // Expected completion date captured at exchange time (VM19/PM26).
   // Same protection — the exchange already wrote, the predicted-completion
   // update is a downstream polish step.

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
 import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime } from "@/lib/services/reminders";
-import { completeMilestone } from "@/lib/services/milestones";
+import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
@@ -42,6 +42,16 @@ export async function completeTaskAction(
           confirmer: { kind: "user", id: session.user.id, name: session.user.name ?? "" },
         });
         // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
+        // Auto-flip tx.status to "completed" once both completion milestones
+        // land. Mirrors confirmMilestoneAction line 232 + the reconciliation
+        // action fix from 2026-08-08. Without this, ticking Done on a
+        // completion-milestone reminder from the Reminders queue leaves the
+        // file in Active until the 03:45 UTC cron catches it.
+        if (targetMilestoneCode === "VM20" || targetMilestoneCode === "PM27") {
+          await maybeAutoCompleteTransaction(transactionId, {
+            actorUserId: session.user.id,
+          });
+        }
       } catch (err) {
         const e = err as Error & { missing?: { code: string; name: string }[] };
         if (e.message === "PREREQUISITES_NOT_COMPLETE") {

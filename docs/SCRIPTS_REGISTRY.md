@@ -216,9 +216,17 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete once the 2026 annual-leave send is completed.
 - **Justification:** one-off notice tied to a specific date range (30 July - 10 August 2026). Not surface-eligible: template + recipient shape are specific to this event and would rot if kept as a general feature.
 
+### scripts/backfill-stuck-completions-2026-08-08.mjs
+
+- **Purpose:** One-shot backfill for four files (18 Commissioner Rd, 17 Bushy Ave, 29 Sears Dr, 54 Launcelot Rd) that Ellis confirmed via the reconciliation modal on 2026-08-08 but which stayed in Active because `confirmExchangeReconciliationAction` was missing the auto-flip call. Root cause fixed in the same PR (`app/actions/milestones.ts` + `app/actions/tasks.ts`); this script writes the same status flip + activity note + audit event that the runtime helper would have written.
+- **Lifetime:** `one-shot`
+- **Author:** CC (auto-flip bugfix 2026-08-08), 2026-08-08
+- **Deletion criteria:** delete after the run confirms all four files flipped (target 2026-08-15).
+- **Justification:** past-tense data repair. The runtime fix in the same PR prevents this happening again; the four already-confirmed files can't be rescued by a code fix so a one-shot backfill is the correct shape.
+
 ---
 
 ## Footnotes
 
 - Companion docs: [CLAUDE.md Law 15](../CLAUDE.md#law-15--scripts-must-justify), [BUILD_PLAN.md Phase 4](BUILD_PLAN.md#phase-4--scripts-cull-interleaved-from-week-8).
-- Last updated: 2026-07-28.
+- Last updated: 2026-08-08.
