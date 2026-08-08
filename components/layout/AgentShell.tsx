@@ -313,7 +313,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <span style={{ display: "inline-flex", animation: refreshing ? "agent-spin 700ms linear infinite" : undefined }}>
               <ArrowsClockwise size={13} />
             </span>
-            {`As of ${formatAgentTime(refreshedAt)}`}
+            {/* suppressHydrationWarning: wall-clock text — the minute can
+                tick between server render and hydration; cosmetic diff,
+                not a bug. Caused intermittent full-tree hydration errors. */}
+            <span suppressHydrationWarning>{`As of ${formatAgentTime(refreshedAt)}`}</span>
           </button>
           <div className="hidden md:block"><SolidModeToggle /></div>
           <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>

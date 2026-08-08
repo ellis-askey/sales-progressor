@@ -19,12 +19,9 @@ import {
 } from "@/components/hub/HubCharts";
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
-import { AttentionListView } from "@/components/hub/AttentionListView";
-import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
-import { NewBuyersToAcknowledgeView } from "@/components/hub/NewBuyersToAcknowledgeView";
-import { ChainSetupPendingView } from "@/components/hub/ChainSetupPendingView";
-import { ExpiredHoldsCard } from "@/components/hub/ExpiredHoldsCard";
+import { AttentionCard } from "@/components/hub/AttentionCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
@@ -175,6 +172,18 @@ export default async function LegacyHub() {
       getHubChainSetupPending(vis),
       getHubPipelineStages(vis),
     ]);
+
+  // Property-photo thumbnails for the unified attention card: collect
+  // every photo path across the five lists and sign them in ONE storage
+  // round trip (1h expiry). Failures degrade to the icon fallback.
+  const photoUrlMap = await getSignedUrlMap([
+    ...expiredHolds.map((h) => h.photoStoragePath),
+    ...attentionItems.map((i) => i.transaction.photoStoragePath),
+    ...unassignedFiles.map((f) => f.photoStoragePath),
+    ...relistsToAcknowledge.map((r) => r.photoStoragePath),
+    ...chainSetupPending.map((f) => f.photoStoragePath),
+  ]);
+  const signed = (path: string | null) => (path ? photoUrlMap.get(path) ?? null : null);
 
   // Derived values
   const escalatedCount    = attentionItems.filter((i) => i.urgency === "escalated").length;
@@ -417,15 +426,18 @@ export default async function LegacyHub() {
           </div>
         )}
 
-        {/* ── 3-5. Attention stack — wrapped so when ExpiredHoldsCard
-          * collapses out, AttentionListView + UnassignedFilesView shift
-          * up smoothly instead of snapping. ────────────────────────── */}
+        {/* ── 3. Unified attention card (2026-08-08) — one severity-ranked
+          * list replaces the five stacked cards (holds, reminders,
+          * assignments, new-buyer acks, chain setup). AnimatedSection
+          * keeps the layout below shifting smoothly as rows action out. */}
         <AnimatedSection>
-          <ExpiredHoldsCard initialItems={expiredHolds} />
-          <AttentionListView items={attentionItems} />
-          <UnassignedFilesView initialFiles={unassignedFiles} />
-          <NewBuyersToAcknowledgeView initialRounds={relistsToAcknowledge} />
-          <ChainSetupPendingView initialFiles={chainSetupPending} />
+          <AttentionCard
+            holds={expiredHolds.map((h) => ({ ...h, photoUrl: signed(h.photoStoragePath) }))}
+            reminders={attentionItems.map((i) => ({ ...i, photoUrl: signed(i.transaction.photoStoragePath) }))}
+            unassigned={unassignedFiles.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
+            relists={relistsToAcknowledge.map((r) => ({ ...r, photoUrl: signed(r.photoStoragePath) }))}
+            chainSetup={chainSetupPending.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
+          />
         </AnimatedSection>
 
         {/* ── 4b. Pipeline at a glance — hub polish PR 2 ─────────────────────────

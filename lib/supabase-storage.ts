@@ -43,3 +43,30 @@ export async function deleteFromStorage(path: string): Promise<void> {
   const client = getClient();
   await client.storage.from(BUCKET).remove([path]);
 }
+
+// Batch-sign many storage paths in ONE round trip (Supabase createSignedUrls).
+// Returns a path → signed-URL map; paths that fail to sign are simply absent,
+// so callers fall back to their no-photo state. Null/undefined/duplicate
+// inputs are tolerated — used by the hub attention card, which decorates
+// rows from five different queries with property-photo thumbnails.
+export async function getSignedUrlMap(
+  paths: Array<string | null | undefined>,
+  expiresInSeconds = 3600,
+): Promise<Map<string, string>> {
+  const unique = [...new Set(paths.filter((p): p is string => !!p))];
+  if (unique.length === 0) return new Map();
+  try {
+    const client = getClient();
+    const { data, error } = await client.storage
+      .from(BUCKET)
+      .createSignedUrls(unique, expiresInSeconds);
+    if (error || !data) return new Map();
+    const map = new Map<string, string>();
+    for (const row of data) {
+      if (row.signedUrl && row.path) map.set(row.path, row.signedUrl);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}

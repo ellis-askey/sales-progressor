@@ -439,6 +439,9 @@ export type ExpiredHoldItem = {
   reason: string | null;
   // Name of the user who placed the hold.
   placedByName: string | null;
+  // Property photo storage path (null when no photo uploaded). Signed to
+  // a temporary URL at the page level.
+  photoStoragePath: string | null;
 };
 
 export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHoldItem[]> {
@@ -448,11 +451,24 @@ export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHold
   // Open hold periods whose planned date has passed, on transactions still
   // in on_hold status. Filter the parent tx via the nested visibility clause
   // so internal staff see their assigned files and agents see their agency.
+  // Attention rule (founder, 2026-08-08): agency viewers only see holds
+  // on files they progress themselves — outsourced files' holds surface
+  // to the SP team instead. Internal paths already scoped by txNested.
+  //
+  // agencyId added same day (Law 7): the nested filter alone never
+  // constrained the agency for agency viewers — a seeAll director with
+  // no firmName resolved to { agentUserId: { not: null } }, which
+  // matches other agencies' files. Mirrors getHubAttentionItems'
+  // txLogFilter, which already carries agencyId.
+  const holdTxFilter: Prisma.PropertyTransactionWhereInput = vis.internalMode
+    ? { ...txNested, status: "on_hold" }
+    : { ...txNested, status: "on_hold", serviceType: "self_managed", agencyId: vis.agencyId };
+
   const rows = await prisma.transactionHoldPeriod.findMany({
     where: {
       endedAt: null,
       plannedEndAt: { not: null, lt: now },
-      transaction: { ...txNested, status: "on_hold" },
+      transaction: holdTxFilter,
     },
     select: {
       transactionId: true,
@@ -463,6 +479,7 @@ export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHold
       transaction: {
         select: {
           propertyAddress: true,
+          photoStoragePath: true,
           agency: { select: { name: true } },
         },
       },
@@ -480,6 +497,7 @@ export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHold
       agencyName: r.transaction.agency?.name ?? null,
       reason: r.reason,
       placedByName: r.startedBy?.name ?? null,
+      photoStoragePath: r.transaction.photoStoragePath,
     }));
 }
 
@@ -1169,7 +1187,7 @@ export type HubAttentionItem = {
   id: string;
   urgency: "escalated" | "overdue" | "due_today";
   reminderName: string;
-  transaction: { id: string; propertyAddress: string };
+  transaction: { id: string; propertyAddress: string; photoStoragePath: string | null };
   nextDueDate: Date;
   // 2026-07-13 (Chunk 8): manual-escalation trio - all null when the
   // engine auto-flipped, or when the item isn't escalated at all. Read
@@ -1191,10 +1209,15 @@ export async function getHubAttentionItems(
   // Build the transaction filter for reminderLog.where.transaction.
   // Agent path: includes agencyId: vis.agencyId (unchanged).
   // Internal paths: internalMode branches in buildTxNested already handle scoping — no agencyId needed.
+  // Attention rule (founder, 2026-08-08): agencies only see attention
+  // items for files THEY progress. Outsourced files' chasing is the SP
+  // team's job, so their reminders surface internally, not on the
+  // agency's hub. Internal paths are untouched (already scoped to
+  // outsourced / assigned files by buildTxNested).
   const txLogFilter: Prisma.PropertyTransactionWhereInput =
     vis.internalMode
       ? { status: "active", ...txNested }
-      : { agencyId: vis.agencyId, status: "active", ...txNested };
+      : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", ...txNested };
 
   // Due today or overdue, not snoozed — scoped to this agent/firm
   const logs = await prisma.reminderLog.findMany({
@@ -1209,7 +1232,7 @@ export async function getHubAttentionItems(
       id: true,
       nextDueDate: true,
       reminderRule: { select: { name: true } },
-      transaction: { select: { id: true, propertyAddress: true } },
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
       // status + snoozedUntil + chase fields all needed by classifyReminder.
       status: true,
       snoozedUntil: true,
@@ -1496,6 +1519,7 @@ export type HubUnassignedFile = {
   propertyAddress: string;
   agencyName: string | null;
   createdAt: Date;
+  photoStoragePath: string | null;
 };
 
 export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUnassignedFile[]> {
@@ -1508,6 +1532,7 @@ export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUn
       id: true,
       propertyAddress: true,
       createdAt: true,
+      photoStoragePath: true,
       agency: { select: { name: true } },
     },
   });
@@ -1516,6 +1541,7 @@ export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUn
     propertyAddress: f.propertyAddress,
     agencyName: f.agency?.name ?? null,
     createdAt: f.createdAt,
+    photoStoragePath: f.photoStoragePath,
   }));
 }
 
@@ -1554,6 +1580,7 @@ export type HubRelistAck = {
   newBuyerName: string;     // purchaser Contact stamped to this round
   archivedAt: Date | null;   // when the previous round closed
   relistedAt: Date;          // BuyerRound.createdAt — when round was opened
+  photoStoragePath: string | null;
 };
 
 export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<HubRelistAck[]> {
@@ -1598,7 +1625,7 @@ export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<
   const [txs, contacts] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: { id: { in: txIds } },
-      select: { id: true, propertyAddress: true, agency: { select: { name: true } } },
+      select: { id: true, propertyAddress: true, photoStoragePath: true, agency: { select: { name: true } } },
     }),
     prisma.contact.findMany({
       where: { buyerRoundId: { in: rounds.map((r) => r.id) }, roleType: "purchaser" },
@@ -1620,6 +1647,7 @@ export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<
       newBuyerName: buyerByRound.get(r.id) ?? "(no buyer recorded)",
       archivedAt: null, // previous round's archivedAt, not this one's
       relistedAt: r.createdAt,
+      photoStoragePath: tx?.photoStoragePath ?? null,
     };
   });
 }
@@ -1636,6 +1664,7 @@ export type HubChainSetupPending = {
   agencyName: string | null;
   newBuyerName: string | null;
   flaggedAt: Date;
+  photoStoragePath: string | null;
 };
 
 export async function getHubChainSetupPending(vis: AgentVisibility): Promise<HubChainSetupPending[]> {
@@ -1650,11 +1679,13 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
   } else if (vis.internalMode === "assigned") {
     txWhere = { status: "active", chainSetupPending: true, assignedUserId: vis.userId };
   } else if (vis.seeAll) {
+    // Attention rule (founder, 2026-08-08): agency viewers only see
+    // chain-setup prompts on files they progress themselves.
     txWhere = vis.firmName
-      ? { status: "active", chainSetupPending: true, agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
-      : { status: "active", chainSetupPending: true, agencyId: vis.agencyId };
+      ? { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId };
   } else {
-    txWhere = { status: "active", chainSetupPending: true, agencyId: vis.agencyId, agentUserId: vis.userId };
+    txWhere = { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId, agentUserId: vis.userId };
   }
 
   const txs = await prisma.propertyTransaction.findMany({
@@ -1665,6 +1696,7 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
       id: true,
       propertyAddress: true,
       updatedAt: true,
+      photoStoragePath: true,
       agency: { select: { name: true } },
       activeBuyerRoundId: true,
     },
@@ -1685,5 +1717,6 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
     agencyName: t.agency?.name ?? null,
     newBuyerName: t.activeBuyerRoundId ? purchaserByRound.get(t.activeBuyerRoundId) ?? null : null,
     flaggedAt: t.updatedAt,
+    photoStoragePath: t.photoStoragePath,
   }));
 }
