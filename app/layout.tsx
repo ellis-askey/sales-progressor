@@ -69,7 +69,11 @@ export default async function RootLayout({
   const isInternalStaff = session?.user?.role === "admin" || session?.user?.role === "sales_progressor" || session?.user?.role === "superadmin";
 
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the ThemeModeBoot inline script mutates
+    // <html> (data-theme + elevra-bg class) BEFORE hydration to avoid a
+    // theme flash, so React's attribute check on this one element must be
+    // silenced. Children are still fully hydration-checked.
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider session={session}>
           <PostHogProvider>

@@ -82,6 +82,16 @@ export function AppBackground() {
   const isDark = useIsDarkTheme();
   const isIOS = useIsIOS();
 
+  // Hydration guard: the three hooks above read the DOM / UA in their
+  // initialisers, so the client's first render can diverge from SSR
+  // (server can't see data-theme set by the ThemeModeBoot script →
+  // React hydration mismatch on the variant). Render nothing until
+  // mounted — the body's --c-bg + ambient gradients (elevra.css) are
+  // the designed fallback, so the first frame looks correct anyway.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
   if (isDark) {
     return (
       <Wrap>
