@@ -6,8 +6,8 @@
   background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
   border: 0.5px solid rgba(255,255,255,0.08);
   border-radius: 14px;
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   margin-bottom: 24px;
   flex-wrap: wrap;
 }

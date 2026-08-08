@@ -80,29 +80,29 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .glass-v04 {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 .glass-v03 {
   background: var(--c-glass-panel-bg);
   border: 1px solid var(--c-glass-row-border);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 .glass-v05 {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(64px);
   -webkit-backdrop-filter: blur(64px);
+  backdrop-filter: blur(64px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -117,22 +117,22 @@
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px) saturate(1.5);
   -webkit-backdrop-filter: blur(48px) saturate(1.5);
+  backdrop-filter: blur(48px) saturate(1.5);
 }
 .glass-v11 {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
   -webkit-backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
+  backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
 }
 .glass-v07 {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(56px) saturate(2) brightness(1.10);
   -webkit-backdrop-filter: blur(56px) saturate(2) brightness(1.10);
+  backdrop-filter: blur(56px) saturate(2) brightness(1.10);
 }
 .glass-v20 {
   background: rgba(255, 255, 255, 0.20);
@@ -141,8 +141,8 @@
   border-left: 1px solid rgba(255, 255, 255, 0.10);
   border-right: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(56px) saturate(1.8) brightness(1.05);
   -webkit-backdrop-filter: blur(56px) saturate(1.8) brightness(1.05);
+  backdrop-filter: blur(56px) saturate(1.8) brightness(1.05);
 }
 /* v16 — top-edge specular. RECOMMENDED for family 02.
    Uses a gradient border trick: outer box is a linear gradient, inner is
@@ -154,8 +154,8 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 30%, rgba(255, 255, 255, 0.02) 100%) border-box;
   border: 1px solid transparent;
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -167,29 +167,29 @@
   background: rgba(var(--c-glass-accent-rgb), 0.16);
   border: 1px solid rgba(var(--c-glass-accent-rgb), 0.30);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v08 {
   background: rgba(91, 140, 255, 0.20);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v09 {
   background: rgba(255, 194, 75, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v21 {
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -202,14 +202,14 @@
 .glass-v12 {
   background: rgba(255, 255, 255, 0.18);
   border: 2px solid rgba(255, 255, 255, 0.24);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v14 {
   background: rgba(255, 255, 255, 0.04);
   border: 2px solid rgba(255, 255, 255, 0.20);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 /* v15 — brand-gradient hairline. RECOMMENDED for family 04. */
 .glass-v15 {
@@ -218,8 +218,8 @@
     linear-gradient(135deg, rgba(56, 225, 255, 0.6) 0%, rgba(91, 140, 255, 0.2) 100%) border-box;
   border: 1px solid transparent;
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v13 {
   background: rgba(255, 255, 255, 0.14);
@@ -228,8 +228,8 @@
     0 12px 28px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -243,8 +243,8 @@
   background: var(--c-glass-panel-bg);
   border: 1px solid var(--c-glass-row-border);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v17::before {
   content: "";
@@ -265,8 +265,8 @@
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 .glass-v18::before {
   content: "";
@@ -285,8 +285,8 @@
   box-shadow:
     0 2px 12px rgba(0, 0, 0, 0.35),
     inset 0 0 32px rgba(56, 225, 255, 0.18);
-  backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
+  backdrop-filter: blur(48px);
 }
 
 .glass-v22 {
@@ -294,8 +294,8 @@
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
-  backdrop-filter: blur(56px);
   -webkit-backdrop-filter: blur(56px);
+  backdrop-filter: blur(56px);
 }
 .glass-v22::before {
   content: "";
@@ -335,8 +335,8 @@
     inset 0 0 5px rgba(255, 255, 255, 0.75),
     0 6px 6px rgba(0, 0, 0, 0.2),
     0 0 20px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(4px) saturate(120%) brightness(1.15);
   -webkit-backdrop-filter: blur(4px) saturate(120%) brightness(1.15);
+  backdrop-filter: blur(4px) saturate(120%) brightness(1.15);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 2.2);
 }
 
@@ -352,8 +352,8 @@
   box-shadow:
     0 0 5px 1px #fff inset,
     0 0 15px rgba(255, 255, 255, 0.40);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 .glass-v24::before,
 .glass-v24::after {
@@ -381,8 +381,8 @@
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.05));
   border: none;
   box-shadow: 0 0.25em 0.375em rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 .glass-v25::before,
 .glass-v25::after {
@@ -415,8 +415,8 @@
     0.1em 0.1em 0 rgba(255, 255, 255, 0.20),
     inset 0 0 24px rgba(255, 255, 255, 0.28),
     0 12px 32px rgba(0, 0, 0, 0.10);
-  backdrop-filter: blur(24px) contrast(1.35) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) contrast(1.35) saturate(1.2);
+  backdrop-filter: blur(24px) contrast(1.35) saturate(1.2);
 }
 
 /* v27 — Classic frost bar. From Ellis's snippet 4 (the Uiverse music
@@ -426,8 +426,8 @@
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 8px 32px 0 rgba(13, 38, 38, 0.30);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -441,8 +441,8 @@
 /*  set these properties too.                                             */
 /* ────────────────────────────────────────────────────────────────────── */
 [data-glass-id] [data-glass-id] {
-  backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   box-shadow: none !important;
 }
 /* v00 (agent current baseline) has no blur or shadow to begin with, so
@@ -479,24 +479,24 @@
   .glass-v18,
   .glass-v19,
   .glass-v22 {
-    backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
+    backdrop-filter: blur(28px);
   }
   /* Bespoke family (2026-08-08 recipes): these are light-blur looks by
      design, so mobile only trims, never bulldozes to 28px. v23 keeps its
      desktop filter (4px is already cheap). */
   .glass-v24,
   .glass-v25 {
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
   .glass-v26 {
-    backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
     -webkit-backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
+    backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
   }
   .glass-v27 {
-    backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
   }
 }
 

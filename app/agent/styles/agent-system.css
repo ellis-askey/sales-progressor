@@ -187,8 +187,8 @@
 
   .agent-glass {
     background: var(--agent-glass-bg);
-    backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
     border: 0.5px solid var(--agent-glass-border);
     border-top-color: var(--agent-glass-border-bright);
     border-radius: var(--agent-radius-lg);
@@ -197,8 +197,8 @@
 
   .agent-glass-strong {
     background: var(--agent-glass-bg-strong);
-    backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
     border: 0.5px solid var(--agent-glass-border);
     border-top-color: var(--agent-glass-border-bright);
     border-radius: var(--agent-radius-lg);
@@ -207,8 +207,8 @@
 
   .agent-glass-subtle {
     background: var(--agent-glass-bg-subtle);
-    backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
     border: 0.5px solid var(--agent-glass-border);
     border-radius: var(--agent-radius-lg);
   }
@@ -219,8 +219,8 @@
    * behind primary stat cards. */
   .agent-glass-light {
     background: rgba(255, 255, 255, 0.42);
-    backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
     border: 0.5px solid var(--agent-glass-border);
     border-radius: var(--agent-radius-lg);
   }
@@ -315,8 +315,8 @@
   /* Secondary */
   .agent-btn-secondary {
     background: var(--agent-glass-bg);
-    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
     border: 0.5px solid var(--agent-glass-border);
     color: var(--agent-text-primary);
     box-shadow: var(--agent-glass-shadow);
@@ -1101,8 +1101,8 @@
     position: fixed;
     inset: 0;
     background: rgba(var(--agent-shadow-rgb), 0.40);
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
     z-index: var(--agent-z-modal);
     animation: agent-backdrop-in 200ms var(--agent-ease) both;
   }
@@ -1124,8 +1124,8 @@
    * itself (absolute or fixed depending on context) */
   .agent-backdrop-overlay {
     background: var(--agent-backdrop-bg, rgba(0, 0, 0, 0.35));
-    backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     animation: agent-backdrop-in 200ms ease both;
   }
 
@@ -1138,8 +1138,8 @@
     padding: 12px 14px;
     border-radius: var(--agent-radius-lg);
     background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
     border: 0.5px solid var(--agent-glass-border);
     border-top-color: var(--agent-glass-border-bright);
     box-shadow: 0 8px 32px rgba(var(--agent-shadow-rgb), 0.10),

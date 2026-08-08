@@ -11,7 +11,9 @@ Each entry is a row:
 
 ## Entries
 
-(none yet — file created 2026-07-01 as part of Phase 5 MVP)
+| Date | Commit | Law overridden | One-line reason | Reviewer decision (added quarterly) |
+|---|---|---|---|---|
+| 2026-08-08 | (this commit) | Law 16 (no bulk rewrites) | Scripted swap of 101 identical adjacent `backdrop-filter` / `-webkit-backdrop-filter` line pairs across 19 CSS files — Turbopack dedupes the pair keeping the LAST declaration, so webkit-last shipped webkit-only CSS and browsers dropped ALL glass blur. Diff verified 102/102 symmetric, backdrop-filter lines only; visual + computed-style verification in session. Hand-editing 101 identical swaps judged higher-risk than the reviewed script. | |
 
 ## Quarterly review
 
