@@ -123,6 +123,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const completionDone = isMilestoneCompleteByCode(side === "vendor" ? "VM20" : "PM27");
 
   // First non-complete tile → active. Others → pending (or complete).
+  // Sub-labels kept short so they don't truncate on mobile widths where
+  // each tile has ~60px of horizontal room. "Underway" / "Prepping"
+  // beat "In progress" / "Being prepared" on the narrow tile.
   const rawStages: {
     key: string;
     label: string;
@@ -136,7 +139,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       key: "instructed",
       label: "Instructed",
       complete: instructedDone,
-      activeText: "Getting started",
+      activeText: "Starting",
       pendingText: "Pending",
       completeDate: dateForCode(side === "vendor" ? "VM1" : "PM1"),
     },
@@ -144,7 +147,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       key: "draft_pack",
       label: "Draft pack",
       complete: draftPackDone,
-      activeText: "Being prepared",
+      activeText: "Prepping",
       pendingText: "Pending",
       completeDate: dateForCode("VM7"),
     },
@@ -154,7 +157,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       complete: pm13Done,
       // Ellis's don't-mislead: "In progress" only if searches confirmed
       // ordered (PM8). Otherwise "Awaiting" — searches haven't started.
-      activeText: pm8Done ? "In progress" : "Awaiting",
+      activeText: pm8Done ? "Underway" : "Awaiting",
       pendingText: "Pending",
       completeDate: dateForCode("PM13"),
     },
@@ -162,7 +165,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       key: "enquiries",
       label: "Enquiries",
       complete: enquiriesDone,
-      activeText: "In progress",
+      activeText: "Underway",
       pendingText: "Pending",
       completeDate: dateForCode("PM14"),
     },
@@ -180,10 +183,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       key: "completion",
       label: "Completion",
       complete: completionDone,
-      activeText: "Approaching",
-      // Ellis's don't-mislead: lock icon + "Locked until exchange" until
-      // exchange is confirmed complete.
-      pendingText: exchangeDone ? "Pending" : "Locked until exchange",
+      activeText: "Nearing",
+      // Ellis's don't-mislead: lock icon + "TBC" until exchange
+      // is confirmed complete. (Was "Locked until exchange" — truncated
+      // on mobile; "TBC" carries the same meaning in 3 chars.)
+      pendingText: exchangeDone ? "Pending" : "TBC",
       completeDate: dateForCode(side === "vendor" ? "VM20" : "PM27"),
       locked: !exchangeDone && !completionDone,
     },
@@ -210,6 +214,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   });
 
   const completedStageCount = rawStages.filter((s) => s.complete).length;
+  // Ring number = the CURRENT step position (1..6), not the count of
+  // completed stages. Matches the mock's "3 of 6" when Searches is
+  // active (position 3), not when 3 stages are complete. If everything
+  // is complete → 6.
+  const currentStepNumber = firstIncompleteIdx >= 0 ? firstIncompleteIdx + 1 : rawStages.length;
 
   // 4-stage collapse for the "CURRENT STAGE" eyebrow.
   const currentStage4 = stage === "onboarding"
@@ -238,15 +247,28 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
     return "";
   })();
 
-  // Days until predicted exchange (UK-timezone comparison, whole days only).
+  // Hero "Expected exchange" — prefer what the AGENT explicitly set on
+  // the file (transaction.expectedExchangeDate or overridePredictedDate)
+  // over the algorithmic median prediction. If the agent set a target,
+  // the client should see that everywhere it appears (matches the
+  // "Target exchange" row further down the page). Only fall back to
+  // the algo if no agent value exists.
+  const heroExchangeDate: Date | null =
+    transaction.overridePredictedDate
+      ? new Date(transaction.overridePredictedDate)
+      : transaction.expectedExchangeDate
+        ? new Date(transaction.expectedExchangeDate)
+        : progress.predictedExchangeDate
+          ? new Date(progress.predictedExchangeDate)
+          : null;
+
+  // Days until the hero's exchange date (UK-timezone comparison, whole
+  // days only). Null when there's no date to count against.
   const daysUntilPredicted = (() => {
-    if (!progress.predictedExchangeDate) return null;
+    if (!heroExchangeDate) return null;
     const now = new Date();
-    const target = new Date(progress.predictedExchangeDate);
-    // Both anchored to start-of-day UTC — good enough for a "N days to go"
-    // countdown; DST edge cases don't shift a whole day.
     const startOfNow = new Date(now); startOfNow.setUTCHours(0, 0, 0, 0);
-    const startOfTgt = new Date(target); startOfTgt.setUTCHours(0, 0, 0, 0);
+    const startOfTgt = new Date(heroExchangeDate); startOfTgt.setUTCHours(0, 0, 0, 0);
     return Math.round((startOfTgt.getTime() - startOfNow.getTime()) / 86_400_000);
   })();
 
@@ -264,11 +286,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       tenure={transaction.tenure}
       purchaseType={transaction.purchaseType}
       percent={percent}
-      completedStageCount={completedStageCount}
+      currentStepNumber={currentStepNumber}
       currentStage4={currentStage4}
       currentStageSubLabel={currentStageSubLabel}
       tiles={overviewTiles}
-      predictedExchangeDate={progress.predictedExchangeDate ? new Date(progress.predictedExchangeDate) : null}
+      predictedExchangeDate={heroExchangeDate}
       daysUntilPredicted={daysUntilPredicted}
     />
   );
