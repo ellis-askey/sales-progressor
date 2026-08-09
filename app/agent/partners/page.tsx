@@ -119,7 +119,7 @@ export default async function AgentPartnersPage() {
 
         {/* Solicitor directory */}
         {firms.length === 0 ? (
-          <Card padding="none" style={{ padding: "48px 32px", textAlign: "center" }}>
+          <Card padding="none" className="agent-empty-card" style={{ padding: "48px 32px", textAlign: "center" }}>
             <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               No solicitor firms yet

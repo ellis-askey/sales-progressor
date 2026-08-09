@@ -292,7 +292,7 @@ export default async function AllTransactionsPage({
              * share a single surface mirroring PropertyFileTabs visual pattern. */}
 
             {filteredTransactions.length === 0 ? (
-              <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+              <div className="agent-glass-strong agent-empty-card" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
                 {hubFilter ? (
                   <EmptyState
                     title={FILTER_EMPTY[hubFilter].title}
