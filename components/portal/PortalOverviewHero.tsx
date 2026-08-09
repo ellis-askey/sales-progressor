@@ -227,6 +227,139 @@ function ConnectorSegment({ leftComplete }: { leftComplete: boolean }) {
   );
 }
 
+// Vertical timeline row — mobile alternative to the horizontal
+// ProgressTile. Renders one stage per row: circle in a left rail with
+// connector lines above + below (fills between rows to look continuous),
+// label + status on the right. Ellis's 2026-08-09 call after the
+// horizontal strip proved too cramped on phones. Same tile data, just
+// laid out top-to-bottom.
+function TimelineRow({
+  tile, index, isFirst, isLast, prevComplete,
+}: {
+  tile: OverviewTile;
+  index: number;
+  isFirst: boolean;
+  isLast: boolean;
+  /** true when the tile ABOVE this one is complete — colours the top
+   *  half of the rail green so completed steps chain visibly. */
+  prevComplete: boolean;
+}) {
+  const isComplete = tile.status === "complete";
+  const isActive   = tile.status === "active";
+  const ringColor   = isComplete ? P.success : isActive ? P.primary : "rgba(15,23,42,0.25)";
+  const iconColor   = isComplete ? P.success : isActive ? P.primary : P.textMuted;
+  const labelColor  = isActive ? P.primary : isComplete ? P.textPrimary : P.textSecondary;
+  const statusColor = isActive ? P.primary : isComplete ? P.textMuted : P.textMuted;
+  // 56px tall rows: 32px circle + 12px vertical padding × 2. Feels right
+  // against Portal card padding (14px).
+  const rowHeight = 56;
+
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", minHeight: rowHeight }}>
+      {/* Left rail — line above / circle / line below. Rail width 40px
+          keeps the circle far enough from the label. */}
+      <div style={{ width: 40, position: "relative", flexShrink: 0 }}>
+        {/* Top-half connector (skip for the first row) */}
+        {!isFirst && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: 0,
+              bottom: "50%",
+              width: 2,
+              marginLeft: -1,
+              background: prevComplete ? P.success : "rgba(15,23,42,0.15)",
+            }}
+          />
+        )}
+        {/* Bottom-half connector (skip for the last row) */}
+        {!isLast && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              bottom: 0,
+              width: 2,
+              marginLeft: -1,
+              background: isComplete ? P.success : "rgba(15,23,42,0.15)",
+            }}
+          />
+        )}
+        {/* Circle — sits centred over both connectors. background:
+            cardBg on top of the lines so they don't peek through. */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            border: `2px solid ${ringColor}`,
+            background: P.cardBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: iconColor,
+            fontWeight: 700,
+            fontSize: 13,
+          }}
+        >
+          {tile.locked
+            ? <Lock size={13} weight="regular" />
+            : isComplete
+              ? <Check size={14} weight="bold" />
+              : index}
+        </div>
+      </div>
+
+      {/* Right: label + status */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: "10px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 14,
+            fontWeight: isActive ? 700 : 600,
+            color: labelColor,
+            lineHeight: 1.3,
+            minWidth: 0,
+          }}
+        >
+          {tile.label}
+        </p>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 13,
+            color: statusColor,
+            fontWeight: isActive ? 600 : 500,
+            textAlign: "right",
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {tile.text}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function PortalOverviewHero({
   address,
   addressLine2,
@@ -408,7 +541,17 @@ export function PortalOverviewHero({
         </div>
       </div>
 
-      {/* ── Progress Overview (6 tiles) ──────────────────────────────── */}
+      {/* ── Progress Overview ─────────────────────────────────────────
+             Two layouts driven by the same tile data, swapped at the
+             md breakpoint (768px):
+             - Desktop: horizontal 6-tile strip with connectors between
+             - Mobile:  vertical timeline (circles down a left rail,
+                        label + status on the right). The horizontal
+                        strip crams 6 tiles + labels + statuses into
+                        <360px on phones — labels wrap to 3 lines and
+                        it still looks broken. Vertical is the standard
+                        mobile idiom for step-by-step progression
+                        (DoorDash / GitHub / etc.). */}
       <div className="rounded-2xl" style={{ background: P.cardBg, boxShadow: P.shadowSm, padding: "16px 14px" }}>
         <p style={{
           margin: "0 0 14px",
@@ -421,8 +564,9 @@ export function PortalOverviewHero({
         }}>
           Progress overview
         </p>
-        <div style={{
-          display: "flex",
+
+        {/* Desktop — horizontal 6-tile strip (unchanged from before). */}
+        <div className="hidden md:flex" style={{
           alignItems: "flex-start",
           justifyContent: "space-between",
           gap: 0,
@@ -434,6 +578,20 @@ export function PortalOverviewHero({
                 <ConnectorSegment leftComplete={tile.status === "complete"} />
               )}
             </div>
+          ))}
+        </div>
+
+        {/* Mobile — vertical timeline. */}
+        <div className="md:hidden">
+          {tiles.map((tile, i) => (
+            <TimelineRow
+              key={tile.key}
+              tile={tile}
+              index={i + 1}
+              isFirst={i === 0}
+              isLast={i === tiles.length - 1}
+              prevComplete={i > 0 && tiles[i - 1].status === "complete"}
+            />
           ))}
         </div>
       </div>
