@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -57,10 +57,10 @@ function splitAddress(address: string): { line: string; location: string } {
   return { line, location };
 }
 
-function firstNameLastInitial(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0];
-  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+// Law 21: no titles in rendered names. Drop a leading honorific so the
+// popover shows "James Harman", not "Mr James Harman".
+function stripTitle(name: string): string {
+  return name.replace(/^\s*(mr|mrs|ms|miss|dr|prof|sir|mx)\.?\s+/i, "").trim() || name;
 }
 
 const ROLE_LABEL: Partial<Record<UserRole, string>> = {
@@ -203,22 +203,31 @@ function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?:
 }
 
 /* PartyGroup — one side of the deal inside the popover: role icon + label,
- * then every party's full name (not just the first, not initialled). */
-function PartyGroup({ role, label, people }: { role: "vendor" | "purchaser"; label: string; people: { name: string }[] }) {
+ * then every party's full name (all joint parties, titles stripped). Text
+ * colours are passed in so they stay legible in both light and dark glass. */
+function PartyGroup({
+  role, label, people, nameColor, labelColor,
+}: {
+  role: "vendor" | "purchaser";
+  label: string;
+  people: { name: string }[];
+  nameColor: string;
+  labelColor: string;
+}) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
         <RoleIcon role={role} size={12} />
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: labelColor }}>
           {label}
         </span>
       </div>
       {people.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 12, fontStyle: "italic", color: "var(--agent-text-muted)", paddingLeft: 18 }}>Not yet added</p>
+        <p style={{ margin: 0, fontSize: 12, fontStyle: "italic", color: labelColor, paddingLeft: 18 }}>Not yet added</p>
       ) : (
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
           {people.map((p, i) => (
-            <li key={i} style={{ fontSize: 13, color: "var(--agent-text-primary)", paddingLeft: 18, lineHeight: 1.35 }}>{p.name}</li>
+            <li key={i} style={{ fontSize: 13, color: nameColor, paddingLeft: 18, lineHeight: 1.35 }}>{stripTitle(p.name)}</li>
           ))}
         </ul>
       )}
@@ -226,14 +235,18 @@ function PartyGroup({ role, label, people }: { role: "vendor" | "purchaser"; lab
   );
 }
 
-/* VendorBuyerLine — compact "Vendor: X · Buyer: Y" summary in the row that, on
- * hover/focus, reveals a glass popover with the full address and every joint
- * seller/buyer's full name (the row only has space for the first, initialled).
- * Glass adapts to night mode; pointer-events:none so it never blocks the row
- * link. Mirrors the ActivityVerbChip hover pattern in this file. */
-function VendorBuyerLine({ contacts, address }: { contacts?: { name: string; roleType: string }[]; address: string }) {
-  const vendor  = contacts?.find((c) => c.roleType === "vendor");
-  const buyer   = contacts?.find((c) => c.roleType === "purchaser");
+/* PropertyPeopleHover — wraps the row's address block. Buyer/seller no longer
+ * clutters the row itself; hovering (or focusing) the address reveals a glass
+ * popover listing every joint seller/buyer's full name. Glass + text colours
+ * adapt to night mode; pointer-events:none so it never blocks the row link.
+ * Mirrors the ActivityVerbChip hover pattern in this file. */
+function PropertyPeopleHover({
+  contacts, className, children,
+}: {
+  contacts?: { name: string; roleType: string }[];
+  className?: string;
+  children: ReactNode;
+}) {
   const sellers = contacts?.filter((c) => c.roleType === "vendor") ?? [];
   const buyers  = contacts?.filter((c) => c.roleType === "purchaser") ?? [];
 
@@ -241,13 +254,13 @@ function VendorBuyerLine({ contacts, address }: { contacts?: { name: string; rol
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
-  const ref = useRef<HTMLParagraphElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   function show() {
     if (ref.current) {
       const r = ref.current.getBoundingClientRect();
-      const POPOVER_W = 300;
-      const EST_H = 180;
+      const POPOVER_W = 280;
+      const EST_H = 160;
       const SAFE = 12;
       const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
       const vh = typeof window !== "undefined" ? window.innerHeight : 768;
@@ -263,35 +276,27 @@ function VendorBuyerLine({ contacts, address }: { contacts?: { name: string; rol
     setOpen((wasOpen) => { if (wasOpen) setClosing(true); return false; });
   }
 
-  const { line, location } = splitAddress(address);
-  const glassBg     = isNight ? "rgba(22,26,34,0.82)" : "rgba(255,255,255,0.74)";
-  const glassBorder = isNight ? "0.5px solid rgba(255,255,255,0.12)" : "0.5px solid rgba(255,255,255,0.60)";
-  const glassShadow = isNight ? "0 12px 48px rgba(0,0,0,0.50)"       : "0 12px 48px rgba(0,0,0,0.16)";
-
-  const hoverProps = {
-    ref,
-    onMouseEnter: show,
-    onMouseLeave: hide,
-    onFocus: show,
-    onBlur: hide,
-    tabIndex: 0,
-  };
+  // Explicit colours per mode: stamping data-theme on the portal re-declares
+  // the light token values, so relying on var(--agent-text-*) renders dark
+  // text on the dark glass. Set them directly instead.
+  const glassBg     = isNight ? "rgba(24,28,38,0.88)" : "rgba(255,255,255,0.80)";
+  const glassBorder = isNight ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(255,255,255,0.65)";
+  const glassShadow = isNight ? "0 12px 48px rgba(0,0,0,0.55)"       : "0 12px 48px rgba(0,0,0,0.16)";
+  const nameColor   = isNight ? "#f1f5f9" : "var(--agent-text-primary)";
+  const labelColor  = isNight ? "rgba(226,232,240,0.60)" : "var(--agent-text-muted)";
 
   return (
-    <>
-      {!vendor && !buyer ? (
-        <p {...hoverProps} className="text-xs mt-0.5 truncate" style={{ color: "rgba(var(--agent-warning-rgb), 0.40)", cursor: "default", width: "fit-content", maxWidth: "100%" }}>
-          Names not set
-        </p>
-      ) : (
-        <p {...hoverProps} className="text-xs text-slate-900/40 mt-0.5 truncate" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "default", width: "fit-content", maxWidth: "100%" }}>
-          <RoleIcon role="vendor" size={11} />
-          <span>Vendor: {vendor ? firstNameLastInitial(vendor.name) : <span className="text-slate-900/25">not set</span>}</span>
-          <span style={{ color: "var(--agent-text-muted)" }}>·</span>
-          <RoleIcon role="purchaser" size={11} />
-          <span>Buyer: {buyer ? firstNameLastInitial(buyer.name) : <span className="text-slate-900/25">not set</span>}</span>
-        </p>
-      )}
+    <div
+      ref={ref}
+      className={className}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      tabIndex={0}
+      style={{ outline: "none" }}
+    >
+      {children}
 
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         <div
@@ -302,23 +307,20 @@ function VendorBuyerLine({ contacts, address }: { contacts?: { name: string; rol
           style={{
             position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
             transform: pos.above ? "translateY(-100%)" : "none",
-            width: 300, maxWidth: "calc(100vw - 24px)",
+            width: 280, maxWidth: "calc(100vw - 24px)",
             background: glassBg,
             backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
             borderRadius: 14, border: glassBorder, boxShadow: glassShadow,
             padding: 14, pointerEvents: "none",
           }}
         >
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>{line}</p>
-          {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
-          <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "12px 0" }} />
-          <PartyGroup role="vendor" label="Sellers" people={sellers} />
-          <div style={{ height: 12 }} />
-          <PartyGroup role="purchaser" label="Buyers" people={buyers} />
+          <PartyGroup role="vendor" label="Sellers" people={sellers} nameColor={nameColor} labelColor={labelColor} />
+          <div style={{ height: 14 }} />
+          <PartyGroup role="purchaser" label="Buyers" people={buyers} nameColor={nameColor} labelColor={labelColor} />
         </div>,
         document.body
       )}
-    </>
+    </div>
   );
 }
 
@@ -404,14 +406,13 @@ export function TransactionRowView({
         <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
           <div className="flex items-center gap-3">
             <PropertyThumb photoUrl={tx.photoUrl} size={44} />
-            <div className="min-w-0 flex-1">
+            <PropertyPeopleHover contacts={tx.contacts} className="min-w-0 flex-1">
               <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
               {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
               {showAgencyColumn && tx.agency?.name && (
                 <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
               )}
-              <VendorBuyerLine contacts={tx.contacts} address={tx.propertyAddress} />
-            </div>
+            </PropertyPeopleHover>
           </div>
 
           {/* Verb chip — top of the badges row on mobile (Variant B mobile design) */}
@@ -460,18 +461,17 @@ export function TransactionRowView({
         {/* Property */}
         <div className="px-4 py-3.5 min-w-0 flex items-center gap-3">
           <PropertyThumb photoUrl={tx.photoUrl} size={44} />
-          <div className="min-w-0 flex-1">
+          <PropertyPeopleHover contacts={tx.contacts} className="min-w-0 flex-1">
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="agent-group-link transition-colors">
               {line}
             </p>
             {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
-            <VendorBuyerLine contacts={tx.contacts} address={tx.propertyAddress} />
             {health?.nextActionLabel && (
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 → {health.nextActionLabel}
               </p>
             )}
-          </div>
+          </PropertyPeopleHover>
         </div>
 
         {/* Last activity — verb chip */}
