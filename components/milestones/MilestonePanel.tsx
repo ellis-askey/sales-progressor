@@ -236,7 +236,7 @@ export function MilestonePanel({
         />
       ) : (
         /* ── Progress bar card ───────────────────────────────────────────────── */
-        <Card glassId="steps-progress" glassLabel="Steps · Exchange progress" padding="none" className="mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
+        <Card glassId="steps-progress" glassLabel="Steps · Exchange progress" glassDefault="v05" padding="none" className="mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Exchange progress</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--agent-text-primary)" }}>{progressPct}%</span>
@@ -300,7 +300,7 @@ export function MilestonePanel({
             const isCollapsed = collapsed[section.label] ?? false;
 
             return (
-              <Card key={section.label} glassId="steps-section" glassLabel="Steps · Milestone sections" padding="none">
+              <Card key={section.label} glassId="steps-section" glassLabel="Steps · Milestone sections" glassDefault="v05" padding="none">
                 <button
                   type="button"
                   onClick={() => toggleSection(section.label)}
@@ -378,7 +378,7 @@ export function MilestonePanel({
 
           {/* ── Skipped / Not-required section ──────────────────────────────── */}
           {nrMilestones.length > 0 && (
-            <Card glassId="steps-not-required" glassLabel="Steps · Skipped list" padding="none">
+            <Card glassId="steps-not-required" glassLabel="Steps · Skipped list" glassDefault="v10" padding="none">
               <button
                 type="button"
                 onClick={() => setNrCollapsed((p) => !p)}

@@ -231,7 +231,7 @@ export function ManualTaskList({
   const agentDone = agentTasks.filter((t) => t.status === "done");
 
   const myTasksCard = (
-    <Card glassId="todo-main" glassLabel="To-Do · Main list" padding="none">
+    <Card glassId="todo-main" glassLabel="To-Do · Main list" glassDefault="v05" padding="none">
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
@@ -291,7 +291,7 @@ export function ManualTaskList({
   );
 
   const agentRequestsCard = agentTasks.length > 0 ? (
-    <Card glassId="todo-agent-requests" glassLabel="To-Do · Agent requests" padding="none">
+    <Card glassId="todo-agent-requests" glassLabel="To-Do · Agent requests" glassDefault="v05" padding="none">
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
@@ -350,7 +350,7 @@ export function ManualTaskList({
   // signal — see app/agent/transactions/[id]/page.tsx where perspective is
   // derived from isInternalStaff).
   const internalTasksCard = perspective === "progressor" ? (
-    <Card glassId="todo-internal" glassLabel="To-Do · Internal list" padding="none">
+    <Card glassId="todo-internal" glassLabel="To-Do · Internal list" glassDefault="v05" padding="none">
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}

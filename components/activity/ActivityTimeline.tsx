@@ -8,6 +8,7 @@ import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Props = {
   entries: ActivityEntry[];
@@ -269,8 +270,12 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                 {/* Card */}
                 <div className="flex-1 min-w-0">
                   {entry.kind === "milestone" ? (
-                    // ── Milestone card (unchanged) ──────────────────────────
-                    <div style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}>
+                    // ── Milestone card ──────────────────────────────────────
+                    // Design Lab: `activity-timeline-entry` (shared with comm
+                    // rows below so one pick styles the whole timeline).
+                    // Default v05 per Ellis, 2026-08-09. Surface (bg/border)
+                    // comes from the variant; padding/radius stay inline.
+                    <GlassCard glassId="activity-timeline-entry" label="Activity · Timeline entries" defaultVariant="v05" style={{ padding: "10px 14px", borderRadius: 10 }}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                         <div className="min-w-0">
                           <div style={{ marginBottom: 4 }}>
@@ -308,7 +313,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           </a>
                         )}
                       </div>
-                    </div>
+                    </GlassCard>
                   ) : (
                     // ── Comm card ───────────────────────────────────────────
                     (() => {
@@ -335,9 +340,14 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                         && !entry.id.startsWith("optimistic-")
                         && contacts !== undefined;
                       return (
-                        <div
+                        // Design Lab: `activity-timeline-entry` (shared with
+                        // milestone rows above). Default v05, 2026-08-09.
+                        <GlassCard
+                          glassId="activity-timeline-entry"
+                          label="Activity · Timeline entries"
+                          defaultVariant="v05"
                           className="relative group"
-                          style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}
+                          style={{ padding: "10px 14px", borderRadius: 10 }}
                         >
                           {/* Top row: badge + contact pills */}
                           <div style={{ display: "flex", gap: 5, marginBottom: 5, flexWrap: "wrap", alignItems: "center" }}>
@@ -530,7 +540,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               )}
                             </div>
                           )}
-                        </div>
+                        </GlassCard>
                       );
                     })()
                   )}

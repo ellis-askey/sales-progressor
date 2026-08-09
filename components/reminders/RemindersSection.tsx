@@ -852,7 +852,7 @@ export function RemindersSection({
         const sellerLogs  = logs.filter((l) => !l.reminderRule.targetMilestoneCode?.startsWith("PM"));
 
         return (
-          <Card key={groupKey} glassId="reminders-group" glassLabel="Reminders · Urgency groups" padding="none">
+          <Card key={groupKey} glassId="reminders-group" glassLabel="Reminders · Urgency groups" glassDefault="v05" padding="none">
             <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
               <div className="flex items-center gap-2">
                 <span className={`agent-acc-title ${cfg.labelCls}`}>{cfg.label}</span>
@@ -881,7 +881,7 @@ export function RemindersSection({
 
       {/* Snoozed */}
       {snoozedLogs.length > 0 && (
-        <Card glassId="reminders-snoozed" glassLabel="Reminders · Snoozed" padding="none">
+        <Card glassId="reminders-snoozed" glassLabel="Reminders · Snoozed" glassDefault="v05" padding="none">
           <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
             <div className="flex items-center gap-2">
               <span className="agent-acc-title text-purple-700">Snoozed</span>
@@ -929,7 +929,7 @@ export function RemindersSection({
 
       {/* Completed */}
       {completedLogs.length > 0 && (
-        <Card glassId="reminders-completed" glassLabel="Reminders · Completed" padding="none">
+        <Card glassId="reminders-completed" glassLabel="Reminders · Completed" glassDefault="v05" padding="none">
           <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
             <div className="flex items-center gap-2">
               <span className="agent-acc-title text-slate-900/50">Completed</span>
