@@ -76,26 +76,14 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
         </div>
       </div>
 
-      {/* Property photo hero — rendered under the header on the home tab
-          only. Absent when no photo has been uploaded; no dashed
-          placeholder in that case. Kept off the respond page to preserve
-          its single-task focus. */}
-      {photoUrl && isHome && (
-        <div className="max-w-lg mx-auto px-4 pt-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photoUrl}
-            alt={propertyAddress}
-            style={{
-              width: "100%",
-              maxHeight: 220,
-              objectFit: "cover",
-              borderRadius: 14,
-              boxShadow: P.shadowSm,
-            }}
-          />
-        </div>
-      )}
+      {/* 2026-08-09 hero rebuild: the property photo is now rendered
+          INSIDE the Overview page (components/portal/PortalOverviewHero)
+          as a hero-with-overlay carrying address, pills, ring, and the
+          6-tile progress row. The shell no longer paints its own photo —
+          it would double up with the Overview hero on the home tab and
+          look odd elsewhere. Progress + Updates pages get no photo hero,
+          which is the intended shape. `photoUrl` prop kept on the shell
+          signature for now; unused. Safe to strip in a later cleanup. */}
 
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">

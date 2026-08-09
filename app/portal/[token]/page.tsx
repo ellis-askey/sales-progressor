@@ -15,6 +15,7 @@ import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
 import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
+import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -86,6 +87,191 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const recentActivity = timeline.slice(0, 3);
 
   const stage = detectStage(milestones, side);
+
+  // ── 6-tile Progress Overview data (2026-08-09 hero rebuild) ──────────
+  // Independent of the mock's "Progress" tab; drives the 1-2-3-4-5-6 row
+  // on the Overview hero card. Uses the milestone codes agreed with Ellis:
+  //   Instructed  → VM1 / PM1 (first-side completion)
+  //   Draft pack  → VM7        (vendor sole responsibility)
+  //   Searches    → PM13 result received; "In progress" only if PM8 ordered
+  //   Enquiries   → PM14 first enquiries reply
+  //   Exchange    → VM19 / PM26; NO forecast date shown when pending
+  //   Completion  → VM20 / PM27; LOCKED until exchange complete
+  // See docs/help/_discovery/portal-flags.md if you're wondering why the
+  // client-facing wording never contradicts the raw stage state.
+  const isMilestoneCompleteByCode = (code: string): boolean => {
+    const m = milestones.find((mm) => mm.code === code);
+    if (m?.isComplete) return true;
+    // Sole-side check for vendor-only codes when the current portal user is
+    // a purchaser: we fetched rawOtherMilestones so we can see across.
+    const other = rawOtherMilestones.find((mm) => mm.code === code);
+    return !!other?.isComplete;
+  };
+  const dateForCode = (code: string): Date | null => {
+    const m = milestones.find((mm) => mm.code === code);
+    if (m?.completedAt) return new Date(m.completedAt);
+    const other = rawOtherMilestones.find((mm) => mm.code === code);
+    return other?.completedAt ? new Date(other.completedAt) : null;
+  };
+
+  const instructedDone = isMilestoneCompleteByCode(side === "vendor" ? "VM1" : "PM1");
+  const draftPackDone  = isMilestoneCompleteByCode("VM7");
+  const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered
+  const pm13Done       = isMilestoneCompleteByCode("PM13"); // results back
+  const enquiriesDone  = isMilestoneCompleteByCode("PM14");
+  const exchangeDone   = isMilestoneCompleteByCode(side === "vendor" ? "VM19" : "PM26");
+  const completionDone = isMilestoneCompleteByCode(side === "vendor" ? "VM20" : "PM27");
+
+  // First non-complete tile → active. Others → pending (or complete).
+  const rawStages: {
+    key: string;
+    label: string;
+    complete: boolean;
+    activeText: string;   // shown when this is the active tile
+    pendingText: string;  // shown when not active + not complete
+    completeDate: Date | null;
+    locked?: boolean;
+  }[] = [
+    {
+      key: "instructed",
+      label: "Instructed",
+      complete: instructedDone,
+      activeText: "Getting started",
+      pendingText: "Pending",
+      completeDate: dateForCode(side === "vendor" ? "VM1" : "PM1"),
+    },
+    {
+      key: "draft_pack",
+      label: "Draft pack",
+      complete: draftPackDone,
+      activeText: "Being prepared",
+      pendingText: "Pending",
+      completeDate: dateForCode("VM7"),
+    },
+    {
+      key: "searches",
+      label: "Searches",
+      complete: pm13Done,
+      // Ellis's don't-mislead: "In progress" only if searches confirmed
+      // ordered (PM8). Otherwise "Awaiting" — searches haven't started.
+      activeText: pm8Done ? "In progress" : "Awaiting",
+      pendingText: "Pending",
+      completeDate: dateForCode("PM13"),
+    },
+    {
+      key: "enquiries",
+      label: "Enquiries",
+      complete: enquiriesDone,
+      activeText: "In progress",
+      pendingText: "Pending",
+      completeDate: dateForCode("PM14"),
+    },
+    {
+      key: "exchange",
+      label: "Exchange",
+      complete: exchangeDone,
+      activeText: "Nearing",
+      // Ellis's don't-mislead: NO forecast date on Exchange — clients
+      // interpret it as set-in-stone. Just "Pending".
+      pendingText: "Pending",
+      completeDate: dateForCode(side === "vendor" ? "VM19" : "PM26"),
+    },
+    {
+      key: "completion",
+      label: "Completion",
+      complete: completionDone,
+      activeText: "Approaching",
+      // Ellis's don't-mislead: lock icon + "Locked until exchange" until
+      // exchange is confirmed complete.
+      pendingText: exchangeDone ? "Pending" : "Locked until exchange",
+      completeDate: dateForCode(side === "vendor" ? "VM20" : "PM27"),
+      locked: !exchangeDone && !completionDone,
+    },
+  ];
+  const firstIncompleteIdx = rawStages.findIndex((s) => !s.complete);
+  const overviewTiles: OverviewTile[] = rawStages.map((s, i) => {
+    const isComplete = s.complete;
+    const isActive   = !isComplete && i === firstIncompleteIdx;
+    const status: OverviewTile["status"] = isComplete ? "complete" : isActive ? "active" : "pending";
+    const text = isComplete
+      ? (s.completeDate ? fmtDateShort(s.completeDate) : "Done")
+      : isActive
+        ? s.activeText
+        : s.pendingText;
+    return {
+      key: s.key,
+      label: s.label,
+      status,
+      text,
+      // Only show the lock while completion is pending AND exchange is
+      // pending. Once exchange completes, the number returns.
+      locked: s.key === "completion" ? s.locked === true && !isComplete : false,
+    };
+  });
+
+  const completedStageCount = rawStages.filter((s) => s.complete).length;
+
+  // 4-stage collapse for the "CURRENT STAGE" eyebrow.
+  const currentStage4 = stage === "onboarding"
+    ? "Onboarding"
+    : stage === "completed"
+      ? "Completion"
+      : stage === "exchanged"
+        ? "Exchange"
+        : "Conveyancing";
+
+  // Sub-label from the active 6-tile (matches the mock's "Searches underway").
+  const activeTileIdx = overviewTiles.findIndex((t) => t.status === "active");
+  const activeTile    = activeTileIdx >= 0 ? overviewTiles[activeTileIdx] : null;
+  const currentStageSubLabel = (() => {
+    if (!activeTile) {
+      if (completionDone) return "Complete";
+      return ""; // all pending — nothing sensible to say
+    }
+    // Take the tile's active copy, phrased for the sub-line.
+    if (activeTile.key === "instructed")  return "Getting started";
+    if (activeTile.key === "draft_pack")  return "Draft pack being prepared";
+    if (activeTile.key === "searches")    return pm8Done ? "Searches underway" : "Awaiting searches";
+    if (activeTile.key === "enquiries")   return "Enquiries in progress";
+    if (activeTile.key === "exchange")    return "Nearing exchange";
+    if (activeTile.key === "completion")  return "Approaching completion";
+    return "";
+  })();
+
+  // Days until predicted exchange (UK-timezone comparison, whole days only).
+  const daysUntilPredicted = (() => {
+    if (!progress.predictedExchangeDate) return null;
+    const now = new Date();
+    const target = new Date(progress.predictedExchangeDate);
+    // Both anchored to start-of-day UTC — good enough for a "N days to go"
+    // countdown; DST edge cases don't shift a whole day.
+    const startOfNow = new Date(now); startOfNow.setUTCHours(0, 0, 0, 0);
+    const startOfTgt = new Date(target); startOfTgt.setUTCHours(0, 0, 0, 0);
+    return Math.round((startOfTgt.getTime() - startOfNow.getTime()) / 86_400_000);
+  })();
+
+  // Address split for the sub-line ("London, SW2 3AF" style).
+  const addressParts = transaction.propertyAddress.split(",").map((s) => s.trim());
+  const addressLine1 = addressParts[0];
+  const addressLine2 = addressParts.length > 1 ? addressParts.slice(1).join(", ") : null;
+
+  const overviewHero = (
+    <PortalOverviewHero
+      address={addressLine1}
+      addressLine2={addressLine2}
+      photoUrl={transaction.photoUrl ?? null}
+      status={transaction.status}
+      tenure={transaction.tenure}
+      purchaseType={transaction.purchaseType}
+      percent={percent}
+      completedStageCount={completedStageCount}
+      currentStage4={currentStage4}
+      currentStageSubLabel={currentStageSubLabel}
+      tiles={overviewTiles}
+      predictedExchangeDate={progress.predictedExchangeDate ? new Date(progress.predictedExchangeDate) : null}
+      daysUntilPredicted={daysUntilPredicted}
+    />
+  );
   // Per-tip refinement: pass the customer's actual completed-milestone
   // set so getStageTips can hide tips whose underlying milestone has
   // already been ticked (e.g. "your lender will book a valuation" once
@@ -132,50 +318,13 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         </>
       )}
 
-      {/* ── Hero gradient strip ──────────────────────────────────── */}
-      {!hasExchanged && !hasCompleted && (
-        <div
-          className="rounded-b-3xl -mx-4 px-5 pt-6 pb-7"
-          style={{ background: P.heroGradient, boxShadow: P.heroGlow }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <span
-                className="inline-block text-[11px] font-bold uppercase tracking-[0.10em] mb-3 px-3 py-1 rounded-full"
-                style={{ background: "rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.90)" }}
-              >
-                {side === "vendor" ? "Your sale of" : "Your purchase of"}
-              </span>
-              <h2 className="text-[22px] font-semibold text-white leading-snug">
-                {transaction.propertyAddress}
-              </h2>
-              {transaction.purchasePrice && (
-                <p className="text-[15px] font-semibold mt-2" style={{ color: "rgba(255,255,255,0.85)" }}>
-                  {fmtPrice(transaction.purchasePrice / 100)}
-                </p>
-              )}
-              {MEDIANS_READY && progress.predictedExchangeDate && (
-                <div className="mt-3">
-                  <p className="text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    {progress.isEarlyEstimate
-                      ? "Expected exchange: we'll show an estimate as the file progresses"
-                      : `Expected exchange: ${formatPredictedBand(progress.predictedExchangeDate)}`}
-                  </p>
-                  {!progress.isEarlyEstimate && (
-                    <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-                      Based on files like yours. It can move a little either way.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col items-center gap-1 flex-shrink-0">
-              <CircularProgress percent={percent} />
-              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.70)" }}>Overall</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Photo hero + Progress Overview + Expected exchange ─────
+             2026-08-09 rebuild per the founder mock. Replaces the old
+             coral gradient strip (kept only under the Completion /
+             Exchange banners above, which have their own celebratory
+             design). The new hero shows the property photo, address,
+             status pills, ring, and the 6-tile progress row below. */}
+      {!hasExchanged && !hasCompleted && overviewHero}
 
 
       {/* ── Next action CTA ──────────────────────────────────────── */}
