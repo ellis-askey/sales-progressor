@@ -178,6 +178,7 @@ model User {
   holdsStarted                  TransactionHoldPeriod[]  @relation("HoldStartedBy")
   holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
   pricingAcknowledgements       PricingAcknowledgement[]
+  quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
 }
 
 model AgentPushSubscription {
@@ -388,6 +389,8 @@ model PropertyTransaction {
   buyerRounds        BuyerRound[] @relation("TransactionBuyerRounds")
   activeBuyerRoundId String?      @unique
   activeBuyerRound   BuyerRound?  @relation("ActiveBuyerRound", fields: [activeBuyerRoundId], references: [id], onDelete: SetNull)
+
+  quoteRequests QuoteRequest[]
 
   @@index([serviceType, createdAt])
 }
@@ -607,6 +610,7 @@ model Contact {
   documents         TransactionDocument[]
   outboundEmails    OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientContact")
   clientChaseStates ClientChaseState[]
+  quoteRequests     QuoteRequest[]
 
   @@index([buyerRoundId])
 }
@@ -722,6 +726,166 @@ model AgencyPreferredBroker {
 
   agency     Agency     @relation(fields: [agencyId], references: [id])
   brokerFirm BrokerFirm @relation(fields: [brokerFirmId], references: [id], onDelete: Cascade)
+}
+
+// Recommended-services directory + client-submitted quote requests. Started
+// as "surveyors" (2026-08-09). ProviderKind will grow to cover electricians,
+// gas engineers, EPC, etc. Client entry point is /quote/[token]. Admin
+// surface is /command/providers.
+model ProviderFirm {
+  id        String       @id @default(cuid())
+  kind      ProviderKind
+  name      String
+  email     String
+  phone     String?
+  website   String?
+  // Path in the provider-logos Supabase bucket. Signed URLs served via
+  // lib/supabase-storage.ts. Nullable — display renders a monogram tile
+  // when absent.
+  logoPath  String?
+  notes     String?
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  coverage      ProviderCoverage[]
+  serviceTypes  ProviderFirmServiceType[]
+  quoteRequests QuoteRequest[]
+
+  @@index([kind, active])
+}
+
+// One row per outward code (e.g. "SW1", "EN8") a firm covers. Matched against
+// outwardCode(transaction.propertyPostcode) at quote-picker time.
+model ProviderCoverage {
+  id          String   @id @default(cuid())
+  providerId  String
+  outwardCode String
+  createdAt   DateTime @default(now())
+
+  provider ProviderFirm @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, outwardCode])
+  @@index([outwardCode])
+}
+
+// Master list of service types clients choose from. Editable per kind in
+// /command/providers/service-types. Seeded with 4 surveyor rows.
+model ProviderServiceType {
+  id          String       @id @default(cuid())
+  kind        ProviderKind
+  label       String
+  description String?
+  sortOrder   Int          @default(0)
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  firms         ProviderFirmServiceType[]
+  quoteRequests QuoteRequest[]
+
+  @@index([kind, active, sortOrder])
+}
+
+model ProviderFirmServiceType {
+  providerId    String
+  serviceTypeId String
+  createdAt     DateTime @default(now())
+
+  provider    ProviderFirm        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceType ProviderServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+
+  @@id([providerId, serviceTypeId])
+}
+
+// One row per (client, firm) quote submission. Client selecting multiple
+// firms creates multiple rows in a single submit. status transitions are
+// admin-only from /command/providers/quotes.
+model QuoteRequest {
+  id            String       @id @default(cuid())
+  transactionId String
+  contactId     String
+  providerId    String
+  serviceTypeId String
+  kind          ProviderKind
+
+  contactMethod QuoteContactMethod
+  contactWindow QuoteContactWindow
+  urgency       QuoteUrgency
+  notes         String?
+
+  // Snapshotted at submit time so the record survives contact/property edits.
+  clientName          String
+  clientEmail         String
+  clientPhone         String?
+  propertyAddress     String
+  propertyPostcode    String
+  propertyOutwardCode String
+
+  status            QuoteRequestStatus @default(pending)
+  statusReason      String?
+  statusChangedAt   DateTime?
+  statusChangedById String?
+
+  // Filled in on "Won". saleFeePence = what surveyor charged client;
+  // referralFeePence auto-computed as 10% but overridable in the CC form.
+  saleFeePence           Int?
+  referralFeePence       Int?
+  referralFeeCollected   Boolean   @default(false)
+  referralFeeCollectedAt DateTime?
+
+  emailMessageId String?
+  emailSentAt    DateTime?
+
+  // Stamped by the retention cron 12 months after a terminal status
+  // (won/lost/expired). PII columns (clientName/Email/Phone) are wiped;
+  // aggregate columns (postcode, kind, fees) kept for analytics.
+  anonymisedAt DateTime?
+
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transaction     PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  contact         Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider        ProviderFirm        @relation(fields: [providerId], references: [id])
+  serviceType     ProviderServiceType @relation(fields: [serviceTypeId], references: [id])
+  statusChangedBy User?               @relation("QuoteRequestStatusChangedBy", fields: [statusChangedById], references: [id])
+
+  @@index([transactionId])
+  @@index([contactId])
+  @@index([providerId, status])
+  @@index([status, submittedAt])
+}
+
+enum ProviderKind {
+  surveyor
+}
+
+enum QuoteRequestStatus {
+  pending
+  won
+  lost
+  expired
+}
+
+enum QuoteContactMethod {
+  phone
+  email
+  either
+}
+
+enum QuoteContactWindow {
+  anytime
+  morning
+  afternoon
+  evening
+}
+
+enum QuoteUrgency {
+  asap
+  within_week
+  flexible
 }
 
 enum ContactRole {
