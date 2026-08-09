@@ -984,16 +984,37 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
         return (
           <div key={groupKey} className="space-y-2" id={sectionId}>
             {/* E1 exception preserved: semantic colour-coded header is the primary
-                urgency signal — intentionally NOT agent-acc-hdr. See ANIMATION_STANDARDS §E1. */}
-            <div className={`flex items-center justify-between px-3 py-2 rounded-xl ${cfg.headerCls}`}>
+                urgency signal — intentionally NOT agent-acc-hdr. See ANIMATION_STANDARDS §E1.
+                Click-anywhere-on-row toggle added 2026-08-09 to match the
+                AutomatedEmailsCard header pattern — Ellis flagged the two
+                looked inconsistent. Row-wide onClick + role="button" +
+                keyboard handler; the inner Show/Hide button keeps its own
+                onClick with stopPropagation so it doesn't double-toggle. */}
+            <div
+              className={`flex items-center justify-between px-3 py-2 rounded-xl ${cfg.headerCls}`}
+              role="button"
+              tabIndex={0}
+              aria-expanded={!isCollapsed}
+              onClick={() => toggleCollapse(groupKey)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleCollapse(groupKey);
+                }
+              }}
+              style={{ cursor: "pointer" }}
+            >
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.labelCls}`}>{cfg.label}</span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.badgeCls}`}>{cards.length}</span>
               </div>
               <button
-                onClick={() => toggleCollapse(groupKey)}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); toggleCollapse(groupKey); }}
                 className="agent-link agent-link-muted"
                 style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                aria-hidden
+                tabIndex={-1}
               >
                 {isCollapsed ? "Show" : "Hide"}
                 <CaretDown size={10} style={{ transition: "transform 200ms", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
