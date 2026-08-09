@@ -379,7 +379,7 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
   isProgressorView?: boolean;
 }) {
   return (
-    <Card padding="none" style={{ opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
+    <Card glassId="todo-page-group" glassLabel="To-Do · Task group" glassDefault="v03" padding="none" style={{ opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
       <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
         {group.transactionId ? (
           <Link

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { usePickForCard } from "@/lib/glass/context";
+import { classFor } from "@/lib/glass/variants";
 
 export function AddManualTaskForm({
   transactionId,
@@ -32,6 +34,10 @@ export function AddManualTaskForm({
   const [owner, setOwner] = useState<"mine" | "progressor">("mine");
   const [saving, setSaving] = useState(false);
   const [dateError, setDateError] = useState("");
+  // Design Lab: `todo-add-form`. The composer is a <form> (can't be a
+  // GlassCard div), so it's tagged in place — variant class + data
+  // attributes computed from the current pick (default v03). 2026-08-09.
+  const formVariant = usePickForCard("todo-add-form") ?? "v03";
 
   function localDateStr(d: Date): string {
     const y = d.getFullYear();
@@ -103,7 +109,10 @@ export function AddManualTaskForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="glass-card p-4 space-y-3 agent-reveal-in"
+      className={`${classFor(formVariant)} p-4 space-y-3 agent-reveal-in rounded-[12px] overflow-hidden`}
+      data-glass-id="todo-add-form"
+      data-glass-label="To-Do · Add task form"
+      data-glass-variant={formVariant}
     >
       {transactionAddress && (
         <p className="text-xs text-blue-500 font-medium truncate">{transactionAddress}</p>

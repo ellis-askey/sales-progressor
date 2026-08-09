@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import { RoleIcon, ROLE_PILL_BG, roleColour } from "@/components/ui/RoleIcon";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 function relativeDate(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -59,7 +60,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         const countLabel = `${milestoneCount} milestone${milestoneCount !== 1 ? "s" : ""}`;
 
         return (
-          <div key={label} className="agent-glass" style={{ overflow: "hidden" }}>
+          // Design Lab: `updates-day`. Default v03 (2026-08-09 page pass).
+          <GlassCard key={label} glassId="updates-day" label="Updates · Day bucket" defaultVariant="v03" style={{ overflow: "hidden" }}>
             <div
               className="agent-acc-hdr"
               role="button"
@@ -78,7 +80,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
               <div className="agent-acc-in">
                 <div className="agent-acc-body">
                   {txGroups.map((tx) => (
-                    <div key={tx.transactionId} className="glass-card overflow-hidden">
+                    // Design Lab: `updates-tx-card`. Default v03.
+                    <GlassCard key={tx.transactionId} glassId="updates-tx-card" label="Updates · File card" defaultVariant="v03" className="overflow-hidden">
                       <Link
                         href={`/agent/transactions/${tx.transactionId}`}
                         className="comms-tx-link"
@@ -119,12 +122,12 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </GlassCard>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
+          </GlassCard>
         );
       })}
     </div>

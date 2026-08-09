@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CaretDown, Warning } from "@phosphor-icons/react";
 import { ALERT_CONFIG } from "@/lib/services/work-queue";
 import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 // Action copy and focus param per alert type
 // Alert types that exist: missing_vendor_solicitor, missing_purchaser_solicitor, overdue_exchange, stale
@@ -36,7 +37,8 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
   const staleCount = items.filter((i) => i.alerts.includes("stale")).length;
 
   return (
-    <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+    // Design Lab: `reminders-alerts-strip`. Default v03 (2026-08-09 page pass).
+    <GlassCard glassId="reminders-alerts-strip" label="Reminders · File alerts strip" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
       {/* Header — agent-card-hdr-warning (canonical, ANIMATION_STANDARDS §S5) */}
       <div className="agent-card-hdr-warning">
         <div className="flex items-center gap-2 flex-wrap">
@@ -148,6 +150,6 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
           })}
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }

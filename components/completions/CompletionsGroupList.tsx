@@ -10,6 +10,7 @@ import {
   GROUP_STYLES,
   type CompletionFileRow,
 } from "@/components/completions/CompletionFileRowView";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
 
 export type { CompletionFileRow };
@@ -45,8 +46,8 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
         const isOpen = !!openGroups[key];
 
         return (
-          /* OLD: <div key={key} id={`section-${key}`}> — plain div, no agent-glass */
-          <div key={key} id={`section-${key}`} className="agent-glass" style={{ overflow: "hidden" }}>
+          // Design Lab: `completions-group`. Default v03 (2026-08-09 page pass).
+          <GlassCard key={key} glassId="completions-group" label="Completions · Group card" defaultVariant="v03" id={`section-${key}`} style={{ overflow: "hidden" }}>
 
             {/* Group header — agent-acc-hdr
                 Urgency colours (dot, label) applied to CHILD elements only — not to agent-acc-hdr
@@ -148,7 +149,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
               </div>
             </div>
 
-          </div>
+          </GlassCard>
         );
       })}
     </div>

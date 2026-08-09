@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
@@ -661,8 +662,11 @@ function SplitFileCard({
   const contacts = logs[0]?.transaction.contacts ?? [];
 
   return (
-    <div
-      className="agent-glass-strong"
+    // Design Lab: `reminders-file-card`. Default v03 (2026-08-09 page pass).
+    <GlassCard
+      glassId="reminders-file-card"
+      label="Reminders · File card"
+      defaultVariant="v03"
       style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
     >
       {/* Address header — agent-card-hdr canonical with semi-transparent bg + tighter padding.
@@ -706,7 +710,7 @@ function SplitFileCard({
           ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
           : <EmptyColumn side="buyer" />}
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -920,10 +924,11 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
 
   return (
     <div className="space-y-5">
-      {/* Sticky filter bar — agent-glass-strong surface (same canonical as FileAlertsStrip)
-       * so the bar pops on cool-toned themes instead of merging with the page bg. */}
-      <div
-        className="agent-glass-strong"
+      {/* Sticky filter bar. Design Lab: `reminders-filter-bar`. */}
+      <GlassCard
+        glassId="reminders-filter-bar"
+        label="Reminders · Filter bar"
+        defaultVariant="v03"
         style={{
           position: "sticky",
           top: 0,
@@ -954,7 +959,7 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
               : "← Active"}
           </button>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Filtered empty states */}
       {statusFilter === "active" && !hasActiveResults && (
