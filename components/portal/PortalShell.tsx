@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { List } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { PortalInstallPrompt } from "./PortalInstallPrompt";
 import { PortalPushPrompt } from "./PortalPushPrompt";
+import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 type Props = {
@@ -25,6 +27,12 @@ type Props = {
 export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, photoUrl, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
+
+  // Menu drawer (hamburger top-right of the header, added 2026-08-09).
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Close the drawer on navigation — if the user taps a link inside it,
+  // the underlying page changes but the drawer would linger without this.
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   // Clear the home screen badge whenever the user opens the portal
   useEffect(() => {
@@ -66,15 +74,49 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
             >
               {agencyName}
             </p>
-            <div
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold"
-              style={{ background: P.primaryBg, color: P.primaryText }}
-            >
-              {extractFirstName(contactName)}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                className="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold"
+                style={{ background: P.primaryBg, color: P.primaryText }}
+              >
+                {extractFirstName(contactName)}
+              </div>
+              {/* Hamburger — opens the menu drawer (details / solicitor /
+                  notifications). Added 2026-08-09; drawer content stubbed
+                  in commit B, filled in commit C. */}
+              <button
+                type="button"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Open menu"
+                aria-expanded={menuOpen}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  border: `0.5px solid ${P.border}`,
+                  background: "#fff",
+                  color: P.textPrimary,
+                  cursor: "pointer",
+                  transition: "background 140ms ease",
+                }}
+              >
+                <List size={18} weight="regular" />
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Menu drawer */}
+      <PortalMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        contactName={contactName}
+        contactRole={roleType}
+      />
 
       {/* 2026-08-09 hero rebuild: the property photo is now rendered
           INSIDE the Overview page (components/portal/PortalOverviewHero)
