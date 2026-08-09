@@ -1046,12 +1046,13 @@ select {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Dark mode — global Tailwind-utility overrides, ≤1024px. Unified 2026-08-09:
-   keyed on data-theme="dark" (was the mobile-only [data-night] system, now
-   retired). Kept width-scoped so mobile dark keeps its blanket utility coverage;
-   desktop dark uses per-component tokens. Comes last so it wins the cascade.
+   Dark mode — global Tailwind-utility + component-class overrides. Keyed on
+   data-theme="dark", ALL widths (lifted out of the old mobile-only [data-night]
+   @media on 2026-08-09 so desktop dark gets the same blanket coverage mobile
+   always had — search boxes, reminder-group headers, list surfaces, and every
+   text-slate / bg-white / border-white utility). Comes last so it wins the
+   cascade.
    ───────────────────────────────────────────────────────────────────────────── */
-@media (max-width: 1024px) {
   /* Glass cards */
   :root[data-theme="dark"] .agent-shell-root .glass-card {
     background:
@@ -1288,7 +1289,6 @@ select {
   :root[data-theme="dark"] .agent-shell-root .bg-slate-100         { background-color: rgba(30,41,59,0.65); }
   :root[data-theme="dark"] .agent-shell-root .bg-slate-200         { background-color: rgba(30,41,59,0.80); }
   :root[data-theme="dark"] .agent-shell-root .bg-slate-100\/60     { background-color: rgba(30,41,59,0.40); }
-}
 
 /* ============================================
    NEW-V2 FORM — scoped variables for dark-mode

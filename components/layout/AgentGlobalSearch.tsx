@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { AgentSearchResult } from "@/app/api/agent/search/route";
@@ -23,8 +23,23 @@ const NAV_ITEMS = [
   { label: "New sale",     href: "/agent/transactions/new-v2", sub: "Register a new property"       },
 ];
 
+// The open modal is portaled to document.body with data-theme={AgentTheme}
+// (e.g. sunset), so its --agent-* tokens resolve to the LIGHT palette even in
+// dark mode. Inject the dark values on the modal root when the app is dark so
+// the surface + text flip. (The closed trigger lives in-shell, so it can use
+// the tokens directly.)
+const DARK_SEARCH_TOKENS: Record<string, string> = {
+  "--agent-surface-elevated": "rgba(20, 28, 44, 0.98)",
+  "--agent-text-primary": "#EFF6FF",
+  "--agent-text-muted": "#94A3B8",
+  "--agent-border-subtle": "rgba(255,255,255,0.08)",
+  "--agent-coral": "#FF7A5E",
+  "--agent-coral-bg-tint": "rgba(255,107,74,0.12)",
+  "--agent-coral-base-rgb": "255,107,74",
+};
+
 export function AgentGlobalSearch() {
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [open, setOpen]         = useState(false);
   const [query, setQuery]       = useState("");
   const [results, setResults]   = useState<AgentSearchResult | null>(null);
@@ -97,7 +112,7 @@ export function AgentGlobalSearch() {
       style={{
         width: "100%", height: 32, display: "flex", alignItems: "center", gap: 8,
         padding: "0 10px", borderRadius: 8, cursor: "pointer",
-        background: "white", border: "0.5px solid rgba(0,0,0,0.12)",
+        background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-default)",
         color: "var(--agent-text-muted)", fontSize: 12,
         transition: "background 150ms, box-shadow 150ms",
       }}
@@ -109,7 +124,7 @@ export function AgentGlobalSearch() {
       <span style={{ flex: 1, textAlign: "left" }}>Search…</span>
       <span style={{
         fontSize: 10, fontWeight: 500,
-        background: "rgba(255,255,255,0.50)", border: "0.5px solid rgba(255,255,255,0.60)",
+        background: "var(--agent-surface-overlay)", border: "0.5px solid var(--agent-border-default)",
         borderRadius: 4, padding: "1px 5px", letterSpacing: "0.02em",
       }}>
         ⌘K
@@ -120,7 +135,7 @@ export function AgentGlobalSearch() {
   return createPortal(
     <div
       data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "15vh" }}
+      style={{ ...(isNight ? (DARK_SEARCH_TOKENS as CSSProperties) : null), position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "15vh" }}
       onClick={() => setOpen(false)}
     >
       {/* Backdrop */}
