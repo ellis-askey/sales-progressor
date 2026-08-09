@@ -158,7 +158,7 @@ export default withAuth(
     }
 
     // Agent users can only access the agent area, APIs, and portal â€” nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal", "/claim", "/invite", "/invite-negotiator", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
+    const agentAllowed = ["/agent", "/api", "/portal", "/quote", "/claim", "/invite", "/invite-negotiator", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
@@ -174,6 +174,8 @@ export default withAuth(
       authorized: ({ req, token }) => {
         const { pathname } = req.nextUrl;
         if (pathname.startsWith("/portal")) return true;
+        // Public no-auth quote-request page (Contact.portalToken gated in-page).
+        if (pathname.startsWith("/quote")) return true;
         if (pathname.startsWith("/claim")) return true;
         if (pathname.startsWith("/invite")) return true;
         if (pathname.startsWith("/invite-negotiator")) return true;
@@ -212,6 +214,6 @@ export const config = {
     // can be reached without auth. Prod-blocked at the page level via
     // process.env.NODE_ENV === "production" → notFound() per Phase 2 of
     // docs/BUILD_PLAN.md. Added 2026-06-26 with the Card primitive.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|portal|dev|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|portal|quote|dev|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };
