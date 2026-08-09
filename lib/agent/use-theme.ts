@@ -1,9 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
-import { updateAgentTheme, updateAgentMobileTheme, updateAgentNightMode } from "@/app/actions/agent-preferences";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { updateAgentTheme, updateAgentMobileTheme, updateAgentNightMode, updateThemeMode } from "@/app/actions/agent-preferences";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
+import type { ThemeMode } from "@/lib/agent/theme-mode";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
@@ -119,4 +120,41 @@ export function useAgentNightMode() {
   }
 
   return { setNightMode, isPending };
+}
+
+/**
+ * Unified light/dark toggle — the single source of truth for dark mode
+ * (2026-08-09). Reads/writes `data-theme` on <html> (what ThemeModeBoot resolves
+ * and what every dark token + the WebGL backdrop key off), and persists the
+ * choice as themeMode. Both the desktop top-bar toggle and the mobile sidebar
+ * pill call this, so there is one dark mode driven from two places — no more
+ * separate `data-night` system.
+ *
+ * `initialMode` seeds the first render to avoid an icon flash before mount.
+ */
+export function useDarkMode(initialMode?: ThemeMode) {
+  const [isDark, setIsDark] = useState<boolean>(() => initialMode === "dark");
+
+  useEffect(() => {
+    const read = () => setIsDark(document.documentElement.dataset.theme === "dark");
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
+  const setDark = useCallback((next: boolean) => {
+    const mode: ThemeMode = next ? "dark" : "light";
+    if (typeof window !== "undefined") {
+      // Mirror the flag ThemeModeBoot's matchMedia listener reads, and flip the
+      // attribute immediately for instant feedback (server persist is async).
+      (window as unknown as { __salesProgressorThemeMode__?: ThemeMode }).__salesProgressorThemeMode__ = mode;
+      document.documentElement.dataset.theme = mode;
+    }
+    updateThemeMode(mode).catch((err) => {
+      console.error("[useDarkMode] persist failed:", err);
+    });
+  }, []);
+
+  return { isDark, setDark };
 }

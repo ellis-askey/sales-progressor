@@ -27,19 +27,26 @@ export function usePortalTheme(): { theme: string; isNight: boolean } {
 
   useEffect(() => {
     const shell = document.querySelector(".agent-shell-root");
+    const root = document.documentElement;
 
     function sync() {
+      // theme = the AgentTheme (sunset/coastal/…) from the shell, for the
+      // modal's --agent-* tokens. isNight now follows the unified app-wide dark
+      // mode (data-theme="dark" on <html>), not the retired shell data-night
+      // (2026-08-09). Portalled modals still stamp data-night on their own
+      // wrapper so the .nv2-night[data-night] rules apply.
       const t = shell?.getAttribute("data-theme");
       if (t) setTheme(t);
-      setIsNight(!!shell?.hasAttribute("data-night"));
+      setIsNight(root.dataset.theme === "dark");
     }
 
     sync();
 
     const observer = new MutationObserver(sync);
     if (shell) {
-      observer.observe(shell, { attributes: true, attributeFilter: ["data-theme", "data-night"] });
+      observer.observe(shell, { attributes: true, attributeFilter: ["data-theme"] });
     }
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
     return () => observer.disconnect();
   }, []);
 

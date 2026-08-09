@@ -20,18 +20,12 @@ import {
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
-import { SolidModeToggle } from "@/components/layout/SolidModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
-import { useAgentNightMode } from "@/lib/agent/use-theme";
+import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
-
-function isNightTimeNow() {
-  const h = new Date().getHours();
-  return h >= 22 || h < 7;
-}
 
 function formatAgentTime(d: Date): string {
   try {
@@ -261,8 +255,9 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   // theme is active, and picks persist per-account exactly like card picks.
   const topbarPick = usePickForCard("nav-topbar");
   const sidebarPick = usePickForCard("nav-sidebar");
-  const { setNightMode } = useAgentNightMode();
-  const [nightOn, setNightOn] = useState(() => nightModePref ?? isNightTimeNow());
+  // One dark-mode source of truth (data-theme), shared with the desktop
+  // top-bar toggle. Replaces the old data-night mobile-only system.
+  const { isDark, setDark } = useDarkMode(themeMode);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -272,12 +267,6 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
     }
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
-
-  function handleNightToggle() {
-    const next = !nightOn;
-    setNightOn(next);
-    setNightMode(next);
-  }
 
   const [refreshing, setRefreshing] = useState(false);
   function handleRefresh() {
@@ -293,7 +282,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   }
 
   return (
-    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-night={nightOn ? "" : undefined} data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
 
       {/* Elevra-backgrounds pass, 2026-08-08: the old plasma-SVG + coral
           aurora was removed. Backdrop now lives in <AppBackground /> mounted
@@ -341,7 +330,6 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
                 not a bug. Caused intermittent full-tree hydration errors. */}
             <span suppressHydrationWarning>{`As of ${formatAgentTime(refreshedAt)}`}</span>
           </button>
-          <div className="hidden md:block"><SolidModeToggle /></div>
           <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>
           {/* Design Lab — Ellis-only per-card glass picker. Invisible for
               everyone else so it doesn't clutter the topbar. */}
@@ -473,40 +461,41 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           flexShrink: 0,
         }}>
           <button
-            onClick={handleNightToggle}
+            onClick={() => setDark(!isDark)}
             style={{
               display: "flex", alignItems: "center", width: "100%",
               background: "none", border: "none", cursor: "pointer",
               padding: 0, gap: 10,
             }}
-            aria-label={nightOn ? "Turn off night mode" : "Turn on night mode"}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            aria-pressed={isDark}
           >
             <Moon
-              weight={nightOn ? "fill" : "regular"}
+              weight={isDark ? "fill" : "regular"}
               style={{
                 width: 16, height: 16, flexShrink: 0,
-                color: nightOn ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                color: isDark ? "var(--agent-coral)" : "var(--agent-text-muted)",
                 transition: "color 200ms",
               }}
             />
             <div style={{ flex: 1, textAlign: "left" }}>
-              <span style={{ fontSize: 13, color: nightOn ? "var(--agent-text-primary)" : "var(--agent-text-secondary)", fontWeight: 500 }}>
-                Night mode
+              <span style={{ fontSize: 13, color: isDark ? "var(--agent-text-primary)" : "var(--agent-text-secondary)", fontWeight: 500 }}>
+                Dark mode
               </span>
               <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                Auto-enables at 10pm
+                Dark surfaces across the app
               </p>
             </div>
             {/* Pill toggle */}
             <div style={{
               width: 36, height: 20, borderRadius: 10, flexShrink: 0,
-              background: nightOn ? "var(--agent-coral-deep)" : "var(--agent-border-strong)",
+              background: isDark ? "var(--agent-coral-deep)" : "var(--agent-border-strong)",
               position: "relative",
               transition: "background 200ms",
             }}>
               <div style={{
                 position: "absolute",
-                top: 3, left: nightOn ? 19 : 3,
+                top: 3, left: isDark ? 19 : 3,
                 width: 14, height: 14, borderRadius: "50%",
                 background: "#fff",
                 transition: "left 200ms",
