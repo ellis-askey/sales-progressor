@@ -238,7 +238,7 @@ function renderQuoteEmailText(v: {
       ? "By phone"
       : v.contactMethod === "email"
         ? "By email"
-        : "Phone or email — whichever works";
+        : "Phone or email, whichever works";
 
   return `Hi ${v.firmName},
 

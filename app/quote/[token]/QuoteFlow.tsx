@@ -196,7 +196,7 @@ export function QuoteFlow({
         <StepCard
           number={2}
           title={`Pick a surveyor (${eligibleFirms.length} in your area${eligibleFirms.length === 1 ? "" : ""})`}
-          subtitle="You can select more than one — they'll each send you a quote."
+          subtitle="You can select more than one. They'll each send you a quote."
         >
           {eligibleFirms.length === 0 ? (
             <p style={{ fontSize: 13, color: "#78716c", padding: "12px 0", margin: 0 }}>
