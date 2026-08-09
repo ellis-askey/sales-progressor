@@ -317,8 +317,11 @@ export async function updateEmailPayload(
   });
 
   if (!email) return { ok: false, error: "Email not found." };
-  if (email.emailType !== "CLIENT_CHASE") {
-    return { ok: false, error: "Only chase emails can be edited." };
+  // 2026-08-09 review-tray: MILESTONE_CONFIRMATION rows are also
+  // editable from the file-page review tray now. Same permission +
+  // "not yet sent" gates apply. Every other emailType remains locked.
+  if (email.emailType !== "CLIENT_CHASE" && email.emailType !== "MILESTONE_CONFIRMATION") {
+    return { ok: false, error: "This email type can't be edited." };
   }
   if (email.sentAt || email.errorAt) {
     return { ok: false, error: "This email has already been sent and can't be edited." };

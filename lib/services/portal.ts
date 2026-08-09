@@ -1529,7 +1529,7 @@ async function sendRichMilestoneEmails(
   const suppressedRecipient = computeBilateralSuppressedRecipient(milestoneCode, handoffDirection);
 
   // Exchange/completion handling. The four codes VM19/PM26/VM20/PM27
-  // bypass the 3-minute digest queue (always discrete single-event
+  // use the shorter 60s delay through the queue (still feel discrete,
   // customer emails) AND respect a staleness rule: if the agent is
   // catching up well after the recorded date, the customer-facing email
   // is suppressed. Internal-audience emails (vendorAgent, progressor)
@@ -1540,10 +1540,10 @@ async function sendRichMilestoneEmails(
     { expectedExchangeDate: tx.expectedExchangeDate, completionDate: tx.completionDate },
   );
 
-  // Vendor and purchaser contacts — enqueued for the 3-minute batching
+  // Vendor and purchaser contacts — enqueued for the 5-minute batching
   // window rather than sent synchronously, EXCEPT for the four exchange/
   // completion codes which always send immediately as discrete emails.
-  // /api/cron/send-milestone-digests drains every 3 minutes: N=1 sends
+  // /api/cron/send-milestone-digests drains every 5 minutes: N=1 sends
   // the row's payload as-is (today's locked single-event copy); N>=2
   // assembles a digest (see lib/email/milestone-digest.ts). vendorAgent
   // + progressor sends below remain synchronous — those are internal-
@@ -1575,26 +1575,32 @@ async function sendRichMilestoneEmails(
       continue;
     }
 
-    if (isExchangeCompletion) {
-      // Queue bypass + staleness check. Always discrete, never bundled.
-      // logAutomatedEmail still writes the comms-log entry below (via
-      // sideLog) regardless of whether the actual send happens — so
-      // staleness suppression doesn't hide the intent from the timeline.
-      if (!customerSuppressedByStaleness) {
-        sendEmail({ to: c.email, subject, text, html, replyTo }).catch(() => {});
-      }
-      const existing = sideLog.get(recipientKey);
-      if (existing) {
-        existing.ids.push(c.id);
-      } else {
-        sideLog.set(recipientKey, { ids: [c.id], subject, text });
+    // 2026-08-09 review-tray change: exchange/completion no longer
+    // bypass the queue. They now enqueue with a SHORTER 60-second
+    // delay (vs the 5-minute standard window) so the agent's review
+    // tray still gets a chance to intercept a mis-timed exchange
+    // notification, but clients still get near-realtime confirmation
+    // of these big-deal moments. Staleness suppression preserved — if
+    // suppressed, we skip enqueue entirely.
+    if (customerSuppressedByStaleness) {
+      // Nothing to enqueue; sideLog + logAutomatedEmail still fire so
+      // the comms feed records the intent (matches prior behaviour).
+      if (isExchangeCompletion) {
+        const existing = sideLog.get(recipientKey);
+        if (existing) {
+          existing.ids.push(c.id);
+        } else {
+          sideLog.set(recipientKey, { ids: [c.id], subject, text });
+        }
       }
     } else {
-      // Standard path: enqueue into the 3-minute batching window.
-      // Source key: (transactionId, milestoneCode) is unique per confirmation
-      // event and stable under retry. The unique index on
-      // (emailType, sourceId, recipientContactId) makes the enqueue idempotent;
-      // a re-confirm within the 3-minute window silently no-ops.
+      // Enqueue path — used for every code now. Source key
+      // (transactionId, milestoneCode) is unique per confirmation and
+      // stable under retry. The unique index on (emailType, sourceId,
+      // recipientContactId) makes the enqueue idempotent; a re-confirm
+      // within the window silently no-ops. Delay differs per code:
+      // exchange/completion = 60s (still discrete-feeling), everything
+      // else = 5 minutes (batching window for the review tray).
       const sourceId = `${transactionId}:${milestoneCode}`;
       const payload: MilestoneDigestPayload = {
         subject,
@@ -1606,15 +1612,16 @@ async function sendRichMilestoneEmails(
         firstName: extractFirstName(c.name),
         portalUrl,
       };
+      const delayMs = isExchangeCompletion ? 60 * 1000 : 5 * 60 * 1000;
       enqueueEmail({
         emailType: "MILESTONE_CONFIRMATION",
         sourceId,
         recipientEmail: c.email,
         recipientContactId: c.id,
         payload: payload as unknown as Record<string, unknown>,
-        // 3-minute batching window. NOT routed through scheduleForBusinessHours —
-        // transactional client emails fire 24/7 within the batching window.
-        scheduledFor: new Date(Date.now() + 3 * 60 * 1000),
+        // NOT routed through scheduleForBusinessHours — transactional
+        // client emails fire 24/7 within the batching window.
+        scheduledFor: new Date(Date.now() + delayMs),
       }).catch(() => {});
       // Queue path does NOT write to sideLog. The comms-log entry is
       // written by drainMilestoneDigests at send-time so the activity

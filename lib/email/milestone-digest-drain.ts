@@ -1,5 +1,7 @@
 // Drain logic for MILESTONE_CONFIRMATION rows. Called by
-// /api/cron/send-milestone-digests every 3 minutes.
+// /api/cron/send-milestone-digests every 5 minutes (was 3 minutes
+// before 2026-08-09; changed alongside the review-tray to give agents
+// more time to intercept a mis-timed send).
 //
 // Behaviour per recipient group (recipientContactId):
 //   • N = 1 pending row  → send the row's stored payload verbatim. This
@@ -244,4 +246,128 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
     suppressed,
     failed,
   };
+}
+
+// Flush every pending row for ONE file immediately. Bypasses the
+// scheduledFor gate so it works even when the agent hits "Send now"
+// before the 5-min countdown expires. Reuses the same per-recipient
+// suppression / dead-round / decide-send / SendGrid path as the cron
+// drain so behaviour is identical — just scoped to a single tx and
+// unbounded by scheduledFor.
+//
+// Returns the number of rows that were successfully handed to SendGrid.
+// Added 2026-08-09 for the review-tray "Send now" button.
+export async function drainMilestoneDigestsForFile(transactionId: string): Promise<number> {
+  const now = new Date();
+  const due = await prisma.outboundEmailQueue.findMany({
+    where: {
+      emailType: "MILESTONE_CONFIRMATION",
+      sentAt: null,
+      errorAt: null,
+      // Deliberately NO scheduledFor gate — "send now" overrides the
+      // countdown. Row still has to be for THIS file.
+      recipientContact: { propertyTransactionId: transactionId },
+    },
+    orderBy: { scheduledFor: "asc" },
+  });
+
+  const grouped = groupByRecipient(due);
+  let handedOff = 0;
+
+  for (const [contactId, rows] of grouped) {
+    // Same suppression + dead-round gates as the cron path.
+    let isSuppressed = false;
+    try {
+      isSuppressed = await isContactEmailSuppressed(contactId);
+    } catch {
+      isSuppressed = false;
+    }
+    if (isSuppressed) {
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { sentAt: now, errorMessage: "suppressed:unsubscribed" },
+      });
+      continue;
+    }
+
+    const recipientContact = await prisma.contact.findUnique({
+      where: { id: contactId },
+      select: {
+        roleType: true,
+        buyerRoundId: true,
+        transaction: { select: { activeBuyerRoundId: true } },
+      },
+    });
+    if (
+      recipientContact &&
+      recipientContact.roleType === "purchaser" &&
+      recipientContact.buyerRoundId !== null &&
+      recipientContact.buyerRoundId !== recipientContact.transaction.activeBuyerRoundId
+    ) {
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { errorAt: now, errorMessage: "recipient_round_archived" },
+      });
+      continue;
+    }
+
+    let decision: SendDecision<typeof rows[number]>;
+    try {
+      decision = decideSendForGroup(rows);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "decide error";
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { errorAt: now, errorMessage: message },
+      });
+      continue;
+    }
+
+    const recipientEmail = rows[0].recipientEmail;
+    try {
+      if (decision.mode === "single") {
+        await sendEmail({
+          to: recipientEmail,
+          subject: decision.payload.subject,
+          text: decision.payload.text,
+          html: decision.payload.html,
+          queueId: decision.row.id,
+        });
+        await prisma.outboundEmailQueue.update({
+          where: { id: decision.row.id },
+          data: { sentAt: now },
+        });
+        const txId = transactionIdFromSourceId(decision.row.sourceId);
+        if (txId) {
+          await logAutomatedEmail(txId, [contactId], decision.payload.subject, decision.payload.text).catch(() => {});
+        }
+        handedOff += 1;
+      } else {
+        await sendEmail({
+          to: recipientEmail,
+          subject: decision.assembled.subject,
+          text: decision.assembled.text,
+          html: decision.assembled.html,
+          queueId: decision.rows.map((r) => r.id).join(","),
+        });
+        await prisma.outboundEmailQueue.updateMany({
+          where: { id: { in: decision.rows.map((r) => r.id) } },
+          data: { sentAt: now },
+        });
+        const txId = transactionIdFromSourceId(decision.rows[0].sourceId);
+        if (txId) {
+          await logAutomatedEmail(txId, [contactId], decision.assembled.subject, decision.assembled.text).catch(() => {});
+        }
+        handedOff += decision.rows.length;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "send error";
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { errorAt: now, errorMessage: message },
+      });
+    }
+  }
+
+  return handedOff;
 }

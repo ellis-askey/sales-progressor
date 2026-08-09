@@ -70,7 +70,7 @@
     },
     {
       "path": "/api/cron/send-milestone-digests",
-      "schedule": "*/3 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/drain-withdrawal-notifications",
