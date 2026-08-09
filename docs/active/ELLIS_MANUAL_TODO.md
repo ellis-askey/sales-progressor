@@ -16,6 +16,13 @@ The feature is merged to master and deployed to production, but the send cron is
 - [ ] Go live: set `EMAIL_SANDBOX_MODE=false` (or remove it) and keep `SOLICITOR_CHASE_ENABLED=true`. From then on, solicitors with an open step past the 5-working-day grace get one digest per file+side.
 - [ ] Cadence numbers (grace 5wd / repeat 7d / cap 2) live in the `SolicitorChaseSettings` singleton row — currently defaults. The in-app Settings → Automation editor for these is not built yet (follow-up).
 
+### Prod migration timeout — root cause + fix (2026-08-09 incident)
+
+The first master deploy of this feature FAILED: `prisma migrate deploy` hit the pooler's **120s statement timeout** while a stuck **idle-in-transaction** session held read locks on `PropertyTransaction` + `MilestoneCompletion`, so the `ALTER TABLE`s couldn't get their lock. The migration rolled back cleanly (no partial schema), was then applied out-of-band + marked resolved, and the deploy re-run succeeded. To stop this recurring on FUTURE migrations:
+
+- [ ] Point Vercel's **`DIRECT_URL`** (Production) at the true direct endpoint `db.gmkfustgwipgihpmpjpr.supabase.co:5432` (NOT the `...pooler.supabase.com` host it currently uses). Prisma runs `migrate deploy` over `DIRECT_URL`; the direct endpoint doesn't enforce the pooler's 120s statement timeout, so DDL that briefly waits on a lock won't be killed.
+- [ ] Investigate the app leaking idle-in-transaction sessions (a Prisma interactive transaction not committing / a connection left open) — they hold locks that block DDL.
+
 Notes:
 - Sends use each agency's verified sender (falls back to `ellis@thesalesprogressor.co.uk`). No new SendGrid setup needed.
 - Staging caveat: Vercel **staging** deploys use `prisma db push --accept-data-loss`, so deploying the `staging` branch (which doesn't yet have the solicitor schema) would DROP the solicitor tables/columns on the staging DB. Merge solicitor-confirm into `staging` before/if you deploy staging.
