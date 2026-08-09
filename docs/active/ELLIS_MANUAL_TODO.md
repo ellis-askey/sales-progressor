@@ -8,24 +8,20 @@ Last updated: 2026-08-09
 
 ---
 
-## Solicitor confirmation emails — go-live steps (2026-08-09)
+## Solicitor confirmation emails — how to go live (2026-08-09)
 
-The feature is merged to master and deployed to production, but the send cron is **dormant** — it self-skips until an env var is set. Nothing emails solicitors until you do the following on Vercel (Production):
+The feature is on production but **OFF**. The on/off switch is now **in the app**, not an env var: go to **Settings → Automation** (as a director) → "Solicitor confirmation emails" → toggle it on and Save. No Vercel changes needed.
 
-- [ ] Optional dry run: set `EMAIL_SANDBOX_MODE=true`, then set `SOLICITOR_CHASE_ENABLED=true`. The weekday-09:00 cron will run the full path but SendGrid delivers nothing (sandbox). Check the cron logs / `SolicitorChaseState` rows look right.
-- [ ] Go live: set `EMAIL_SANDBOX_MODE=false` (or remove it) and keep `SOLICITOR_CHASE_ENABLED=true`. From then on, solicitors with an open step past the 5-working-day grace get one digest per file+side.
-- [ ] Cadence numbers (grace 5wd / repeat 7d / cap 2) live in the `SolicitorChaseSettings` singleton row — currently defaults. The in-app Settings → Automation editor for these is not built yet (follow-up).
+- [ ] When ready (after you've reviewed/updated the files), turn the switch on there. From the next weekday 09:00 (UK ~10:00), solicitors with a step overdue by 5 working days get one email per file+side. **Heads-up: ~48 real firms are currently "due", so the first morning is a real send to real solicitors.** Consider a dry-run first (ask me to simulate + send you samples), or turn it on for a quiet period and watch.
+- [ ] The schedule numbers (5 working days / repeat 7 / stop after 2) are editable on that same screen.
 
-### Prod migration timeout — root cause + fix (2026-08-09 incident)
+### Prod migration timeout — investigated, NO action needed
 
-The first master deploy of this feature FAILED: `prisma migrate deploy` hit the pooler's **120s statement timeout** while a stuck **idle-in-transaction** session held read locks on `PropertyTransaction` + `MilestoneCompletion`, so the `ALTER TABLE`s couldn't get their lock. The migration rolled back cleanly (no partial schema), was then applied out-of-band + marked resolved, and the deploy re-run succeeded. To stop this recurring on FUTURE migrations:
-
-- [ ] Point Vercel's **`DIRECT_URL`** (Production) at the true direct endpoint `db.gmkfustgwipgihpmpjpr.supabase.co:5432` (NOT the `...pooler.supabase.com` host it currently uses). Prisma runs `migrate deploy` over `DIRECT_URL`; the direct endpoint doesn't enforce the pooler's 120s statement timeout, so DDL that briefly waits on a lock won't be killed.
-- [ ] Investigate the app leaking idle-in-transaction sessions (a Prisma interactive transaction not committing / a connection left open) — they hold locks that block DDL.
+The first prod deploy failed once because a single stuck database connection was holding a lock at the exact moment the migration ran, and the 120s safety timeout killed it. It rolled back cleanly and I re-applied it safely. **This was a one-off fluke, not a systemic problem** — your past deploys worked fine and future ones will too. Specifically: do **NOT** change the `DIRECT_URL` database setting (the "direct" address is often unreachable from Vercel and could break deploys). No change required. (If it ever recurs, it's the same stuck-connection situation and is easily cleared.)
 
 Notes:
 - Sends use each agency's verified sender (falls back to `ellis@thesalesprogressor.co.uk`). No new SendGrid setup needed.
-- Staging caveat: Vercel **staging** deploys use `prisma db push --accept-data-loss`, so deploying the `staging` branch (which doesn't yet have the solicitor schema) would DROP the solicitor tables/columns on the staging DB. Merge solicitor-confirm into `staging` before/if you deploy staging.
+- Staging caveat: Vercel **staging** deploys use `prisma db push --accept-data-loss`, so deploying the `staging` branch (which doesn't have the solicitor schema) would DROP the solicitor tables/columns on the staging DB. Merge solicitor-confirm into `staging` before/if you deploy staging.
 
 ---
 

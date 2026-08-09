@@ -135,6 +135,9 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   isComplete: boolean;
   isNotRequired: boolean;
   isAvailable: boolean;
+  // Firm name when a step was confirmed by a solicitor (solicitor-confirm
+  // feature), so the timeline can render "Confirmed by {firm}". Null otherwise.
+  confirmedBySolicitorFirmName?: string | null;
 };
 
 export type MilestonesByTransaction = {
@@ -532,6 +535,24 @@ export async function getMilestonesForTransaction(
   const completionMap = new Map<string, MilestoneCompletion>();
   completions.forEach((c) => completionMap.set(c.milestoneDefinitionId, c));
 
+  // Look up firm names for any solicitor-confirmed steps (one query) so the
+  // row can render "Confirmed by {firm}".
+  const firmIds = [
+    ...new Set(
+      completions
+        .map((c) => c.confirmedBySolicitorFirmId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const firmNameById = new Map<string, string>();
+  if (firmIds.length > 0) {
+    const firms = await prisma.solicitorFirm.findMany({
+      where: { id: { in: firmIds } },
+      select: { id: true, name: true },
+    });
+    firms.forEach((f) => firmNameById.set(f.id, f.name));
+  }
+
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");
 
@@ -546,6 +567,9 @@ export async function getMilestonesForTransaction(
         isComplete: state === "complete",
         isNotRequired: state === "not_required",
         isAvailable: state === "available" || state === "complete" || state === "not_required",
+        confirmedBySolicitorFirmName: completion?.confirmedBySolicitorFirmId
+          ? firmNameById.get(completion.confirmedBySolicitorFirmId) ?? null
+          : null,
       };
     });
   };

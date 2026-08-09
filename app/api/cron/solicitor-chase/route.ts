@@ -7,10 +7,9 @@
 // digest per file+side via sendChainEmail, records SolicitorChaseState, then
 // runs the escalation pass (notify the assigned agent after the cap).
 //
-// Gated by SOLICITOR_CHASE_ENABLED — until it's "true" the cron is a no-op
-// even when scheduled, so the schedule can register on prod without
-// committing to live sends. Set EMAIL_SANDBOX_MODE=true on staging to
-// exercise the whole path without delivering.
+// On/off is the SolicitorChaseSettings admin switch (Settings → Automation):
+// off by default, so the scheduled cron is a no-op until the founder turns it
+// on. Set EMAIL_SANDBOX_MODE=true to exercise the whole path without delivering.
 //
 // Schedule: weekdays 09:00 UTC (vercel.json).
 
@@ -24,10 +23,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (process.env.SOLICITOR_CHASE_ENABLED !== "true") {
-    return NextResponse.json({ ok: true, skipped: "flag_disabled" });
-  }
-
+  // On/off is controlled by the SolicitorChaseSettings row (Settings →
+  // Automation), not an env var — runSolicitorChaseCron returns enabled:false
+  // and does nothing when the admin switch is off.
   try {
     const result = await runSolicitorChaseCron(new Date());
     return NextResponse.json({ ok: true, ...result });
