@@ -49,11 +49,11 @@ const STEP_LABELS: Record<string, string> = {
 // Plain-English blurb for a step whose chase clock starts from a non-
 // direct-prereq milestone. Matches the seed comments in the migration.
 const ANCHOR_NOTES: Record<string, string> = {
-  VM16: "Chases after replies to further enquiries are out — not straight after the draft pack.",
+  VM16: "Chases after replies to further enquiries are out, not straight after the draft pack.",
   PM7:  "Chases after the seller's solicitor has confirmed the pack was issued.",
   PM11: "Chases 5 wd after the valuation attends (falls back to booking date for desktop valuations).",
   PM15: "Chases after the seller's solicitor has confirmed replies were sent.",
-  PM17: "Chases after the search results come back — that's what usually prompts them.",
+  PM17: "Chases after the search results come back, since that's what usually prompts them.",
   PM18: "Chases after the seller's solicitor has confirmed further replies were sent.",
 };
 
