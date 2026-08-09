@@ -118,7 +118,7 @@ export default async function WorkQueuePage() {
         {items.length > 0 && <FileAlertsStrip items={items} />}
         {reminderLogs.length === 0 && activeFileCount === 0 ? (
           <>
-            <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+            <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                 {isProgressor ? "No files assigned yet" : "Your reminders will appear here"}

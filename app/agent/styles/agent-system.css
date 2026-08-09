@@ -1413,6 +1413,24 @@
     line-height: var(--agent-line-relaxed);
   }
 
+  /* ── Empty-state card (dark only) ─────────────────────────────────────────
+   * Elevra "Inbox zero" treatment: a self-contained hairline-bordered card on
+   * a faintly-raised dark surface, applied to primary empty states via the
+   * .agent-empty-card class. LIGHT MODE IS INTENTIONALLY UNTOUCHED — there is
+   * no light rule, so in light the element keeps whatever surface it already
+   * had. On elements that already carry a card class (e.g. .agent-glass-strong)
+   * the higher-specificity dark selector below repaints the surface in dark
+   * only, so there's no double-card. Inline padding on a site wins over the
+   * fallback padding here, so wrapped states keep their own spacing. 2026-08-09.
+   * ───────────────────────────────────────────────────────────────────────── */
+  :root[data-theme="dark"] .agent-shell-root .agent-empty-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    padding: 40px 28px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
+  }
+
   /* ── Recharts — touch focus ring ────────────────────────────────────────── */
   .recharts-wrapper:focus,
   .recharts-surface:focus {

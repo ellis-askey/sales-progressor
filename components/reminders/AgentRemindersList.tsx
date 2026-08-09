@@ -908,7 +908,7 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
   // Full empty state (zero logs, before any filter)
   if (logs.length === 0) {
     return (
-      <div className="agent-glass-strong" style={{ padding: "40px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+      <div className="agent-glass-strong agent-empty-card" style={{ padding: "40px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
         <CheckCircle weight="fill" style={{ width: 32, height: 32, color: "var(--agent-success)", margin: "0 auto 10px" }} />
         <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>All caught up</p>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
@@ -963,7 +963,7 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
 
       {/* Filtered empty states */}
       {statusFilter === "active" && !hasActiveResults && (
-        <div className="agent-glass-strong" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+        <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
           <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
             {/* OLD: "No reminders match the current filter." — Rule 3 (active/specific) — Stage 3 voice review */}
             {sideFilter !== "all"
