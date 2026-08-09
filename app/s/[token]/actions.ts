@@ -7,6 +7,13 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
 import { checkSolicitorConfirmLimit } from "@/lib/ratelimit";
+import {
+  sendAdminMilestoneNotificationToPortal,
+  fireAutoCounterpartEmails,
+  computeHandoffDirection,
+  isBilateralCounterpartComplete,
+  scheduleOrSendCompletionPack,
+} from "@/lib/services/portal";
 
 // Shared guard: re-verify the signed token on EVERY write (never trust the
 // client) and confirm the step is one this side's solicitor is actually
@@ -90,6 +97,52 @@ export async function solicitorConfirmStepAction(
       firmName,
     },
   });
+
+  // Fire the client-facing milestone-confirmed emails, same as when the
+  // agent ticks in-app. Without this, buyer/seller silently miss updates
+  // whenever a solicitor confirms via /s/<token> — scope-doc line 5 said
+  // "additive — clients keep getting their emails too", but the intent
+  // wasn't wired until 2026-08-10.
+  //
+  // Fire-and-forget (.catch swallows) so a mail failure doesn't 500 the
+  // solicitor's Confirm button. Respects tx.suppressPortalConfirmEmails
+  // (internal debug toggle) via the tx lookup below.
+  const txForEmail = await prisma.propertyTransaction.findUnique({
+    where: { id: decoded.transactionId },
+    select: { suppressPortalConfirmEmails: true },
+  });
+  if (txForEmail && !txForEmail.suppressPortalConfirmEmails) {
+    const counterpartComplete = await isBilateralCounterpartComplete(
+      decoded.transactionId,
+      def.code,
+    ).catch(() => false);
+    const handoffDirection = computeHandoffDirection(def.code, counterpartComplete);
+    // confirmerRoute is undefined — no user session in the solicitor flow.
+    // Templates fall through to the default route copy (no skeleton-mode
+    // route-variance for solicitor confirms; add if/when needed).
+    sendAdminMilestoneNotificationToPortal(
+      decoded.transactionId,
+      def.code,
+      null,
+      undefined,
+      undefined,
+      handoffDirection,
+    ).catch(() => {});
+
+    // Auto-counterpart fan-out (VM19↔PM26, VM20↔PM27). No-op for other
+    // codes. Included for correctness even though solicitors aren't asked
+    // to confirm exchange/completion in v1 — safe defensive call.
+    fireAutoCounterpartEmails(
+      decoded.transactionId,
+      def.code,
+      undefined,
+      undefined,
+    ).catch(() => {});
+
+    if (def.code === "VM19" || def.code === "PM26") {
+      scheduleOrSendCompletionPack(decoded.transactionId, def.code).catch(() => {});
+    }
+  }
 
   revalidatePath(`/s/${token}`);
   return { ok: true };
