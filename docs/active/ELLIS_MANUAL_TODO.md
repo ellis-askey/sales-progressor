@@ -4,7 +4,32 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-29
+Last updated: 2026-08-09
+
+---
+
+## Provider-quotes v1 — create `provider-logos` Supabase bucket (both projects)
+
+The provider-quotes feature (recommended surveyors, expandable to electricians etc.) needs a **public-read** Supabase Storage bucket for firm logos. The bucket is read from the public no-auth `/quote/[token]` page, so signed URLs would expire mid-view.
+
+### Steps (do for BOTH projects — staging first, then production)
+
+**Staging** (project id `etidawkbqctarmsdjoxp`):
+1. Supabase dashboard → Storage → **New bucket**
+2. Name: `provider-logos` (exact, lowercase)
+3. Public bucket: **on** (this is critical — leave it private and logos will 404 on the client page)
+4. File size limit: 500 KB
+5. Allowed MIME types: `image/png, image/jpeg, image/svg+xml, image/webp`
+6. Save
+
+**Production** (project id `gmkfustgwipgihpmpjpr`): repeat the same steps.
+
+### How to verify
+
+After the CC admin page ships (step 4 of the provider-quotes build), upload a test logo to any firm. The public URL should be:
+`https://<supabase-project>.supabase.co/storage/v1/object/public/provider-logos/<file>`
+
+Open it in an incognito tab — should render the image, not "Object not found".
 
 ---
 
