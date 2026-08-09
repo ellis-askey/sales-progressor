@@ -675,7 +675,7 @@ function SplitFileCard({
        * so absolute-positioned dropdowns (RowSnoozeMenu / SideSnoozeMenu) can extend
        * beyond the card without being clipped. */}
       <div className="agent-card-hdr" style={{
-        background: "rgba(255,255,255,0.28)",
+        background: "var(--agent-card-header-veil)",
         padding: "10px 20px",
         borderRadius: "16px 20px 0 0",
       }}>

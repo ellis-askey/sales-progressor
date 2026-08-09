@@ -2353,6 +2353,10 @@
   /* Hub "Pro tip" banner surface (item 6). Warm cream in light; amber-tinted
    * dark panel in dark. */
   --agent-protip-bg: rgba(255, 251, 235, 0.75);
+  /* Frosted card-header veil (e.g. the reminders file-card address strip). A
+   * white wash in light; a faint light lift on dark instead of a washed-out
+   * 28%-white block. */
+  --agent-card-header-veil: rgba(255, 255, 255, 0.28);
 }
 :root[data-theme="dark"] .agent-shell-root {
   --agent-hero-track: rgba(255, 255, 255, 0.13);
@@ -2360,4 +2364,5 @@
   --agent-surface-nested-strong: rgba(255, 255, 255, 0.08);
   --agent-pipeline-connector: rgba(255, 122, 94, 0.55);
   --agent-protip-bg: rgba(245, 158, 11, 0.10);
+  --agent-card-header-veil: rgba(255, 255, 255, 0.05);
 }
