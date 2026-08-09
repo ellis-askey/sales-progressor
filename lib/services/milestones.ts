@@ -645,7 +645,12 @@ export async function getImpliedPredecessors(
 //   - summary template substitution: confirmer.name fills the {agent} token.
 export type Confirmer =
   | { kind: "user"; id: string; name: string }
-  | { kind: "contact"; id: string; name: string };
+  | { kind: "contact"; id: string; name: string }
+  // Solicitor confirming via their /s/<token> link. Recorded on the
+  // completion as confirmedBySolicitorFirmId/ContactId so the timeline reads
+  // "confirmed by {firmName}". firmId/contactId may be null if the file has a
+  // firm but no named contact. See docs/active/solicitor-confirm/scope.md.
+  | { kind: "solicitor"; firmId: string | null; contactId: string | null; firmName: string };
 
 export type CompleteMilestoneInput = {
   transactionId: string;
@@ -715,16 +720,23 @@ export async function completeMilestone(
     }
   }
 
+  const confirmerName =
+    input.confirmer.kind === "solicitor" ? input.confirmer.firmName : input.confirmer.name;
   const summaryText = def.summaryTemplate
-    ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
+    ? await generateSummaryText(input.transactionId, def.summaryTemplate, confirmerName)
     : null;
 
   // Derive provenance from the confirmer.
   // - completedById: User.id when an agent confirms; null when a contact
   //   confirms via portal (the FK targets the User table, not Contact).
-  // - confirmedByPortal: true for contact confirms; false otherwise.
+  // - confirmedByPortal: true for contact (client portal) confirms; false otherwise.
+  // - confirmedBySolicitor*: set when a solicitor confirms via /s/<token>; null otherwise.
   const completedById = input.confirmer.kind === "user" ? input.confirmer.id : null;
   const confirmedByPortal = input.confirmer.kind === "contact";
+  const confirmedBySolicitorFirmId =
+    input.confirmer.kind === "solicitor" ? input.confirmer.firmId : null;
+  const confirmedBySolicitorContactId =
+    input.confirmer.kind === "solicitor" ? input.confirmer.contactId : null;
 
   // Find-then-update-or-create: see comment above initializeMilestoneCompletions
   // for why the compound upsert key no longer exists.
@@ -769,6 +781,8 @@ export async function completeMilestone(
         eventDate: input.eventDate ?? null,
         completedById,
         confirmedByPortal,
+        confirmedBySolicitorFirmId,
+        confirmedBySolicitorContactId,
         summaryText,
         notRequiredReason: null,
         // 2026-07-13 (Chunk 6a): if the row was previously NR'd, flipping
@@ -797,6 +811,8 @@ export async function completeMilestone(
           eventDate: input.eventDate ?? null,
           completedById,
           confirmedByPortal,
+          confirmedBySolicitorFirmId,
+          confirmedBySolicitorContactId,
           summaryText,
           // Stamp the active round on purchaser-side rows; vendor rows
           // stay file-level (NULL). Same attribution rule as
