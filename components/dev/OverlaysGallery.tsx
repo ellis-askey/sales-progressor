@@ -92,6 +92,66 @@ const EDIT_SHARED = {
   predictedExchangeDate: new Date(Date.now() + 56 * 86400000), completionDate: null, exchangeConfirmed: false,
 };
 
+// ─── Local mock responses for the two data-fetching drawers ─────────────────
+// ChainDrawer GETs /api/chains?transactionId=…; ArchivedRoundDrawer GETs
+// /api/transactions/…/rounds/…. We shim window.fetch on THIS page only to
+// return these for the gallery's fixture id — so both drawers render fully
+// without seeding anything into the database. Shapes mirror lib/services/
+// chains.ts (ChainV2) and ArchivedRoundDrawer's ArchivedRoundPayload.
+
+const D1 = "2026-05-02T09:00:00.000Z";
+const D2 = "2026-06-18T14:30:00.000Z";
+
+function chainLink(over: Record<string, unknown>) {
+  return {
+    id: "cl", position: 1, createdByUserId: null, claimedByUserId: null, transactionId: null,
+    claimedAt: null, stubPropertyAddress: null, stubAgencyName: null,
+    stubAgentEmail: null, stubAgentName: null, stubAgentPhone: null, stubNotes: null,
+    inviteStatus: "accepted", inviteSentAt: null, inviteBouncedAt: null, inviteDeclinedAt: null,
+    inviteResendCount: 0, withdrawalStatus: null, withdrawalRespondedAt: null,
+    transaction: null, progressPercent: null, predictedExchangeDate: null, isEarlyEstimate: false,
+    stuckMilestoneLabel: null, claimedBy: null, createdBy: null,
+    ...over,
+  };
+}
+
+const MOCK_CHAIN_RESPONSE = {
+  chain: {
+    id: "chain-dev", agencyId: "ag-dev", name: null, createdByUserId: "u1", status: "active", createdAt: D1,
+    links: [
+      chainLink({ id: "l1", position: 1, transactionId: "t1", transaction: { id: "t1", propertyAddress: "9 Maple Drive, Bath BA2 4PG", status: "active", agencyId: "a1" }, progressPercent: 78, predictedExchangeDate: "2026-08-20T00:00:00.000Z", claimedBy: { id: "u2", name: "Tom Clarke", firmName: "Bath Estates" } }),
+      chainLink({ id: "l2", position: 2, transactionId: MOCK_TX_ID, transaction: { id: MOCK_TX_ID, propertyAddress: MOCK_ADDR, status: "active", agencyId: "a1" }, progressPercent: 45, claimedByUserId: "me", stuckMilestoneLabel: "Searches", claimedBy: { id: "me", name: "You", firmName: "Akeman Residential" } }),
+      chainLink({ id: "l3", position: 3, stubPropertyAddress: "Onward purchase — invite pending", stubAgencyName: "Hometown Homes", inviteStatus: "pending" }),
+    ],
+    detachedSegment: null,
+  },
+  notAParticipant: false,
+  pendingNotifications: [],
+  directional: {},
+};
+
+function snap(code: string, name: string, order: number, state: string) {
+  return { code, name, orderIndex: order, state, completedAt: state === "complete" ? D1 : null, eventDate: null, summaryText: null };
+}
+
+const MOCK_ROUND_RESPONSE = {
+  round: {
+    id: "ar1", roundNumber: 1, status: "archived", archivedAt: D2, fallThroughReason: "Buyer withdrew — chain collapsed", createdAt: D1, purchasePrice: 38500000,
+    purchaserSolicitorFirm: { id: "sf", name: "Cooper Legal" },
+    purchaserSolicitorContact: { id: "sc", name: "James Cooper", phone: "+447700900222", email: "j.cooper@cooperlegal.co.uk" },
+    brokerFirm: null, brokerContact: null,
+    vendorMilestoneSnapshot: [snap("VM01", "Instruct solicitor", 1, "complete"), snap("VM02", "Draft contract issued", 2, "complete"), snap("VM03", "Searches requested", 3, "available")],
+    chainSnapshot: null, chainNotifications: [],
+  },
+  buyerContacts: [{ id: "bc1", name: "Hannah Okafor", email: "hannah@email.com", phone: "+447700900333", roleType: "purchaser" }],
+  pmCompletions: [
+    { code: "PM01", name: "Mortgage applied for", orderIndex: 1, state: "complete", completedAt: D1, completedByName: "You", eventDate: null, summaryText: null, confirmedByPortal: false },
+    { code: "PM02", name: "Survey booked", orderIndex: 2, state: "available", completedAt: null, completedByName: null, eventDate: null, summaryText: null, confirmedByPortal: false },
+  ],
+  comms: [{ id: "cm1", type: "outbound", method: "email", content: "Chased the buyer's solicitor for searches.", createdAt: D2, createdByName: "You", visibleToClient: false, isAutomated: false }],
+  fileDocuments: [],
+};
+
 // ─── The gallery ────────────────────────────────────────────────────────────
 
 const MOCK_ARCHIVED_ROUNDS = [
@@ -130,6 +190,24 @@ export function OverlaysGallery() {
       shell?.removeAttribute("data-night");
     };
   }, [dark]);
+
+  // Feed the two data-fetching drawers (Chain, ArchivedRound) their content
+  // locally — patch window.fetch for THIS page only, matched to the fixture id,
+  // and restore it on unmount. Nothing is seeded; everything else passes through.
+  useEffect(() => {
+    const orig = window.fetch;
+    window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const json = (body: unknown) =>
+        new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+      if (url.includes(`/api/chains?transactionId=${MOCK_TX_ID}`)) return json(MOCK_CHAIN_RESPONSE);
+      if (url.includes(`/api/transactions/${MOCK_TX_ID}/rounds/`)) return json(MOCK_ROUND_RESPONSE);
+      return orig(input, init);
+    }) as typeof window.fetch;
+    return () => {
+      window.fetch = orig;
+    };
+  }, []);
 
   const close = () => setOpen(null);
 
@@ -170,6 +248,13 @@ export function OverlaysGallery() {
           <Item label="Add chain node" where="Inside the chain drawer" onOpen={() => setOpen("node")} />
           <Item label="Archived rounds" where="File · after a relist" onOpen={() => setOpen("archived")} />
           <Item label="Design lab (glass picker)" where="Top bar · Ellis only" onOpen={() => setOpen("designLab")} />
+          {/* Sample glass-tagged cards so the Design Lab has something to list. */}
+          <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+            <span style={inlineLabel}>Design-lab targets:</span>
+            {[["gl-sample-1", "File health card"], ["gl-sample-2", "Next milestone card"], ["gl-sample-3", "Reminders card"]].map(([id, label]) => (
+              <div key={id} data-glass-id={id} data-glass-variant="v00" data-glass-label={label} className="glass-card" style={{ padding: "8px 14px", borderRadius: 10, fontSize: 12, color: "var(--agent-text-secondary)" }}>{label}</div>
+            ))}
+          </div>
         </Section>
 
         {/* MODALS */}
