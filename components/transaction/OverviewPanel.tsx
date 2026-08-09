@@ -30,6 +30,7 @@ import { toUKDateStr } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
 import { AutomationControls } from "@/components/transaction/AutomationControls";
+import { EmailAudienceMenu } from "@/components/transaction/EmailAudienceMenu";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
@@ -433,12 +434,19 @@ export async function OverviewPanel({
           Overview to the tail. Small row (styled via variant="row" prop)
           instead of the big card the top slot used. */}
       {(transaction.status === "active" || transaction.status === "on_hold") && (
-        <AutomationControls
-          transactionId={transaction.id}
-          initialClientEmailsPaused={transaction.clientEmailsPaused}
-          status={transaction.status as "active" | "on_hold"}
-          variant="row"
-        />
+        <>
+          {/* Per-party email pausing (seller / buyer / each firm). Replaces the
+              single client-emails toggle (solicitor-confirm feature). */}
+          <EmailAudienceMenu transactionId={transaction.id} />
+          {/* Hold-only — email pausing now lives in the menu above. */}
+          <AutomationControls
+            transactionId={transaction.id}
+            initialClientEmailsPaused={transaction.clientEmailsPaused}
+            status={transaction.status as "active" | "on_hold"}
+            variant="row"
+            hideEmailPause
+          />
+        </>
       )}
 
       {/* isDirectorRole reserved for future director-only widgets in this tab. */}

@@ -85,6 +85,10 @@
       "schedule": "30 8 * * 1-6"
     },
     {
+      "path": "/api/cron/solicitor-chase",
+      "schedule": "0 9 * * 1-5"
+    },
+    {
       "path": "/api/cron/accrue-invoices",
       "schedule": "0 3 * * *"
     },

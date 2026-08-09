@@ -37,6 +37,10 @@ type Props = {
   // relocated slot at the tail of the Overview tab. Default "card"
   // matches the previous shape for any other consumer.
   variant?: "card" | "row";
+  // Solicitor-confirm feature: when true, email pausing is handled by the
+  // per-party EmailAudienceMenu, so this control is HOLD-only. The toggle
+  // then means active ⇄ on_hold, and the stop modal skips the pause option.
+  hideEmailPause?: boolean;
 };
 
 type Mode = "active" | "paused" | "on_hold";
@@ -57,6 +61,7 @@ export function AutomationControls({
   initialClientEmailsPaused,
   status,
   variant = "card",
+  hideEmailPause = false,
 }: Props) {
   const [paused, setPaused] = useState(initialClientEmailsPaused);
   const [currentStatus, setCurrentStatus] = useState<"active" | "on_hold">(status);
@@ -65,8 +70,14 @@ export function AutomationControls({
   const [error, setError] = useState<string | null>(null);
   const { toast } = useAgentToast();
 
-  const mode = deriveMode(paused, currentStatus);
+  // In hold-only mode the toggle ignores the email-pause flag entirely.
+  const mode = hideEmailPause
+    ? currentStatus === "on_hold"
+      ? "on_hold"
+      : "active"
+    : deriveMode(paused, currentStatus);
   const toggleOn = mode === "active";
+  const title = hideEmailPause ? "Hold this file" : "Automation on this file";
 
   function handleToggleClick() {
     if (isPending) return;
@@ -140,10 +151,15 @@ export function AutomationControls({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-            Automation on this file
+            {title}
           </span>
           <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
-            {error ?? SUBTEXT[mode]}
+            {error ??
+              (hideEmailPause
+                ? mode === "on_hold"
+                  ? "On hold — everything is frozen until you reactivate."
+                  : "Not on hold. Reminders and chases run as normal."
+                : SUBTEXT[mode])}
           </span>
         </div>
         <button
@@ -177,6 +193,7 @@ export function AutomationControls({
           onPick={handleChoice}
           onClose={() => setModalOpen(false)}
           isPending={isPending}
+          holdOnly={hideEmailPause}
         />
       )}
     </>

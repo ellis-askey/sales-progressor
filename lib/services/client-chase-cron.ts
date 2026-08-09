@@ -180,6 +180,11 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       createdAt: true,
       agencyId: true,
       clientEmailsPaused: true,
+      // Per-party pause (solicitor-confirm feature): a VM chase honours
+      // vendorEmailsPaused, a PM chase purchaserEmailsPaused. Legacy
+      // clientEmailsPaused stays as the both-sides fallback.
+      vendorEmailsPaused: true,
+      purchaserEmailsPaused: true,
       chaseRuleSnapshot: true,
       // Needed for the purchaser contact-scoping below. After a relist,
       // old buyers stay attached to the file (Contact.propertyTransactionId
@@ -353,9 +358,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     // instead of enqueueing a digest. ClientChaseState is left untouched,
     // so unpausing/re-enabling picks the schedule back up from where it was.
     const agencyOff = agencyChaseEnabled.get(transaction.agencyId) === false;
-    const fileOff = transaction.clientEmailsPaused;
-    const pausedScope: "agency" | "file" | undefined =
-      agencyOff ? "agency" : fileOff ? "file" : undefined;
+    // File-level pause is now resolved per side (below, once we know the
+    // chase's side) so seller-only / buyer-only toggles take effect
+    // independently. agencyOff is file-wide and computed here.
 
     const txContacts = contactsByTx.get(transaction.id) ?? [];
     if (txContacts.length === 0) continue;
@@ -404,6 +409,21 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       const side = sideForMilestoneCode(targetCode);
       if (!side) continue;
       const recipients = txContacts.filter((c) => c.roleType === side);
+
+      // Per-side file pause: a vendor chase is silenced by vendorEmailsPaused,
+      // a purchaser chase by purchaserEmailsPaused (solicitor-confirm feature's
+      // 4-toggle menu). Legacy clientEmailsPaused remains the both-sides value.
+      const fileOff =
+        side === "vendor"
+          ? transaction.vendorEmailsPaused
+          : side === "purchaser"
+            ? transaction.purchaserEmailsPaused
+            : transaction.clientEmailsPaused;
+      const pausedScope: "agency" | "file" | undefined = agencyOff
+        ? "agency"
+        : fileOff
+          ? "file"
+          : undefined;
 
       for (const contact of recipients) {
         if (!contact.email) continue; // belt+braces

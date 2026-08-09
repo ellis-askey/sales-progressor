@@ -306,6 +306,18 @@ model PropertyTransaction {
   pausedAt           DateTime? // When clientEmailsPaused was last set to true
   pausedById         String? // Which user toggled the pause on
 
+  // Per-party email pause flags (solicitor-confirm feature). Replace the
+  // single clientEmailsPaused with four independent toggles surfaced as a
+  // menu on the file: seller / buyer / seller's firm / buyer's firm. The
+  // solicitor "stop these emails for this matter" link flips the matching
+  // *SolicitorEmailsPaused flag. clientEmailsPaused is retained until its
+  // consumers migrate to vendorEmailsPaused + purchaserEmailsPaused (Stage 2c),
+  // then dropped. See docs/active/solicitor-confirm/scope.md.
+  vendorEmailsPaused             Boolean @default(false)
+  purchaserEmailsPaused          Boolean @default(false)
+  vendorSolicitorEmailsPaused    Boolean @default(false)
+  purchaserSolicitorEmailsPaused Boolean @default(false)
+
   // Temporary internal-staff debug toggle. When true, the buyer/seller
   // portal confirmation email (sendAdminMilestoneNotificationToPortal)
   // is skipped on milestone confirms — all other side effects (chain
@@ -379,6 +391,7 @@ model PropertyTransaction {
   fileTimeSessions                 FileTimeSession[]
   notifications                    Notification[]
   clientChaseStates                ClientChaseState[]
+  solicitorChaseStates             SolicitorChaseState[]
   holdPeriods                      TransactionHoldPeriod[]
 
   // Phase 0 of the relist feature — shadow only. No reads or writes
@@ -449,7 +462,7 @@ model BuyerRound {
   //   detachedSegment: { chainId, splitAt: ISO-date } | null
   // }
   // Null on the active round (only set at archive time).
-  chainSnapshot           Json?
+  chainSnapshot Json?
 
   createdAt  DateTime  @default(now())
   archivedAt DateTime?
@@ -654,6 +667,7 @@ model SolicitorFirm {
   purchaserForTransactions PropertyTransaction[]        @relation("PurchaserSolicitorFirm")
   referredForTransactions  PropertyTransaction[]        @relation("ReferredFirm")
   recommendations          AgencyRecommendedSolicitor[]
+  milestoneConfirmations   MilestoneCompletion[]        @relation("MilestoneConfirmedByFirm")
 
   @@unique([name])
 }
@@ -685,6 +699,7 @@ model SolicitorContact {
   firm                     SolicitorFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorContact")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorContact")
+  milestoneConfirmations   MilestoneCompletion[] @relation("MilestoneConfirmedByContact")
 }
 
 model BrokerFirm {
@@ -758,12 +773,12 @@ enum MilestoneSide {
 }
 
 model MilestoneCompletion {
-  id                    String         @id @default(cuid())
-  transactionId         String
-  milestoneDefinitionId String
-  state                 MilestoneState @default(locked)
-  completedAt           DateTime?
-  eventDate             DateTime?
+  id                            String         @id @default(cuid())
+  transactionId                 String
+  milestoneDefinitionId         String
+  state                         MilestoneState @default(locked)
+  completedAt                   DateTime?
+  eventDate                     DateTime?
   // Client-supplied speculation about WHEN a milestone will happen — set
   // via the chase confirm page's "Set a date" control (Sub-arc B / B5).
   // Distinct from eventDate (which is the REAL date when complete) and
@@ -771,23 +786,30 @@ model MilestoneCompletion {
   // the milestone is later confirmed (so it doesn't shadow the real date).
   // Allows the chase pipeline to track "client said 15 June" engagement
   // without prematurely marking the milestone complete.
-  expectedDate          DateTime?
-  notRequiredReason     String?
+  expectedDate                  DateTime?
+  notRequiredReason             String?
   // NR-specific attribution. Distinct from completedById/completedAt which
   // track the last actor to flip TO the "complete" state. When a milestone
   // moves to "not_required", these capture who did it + when — so the
   // timeline can render "Marked not required by Sam · 3 Jul" without
   // conflating NR with a real completion. Cleared on undo.
-  notRequiredById       String?
-  notRequiredAt         DateTime?
-  completedById         String?
-  confirmedByPortal     Boolean        @default(false)
-  summaryText           String?
-  reconciledAtExchange  Boolean        @default(false)
-  reconciledAtClaim     Boolean        @default(false)
-  outOfOrderCompletion  Boolean        @default(false)
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  notRequiredById               String?
+  notRequiredAt                 DateTime?
+  completedById                 String?
+  confirmedByPortal             Boolean        @default(false)
+  // Solicitor-confirmer attribution (solicitor-confirm feature). Set when a
+  // step is confirmed by a solicitor via their /s/<token> link, so the
+  // timeline can render "confirmed by {firm}" — distinct from a client portal
+  // confirm (confirmedByPortal) or an agent confirm (completedById). Both null
+  // for agent/client confirms. See docs/active/solicitor-confirm/scope.md.
+  confirmedBySolicitorFirmId    String?
+  confirmedBySolicitorContactId String?
+  summaryText                   String?
+  reconciledAtExchange          Boolean        @default(false)
+  reconciledAtClaim             Boolean        @default(false)
+  outOfOrderCompletion          Boolean        @default(false)
+  createdAt                     DateTime       @default(now())
+  updatedAt                     DateTime       @updatedAt
 
   // Phase 1 of the relist feature — purchaser rows are now scoped per
   // BuyerRound. Vendor (file-level) rows keep buyerRoundId NULL.
@@ -799,10 +821,12 @@ model MilestoneCompletion {
   buyerRoundId String?
   buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
-  transaction         PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  milestoneDefinition MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
-  completedBy         User?               @relation("CompletedBy", fields: [completedById], references: [id])
-  notRequiredBy       User?               @relation("NotRequiredBy", fields: [notRequiredById], references: [id])
+  transaction                 PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  milestoneDefinition         MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
+  completedBy                 User?               @relation("CompletedBy", fields: [completedById], references: [id])
+  notRequiredBy               User?               @relation("NotRequiredBy", fields: [notRequiredById], references: [id])
+  confirmedBySolicitorFirm    SolicitorFirm?      @relation("MilestoneConfirmedByFirm", fields: [confirmedBySolicitorFirmId], references: [id])
+  confirmedBySolicitorContact SolicitorContact?   @relation("MilestoneConfirmedByContact", fields: [confirmedBySolicitorContactId], references: [id])
 
   @@index([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])
@@ -870,14 +894,14 @@ enum ReminderLogStatus {
 }
 
 model ChaseTask {
-  id            String          @id @default(cuid())
-  transactionId String
-  reminderLogId String
-  assignedToId  String?
-  dueDate       DateTime
-  status        ChaseTaskStatus @default(pending)
-  priority      TaskPriority    @default(normal)
-  chaseCount    Int             @default(0)
+  id               String          @id @default(cuid())
+  transactionId    String
+  reminderLogId    String
+  assignedToId     String?
+  dueDate          DateTime
+  status           ChaseTaskStatus @default(pending)
+  priority         TaskPriority    @default(normal)
+  chaseCount       Int             @default(0)
   // Set on every real chase increment. NULL means "never chased yet".
   // Escalation requires chaseCount >= rule.escalateAfterChases AND
   // (now - lastChasedAt) >= rule.repeatEveryDays — i.e. another full
@@ -885,8 +909,8 @@ model ChaseTask {
   // ticks chaseCount on calendar arithmetic alone; only real chase
   // actions (button click, manual record, outbound email, client-chase
   // digest enqueue) move it. See docs/active/honest-chase-count.
-  lastChasedAt  DateTime?
-  notes         String?
+  lastChasedAt     DateTime?
+  notes            String?
   // Discrete-kind marker for tasks the system handed to the agent because
   // automated chasing failed. Null for normal engine-created tasks. First
   // value: "client_opted_out" — set when a client unsubscribed (A2/A3) and
@@ -894,7 +918,7 @@ model ChaseTask {
   // renders a yellow chip on the work-queue row when this is set.
   // Free-form String (not a Prisma enum) so future fallback kinds can be
   // added without a schema migration.
-  fallbackKind  String?
+  fallbackKind     String?
   // Free-text reason captured on a MANUAL escalation. Null for automatic
   // engine-triggered escalations (which flip on the chaseCount + graceDays
   // rule and have no user-supplied reason). Cleared when the task is
@@ -904,8 +928,8 @@ model ChaseTask {
   escalationReason String?
   escalatedAt      DateTime?
   escalatedById    String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   // Phase 0 shadow attribution. Inherited from the parent ReminderLog's
   // attribution. Not read anywhere yet.
@@ -1282,8 +1306,8 @@ model ChainLink {
   // is the chainId the link USED to be in; the link's `chainId` now points
   // at the new chain row. detachedAt is the moment of split. Drives
   // audit + the highest-link CHAIN_DETACHED notification recipient.
-  detachedAt            DateTime?
-  detachedFromChainId   String?
+  detachedAt          DateTime?
+  detachedFromChainId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2162,6 +2186,49 @@ model ClientChaseState {
   @@index([status, lastChasedAt])
   @@index([contactId, status])
   @@index([buyerRoundId])
+}
+
+// Per-(file, side, milestone) chase state for SOLICITOR confirmation emails.
+// Mirrors ClientChaseState but keyed by side (vendor/purchaser) rather than a
+// contact, because a solicitor is reused across files (no portalToken). Drives
+// the softer solicitor cadence (grace 5 working days, repeat 7, cap 2, then
+// escalate to the team). See docs/active/solicitor-confirm/scope.md.
+model SolicitorChaseState {
+  id            String        @id @default(cuid())
+  transactionId String
+  side          MilestoneSide
+  milestoneCode String
+  chaseCount    Int           @default(0)
+  firstChasedAt DateTime?
+  lastChasedAt  DateTime?
+  // Set when a solicitor gives an expected date — suppresses further nudges
+  // until then (parallels the client "set a date" snooze).
+  snoozeUntil   DateTime?
+  // Set when the step is confirmed/completed or otherwise no longer due.
+  resolvedAt    DateTime?
+  status        String        @default("active")
+  statusReason  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, side, milestoneCode])
+  @@index([status, lastChasedAt])
+  @@index([transactionId])
+}
+
+// Global singleton holding the editable solicitor-chase cadence. One row
+// (id = "singleton"). Matches how client reminder timing is platform-global
+// rather than per-agency. Editable from Settings → Automation (Stage 2c).
+model SolicitorChaseSettings {
+  id               String   @id @default("singleton")
+  enabledByDefault Boolean  @default(true)
+  graceWorkingDays Int      @default(5)
+  repeatDays       Int      @default(7)
+  maxChases        Int      @default(2)
+  updatedAt        DateTime @updatedAt
+  updatedById      String?
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────

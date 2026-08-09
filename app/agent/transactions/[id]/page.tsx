@@ -68,6 +68,7 @@ import { RevealCoordinator, RevealSlot, RevealPing } from "@/components/transact
 import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray";
 
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
 type Timing = { label: string; ms: number };
@@ -519,6 +520,12 @@ export default async function AgentTransactionDetailPage({
         </Suspense>
       </PropertyFileTabs>
       </RevealCoordinator>
+
+      {/* Review tray — floating pill (bottom-right) that appears when
+          milestone-confirmation client emails are queued for this file.
+          Polls every 15s. Opens the review modal on tap. Client-side
+          only; hidden when queue is empty. 2026-08-09. */}
+      <ConfirmReviewTray transactionId={transaction.id} />
     </div>
   );
 }

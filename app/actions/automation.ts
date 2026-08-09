@@ -75,6 +75,114 @@ export async function resumeClientEmails(transactionId: string): Promise<ActionR
   return { ok: true };
 }
 
+// Per-party email pause (solicitor-confirm feature). Powers the 4-toggle menu
+// on the file: seller / buyer / seller's firm / buyer's firm. Each toggle is
+// independent. clientEmailsPaused is kept in sync as (both client sides
+// paused) so the legacy chase-cron gate + status pills keep working while the
+// per-side reads roll out. See docs/active/solicitor-confirm/scope.md.
+export type EmailAudience = "vendor" | "purchaser" | "vendorSolicitor" | "purchaserSolicitor";
+
+const AUDIENCE_FIELD: Record<EmailAudience, keyof PauseFlags> = {
+  vendor: "vendorEmailsPaused",
+  purchaser: "purchaserEmailsPaused",
+  vendorSolicitor: "vendorSolicitorEmailsPaused",
+  purchaserSolicitor: "purchaserSolicitorEmailsPaused",
+};
+
+type PauseFlags = {
+  vendorEmailsPaused: boolean;
+  purchaserEmailsPaused: boolean;
+  vendorSolicitorEmailsPaused: boolean;
+  purchaserSolicitorEmailsPaused: boolean;
+};
+
+export type EmailAudienceState = {
+  vendorEmailsPaused: boolean;
+  purchaserEmailsPaused: boolean;
+  vendorSolicitorEmailsPaused: boolean;
+  purchaserSolicitorEmailsPaused: boolean;
+  vendorSolicitorFirmName: string | null;
+  purchaserSolicitorFirmName: string | null;
+};
+
+// Read the current per-party pause state + firm names for the 4-toggle menu.
+export async function loadEmailAudience(
+  transactionId: string,
+): Promise<ActionResult<EmailAudienceState>> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where,
+    select: {
+      vendorEmailsPaused: true,
+      purchaserEmailsPaused: true,
+      vendorSolicitorEmailsPaused: true,
+      purchaserSolicitorEmailsPaused: true,
+      vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+    },
+  });
+  if (!tx) return { ok: false, error: "Not found" };
+
+  return {
+    ok: true,
+    data: {
+      vendorEmailsPaused: tx.vendorEmailsPaused,
+      purchaserEmailsPaused: tx.purchaserEmailsPaused,
+      vendorSolicitorEmailsPaused: tx.vendorSolicitorEmailsPaused,
+      purchaserSolicitorEmailsPaused: tx.purchaserSolicitorEmailsPaused,
+      vendorSolicitorFirmName: tx.vendorSolicitorFirm?.name ?? null,
+      purchaserSolicitorFirmName: tx.purchaserSolicitorFirm?.name ?? null,
+    },
+  };
+}
+
+export async function setEmailAudiencePaused(
+  transactionId: string,
+  audience: EmailAudience,
+  paused: boolean,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where,
+    select: {
+      id: true,
+      vendorEmailsPaused: true,
+      purchaserEmailsPaused: true,
+      vendorSolicitorEmailsPaused: true,
+      purchaserSolicitorEmailsPaused: true,
+    },
+  });
+  if (!tx) return { ok: false, error: "Not found" };
+
+  const next: PauseFlags = {
+    vendorEmailsPaused: tx.vendorEmailsPaused,
+    purchaserEmailsPaused: tx.purchaserEmailsPaused,
+    vendorSolicitorEmailsPaused: tx.vendorSolicitorEmailsPaused,
+    purchaserSolicitorEmailsPaused: tx.purchaserSolicitorEmailsPaused,
+  };
+  next[AUDIENCE_FIELD[audience]] = paused;
+
+  await prisma.propertyTransaction.update({
+    where: { id: tx.id },
+    data: {
+      ...next,
+      // Legacy single flag = both client sides paused.
+      clientEmailsPaused: next.vendorEmailsPaused && next.purchaserEmailsPaused,
+      ...(paused ? { pausedAt: new Date(), pausedById: session.user.id } : {}),
+    },
+  });
+
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/transactions/${transactionId}`);
+  return { ok: true };
+}
+
 export async function putFileOnHold(
   transactionId: string,
   // Planned return date (UI: "Come back to this on") — null/undefined means

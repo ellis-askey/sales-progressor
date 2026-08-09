@@ -477,6 +477,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   Client confirmed
                 </span>
               )}
+              {def.completion.confirmedBySolicitorFirmId && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Solicitor confirmed
+                </span>
+              )}
             </p>
           )}
           {isBlocked && <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>Previous steps must be completed first</p>}
