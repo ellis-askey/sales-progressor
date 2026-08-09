@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { HouseSimple, FileText, Handshake, ArrowsClockwise, Key } from "@phosphor-icons/react/dist/ssr";
 import type { HubPipelineStages } from "@/lib/services/hub";
 import { PipelineStageHover, type StageKey } from "./PipelineStageHover";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 type Stage = {
   key: StageKey;
@@ -65,7 +66,8 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
   }, [openKey]);
 
   return (
-    <div className="agent-glass" style={{ padding: "20px 24px" }}>
+    // Design Lab: `hub-pipeline-glance`. Default v03 (2026-08-09 hub pass).
+    <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v03" style={{ padding: "20px 24px" }}>
       <div className="agent-card-hdr-internal" style={{ marginBottom: 18 }}>
         <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline at a glance</p>
         <p className="agent-card-subtitle">
@@ -113,7 +115,7 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
           ))}
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }
 

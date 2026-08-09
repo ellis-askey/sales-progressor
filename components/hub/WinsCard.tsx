@@ -39,10 +39,12 @@ const toneColor: Record<"up" | "flat" | "down", string> = {
 
 export function WinsCard({ wins }: { wins: HubWins }) {
   const tier = pickTier(wins);
+  // 2026-08-09 hub Design-Lab pass: surface (agent-glass frost + padding)
+  // moved OUT to the GlassCard wrapper at the call site (glassId
+  // `hub-wins`), so the card is pickable. commonWrap now carries only the
+  // inner flex layout — the four tier branches stay untouched.
   const commonWrap = {
-    className: "agent-glass" as const,
     style: {
-      padding: "20px 24px",
       display: "flex",
       flexDirection: "column" as const,
       gap: 14,

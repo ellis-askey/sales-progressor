@@ -42,6 +42,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { assignUserAction, acknowledgeRelistAction, clearChainSetupPendingAction } from "@/app/actions/transactions";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type {
@@ -381,8 +382,12 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   const allClear = rows.length === 0;
 
   return (
-    <div
-      className="agent-glass-strong"
+    // Design Lab: `hub-attention`. Default v03 — closest catalog match to
+    // the agent-glass-strong frost this replaced (2026-08-09 hub pass).
+    <GlassCard
+      glassId="hub-attention"
+      label="Hub · Needs your attention"
+      defaultVariant="v03"
       style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
     >
       {/* ── Header ── */}
@@ -586,7 +591,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
         </div>,
         document.body,
       )}
-    </div>
+    </GlassCard>
   );
 }
 
