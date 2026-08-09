@@ -11,6 +11,7 @@ import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import type { ThemeMode } from "@/lib/agent/theme-mode";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { DesignLabToggle } from "@/components/glass/DesignLabToggle";
+import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
@@ -410,37 +411,15 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             );
           })()}
 
-          {/* Main nav group */}
-          {navGroups.main.map(({ href, label, Icon }) => {
-            // /agent/transactions exception — only exact match (otherwise the
-            // "All Files" nav item would highlight on transaction-detail pages
-            // since /agent/transactions/[id] startsWith /agent/transactions).
-            const isActive = pathname === href || (href !== "/agent/transactions" && pathname.startsWith(href));
-            return (
-              <Link key={href} href={href}
-                onClick={() => setMobileOpen(false)}
-                className={`agent-nav-item${isActive ? " agent-nav-item-active" : ""}`}>
-                <Icon weight={isActive ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
-                <span style={{ fontSize: 13 }}>{label}</span>
-              </Link>
-            );
-          })}
+          {/* Main nav group — Elevra interaction model (hover chevron,
+              sliding coral spotlight active pill). See AgentNavRail. */}
+          <AgentNavRail items={navGroups.main} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
 
           {/* Divider */}
           <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "6px 0" }} />
 
           {/* Secondary nav group */}
-          {navGroups.secondary.map(({ href, label, Icon }) => {
-            const isActive = pathname === href || pathname.startsWith(href);
-            return (
-              <Link key={href} href={href}
-                onClick={() => setMobileOpen(false)}
-                className={`agent-nav-item${isActive ? " agent-nav-item-active" : ""}`}>
-                <Icon weight={isActive ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
-                <span style={{ fontSize: 13 }}>{label}</span>
-              </Link>
-            );
-          })}
+          <AgentNavRail items={navGroups.secondary} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
 
           {/* Recently viewed */}
           {recentlyViewed.length > 0 && (
