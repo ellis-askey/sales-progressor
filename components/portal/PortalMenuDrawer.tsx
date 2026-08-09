@@ -35,6 +35,18 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Body-content fade-in: after the drawer slides up (260ms), the
+  // inner content transitions from opacity 0 → 1 over 220ms so it
+  // feels like it "settles" once the drawer has arrived. Reset on
+  // close so the next open re-animates.
+  const [contentReady, setContentReady] = useState(false);
+  useEffect(() => {
+    if (!open) { setContentReady(false); return; }
+    // Match the drawer's slide-in (260ms) so the content fade-in
+    // starts exactly as the slide finishes.
+    const t = window.setTimeout(() => setContentReady(true), 260);
+    return () => window.clearTimeout(t);
+  }, [open]);
 
   // Esc closes.
   useEffect(() => {
@@ -141,11 +153,14 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           </button>
         </header>
 
-        {/* Body */}
+        {/* Body — fades in ~220ms after the drawer finishes sliding up. */}
         <div style={{
           flex: 1, overflow: "auto",
           padding: "20px 20px 32px",
           paddingBottom: "max(env(safe-area-inset-bottom, 0px), 32px)",
+          opacity: contentReady ? 1 : 0,
+          transform: contentReady ? "translateY(0)" : "translateY(6px)",
+          transition: "opacity 220ms ease-out, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}>
           {loading && !details ? (
             <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>

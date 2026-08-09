@@ -5,9 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { List } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
-import { PortalInstallPrompt } from "./PortalInstallPrompt";
-import { PortalPushPrompt } from "./PortalPushPrompt";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
+import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 type Props = {
@@ -130,14 +129,21 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
 
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">
-        {!isRespond && (
-          <div className="lg:hidden">
-            <PortalInstallPrompt />
-            <PortalPushPrompt token={token} vapidPublicKey={vapidPublicKey} />
-          </div>
-        )}
         {children}
       </main>
+
+      {/* Onboarding toasts — replaces the inline PortalInstallPrompt +
+          PortalPushPrompt banners. Queued: Install first, then Push if
+          Install dismissed. 3s delay after page load. Mobile-only via
+          the .lg:hidden gate. See PortalOnboardingToasts for the queue
+          logic. 2026-08-09.
+          The original PortalInstallPrompt + PortalPushPrompt files
+          are kept on disk for revert; unused as of this change. */}
+      {!isRespond && (
+        <div className="lg:hidden">
+          <PortalOnboardingToasts token={token} vapidPublicKey={vapidPublicKey} />
+        </div>
+      )}
 
       {/* Bottom tab bar — Elevra-style (2026-08-09): blur backdrop
           instead of solid white, hairline top border instead of rounded

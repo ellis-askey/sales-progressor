@@ -94,7 +94,7 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgba(15,23,42,0.10)"
+          stroke="rgba(15,23,42,0.28)"
           strokeWidth={stroke}
         />
         <circle
@@ -117,7 +117,7 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
         color: P.textPrimary,
       }}>
         <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary }}>{stepNumber}</span>
-        <span style={{ fontSize: 10, color: P.textMuted, marginTop: 2 }}>of 6</span>
+        <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500 }}>of 6</span>
       </div>
     </div>
   );
@@ -257,8 +257,12 @@ export function PortalOverviewHero({
           the mock's readable zone comes from the fade, not the blur.
           Pills are proper translucent glass (see Pill component) so
           they still read cleanly across the transition. */}
+      {/* -mt-5 cancels the pt-5 on <main> so the photo sits flush
+          against the header, per Ellis's 2026-08-09 note. Only the
+          Overview page uses this hero, so other pages keep their
+          normal top spacing. */}
       <div
-        className="-mx-4"
+        className="-mx-4 -mt-5"
         style={{
           position: "relative",
           height: 380,
