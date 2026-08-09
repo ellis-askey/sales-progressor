@@ -160,11 +160,11 @@ function EmailRowCard({ row, onPreview }: { row: EmailRow; onPreview: (emailId: 
   // the preview modal has nothing to load, so the row is plain.
   const isPreviewable = row.status !== "upcoming";
   return (
-    // Design Lab: `auto-emails-row`. Default v03 (2026-08-09 page pass).
+    // Design Lab: `auto-emails-row`. Default v05 per Ellis's pick, 2026-08-09.
     <GlassCard
       glassId="auto-emails-row"
       label="Auto emails · Email card"
-      defaultVariant="v03"
+      defaultVariant="v05"
       style={{
         borderRadius: 10,
         padding: "10px 14px",

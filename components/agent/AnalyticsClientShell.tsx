@@ -375,7 +375,11 @@ export function AnalyticsClientShell({
       )}
 
       {/* ── Counts ────────────────────────────────────────────────────────── */}
-      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
+      {/* Design Lab: `analytics-counts` — the top Submitted/Exchanged/
+          Completed card. Ellis wants ONLY this one at v27; every other
+          analytics card is v05. Split out of the shared stat-card family
+          for that reason, 2026-08-09. */}
+      <GlassCard glassId="analytics-counts" label="Analytics · Counts (top)" defaultVariant="v27" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Submitted</p>
@@ -413,11 +417,11 @@ export function AnalyticsClientShell({
       {/* ── Funnel + Speed ────────────────────────────────────────────────── */}
       {periodTx.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
+          <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
             <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel: {periodLabel.toLowerCase()}</p>
             <SubmissionFunnel data={funnelData} />
           </GlassCard>
-          <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
+          <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
             <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Speed to exchange</p>
             {speedToExchange.avgDays !== null ? (() => {
               const badge = speedBadge(speedToExchange.avgDays);
@@ -445,7 +449,7 @@ export function AnalyticsClientShell({
       )}
 
       {/* ── Values ────────────────────────────────────────────────────────── */}
-      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
+      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Pipeline value</p>
@@ -476,7 +480,7 @@ export function AnalyticsClientShell({
       </GlassCard>
 
       {/* ── Fees ──────────────────────────────────────────────────────────── */}
-      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
+      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Fee pipeline</p>
@@ -508,7 +512,7 @@ export function AnalyticsClientShell({
       </GlassCard>
 
       {/* ── Fee forecast ──────────────────────────────────────────────────── */}
-      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
+      <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
         <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Fee forecast</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -543,11 +547,11 @@ export function AnalyticsClientShell({
 
       {/* ── Charts ────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
+        <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
           <p className="agent-eyebrow" style={{ marginBottom: 14 }}>{chartTitle}</p>
           <VolumeBarChart data={barEntries} />
         </GlassCard>
-        <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
+        <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <p className="agent-eyebrow">Monthly activity: last 12 months</p>
             <div style={{ display: "flex", gap: 12 }}>
@@ -565,7 +569,7 @@ export function AnalyticsClientShell({
 
       {/* ── Solicitor exchange performance ─────────────────────────────────── */}
       {solicitorStats.length > 0 && (
-        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
           <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Solicitor exchange performance</p>
             <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Average days from instruction to exchange · fastest first</p>
@@ -592,7 +596,7 @@ export function AnalyticsClientShell({
 
       {/* ── Solicitor referral income by firm ─────────────────────────────── */}
       {referralStats.length > 0 && (
-        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
           <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Referral income · Conveyancers</p>
@@ -624,7 +628,7 @@ export function AnalyticsClientShell({
 
       {/* ── Broker referral income by firm ────────────────────────────────── */}
       {brokerReferralStats.length > 0 && (
-        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
           <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Referral income · Brokers</p>
@@ -659,13 +663,13 @@ export function AnalyticsClientShell({
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <p className="agent-eyebrow" style={{ paddingLeft: 2 }}>Referral income: {periodLabel.toLowerCase()}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
+            <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>In pipeline</p>
               <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Active, pre-exchange</p>
               <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>{inPipelinePence > 0 ? fmtGBP(inPipelinePence) : "—"}</p>
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{inPipelineTxs.length} file{inPipelineTxs.length !== 1 ? "s" : ""}{noFeeReferralCount > 0 && ` · ${noFeeReferralCount} without a fee recorded`}</p>
             </GlassCard>
-            <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v03" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
+            <GlassCard glassId="analytics-stat-card" label="Analytics · Stat card" defaultVariant="v05" style={{ padding: "18px 22px", borderRadius: "var(--agent-radius-xl)" }}>
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchanged, due</p>
               <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Payable on/after completion</p>
               <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-warning)", letterSpacing: "-0.02em" }}>{duePence > 0 ? fmtGBP(duePence) : "—"}</p>
@@ -676,7 +680,7 @@ export function AnalyticsClientShell({
       )}
 
       {/* ── Files missing a fee ────────────────────────────────────────────── */}
-      <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" id="missing-fees" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" id="missing-fees" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
         <div style={{ padding: "14px 20px", borderBottom: noFeeFiles.length > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Files missing a fee</p>
           {noFeeFiles.length > 0 && (
@@ -691,7 +695,7 @@ export function AnalyticsClientShell({
 
       {/* ── Team leaderboard ───────────────────────────────────────────────── */}
       {showLeaderboard && (
-        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+        <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
           <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Team leaderboard</p>
             <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>

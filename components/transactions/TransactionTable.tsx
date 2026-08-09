@@ -117,7 +117,7 @@ export function TransactionTable({
     <GlassCard
       glassId="myfiles-table"
       label="My files · Table"
-      defaultVariant="v03"
+      defaultVariant="v05"
       style={{ borderRadius: 20, overflow: "hidden" }}
     >
       {/* Header — desktop only. Token-driven background + border (was bg-white/10

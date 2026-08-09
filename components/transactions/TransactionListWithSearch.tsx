@@ -565,7 +565,7 @@ export function TransactionListWithSearch({
       {/* Design Lab: `myfiles-search`. Default v03. tl-card class dropped;
           the tl-card-search / tl-card-tabs children are standalone classes
           so the seam + layout survive. radius restored via style. */}
-      <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v25" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
         {/* TOP HALF (Variant B IA, 2026-05-13) — search input (shorter) + filter
          * chips inline on a single row. Chip set: Owner (director) + Risk +
          * Activity + Managed-by (director). Negotiators see 3 chips, directors

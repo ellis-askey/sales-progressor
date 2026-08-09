@@ -71,7 +71,7 @@ export function FilesAtRiskPanel({ data }: { data: FilesAtRiskData }) {
   return (
     // Design Lab: `analytics-list-card` (shared with the other analytics
     // list cards so one pick styles them all). Default v03. 2026-08-09.
-    <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+    <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
       <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>
