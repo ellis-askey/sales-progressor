@@ -170,6 +170,7 @@ export async function solicitorLeaveUpdateAction(
 
   const authorId = tx.agentUserId ?? tx.assignedUserId;
   if (authorId) {
+    // Internal note on the file's activity feed…
     await prisma.outboundMessage.create({
       data: {
         transactionId: decoded.transactionId,
@@ -184,6 +185,19 @@ export async function solicitorLeaveUpdateAction(
         contactIds: [],
         createdById: authorId,
         createdByRole: "director",
+      },
+    });
+    // …and a bell notification so the assigned agent sees it promptly.
+    await prisma.notification.create({
+      data: {
+        userId: authorId,
+        type: "solicitor_update",
+        transactionId: decoded.transactionId,
+        payload: {
+          firmName,
+          step: def.code,
+          message: `${firmName} left an update: ${trimmed}`,
+        },
       },
     });
   }
