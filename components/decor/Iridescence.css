@@ -4,3 +4,28 @@
   height: 100%;
   overflow: hidden;
 }
+
+/* Animated CSS fallback shown when WebGL is unavailable. Slow cyan/lavender
+   iridescent wash over white, matching the shader's light-mode palette — so a
+   WebGL-less browser still gets a living backdrop, not a flat white box. */
+.aurora-fallback--light {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 55% at 15% 20%, rgba(120, 220, 255, 0.30), transparent 60%),
+    radial-gradient(65% 50% at 85% 26%, rgba(190, 160, 255, 0.26), transparent 60%),
+    radial-gradient(90% 70% at 50% 108%, rgba(130, 200, 255, 0.18), transparent 62%),
+    #ffffff;
+  background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+  animation: aurora-drift-light 30s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift-light {
+  0%   { background-position: 0% 10%, 100% 0%, 50% 100%, 0 0; }
+  50%  { background-position: 35% 30%, 65% 35%, 40% 80%, 0 0; }
+  100% { background-position: 12% 45%, 92% 12%, 60% 92%, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-fallback--light { animation: none; }
+}

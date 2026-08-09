@@ -12,7 +12,7 @@
 // (IntersectionObserver). Mouse listener is attached to `window`, not
 // the container, so it still fires when the container has
 // `pointer-events: none` (needed for fixed-inset app backdrops).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Renderer, Program, Mesh, Triangle } from "ogl";
 import "./Iridescence.css";
 
@@ -83,6 +83,10 @@ export function Iridescence({
 }: IridescenceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mouse = useRef<[number, number]>([0.5, 0.5]);
+  // If the browser refuses a WebGL context (GPU wedged, hardware accel off,
+  // context-limit hit) we render an animated CSS iridescence instead of a
+  // flat white box, so the backdrop is never plain and static.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -96,6 +100,7 @@ export function Iridescence({
         dpr: Math.min(window.devicePixelRatio || 1, 2),
       });
     } catch {
+      setFailed(true);
       return;
     }
 
@@ -205,5 +210,11 @@ export function Iridescence({
     };
   }, [color, speed, amplitude, mouseReact, opacity]);
 
-  return <div ref={containerRef} className="iridescence-container" aria-hidden />;
+  return (
+    <div
+      ref={containerRef}
+      className={`iridescence-container${failed ? " aurora-fallback aurora-fallback--light" : ""}`}
+      aria-hidden
+    />
+  );
 }

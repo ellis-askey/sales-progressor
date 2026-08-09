@@ -322,7 +322,9 @@ export function SoftAurora({
     mouseInfluence,
   ]);
 
-  if (failed) return null;
+  // WebGL refused (GPU wedged, hardware accel off, context-limit hit): show
+  // an animated CSS aurora rather than a flat near-black box.
+  if (failed) return <div className="soft-aurora-container aurora-fallback aurora-fallback--dark" aria-hidden />;
   return <div ref={containerRef} className="soft-aurora-container" />;
 }
 
