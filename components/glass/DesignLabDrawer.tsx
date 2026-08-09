@@ -11,6 +11,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { X, RotateCcw, Download, Sparkle } from "lucide-react";
 import { useGlassPicks } from "@/lib/glass/context";
 import {
@@ -49,13 +50,38 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
   const { picks, setPick, resetAll } = useGlassPicks();
   const [cards, setCards] = useState<DiscoveredCard[]>([]);
   const [copiedExport, setCopiedExport] = useState(false);
+  const pathname = usePathname();
 
-  // Re-scan on open + whenever picks change (picks can re-render tagged
-  // cards, so a fresh scan catches any newly-mounted nested ones).
+  // Re-discover the page's tagged cards whenever they could have changed:
+  //   - open toggles / picks change (a pick re-renders tagged cards)
+  //   - pathname changes — the lab lives in the persistent topbar, so
+  //     navigating the sidebar with it open used to leave a stale scan
+  //     from the previous page (Ellis: "0 cards" on My Files / Analytics /
+  //     Auto emails, 2026-08-09)
+  //   - content streams in via Suspense after first paint (list pages),
+  //     or a tab switch swaps the card set — caught by delayed re-scans
+  //     plus a MutationObserver on the body while the lab is open.
   useEffect(() => {
     if (!open) return;
-    setCards(discoverCards());
-  }, [open, picks]);
+    const scan = () => setCards(discoverCards());
+    scan();
+    // Catch Suspense-streamed content that mounts shortly after navigation.
+    const t1 = window.setTimeout(scan, 350);
+    const t2 = window.setTimeout(scan, 1200);
+    // Debounced re-scan on any DOM change (route swaps, tab switches).
+    let raf = 0;
+    const obs = new MutationObserver(() => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => { raf = 0; scan(); });
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      if (raf) window.cancelAnimationFrame(raf);
+      obs.disconnect();
+    };
+  }, [open, picks, pathname]);
 
   // Esc key closes.
   useEffect(() => {
