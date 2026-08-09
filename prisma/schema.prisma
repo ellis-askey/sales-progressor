@@ -2221,6 +2221,12 @@ model SolicitorChaseState {
 // Global singleton holding the editable solicitor-chase cadence. One row
 // (id = "singleton"). Matches how client reminder timing is platform-global
 // rather than per-agency. Editable from Settings → Automation (Stage 2c).
+//
+// 2026-08-10: grace + repeat here retained as GLOBAL FALLBACK only. The
+// live cadence is now per-code in SolicitorReminderRule; this singleton is
+// only read when no rule row exists for a given code (defensive: if a new
+// solicitor-owned code lands before its rule is seeded, the engine still
+// has cadence values to fall back on).
 model SolicitorChaseSettings {
   id               String   @id @default("singleton")
   enabledByDefault Boolean  @default(true)
@@ -2229,6 +2235,37 @@ model SolicitorChaseSettings {
   maxChases        Int      @default(2)
   updatedAt        DateTime @updatedAt
   updatedById      String?
+}
+
+// Per-milestone chase cadence for solicitor-owned steps. One row per code
+// (VM5, VM7, ... PM25 — 26 total in v1). Each row tunes:
+//   - graceWorkingDays: how long after the anchor before the first chase
+//   - repeatWorkingDays: how long between subsequent chases (WORKING days,
+//     not calendar — so a Friday send comes back the following Thursday,
+//     not Tuesday; matches how solicitors experience the cadence)
+//   - maxChases: hard cap before escalation to the assigned agent
+//   - active: master off-switch per code (false = never chase this step)
+//   - anchorMilestoneCode: null = anchor on this milestone's direct
+//     prerequisite completedAt (default). Set to a specific code to
+//     anchor elsewhere — e.g. PM7 (draft pack received) anchors on VM7
+//     (draft pack ISSUED) rather than PM4 (buyer paid money).
+//   - useAnchorEventDate: true = anchor on the referenced milestone's
+//     eventDate instead of its completedAt. Falls back to completedAt
+//     when eventDate is null (e.g. PM6 desktop valuations). Used only
+//     for PM11 mortgage-offer in the seed.
+//
+// Editable from Settings → Automation (Ellis reviews all cadences there).
+model SolicitorReminderRule {
+  id                  String   @id @default(cuid())
+  milestoneCode       String   @unique
+  graceWorkingDays    Int      @default(5)
+  repeatWorkingDays   Int      @default(5)
+  maxChases           Int      @default(2)
+  active              Boolean  @default(true)
+  anchorMilestoneCode String?
+  useAnchorEventDate  Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────
