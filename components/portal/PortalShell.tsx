@@ -114,6 +114,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
       <PortalMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        token={token}
         contactName={contactName}
         contactRole={roleType}
       />
