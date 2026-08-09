@@ -6,6 +6,7 @@ import { completeMilestone } from "@/lib/services/milestones";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
+import { checkSolicitorConfirmLimit } from "@/lib/ratelimit";
 
 // Shared guard: re-verify the signed token on EVERY write (never trust the
 // client) and confirm the step is one this side's solicitor is actually
@@ -14,6 +15,9 @@ import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confi
 async function resolveStep(token: string, milestoneDefinitionId: string) {
   const decoded = verifySolicitorToken(token);
   if (!decoded) throw new Error("This link is not valid.");
+
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
 
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: milestoneDefinitionId },
@@ -129,6 +133,26 @@ export async function solicitorSetExpectedDateAction(
   }
 
   revalidatePath(`/s/${token}`);
+  return { ok: true };
+}
+
+// Per-matter unsubscribe. The email footer's "stop these emails for this
+// matter" link lands on /s/<token>/stop, which calls this to flip the
+// solicitor pause flag for this side only. The chase cron reads that flag and
+// stops sending; the confirm links themselves keep working. Reversible via the
+// file's 4-toggle pause menu.
+export async function solicitorStopEmailsAction(token: string): Promise<{ ok: true }> {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+  await prisma.propertyTransaction.update({
+    where: { id: decoded.transactionId },
+    data:
+      decoded.side === "vendor"
+        ? { vendorSolicitorEmailsPaused: true }
+        : { purchaserSolicitorEmailsPaused: true },
+  });
   return { ok: true };
 }
 

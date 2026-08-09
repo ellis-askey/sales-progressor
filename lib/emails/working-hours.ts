@@ -140,6 +140,25 @@ function nextWorkingDayAt9am(from: Date): Date {
 }
 
 /**
+ * Returns the date N working days after `from` — skipping weekends and
+ * England & Wales bank holidays (via isWorkingDay). N=0 returns a copy of
+ * `from` unchanged. Used by the solicitor-chase cadence: "first nudge 5
+ * working days after a step falls due". Bounded loop guards a malformed
+ * holiday table.
+ */
+export function addWorkingDays(from: Date, n: number): Date {
+  const result = new Date(from);
+  let added = 0;
+  let guard = 0;
+  while (added < n && guard < 400) {
+    result.setUTCDate(result.getUTCDate() + 1);
+    guard++;
+    if (isWorkingDay(result)) added++;
+  }
+  return result;
+}
+
+/**
  * Returns the deliver-at instant for a transactional client send.
  *   - Inside working hours (Mon–Fri 09:00–17:00 London, non-bank-holiday)
  *     → returns `now` unchanged. Drain runs hourly and will pick it up

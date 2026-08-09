@@ -122,6 +122,23 @@ export async function checkInviteLimit(userId: string): Promise<RateLimitResult>
   return { success, reset, remaining };
 }
 
+/**
+ * Solicitor confirm links: 30 writes per 10-minute window — keyed by the
+ * signed matter token. Guards the public /s/<token> confirm/date/update/stop
+ * actions if a token ever leaks. Generous enough that a real firm working a
+ * multi-step digest never trips it. No-op unless Upstash is configured.
+ */
+export async function checkSolicitorConfirmLimit(token: string): Promise<RateLimitResult> {
+  if (!isEnabled()) return PASS;
+  const rl = new Ratelimit({
+    redis: getRedis(),
+    limiter: Ratelimit.slidingWindow(30, "10 m"),
+    prefix: "rl:solconfirm",
+  });
+  const { success, reset, remaining } = await rl.limit(token);
+  return { success, reset, remaining };
+}
+
 // ── Response helper ───────────────────────────────────────────────────────────
 
 export function rateLimitJson(result: RateLimitResult): {
