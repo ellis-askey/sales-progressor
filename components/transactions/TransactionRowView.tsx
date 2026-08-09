@@ -202,20 +202,123 @@ function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?:
   );
 }
 
-function VendorBuyerLine({ contacts }: { contacts?: { name: string; roleType: string }[] }) {
-  const vendor = contacts?.find((c) => c.roleType === "vendor");
-  const buyer  = contacts?.find((c) => c.roleType === "purchaser");
-  if (!vendor && !buyer) {
-    return <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(var(--agent-warning-rgb), 0.40)" }}>Names not set</p>;
-  }
+/* PartyGroup — one side of the deal inside the popover: role icon + label,
+ * then every party's full name (not just the first, not initialled). */
+function PartyGroup({ role, label, people }: { role: "vendor" | "purchaser"; label: string; people: { name: string }[] }) {
   return (
-    <p className="text-xs text-slate-900/40 mt-0.5 truncate" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <RoleIcon role="vendor" size={11} />
-      <span>Vendor: {vendor ? firstNameLastInitial(vendor.name) : <span className="text-slate-900/25">not set</span>}</span>
-      <span style={{ color: "var(--agent-text-muted)" }}>·</span>
-      <RoleIcon role="purchaser" size={11} />
-      <span>Buyer: {buyer ? firstNameLastInitial(buyer.name) : <span className="text-slate-900/25">not set</span>}</span>
-    </p>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <RoleIcon role={role} size={12} />
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>
+          {label}
+        </span>
+      </div>
+      {people.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 12, fontStyle: "italic", color: "var(--agent-text-muted)", paddingLeft: 18 }}>Not yet added</p>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
+          {people.map((p, i) => (
+            <li key={i} style={{ fontSize: 13, color: "var(--agent-text-primary)", paddingLeft: 18, lineHeight: 1.35 }}>{p.name}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* VendorBuyerLine — compact "Vendor: X · Buyer: Y" summary in the row that, on
+ * hover/focus, reveals a glass popover with the full address and every joint
+ * seller/buyer's full name (the row only has space for the first, initialled).
+ * Glass adapts to night mode; pointer-events:none so it never blocks the row
+ * link. Mirrors the ActivityVerbChip hover pattern in this file. */
+function VendorBuyerLine({ contacts, address }: { contacts?: { name: string; roleType: string }[]; address: string }) {
+  const vendor  = contacts?.find((c) => c.roleType === "vendor");
+  const buyer   = contacts?.find((c) => c.roleType === "purchaser");
+  const sellers = contacts?.filter((c) => c.roleType === "vendor") ?? [];
+  const buyers  = contacts?.filter((c) => c.roleType === "purchaser") ?? [];
+
+  const { theme, isNight } = usePortalTheme();
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  function show() {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      const POPOVER_W = 300;
+      const EST_H = 180;
+      const SAFE = 12;
+      const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+      const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+      let left = r.left;
+      if (left + POPOVER_W + SAFE > vw) left = Math.max(SAFE, vw - POPOVER_W - SAFE);
+      const above = r.bottom + EST_H > vh && r.top > EST_H;
+      setPos({ top: above ? r.top - 6 : r.bottom + 6, left, above });
+    }
+    setClosing(false);
+    setOpen(true);
+  }
+  function hide() {
+    setOpen((wasOpen) => { if (wasOpen) setClosing(true); return false; });
+  }
+
+  const { line, location } = splitAddress(address);
+  const glassBg     = isNight ? "rgba(22,26,34,0.82)" : "rgba(255,255,255,0.74)";
+  const glassBorder = isNight ? "0.5px solid rgba(255,255,255,0.12)" : "0.5px solid rgba(255,255,255,0.60)";
+  const glassShadow = isNight ? "0 12px 48px rgba(0,0,0,0.50)"       : "0 12px 48px rgba(0,0,0,0.16)";
+
+  const hoverProps = {
+    ref,
+    onMouseEnter: show,
+    onMouseLeave: hide,
+    onFocus: show,
+    onBlur: hide,
+    tabIndex: 0,
+  };
+
+  return (
+    <>
+      {!vendor && !buyer ? (
+        <p {...hoverProps} className="text-xs mt-0.5 truncate" style={{ color: "rgba(var(--agent-warning-rgb), 0.40)", cursor: "default", width: "fit-content", maxWidth: "100%" }}>
+          Names not set
+        </p>
+      ) : (
+        <p {...hoverProps} className="text-xs text-slate-900/40 mt-0.5 truncate" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "default", width: "fit-content", maxWidth: "100%" }}>
+          <RoleIcon role="vendor" size={11} />
+          <span>Vendor: {vendor ? firstNameLastInitial(vendor.name) : <span className="text-slate-900/25">not set</span>}</span>
+          <span style={{ color: "var(--agent-text-muted)" }}>·</span>
+          <RoleIcon role="purchaser" size={11} />
+          <span>Buyer: {buyer ? firstNameLastInitial(buyer.name) : <span className="text-slate-900/25">not set</span>}</span>
+        </p>
+      )}
+
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          data-theme={theme}
+          data-night={isNight ? "" : undefined}
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) setClosing(false); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+            transform: pos.above ? "translateY(-100%)" : "none",
+            width: 300, maxWidth: "calc(100vw - 24px)",
+            background: glassBg,
+            backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+            borderRadius: 14, border: glassBorder, boxShadow: glassShadow,
+            padding: 14, pointerEvents: "none",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>{line}</p>
+          {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
+          <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "12px 0" }} />
+          <PartyGroup role="vendor" label="Sellers" people={sellers} />
+          <div style={{ height: 12 }} />
+          <PartyGroup role="purchaser" label="Buyers" people={buyers} />
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -307,7 +410,7 @@ export function TransactionRowView({
               {showAgencyColumn && tx.agency?.name && (
                 <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
               )}
-              <VendorBuyerLine contacts={tx.contacts} />
+              <VendorBuyerLine contacts={tx.contacts} address={tx.propertyAddress} />
             </div>
           </div>
 
@@ -362,7 +465,7 @@ export function TransactionRowView({
               {line}
             </p>
             {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
-            <VendorBuyerLine contacts={tx.contacts} />
+            <VendorBuyerLine contacts={tx.contacts} address={tx.propertyAddress} />
             {health?.nextActionLabel && (
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 → {health.nextActionLabel}
