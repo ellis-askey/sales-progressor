@@ -125,9 +125,24 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // First non-complete tile → active. Others → pending (or complete).
   // Stage config. Pills are the short right-side label; descriptions
   // are the plain-English sentence under each row on the mobile
-  // timeline. Copy locked with Ellis 2026-08-09 — see the table in the
-  // review thread. Voice rules honoured (no exclamation, no self-refs
-  // to "the system", present-tense in-active, past-tense on-complete).
+  // timeline. Copy approved with Ellis 2026-08-09.
+  //
+  // SIDE-AWARE COPY — the flow is asymmetric in conveyancing:
+  //   Draft pack — vendor's solicitor prepares; buyer waits
+  //   Searches   — buyer's solicitor orders + receives; vendor waits
+  //   Enquiries  — buyer's solicitor RAISES; vendor's solicitor ANSWERS
+  //   Instructed / Exchange / Completion — symmetric
+  // Descriptions here pick between vendor / purchaser wording via a
+  // `pick()` helper below.
+  //
+  // Voice rules: plain English, no exclamation, no self-refs to
+  // "the system", present-tense on active, past on complete.
+  const pick = (vendorStr: string, purchaserStr: string) =>
+    side === "vendor" ? vendorStr : purchaserStr;
+  // "Your sale" for the vendor, "Your purchase" for the purchaser —
+  // reads warmer than "The sale" on the completion tile.
+  const yourDeal = side === "vendor" ? "Your sale" : "Your purchase";
+
   const rawStages: {
     key: string;
     label: string;
@@ -148,9 +163,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       activeText: "Underway",
       pendingText: "Pending",
       completeText: "Completed",
-      descPending: "Your solicitor will be instructed to start work",
-      descActive:  "Your solicitor is being instructed",
-      descComplete:"Your solicitor was instructed",
+      // Neutral copy — this stage is about the file being opened /
+      // agent engaged, not the solicitor being instructed (that was
+      // the pre-2026-08-09 error).
+      descPending: "Your file is being set up",
+      descActive:  "Your file is being set up",
+      descComplete:"Your file was opened",
       completeDate: dateForCode(side === "vendor" ? "VM1" : "PM1"),
     },
     {
@@ -160,9 +178,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       activeText: "In progress",
       pendingText: "Pending",
       completeText: "Completed",
-      descPending: "Your solicitor will prepare the draft contract pack",
-      descActive:  "Your solicitor is preparing your draft documents",
-      descComplete:"Draft contract pack was issued",
+      // Vendor's solicitor prepares this. Buyer waits for it.
+      descPending: pick(
+        "Your solicitor will prepare the draft contract pack",
+        "The seller's solicitor will send over the draft pack",
+      ),
+      descActive: pick(
+        "Your solicitor is preparing your draft documents",
+        "The seller's solicitor is preparing the draft pack",
+      ),
+      descComplete: pick(
+        "Your solicitor issued the draft pack",
+        "The seller's solicitor issued the draft pack",
+      ),
       completeDate: dateForCode("VM7"),
     },
     {
@@ -170,18 +198,28 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       label: "Searches",
       complete: pm13Done,
       // Don't-mislead: "In progress" only if searches confirmed
-      // ordered (PM8). Otherwise "Not started" — searches haven't started.
+      // ordered (PM8). Otherwise "Not started".
       activeText: pm8Done ? "In progress" : "Not started",
       pendingText: "Pending",
       completeText: "Completed",
-      descPending: "Property searches will be ordered next",
-      // The active description picks based on PM8 in the tile-map step
-      // below (`descActive` here is the "ordered, waiting for results"
-      // variant — the "not yet ordered" variant is applied per-tile).
-      descActive:  pm8Done
-        ? "Searches are with the providers, waiting for results"
-        : "Your solicitor will order searches shortly",
-      descComplete:"Search results came back",
+      // Searches are the buyer's action. Vendor waits.
+      descPending: pick(
+        "The buyer will order property searches",
+        "Your solicitor will order property searches",
+      ),
+      descActive: pm8Done
+        ? pick(
+            "The buyer's searches are with the providers",
+            "Your searches are with the providers, waiting for results",
+          )
+        : pick(
+            "The buyer's solicitor will order searches shortly",
+            "Your solicitor will order searches shortly",
+          ),
+      descComplete: pick(
+        "The buyer's search results came back",
+        "Your search results came back",
+      ),
       completeDate: dateForCode("PM13"),
     },
     {
@@ -191,9 +229,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       activeText: "In progress",
       pendingText: "Pending",
       completeText: "Completed",
-      descPending: "Enquiries will be raised by your solicitor",
-      descActive:  "Enquiries are being raised and answered",
-      descComplete:"Enquiries were answered",
+      // Buyer's solicitor RAISES enquiries; vendor's solicitor ANSWERS.
+      descPending: pick(
+        "The buyer's solicitor will raise enquiries about the property",
+        "Your solicitor will raise enquiries with the seller's solicitor",
+      ),
+      descActive: pick(
+        "Your solicitor is answering the buyer's enquiries",
+        "Your solicitor is raising enquiries; the seller's is answering",
+      ),
+      descComplete: pick(
+        "The buyer's enquiries were answered",
+        "Your enquiries were answered",
+      ),
       completeDate: dateForCode("PM14"),
     },
     {
@@ -204,6 +252,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       // Don't-mislead: NO forecast date on Exchange when pending.
       pendingText: "Pending",
       completeText: "Completed",
+      // Symmetric — both sides exchange contracts on the same day.
       descPending: "Contracts will be exchanged when both sides are ready",
       descActive:  "Both sides are getting ready to exchange",
       descComplete:"Contracts were exchanged",
@@ -217,11 +266,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       // Locked + "TBC" until exchange confirms.
       pendingText: exchangeDone ? "Pending" : "TBC",
       completeText: "Completed",
+      // Symmetric event; "Your sale" / "Your purchase" reads warmer.
       descPending: exchangeDone
-        ? "The sale will complete on the agreed date"
+        ? `${yourDeal} will complete on the agreed date`
         : "Set on the day contracts exchange",
-      descActive:  "The sale is close to completion",
-      descComplete:"The sale completed",
+      descActive:  `${yourDeal} is close to completion`,
+      descComplete:`${yourDeal} completed`,
       completeDate: dateForCode(side === "vendor" ? "VM20" : "PM27"),
       locked: !exchangeDone && !completionDone,
     },
