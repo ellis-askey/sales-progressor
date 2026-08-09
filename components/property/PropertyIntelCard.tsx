@@ -52,11 +52,13 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
     // Design Lab: `overview-property-intel`. Default v05 (Heavy frost)
     // per Ellis's final pick set, 2026-08-08 evening pass. Replaces the
     // legacy glass-card class — surface now comes from the variant.
+    // 2026-08-09: text colours moved off hardcoded text-slate-900/* Tailwind
+    // utilities onto --agent-text-* tokens so the card reads in dark mode.
     <GlassCard glassId="overview-property-intel" label="Overview · Property intel" defaultVariant="v05" className="overflow-hidden rounded-[12px]">
       <div className="agent-card-hdr">
         <div>
           <p className="agent-card-title">Property Intel</p>
-          <p className="text-xs text-slate-900/40 mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>
             {data?.postcode ?? "Land Registry · EPC · Search links"}
           </p>
         </div>
@@ -80,38 +82,38 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
 
       <div className="px-5 py-4">
         {loading && (
-          <p className="text-sm text-slate-900/30 text-center py-4">Fetching property data…</p>
+          <p className="text-sm text-center py-4" style={{ color: "var(--agent-text-muted)" }}>Fetching property data…</p>
         )}
 
         {error && (
-          <p className="text-sm text-slate-900/40 text-center py-4">Could not load property data.</p>
+          <p className="text-sm text-center py-4" style={{ color: "var(--agent-text-muted)" }}>Could not load property data.</p>
         )}
 
         {!loading && !error && data && (
           <div className="agent-reveal-in">
-          <p className="text-[11px] text-slate-900/30 mb-3 italic">
+          <p className="text-[11px] mb-3 italic" style={{ color: "var(--agent-text-muted)" }}>
             Data sourced from Land Registry and EPC Register. Always verify before use.
           </p>
           <div className="space-y-4">
 
             {/* Price paid history */}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--agent-text-muted)" }}>
                 Price Paid History
               </p>
               {data.pricePaid.length === 0 ? (
-                <p className="text-sm text-slate-900/30 italic">No sales found for this postcode.</p>
+                <p className="text-sm italic" style={{ color: "var(--agent-text-muted)" }}>No sales found for this postcode.</p>
               ) : (
                 <div className="space-y-2">
                   {data.pricePaid.slice(0, 5).map((entry, i) => (
                     <div key={i} className="agent-hover-row rounded-md px-1 -mx-1 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-900/40 flex-shrink-0">{fmtDate(entry.date)}</span>
-                        <span className="text-sm font-semibold text-slate-900/90">
+                        <span className="text-xs flex-shrink-0" style={{ color: "var(--agent-text-muted)" }}>{fmtDate(entry.date)}</span>
+                        <span className="text-sm font-semibold" style={{ color: "var(--agent-text-primary)" }}>
                           {entry.amount > 0 ? fmt(entry.amount * 100) : "—"}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-900/40 flex-shrink-0 ml-3">
+                      <span className="text-xs flex-shrink-0 ml-3" style={{ color: "var(--agent-text-muted)" }}>
                         {entry.propertyType}{entry.newBuild ? " · New build" : ""}{entry.estateType ? ` · ${entry.estateType}` : ""}
                       </span>
                     </div>
@@ -121,12 +123,12 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
             </div>
 
             {/* EPC */}
-            <div className="border-t border-white/20 pt-4">
-              <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">EPC</p>
+            <div className="pt-4" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--agent-text-muted)" }}>EPC</p>
               {data.epc ? (
                 <div className="space-y-2">
                   {data.address && (
-                    <p className="text-xs text-slate-900/40">{data.address}</p>
+                    <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>{data.address}</p>
                   )}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -134,7 +136,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                         {data.epc.rating}
                       </span>
                       {data.epc.score !== null && (
-                        <span className="text-xs text-slate-900/50">{data.epc.score} / 100</span>
+                        <span className="text-xs" style={{ color: "var(--agent-text-secondary)" }}>{data.epc.score} / 100</span>
                       )}
                     </div>
                     {data.postcode && (
@@ -142,20 +144,21 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                         href={`https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=${encodeURIComponent(data.postcode)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
+                        className="agent-link"
+                        style={{ fontSize: 12 }}
                       >
                         View on GOV.UK →
                       </a>
                     )}
                   </div>
                   {data.epc.inspectionDate && (
-                    <p className="text-xs text-slate-900/40">Inspected {fmtDate(data.epc.inspectionDate)}</p>
+                    <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>Inspected {fmtDate(data.epc.inspectionDate)}</p>
                   )}
                 </div>
               ) : data.epcConfigured ? (
-                <p className="text-xs text-slate-900/30 italic">No EPC found.</p>
+                <p className="text-xs italic" style={{ color: "var(--agent-text-muted)" }}>No EPC found.</p>
               ) : (
-                <p className="text-xs text-slate-900/30 italic">EPC data is currently unavailable.</p>
+                <p className="text-xs italic" style={{ color: "var(--agent-text-muted)" }}>EPC data is currently unavailable.</p>
               )}
             </div>
 
