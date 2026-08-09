@@ -25,6 +25,12 @@ Notes:
 
 ---
 
+## Provider-quotes v1 — `provider-logos` Supabase bucket ✅ DONE 2026-08-10
+
+Public-read bucket for firm logos on both projects (staging `etidawkbqctarmsdjoxp` + prod `gmkfustgwipgihpmpjpr`), 500KB limit, image mime types only. Created programmatically as part of the merge-to-master run.
+
+---
+
 ## SendGrid Event Webhook — completed 2026-05-29
 
 The auto-emails delivery-status surface now reads from the SendGrid Event Webhook. Configured against the existing `Sales Progressor` webhook (no new endpoint added).

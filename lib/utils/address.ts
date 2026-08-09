@@ -83,3 +83,21 @@ export function normaliseAddressString(raw: string): string {
   const canonical = `${match[1].toUpperCase()} ${match[2].toUpperCase()}`;
   return raw.replace(POSTCODE_TOKEN_REGEX, canonical);
 }
+
+// Extract the outward code (area + district) from a UK postcode. The outward
+// code is everything before the inward code (the last 3 chars). Examples:
+//   "SW1A 1AA" -> "SW1A"
+//   "EN8 8AB"  -> "EN8"
+//   "M14 5PP"  -> "M14"
+//   "en8 8ab"  -> "EN8"    (case-insensitive)
+//   "SW1A1AA"  -> "SW1A"   (missing space tolerated)
+// Returns null when the input is missing, non-string, or doesn't contain
+// anything postcode-shaped. Used by the provider-coverage matcher: a
+// ProviderCoverage row's outwardCode is compared for equality against
+// outwardCode(transaction.propertyPostcode).
+export function outwardCode(postcode: string | null | undefined): string | null {
+  if (!postcode) return null;
+  const match = postcode.match(POSTCODE_TOKEN_REGEX);
+  if (!match) return null;
+  return match[1].toUpperCase();
+}

@@ -12,7 +12,7 @@
 // 2026-08-09.
 
 import { useEffect, useState, useTransition } from "react";
-import { X, User, Buildings, Bell, CaretDown, Check } from "@phosphor-icons/react/dist/ssr";
+import { X, User, Buildings, Bell, CaretDown, Check, Wrench, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import {
   getMyPortalDetailsAction,
@@ -170,6 +170,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <YourDetailsSection details={details} token={token} onSaved={reload} />
               <YourSolicitorSection details={details} token={token} onSaved={reload} />
+              {contactRole === "purchaser" && <ServicesSection token={token} />}
               <NotificationsSection details={details} token={token} onSaved={reload} />
               <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
                 Signed in as {contactName}.
@@ -466,6 +467,40 @@ function NotificationsSection({
           <SavedFlash />
         </div>
       )}
+    </SectionCard>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Section 4 — Services (buyers only, links to /quote/[token])
+// ═══════════════════════════════════════════════════════════════════════
+
+function ServicesSection({ token }: { token: string }) {
+  return (
+    <SectionCard icon={<Wrench size={16} weight="regular" />} title="Services">
+      <p style={{ margin: "0 0 10px", fontSize: 13, color: P.textSecondary, lineHeight: 1.5 }}>
+        Getting a survey is worth it for most purchases. We'll match you with local firms that cover your area.
+      </p>
+      <a
+        href={`/quote/${token}`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: `1px solid ${P.border}`,
+          background: P.primaryBg,
+          color: P.primary,
+          textDecoration: "none",
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        <span>Get a survey quote</span>
+        <ArrowRight size={14} weight="bold" />
+      </a>
     </SectionCard>
   );
 }

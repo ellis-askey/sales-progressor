@@ -18,16 +18,17 @@
 // dashboard file page (/transactions/[id]) to avoid churning that
 // surface. The two implementations will converge later.
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
+import { sendQuoteLinkToBuyerAction } from "@/app/actions/send-quote-link";
 import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
-import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt } from "@phosphor-icons/react";
+import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
@@ -547,6 +548,7 @@ export function AgentFileSidebar({
             Icon={PaperPlaneTilt}
             onClick={() => setActiveTab("activity")}
           />
+          <SendQuoteLinkQuickAction transactionId={transaction.id} />
         </div>
       </GlassCard>
 
@@ -595,6 +597,49 @@ function SidebarRow({
       <span style={{ fontSize: 12, color: "var(--agent-text-muted)", ...labelStyle }}>{label}</span>
       <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{value}</span>
     </div>
+  );
+}
+
+function SendQuoteLinkQuickAction({ transactionId }: { transactionId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [status, setStatus] = useState<
+    | { kind: "idle" }
+    | { kind: "ok"; email: string }
+    | { kind: "err"; msg: string }
+  >({ kind: "idle" });
+
+  function fire() {
+    if (pending) return;
+    startTransition(async () => {
+      const r = await sendQuoteLinkToBuyerAction(transactionId);
+      if (r.ok) {
+        setStatus({ kind: "ok", email: r.recipientEmail });
+        setTimeout(() => setStatus({ kind: "idle" }), 4000);
+      } else {
+        setStatus({ kind: "err", msg: r.error });
+        setTimeout(() => setStatus({ kind: "idle" }), 6000);
+      }
+    });
+  }
+
+  return (
+    <>
+      <QuickLinkButton
+        label={pending ? "Sending…" : "Send survey quote link to buyer"}
+        Icon={Wrench}
+        onClick={fire}
+      />
+      {status.kind === "ok" && (
+        <p style={{ fontSize: 11, color: "var(--agent-success, #16a34a)", margin: "2px 0 0 34px" }}>
+          Sent to {status.email}
+        </p>
+      )}
+      {status.kind === "err" && (
+        <p style={{ fontSize: 11, color: "var(--agent-danger, #dc2626)", margin: "2px 0 0 34px" }}>
+          {status.msg}
+        </p>
+      )}
+    </>
   );
 }
 

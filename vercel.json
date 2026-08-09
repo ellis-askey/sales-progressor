@@ -103,6 +103,10 @@
     {
       "path": "/api/cron/completion-safety-net",
       "schedule": "45 3 * * *"
+    },
+    {
+      "path": "/api/cron/quote-requests-maintenance",
+      "schedule": "15 3 * * *"
     }
   ]
 }
