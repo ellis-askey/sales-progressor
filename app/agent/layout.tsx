@@ -5,6 +5,7 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { shouldSeeKineticShell } from "@/lib/kinetic/flag";
+import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
@@ -26,6 +27,13 @@ export default async function AgentLayout({ children }: { children: React.ReactN
 
   const kineticEnabled = shouldSeeKineticShell(session);
 
+  // Gates the Reminders + Auto-emails nav items (see helper docstring).
+  const hasSelfManagedFiles = await agencyUserHasSelfManagedFiles(
+    session.user.role,
+    session.user.id,
+    session.user.agencyId,
+  );
+
   return (
     <div data-theme={theme} style={{ display: "contents" }}>
       {/* Inline script runs BEFORE React hydrates — sets data-theme +
@@ -39,7 +47,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} themeMode={themeMode} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} themeMode={themeMode} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

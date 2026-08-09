@@ -14,6 +14,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
+import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { listAutomatedEmails, type EmailListTab } from "@/lib/services/automated-emails-list";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
@@ -39,6 +40,11 @@ export default async function AutomatedEmailsPage({
   searchParams: Promise<{ tab?: string; mine?: string; fileId?: string }>;
 }) {
   const session = await requireSession();
+  // Founder rule 2026-08-09: an agency that outsources everything has no
+  // Auto-emails page (the nav item is hidden too). Direct-URL access 404s.
+  if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
+    notFound();
+  }
   const sp = await searchParams;
 
   const tab: EmailListTab = (VALID_TABS as readonly string[]).includes(sp.tab ?? "")

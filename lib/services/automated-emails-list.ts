@@ -77,8 +77,13 @@ function buildTxWhere(input: EmailListInput): Prisma.PropertyTransactionWhereInp
   } else if (input.role === "negotiator" || input.role === "viewer") {
     where.agencyId = input.agencyId ?? "__none__";
     where.agentUserId = input.userId;
+    // Founder rule 2026-08-09: agencies only see automated emails for the
+    // files they progress themselves. Outsourced files' client emails are
+    // handled by the SP team, so they don't belong on the agency's page.
+    where.serviceType = "self_managed";
   } else if (input.role === "director") {
     where.agencyId = input.agencyId ?? "__none__";
+    where.serviceType = "self_managed";
     if (input.mineOnly) where.agentUserId = input.userId;
   }
 

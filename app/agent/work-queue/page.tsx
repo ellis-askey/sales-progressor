@@ -1,5 +1,7 @@
+import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
+import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getWorkQueueItems, txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
@@ -65,6 +67,11 @@ function classifyForStats(log: AgentLog, now: Date, upcomingCutoffStr: string): 
 
 export default async function WorkQueuePage() {
   const session = await requireSession();
+  // Founder rule 2026-08-09: an agency that outsources everything has no
+  // Reminders page (the nav item is hidden too). Direct-URL access 404s.
+  if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
+    notFound();
+  }
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const vis = isInternalStaff
