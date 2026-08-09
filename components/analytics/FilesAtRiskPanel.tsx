@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { FilesAtRiskData } from "@/lib/services/analytics";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 interface RiskRowProps {
   label: string;
@@ -68,7 +69,9 @@ export function FilesAtRiskPanel({ data }: { data: FilesAtRiskData }) {
     data.overdueChases.count + data.stalled.count + data.missingEventDate.count;
 
   return (
-    <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+    // Design Lab: `analytics-list-card` (shared with the other analytics
+    // list cards so one pick styles them all). Default v03. 2026-08-09.
+    <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
       <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>
@@ -108,6 +111,6 @@ export function FilesAtRiskPanel({ data }: { data: FilesAtRiskData }) {
         count={data.missingEventDate.count}
         href="/agent/transactions"
       />
-    </div>
+    </GlassCard>
   );
 }

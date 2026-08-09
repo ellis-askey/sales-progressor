@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Funnel } from "@phosphor-icons/react/dist/ssr";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
 import { activityStateFor, type ActivityState } from "./TransactionRowView";
@@ -561,7 +562,10 @@ export function TransactionListWithSearch({
       {/* Paired card — single outer card, white search top half + lighter tabs bottom half.
        * Mirrors the property-detail hero+tabs pattern: one card, two sections, hairline
        * divider at the seam, rounded corners across the whole shape. */}
-      <div className="tl-card">
+      {/* Design Lab: `myfiles-search`. Default v03. tl-card class dropped;
+          the tl-card-search / tl-card-tabs children are standalone classes
+          so the seam + layout survive. radius restored via style. */}
+      <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
         {/* TOP HALF (Variant B IA, 2026-05-13) — search input (shorter) + filter
          * chips inline on a single row. Chip set: Owner (director) + Risk +
          * Activity + Managed-by (director). Negotiators see 3 chips, directors
@@ -675,7 +679,7 @@ export function TransactionListWithSearch({
             </div>
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* Results */}
       {filtered.length === 0 ? (

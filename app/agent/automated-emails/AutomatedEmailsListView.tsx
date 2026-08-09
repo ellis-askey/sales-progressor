@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { EmailRow, EmailListTab } from "@/lib/services/automated-emails-list";
 import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 
 type Props = {
@@ -159,10 +160,12 @@ function EmailRowCard({ row, onPreview }: { row: EmailRow; onPreview: (emailId: 
   // the preview modal has nothing to load, so the row is plain.
   const isPreviewable = row.status !== "upcoming";
   return (
-    <div
+    // Design Lab: `auto-emails-row`. Default v03 (2026-08-09 page pass).
+    <GlassCard
+      glassId="auto-emails-row"
+      label="Auto emails · Email card"
+      defaultVariant="v03"
       style={{
-        background: "var(--agent-surface-elevated)",
-        border: "1px solid rgba(15,23,42,0.08)",
         borderRadius: 10,
         padding: "10px 14px",
         display: "flex",
@@ -252,7 +255,7 @@ function EmailRowCard({ row, onPreview }: { row: EmailRow; onPreview: (emailId: 
           </button>
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }
 

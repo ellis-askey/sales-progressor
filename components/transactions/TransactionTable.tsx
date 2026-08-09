@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { TransactionRowView } from "@/components/transactions/TransactionRowView";
 import type { TransactionRow, HealthRaw } from "@/components/transactions/TransactionRowView";
 import type { TransactionStatus } from "@prisma/client";
@@ -112,8 +113,11 @@ export function TransactionTable({
   })();
 
   return (
-    <div
-      className="agent-glass-strong"
+    // Design Lab: `myfiles-table`. Default v03 (2026-08-09 page pass).
+    <GlassCard
+      glassId="myfiles-table"
+      label="My files · Table"
+      defaultVariant="v03"
       style={{ borderRadius: 20, overflow: "hidden" }}
     >
       {/* Header — desktop only. Token-driven background + border (was bg-white/10
@@ -188,6 +192,6 @@ export function TransactionTable({
           showAssignedToColumn={showAssignedToColumn}
         />
       ))}
-    </div>
+    </GlassCard>
   );
 }
