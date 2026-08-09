@@ -1,0 +1,43 @@
+/* Three-dot pulse used inside hub loading placeholders. Deliberately calm:
+   subtle opacity + scale swell, 1400ms cycle, 220ms stagger between dots.
+   Muted colour so it fades into the card, not attention-grabbing. */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--agent-text-muted);
+  opacity: 0.3;
+  animation: hub-dot-pulse 1400ms ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.dot:nth-child(1) { animation-delay: 0ms; }
+.dot:nth-child(2) { animation-delay: 220ms; }
+.dot:nth-child(3) { animation-delay: 440ms; }
+
+@keyframes hub-dot-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+}
+
+/* Respect reduced-motion — dots hold a mid opacity, no scaling, no cycling. */
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+    opacity: 0.55;
+    transform: none;
+  }
+}
