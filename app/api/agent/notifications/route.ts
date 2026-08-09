@@ -1,70 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
+import { hasAdminPowers } from "@/lib/agent-session";
+import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 
-// Returns count of portal-originated activity on transactions visible to this
-// agent — milestone confirmations, expected-date updates, and chase notes.
-// All three event types include the "via the client portal" marker phrase
-// in their OutboundMessage content; that single phrase is the canonical
-// portal-event signal (see lib/services/portal.ts and app/actions/portal.ts).
+// Bell feed = the same "completed step" activity shown on the Updates page
+// (/agent/comms), scoped through the canonical visibility resolver so every
+// role sees the right files:
+//   director / negotiator → their agency's files
+//   sales_progressor      → their assigned files
+//   admin / superadmin     → all files
 //
-// Previously this endpoint required content contains "confirmed" AND
-// "via the client portal", which only counted confirms. After B7+ added
-// per-action signals for set-date and leave-note, the filter was broadened
-// to count any "via the client portal" content (which is portal-exclusive).
+// Returns the latest items for the dropdown menu + a count of how many are
+// newer than the caller's last-read timestamp (the `after` param) for the
+// unread badge. Rewritten 2026-08-09: was a bare count keyed on raw agencyId,
+// which was wrong for internal staff (agencyId = null).
+
+const MENU_LIMIT = 12;
+
 export async function GET(req: NextRequest) {
   const session = await requireSession();
   const after = req.nextUrl.searchParams.get("after");
   const since = after ? new Date(after) : new Date(0);
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, canViewAllFiles: true, firmName: true },
-  });
+  const role = session.user.role;
+  const isInternalStaff = role === "admin" || role === "sales_progressor" || role === "viewer";
+  const isAdmin = hasAdminPowers(session);
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, role, isAdmin)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const seeAll = user?.role === "director" || user?.canViewAllFiles === true;
+  const milestones = await getAgentMilestoneActivity(vis, false);
 
-  // Build the transaction filter — mirrors the pattern in resolveAgentVisibility / txWhere
-  const txFilter = seeAll
-    ? user?.firmName
-      ? { agencyId: session.user.agencyId, agentUser: { firmName: user.firmName } }
-      : { agencyId: session.user.agencyId, agentUserId: { not: null } }
-    : { agencyId: session.user.agencyId, agentUserId: session.user.id };
+  // Newest first.
+  const sorted = [...milestones].sort(
+    (a, b) => new Date(b.completedAt ?? 0).getTime() - new Date(a.completedAt ?? 0).getTime(),
+  );
 
-  // Phase-2 PR 3 (GAP-5 from the fall-through ledger audit): scope the
-  // count to active-round portal-view notes only. Pre-PR-3 the count
-  // included every internal_note with the portal marker phrase
-  // regardless of which buyer's portal session generated it, so
-  // relisted files would inflate the bell badge with Sale 1's portal
-  // notes alongside Sale 2's.
-  //
-  // Two-step pattern: load tx IDs + their activeBuyerRoundId, then count
-  // OutboundMessage rows where buyerRoundId is NULL (file-level / pre-
-  // Phase-0) OR matches one of the active round IDs in the scope. Per-
-  // contact's buyerRoundId is a globally-unique cuid so "row's
-  // buyerRoundId IS IN [active round IDs for in-scope txs]" is
-  // equivalent to "row's buyerRoundId === its own tx's
-  // activeBuyerRoundId".
-  const txs = await prisma.propertyTransaction.findMany({
-    where: txFilter,
-    select: { id: true, activeBuyerRoundId: true },
-  });
-  const activeRoundIds = txs
-    .map((t) => t.activeBuyerRoundId)
-    .filter((id): id is string => id !== null);
+  const items = sorted.slice(0, MENU_LIMIT).map((m) => ({
+    id: m.id,
+    txId: m.transaction.id,
+    address: m.transaction.propertyAddress,
+    milestoneName: m.milestoneDefinition.name,
+    side: m.milestoneDefinition.side,
+    confirmedByPortal: m.confirmedByPortal,
+    at: (m.completedAt ?? new Date()).toISOString(),
+  }));
 
-  const count = await prisma.outboundMessage.count({
-    where: {
-      type: "internal_note",
-      createdAt: { gt: since },
-      content: { contains: "via the client portal" },
-      transaction: txFilter,
-      OR: [
-        { buyerRoundId: null },
-        { buyerRoundId: { in: activeRoundIds } },
-      ],
-    },
-  });
+  // Unread = everything newer than the last-read stamp (across the full set,
+  // not just the menu slice, so the badge is accurate even past 12).
+  const count = sorted.filter((m) => new Date(m.completedAt ?? 0) > since).length;
 
-  return NextResponse.json({ count });
+  return NextResponse.json({ count, items });
 }

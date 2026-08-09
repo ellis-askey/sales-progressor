@@ -86,6 +86,9 @@ body {
   align-items: center;
   gap: 12px;
   padding: 0 16px;
+  /* Theme-aware default so currentColor-based icons (theme toggle, etc.) stay
+     visible in dark mode instead of inheriting a near-black colour. */
+  color: var(--agent-text-secondary);
   background: rgba(255, 255, 255, 0.85);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   backdrop-filter: blur(28px) saturate(180%);
