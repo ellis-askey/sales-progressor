@@ -12,7 +12,8 @@
 // Completion is locked until exchange) lives on the page side and lands
 // here as pre-computed `text` values on each tile.
 
-import { HouseSimple, Lock, Check, Shield } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
+import { HouseSimple, Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 
 export type OverviewTile = {
@@ -20,8 +21,15 @@ export type OverviewTile = {
   label: string;
   /** "complete" — green tick; "active" — coral ring + number; "pending" — muted number */
   status: "complete" | "active" | "pending";
-  /** Text under the tile — a date, "In progress", "Awaiting", "Pending", or "Locked until exchange". */
+  /** Pill text — "Completed" / "In progress" / "Underway" / "Nearing" / "Pending" / "TBC" / etc. */
   text: string;
+  /** Client-facing plain-English sentence under the label on the mobile
+   *  timeline. State-appropriate: future tense for pending, present for
+   *  active, past for complete. Not shown on the desktop horizontal strip. */
+  description?: string;
+  /** ISO-ish date to render as the small label next to the pill on
+   *  complete rows. e.g. "25 Jun". Undefined for non-complete rows. */
+  completedDate?: string;
   /** true → render a lock icon instead of the number (Completion tile until exchange). */
   locked?: boolean;
 };
@@ -50,6 +58,9 @@ type Props = {
   predictedExchangeDate: Date | null;
   /** Days until the hero's exchange date, computed on the page. */
   daysUntilPredicted: number | null;
+  /** Where the "View full timeline" button (top-right of the Progress
+   *  overview card) links to. Usually `/portal/${token}/progress`. */
+  progressHref: string;
 };
 
 function fmtDateShort(d: Date | string): string {
@@ -228,11 +239,13 @@ function ConnectorSegment({ leftComplete }: { leftComplete: boolean }) {
 }
 
 // Vertical timeline row — mobile alternative to the horizontal
-// ProgressTile. Renders one stage per row: circle in a left rail with
-// connector lines above + below (fills between rows to look continuous),
-// label + status on the right. Ellis's 2026-08-09 call after the
-// horizontal strip proved too cramped on phones. Same tile data, just
-// laid out top-to-bottom.
+// ProgressTile. Renders one stage per row:
+//   [circle in left rail]  [label]                       [pill]
+//                          [description]                 [date, complete only]
+// Rail width 52px gives the circle clearance from the label (Ellis's
+// 2026-08-09 note that 40px felt cramped). Active row gets a soft coral
+// tint background band spanning the row so the "you are here" reads
+// immediately.
 function TimelineRow({
   tile, index, isFirst, isLast, prevComplete,
 }: {
@@ -246,20 +259,39 @@ function TimelineRow({
 }) {
   const isComplete = tile.status === "complete";
   const isActive   = tile.status === "active";
-  const ringColor   = isComplete ? P.success : isActive ? P.primary : "rgba(15,23,42,0.25)";
-  const iconColor   = isComplete ? P.success : isActive ? P.primary : P.textMuted;
-  const labelColor  = isActive ? P.primary : isComplete ? P.textPrimary : P.textSecondary;
-  const statusColor = isActive ? P.primary : isComplete ? P.textMuted : P.textMuted;
-  // 56px tall rows: 32px circle + 12px vertical padding × 2. Feels right
-  // against Portal card padding (14px).
-  const rowHeight = 56;
+  const ringColor  = isComplete ? P.success : isActive ? P.primary : "rgba(15,23,42,0.25)";
+  const iconColor  = isComplete ? P.success : isActive ? P.primary : P.textMuted;
+  const labelColor = isActive ? P.primary : isComplete ? P.textPrimary : P.textSecondary;
+
+  // Pill palette per state. Active is coral; complete is green; locked
+  // ("TBC") is a plain grey; pending is a neutral grey pill with a
+  // clock hint.
+  const pill = (() => {
+    if (isComplete) return { bg: "rgba(16,185,129,0.12)", fg: "#047857", border: "rgba(16,185,129,0.35)" };
+    if (isActive)   return { bg: "rgba(255,107,74,0.12)", fg: P.primary,  border: "rgba(255,107,74,0.35)" };
+    if (tile.locked)return { bg: "rgba(15,23,42,0.06)",   fg: P.textMuted,border: "rgba(15,23,42,0.10)" };
+    return              { bg: "rgba(15,23,42,0.06)",   fg: P.textMuted,border: "rgba(15,23,42,0.10)" };
+  })();
 
   return (
-    <div style={{ display: "flex", alignItems: "stretch", minHeight: rowHeight }}>
-      {/* Left rail — line above / circle / line below. Rail width 40px
-          keeps the circle far enough from the label. */}
-      <div style={{ width: 40, position: "relative", flexShrink: 0 }}>
-        {/* Top-half connector (skip for the first row) */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        minHeight: 64,
+        // Coral tint band for the active row — subtle, so it doesn't
+        // fight the pill. Full-bleed left/right via negative margin.
+        background: isActive ? "rgba(255,107,74,0.05)" : "transparent",
+        marginLeft: isActive ? -14 : 0,
+        marginRight: isActive ? -14 : 0,
+        paddingLeft: isActive ? 14 : 0,
+        paddingRight: isActive ? 14 : 0,
+        borderRadius: isActive ? 12 : 0,
+      }}
+    >
+      {/* Left rail — line above / circle / line below. Rail width 52px
+          gives the label breathing room. */}
+      <div style={{ width: 52, position: "relative", flexShrink: 0 }}>
         {!isFirst && (
           <div
             aria-hidden
@@ -274,7 +306,6 @@ function TimelineRow({
             }}
           />
         )}
-        {/* Bottom-half connector (skip for the last row) */}
         {!isLast && (
           <div
             aria-hidden
@@ -289,8 +320,6 @@ function TimelineRow({
             }}
           />
         )}
-        {/* Circle — sits centred over both connectors. background:
-            cardBg on top of the lines so they don't peek through. */}
         <div
           style={{
             position: "absolute",
@@ -318,43 +347,86 @@ function TimelineRow({
         </div>
       </div>
 
-      {/* Right: label + status */}
+      {/* Right: label + description on the left, pill (+ optional date)
+          on the far right, vertically centred. */}
       <div
         style={{
           flex: 1,
           minWidth: 0,
-          padding: "10px 0",
+          padding: "12px 0",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
         }}
       >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: isActive ? 700 : 600,
-            color: labelColor,
-            lineHeight: 1.3,
-            minWidth: 0,
-          }}
-        >
-          {tile.label}
-        </p>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13,
-            color: statusColor,
-            fontWeight: isActive ? 600 : 500,
-            textAlign: "right",
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {tile.text}
-        </p>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 15,
+              fontWeight: isActive ? 700 : 600,
+              color: labelColor,
+              lineHeight: 1.25,
+              letterSpacing: "-0.005em",
+            }}
+          >
+            {tile.label}
+          </p>
+          {tile.description && (
+            <p
+              style={{
+                margin: "2px 0 0",
+                fontSize: 12,
+                color: P.textMuted,
+                lineHeight: 1.35,
+              }}
+            >
+              {tile.description}
+            </p>
+          )}
+        </div>
+
+        {/* Right: date label (complete rows only) above a pill. Stacked
+            when both present so nothing overlaps on narrow widths. */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 3,
+          flexShrink: 0,
+        }}>
+          {isComplete && tile.completedDate && (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              color: P.textMuted,
+              fontWeight: 500,
+            }}>
+              <Calendar size={11} weight="regular" />
+              {tile.completedDate}
+            </span>
+          )}
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 10px",
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 600,
+              background: pill.bg,
+              color: pill.fg,
+              border: `0.5px solid ${pill.border}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tile.text}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -374,6 +446,7 @@ export function PortalOverviewHero({
   tiles,
   predictedExchangeDate,
   daysUntilPredicted,
+  progressHref,
 }: Props) {
   const statusMeta = formatStatus(status);
   const tenureLabel = formatTenure(tenure);
@@ -553,17 +626,47 @@ export function PortalOverviewHero({
                         mobile idiom for step-by-step progression
                         (DoorDash / GitHub / etc.). */}
       <div className="rounded-2xl" style={{ background: P.cardBg, boxShadow: P.shadowSm, padding: "16px 14px" }}>
-        <p style={{
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
           margin: "0 0 14px",
-          fontSize: 10,
-          fontWeight: 700,
-          color: P.textMuted,
-          textTransform: "uppercase",
-          letterSpacing: "0.10em",
           paddingLeft: 4,
         }}>
-          Progress overview
-        </p>
+          <p style={{
+            margin: 0,
+            fontSize: 10,
+            fontWeight: 700,
+            color: P.textMuted,
+            textTransform: "uppercase",
+            letterSpacing: "0.10em",
+          }}>
+            Progress overview
+          </p>
+          {/* Shortcut to the milestone-by-milestone Progress tab. Same
+              destination the bottom-nav "Progress" tab hits — this is
+              just a contextual entry point from inside the summary. */}
+          <Link
+            href={progressHref}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 600,
+              color: P.accent,
+              background: P.accentBg,
+              textDecoration: "none",
+              flexShrink: 0,
+            }}
+          >
+            View full timeline
+            <CaretRight size={11} weight="bold" />
+          </Link>
+        </div>
 
         {/* Desktop — horizontal 6-tile strip (unchanged from before). */}
         <div className="hidden md:flex" style={{
