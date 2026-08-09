@@ -207,7 +207,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
     return (
       <div>
         {beforeEntries && <div className="mb-3">{beforeEntries}</div>}
-        <div className="text-center py-8" style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
+        <div className="text-center py-8 agent-empty-card" style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
           No activity yet — milestone confirmations and communications will appear here.
         </div>
       </div>

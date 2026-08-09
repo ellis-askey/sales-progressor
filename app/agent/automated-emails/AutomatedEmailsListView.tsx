@@ -385,7 +385,7 @@ export function AutomatedEmailsListView({
         <div
           style={{
             background: "var(--agent-surface-elevated)",
-            border: "1px solid rgba(15,23,42,0.08)",
+            border: "1px solid var(--agent-border-default)",
             borderRadius: 10,
             padding: "24px 16px",
             textAlign: "center",
