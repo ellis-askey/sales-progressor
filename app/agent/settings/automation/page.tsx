@@ -20,6 +20,7 @@ import { prisma } from "@/lib/prisma";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { AutomationSettingsForm } from "@/components/automation/AutomationSettingsForm";
 import { SolicitorAutomationForm } from "@/components/automation/SolicitorAutomationForm";
+import { SolicitorPerCodeTable } from "@/components/automation/SolicitorPerCodeTable";
 
 export default async function AutomationSettingsPage() {
   const session = await requireSession();
@@ -27,7 +28,7 @@ export default async function AutomationSettingsPage() {
   const agencyId = session.user.agencyId;
   if (!agencyId) notFound();
 
-  const [agency, rules, defs, solicitorSettings] = await Promise.all([
+  const [agency, rules, defs, solicitorSettings, solicitorRules] = await Promise.all([
     prisma.agency.findUnique({
       where: { id: agencyId },
       select: { chaseEmailsEnabled: true },
@@ -44,6 +45,9 @@ export default async function AutomationSettingsPage() {
       select: { code: true, name: true, side: true, orderIndex: true },
     }),
     prisma.solicitorChaseSettings.findUnique({ where: { id: "singleton" } }),
+    prisma.solicitorReminderRule.findMany({
+      orderBy: { milestoneCode: "asc" },
+    }),
   ]);
 
   if (!agency) notFound();
@@ -89,6 +93,17 @@ export default async function AutomationSettingsPage() {
           repeatDays: solicitorSettings?.repeatDays ?? 7,
           maxChases: solicitorSettings?.maxChases ?? 2,
         }}
+      />
+      <SolicitorPerCodeTable
+        initial={solicitorRules.map((r) => ({
+          milestoneCode: r.milestoneCode,
+          graceWorkingDays: r.graceWorkingDays,
+          repeatWorkingDays: r.repeatWorkingDays,
+          maxChases: r.maxChases,
+          active: r.active,
+          anchorMilestoneCode: r.anchorMilestoneCode,
+          useAnchorEventDate: r.useAnchorEventDate,
+        }))}
       />
     </div>
   );

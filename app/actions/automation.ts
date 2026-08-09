@@ -651,3 +651,81 @@ export async function updateSolicitorCadence(input: SolicitorCadenceState): Prom
   revalidatePath("/agent/settings/automation");
   return { ok: true };
 }
+
+// ── Per-code solicitor cadences (SolicitorReminderRule) ────────────────────
+// One row per solicitor-owned milestone code. Ellis reviews all cadences
+// on Settings → Automation; per-code tuning without needing a code change.
+
+export type SolicitorRuleRow = {
+  milestoneCode: string;
+  graceWorkingDays: number;
+  repeatWorkingDays: number;
+  maxChases: number;
+  active: boolean;
+  anchorMilestoneCode: string | null;
+  useAnchorEventDate: boolean;
+};
+
+export async function loadSolicitorRules(): Promise<ActionResult<SolicitorRuleRow[]>> {
+  const session = await requireSession();
+  if (!canEditSolicitorCadence(session)) {
+    return { ok: false, error: "You don't have access to automation settings." };
+  }
+  const rows = await prisma.solicitorReminderRule.findMany({
+    orderBy: { milestoneCode: "asc" },
+  });
+  return {
+    ok: true,
+    data: rows.map((r) => ({
+      milestoneCode: r.milestoneCode,
+      graceWorkingDays: r.graceWorkingDays,
+      repeatWorkingDays: r.repeatWorkingDays,
+      maxChases: r.maxChases,
+      active: r.active,
+      anchorMilestoneCode: r.anchorMilestoneCode,
+      useAnchorEventDate: r.useAnchorEventDate,
+    })),
+  };
+}
+
+export async function updateSolicitorRule(input: {
+  milestoneCode: string;
+  graceWorkingDays: number;
+  repeatWorkingDays: number;
+  maxChases: number;
+  active: boolean;
+}): Promise<ActionResult> {
+  const session = await requireSession();
+  if (!canEditSolicitorCadence(session)) {
+    return { ok: false, error: "You don't have access to automation settings." };
+  }
+  if (!input.milestoneCode) {
+    return { ok: false, error: "Missing milestone code." };
+  }
+  if (!Number.isInteger(input.graceWorkingDays) || input.graceWorkingDays < 1) {
+    return { ok: false, error: "Grace (working days) must be at least 1." };
+  }
+  if (!Number.isInteger(input.repeatWorkingDays) || input.repeatWorkingDays < 1) {
+    return { ok: false, error: "Repeat (working days) must be at least 1." };
+  }
+  if (!Number.isInteger(input.maxChases) || input.maxChases < 1) {
+    return { ok: false, error: "Max chases must be at least 1." };
+  }
+  const existing = await prisma.solicitorReminderRule.findUnique({
+    where: { milestoneCode: input.milestoneCode },
+  });
+  if (!existing) {
+    return { ok: false, error: `No rule found for ${input.milestoneCode}.` };
+  }
+  await prisma.solicitorReminderRule.update({
+    where: { milestoneCode: input.milestoneCode },
+    data: {
+      graceWorkingDays: input.graceWorkingDays,
+      repeatWorkingDays: input.repeatWorkingDays,
+      maxChases: input.maxChases,
+      active: input.active,
+    },
+  });
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}
