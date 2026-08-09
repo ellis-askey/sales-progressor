@@ -2147,3 +2147,70 @@
 .comms-tx-link:focus-visible {
   box-shadow: inset 0 0 0 1.5px var(--agent-border-focus);
 }
+
+/* ─── Dark-mode primitive overrides (Layer 3) ────────────────────────────────
+ * Layer 1 (themes.css) flips the --agent-* tokens for
+ * :root[data-theme="dark"] .agent-shell-root. These rules cover the shared
+ * surfaces that bypass those tokens with hardcoded light literals — CSS-class
+ * primitives repainted here, plus the --agent-banner-bg token consumed inline
+ * by components/ui/AgentBanner.tsx (inline styles can't be overridden by CSS,
+ * so that swap has to be a token). All scoped to .agent-shell-root so the
+ * buyer/seller portal and marketing site keep their light glass.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/* Banner surface token. Default (light) matches the previous hardcoded value
+ * exactly, so light mode is unchanged; the dark value is set in the block
+ * below. */
+.agent-shell-root { --agent-banner-bg: rgba(255, 255, 255, 0.90); }
+:root[data-theme="dark"] .agent-shell-root { --agent-banner-bg: rgba(30, 41, 59, 0.92); }
+
+/* .glass-card (app/globals.css) — white gradient with no dark variant. Backs
+ * the Card primitive's default `glass` variant (e.g. the Property chain strip).
+ * Repaint as a dark translucent card. */
+:root[data-theme="dark"] .agent-shell-root .glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.78) 0%, rgba(20, 28, 44, 0.72) 100%);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.20),
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    0 16px 40px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Inputs / textareas — hardcoded rgba(255,255,255,…) fills (e.g. the
+ * "Add a note" field). Text + placeholder already use flipping tokens. */
+:root[data-theme="dark"] .agent-shell-root .agent-input,
+:root[data-theme="dark"] .agent-shell-root .agent-textarea {
+  background: rgba(15, 23, 42, 0.55);
+}
+:root[data-theme="dark"] .agent-shell-root .agent-input:focus,
+:root[data-theme="dark"] .agent-shell-root .agent-textarea:focus {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+/* Toast surface. */
+:root[data-theme="dark"] .agent-shell-root .agent-toast {
+  background: rgba(20, 28, 44, 0.92);
+}
+
+/* Light-weight ribbon glass. */
+:root[data-theme="dark"] .agent-shell-root .agent-glass-light {
+  background: rgba(30, 41, 59, 0.42);
+}
+
+/* KPI card border. */
+:root[data-theme="dark"] .agent-shell-root .agent-kpi-card {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Solid-mode segment pill (inactive). */
+:root[data-theme="dark"] [data-solid] .agent-segment-pill:not(.on) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Work-queue row hover. */
+:root[data-theme="dark"] .agent-shell-root .work-queue-row:hover {
+  background: rgba(30, 41, 59, 0.55) !important;
+}
