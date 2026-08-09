@@ -584,3 +584,70 @@ export async function getEmailForPreview(emailId: string): Promise<{
     },
   };
 }
+
+// ─── Solicitor chase cadence (global singleton) ─────────────────────────────
+// The solicitor confirmation feature's on/off switch + softer cadence. Global
+// (one row for the whole platform), matching how client reminder timing is
+// global. Editable by a director or internal admin from Settings → Automation.
+// Off until explicitly turned on. See docs/active/solicitor-confirm/scope.md.
+
+export type SolicitorCadenceState = {
+  enabled: boolean;
+  graceWorkingDays: number;
+  repeatDays: number;
+  maxChases: number;
+};
+
+function canEditSolicitorCadence(session: Awaited<ReturnType<typeof requireSession>>): boolean {
+  return session.user.role === "director" || hasAdminPowers(session);
+}
+
+export async function loadSolicitorCadence(): Promise<ActionResult<SolicitorCadenceState>> {
+  const session = await requireSession();
+  if (!canEditSolicitorCadence(session)) {
+    return { ok: false, error: "You don't have access to automation settings." };
+  }
+  const row = await prisma.solicitorChaseSettings.findUnique({ where: { id: "singleton" } });
+  return {
+    ok: true,
+    data: {
+      // No row = off (safe default) with the standard soft cadence shown.
+      enabled: row?.enabledByDefault ?? false,
+      graceWorkingDays: row?.graceWorkingDays ?? 5,
+      repeatDays: row?.repeatDays ?? 7,
+      maxChases: row?.maxChases ?? 2,
+    },
+  };
+}
+
+export async function updateSolicitorCadence(input: SolicitorCadenceState): Promise<ActionResult> {
+  const session = await requireSession();
+  if (!canEditSolicitorCadence(session)) {
+    return { ok: false, error: "You don't have access to automation settings." };
+  }
+  if (!Number.isInteger(input.graceWorkingDays) || input.graceWorkingDays < 1) {
+    return { ok: false, error: "Grace (working days) must be at least 1." };
+  }
+  if (!Number.isInteger(input.repeatDays) || input.repeatDays < 2) {
+    return { ok: false, error: "Repeat days must be at least 2." };
+  }
+  if (!Number.isInteger(input.maxChases) || input.maxChases < 1) {
+    return { ok: false, error: "Number of nudges must be at least 1." };
+  }
+
+  const data = {
+    enabledByDefault: input.enabled,
+    graceWorkingDays: input.graceWorkingDays,
+    repeatDays: input.repeatDays,
+    maxChases: input.maxChases,
+    updatedById: session.user.id,
+  };
+  await prisma.solicitorChaseSettings.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton", ...data },
+    update: data,
+  });
+
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}

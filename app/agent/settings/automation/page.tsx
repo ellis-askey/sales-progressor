@@ -19,6 +19,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { AutomationSettingsForm } from "@/components/automation/AutomationSettingsForm";
+import { SolicitorAutomationForm } from "@/components/automation/SolicitorAutomationForm";
 
 export default async function AutomationSettingsPage() {
   const session = await requireSession();
@@ -26,7 +27,7 @@ export default async function AutomationSettingsPage() {
   const agencyId = session.user.agencyId;
   if (!agencyId) notFound();
 
-  const [agency, rules, defs] = await Promise.all([
+  const [agency, rules, defs, solicitorSettings] = await Promise.all([
     prisma.agency.findUnique({
       where: { id: agencyId },
       select: { chaseEmailsEnabled: true },
@@ -42,6 +43,7 @@ export default async function AutomationSettingsPage() {
     prisma.milestoneDefinition.findMany({
       select: { code: true, name: true, side: true, orderIndex: true },
     }),
+    prisma.solicitorChaseSettings.findUnique({ where: { id: "singleton" } }),
   ]);
 
   if (!agency) notFound();
@@ -79,6 +81,14 @@ export default async function AutomationSettingsPage() {
       <AutomationSettingsForm
         initialChaseEmailsEnabled={agency.chaseEmailsEnabled}
         initialRules={editableRules}
+      />
+      <SolicitorAutomationForm
+        initial={{
+          enabled: solicitorSettings?.enabledByDefault ?? false,
+          graceWorkingDays: solicitorSettings?.graceWorkingDays ?? 5,
+          repeatDays: solicitorSettings?.repeatDays ?? 7,
+          maxChases: solicitorSettings?.maxChases ?? 2,
+        }}
       />
     </div>
   );

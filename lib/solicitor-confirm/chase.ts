@@ -19,8 +19,12 @@ type Cadence = {
   maxChases: number;
 };
 
+// enabledByDefault defaults to FALSE here (safe): with no settings row the
+// cron does not send. The feature only goes live when the admin explicitly
+// turns it on via Settings → Automation (which writes a row with
+// enabledByDefault=true). See docs/active/solicitor-confirm/scope.md.
 const CADENCE_DEFAULTS: Cadence = {
-  enabledByDefault: true,
+  enabledByDefault: false,
   graceWorkingDays: 5,
   repeatDays: 7,
   maxChases: 2,
@@ -367,11 +371,17 @@ async function runEscalationPass(now: Date, cadence: Cadence): Promise<number> {
 }
 
 export async function runSolicitorChaseCron(now: Date): Promise<{
+  enabled: boolean;
   groups: number;
   sent: number;
   escalated: number;
 }> {
   const cadence = await getSolicitorCadence();
+  // Master on/off switch — off until the admin turns it on from Settings →
+  // Automation. Off = the cron is a no-op (no sends, no state changes).
+  if (!cadence.enabledByDefault) {
+    return { enabled: false, groups: 0, sent: 0, escalated: 0 };
+  }
   const due = await findDueSolicitorChases(now, cadence);
 
   let sent = 0;
@@ -384,5 +394,5 @@ export async function runSolicitorChaseCron(now: Date): Promise<{
   }
 
   const escalated = await runEscalationPass(now, cadence);
-  return { groups: due.length, sent, escalated };
+  return { enabled: true, groups: due.length, sent, escalated };
 }

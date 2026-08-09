@@ -4,7 +4,24 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-29
+Last updated: 2026-08-09
+
+---
+
+## Solicitor confirmation emails — how to go live (2026-08-09)
+
+The feature is on production but **OFF**. The on/off switch is now **in the app**, not an env var: go to **Settings → Automation** (as a director) → "Solicitor confirmation emails" → toggle it on and Save. No Vercel changes needed.
+
+- [ ] When ready (after you've reviewed/updated the files), turn the switch on there. From the next weekday 09:00 (UK ~10:00), solicitors with a step overdue by 5 working days get one email per file+side. **Heads-up: ~48 real firms are currently "due", so the first morning is a real send to real solicitors.** Consider a dry-run first (ask me to simulate + send you samples), or turn it on for a quiet period and watch.
+- [ ] The schedule numbers (5 working days / repeat 7 / stop after 2) are editable on that same screen.
+
+### Prod migration timeout — investigated, NO action needed
+
+The first prod deploy failed once because a single stuck database connection was holding a lock at the exact moment the migration ran, and the 120s safety timeout killed it. It rolled back cleanly and I re-applied it safely. **This was a one-off fluke, not a systemic problem** — your past deploys worked fine and future ones will too. Specifically: do **NOT** change the `DIRECT_URL` database setting (the "direct" address is often unreachable from Vercel and could break deploys). No change required. (If it ever recurs, it's the same stuck-connection situation and is easily cleared.)
+
+Notes:
+- Sends use each agency's verified sender (falls back to `ellis@thesalesprogressor.co.uk`). No new SendGrid setup needed.
+- Staging caveat: Vercel **staging** deploys use `prisma db push --accept-data-loss`, so deploying the `staging` branch (which doesn't have the solicitor schema) would DROP the solicitor tables/columns on the staging DB. Merge solicitor-confirm into `staging` before/if you deploy staging.
 
 ---
 

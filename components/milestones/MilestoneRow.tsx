@@ -24,6 +24,7 @@ type Props = {
     isComplete: boolean;
     isNotRequired: boolean;
     isAvailable: boolean;
+    confirmedBySolicitorFirmName?: string | null;
   };
   transactionId: string;
   onConfirmStart?: () => void;
@@ -480,7 +481,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               {def.completion.confirmedBySolicitorFirmId && (
                 <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Solicitor confirmed
+                  {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
                 </span>
               )}
             </p>
