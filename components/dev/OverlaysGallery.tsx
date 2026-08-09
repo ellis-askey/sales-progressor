@@ -15,6 +15,9 @@ import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsD
 import { ReconciliationDrawer, type ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
+import { ArchivedRoundDrawer } from "@/components/transaction/ArchivedRoundDrawer";
+import { DesignLabDrawer } from "@/components/glass/DesignLabDrawer";
+import { GlassPicksProvider } from "@/lib/glass/context";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { MortgageModal } from "@/components/milestones/MortgageModal";
@@ -91,8 +94,13 @@ const EDIT_SHARED = {
 
 // ─── The gallery ────────────────────────────────────────────────────────────
 
+const MOCK_ARCHIVED_ROUNDS = [
+  { id: "ar1", roundNumber: 1 },
+  { id: "ar2", roundNumber: 2 },
+];
+
 type OverlayKey =
-  | "chase" | "edit" | "recon" | "chain" | "node"
+  | "chase" | "edit" | "recon" | "chain" | "node" | "archived" | "designLab"
   | "welcome" | "undo" | "mortgage" | "surveyNr" | "addFirm" | "addBroker"
   | "automationStop" | "dupAddr" | "navAway" | "celebrate"
   | "globalSearch" | "submission" | "feedback";
@@ -160,6 +168,8 @@ export function OverlaysGallery() {
           <Item label="Reconciliation" where="Exchange / completion flow" onOpen={() => setOpen("recon")} />
           <Item label="Chain visualiser" where="ViewChainButton" onOpen={() => setOpen("chain")} />
           <Item label="Add chain node" where="Inside the chain drawer" onOpen={() => setOpen("node")} />
+          <Item label="Archived rounds" where="File · after a relist" onOpen={() => setOpen("archived")} />
+          <Item label="Design lab (glass picker)" where="Top bar · Ellis only" onOpen={() => setOpen("designLab")} />
         </Section>
 
         {/* MODALS */}
@@ -255,6 +265,8 @@ export function OverlaysGallery() {
       {open === "recon" && <ReconciliationDrawer isExchangeFlow outstanding={MOCK_RECON_ITEMS} initialEventDate={new Date().toISOString().split("T")[0]} onConfirm={close} onCancel={close} />}
       {open === "chain" && <ChainDrawer transactionId={MOCK_TX_ID} currentUserId={MOCK_USER_ID} onClose={close} onOpenAddNode={() => setOpen("node")} />}
       {open === "node" && <AddNodeDrawer direction={nodeDir} onClose={close} onSaved={close} />}
+      {open === "archived" && <ArchivedRoundDrawer open transactionId={MOCK_TX_ID} archivedRounds={MOCK_ARCHIVED_ROUNDS} onClose={close} />}
+      {open === "designLab" && <GlassPicksProvider initialPicks={{}}><DesignLabDrawer open onClose={close} /></GlassPicksProvider>}
       {open === "welcome" && <WelcomeModal />}
       {open === "undo" && <UndoMilestoneModal milestoneName="Searches requested" milestoneId="m-dev-001" undoData={MOCK_UNDO_CASCADE} isPending={false} onConfirm={close} onCancel={close} />}
       {open === "mortgage" && <MortgageModal onConfirmMortgage={close} onConfirmReinstate={close} onCancel={close} />}
