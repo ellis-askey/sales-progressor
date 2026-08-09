@@ -459,6 +459,37 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         />
       )}
 
+      {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
+      {side === "purchaser" && instructedDone && !hasExchanged && !hasCompleted && (
+        <Link
+          href={`/quote/${token}`}
+          className="block rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
+          style={{ background: P.cardBg, boxShadow: P.shadowSm, textDecoration: "none" }}
+        >
+          <div className="flex items-center gap-3 p-5">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: P.accentBg, color: P.accent }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+                Get a survey quote
+              </p>
+              <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+                We'll match you with local firms that cover your area.
+              </p>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </Link>
+      )}
+
       {/* ── Coming up (next 3 after next action) ─────────────────── */}
       {comingUp.length > 0 && !hasCompleted && (
         <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
