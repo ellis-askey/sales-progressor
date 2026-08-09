@@ -330,13 +330,21 @@ function Section({
         </div>
       )}
 
-      {/* Upcoming / open groups */}
+      {/* Upcoming / open groups.
+          NOTE: uses raw div with agent-glass-strong + agent-empty-card rather
+          than <Card>. Card's default 'glass-card' backdrop is opaque and
+          blocks the aurora AppBackground, making empty states look flat.
+          Standard empty-state pattern across comms/completions/work-queue.
+          2026-08-10 (fix missed in the Aug-9 empty-state sweep). */}
       {!hasOpen ? (
-        <Card padding="none" className="agent-empty-card" style={{ padding: "28px 20px", textAlign: "center" }}>
+        <div
+          className="agent-glass-strong agent-empty-card"
+          style={{ padding: "28px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
+        >
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>
             {emptyText ?? (progressor ? "All caught up." : "All clear.")}
           </p>
-        </Card>
+        </div>
       ) : openGroups.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {openGroups.map((group) => (

@@ -119,7 +119,10 @@ export default async function AgentPartnersPage() {
 
         {/* Solicitor directory */}
         {firms.length === 0 ? (
-          <Card padding="none" className="agent-empty-card" style={{ padding: "48px 32px", textAlign: "center" }}>
+          <div
+            className="agent-glass-strong agent-empty-card"
+            style={{ padding: "48px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
+          >
             <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               No solicitor firms yet
@@ -127,7 +130,7 @@ export default async function AgentPartnersPage() {
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
               Solicitors appear here once assigned to a transaction.
             </p>
-          </Card>
+          </div>
         ) : (
           firms.map((firm: SolicitorFirmWithStats) => <FirmCard key={firm.id} firm={firm} />)
         )}
