@@ -108,25 +108,30 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
         {children}
       </main>
 
-      {/* Bottom tab bar — solid white, floating with upward shadow */}
-      <div className="fixed bottom-0 inset-x-0 z-20">
+      {/* Bottom tab bar — Elevra-style (2026-08-09): blur backdrop
+          instead of solid white, hairline top border instead of rounded
+          shadow. Active tab shows a coral glow behind the icon + the
+          icon scales up gently. Same 3 tabs, same icons, same labels. */}
+      <nav
+        aria-label="Primary"
+        className="fixed bottom-0 inset-x-0 z-20"
+        style={{
+          background: "rgba(255, 255, 255, 0.82)",
+          borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
+          backdropFilter: "blur(20px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+        }}
+      >
         <div className="max-w-lg mx-auto">
-          <div
-            style={{
-              background: "#FFFFFF",
-              borderRadius: "20px 20px 0 0",
-              boxShadow: "0 -4px 24px rgba(15,23,42,0.08), 0 -1px 4px rgba(15,23,42,0.04)",
-            }}
-          >
-            <div className="grid grid-cols-3 px-2 py-2">
-              <TabItem href={base}               active={isHome}     icon="home"     label="Overview" />
-              <TabItem href={`${base}/progress`} active={isProgress} icon="progress" label="Progress" />
-              <TabItem href={`${base}/updates`}  active={isUpdates}  icon="updates"  label="Updates" />
-            </div>
-            <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
-          </div>
+          <ul className="grid grid-cols-3 px-2 py-2 m-0 list-none">
+            <li className="relative"><TabItem href={base}               active={isHome}     icon="home"     label="Overview" /></li>
+            <li className="relative"><TabItem href={`${base}/progress`} active={isProgress} icon="progress" label="Progress" /></li>
+            <li className="relative"><TabItem href={`${base}/updates`}  active={isUpdates}  icon="updates"  label="Updates" /></li>
+          </ul>
+          {/* iOS home-indicator inset */}
+          <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
         </div>
-      </div>
+      </nav>
     </div>
   );
 }
@@ -143,21 +148,36 @@ function TabItem({
   label: string;
 }) {
   return (
-    <Link href={href} className="flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition-all">
-      <div
-        className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all"
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className="flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl"
+    >
+      <span
+        className="inline-flex items-center justify-center rounded-full"
         style={{
-          background: active ? P.primaryBg : "transparent",
+          width: 32,
+          height: 32,
           color: active ? P.primary : P.textMuted,
+          // Elevra's "shadow-glowAccent" — accent-hued glow behind the
+          // icon when active. Coral for the portal (P.primary).
+          boxShadow: active
+            ? "0 0 24px rgba(255, 107, 74, 0.35)"
+            : "none",
+          transform: active ? "scale(1.1)" : "scale(1)",
+          transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms ease, box-shadow 200ms ease",
         }}
       >
         {icon === "home"     && <HomeIcon     active={active} />}
         {icon === "progress" && <ProgressIcon active={active} />}
         {icon === "updates"  && <UpdatesIcon  active={active} />}
-      </div>
+      </span>
       <span
-        className="text-[10px] font-semibold transition-colors"
-        style={{ color: active ? P.primary : P.textMuted }}
+        className="text-[10px] font-semibold"
+        style={{
+          color: active ? P.primary : P.textMuted,
+          transition: "color 150ms ease",
+        }}
       >
         {label}
       </span>
