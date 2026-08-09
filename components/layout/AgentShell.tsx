@@ -254,7 +254,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   // let the Design Lab drawer auto-discover and swap them live, in whichever
   // theme is active, and picks persist per-account exactly like card picks.
   const topbarPick = usePickForCard("nav-topbar");
-  const sidebarPick = usePickForCard("nav-sidebar");
+  // nav-sidebar defaults to v19 (Inner glow) app-wide per Ellis's pick set
+  // (2026-08-10); overridable per-account in the Design Lab. Mirrors how the
+  // hub cards default via GlassCard's defaultVariant (v27 / v22).
+  const sidebarPick = usePickForCard("nav-sidebar") ?? "v19";
   // One dark-mode source of truth (data-theme), shared with the desktop
   // top-bar toggle. Replaces the old data-night mobile-only system.
   const { isDark, setDark } = useDarkMode(themeMode);
@@ -351,7 +354,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         className={`agent-glass agent-sidebar-mobile agent-sidebar-height${mobileOpen ? " agent-sidebar-mobile-open" : ""}${sidebarPick ? " " + classFor(sidebarPick) : ""}`}
         data-glass-id="nav-sidebar"
         data-glass-label="Nav · Sidebar"
-        data-glass-variant={sidebarPick ?? "v00"}
+        data-glass-variant={sidebarPick}
         style={{
           width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
           position: "fixed", left: 0, overflowY: "auto",
