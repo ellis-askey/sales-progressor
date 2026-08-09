@@ -113,8 +113,8 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
       {/* Floating card — single container, fixed radius, grows downward */}
       <div style={{
         position: "absolute", top: 0, right: 0, minWidth: "100%",
-        background: "white",
-        border: "0.5px solid rgba(0,0,0,0.12)",
+        background: "var(--agent-surface-elevated)",
+        border: "0.5px solid var(--agent-border-default)",
         borderRadius: PILL_R,
         overflow: "hidden",
         zIndex: 200,
@@ -133,7 +133,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
             padding: "4px 10px 4px 4px",
             cursor: "pointer",
           }}
-          className="hover:bg-black/[0.04]"
+          className="agent-hover-row"
           aria-label="User menu"
           aria-expanded={open}
         >
@@ -169,7 +169,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
                   textDecoration: "none", color: "var(--agent-text-primary)", fontSize: 13,
                   transition: "background 150ms",
                 }}
-                className="hover:bg-black/[0.05]"
+                className="agent-hover-row"
               >
                 <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
                 Account
@@ -185,7 +185,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
                       textDecoration: "none", color: "var(--agent-text-primary)", fontSize: 13,
                       transition: "background 150ms",
                     }}
-                    className="hover:bg-black/[0.05]"
+                    className="agent-hover-row"
                   >
                     <CreditCard weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
                     Billing
@@ -200,7 +200,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
                       color: "var(--agent-text-primary)", fontSize: 13,
                       transition: "background 150ms",
                     }}
-                    className="hover:bg-black/[0.05]"
+                    className="agent-hover-row"
                   >
                     <CreditCard weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
                     Billing
@@ -216,7 +216,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
                   color: "var(--agent-text-secondary)", fontSize: 13,
                   transition: "background 150ms",
                 }}
-                className="hover:bg-black/[0.05]"
+                className="agent-hover-row"
               >
                 Sign out
               </button>
@@ -308,7 +308,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
               padding: "4px 8px", borderRadius: 6, transition: "background 150ms",
               whiteSpace: "nowrap", flexShrink: 0,
             }}
-            className="hover:bg-black/[0.04]"
+            className="agent-hover-row"
           >
             <span style={{ display: "inline-flex", animation: refreshing ? "agent-spin 700ms linear infinite" : undefined }}>
               <ArrowsClockwise size={13} />
@@ -533,7 +533,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <Link
               href="/agent/account/profile"
               onClick={() => setMobileOpen(false)}
-              className="hover:bg-black/[0.05]"
+              className="agent-hover-row"
               style={{
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                 gap: 6, padding: "7px 10px", borderRadius: 8,
@@ -546,7 +546,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             </Link>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="hover:bg-black/[0.05]"
+              className="agent-hover-row"
               style={{
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                 gap: 6, padding: "7px 10px", borderRadius: 8,

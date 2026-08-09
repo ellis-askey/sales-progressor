@@ -153,7 +153,7 @@ function HeroProgressBar({ percent }: { percent: number }) {
         }}>{clamped}%</span>{" "}
         complete
       </p>
-      <div style={{ height: 5, borderRadius: 999, background: "rgba(15,23,42,0.08)", overflow: "hidden" }}>
+      <div style={{ height: 5, borderRadius: 999, background: "var(--agent-border-default)", overflow: "hidden" }}>
         <div style={{
           height: "100%",
           borderRadius: 999,
@@ -257,7 +257,7 @@ export function PropertyHero({
         fontSize: 11,
         fontWeight: 600,
         color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
-        background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
+        background: isSelf ? "var(--agent-surface-overlay)" : "rgba(var(--agent-coral-rgb), 0.1)",
         borderRadius: 999,
         padding: "4px 10px",
         whiteSpace: "nowrap",
@@ -481,7 +481,7 @@ export function PropertyHero({
           <div style={{
             marginTop: 18,
             paddingTop: 14,
-            borderTop: "0.5px solid rgba(15,23,42,0.08)",
+            borderTop: "0.5px solid var(--agent-border-default)",
             display: "flex",
             alignItems: "center",
             gap: 14,
@@ -524,7 +524,7 @@ export function PropertyHero({
                   width: 32,
                   height: 32,
                   borderRadius: 999,
-                  background: "rgba(15,23,42,0.06)",
+                  background: "var(--agent-surface-overlay)",
                   color: "var(--agent-text-muted)",
                   display: "inline-flex",
                   alignItems: "center",
@@ -550,7 +550,7 @@ export function PropertyHero({
                   width: 32,
                   height: 32,
                   borderRadius: 999,
-                  background: "rgba(15,23,42,0.05)",
+                  background: "var(--agent-surface-overlay)",
                   color: "var(--agent-text-muted)",
                   display: "inline-flex",
                   alignItems: "center",
@@ -598,7 +598,7 @@ export function PropertyHero({
             padding: "6px 12px",
             borderRadius: 999,
             color: photoUrl ? "#fff" : "var(--agent-text-secondary)",
-            background: photoUrl ? "rgba(15,23,42,0.38)" : "rgba(15,23,42,0.06)",
+            background: photoUrl ? "rgba(15,23,42,0.38)" : "var(--agent-surface-overlay)",
             backdropFilter: photoUrl ? "blur(8px)" : undefined,
             WebkitBackdropFilter: photoUrl ? "blur(8px)" : undefined,
           }}

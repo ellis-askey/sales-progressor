@@ -89,7 +89,7 @@ export function PortalConfirmEmailToggle({
           borderRadius: 999,
           border: "none",
           padding: 0,
-          background: emailsOn ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
+          background: emailsOn ? "var(--agent-coral, #FF6B4A)" : "var(--agent-border-strong)",
           cursor: isPending ? "default" : "pointer",
           opacity: isPending ? 0.6 : 1,
           transition: "background 120ms ease",

@@ -252,10 +252,10 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               className="fixed agent-dropdown-in rounded-xl overflow-hidden min-w-[140px]"
               style={{
                 zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left,
-                background: "rgba(255,255,255,0.72)",
+                background: "var(--agent-glass-bg-strong)",
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
-                border: "0.5px solid rgba(255,255,255,0.60)",
+                border: "0.5px solid var(--agent-glass-border)",
                 boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
               }}
             >
@@ -263,9 +263,10 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 <button
                   key={value}
                   onClick={() => selectStatus(value)}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/40 transition-colors flex items-center gap-2 ${
-                    value === optimisticStatus ? "font-medium text-slate-900/90" : "text-slate-900/70"
+                  className={`w-full text-left px-4 py-2.5 text-sm agent-hover-row transition-colors flex items-center gap-2 ${
+                    value === optimisticStatus ? "font-medium" : ""
                   }`}
+                  style={{ color: value === optimisticStatus ? "var(--agent-text-primary)" : "var(--agent-text-secondary)" }}
                 >
                   {value === optimisticStatus && (
                     <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -595,7 +596,7 @@ function ResumeOptionCard({
         textAlign: "left",
         padding: "12px 14px",
         background: "var(--agent-surface-glass)",
-        border: "0.5px solid rgba(15,23,42,0.10)",
+        border: "0.5px solid var(--agent-border-default)",
         borderRadius: 12,
         cursor: "pointer",
         transition: "background 150ms, border-color 150ms",
@@ -606,7 +607,7 @@ function ResumeOptionCard({
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "var(--agent-surface-glass)";
-        e.currentTarget.style.borderColor = "rgba(15,23,42,0.10)";
+        e.currentTarget.style.borderColor = "var(--agent-border-default)";
       }}
     >
       <p style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>{title}</p>

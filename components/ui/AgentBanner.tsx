@@ -5,10 +5,11 @@
 // ReconcileLater, ChainSetupFailed, DirectorJoined, ChainDecline) that were
 // washing out on the warm peachy iridescent agent background.
 //
-// Recipe — white-with-blur + coloured accent:
-//   - Background: white at 90% with backdrop-filter blur, so it reads as
-//     visually distinct from the iridescent gradient AND from glass-card
-//     content below it
+// Recipe — neutral surface + blur + coloured accent:
+//   - Background: --agent-banner-bg (white at 90% in light, dark slate at 92%
+//     in dark) with backdrop-filter blur, so it reads as visually distinct
+//     from the app background AND from glass-card content below it. The token
+//     is defined in agent-system.css; dark mode is handled there, not here.
 //   - Border: 1px in the kind's "border-strong" token (45-55% opacity)
 //   - Icon: caller-supplied (Phosphor recommended), tinted with the kind colour
 //   - Heading: 13/600 in the kind colour
@@ -50,7 +51,7 @@ export function AgentBanner({ kind, icon, title, body, action, dismissible, clas
       className={`agent-reveal-in ${className ?? ""}`.trim()}
       role={kind === "danger" || kind === "warning" ? "alert" : "status"}
       style={{
-        background: "rgba(255, 255, 255, 0.90)",
+        background: "var(--agent-banner-bg)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         border: `1px solid ${t.border}`,
