@@ -33,19 +33,22 @@ type Props = {
   status: "draft" | "active" | "on_hold" | "completed" | "withdrawn";
   tenure: "freehold" | "leasehold" | null;
   purchaseType: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
-  /** 0-100. Displayed as N/6 above the ring. */
+  /** 0-100. Drives the ring arc. */
   percent: number;
-  /** Number of complete tiles of 6, e.g. 3 → "3 of 6". */
-  completedStageCount: number;
+  /** Position of the currently-active step (1..6). Matches the mock's
+   *  "3 of 6" when Searches is active, not the count of completed
+   *  stages. If everything is complete → 6. */
+  currentStepNumber: number;
   /** Simplified 4-label current stage: Onboarding / Conveyancing / Exchange / Completion. */
   currentStage4: string;
   /** Sub-label from the active 6-tile, e.g. "Searches underway". */
   currentStageSubLabel: string;
   /** The 6 progress tiles, ordered instructed → completion. */
   tiles: OverviewTile[];
-  /** Predicted exchange date if available (median-based). Null hides the card. */
+  /** Exchange date to display in the hero (prefer agent-set target over
+   *  algorithmic prediction — done on the page side). Null hides the card. */
   predictedExchangeDate: Date | null;
-  /** Days until predicted exchange, computed on the page (respects UK timezone). */
+  /** Days until the hero's exchange date, computed on the page. */
   daysUntilPredicted: number | null;
 };
 
@@ -75,8 +78,8 @@ function formatStatus(s: string): { label: string; dotColor: string } {
 }
 
 // Small circular progress ring for the hero. SVG stroke-dasharray trick.
-// 68px outer diameter to match the mock's proportion.
-function HeroRing({ percent, completedStageCount }: { percent: number; completedStageCount: number }) {
+// 96px outer diameter to match the mock's proportion.
+function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number }) {
   const size = 96;
   const stroke = 6;
   const r = (size - stroke) / 2;
@@ -113,13 +116,16 @@ function HeroRing({ percent, completedStageCount }: { percent: number; completed
         alignItems: "center", justifyContent: "center",
         color: P.textPrimary,
       }}>
-        <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{completedStageCount}</span>
+        <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary }}>{stepNumber}</span>
         <span style={{ fontSize: 10, color: P.textMuted, marginTop: 2 }}>of 6</span>
       </div>
     </div>
   );
 }
 
+// Translucent glass pill — matches the bottom-nav treatment. Not solid
+// (that read wrong against the mock). Backdrop-blur gives it a real
+// glassy look so it reads on any part of the photo underneath.
 function Pill({ children, dotColor, tone = "neutral" }: {
   children: React.ReactNode;
   dotColor?: string;
@@ -131,13 +137,16 @@ function Pill({ children, dotColor, tone = "neutral" }: {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "4px 10px",
+        padding: "5px 12px",
         borderRadius: 999,
         fontSize: 12,
         fontWeight: 600,
         color: tone === "accent" ? P.primary : P.textPrimary,
-        background: "rgba(255,255,255,0.75)",
-        border: "0.5px solid rgba(15,23,42,0.08)",
+        background: "rgba(255, 255, 255, 0.55)",
+        border: "0.5px solid rgba(255, 255, 255, 0.7)",
+        backdropFilter: "blur(12px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(12px) saturate(1.5)",
+        boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06)",
         whiteSpace: "nowrap",
       }}
     >
@@ -180,13 +189,17 @@ function ProgressTile({ tile, index }: { tile: OverviewTile; index: number }) {
             : index}
       </div>
       <div style={{ textAlign: "center", minWidth: 0, width: "100%" }}>
+        {/* Wrap allowed on both lines — tile widths get tight on mobile
+            and truncating "Draft pack" or "Prepping" would erase the
+            signal. Two-line wrap looks intentional; ellipsis looks
+            broken. */}
         <p style={{
           margin: 0,
           fontSize: 11,
           fontWeight: 600,
           color: labelColor,
           lineHeight: 1.25,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          wordBreak: "break-word",
         }}>{tile.label}</p>
         <p style={{
           margin: "2px 0 0",
@@ -194,7 +207,7 @@ function ProgressTile({ tile, index }: { tile: OverviewTile; index: number }) {
           color: textColor,
           fontWeight: isActive ? 600 : 400,
           lineHeight: 1.3,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          wordBreak: "break-word",
         }}>{tile.text}</p>
       </div>
     </div>
@@ -222,7 +235,7 @@ export function PortalOverviewHero({
   tenure,
   purchaseType,
   percent,
-  completedStageCount,
+  currentStepNumber,
   currentStage4,
   currentStageSubLabel,
   tiles,
@@ -236,6 +249,14 @@ export function PortalOverviewHero({
   return (
     <div className="space-y-4">
       {/* ── Photo hero with overlays ─────────────────────────────────── */}
+      {/* Layout: photo fills the container top; a strong gradient at the
+          BOTTOM fades the photo into the page background so the content
+          (address / pills / ring / current stage) sits on a
+          near-white zone at the bottom that reads clearly. No wide
+          frost blur — Ellis flagged that as too heavy and mis-placed;
+          the mock's readable zone comes from the fade, not the blur.
+          Pills are proper translucent glass (see Pill component) so
+          they still read cleanly across the transition. */}
       <div
         className="-mx-4"
         style={{
@@ -268,46 +289,29 @@ export function PortalOverviewHero({
           </div>
         )}
 
-        {/* Frosted-glass wash for text legibility. Covers the bottom ~55%
-            of the photo; the mask fades the top edge so it dissolves
-            into the photo instead of a hard rectangle. Same visual
-            language as the new bottom nav bar. */}
+        {/* Bottom fade — the ONLY overlay on the photo. Fades transparent
+            at the top of the content zone to the page background at the
+            very bottom, so the photo dissolves into the page and the
+            text below sits on a near-white area. Blur intentionally
+            omitted (Ellis's 2026-08-09 note: too heavy + wrong shape). */}
         <div
           aria-hidden
           style={{
             position: "absolute",
             bottom: 0, left: 0, right: 0,
-            height: "62%",
+            height: "60%",
             pointerEvents: "none",
-            background: "rgba(255, 255, 255, 0.45)",
-            backdropFilter: "blur(20px) saturate(1.8)",
-            WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-            maskImage: "linear-gradient(180deg, transparent 0%, #000 22%, #000 100%)",
-            WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 22%, #000 100%)",
+            background: `linear-gradient(180deg, transparent 0%, ${P.pageBg}CC 55%, ${P.pageBg} 100%)`,
           }}
         />
 
-        {/* Bottom edge fade to page bg — soft dissolve at the very
-            bottom so the hero merges into the page rather than ending
-            in a hard line. */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            bottom: 0, left: 0, right: 0,
-            height: "22%",
-            pointerEvents: "none",
-            background: `linear-gradient(180deg, transparent 0%, ${P.pageBg} 100%)`,
-          }}
-        />
-
-        {/* Content over the frost — address + pills bottom-left,
-            ring + current stage bottom-right. */}
+        {/* Content — address + pills bottom-left, ring + current stage
+            bottom-right. Sits on the faded zone (near-white). */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            padding: "20px 20px 32px",
+            padding: "20px 20px 28px",
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -324,7 +328,6 @@ export function PortalOverviewHero({
                 color: P.textPrimary,
                 lineHeight: 1.15,
                 letterSpacing: "-0.01em",
-                textShadow: "0 1px 12px rgba(255,255,255,0.6)",
               }}
             >
               {address}
@@ -337,7 +340,6 @@ export function PortalOverviewHero({
                   fontSize: 13,
                   color: P.textSecondary,
                   display: "flex", alignItems: "center", gap: 5,
-                  textShadow: "0 1px 8px rgba(255,255,255,0.5)",
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -359,10 +361,10 @@ export function PortalOverviewHero({
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 8,
+            gap: 10,
             flexShrink: 0,
           }}>
-            <HeroRing percent={percent} completedStageCount={completedStageCount} />
+            <HeroRing percent={percent} stepNumber={currentStepNumber} />
             <div style={{ textAlign: "center" }}>
               <p style={{
                 margin: 0,
@@ -370,27 +372,31 @@ export function PortalOverviewHero({
                 fontWeight: 700,
                 color: P.textMuted,
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                letterSpacing: "0.10em",
               }}>
                 Current stage
               </p>
+              {/* Main label — bold navy. Sub-label — lighter, sentence-
+                  case (do NOT lowercase; Ellis flagged that). */}
               <p style={{
-                margin: "2px 0 0",
-                fontSize: 14,
+                margin: "3px 0 0",
+                fontSize: 15,
                 fontWeight: 700,
                 color: P.textPrimary,
                 lineHeight: 1.2,
+                letterSpacing: "-0.01em",
               }}>
                 {currentStage4}
               </p>
               {currentStageSubLabel && (
                 <p style={{
-                  margin: "1px 0 0",
-                  fontSize: 11,
+                  margin: "2px 0 0",
+                  fontSize: 12,
                   color: P.textSecondary,
                   fontWeight: 500,
+                  lineHeight: 1.25,
                 }}>
-                  {currentStageSubLabel.toLowerCase()}
+                  {currentStageSubLabel}
                 </p>
               )}
             </div>
@@ -495,9 +501,8 @@ export function PortalOverviewHero({
                   We&apos;ll keep you updated at every important step.
                 </p>
               </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#047857" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ marginLeft: "auto", flexShrink: 0 }}>
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              {/* Chevron removed 2026-08-09 — nothing to click through to,
+                  and Ellis flagged it as misleading. */}
             </div>
           </div>
         </div>
