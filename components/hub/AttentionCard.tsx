@@ -382,12 +382,12 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   const allClear = rows.length === 0;
 
   return (
-    // Design Lab: `hub-attention`. Default v03 — closest catalog match to
-    // the agent-glass-strong frost this replaced (2026-08-09 hub pass).
+    // Design Lab: `hub-attention`. Default v27 (Classic frost bar) per
+    // Ellis's hub pick set, 2026-08-09.
     <GlassCard
       glassId="hub-attention"
       label="Hub · Needs your attention"
-      defaultVariant="v03"
+      defaultVariant="v27"
       style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
     >
       {/* ── Header ── */}
