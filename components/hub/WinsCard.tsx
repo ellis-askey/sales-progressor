@@ -197,9 +197,12 @@ export function WinsCard({ wins }: { wins: HubWins }) {
 }
 
 function StatRow({ label, value }: { label: string; value: number }) {
+  // Capitalise the first letter of the stat label (e.g. "completions" →
+  // "Completions", "steps confirmed this week" → "Steps confirmed this week").
+  const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)" }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)" }}>{displayLabel}</p>
       <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
         {value}
       </p>

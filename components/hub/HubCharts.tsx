@@ -8,6 +8,7 @@ import {
   PieChart, Pie, LabelList,
 } from "recharts";
 import type { WeekBucket } from "@/lib/services/hub";
+import { useIsDarkTheme } from "./PipelineStageHover";
 
 // ── Refresh button ─────────────────────────────────────────────────────────────
 
@@ -100,16 +101,21 @@ interface TooltipProps {
 }
 
 function ForecastTooltip({ active, payload }: TooltipProps) {
+  // Same frosty-glass recipe as PipelineStageHover so every hub popup reads as
+  // one family (item 5). Explicit light/dark values rather than the solid
+  // --agent-surface-elevated it used before (which read as a dark-blue block).
+  const isDark = useIsDarkTheme();
   if (!active || !payload?.length) return null;
   const { label, count } = payload[0].payload;
   return (
     <div style={{
-      background: "var(--agent-surface-elevated)",
-      border: "0.5px solid var(--agent-glass-border)",
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
-      borderRadius: 8, padding: "5px 10px", fontSize: 12,
-      color: "var(--agent-text-primary)",
+      background: isDark ? "rgba(20, 28, 44, 0.72)" : "rgba(255, 255, 255, 0.85)",
+      border: isDark ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(15,23,42,0.08)",
+      backdropFilter: "blur(24px) saturate(1.8)",
+      WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+      borderRadius: 10, padding: "6px 11px", fontSize: 12,
+      color: isDark ? "#EFF6FF" : "#1e293b",
+      boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.40)" : "0 12px 32px rgba(15,23,42,0.14)",
     }}>
       <strong>{count}</strong>{" "}
       {count === 1 ? "exchange" : "exchanges"} · {label}

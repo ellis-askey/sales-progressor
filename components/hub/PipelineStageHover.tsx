@@ -91,8 +91,8 @@ const bubbleBaseStyle: CSSProperties = {
   background: "var(--agent-surface-elevated)",
   border: "0.5px solid var(--agent-glass-border)",
   boxShadow: "0 12px 32px rgba(15,23,42,0.14), 0 2px 6px rgba(15,23,42,0.06)",
-  backdropFilter: "blur(16px) saturate(1.1)",
-  WebkitBackdropFilter: "blur(16px) saturate(1.1)",
+  backdropFilter: "blur(24px) saturate(1.8)",
+  WebkitBackdropFilter: "blur(24px) saturate(1.8)",
   // Shell topbar dropdown is 200, sidebar 100. Stay above both so the
   // bubble never gets covered when a stage circle is near the top of
   // the viewport and the bubble flips above the header.
@@ -142,8 +142,45 @@ const valueStyle: CSSProperties = {
   fontVariantNumeric: "tabular-nums",
 };
 
+// Canonical hub-popup palette. The bubble is portaled to document.body,
+// OUTSIDE .agent-shell-root, so the --agent-* tokens don't inherit here. We
+// inject the values the bubble needs onto its root (light/dark) so every child
+// — surface, text, arrow — resolves against them. Frosty translucent surface,
+// matching the status menu + portal nav; item 5 makes every hub popup share it.
+const HOVER_TOKENS_DARK: Record<string, string> = {
+  "--agent-surface-elevated": "rgba(20, 28, 44, 0.72)",
+  "--agent-glass-border": "rgba(255, 255, 255, 0.14)",
+  "--agent-text-primary": "#EFF6FF",
+  "--agent-text-secondary": "rgba(226, 232, 240, 0.88)",
+  "--agent-text-muted": "rgba(226, 232, 240, 0.62)",
+  "--agent-warning": "#FBBF24",
+  "--agent-success": "#34D399",
+};
+const HOVER_TOKENS_LIGHT: Record<string, string> = {
+  "--agent-surface-elevated": "rgba(255, 255, 255, 0.85)",
+  "--agent-glass-border": "rgba(15, 23, 42, 0.08)",
+  "--agent-text-primary": "#1e293b",
+  "--agent-text-secondary": "#475569",
+  "--agent-text-muted": "#64748b",
+  "--agent-warning": "#b45309",
+  "--agent-success": "#059669",
+};
+
+export function useIsDarkTheme(): boolean {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const read = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
+}
+
 export function PipelineStageHover(props: StageHoverProps) {
   const [mounted, setMounted] = useState(false);
+  const isDark = useIsDarkTheme();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -152,9 +189,10 @@ export function PipelineStageHover(props: StageHoverProps) {
 
   const { style: posStyle, placement } = positionFor(props.anchor);
   const bubbleLeft = typeof posStyle.left === "number" ? posStyle.left : 0;
+  const tokens = (isDark ? HOVER_TOKENS_DARK : HOVER_TOKENS_LIGHT) as CSSProperties;
 
   const bubble = (
-    <div style={{ ...bubbleBaseStyle, ...posStyle }} role="tooltip">
+    <div style={{ ...tokens, ...bubbleBaseStyle, ...posStyle }} role="tooltip">
       <div style={arrowStyleFor(placement, props.anchor, bubbleLeft)} />
       {renderBody(props)}
     </div>

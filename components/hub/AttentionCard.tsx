@@ -479,60 +479,64 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
         </span>
       </button>
 
-      {/* ── All clear ── */}
-      {!collapsed && allClear && (
-        <div style={{ padding: "20px 20px 24px", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--agent-success)", flexShrink: 0 }} />
-          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-            Nothing needs your attention right now.
-          </p>
-        </div>
-      )}
-
-      {/* ── Rows ── */}
-      {!collapsed && !allClear && (
-        <div ref={listRef}>
-          {shownRows.map((row, i) => (
-            <AttentionRow
-              key={row.key}
-              row={row}
-              topBorder={i > 0}
-              busyId={busyId}
-              showExtenderFor={showExtenderFor}
-              extenderDate={extenderDate}
-              setExtenderDate={setExtenderDate}
-              onOpenExtender={(id) => { setShowExtenderFor(id); setExtenderDate(""); }}
-              onCloseExtender={() => { setShowExtenderFor(null); setExtenderDate(""); }}
-              onExtend={handleExtend}
-              onOpenResume={(id, address) => setResumeFor({ id, address })}
-              onAssigned={(id) => setUnassigned((prev) => prev.filter((f) => f.id !== id))}
-              onAcknowledge={acknowledge}
-              onDismissChain={dismissChain}
-              toastError={(msg) => toast.error(msg)}
-            />
-          ))}
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAll(true)}
-              className="agent-link"
-              style={{
-                width: "100%",
-                padding: "10px 20px",
-                fontSize: 12,
-                fontWeight: 600,
-                textAlign: "center",
-                background: "transparent",
-                border: "none",
-                borderTop: "0.5px solid var(--agent-border-subtle)",
-                cursor: "pointer",
-              }}
-            >
-              Show all ({rows.length})
-            </button>
+      {/* ── Collapsible body ── */}
+      {/* Wrapped in .agent-acc (grid-rows 0fr↔1fr) so the card slides open and
+          closed instead of snapping. Content stays mounted; the .open class is
+          the only thing that toggles. */}
+      <div className={`agent-acc${collapsed ? "" : " open"}`}>
+        <div className="agent-acc-in">
+          {allClear ? (
+            <div style={{ padding: "20px 20px 24px", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--agent-success)", flexShrink: 0 }} />
+              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+                Nothing needs your attention right now.
+              </p>
+            </div>
+          ) : (
+            <div ref={listRef}>
+              {shownRows.map((row, i) => (
+                <AttentionRow
+                  key={row.key}
+                  row={row}
+                  topBorder={i > 0}
+                  busyId={busyId}
+                  showExtenderFor={showExtenderFor}
+                  extenderDate={extenderDate}
+                  setExtenderDate={setExtenderDate}
+                  onOpenExtender={(id) => { setShowExtenderFor(id); setExtenderDate(""); }}
+                  onCloseExtender={() => { setShowExtenderFor(null); setExtenderDate(""); }}
+                  onExtend={handleExtend}
+                  onOpenResume={(id, address) => setResumeFor({ id, address })}
+                  onAssigned={(id) => setUnassigned((prev) => prev.filter((f) => f.id !== id))}
+                  onAcknowledge={acknowledge}
+                  onDismissChain={dismissChain}
+                  toastError={(msg) => toast.error(msg)}
+                />
+              ))}
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="agent-link"
+                  style={{
+                    width: "100%",
+                    padding: "10px 20px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    textAlign: "center",
+                    background: "transparent",
+                    border: "none",
+                    borderTop: "0.5px solid var(--agent-border-subtle)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Show all ({rows.length})
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* ── Take-off-hold resume modal (ported from ExpiredHoldsCard) ── */}
       {resumeFor && createPortal(

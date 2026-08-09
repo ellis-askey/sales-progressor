@@ -1040,7 +1040,7 @@ export default async function LegacyHub() {
               <div style={{
                 width: 32, height: 32, borderRadius: 10, flexShrink: 0,
                 background: "rgba(245, 158, 11, 0.10)",
-                color: "#b45309",
+                color: "var(--agent-warning)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 border: "0.5px solid rgba(245, 158, 11, 0.30)",
               }}>
@@ -1051,7 +1051,7 @@ export default async function LegacyHub() {
                   margin: 0,
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
                   textTransform: "uppercase",
-                  color: "#b45309",
+                  color: "var(--agent-warning)",
                 }}>
                   Pro tip
                 </p>
@@ -1078,7 +1078,7 @@ export default async function LegacyHub() {
             alignItems: "center",
             gap: 12,
             padding: "12px 16px",
-            background: "rgba(255, 251, 235, 0.75)",
+            background: "var(--agent-protip-bg)",
             border: "0.5px solid rgba(245, 158, 11, 0.22)",
             borderRadius: "var(--agent-radius-xl)",
             textDecoration: "none",

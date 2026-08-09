@@ -2347,9 +2347,17 @@
    * depth — row vs the inner portal/control card. */
   --agent-surface-nested:        #FFFFFF;
   --agent-surface-nested-strong: #FFFFFF;
+  /* Hub pipeline connector line (2026-08-09 hub batch item 2). Subtle grey in
+   * light; coral in dark where a neutral hairline vanishes on the dark card. */
+  --agent-pipeline-connector: rgba(15, 23, 42, 0.15);
+  /* Hub "Pro tip" banner surface (item 6). Warm cream in light; amber-tinted
+   * dark panel in dark. */
+  --agent-protip-bg: rgba(255, 251, 235, 0.75);
 }
 :root[data-theme="dark"] .agent-shell-root {
   --agent-hero-track: rgba(255, 255, 255, 0.13);
   --agent-surface-nested:        rgba(255, 255, 255, 0.04);
   --agent-surface-nested-strong: rgba(255, 255, 255, 0.08);
+  --agent-pipeline-connector: rgba(255, 122, 94, 0.55);
+  --agent-protip-bg: rgba(245, 158, 11, 0.10);
 }

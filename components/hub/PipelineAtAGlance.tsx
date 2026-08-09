@@ -12,7 +12,7 @@
 // horizontal-scroll pill strip on mobile via the built-in overflow-x rule
 // on the outer container.
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { HouseSimple, FileText, Handshake, ArrowsClockwise, Key } from "@phosphor-icons/react/dist/ssr";
 import type { HubPipelineStages } from "@/lib/services/hub";
 import { PipelineStageHover, type StageKey } from "./PipelineStageHover";
@@ -86,23 +86,17 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
           style={{
             display: "flex",
             alignItems: "flex-start",
-            gap: 4,
+            gap: 0,
             overflowX: "auto",
             overflowY: "visible",
             paddingBottom: 4,
           }}
         >
+          {/* Nodes + connectors are siblings (not per-stage wrappers) so the
+              flex:1 connectors distribute the leftover width evenly between
+              the fixed-width circles — even spacing across the strip. */}
           {STAGES.map((stage, i) => (
-            <div
-              key={stage.key}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 4,
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
+            <Fragment key={stage.key}>
               <StageNode
                 stage={stage}
                 stages={stages}
@@ -112,7 +106,7 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
                 onToggle={() => setOpenKey(openKey === stage.key ? null : stage.key)}
               />
               {i < STAGES.length - 1 && <StageConnector />}
-            </div>
+            </Fragment>
           ))}
         </div>
       )}
@@ -248,7 +242,7 @@ function StageConnector() {
     }}>
       <div style={{
         width: "100%",
-        borderTop: "1px dashed rgba(15,23,42,0.15)",
+        borderTop: "1px dashed var(--agent-pipeline-connector)",
       }} />
     </div>
   );
