@@ -68,7 +68,7 @@ export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
   return (
     // Design Lab: `hub-pipeline-glance`. Default v22 (Iridescent) per
     // Ellis's hub pick set, 2026-08-09.
-    <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" style={{ padding: "20px 24px" }}>
+    <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
       <div className="agent-card-hdr-internal" style={{ marginBottom: 18 }}>
         <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline at a glance</p>
         <p className="agent-card-subtitle">

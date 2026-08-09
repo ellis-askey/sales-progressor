@@ -454,7 +454,7 @@ export default async function LegacyHub() {
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
 
           {/* Pipeline health card. Design Lab: `hub-pipeline-health` (v05). */}
-          <GlassCard glassId="hub-pipeline-health" label="Hub · Pipeline health" defaultVariant="v05" style={{ padding: "20px 24px" }}>
+          <GlassCard glassId="hub-pipeline-health" label="Hub · Pipeline health" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
             <div className="agent-card-hdr-internal" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div>
                 <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
@@ -690,7 +690,7 @@ export default async function LegacyHub() {
               inside pick what to celebrate (exchanges → completions →
               steps confirmed → brand-new fallback). Design Lab surface
               wraps it here (`hub-wins`) since WinsCard is now chrome-free. */}
-          <GlassCard glassId="hub-wins" label="Hub · Wins this month" defaultVariant="v05" style={{ padding: "20px 24px" }}>
+          <GlassCard glassId="hub-wins" label="Hub · Wins this month" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
             <WinsCard wins={wins} />
           </GlassCard>
         </div>
@@ -700,7 +700,7 @@ export default async function LegacyHub() {
         <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: (isProgressor && !isAdmin) ? "1fr" : "1fr 1fr", gap: 16 }}>
 
           {/* Exchange forecast. Design Lab: `hub-exchange-forecast` (v05). */}
-          <GlassCard glassId="hub-exchange-forecast" label="Hub · Exchange forecast" defaultVariant="v05" style={{ padding: "20px 24px" }}>
+          <GlassCard glassId="hub-exchange-forecast" label="Hub · Exchange forecast" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
               <p className="agent-card-subtitle">
@@ -775,7 +775,7 @@ export default async function LegacyHub() {
 
           {/* Service split — hidden for sales_progressor; relabelled for admin.
               Design Lab: `hub-service-split`. */}
-          {(!isProgressor || isAdmin) && <GlassCard glassId="hub-service-split" label="Hub · Service split" defaultVariant="v05" data-testid="hub-service-split" style={{ padding: "20px 24px" }}>
+          {(!isProgressor || isAdmin) && <GlassCard glassId="hub-service-split" label="Hub · Service split" defaultVariant="v05" data-testid="hub-service-split" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who’s managing"}</p>
               <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : "Files you manage and files our team handles."}</p>
@@ -893,7 +893,7 @@ export default async function LegacyHub() {
             label="Hub · Activity ribbon"
             defaultVariant="v05"
             className="hub-activity-ribbon"
-            style={{ padding: "12px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+            style={{ padding: "12px 20px", borderRadius: "var(--agent-radius-xl)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
               {(() => {

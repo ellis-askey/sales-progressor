@@ -46,8 +46,12 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
         const isOpen = !!openGroups[key];
 
         return (
-          // Design Lab: `completions-group`. Default v03 (2026-08-09 page pass).
-          <GlassCard key={key} glassId="completions-group" label="Completions · Group card" defaultVariant="v03" id={`section-${key}`} style={{ overflow: "hidden" }}>
+          // Design Lab: `completions-group`. Default v05 to match the other
+          // page group cards (not in Ellis's export — Completions was empty
+          // when he picked). borderRadius restored: same square-corner fix
+          // as Updates — the GlassCard conversion dropped the agent-glass
+          // rounding. Matches --agent-radius-xl (16px). 2026-08-09.
+          <GlassCard key={key} glassId="completions-group" label="Completions · Group card" defaultVariant="v05" id={`section-${key}`} style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
 
             {/* Group header — agent-acc-hdr
                 Urgency colours (dot, label) applied to CHILD elements only — not to agent-acc-hdr

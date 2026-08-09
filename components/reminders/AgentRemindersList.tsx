@@ -662,11 +662,11 @@ function SplitFileCard({
   const contacts = logs[0]?.transaction.contacts ?? [];
 
   return (
-    // Design Lab: `reminders-file-card`. Default v03 (2026-08-09 page pass).
+    // Design Lab: `reminders-file-card`. Default v05 per Ellis's pick, 2026-08-09.
     <GlassCard
       glassId="reminders-file-card"
       label="Reminders · File card"
-      defaultVariant="v03"
+      defaultVariant="v05"
       style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
     >
       {/* Address header — agent-card-hdr canonical with semi-transparent bg + tighter padding.
@@ -924,11 +924,11 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
 
   return (
     <div className="space-y-5">
-      {/* Sticky filter bar. Design Lab: `reminders-filter-bar`. */}
+      {/* Sticky filter bar. Design Lab: `reminders-filter-bar` (v06). */}
       <GlassCard
         glassId="reminders-filter-bar"
         label="Reminders · Filter bar"
-        defaultVariant="v03"
+        defaultVariant="v06"
         style={{
           position: "sticky",
           top: 0,

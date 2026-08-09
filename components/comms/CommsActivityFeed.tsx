@@ -60,8 +60,11 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         const countLabel = `${milestoneCount} milestone${milestoneCount !== 1 ? "s" : ""}`;
 
         return (
-          // Design Lab: `updates-day`. Default v03 (2026-08-09 page pass).
-          <GlassCard key={label} glassId="updates-day" label="Updates · Day bucket" defaultVariant="v03" style={{ overflow: "hidden" }}>
+          // Design Lab: `updates-day`. Default v05 per Ellis's pick, 2026-08-09.
+          // borderRadius restored (2026-08-09): the GlassCard conversion
+          // dropped the rounding the old agent-glass class provided, leaving
+          // square corners. Matches the app's --agent-radius-xl (16px).
+          <GlassCard key={label} glassId="updates-day" label="Updates · Day bucket" defaultVariant="v05" style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
             <div
               className="agent-acc-hdr"
               role="button"
@@ -80,8 +83,11 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
               <div className="agent-acc-in">
                 <div className="agent-acc-body">
                   {txGroups.map((tx) => (
-                    // Design Lab: `updates-tx-card`. Default v03.
-                    <GlassCard key={tx.transactionId} glassId="updates-tx-card" label="Updates · File card" defaultVariant="v03" className="overflow-hidden">
+                    // Design Lab: `updates-tx-card`. Default v16 per Ellis's
+                    // pick, 2026-08-09. rounded-[12px] restores the corner
+                    // radius the old glass-card class provided (the variant
+                    // classes don't set radius).
+                    <GlassCard key={tx.transactionId} glassId="updates-tx-card" label="Updates · File card" defaultVariant="v16" className="overflow-hidden rounded-[12px]">
                       <Link
                         href={`/agent/transactions/${tx.transactionId}`}
                         className="comms-tx-link"

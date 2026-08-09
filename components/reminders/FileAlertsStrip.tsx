@@ -37,8 +37,8 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
   const staleCount = items.filter((i) => i.alerts.includes("stale")).length;
 
   return (
-    // Design Lab: `reminders-alerts-strip`. Default v03 (2026-08-09 page pass).
-    <GlassCard glassId="reminders-alerts-strip" label="Reminders · File alerts strip" defaultVariant="v03" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+    // Design Lab: `reminders-alerts-strip`. Default v27 per Ellis's pick, 2026-08-09.
+    <GlassCard glassId="reminders-alerts-strip" label="Reminders · File alerts strip" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
       {/* Header — agent-card-hdr-warning (canonical, ANIMATION_STANDARDS §S5) */}
       <div className="agent-card-hdr-warning">
         <div className="flex items-center gap-2 flex-wrap">
