@@ -14,6 +14,7 @@ import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
 import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
+import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -344,7 +345,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                 </>
               ) : (
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] leading-relaxed" style={{ color: P.textPrimary }}>{entry.content}</p>
+                  {/* Strip portal deep-links + unsubscribe URLs from the
+                      preview — same treatment as the Updates tab (see
+                      app/portal/[token]/updates/page.tsx:174). Without this
+                      the "Latest updates" card leaked long URLs to the
+                      client, per Ellis's 2026-08-09 flag. */}
+                  <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>{stripCommsLinksSilent(entry.content)}</p>
                   <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt ?? new Date())}</p>
                 </div>
               )}
