@@ -96,6 +96,49 @@ type PauseFlags = {
   purchaserSolicitorEmailsPaused: boolean;
 };
 
+export type EmailAudienceState = {
+  vendorEmailsPaused: boolean;
+  purchaserEmailsPaused: boolean;
+  vendorSolicitorEmailsPaused: boolean;
+  purchaserSolicitorEmailsPaused: boolean;
+  vendorSolicitorFirmName: string | null;
+  purchaserSolicitorFirmName: string | null;
+};
+
+// Read the current per-party pause state + firm names for the 4-toggle menu.
+export async function loadEmailAudience(
+  transactionId: string,
+): Promise<ActionResult<EmailAudienceState>> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where,
+    select: {
+      vendorEmailsPaused: true,
+      purchaserEmailsPaused: true,
+      vendorSolicitorEmailsPaused: true,
+      purchaserSolicitorEmailsPaused: true,
+      vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+    },
+  });
+  if (!tx) return { ok: false, error: "Not found" };
+
+  return {
+    ok: true,
+    data: {
+      vendorEmailsPaused: tx.vendorEmailsPaused,
+      purchaserEmailsPaused: tx.purchaserEmailsPaused,
+      vendorSolicitorEmailsPaused: tx.vendorSolicitorEmailsPaused,
+      purchaserSolicitorEmailsPaused: tx.purchaserSolicitorEmailsPaused,
+      vendorSolicitorFirmName: tx.vendorSolicitorFirm?.name ?? null,
+      purchaserSolicitorFirmName: tx.purchaserSolicitorFirm?.name ?? null,
+    },
+  };
+}
+
 export async function setEmailAudiencePaused(
   transactionId: string,
   audience: EmailAudience,

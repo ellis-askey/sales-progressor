@@ -22,6 +22,10 @@ type Props = {
   onPick: (choice: Choice, plannedEndAt: Date | null, reason: string | null) => void;
   onClose: () => void;
   isPending: boolean;
+  // When true the pause-vs-hold chooser is skipped and the modal opens
+  // straight on the hold-date step. Used where email pausing is handled
+  // elsewhere (the per-party EmailAudienceMenu), so this control is hold-only.
+  holdOnly?: boolean;
 };
 
 function addDays(days: number): Date {
@@ -39,9 +43,9 @@ function formatDateInput(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
+export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = false }: Props) {
   const { theme, isNight } = usePortalTheme();
-  const [step, setStep] = useState<"choose" | "hold-date">("choose");
+  const [step, setStep] = useState<"choose" | "hold-date">(holdOnly ? "hold-date" : "choose");
   const [customDate, setCustomDate] = useState("");
   const [reason, setReason] = useState("");
 
@@ -176,19 +180,21 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
 
             <Modal.Footer style={{ padding: "14px 20px 20px", justifyContent: "space-between" }}>
               <button
-                onClick={() => setStep("choose")}
+                onClick={() => (holdOnly ? onClose() : setStep("choose"))}
                 className="agent-link"
                 style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
               >
-                ← Back
+                {holdOnly ? "Cancel" : "← Back"}
               </button>
-              <button
-                onClick={onClose}
-                className="agent-link"
-                style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
-              >
-                Cancel
-              </button>
+              {!holdOnly && (
+                <button
+                  onClick={onClose}
+                  className="agent-link"
+                  style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
+                >
+                  Cancel
+                </button>
+              )}
             </Modal.Footer>
           </>
         )}
