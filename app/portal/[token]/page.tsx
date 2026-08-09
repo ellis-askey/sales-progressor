@@ -123,15 +123,21 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const completionDone = isMilestoneCompleteByCode(side === "vendor" ? "VM20" : "PM27");
 
   // First non-complete tile → active. Others → pending (or complete).
-  // Sub-labels kept short so they don't truncate on mobile widths where
-  // each tile has ~60px of horizontal room. "Underway" / "Prepping"
-  // beat "In progress" / "Being prepared" on the narrow tile.
+  // Stage config. Pills are the short right-side label; descriptions
+  // are the plain-English sentence under each row on the mobile
+  // timeline. Copy locked with Ellis 2026-08-09 — see the table in the
+  // review thread. Voice rules honoured (no exclamation, no self-refs
+  // to "the system", present-tense in-active, past-tense on-complete).
   const rawStages: {
     key: string;
     label: string;
     complete: boolean;
-    activeText: string;   // shown when this is the active tile
-    pendingText: string;  // shown when not active + not complete
+    activeText: string;              // pill copy when active
+    pendingText: string;             // pill copy when pending
+    completeText: string;            // pill copy when complete
+    descPending: string;
+    descActive: string;
+    descComplete: string;
     completeDate: Date | null;
     locked?: boolean;
   }[] = [
@@ -139,34 +145,55 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       key: "instructed",
       label: "Instructed",
       complete: instructedDone,
-      activeText: "Starting",
+      activeText: "Underway",
       pendingText: "Pending",
+      completeText: "Completed",
+      descPending: "Your solicitor will be instructed to start work",
+      descActive:  "Your solicitor is being instructed",
+      descComplete:"Your solicitor was instructed",
       completeDate: dateForCode(side === "vendor" ? "VM1" : "PM1"),
     },
     {
       key: "draft_pack",
       label: "Draft pack",
       complete: draftPackDone,
-      activeText: "Prepping",
+      activeText: "In progress",
       pendingText: "Pending",
+      completeText: "Completed",
+      descPending: "Your solicitor will prepare the draft contract pack",
+      descActive:  "Your solicitor is preparing your draft documents",
+      descComplete:"Draft contract pack was issued",
       completeDate: dateForCode("VM7"),
     },
     {
       key: "searches",
       label: "Searches",
       complete: pm13Done,
-      // Ellis's don't-mislead: "In progress" only if searches confirmed
-      // ordered (PM8). Otherwise "Awaiting" — searches haven't started.
-      activeText: pm8Done ? "Underway" : "Awaiting",
+      // Don't-mislead: "In progress" only if searches confirmed
+      // ordered (PM8). Otherwise "Not started" — searches haven't started.
+      activeText: pm8Done ? "In progress" : "Not started",
       pendingText: "Pending",
+      completeText: "Completed",
+      descPending: "Property searches will be ordered next",
+      // The active description picks based on PM8 in the tile-map step
+      // below (`descActive` here is the "ordered, waiting for results"
+      // variant — the "not yet ordered" variant is applied per-tile).
+      descActive:  pm8Done
+        ? "Searches are with the providers, waiting for results"
+        : "Your solicitor will order searches shortly",
+      descComplete:"Search results came back",
       completeDate: dateForCode("PM13"),
     },
     {
       key: "enquiries",
       label: "Enquiries",
       complete: enquiriesDone,
-      activeText: "Underway",
+      activeText: "In progress",
       pendingText: "Pending",
+      completeText: "Completed",
+      descPending: "Enquiries will be raised by your solicitor",
+      descActive:  "Enquiries are being raised and answered",
+      descComplete:"Enquiries were answered",
       completeDate: dateForCode("PM14"),
     },
     {
@@ -174,9 +201,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       label: "Exchange",
       complete: exchangeDone,
       activeText: "Nearing",
-      // Ellis's don't-mislead: NO forecast date on Exchange — clients
-      // interpret it as set-in-stone. Just "Pending".
+      // Don't-mislead: NO forecast date on Exchange when pending.
       pendingText: "Pending",
+      completeText: "Completed",
+      descPending: "Contracts will be exchanged when both sides are ready",
+      descActive:  "Both sides are getting ready to exchange",
+      descComplete:"Contracts were exchanged",
       completeDate: dateForCode(side === "vendor" ? "VM19" : "PM26"),
     },
     {
@@ -184,10 +214,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       label: "Completion",
       complete: completionDone,
       activeText: "Nearing",
-      // Ellis's don't-mislead: lock icon + "TBC" until exchange
-      // is confirmed complete. (Was "Locked until exchange" — truncated
-      // on mobile; "TBC" carries the same meaning in 3 chars.)
+      // Locked + "TBC" until exchange confirms.
       pendingText: exchangeDone ? "Pending" : "TBC",
+      completeText: "Completed",
+      descPending: exchangeDone
+        ? "The sale will complete on the agreed date"
+        : "Set on the day contracts exchange",
+      descActive:  "The sale is close to completion",
+      descComplete:"The sale completed",
       completeDate: dateForCode(side === "vendor" ? "VM20" : "PM27"),
       locked: !exchangeDone && !completionDone,
     },
@@ -197,16 +231,26 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
     const isComplete = s.complete;
     const isActive   = !isComplete && i === firstIncompleteIdx;
     const status: OverviewTile["status"] = isComplete ? "complete" : isActive ? "active" : "pending";
+    // Pill copy — "Completed" everywhere on complete rows now (was:
+    // showing the date in the pill). Date now lives in its own small
+    // label next to the pill per Ellis's approved layout.
     const text = isComplete
-      ? (s.completeDate ? fmtDateShort(s.completeDate) : "Done")
+      ? s.completeText
       : isActive
         ? s.activeText
         : s.pendingText;
+    const description = isComplete
+      ? s.descComplete
+      : isActive
+        ? s.descActive
+        : s.descPending;
     return {
       key: s.key,
       label: s.label,
       status,
       text,
+      description,
+      completedDate: isComplete && s.completeDate ? fmtDateShort(s.completeDate) : undefined,
       // Only show the lock while completion is pending AND exchange is
       // pending. Once exchange completes, the number returns.
       locked: s.key === "completion" ? s.locked === true && !isComplete : false,
@@ -292,6 +336,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       tiles={overviewTiles}
       predictedExchangeDate={heroExchangeDate}
       daysUntilPredicted={daysUntilPredicted}
+      progressHref={`/portal/${token}/progress`}
     />
   );
   // Per-tip refinement: pass the customer's actual completed-milestone
