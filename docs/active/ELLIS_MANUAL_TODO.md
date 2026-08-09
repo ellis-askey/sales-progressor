@@ -4,7 +4,21 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-29
+Last updated: 2026-08-09
+
+---
+
+## Solicitor confirmation emails — go-live steps (2026-08-09)
+
+The feature is merged to master and deployed to production, but the send cron is **dormant** — it self-skips until an env var is set. Nothing emails solicitors until you do the following on Vercel (Production):
+
+- [ ] Optional dry run: set `EMAIL_SANDBOX_MODE=true`, then set `SOLICITOR_CHASE_ENABLED=true`. The weekday-09:00 cron will run the full path but SendGrid delivers nothing (sandbox). Check the cron logs / `SolicitorChaseState` rows look right.
+- [ ] Go live: set `EMAIL_SANDBOX_MODE=false` (or remove it) and keep `SOLICITOR_CHASE_ENABLED=true`. From then on, solicitors with an open step past the 5-working-day grace get one digest per file+side.
+- [ ] Cadence numbers (grace 5wd / repeat 7d / cap 2) live in the `SolicitorChaseSettings` singleton row — currently defaults. The in-app Settings → Automation editor for these is not built yet (follow-up).
+
+Notes:
+- Sends use each agency's verified sender (falls back to `ellis@thesalesprogressor.co.uk`). No new SendGrid setup needed.
+- Staging caveat: Vercel **staging** deploys use `prisma db push --accept-data-loss`, so deploying the `staging` branch (which doesn't yet have the solicitor schema) would DROP the solicitor tables/columns on the staging DB. Merge solicitor-confirm into `staging` before/if you deploy staging.
 
 ---
 
