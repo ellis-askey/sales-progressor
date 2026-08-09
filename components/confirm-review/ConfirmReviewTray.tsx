@@ -79,10 +79,14 @@ export function ConfirmReviewTray({ transactionId }: Props) {
       <div
         aria-live="polite"
         style={{
+          // Sits above the topbar (101), overlays (100), agent modals (1000),
+          // dropdowns (1500), AND transient toasts (2000). Ellis's rule:
+          // when a step confirm fires a toast at the same time, the review
+          // pill must remain visible — bumped from zIndex:30 on 2026-08-09.
           position: "fixed",
           bottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
           right: 20,
-          zIndex: 30,
+          zIndex: 2100,
           transform: shouldShow ? "translateY(0)" : "translateY(24px)",
           opacity: shouldShow ? 1 : 0,
           pointerEvents: shouldShow ? "auto" : "none",

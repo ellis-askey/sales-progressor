@@ -863,7 +863,12 @@ const copy: Record<string, PortalCopy> = {
         subject: "Mortgage valuation: {address}",
         heroLabel: "Lender valuation booked",
         opening: "Your mortgage lender has arranged their valuation.",
-        whatHappened: "Your lender has arranged a valuation of the property{eventDateClause}.{purchaserPhysicalNote}",
+        // {attendClause} interpolates to " and will attend on Thursday 13th
+        // August 2026" when a date is set, or "" for desktop valuations
+        // (which leaves the sentence as "...a valuation of the property.").
+        // The desktop-specific caveat is covered by the RICS HomeBuyer note
+        // in whatNext, so we don't need to re-flag it here.
+        whatHappened: "Your lender has arranged a valuation of the property{attendClause}.{purchaserPhysicalNote}",
         whatNext: "If you haven't already booked your own survey, now is a good time. A RICS HomeBuyer Report will identify issues the lender's valuation won't cover. Once the valuation is complete, your mortgage offer should follow within 1 to 3 weeks.",
         action: "View your portal",
       },

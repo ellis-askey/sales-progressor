@@ -138,7 +138,9 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, loadin
       <div
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, zIndex: 60,
+          // Above the sticky agent topbar (z:101). Previously zIndex:60,
+          // which meant the topbar covered the modal header. Fixed 2026-08-09.
+          position: "fixed", inset: 0, zIndex: 1000,
           background: "rgba(15, 23, 42, 0.35)",
         }}
       />
@@ -150,7 +152,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, loadin
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          zIndex: 61,
+          zIndex: 1001,
           width: "min(720px, calc(100vw - 32px))",
           maxHeight: "calc(100vh - 64px)",
           background: "#fff",
@@ -363,19 +365,18 @@ function RecipientBody({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{
-        padding: "10px 12px",
-        borderRadius: 10,
-        background: "#f8fafc",
-        border: "0.5px solid rgba(15, 23, 42, 0.06)",
-        fontSize: 11,
-        color: "#64748b",
-      }}>
-        Will go to <strong style={{ color: "#0f172a" }}>{group.email}</strong>
-        {group.items.length > 1 && (
-          <> — combined into one digest email covering {group.items.length} confirmations.</>
-        )}
-      </div>
+      {group.items.length > 1 && (
+        <div style={{
+          padding: "8px 12px",
+          borderRadius: 10,
+          background: "#f8fafc",
+          border: "0.5px solid rgba(15, 23, 42, 0.06)",
+          fontSize: 11,
+          color: "#64748b",
+        }}>
+          Combined into one digest email covering {group.items.length} confirmations.
+        </div>
+      )}
 
       {group.items.map((item) => (
         <EditableEmailCard key={item.id} item={item} onEdited={onEdited} />
@@ -453,9 +454,9 @@ function EditableEmailCard({
         borderBottom: "0.5px solid rgba(15, 23, 42, 0.06)",
         background: "#f8fafc",
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          {item.milestoneCode}
-          {item.editedAt && <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>· edited</span>}
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+          {item.recipientEmail}
+          {item.editedAt && <span style={{ marginLeft: 6, fontSize: 11, color: "#64748b", fontWeight: 500 }}>· edited</span>}
         </span>
         {!editing ? (
           <button
@@ -565,7 +566,8 @@ function ConfirmCancelDialog({
     <div
       onClick={onCancel}
       style={{
-        position: "fixed", inset: 0, zIndex: 70,
+        // Nested confirm above the review modal (1001). 2026-08-09.
+        position: "fixed", inset: 0, zIndex: 1010,
         background: "rgba(15, 23, 42, 0.55)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
