@@ -27,6 +27,17 @@ import { AddBrokerModal } from "@/components/brokers/AddBrokerModal";
 import { AutomationStopModal } from "@/components/transaction/AutomationStopModal";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
+import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
+import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
+import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
+import { SwitchServiceTypeModal } from "@/components/transaction/SwitchServiceTypeModal";
+import { RelistFileModal } from "@/components/transaction/RelistFileModal";
+import { WhatsappGroupModal } from "@/components/contacts/WhatsappGroupModal";
+import { ConfirmReviewModal } from "@/components/confirm-review/ConfirmReviewModal";
+import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
+import { TrialBannerWithModal } from "@/components/billing/TrialBannerWithModal";
+import type { PendingQueueItem } from "@/app/actions/confirm-review-queue";
+import type { TermsSection } from "@/lib/billing/terms-sections";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { MissingFeeRow } from "@/components/analytics/MissingFeeRow";
@@ -39,6 +50,7 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 import { Button } from "@/components/ui/Button";
+import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { UndoImpact } from "@/lib/services/milestones";
 import type { HealthRaw } from "@/components/transactions/TransactionRowView";
@@ -152,6 +164,15 @@ const MOCK_ROUND_RESPONSE = {
   fileDocuments: [],
 };
 
+const MOCK_QUEUE_ITEMS: PendingQueueItem[] = [
+  { id: "q1", recipientContactId: "c3", recipientName: "Emily Thornton", recipientRole: "vendor", recipientEmail: "emily@email.com", milestoneCode: "VM07", subject: "Your searches are back", bodyText: "Hi Emily, good news — the property searches have returned with no issues. The next step is…", scheduledFor: D1, editedAt: null, isExchangeCompletion: false },
+  { id: "q2", recipientContactId: "c2", recipientName: "James Cooper", recipientRole: "purchaser", recipientEmail: "j.cooper@cooperlegal.co.uk", milestoneCode: "PM08", subject: "Mortgage offer received", bodyText: "Dear James, we're pleased to confirm the mortgage offer has come through…", scheduledFor: D2, editedAt: null, isExchangeCompletion: false },
+];
+const MOCK_TERMS: TermsSection[] = [
+  { heading: "When you're charged", body: "We charge £59 per completed sale, taken only when the sale exchanges. Nothing before that." },
+  { heading: "Your card", body: "Stored securely with Stripe. You can update or remove it at any time from settings." },
+];
+
 // ─── The gallery ────────────────────────────────────────────────────────────
 
 const MOCK_ARCHIVED_ROUNDS = [
@@ -163,6 +184,8 @@ type OverlayKey =
   | "chase" | "edit" | "recon" | "chain" | "node" | "archived" | "designLab"
   | "welcome" | "undo" | "mortgage" | "surveyNr" | "addFirm" | "addBroker"
   | "automationStop" | "dupAddr" | "navAway" | "celebrate"
+  | "billingNeg" | "claim" | "changeFile" | "switchService" | "relist"
+  | "whatsapp" | "confirmReview" | "trialExpired" | "trialBanner"
   | "globalSearch" | "submission" | "feedback";
 
 export function OverlaysGallery() {
@@ -268,6 +291,15 @@ export function OverlaysGallery() {
           <Item label="Duplicate address" where="New sale flow" onOpen={() => setOpen("dupAddr")} />
           <Item label="Unsaved changes" where="New sale form nav-away" onOpen={() => setOpen("navAway")} />
           <Item label="Welcome (first run)" where="First agent login" onOpen={() => setOpen("welcome")} />
+          <Item label="Claim welcome" where="After claiming a file" onOpen={() => setOpen("claim")} />
+          <Item label="Relist file" where="Withdrawn file · relist" onOpen={() => setOpen("relist")} />
+          <Item label="Switch service type" where="Admin · self ⇄ outsourced" onOpen={() => setOpen("switchService")} />
+          <Item label="WhatsApp group" where="Contacts · group helper" onOpen={() => setOpen("whatsapp")} />
+          <Item label="Confirm-review queue" where="Queued client updates" onOpen={() => setOpen("confirmReview")} />
+          <Item label="Change uploaded file" where="New sale · file swap" onOpen={() => setOpen("changeFile")} />
+          <Item label="Negotiator billing block" where="Negotiator · billing" onOpen={() => setOpen("billingNeg")} />
+          <Item label="Trial expired (paywall)" where="Trial over · card capture" onOpen={() => setOpen("trialExpired")} />
+          <Item label="Trial banner + modal" where="Trial countdown banner" onOpen={() => setOpen("trialBanner")} />
         </Section>
 
         {/* TOASTS */}
@@ -361,6 +393,15 @@ export function OverlaysGallery() {
       {open === "automationStop" && <AutomationStopModal onPick={close} onClose={close} isPending={false} />}
       {open === "dupAddr" && <DuplicateAddressModal address={MOCK_ADDR} duplicateId="dup-001" assignedTo={null} onClose={close} onForceCreate={close} />}
       {open === "navAway" && <NavAwayModal isSaving={false} onDiscard={close} onStay={close} onSave={async () => close()} />}
+      {open === "claim" && <ClaimWelcomeModal address={MOCK_ADDR} originatorAgency="Bath Estates" />}
+      {open === "relist" && <RelistFileModal open transactionId={MOCK_TX_ID} previousPurchasePrice={38500000} inChain={false} onClose={close} />}
+      {open === "switchService" && <SwitchServiceTypeModal open transactionId={MOCK_TX_ID} current="self_managed" onClose={close} />}
+      {open === "whatsapp" && <WhatsappGroupModal open onClose={close} transactionId={MOCK_TX_ID} address={MOCK_ADDR} contacts={MOCK_CONTACTS} currentInviteUrl={null} />}
+      {open === "confirmReview" && <ConfirmReviewModal open onClose={close} transactionId={MOCK_TX_ID} items={MOCK_QUEUE_ITEMS} loading={false} onChange={() => {}} />}
+      {open === "changeFile" && <ChangeFileModal onConfirm={close} onCancel={close} />}
+      {open === "billingNeg" && <BillingNegotiatorModal open onClose={close} />}
+      {open === "trialExpired" && <TrialExpiredModal publishableKey="pk_test_placeholder" source="hub" onClose={close} termsAcknowledged={false} termsVersionId="tv1" termsVersionTag="v1" termsSections={MOCK_TERMS} />}
+      {open === "trialBanner" && <TrialBannerWithModal publishableKey="pk_test_placeholder" termsAcknowledged={false} termsVersionId="tv1" termsVersionTag="v1" termsSections={MOCK_TERMS} />}
       {open === "celebrate" && <ExchangeCelebration address={MOCK_ADDR} onDismiss={close} />}
       {open === "feedback" && <FeedbackWidget checklistAware={false} userId={MOCK_USER_ID} />}
       <AgentGlobalSearch />
@@ -440,6 +481,7 @@ function ButtonsShowcase() {
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-ghost" label="ghost" where="ChaseDrawer, EditSaleDetailsDrawer" />
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-danger" label="danger" where="AccountDangerZone, SurveyNrConfirmModal" />
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-ghost-bordered" label="ghost-bordered" where="SolicitorSection" />
+          <RawBtn cls="agent-btn agent-btn-sm agent-btn-color-primary" label="color-primary" where="EmailPreviewModal, NewSaleFlow (!important escape hatch)" />
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
           <span style={btnWhere}>Sizes:</span>
@@ -455,6 +497,7 @@ function ButtonsShowcase() {
         <p style={btnWhere}>agent-link (EmailPreviewModal, TransactionNotes) · agent-icon-btn (dismiss)</p>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
           <button className="agent-link">Edit</button>
+          <button className="agent-link agent-link-primary">Generate summary</button>
           <button className="agent-link agent-link-muted">View all</button>
           <button className="agent-icon-btn agent-icon-btn-md" aria-label="Close">✕</button>
           <button className="agent-icon-btn agent-icon-btn-sm" aria-label="Close">✕</button>
@@ -464,12 +507,25 @@ function ButtonsShowcase() {
       <div>
         <p style={inlineLabel}>Segment / toggle pills</p>
         <p style={btnWhere}>agent-segment-pill — tenure / purchase-type / mode pickers</p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
           <button className="agent-segment-pill on">Freehold</button>
           <button className="agent-segment-pill">Leasehold</button>
           <span style={{ width: 12 }} />
           <button className="agent-segment-pill agent-segment-pill-sm on">Mortgage</button>
           <button className="agent-segment-pill agent-segment-pill-sm">Cash</button>
+          <span style={{ width: 12 }} />
+          <button className="agent-segment-pill on" style={{ flexDirection: "column", alignItems: "flex-start" }}>
+            Outsourced<span className="agent-segment-pill-note">We progress it for you</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <p style={inlineLabel}>Toggle / switch buttons</p>
+        <p style={btnWhere}>Sun/Moon theme toggle (ThemeModeToggle) · on/off switches (used on files + settings)</p>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <ThemeModeToggle initialMode="light" />
+          <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>← real theme toggle · plus the switch at the top of this page and throughout the app</span>
         </div>
       </div>
     </div>
