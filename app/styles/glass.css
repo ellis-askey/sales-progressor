@@ -430,6 +430,22 @@
   backdrop-filter: blur(8px);
 }
 
+/* v28 — Contrast lens, nav blur. v26's contrast-lens recipe (contrast 1.35 +
+   saturate 1.2, lens-edge highlight shadows) but with the 8px backdrop blur
+   of the Elevra mobile tab bar (Tailwind `backdrop-blur` default) instead of
+   v26's 24px. Reads sharper — the aurora shows through more, the contrast
+   punch stays. 8px at every breakpoint, matching the tab bar. */
+.glass-v28 {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow:
+    0.1em 0.1em 0 rgba(255, 255, 255, 0.20),
+    inset 0 0 24px rgba(255, 255, 255, 0.28),
+    0 12px 32px rgba(0, 0, 0, 0.10);
+  -webkit-backdrop-filter: blur(8px) contrast(1.35) saturate(1.2);
+  backdrop-filter: blur(8px) contrast(1.35) saturate(1.2);
+}
+
 /* ────────────────────────────────────────────────────────────────────── */
 /*  Nesting rule — cards-on-cards.                                        */
 /*  When one [data-glass-id] card sits inside another, the inner card     */

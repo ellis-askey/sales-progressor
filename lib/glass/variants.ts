@@ -13,7 +13,7 @@ export type GlassVariantId =
   | "v08" | "v09" | "v10" | "v21"
   | "v12" | "v13" | "v14" | "v15"
   | "v17" | "v18" | "v19" | "v22"
-  | "v23" | "v24" | "v25" | "v26" | "v27";
+  | "v23" | "v24" | "v25" | "v26" | "v27" | "v28";
 
 export const DEFAULT_VARIANT: GlassVariantId = "v00";
 
@@ -24,7 +24,7 @@ const ALL_VARIANT_IDS: ReadonlySet<GlassVariantId> = new Set<GlassVariantId>([
   "v08", "v09", "v10", "v21",
   "v12", "v13", "v14", "v15",
   "v17", "v18", "v19", "v22",
-  "v23", "v24", "v25", "v26", "v27",
+  "v23", "v24", "v25", "v26", "v27", "v28",
 ]);
 
 export function isGlassVariantId(v: unknown): v is GlassVariantId {
@@ -201,6 +201,7 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
       { id: "v25", label: "Masked duo edge",   technique: "white edge top-left + coral edge bottom-right, opposing masks" },
       { id: "v26", label: "Contrast lens",     technique: "blur 24px · contrast 1.35 · lens-edge highlight" },
       { id: "v27", label: "Classic frost bar", technique: "white 15% · blur 8px · 18% hairline · deep soft shadow" },
+      { id: "v28", label: "Contrast lens · nav blur", technique: "v26 contrast lens · blur 8px (Elevra mobile tab bar)" },
     ],
   },
 ];
