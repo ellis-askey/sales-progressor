@@ -9,6 +9,7 @@ import { verifySession, COOKIE_NAME } from "@/lib/command/session";
 import { STEP_UP_MAX_AGE_MS, SESSION_HARD_MAX_MS } from "@/lib/command/config";
 import { cookies, headers } from "next/headers";
 import { CommandSidebar } from "@/components/command/CommandSidebar";
+import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import type { Session } from "next-auth";
 import type { CommandMode, CommandPreferences } from "@/lib/command/scope";
 
@@ -90,7 +91,7 @@ export default async function CommandProtectedLayout({
         style={{ background: "#0a0a0a" }}
       >
         <div className="cmd-content p-8 max-w-6xl">
-          {children}
+          <PageFadeIn>{children}</PageFadeIn>
         </div>
       </main>
     </div>

@@ -9,6 +9,7 @@ import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
+import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
 import "./styles/kinetic-shell.css";
@@ -53,7 +54,12 @@ export default async function AgentLayout({ children }: { children: React.ReactN
               <ChainDeclineBanner address={chainDeclineNotif} />
             </div>
           )}
-          {children}
+          {/* Every agent page fades in on mount + on client-side navigation
+              via PageFadeIn (usePathname keys the reset). Same 280ms fade +
+              8px translateY as the hub SectionReveal. Layout chrome (topbar,
+              sidebar) stays static; only the page content region animates.
+              Reduced-motion snaps to visible. 2026-08-10. */}
+          <PageFadeIn>{children}</PageFadeIn>
         </AgentShell>
         {!isInternalStaff && <FeedbackWidget checklistAware userId={session.user.id} />}
         <AgentInstallPrompt />

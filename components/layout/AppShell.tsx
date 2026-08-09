@@ -7,6 +7,7 @@ import { AppShellClient } from "@/components/layout/AppShellClient";
 import { PortalBell } from "@/components/layout/PortalBell";
 import { SPBell } from "@/components/layout/SPBell";
 import type { Session } from "next-auth";
+import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
   FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, GearSix, House,
@@ -123,7 +124,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="flex-1 min-h-screen ml-56">{children}</main>
+      <main className="flex-1 min-h-screen ml-56"><PageFadeIn>{children}</PageFadeIn></main>
     </div>
     </AppShellClient>
   );

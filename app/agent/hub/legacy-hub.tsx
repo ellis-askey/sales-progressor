@@ -36,7 +36,7 @@ import { AttentionCard } from "@/components/hub/AttentionCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { SectionLoading } from "@/components/hub/SectionLoading";
-import { LoadingDots } from "@/components/hub/LoadingDots";
+import { LoadingCard } from "@/components/loading/LoadingCard";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
@@ -123,19 +123,20 @@ type Ctx = {
   canCreateSale: boolean;
 };
 
-// ── Inline loading card — a real card container + small "Loading X…" line ────
+// ── Inline loading card — v05 glass container with a small "Loading X…" line.
+// Kept text-based (not LoadingDots) because the label gives the user useful
+// context on which section is slow. Used for section-level Suspense
+// fallbacks; the top-level BodyGate fallback uses <LoadingCard> (dots).
 function InlineLoadingCard({
   label,
   minHeight,
-  strong = false,
 }: {
   label: string;
   minHeight: number;
-  strong?: boolean;
 }) {
   return (
     <div
-      className={strong ? "agent-glass-strong" : "agent-glass"}
+      className="glass-v05"
       style={{
         borderRadius: "var(--agent-radius-xl)",
         padding: "20px 24px",
@@ -197,21 +198,7 @@ export default async function LegacyHub() {
             wrapping the body would fade everything as one block and swallow
             the per-section cascade. Each slot below owns its own SectionReveal
             with an `order` prop so they cascade top-to-bottom. */}
-        <Suspense fallback={
-          <div
-            className="agent-glass-strong"
-            style={{
-              borderRadius: "var(--agent-radius-xl)",
-              padding: "20px 24px",
-              minHeight: 140,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <LoadingDots label="Loading your hub" />
-          </div>
-        }>
+        <Suspense fallback={<LoadingCard label="Loading your hub" minHeight={140} />}>
           <BodyGate ctx={ctx} />
         </Suspense>
       </div>
@@ -374,7 +361,7 @@ function FullHubBody({
       </Suspense>
 
       {/* Unified attention card */}
-      <Suspense fallback={<InlineLoadingCard label="Looking for anything needing attention…" minHeight={140} strong />}>
+      <Suspense fallback={<InlineLoadingCard label="Looking for anything needing attention…" minHeight={140} />}>
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
