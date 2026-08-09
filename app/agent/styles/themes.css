@@ -1637,3 +1637,105 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Desktop / all-width dark mode.
+
+   Driven by the top-bar ThemeModeToggle, which sets data-theme="dark" on
+   <html>. Before this block the agent tokens had no dark set outside the
+   mobile-only [data-night] palette above, so on desktop the AppBackground
+   went dark while every --agent-* token stayed on the light base theme —
+   dark text on a near-black backdrop and washed-out light cards.
+
+   This mirrors the [data-night] palette but applies at every width and is
+   keyed to the shell root as a descendant of <html data-theme="dark">.
+   Specificity (0,3,0) beats the light [data-theme="sunset"|...] blocks
+   (0,2,0) on the same element, so it wins whichever base theme the user
+   picked. Scoped to .agent-shell-root so the internal dashboard (AppShell,
+   which also carries data-theme="dark") is untouched.
+
+   Two tokens are set here that the [data-night] block omits because they
+   never surfaced on the narrow mobile layout: --agent-text-disabled (the
+   light-theme value is dark-on-dark) and --agent-surface-overlay (the
+   base value is a black tint that must invert to a light tint on dark).
+   ───────────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] .agent-shell-root {
+  /* ── Overlay + disabled text (absent from [data-night]) ─────────────────── */
+  --agent-surface-overlay: rgba(255, 255, 255, 0.06);
+  --agent-text-disabled:   rgba(239, 246, 255, 0.35);
+
+  /* ── Backgrounds ──────────────────────────────────────────────────────── */
+  --agent-bg-base:     #111827;
+  --agent-bg-mid:      #1A2332;
+  --agent-bg-warm:     #1E293B;
+  --agent-bg-deep:     #0D1421;
+  --agent-bg-paper:    #1C2637;
+
+  /* ── Text ─────────────────────────────────────────────────────────────── */
+  --agent-text-primary:   #EFF6FF;
+  --agent-text-secondary: #94A3B8;
+  --agent-text-muted:     #64748B;
+  --agent-text-tertiary:  #475569;
+  --agent-text-on-coral:  #FFFFFF;
+
+  /* ── Coral accent — unchanged, survives dark bg ───────────────────────── */
+  --agent-coral:        #FF7A5E;
+  --agent-coral-deep:   #FF6B4A;
+  --agent-coral-darker: #E05535;
+  --agent-coral-pale:   rgba(255, 107, 74, 0.15);
+  --agent-coral-bg-tint: rgba(255, 107, 74, 0.10);
+
+  /* ── Semantic ─────────────────────────────────────────────────────────── */
+  --agent-success: #34D399;
+  --agent-warning: #FBBF24;
+  --agent-danger:  #F87171;
+  --agent-info:        #60A5FA;
+  --agent-info-bg:     rgba(96, 165, 250, 0.12);
+  --agent-info-border: rgba(96, 165, 250, 0.30);
+
+  /* ── Glass / surfaces ─────────────────────────────────────────────────── */
+  --agent-surface-elevated: rgba(30, 41, 59, 0.95);
+  --agent-surface-glass:    rgba(15, 23, 42, 0.85);
+  --agent-surface-subtle:   rgba(30, 41, 59, 0.40);
+  --agent-glass-bg:         rgba(15, 23, 42, 0.75);
+  --agent-glass-bg-strong:  rgba(15, 23, 42, 0.85);
+  --agent-glass-bg-hover:   rgba(30, 41, 59, 0.65);
+  --agent-glass-bg-subtle:  rgba(30, 41, 59, 0.40);
+  --agent-glass-border:     rgba(255, 255, 255, 0.07);
+  --agent-glass-border-bright: rgba(255, 255, 255, 0.12);
+  --agent-glass-shadow:        0 4px 20px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15);
+  --agent-glass-shadow-lifted: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.20);
+
+  /* ── Borders ──────────────────────────────────────────────────────────── */
+  --agent-border-default: rgba(255, 255, 255, 0.08);
+  --agent-border-strong:  rgba(255, 255, 255, 0.16);
+  --agent-border-subtle:  rgba(255, 255, 255, 0.05);
+  --agent-border-focus:   rgba(255, 107, 74, 0.50);
+
+  /* ── Focus ring ───────────────────────────────────────────────────────── */
+  --agent-focus-ring:       0 0 0 1.5px rgba(255, 107, 74, 0.55), 0 0 12px 2px rgba(255, 107, 74, 0.18);
+  --agent-focus-ring-tight: 0 0 0 1px   rgba(255, 107, 74, 0.65), 0 0  8px 1px rgba(255, 107, 74, 0.22);
+
+  /* ── Hover tints ──────────────────────────────────────────────────────── */
+  --agent-hover-tint:         rgba(255, 107, 74, 0.10);
+  --agent-hover-tint-strong:  rgba(255, 107, 74, 0.18);
+  --agent-hover-tint-warning: rgba(251, 191, 36, 0.15);
+
+  /* ── RGB channels (for rgba() usage) ─────────────────────────────────── */
+  --agent-shadow-rgb:     15, 23, 42;
+  --agent-coral-rgb:      224, 85, 53;
+  --agent-coral-base-rgb: 255, 107, 74;
+  --agent-bloom-gold-rgb: 251, 191, 36;
+  --agent-bg-base-rgb:    17, 24, 39;
+  --agent-info-rgb:       96, 165, 250;
+
+  /* ── Avatar ───────────────────────────────────────────────────────────── */
+  --agent-avatar-user-start: #1E3A5F;
+  --agent-avatar-user-end:   #2D5A8E;
+  --agent-avatar-user-text:  #EFF6FF;
+
+  /* ── Aurora bands (muted at night) ───────────────────────────────────── */
+  --agent-aurora-band1: rgba(255, 107, 74, 0.06);
+  --agent-aurora-band2: rgba(100, 116, 139, 0.08);
+  --agent-aurora-band3: rgba(30, 41, 59, 0.12);
+}
+
