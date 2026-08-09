@@ -224,10 +224,10 @@ export function AgentFileSidebar({
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 32, height: 32, borderRadius: 9,
+            width: 26, height: 26, borderRadius: 7,
             background: health.bg, color: health.color,
           }}>
-            <Heartbeat size={16} weight="regular" />
+            <Heartbeat size={14} weight="regular" />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Sale health</p>
@@ -445,12 +445,12 @@ export function AgentFileSidebar({
                 padding: "7px 12px",
                 fontSize: 12, fontWeight: 600,
                 color: "var(--agent-text-primary)",
-                background: "white",
+                background: "var(--agent-surface-elevated)",
                 border: "0.5px solid var(--agent-border-default)",
                 borderRadius: 8,
                 textDecoration: "none",
               }}
-              className="hover:bg-black/[0.03]"
+              className="agent-hover-row"
             >
               <EnvelopeSimple size={13} weight="regular" />
               Message agent
@@ -621,7 +621,7 @@ function QuickLinkExternal({
         color: "inherit",
         transition: "background 140ms ease",
       }}
-      className="hover:bg-black/[0.03]"
+      className="agent-hover-row"
     >
       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
         <span style={{
@@ -664,7 +664,7 @@ function QuickLinkButton({
         fontFamily: "inherit",
         transition: "background 140ms ease",
       }}
-      className="hover:bg-black/[0.03]"
+      className="agent-hover-row"
     >
       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
         <span style={{

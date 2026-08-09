@@ -11,7 +11,7 @@
 //   error      - inline error + retry.
 
 import { useState, useTransition } from "react";
-import { Sparkle, ShieldCheck, CalendarBlank, WarningCircle, Robot, ChatCircleDots } from "@phosphor-icons/react/dist/ssr";
+import { ShieldCheck, CalendarBlank, WarningCircle, Robot } from "@phosphor-icons/react/dist/ssr";
 import { generateTransactionSummaryAction, type SummaryJson } from "@/app/actions/transaction-summary";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -52,13 +52,12 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
       defaultVariant="v05"
       style={{
         position: "relative",
-        padding: "16px 90px 16px 18px",
+        padding: "16px 18px",
         minHeight: 96,
         borderRadius: 14,
         overflow: "hidden",
       }}
     >
-      <MascotGlyph />
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -68,7 +67,7 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
             background: "rgba(var(--agent-coral-rgb), 0.12)",
             color: "var(--agent-coral-deep)",
           }}>
-            <Sparkle size={13} weight="fill" />
+            <Robot size={14} weight="fill" />
           </span>
           <p className="agent-eyebrow" style={{ margin: 0 }}>AI summary</p>
         </div>
@@ -109,7 +108,7 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
           <span
             style={{
               width: 14, height: 14, borderRadius: "50%",
-              border: "2px solid rgba(15,23,42,0.1)",
+              border: "2px solid var(--agent-border-strong)",
               borderTopColor: "var(--agent-coral)",
               animation: "agent-spin 700ms linear infinite",
               display: "inline-block",
@@ -170,7 +169,7 @@ function Chip({
     ? { color: "#047857", bg: "rgba(16, 185, 129, 0.12)" }
     : tone === "warn"
       ? { color: "#b45309", bg: "rgba(245, 158, 11, 0.12)" }
-      : { color: "var(--agent-text-secondary)", bg: "rgba(15,23,42,0.05)" };
+      : { color: "var(--agent-text-secondary)", bg: "var(--agent-surface-overlay)" };
   return (
     <span style={{
       display: "inline-flex",
@@ -186,53 +185,5 @@ function Chip({
       <Icon size={12} weight="regular" />
       {label}
     </span>
-  );
-}
-
-// Small mascot in the bottom-right corner of the AI summary card. Phosphor
-// Robot glyph inside a coral-tinted rounded square + a tiny ChatCircleDots
-// bubble hovering above its head. Purely decorative; aria-hidden.
-function MascotGlyph() {
-  return (
-    <div aria-hidden style={{
-      position: "absolute",
-      right: 12,
-      bottom: 12,
-      display: "flex",
-      alignItems: "flex-end",
-      gap: 2,
-      pointerEvents: "none",
-      opacity: 0.9,
-    }}>
-      <div style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 42,
-        height: 42,
-        borderRadius: 10,
-        background: "rgba(var(--agent-coral-rgb), 0.10)",
-        border: "0.5px solid rgba(var(--agent-coral-rgb), 0.24)",
-        color: "var(--agent-coral-deep)",
-      }}>
-        <Robot size={24} weight="duotone" />
-      </div>
-      <div style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 22,
-        height: 22,
-        borderRadius: 999,
-        marginBottom: 22,
-        marginLeft: -4,
-        background: "white",
-        border: "0.5px solid rgba(15, 23, 42, 0.08)",
-        color: "var(--agent-text-secondary)",
-        boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
-      }}>
-        <ChatCircleDots size={12} weight="fill" />
-      </div>
-    </div>
   );
 }

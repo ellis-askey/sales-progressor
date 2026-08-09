@@ -93,6 +93,10 @@ export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] })
           overflowX: "auto",
           overflowY: "visible",
           padding: "4px 4px 4px",
+          // Soft fade at the right edge so the scrolling strip dissolves into
+          // the "View timeline" button instead of ending on a hard cut.
+          maskImage: "linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)",
         }}
       >
         {stages.map((stage, i) => (

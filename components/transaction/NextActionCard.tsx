@@ -86,9 +86,9 @@ export function NextActionCard({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 22,
-            height: 22,
-            borderRadius: 6,
+            width: 26,
+            height: 26,
+            borderRadius: 7,
             background: "rgba(var(--agent-coral-rgb), 0.12)",
             color: "var(--agent-coral-deep)",
           }}>
@@ -199,11 +199,11 @@ function ActionButton({
         cursor: "pointer",
         transition: "background 140ms ease, border-color 140ms ease",
         color: isPrimary ? "white" : "var(--agent-text-primary)",
-        background: isPrimary ? "var(--agent-coral)" : "white",
+        background: isPrimary ? "var(--agent-coral)" : "var(--agent-surface-elevated)",
         border: isPrimary ? "none" : "0.5px solid var(--agent-border-default)",
         fontFamily: "inherit",
       }}
-      className={isPrimary ? "hover:bg-[var(--agent-coral-deep)]" : "hover:bg-black/[0.03]"}
+      className={isPrimary ? "hover:bg-[var(--agent-coral-deep)]" : "agent-hover-row"}
     >
       {icon}
       {label}
@@ -237,7 +237,7 @@ function IconButton({
         border: "none",
         transition: "background 140ms ease",
       }}
-      className="hover:bg-black/[0.05]"
+      className="agent-hover-row"
     >
       {children}
     </button>

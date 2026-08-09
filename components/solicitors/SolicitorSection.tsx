@@ -157,7 +157,7 @@ const solicitorTileIconBtnStyle: React.CSSProperties = {
   width: 28,
   height: 28,
   borderRadius: 7,
-  background: "rgba(15, 23, 42, 0.04)",
+  background: "var(--agent-surface-overlay)",
   color: "var(--agent-text-secondary)",
   textDecoration: "none",
   transition: "background 140ms ease",
@@ -245,7 +245,7 @@ function SolicitorTile({
   const tileWrapperStyle: React.CSSProperties = {
     border: "0.5px solid var(--agent-border-default)",
     borderRadius: 12,
-    background: "var(--agent-surface-elevated)",
+    background: "var(--agent-surface-nested)",
     overflow: "hidden",
     // Expand to full width when editing so the picker + save row fit.
     gridColumn: editing || exiting ? "1 / -1" : "auto",

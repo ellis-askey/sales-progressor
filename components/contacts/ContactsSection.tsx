@@ -216,7 +216,7 @@ function PortalStatusCard({
         padding: "10px 12px",
         borderRadius: 10,
         border: "0.5px solid var(--agent-border-default)",
-        background: "var(--agent-surface-elevated)",
+        background: "var(--agent-surface-nested-strong)",
         flex: 1,
         minWidth: 0,
       }}
@@ -611,11 +611,11 @@ export function ContactsSection({
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-                width: 22, height: 22, borderRadius: 6,
+                width: 26, height: 26, borderRadius: 7,
                 background: "rgba(var(--agent-coral-rgb), 0.12)",
                 color: "var(--agent-coral-deep)",
               }}>
-                <HouseSimple size={12} weight="regular" />
+                <HouseSimple size={14} weight="regular" />
               </span>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
               {contacts.length > 0 && (
@@ -671,7 +671,7 @@ export function ContactsSection({
                 style={{
                   border: "0.5px solid var(--agent-border-default)",
                   borderRadius: 12,
-                  background: "var(--agent-surface-elevated)",
+                  background: "var(--agent-surface-nested)",
                   overflow: "hidden",
                   transition: "box-shadow 160ms ease, border-color 160ms ease",
                 }}

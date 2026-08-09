@@ -112,6 +112,19 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
+  // The status menu renders through a portal on document.body, which sits
+  // OUTSIDE .agent-shell-root — so the --agent-* dark tokens don't inherit
+  // there. Read the light/dark axis (data-theme on <html>) directly and pick
+  // explicit values below. Mirrors components/decor/AppBackground.
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const read = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
   function handleOpen() {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
@@ -252,21 +265,32 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               className="fixed agent-dropdown-in rounded-xl overflow-hidden min-w-[140px]"
               style={{
                 zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left,
-                background: "var(--agent-glass-bg-strong)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                border: "0.5px solid var(--agent-glass-border)",
-                boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
+                // Portal-nav-style frosted glass (matches PortalShell bottom
+                // nav): translucent so the backdrop shines through, hairline
+                // border, strong blur. Explicit light/dark values because this
+                // is portaled outside the token scope (see isDark above).
+                background: isDark ? "rgba(20, 28, 44, 0.72)" : "rgba(255, 255, 255, 0.82)",
+                backdropFilter: "blur(24px) saturate(1.8)",
+                WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+                border: isDark ? "0.5px solid rgba(255, 255, 255, 0.12)" : "0.5px solid rgba(15, 23, 42, 0.08)",
+                boxShadow: isDark ? "0 8px 40px rgba(0,0,0,0.45)" : "0 8px 40px rgba(15,23,42,0.14)",
               }}
             >
               {STATUSES.map(({ value, label }) => (
                 <button
                   key={value}
                   onClick={() => selectStatus(value)}
-                  className={`w-full text-left px-4 py-2.5 text-sm agent-hover-row transition-colors flex items-center gap-2 ${
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
                     value === optimisticStatus ? "font-medium" : ""
                   }`}
-                  style={{ color: value === optimisticStatus ? "var(--agent-text-primary)" : "var(--agent-text-secondary)" }}
+                  style={{
+                    background: "transparent",
+                    color: value === optimisticStatus
+                      ? (isDark ? "#EFF6FF" : "rgba(15,23,42,0.9)")
+                      : (isDark ? "rgba(226,232,240,0.72)" : "rgba(15,23,42,0.7)"),
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   {value === optimisticStatus && (
                     <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

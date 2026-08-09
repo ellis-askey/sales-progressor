@@ -153,7 +153,7 @@ function HeroProgressBar({ percent }: { percent: number }) {
         }}>{clamped}%</span>{" "}
         complete
       </p>
-      <div style={{ height: 5, borderRadius: 999, background: "var(--agent-border-default)", overflow: "hidden" }}>
+      <div style={{ height: 5, borderRadius: 999, background: "var(--agent-hero-track)", overflow: "hidden" }}>
         <div style={{
           height: "100%",
           borderRadius: 999,
