@@ -1242,6 +1242,27 @@ function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 }
 
+// "Thursday 13th August 2026" — warmer for customer copy than the clinical
+// "Thursday, 13 August 2026" that toLocaleDateString spits out. Only used
+// by attendClause so far (PM6 buyer email).
+function formatWeekdayOrdinal(date: Date): string {
+  const weekday = date.toLocaleDateString("en-GB", { weekday: "long" });
+  const day = date.getDate();
+  const month = date.toLocaleDateString("en-GB", { month: "long" });
+  const year = date.getFullYear();
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+  return `${weekday} ${day}${suffix} ${month} ${year}`;
+}
+
 function richMilestoneEmailHtml({
   greeting,
   copy,
@@ -1494,12 +1515,23 @@ async function sendRichMilestoneEmails(
   const formattedEventDate = eventDate
     ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : null;
+  // Ordinal form ("Thursday 13th August 2026") for customer-facing sentences
+  // where "on Thursday, 13 August 2026" reads clinical. Used by {attendClause}.
+  const formattedEventDateOrdinal = eventDate
+    ? formatWeekdayOrdinal(new Date(eventDate))
+    : null;
   // {eventDate} — " on Monday, 7 May 2026" prefix or "" (used in PM9 opening/whatHappened)
   const eventDateVar = formattedEventDate ? `, ${formattedEventDate}` : "";
   // {eventDateClause} — full descriptive clause for PM6 (physical vs desktop valuation)
   const eventDateClause = formattedEventDate
     ? `booked for ${formattedEventDate}`
     : milestoneCode === "PM6" ? "a desktop valuation (no physical visit required)" : "";
+  // {attendClause} — customer-friendly appendage for the PM6 buyer email.
+  // Landed 2026-08-09 after Ellis flagged the missing space + clinical
+  // phrasing in the previous "propertybooked for..." rendering.
+  const attendClause = formattedEventDateOrdinal
+    ? ` and will attend on ${formattedEventDateOrdinal}`
+    : "";
   const isDesktop = milestoneCode === "PM6" && !formattedEventDate;
   const purchaserPhysicalNote = (milestoneCode === "PM6" && !isDesktop)
     ? " Their primary concern is that it's worth enough to secure their loan. It's not a structural survey and won't flag problems with the condition of the property."
@@ -1559,10 +1591,10 @@ async function sendRichMilestoneEmails(
     if (!copy) continue;
 
     const greeting = buildGreeting(c.name);
-    const vars     = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar };
+    const vars     = { address, eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar } });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar } });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
