@@ -25,6 +25,8 @@ import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useAgentNightMode } from "@/lib/agent/use-theme";
+import { usePickForCard } from "@/lib/glass/context";
+import { classFor } from "@/lib/glass/variants";
 
 function isNightTimeNow() {
   const h = new Date().getHours();
@@ -251,6 +253,14 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
+
+  // Design Lab (2026-08-09): the top bar + sidebar are pickable surfaces too.
+  // usePickForCard returns undefined for everyone but Ellis (empty picks), so
+  // the nav keeps its default look for all other users. The data-glass-* attrs
+  // let the Design Lab drawer auto-discover and swap them live, in whichever
+  // theme is active, and picks persist per-account exactly like card picks.
+  const topbarPick = usePickForCard("nav-topbar");
+  const sidebarPick = usePickForCard("nav-sidebar");
   const { setNightMode } = useAgentNightMode();
   const [nightOn, setNightOn] = useState(() => nightModePref ?? isNightTimeNow());
 
@@ -290,7 +300,12 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           from app/agent/layout.tsx, driven by data-theme on <html>. */}
 
       {/* Sticky nav bar */}
-      <header className="agent-topbar">
+      <header
+        className={`agent-topbar${topbarPick ? " " + classFor(topbarPick) : ""}`}
+        data-glass-id="nav-topbar"
+        data-glass-label="Nav · Top bar"
+        data-glass-variant={topbarPick ?? "v00"}
+      >
         <button
           className="agent-topbar-hamburger"
           onClick={() => setMobileOpen(true)}
@@ -345,7 +360,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
 
       {/* Sidebar — full viewport height, owns the left column */}
       <aside
-        className={`agent-glass agent-sidebar-mobile agent-sidebar-height${mobileOpen ? " agent-sidebar-mobile-open" : ""}`}
+        className={`agent-glass agent-sidebar-mobile agent-sidebar-height${mobileOpen ? " agent-sidebar-mobile-open" : ""}${sidebarPick ? " " + classFor(sidebarPick) : ""}`}
+        data-glass-id="nav-sidebar"
+        data-glass-label="Nav · Sidebar"
+        data-glass-variant={sidebarPick ?? "v00"}
         style={{
           width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
           position: "fixed", left: 0, overflowY: "auto",
