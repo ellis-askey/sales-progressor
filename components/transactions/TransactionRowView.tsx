@@ -9,6 +9,7 @@ import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import type { TransactionStatus, UserRole } from "@prisma/client";
 
 export type HealthRaw = {
@@ -32,6 +33,9 @@ export type HealthRaw = {
 export type TransactionRow = {
   id: string;
   propertyAddress: string;
+  // Signed property-photo URL (or null). Signed upstream in the page via
+  // getSignedUrlMap. Shown as a thumbnail to the left of the address.
+  photoUrl?: string | null;
   status: TransactionStatus;
   expectedExchangeDate: Date | null;
   createdAt: Date;
@@ -295,13 +299,16 @@ export function TransactionRowView({
       >
         <div style={{ width: 4, alignSelf: "stretch", flexShrink: 0, background: riskStripeColor }} />
         <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
-          <div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
-            {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
-            {showAgencyColumn && tx.agency?.name && (
-              <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
-            )}
-            <VendorBuyerLine contacts={tx.contacts} />
+          <div className="flex items-center gap-3">
+            <PropertyThumb photoUrl={tx.photoUrl} size={44} />
+            <div className="min-w-0 flex-1">
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
+              {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
+              {showAgencyColumn && tx.agency?.name && (
+                <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
+              )}
+              <VendorBuyerLine contacts={tx.contacts} />
+            </div>
           </div>
 
           {/* Verb chip — top of the badges row on mobile (Variant B mobile design) */}
@@ -348,17 +355,20 @@ export function TransactionRowView({
         <div style={{ alignSelf: "stretch", background: riskStripeColor }} />
 
         {/* Property */}
-        <div className="px-4 py-3.5 min-w-0">
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="agent-group-link transition-colors">
-            {line}
-          </p>
-          {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
-          <VendorBuyerLine contacts={tx.contacts} />
-          {health?.nextActionLabel && (
-            <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              → {health.nextActionLabel}
+        <div className="px-4 py-3.5 min-w-0 flex items-center gap-3">
+          <PropertyThumb photoUrl={tx.photoUrl} size={44} />
+          <div className="min-w-0 flex-1">
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="agent-group-link transition-colors">
+              {line}
             </p>
-          )}
+            {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
+            <VendorBuyerLine contacts={tx.contacts} />
+            {health?.nextActionLabel && (
+              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                → {health.nextActionLabel}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Last activity — verb chip */}

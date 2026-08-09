@@ -5,6 +5,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getHubFilteredIds, getMonthExchangingIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
 import { ForecastStrip } from "@/components/transactions/ForecastStrip";
@@ -123,6 +124,14 @@ export default async function AllTransactionsPage({
   } else if (statusFilter !== "all") {
     filteredTransactions = allTransactions.filter((tx) => tx.status === statusFilter);
   }
+
+  // Sign property photos in one round trip, then decorate rows with photoUrl
+  // (null when absent → the row shows the neutral house thumbnail).
+  const photoMap = await getSignedUrlMap(filteredTransactions.map((t) => t.photoStoragePath));
+  const rowsWithPhotos = filteredTransactions.map((t) => ({
+    ...t,
+    photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
+  }));
 
   // Pretty month label for the active-month banner + empty state
   const monthLabel = monthFilter
@@ -346,7 +355,7 @@ export default async function AllTransactionsPage({
               </div>
             ) : (
               <TransactionListWithSearch
-                transactions={filteredTransactions}
+                transactions={rowsWithPhotos}
                 basePath="/agent/transactions"
                 isDirector={isDirector}
                 statusFilter={statusFilter}
