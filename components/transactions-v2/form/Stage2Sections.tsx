@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields, SolicitorSelection, InMemoryStub } from "./types";
 import type { StubFormData } from "@/components/chain/AddNodeDrawer";
@@ -15,12 +15,23 @@ import { OutsourcedBanner } from "./OutsourcedBanner";
 import { PortalInvitePrompt } from "./PortalInvitePrompt";
 
 function Section({ delayMs, zIndex, children }: { delayMs: number; zIndex?: number; children: React.ReactNode }) {
+  // Once the entrance animation ends, drop the animation + will-change so this
+  // wrapper stops being a backdrop root — otherwise it severs descendant glass
+  // cards' backdrop-filter from the fixed WebGL background (no frost). 2026-08-10.
+  const [settled, setSettled] = useState(false);
   return (
-    <div style={{
-      animation: `agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) ${delayMs}ms both`,
-      willChange: "transform, opacity",
-      ...(zIndex != null ? { position: "relative" as const, zIndex } : {}),
-    }}>
+    <div
+      onAnimationEnd={() => setSettled(true)}
+      style={{
+        ...(settled
+          ? {}
+          : {
+              animation: `agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) ${delayMs}ms both`,
+              willChange: "transform, opacity",
+            }),
+        ...(zIndex != null ? { position: "relative" as const, zIndex } : {}),
+      }}
+    >
       {children}
     </div>
   );

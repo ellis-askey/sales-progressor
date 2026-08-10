@@ -32,7 +32,10 @@ export function SectionReveal({
   order?: number;
 }) {
   const [shown, setShown] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  const delayMs = Math.max(0, order) * 40;
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -41,23 +44,34 @@ export function SectionReveal({
     // starts — without it React can batch the state flip into the same frame
     // as mount and the fade is skipped.
     const id = window.requestAnimationFrame(() => setShown(true));
-    return () => window.cancelAnimationFrame(id);
-  }, []);
+    // Once faded in, drop transform + will-change so this wrapper stops being
+    // a backdrop root — otherwise it severs the section's glass cards'
+    // backdrop-filter from the fixed WebGL background (no frost). 2026-08-10.
+    const t = window.setTimeout(() => setSettled(true), 360 + delayMs);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.clearTimeout(t);
+    };
+  }, [delayMs]);
 
   if (prefersReducedMotion) {
     return <>{children}</>;
   }
 
-  const delayMs = Math.max(0, order) * 40;
-
+  // Settled: no inline transform/opacity/will-change → not a backdrop root,
+  // so descendant glass blurs the aurora. Same <div> stays mounted.
   return (
     <div
-      style={{
-        opacity: shown ? 1 : 0,
-        transform: shown ? "translateY(0)" : "translateY(8px)",
-        transition: `opacity 280ms ease-out ${delayMs}ms, transform 320ms ease-out ${delayMs}ms`,
-        willChange: "opacity, transform",
-      }}
+      style={
+        settled
+          ? undefined
+          : {
+              opacity: shown ? 1 : 0,
+              transform: shown ? "translateY(0)" : "translateY(8px)",
+              transition: `opacity 280ms ease-out ${delayMs}ms, transform 320ms ease-out ${delayMs}ms`,
+              willChange: "opacity, transform",
+            }
+      }
     >
       {children}
     </div>

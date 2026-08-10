@@ -170,12 +170,19 @@
   -webkit-backdrop-filter: blur(48px);
   backdrop-filter: blur(48px);
 }
+/* v08 — Deep frost (2026-08-10 full rebuild, was "Cool tint"). The reference
+   "real glassmorphism": a genuinely frosted panel that turns the aurora into a
+   soft wash rather than a moving picture. Neutral white body (no hue), heavy
+   40px blur + gentle saturate for life, bright top-edge specular. Tuned for
+   light mode; assign the dark-mode slot to v21 (Obsidian). */
 .glass-v08 {
-  background: rgba(91, 140, 255, 0.20);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: var(--c-glass-shadow-card);
-  -webkit-backdrop-filter: blur(48px);
-  backdrop-filter: blur(48px);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow:
+    0 10px 34px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(40px) saturate(1.2);
+  backdrop-filter: blur(40px) saturate(1.2);
 }
 .glass-v09 {
   background: rgba(255, 194, 75, 0.18);
@@ -184,12 +191,18 @@
   -webkit-backdrop-filter: blur(48px);
   backdrop-filter: blur(48px);
 }
+/* v21 — Obsidian (2026-08-10 full rebuild, was "Slate dark"). Dark-first heavy
+   glass: a deep smoked body over a 40px frost so it reads as premium dark glass
+   in dark mode (and a dark widget on light). Cool near-black tint rather than
+   flat black, faint top-edge light. Pair as the dark-mode partner to v08. */
 .glass-v21 {
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: var(--c-glass-shadow-card);
-  -webkit-backdrop-filter: blur(48px);
-  backdrop-filter: blur(48px);
+  background: rgba(17, 21, 30, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  -webkit-backdrop-filter: blur(40px) saturate(1.15);
+  backdrop-filter: blur(40px) saturate(1.15);
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -444,6 +457,43 @@
     0 12px 32px rgba(0, 0, 0, 0.10);
   -webkit-backdrop-filter: blur(8px) contrast(1.35) saturate(1.2);
   backdrop-filter: blur(8px) contrast(1.35) saturate(1.2);
+}
+
+/* v29 — Edge-lit lens (work in progress toward "the perfect card"). The
+   provided liquid-glass recipe: white 13% body, 13px blur, 30% hairline,
+   a top specular edge line (::before) + a left specular edge line (::after),
+   and a soft inner-white bloom. Then v26's contrast-lens inner white glow
+   layered in — reduced from 24px/0.28 to 22px/0.20 so it lifts the centre
+   without blowing out against the recipe's own 0.50 inner bloom. */
+.glass-v29 {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.50),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 0 10px 5px rgba(255, 255, 255, 0.50),
+    inset 0 0 22px rgba(255, 255, 255, 0.20);
+  -webkit-backdrop-filter: blur(13px);
+  backdrop-filter: blur(13px);
+}
+.glass-v29::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.80), transparent);
+  pointer-events: none;
+}
+.glass-v29::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 1px; height: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.80), transparent, rgba(255, 255, 255, 0.30));
+  pointer-events: none;
 }
 
 /* ────────────────────────────────────────────────────────────────────── */

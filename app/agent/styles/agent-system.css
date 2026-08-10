@@ -1487,9 +1487,11 @@
    * and any cell-as-link affordance where colour-tint hover feels heavy. */
   .agent-press-cell {
     transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
-    transform: scale(1);
     transform-origin: center;
-    will-change: transform;
+    /* No resting `transform` / `will-change`: an identity transform or a
+       will-change:transform makes this a backdrop root and severs any glass
+       inside it from the fixed WebGL background (kills the frost). The hover
+       transform below only forms the root during the brief press. 2026-08-10. */
   }
   .agent-press-cell:hover:not(:disabled) {
     transform: scale(1.04);
