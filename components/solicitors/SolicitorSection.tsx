@@ -7,6 +7,7 @@ import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { CommsButton } from "@/components/ui/CommsButton";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -39,6 +40,9 @@ type Props = {
   referralFee?: number | null;
   address?: string;
   contacts?: Array<{ name: string; roleType: string }>;
+  // When true, render without the outer GlassCard shell (PeoplePanel wraps it
+  // with the card + Clients/Professionals toggle). 2026-08-10.
+  embedded?: boolean;
 };
 
 function toSelection(info: SolicitorInfo): SolicitorSelection | null {
@@ -283,22 +287,19 @@ function SolicitorTile({
     <div style={tileWrapperStyle}>
       {/* Display view - shown when NOT editing */}
       {info.firm && !editing && !exiting && (
-        <div style={{ padding: "14px 16px" }}>
-          {/* Header row: avatar + firm name + role pill */}
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+        <div style={{ padding: "14px 16px", display: "flex", gap: 16, alignItems: "flex-start" }}>
+          {/* ── Left column: identity + contact details (matches ContactsSection) ── */}
+          <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 0 }}>
             <div
-              className="agent-avatar agent-avatar-sm"
-              style={{
-                flexShrink: 0,
-                background: tileTone.avatarBg,
-                color: tileTone.avatarColor,
-              }}
+              className="agent-avatar agent-avatar-md"
+              style={{ flexShrink: 0, background: tileTone.avatarBg, color: tileTone.avatarColor }}
             >
               {getFirmInitials(info.firm.name)}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+              {/* Firm name + role */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   fontSize: 10, fontWeight: 500,
@@ -309,79 +310,69 @@ function SolicitorTile({
                 </span>
               </div>
               {info.contact && (
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-                  {info.contact.name}
-                </p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{info.contact.name}</p>
               )}
               <SolicitorIntelChips firmId={info.firm.id} />
               {showReferralFee && referralFee != null && (
                 <span style={{
-                  display: "inline-block",
-                  marginTop: 6,
+                  alignSelf: "flex-start",
                   fontSize: 10, fontWeight: 500,
                   borderRadius: 4, padding: "2px 7px",
-                  background: "rgba(16,185,129,0.12)",
-                  color: "#059669",
+                  background: "rgba(16,185,129,0.12)", color: "#059669",
                 }}>
                   Referral £{(referralFee / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </span>
               )}
+              {/* Phone + email rows: icon + link, same as ContactsSection */}
+              {info.contact?.phone && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                  <a href={`tel:${info.contact.phone.replace(/\s/g, "")}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {info.contact.phone}
+                  </a>
+                </div>
+              )}
+              {info.contact?.email && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                  <a href={emailHref ?? `mailto:${info.contact.email}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {info.contact.email}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Contact-method rows - same pattern as ContactsSection tile:
-              text on the left, action icons on the right. Only render a
-              row when its target field exists. */}
-          {(info.contact?.phone || info.contact?.email) && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-              {info.contact?.phone && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{
-                    fontSize: 12, color: "var(--agent-text-secondary)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    minWidth: 0, flex: 1,
-                  }}>{info.contact.phone}</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                    <a href={`tel:${info.contact.phone.replace(/\s/g, "")}`} title="Call" style={solicitorTileIconBtnStyle}>
-                      <Phone size={14} weight="regular" />
-                    </a>
-                    <a href={`https://wa.me/${info.contact.phone.replace(/[^\d]/g, "")}`} title="WhatsApp" style={solicitorTileIconBtnStyle}>
-                      <ChatCircleText size={14} weight="regular" />
-                    </a>
-                  </span>
-                </div>
-              )}
-              {emailHref && info.contact?.email && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{
-                    fontSize: 12, color: "var(--agent-text-secondary)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    minWidth: 0, flex: 1,
-                  }}>{info.contact.email}</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                    <a href={emailHref} title="Email" style={solicitorTileIconBtnStyle}>
-                      <EnvelopeSimple size={14} weight="regular" />
-                    </a>
-                  </span>
-                </div>
-              )}
+          {/* ── Right column: comms actions + edit (matches ContactsSection) ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+              <CommsButton
+                href={info.contact?.phone ? `tel:${info.contact.phone.replace(/\s/g, "")}` : undefined}
+                label="Call"
+                icon={<Phone size={13} weight="regular" />}
+                disabled={!info.contact?.phone}
+                title={info.contact?.phone ? "Call" : "No phone number on file"}
+              />
+              <CommsButton
+                href={info.contact?.phone ? `https://wa.me/${info.contact.phone.replace(/[^\d]/g, "")}` : undefined}
+                label="WhatsApp"
+                icon={<ChatCircleText size={13} weight="regular" />}
+                disabled={!info.contact?.phone}
+                title={info.contact?.phone ? "WhatsApp" : "No phone number on file"}
+              />
+              <CommsButton
+                href={emailHref ?? undefined}
+                label="Email"
+                icon={<EnvelopeSimple size={13} weight="regular" />}
+                disabled={!info.contact?.email}
+                title={info.contact?.email ? "Email" : "No email on file"}
+              />
             </div>
-          )}
-
-          {/* Bottom: Edit link, right-aligned. Remove lives inside the
-              edit form's action row (below), matching the pattern where
-              destructive actions sit inside their editing context. */}
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
               onClick={openEdit}
               className="agent-link"
-              style={{
-                fontSize: 12, fontWeight: 500,
-                color: "var(--agent-coral-deep)",
-                background: "transparent", border: "none", padding: 0,
-                cursor: "pointer", fontFamily: "inherit",
-              }}
+              style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-coral-deep)", background: "transparent", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit" }}
             >
               Edit
             </button>
@@ -452,7 +443,7 @@ function SolicitorTile({
   );
 }
 
-export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts }: Props) {
+export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts, embedded = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
@@ -528,14 +519,17 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   const vendorHasReferral = referredFirmId != null && vendorState.firm?.id === referredFirmId;
   const purchaserHasReferral = referredFirmId != null && purchaserState.firm?.id === referredFirmId;
 
-  return (
-    // Design Lab: `overview-solicitors`. Default v05 (Heavy frost) per
-    // Ellis's final pick set, 2026-08-08 evening pass. Surface treatment
-    // (background/border) moved from inline styles to the variant class.
-    <GlassCard glassId="overview-solicitors" label="Overview · Solicitors" defaultVariant="v05" style={{
-      borderRadius: 10,
-      overflow: "hidden",
-    }}>
+  const shell = (children: React.ReactNode) =>
+    embedded ? (
+      <div style={{ overflow: "hidden" }}>{children}</div>
+    ) : (
+      <GlassCard glassId="overview-solicitors" label="Overview · Solicitors" defaultVariant="v05" style={{ borderRadius: 10, overflow: "hidden" }}>
+        {children}
+      </GlassCard>
+    );
+
+  return shell(
+    <>
       {/* Header - mirrors the Contacts card: small coral icon square +
           title + count on the left. Saving pulse tucks in next to the
           title for save-in-flight feedback. */}
@@ -557,12 +551,11 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
         </div>
       </div>
 
-      {/* 2-column tile grid. Auto-fills into 1 column on narrow viewports
-          via minmax(240, 1fr). Same pattern as the redesigned Contacts
-          grid so the two cards read as siblings. */}
+      {/* Full-width stacked tiles — matches the ContactsSection layout so
+          Clients and Professionals read identically in the People card. */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+        display: "flex",
+        flexDirection: "column",
         gap: 10,
         padding: 12,
       }}>
@@ -589,6 +582,6 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           onRemove={handlePurchaserRemove}
         />
       </div>
-    </GlassCard>
+    </>
   );
 }

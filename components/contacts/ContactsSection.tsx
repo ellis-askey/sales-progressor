@@ -30,6 +30,7 @@ import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { CommsButton } from "@/components/ui/CommsButton";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Modal } from "@/components/ui/Modal";
 import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
@@ -126,52 +127,8 @@ function resolvePortalState(contact: Contact, lastViewed: Date | undefined): Por
 }
 
 // ── Communication action button ────────────────────────────────────────
-function CommsButton({
-  href,
-  label,
-  icon,
-  disabled,
-  title,
-}: {
-  href?: string;
-  label: string;
-  icon: React.ReactNode;
-  disabled?: boolean;
-  title?: string;
-}) {
-  const style: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    fontSize: 12,
-    fontWeight: 500,
-    color: disabled ? "var(--agent-text-muted)" : "var(--agent-text-secondary)",
-    padding: "7px 12px",
-    borderRadius: 8,
-    border: "0.5px solid var(--agent-border-default)",
-    background: "var(--agent-surface-elevated)",
-    textDecoration: "none",
-    minWidth: 88,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
-    transition: "background 140ms ease, border-color 140ms ease",
-  };
-  if (disabled || !href) {
-    return (
-      <button type="button" disabled title={title} style={style}>
-        {icon}
-        <span>{label}</span>
-      </button>
-    );
-  }
-  return (
-    <a href={href} title={title} style={style}>
-      {icon}
-      <span>{label}</span>
-    </a>
-  );
-}
+// CommsButton now lives in components/ui/CommsButton.tsx (shared with the
+// Solicitors card so both lay out identically). 2026-08-10.
 
 // ── Portal status card ─────────────────────────────────────────────────
 function PortalStatusCard({
@@ -413,9 +370,13 @@ export function ContactsSection({
   lastContactedByContactId = {},
   whatsappGroupInviteUrl = null,
   photoUrl = null,
+  embedded = false,
 }: {
   transactionId: string;
   contacts: Contact[];
+  // When true, render without the outer GlassCard shell (the PeoplePanel
+  // wrapper provides the card + toggle). 2026-08-10.
+  embedded?: boolean;
   address?: string;
   portalViewDates?: Record<string, Date>;
   automatedEmailCounts?: Record<string, number>;
@@ -596,12 +557,19 @@ export function ContactsSection({
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 
-  return (
-    // Design Lab: `contacts-card`. Default v05 (Heavy frost) per Ellis's
-    // final pick set, 2026-08-08 evening pass. The overflow +
-    // border-radius stay on the wrapper so nested contact rows still
-    // clip correctly.
-    <GlassCard glassId="contacts-card" label="Contacts card" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 12 }}>
+  // Embedded (inside PeoplePanel): no own GlassCard — the wrapper provides
+  // the card + toggle. Standalone: keep the contacts-card glass shell.
+  const shell = (children: React.ReactNode) =>
+    embedded ? (
+      <div className="overflow-hidden">{children}</div>
+    ) : (
+      <GlassCard glassId="contacts-card" label="Contacts card" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 12 }}>
+        {children}
+      </GlassCard>
+    );
+
+  return shell(
+    <>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -1005,6 +973,6 @@ export function ContactsSection({
           }
         }
       `}</style>
-    </GlassCard>
+    </>
   );
 }

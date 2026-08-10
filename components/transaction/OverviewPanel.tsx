@@ -38,6 +38,7 @@ import { RemindersWidget } from "@/components/transaction/RemindersWidget";
 import { RecentActivityWidget } from "@/components/transaction/RecentActivityWidget";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
+import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
@@ -336,19 +337,45 @@ export async function OverviewPanel({
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
-      <ContactsSection
-        transactionId={transaction.id}
-        contacts={transaction.contacts}
-        address={transaction.propertyAddress}
-        portalViewDates={Object.fromEntries(
-          transaction.contacts
-            .filter((c) => c.lastVisitedPortalAt)
-            .map((c) => [c.id, c.lastVisitedPortalAt as Date]),
-        )}
-        automatedEmailCounts={automatedEmailCounts}
-        lastContactedByContactId={lastContactedByContactId}
-        whatsappGroupInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
-        photoUrl={photoUrl}
+      {/* People: Clients (contacts) + Professionals (solicitors) in one card
+          with a header toggle, so the solicitor is one tap away. */}
+      <PeoplePanel
+        clients={
+          <ContactsSection
+            transactionId={transaction.id}
+            contacts={transaction.contacts}
+            address={transaction.propertyAddress}
+            portalViewDates={Object.fromEntries(
+              transaction.contacts
+                .filter((c) => c.lastVisitedPortalAt)
+                .map((c) => [c.id, c.lastVisitedPortalAt as Date]),
+            )}
+            automatedEmailCounts={automatedEmailCounts}
+            lastContactedByContactId={lastContactedByContactId}
+            whatsappGroupInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
+            photoUrl={photoUrl}
+            embedded
+          />
+        }
+        professionals={
+          <SolicitorSection
+            transactionId={transaction.id}
+            vendor={{
+              firm: transaction.vendorSolicitorFirm ?? null,
+              contact: transaction.vendorSolicitorContact ?? null,
+            }}
+            purchaser={{
+              firm: transaction.purchaserSolicitorFirm ?? null,
+              contact: transaction.purchaserSolicitorContact ?? null,
+            }}
+            recommendedFirms={recommendedFirms ?? undefined}
+            referredFirmId={transaction.referredFirmId ?? null}
+            referralFee={transaction.referralFee ?? null}
+            address={transaction.propertyAddress}
+            contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
+            embedded
+          />
+        }
       />
 
       {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +
@@ -396,22 +423,7 @@ export async function OverviewPanel({
         </div>
       </Card>
 
-      <SolicitorSection
-        transactionId={transaction.id}
-        vendor={{
-          firm: transaction.vendorSolicitorFirm ?? null,
-          contact: transaction.vendorSolicitorContact ?? null,
-        }}
-        purchaser={{
-          firm: transaction.purchaserSolicitorFirm ?? null,
-          contact: transaction.purchaserSolicitorContact ?? null,
-        }}
-        recommendedFirms={recommendedFirms ?? undefined}
-        referredFirmId={transaction.referredFirmId ?? null}
-        referralFee={transaction.referralFee ?? null}
-        address={transaction.propertyAddress}
-        contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
-      />
+      {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
 
       {brokerRow?.brokerFirmId && (
         <BrokerSection
