@@ -12,8 +12,9 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { X, RotateCcw, Download, Sparkle } from "lucide-react";
+import { X, RotateCcw, Download, Sparkle, Sun, Moon } from "lucide-react";
 import { useGlassPicks } from "@/lib/glass/context";
+import { useDarkMode } from "@/lib/agent/use-theme";
 import {
   GLASS_FAMILIES,
   isGlassVariantId,
@@ -47,7 +48,11 @@ function discoverCards(): DiscoveredCard[] {
 }
 
 export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { picks, setPick, resetAll } = useGlassPicks();
+  const { picks, mode, setPick, resetAll } = useGlassPicks();
+  // Drawer's own light/dark toggle. Flips the whole app theme (and this
+  // panel), so the cards behind the drawer re-render in the chosen mode and
+  // setPick writes that mode's slot. That's how light + dark get mixed.
+  const { isDark, setDark } = useDarkMode();
   const [cards, setCards] = useState<DiscoveredCard[]>([]);
   const [copiedExport, setCopiedExport] = useState(false);
   const pathname = usePathname();
@@ -115,6 +120,12 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   const options = useMemo(() => GLASS_FAMILIES, []);
 
+  // Panel palette follows the mode being edited so the drawer itself is
+  // legible in dark (and you preview cards in the matching theme).
+  const c = isDark
+    ? { panel: "#111621", rowBg: "#171c27", rowBgOn: "rgba(91,140,255,0.14)", text: "#e8edf5", sub: "#9aa7b8", faint: "#6b7280", border: "rgba(255,255,255,0.10)", borderOn: "rgba(91,140,255,0.50)", chip: "#1b2130", input: "#0e131c", headerGrad: "linear-gradient(180deg, rgba(91,140,255,0.10), transparent)" }
+    : { panel: "#ffffff", rowBg: "#fbfbfc", rowBgOn: "rgba(91,140,255,0.04)", text: "#0f172a", sub: "#64748b", faint: "#94a3b8", border: "rgba(15,23,42,0.08)", borderOn: "rgba(91,140,255,0.30)", chip: "#ffffff", input: "#ffffff", headerGrad: "linear-gradient(180deg, rgba(91,140,255,0.04), transparent)" };
+
   if (!open) return null;
 
   // Portalled to <body>: the drawer mounts inside the topbar, whose
@@ -151,8 +162,8 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
           bottom: 0,
           width: 400,
           maxWidth: "100vw",
-          background: "#ffffff",
-          borderLeft: "1px solid rgba(15, 23, 42, 0.10)",
+          background: c.panel,
+          borderLeft: `1px solid ${c.border}`,
           boxShadow: "-8px 0 32px rgba(0, 0, 0, 0.12)",
           zIndex: 9999,
           display: "flex",
@@ -163,20 +174,20 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
         {/* Header */}
         <header style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
           padding: "16px 20px",
-          borderBottom: "0.5px solid rgba(15, 23, 42, 0.08)",
-          background: "linear-gradient(180deg, rgba(91,140,255,0.04), transparent)",
+          borderBottom: `0.5px solid ${c.border}`,
+          background: c.headerGrad,
         }}>
           <div>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#5b8cff", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Design Lab
             </p>
-            <h2 style={{ margin: "2px 0 0", fontSize: 15, fontWeight: 600, color: "#0f172a" }}>
+            <h2 style={{ margin: "2px 0 0", fontSize: 15, fontWeight: 600, color: c.text }}>
               Glass picker
             </h2>
-            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#64748b" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: c.sub }}>
               {cards.length} card{cards.length === 1 ? "" : "s"} on this page
               {totalPicks > 0 ? ` · ${totalPicks} custom pick${totalPicks === 1 ? "" : "s"}` : ""}
             </p>
@@ -191,26 +202,57 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
               width: 32,
               height: 32,
               borderRadius: 8,
-              border: "1px solid rgba(15, 23, 42, 0.10)",
-              background: "#fff",
-              color: "#64748b",
+              border: `1px solid ${c.border}`,
+              background: c.chip,
+              color: c.sub,
               cursor: "pointer",
+              flexShrink: 0,
             }}
           >
             <X size={16} />
           </button>
         </header>
 
+        {/* Mode toggle — flips the whole app (and this panel) so you can see +
+            pick variants per mode. setPick writes the active mode's slot. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderBottom: `0.5px solid ${c.border}` }}>
+          <span style={{ fontSize: 11, color: c.sub, fontWeight: 500 }}>Editing</span>
+          <div style={{ display: "inline-flex", padding: 2, borderRadius: 999, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.05)", border: `0.5px solid ${c.border}` }}>
+            {([["light", Sun, "Light"], ["dark", Moon, "Dark"]] as const).map(([m, Icon, label]) => {
+              const on = mode === m;
+              return (
+                <button
+                  key={m}
+                  onClick={() => setDark(m === "dark")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "4px 12px", borderRadius: 999, border: "none", cursor: "pointer",
+                    fontSize: 12, fontWeight: 600,
+                    background: on ? "#5b8cff" : "transparent",
+                    color: on ? "#fff" : c.sub,
+                    transition: "background 140ms, color 140ms",
+                  }}
+                  aria-pressed={on}
+                >
+                  <Icon size={13} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Card list */}
         <div style={{ flex: 1, overflow: "auto", padding: "12px 16px" }}>
           {cards.length === 0 ? (
-            <p style={{ padding: "24px 12px", fontSize: 13, color: "#64748b", textAlign: "center" }}>
+            <p style={{ padding: "24px 12px", fontSize: 13, color: c.sub, textAlign: "center" }}>
               No <code>data-glass-id</code> cards found on this page yet.
               Tag a card with <code>&lt;GlassCard&gt;</code> and reopen the lab.
             </p>
           ) : (
             cards.map((card) => {
-              const activePick = picks[card.glassId];
+              const entry = picks[card.glassId];
+              const activePick = entry?.[mode];
               const showing = activePick ?? "v00";
               const isCustom = !!activePick;
               return (
@@ -219,36 +261,39 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                   style={{
                     padding: "12px 14px",
                     borderRadius: 10,
-                    border: isCustom ? "1px solid rgba(91,140,255,0.30)" : "0.5px solid rgba(15, 23, 42, 0.08)",
+                    border: isCustom ? `1px solid ${c.borderOn}` : `0.5px solid ${c.border}`,
                     marginBottom: 10,
-                    background: isCustom ? "rgba(91,140,255,0.04)" : "#fbfbfc",
+                    background: isCustom ? c.rowBgOn : c.rowBg,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
                     <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {card.label}
                       </p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "#94a3b8", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-                        {card.glassId} · {showing}
+                      {/* Both picks at a glance — active mode brightest. */}
+                      <p style={{ margin: "3px 0 0", fontSize: 10, color: c.faint, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span>{card.glassId}</span>
+                        <span style={{ opacity: mode === "light" ? 1 : 0.45, fontWeight: mode === "light" ? 700 : 400 }}>☀ {entry?.light ?? "—"}</span>
+                        <span style={{ opacity: mode === "dark" ? 1 : 0.45, fontWeight: mode === "dark" ? 700 : 400 }}>🌙 {entry?.dark ?? "—"}</span>
                       </p>
                     </div>
                     {isCustom && (
                       <button
                         onClick={() => setPick(card.glassId, "v00")}
-                        title="Reset this card"
+                        title={`Reset this card's ${mode} pick`}
                         style={{
                           fontSize: 10,
                           padding: "2px 8px",
                           borderRadius: 999,
-                          border: "0.5px solid rgba(15,23,42,0.15)",
-                          background: "#fff",
-                          color: "#64748b",
+                          border: `0.5px solid ${c.border}`,
+                          background: c.chip,
+                          color: c.sub,
                           cursor: "pointer",
                           flexShrink: 0,
                         }}
                       >
-                        Reset
+                        Reset {mode}
                       </button>
                     )}
                   </div>
@@ -260,9 +305,9 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                       padding: "6px 10px",
                       fontSize: 12,
                       borderRadius: 8,
-                      border: "0.5px solid rgba(15, 23, 42, 0.15)",
-                      background: "#fff",
-                      color: "#0f172a",
+                      border: `0.5px solid ${c.border}`,
+                      background: c.input,
+                      color: c.text,
                       cursor: "pointer",
                     }}
                   >
@@ -283,10 +328,10 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
 
           {/* Family reference panel — recommended picks at a glance. */}
           <details style={{ marginTop: 16 }}>
-            <summary style={{ fontSize: 11, fontWeight: 600, color: "#64748b", cursor: "pointer", padding: "8px 4px" }}>
+            <summary style={{ fontSize: 11, fontWeight: 600, color: c.sub, cursor: "pointer", padding: "8px 4px" }}>
               Family reference · recommended picks
             </summary>
-            <div style={{ padding: "8px 12px 12px", fontSize: 11, color: "#475569" }}>
+            <div style={{ padding: "8px 12px 12px", fontSize: 11, color: c.sub }}>
               {GLASS_FAMILIES.map((family) => {
                 const rec = family.variants.find((v) => v.recommended);
                 if (!rec) return null;
@@ -294,11 +339,11 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                   <div key={family.id} style={{ marginBottom: 10 }}>
                     <p style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
                       <Sparkle size={11} style={{ color: "#a8ff60" }} />
-                      <strong style={{ color: "#0f172a", fontWeight: 600 }}>{family.label}</strong>
-                      <span style={{ color: "#94a3b8" }}>· {rec.label}</span>
+                      <strong style={{ color: c.text, fontWeight: 600 }}>{family.label}</strong>
+                      <span style={{ color: c.faint }}>· {rec.label}</span>
                     </p>
                     {rec.recommendedFor && (
-                      <p style={{ margin: "2px 0 0 17px", color: "#64748b", fontStyle: "italic", fontSize: 10 }}>
+                      <p style={{ margin: "2px 0 0 17px", color: c.sub, fontStyle: "italic", fontSize: 10 }}>
                         {rec.recommendedFor}
                       </p>
                     )}
@@ -312,14 +357,15 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
         {/* Footer */}
         <footer style={{
           padding: "12px 16px",
-          borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
+          borderTop: `0.5px solid ${c.border}`,
           display: "flex",
           gap: 8,
-          background: "#fbfbfc",
+          background: c.rowBg,
         }}>
           <button
             onClick={resetAll}
             disabled={totalPicks === 0}
+            title="Clear every pick, both modes"
             style={{
               flex: 1,
               display: "inline-flex",
@@ -330,9 +376,9 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
               fontSize: 12,
               fontWeight: 500,
               borderRadius: 8,
-              border: "0.5px solid rgba(15, 23, 42, 0.15)",
-              background: "#fff",
-              color: totalPicks === 0 ? "#cbd5e1" : "#475569",
+              border: `0.5px solid ${c.border}`,
+              background: c.chip,
+              color: totalPicks === 0 ? c.faint : c.text,
               cursor: totalPicks === 0 ? "not-allowed" : "pointer",
             }}
           >

@@ -264,16 +264,22 @@ export async function updateAgentPushPrefAction(input: {
 // (v00) is removed since it's the fallback. Empty JSON is a valid
 // input (used by the "Reset all" button in the drawer).
 // 2026-08-08.
-export async function updateGlassPicksAction(picks: Record<string, string>) {
+export async function updateGlassPicksAction(
+  picks: Record<string, { light?: string; dark?: string }>,
+) {
   const session = await requireSession();
 
-  const cleaned: Record<string, string> = {};
+  // Per-mode shape (2026-08-10): each card holds an optional light + dark
+  // variant. Drop unknown IDs and default (v00) slots; drop empty entries.
+  const cleaned: Record<string, { light?: string; dark?: string }> = {};
   if (picks && typeof picks === "object") {
     for (const [k, v] of Object.entries(picks)) {
       if (typeof k !== "string" || k.length === 0) continue;
-      if (!isGlassVariantId(v)) continue;
-      if (v === DEFAULT_VARIANT) continue;
-      cleaned[k] = v;
+      if (!v || typeof v !== "object") continue;
+      const entry: { light?: string; dark?: string } = {};
+      if (isGlassVariantId(v.light) && v.light !== DEFAULT_VARIANT) entry.light = v.light;
+      if (isGlassVariantId(v.dark) && v.dark !== DEFAULT_VARIANT) entry.dark = v.dark;
+      if (entry.light || entry.dark) cleaned[k] = entry;
     }
   }
 

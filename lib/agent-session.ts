@@ -22,7 +22,7 @@ import {
   type MobileAgentTheme,
 } from "@/lib/agent/themes";
 import { readThemeModeFromPrefs, type ThemeMode } from "@/lib/agent/theme-mode";
-import { isGlassVariantId, type GlassVariantId } from "@/lib/glass/variants";
+import { isGlassVariantId, type GlassVariantId, type GlassPick, type GlassPicks } from "@/lib/glass/variants";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 
@@ -75,7 +75,7 @@ export type AgentSessionContext = {
   // non-Ellis users so their tagged cards render as defaultVariant every
   // time. Written to User.agentPreferences.glassPicks by
   // updateGlassPicksAction. 2026-08-08.
-  glassPicks: Record<string, GlassVariantId>;
+  glassPicks: GlassPicks;
   chainDeclineNotif: string | null;
   // Agency.modeProfile — drives the conditional copy in the welcome tour.
   // Defaults to "self_progressed" if the user has no agency (shouldn't
@@ -130,14 +130,22 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
 /** Reads Design-Lab glass picks off the agentPreferences JSON blob.
  *  Sanitises unknown keys / variant IDs so a bad DB row can't crash the
  *  layout. Empty object for anyone who hasn't picked anything. */
-function readGlassPicksFromPrefs(prefs: unknown): Record<string, GlassVariantId> {
+function readGlassPicksFromPrefs(prefs: unknown): GlassPicks {
   if (!prefs || typeof prefs !== "object") return {};
   const blob = (prefs as { glassPicks?: unknown }).glassPicks;
   if (!blob || typeof blob !== "object") return {};
-  const out: Record<string, GlassVariantId> = {};
+  const out: GlassPicks = {};
   for (const [k, v] of Object.entries(blob as Record<string, unknown>)) {
-    if (typeof k === "string" && k.length > 0 && isGlassVariantId(v)) {
-      out[k] = v;
+    if (typeof k !== "string" || !k) continue;
+    if (isGlassVariantId(v)) {
+      // Legacy flat format {card: variant} → apply to both modes.
+      out[k] = { light: v, dark: v };
+    } else if (v && typeof v === "object") {
+      const rec = v as { light?: unknown; dark?: unknown };
+      const entry: GlassPick = {};
+      if (isGlassVariantId(rec.light)) entry.light = rec.light;
+      if (isGlassVariantId(rec.dark)) entry.dark = rec.dark;
+      if (entry.light || entry.dark) out[k] = entry;
     }
   }
   return out;

@@ -31,6 +31,14 @@ export function isGlassVariantId(v: unknown): v is GlassVariantId {
   return typeof v === "string" && ALL_VARIANT_IDS.has(v as GlassVariantId);
 }
 
+/** Per-mode glass picks (2026-08-10). A card can hold a different variant for
+ *  light vs dark; the app applies whichever matches the active <html>
+ *  data-theme. Legacy flat `{card: variant}` is migrated to `{light, dark}`
+ *  on read. */
+export type GlassMode = "light" | "dark";
+export type GlassPick = { light?: GlassVariantId; dark?: GlassVariantId };
+export type GlassPicks = Record<string, GlassPick>;
+
 /** Class the CSS in app/styles/glass.css applies via `.glass-vNN`. */
 export function classFor(id: GlassVariantId): string {
   return `glass-${id}`;
