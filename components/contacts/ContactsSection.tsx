@@ -665,13 +665,17 @@ export function ContactsSection({
             const autoTone = autoEmailTone(autoCount);
 
             return (
-              <div
+              <GlassCard
                 key={contact.id}
+                glassId="contacts-person"
+                label="Contacts · Person card (nested)"
+                defaultVariant="v00"
                 className="contacts-row"
                 style={{
+                  // Keep the theme-aware border (variant borders would vanish
+                  // in dark); background comes from the variant so picks show.
                   border: "0.5px solid var(--agent-border-default)",
                   borderRadius: 12,
-                  background: "var(--agent-surface-nested)",
                   overflow: "hidden",
                   transition: "box-shadow 160ms ease, border-color 160ms ease",
                 }}
@@ -865,7 +869,7 @@ export function ContactsSection({
                     </div>
                   </div>
                 )}
-              </div>
+              </GlassCard>
             );
           })}
         </div>
