@@ -24,10 +24,12 @@ export type { GlassMode, GlassPick, GlassPicks };
 
 type Ctx = {
   picks: GlassPicks;
-  /** Active mode, mirrors <html data-theme>. */
+  /** Active mode, mirrors <html data-theme> — drives the live preview. */
   mode: GlassMode;
-  /** Change one card's variant FOR THE CURRENT MODE. Persists in background. */
-  setPick: (glassId: string, variant: GlassVariantId) => void;
+  /** Change one card's variant for a given mode (defaults to the active
+   *  mode). The drawer passes an explicit mode so both slots are editable
+   *  at once. Persists in background. */
+  setPick: (glassId: string, variant: GlassVariantId, targetMode?: GlassMode) => void;
   /** Clear all picks (both modes) — every tagged card returns to its default. */
   resetAll: () => void;
 };
@@ -65,15 +67,15 @@ export function GlassPicksProvider({
   }, []);
 
   const setPick = useCallback(
-    (glassId: string, variant: GlassVariantId) => {
+    (glassId: string, variant: GlassVariantId, targetMode: GlassMode = mode) => {
       setPicks((prev) => {
         const next: GlassPicks = { ...prev };
         const entry: GlassPick = { ...(next[glassId] ?? {}) };
         if (variant === DEFAULT_VARIANT) {
           // v00 is the fallback — clear this mode's slot (reset one card/mode).
-          delete entry[mode];
+          delete entry[targetMode];
         } else {
-          entry[mode] = variant;
+          entry[targetMode] = variant;
         }
         if (!entry.light && !entry.dark) delete next[glassId];
         else next[glassId] = entry;

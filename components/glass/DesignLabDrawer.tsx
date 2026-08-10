@@ -213,10 +213,11 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
           </button>
         </header>
 
-        {/* Mode toggle — flips the whole app (and this panel) so you can see +
-            pick variants per mode. setPick writes the active mode's slot. */}
+        {/* Preview toggle — flips the whole app (and this panel) so you can SEE
+            each mode's look. Both modes are always editable via the two
+            dropdowns below, regardless of what's previewed here. */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderBottom: `0.5px solid ${c.border}` }}>
-          <span style={{ fontSize: 11, color: c.sub, fontWeight: 500 }}>Editing</span>
+          <span style={{ fontSize: 11, color: c.sub, fontWeight: 500 }}>Preview</span>
           <div style={{ display: "inline-flex", padding: 2, borderRadius: 999, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.05)", border: `0.5px solid ${c.border}` }}>
             {([["light", Sun, "Light"], ["dark", Moon, "Dark"]] as const).map(([m, Icon, label]) => {
               const on = mode === m;
@@ -252,9 +253,7 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
           ) : (
             cards.map((card) => {
               const entry = picks[card.glassId];
-              const activePick = entry?.[mode];
-              const showing = activePick ?? "v00";
-              const isCustom = !!activePick;
+              const isCustom = !!(entry?.light || entry?.dark);
               return (
                 <div
                   key={card.glassId}
@@ -266,61 +265,50 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                     background: isCustom ? c.rowBgOn : c.rowBg,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {card.label}
-                      </p>
-                      {/* Both picks at a glance — active mode brightest. */}
-                      <p style={{ margin: "3px 0 0", fontSize: 10, color: c.faint, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span>{card.glassId}</span>
-                        <span style={{ opacity: mode === "light" ? 1 : 0.45, fontWeight: mode === "light" ? 700 : 400 }}>☀ {entry?.light ?? "—"}</span>
-                        <span style={{ opacity: mode === "dark" ? 1 : 0.45, fontWeight: mode === "dark" ? 700 : 400 }}>🌙 {entry?.dark ?? "—"}</span>
-                      </p>
-                    </div>
-                    {isCustom && (
-                      <button
-                        onClick={() => setPick(card.glassId, "v00")}
-                        title={`Reset this card's ${mode} pick`}
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          border: `0.5px solid ${c.border}`,
-                          background: c.chip,
-                          color: c.sub,
-                          cursor: "pointer",
-                          flexShrink: 0,
-                        }}
-                      >
-                        Reset {mode}
-                      </button>
-                    )}
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {card.label}
+                  </p>
+                  <p style={{ margin: "2px 0 9px", fontSize: 10, color: c.faint, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                    {card.glassId}
+                  </p>
+                  {/* Two dropdowns — set the light and dark variant independently.
+                      Pick v00 in either to clear that mode's slot. */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {(["light", "dark"] as const).map((m) => {
+                      const set = !!entry?.[m];
+                      return (
+                        <div key={m}>
+                          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: set ? "#5b8cff" : c.sub, marginBottom: 4 }}>
+                            {m === "light" ? "☀ Light" : "🌙 Dark"}
+                          </label>
+                          <select
+                            value={entry?.[m] ?? "v00"}
+                            onChange={(e) => setPick(card.glassId, e.target.value as GlassVariantId, m)}
+                            style={{
+                              width: "100%",
+                              padding: "6px 8px",
+                              fontSize: 12,
+                              borderRadius: 8,
+                              border: `0.5px solid ${set ? c.borderOn : c.border}`,
+                              background: c.input,
+                              color: c.text,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {options.map((family) => (
+                              <optgroup key={family.id} label={family.label}>
+                                {family.variants.map((v) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.id}. {v.label}{v.recommended ? " ★" : ""}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <select
-                    value={showing}
-                    onChange={(e) => setPick(card.glassId, e.target.value as GlassVariantId)}
-                    style={{
-                      width: "100%",
-                      padding: "6px 10px",
-                      fontSize: 12,
-                      borderRadius: 8,
-                      border: `0.5px solid ${c.border}`,
-                      background: c.input,
-                      color: c.text,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {options.map((family) => (
-                      <optgroup key={family.id} label={family.label}>
-                        {family.variants.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.id}. {v.label}{v.recommended ? " ★" : ""} — {v.technique}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
                 </div>
               );
             })
