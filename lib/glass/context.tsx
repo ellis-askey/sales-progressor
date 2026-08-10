@@ -19,6 +19,7 @@ import {
   type GlassPick,
   type GlassPicks,
 } from "./variants";
+import { DEFAULT_PICKS } from "./default-picks";
 
 export type { GlassMode, GlassPick, GlassPicks };
 
@@ -109,7 +110,8 @@ export function useGlassPicks() {
  *  GlassCard falls back to its defaultVariant. */
 export function usePickForCard(glassId: string): GlassVariantId | undefined {
   const { picks, mode } = useContext(GlassCtx);
-  return picks[glassId]?.[mode];
+  // User's own pick wins; otherwise the app-wide per-mode default (if any).
+  return picks[glassId]?.[mode] ?? DEFAULT_PICKS[glassId]?.[mode];
 }
 
 // Drop any keys / variants that don't validate. Defensive against stale rows
