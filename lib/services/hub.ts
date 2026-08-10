@@ -1286,6 +1286,10 @@ export type DiaryItem = {
   type: "exchange" | "completion";
   transactionId: string;
   address: string;
+  // done      = already exchanged / completed (info, no action)
+  // ready     = both gates confirmed, not yet done (actionable pill)
+  // not_ready = due today but the gates aren't both confirmed (info)
+  status: "done" | "ready" | "not_ready";
 };
 
 export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
@@ -1309,8 +1313,8 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
       select: {
         id: true, propertyAddress: true,
         expectedExchangeDate: true, overridePredictedDate: true,
-        // Needed for the placeholder check below.
-        twelveWeekTarget: true, activeBuyerRoundId: true,
+        // Needed for the placeholder check + status below.
+        twelveWeekTarget: true, activeBuyerRoundId: true, exchangedAt: true,
       },
     }),
     prisma.propertyTransaction.findMany({
@@ -1319,7 +1323,7 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
         status: { in: ["active", "completed"] },
         completionDate: { gte: windowStart, lte: windowEnd },
       },
-      select: { id: true, propertyAddress: true, completionDate: true },
+      select: { id: true, propertyAddress: true, completionDate: true, exchangedAt: true, status: true },
     }),
   ]);
 
@@ -1330,7 +1334,13 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
   const items: DiaryItem[] = [];
   for (const tx of completions) {
     if (!isToday(tx.completionDate)) continue;
-    if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress }); }
+    if (seen.has(tx.id)) continue;
+    seen.add(tx.id);
+    // done once the file is completed; ready to confirm once exchanged; else
+    // still awaiting exchange (can't complete before contracts exchange).
+    const status: DiaryItem["status"] =
+      tx.status === "completed" ? "done" : tx.exchangedAt ? "ready" : "not_ready";
+    items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress, status });
   }
 
   // ── Exchange "today" guard ────────────────────────────────────────
@@ -1413,8 +1423,48 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
     }
   }
 
+  // Status for the fired exchange items: already exchanged = done; both gate
+  // steps (VM18 vendor + PM25 purchaser) confirmed = ready to action; else the
+  // file is due today but not yet ready. One bulk, round-scoped lookup.
+  const fireIds = exchangeFireQueue.map((t) => t.id);
+  const gatesByTx = new Map<string, Set<string>>();
+  if (fireIds.length > 0) {
+    const gateDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM18", "PM25"] } },
+      select: { id: true, code: true },
+    });
+    const gateCodeById = new Map(gateDefs.map((d) => [d.id, d.code]));
+    const txByIdF = new Map(exchangeFireQueue.map((t) => [t.id, t]));
+    const gateComps = await prisma.milestoneCompletion.findMany({
+      where: {
+        transactionId: { in: fireIds },
+        state: "complete",
+        milestoneDefinitionId: { in: gateDefs.map((d) => d.id) },
+      },
+      select: { transactionId: true, milestoneDefinitionId: true, buyerRoundId: true },
+    });
+    for (const c of gateComps) {
+      const tx = txByIdF.get(c.transactionId);
+      if (!tx) continue;
+      const code = gateCodeById.get(c.milestoneDefinitionId);
+      if (!code) continue;
+      // Round-scope: purchaser codes must match the active round.
+      if (code.startsWith("PM") && c.buyerRoundId !== tx.activeBuyerRoundId) continue;
+      const set = gatesByTx.get(c.transactionId) ?? new Set<string>();
+      set.add(code);
+      gatesByTx.set(c.transactionId, set);
+    }
+  }
   for (const tx of exchangeFireQueue) {
-    if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress }); }
+    if (seen.has(tx.id)) continue;
+    seen.add(tx.id);
+    const gates = gatesByTx.get(tx.id) ?? new Set<string>();
+    const status: DiaryItem["status"] = tx.exchangedAt
+      ? "done"
+      : gates.has("VM18") && gates.has("PM25")
+        ? "ready"
+        : "not_ready";
+    items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress, status });
   }
   return items;
 }

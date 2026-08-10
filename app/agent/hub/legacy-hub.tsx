@@ -26,6 +26,7 @@ import {
   getHubPipelineStages,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
+import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import {
   ExchangeForecastChart, ServiceSplitDonut,
@@ -433,33 +434,7 @@ async function DiarySlot({ vis }: { vis: AgentVisibility }) {
           </span>
         </div>
         {diaryItems.map((item: DiaryItem, i: number) => (
-          <Link
-            key={item.transactionId}
-            href={`/agent/transactions/${item.transactionId}`}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "13px 20px 13px 17px",
-              borderLeft: `3px solid ${item.type === "completion" ? "var(--agent-success)" : "var(--agent-coral)"}`,
-              background: item.type === "completion" ? "var(--agent-success-bg)" : "var(--agent-coral-bg-tint)",
-              borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-              textDecoration: "none", gap: 12,
-            }}
-            className="agent-hover-row"
-          >
-            <p style={{
-              margin: 0, fontSize: 12, fontWeight: 500,
-              color: "var(--agent-text-primary)",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {item.address}
-            </p>
-            <span style={{
-              fontSize: 11, fontWeight: 600, flexShrink: 0,
-              color: item.type === "completion" ? "var(--agent-success)" : "var(--agent-coral-deep)",
-            }}>
-              {item.type === "completion" ? "Completion" : "Exchange"}
-            </span>
-          </Link>
+          <DiaryEventRow key={item.transactionId} item={item} isFirst={i === 0} />
         ))}
       </GlassCard>
     </SectionReveal>

@@ -432,6 +432,34 @@ export async function confirmMilestoneAction(input: {
   };
 }
 
+/**
+ * Confirm exchange or completion straight from the hub diary. Resolves the
+ * vendor side of the bilateral pair (VM19 = exchange, VM20 = completion) and
+ * delegates to confirmMilestoneAction, which owns ALL the downstream: ownership
+ * scoping, the VM19↔PM26 / VM20↔PM27 counterpart fan-out, billing
+ * (maybeStampExchange), party notifications, reminder re-eval, status auto-flip
+ * and prereq-gating. Returns confirmMilestoneAction's result verbatim, so the
+ * caller gets the same { ok:true, notifications } or { ok:false, missing }.
+ */
+export async function confirmDiaryEventAction(input: {
+  transactionId: string;
+  kind: "exchange" | "completion";
+}) {
+  const code = input.kind === "exchange" ? "VM19" : "VM20";
+  const def = await prisma.milestoneDefinition.findFirst({
+    where: { code },
+    select: { id: true },
+  });
+  if (!def) {
+    return { ok: false as const, kind: "prereqs_missing" as const, missing: [] as { code: string; name: string }[] };
+  }
+  return confirmMilestoneAction({
+    transactionId: input.transactionId,
+    milestoneDefinitionId: def.id,
+    eventDate: new Date().toISOString(),
+  });
+}
+
 export async function markNotRequiredAction(input: {
   transactionId: string;
   milestoneDefinitionId: string;
