@@ -42,7 +42,7 @@ import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
-import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
+import { EmailSettingsButton } from "@/components/transaction/EmailSettingsDrawer";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { ClaimedToast } from "@/components/transaction/ClaimedToast";
@@ -261,19 +261,24 @@ export default async function AgentTransactionDetailPage({
   // Role-gated header controls — 2026-08-08 hero redesign: these moved
   // from the tab bar's rightSlot into the hero's top-right corner (one
   // home per control, no same-screen duplication). 2026-08-11: the hero
-  // AI-summary button was removed — the Overview tab's AiSummaryCard is
-  // the single home for it (same Ellis-only gate).
+  // AI-summary button was removed (the Overview tab's AiSummaryCard is
+  // the single home for it) and the "Portal emails" pill became the
+  // EmailSettingsButton, which opens the email-settings drawer covering
+  // step-confirmation emails, per-contact + per-firm chase pausing, and
+  // hold. Visibility: internal staff on every file; agency users on
+  // self-managed files only (outsourced files are progressed by us, so
+  // the email controls are ours).
   const heroTopRightSlot = (() => {
     const internal =
       session.user.role === "sales_progressor" ||
       session.user.role === "admin" ||
       session.user.role === "superadmin";
-    if (!internal) return null;
+    const agencySelfManaged = !internal && transaction.serviceType === "self_managed";
+    if (!internal && !agencySelfManaged) return null;
     return (
-      <PortalConfirmEmailToggle
+      <EmailSettingsButton
         transactionId={transaction.id}
-        initialValue={transaction.suppressPortalConfirmEmails}
-        pathname={`/agent/transactions/${transaction.id}`}
+        isInternalStaff={internal}
       />
     );
   })();

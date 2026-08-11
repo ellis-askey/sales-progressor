@@ -1285,7 +1285,7 @@ export type FallbackInput =
   | (FallbackInputBase & { kind: "days_cap_exhausted";        firstChasedAt: Date })
   | (FallbackInputBase & { kind: "no_email_on_contact" })
   | (FallbackInputBase & { kind: "no_portalToken_on_contact" })
-  | (FallbackInputBase & { kind: "client_emails_paused";      pausedScope: "agency" | "file" });
+  | (FallbackInputBase & { kind: "client_emails_paused";      pausedScope: "agency" | "file" | "contact" });
 
 // Human-readable activity-feed note. Each kind gets a kind-specific
 // rendering using its required context. Date formatting matches the rest of
@@ -1304,6 +1304,12 @@ function fallbackActivityNote(input: FallbackInput): string {
     case "no_portalToken_on_contact":
       return `Automated client chase couldn't fire — ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
     case "client_emails_paused":
+      // "contact" scope added 2026-08-11 (per-contact pause in the email
+      // settings drawer). New copy is em-dash-free per Law 21; the two
+      // pre-existing branches are locked copy (see FALLBACK_REASON note).
+      if (input.pausedScope === "contact") {
+        return `Automated client chase paused. Chase emails are paused for ${input.contactName} on this file. Reminder handed back to agent.`;
+      }
       return input.pausedScope === "agency"
         ? `Automated client chase paused — chase emails are switched off agency-wide. Reminder handed back to agent.`
         : `Automated client chase paused — chase emails are paused on this file. Reminder handed back to agent.`;

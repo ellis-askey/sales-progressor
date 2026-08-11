@@ -84,8 +84,8 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 
 | Surface | Opportunity | Decision | Filed | Notes |
 |---|---|---|---|---|
-| Codebase-wide em-dash sweep in prose strings | Replace em-dashes in `.tsx` / `.ts` strings outside comments with commas / colons / full stops | migrate | 2026-06-26 | Mechanical sweep + voice-pass per surface during Phase 3 |
-| `RemindersSection.tsx:731` "Chased — next in {n} days" toast | Em-dash separator in a toast. Known outlier per VOICE.md | grandfather | 2026-06-26 | Listed in VOICE.md as grandfathered. Quarterly review |
+| Codebase-wide em-dash sweep in prose strings | Replace em-dashes in `.tsx` / `.ts` strings outside comments with commas / colons / full stops | migrate | 2026-06-26 | Mechanical sweep + voice-pass per surface during Phase 3. 2026-08-11: property file page fully cleared (44 strings, commit dbc488b); ~424 prose lines remain app-wide, incl. the LOCKED FALLBACK_REASON strings in lib/services/reminders.ts (need copy sign-off) |
+| `RemindersSection.tsx:731` "Chased — next in {n} days" toast | Em-dash separator in a toast. Known outlier per VOICE.md | closed | 2026-06-26 | decision-change: 2026-08-11 fixed in the file-page em-dash sweep (commit dbc488b), now "Chased, next in {n} days" |
 | Multiple comm composition strings reference "the system" | Replace with "we'll" / passive voice per VOICE.md | migrate | 2026-06-26 | Sweep alongside em-dash pass |
 | Several email subject lines mix em-dash and colon as separators | Standardise on em-dash per VOICE.md (subject lines exempt from ban) | migrate | 2026-06-26 | Voice-pass during chain-email arc continuation |
 | Some milestone copy uses "round" as a user-facing noun | Replace with "sale" per 2026-06-04 terminology sweep | defer-Q3-2026 | 2026-06-26 | Audit which strings still reference "round" |
@@ -228,6 +228,8 @@ Surface 8 was closed as a no-op in [CLOSURE.md](phase-3/08-internal-dashboard/CL
 | No `/dev/gallery` route | Build during Phase 2 as the primitive acceptance harness | migrate | 2026-06-26 | Phase 2 deliverable |
 | No pre-commit hook for Laws 13/14/15/20/21 | Wire up in Phase 5 (warn-only for 2 weeks first) | migrate | 2026-06-26 | Phase 5 deliverable |
 | Visual + behavioural regression in CI | Build harness in Phase 1 | migrate | 2026-06-26 | Law 18; precondition for safe migration |
+| `PropertyTransaction.vendorEmailsPaused` / `purchaserEmailsPaused` columns + the vendor/purchaser branches of `setEmailAudiencePaused` | Chase cron reads per-CONTACT pause (`Contact.emailsPausedAt`) since 2026-08-11; the per-side columns are write-only legacy (backfilled at migration `20260814150000`). Drop columns + narrow the action to firm audiences once prod has settled | defer-Q4-2026 | 2026-08-11 | filed by CC during the email-settings drawer build (Law 5, one concern per PR) |
+| Internal dashboard file page (`app/transactions/[id]`) still uses the old `PortalConfirmEmailToggle` pill | Agent surface got the email-settings drawer (per-contact pausing); the internal dashboard page kept the old single toggle. Decide whether to port the drawer to that surface | tbd | 2026-08-11 | filed by CC during the email-settings drawer build |
 
 ---
 

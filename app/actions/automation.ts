@@ -184,6 +184,165 @@ export async function setEmailAudiencePaused(
   return { ok: true };
 }
 
+// ─── Email settings drawer (2026-08-11) ─────────────────────────────────
+// One load for everything the file's email-settings drawer shows: the
+// step-confirmation email switch, per-CONTACT chase pausing (each buyer /
+// seller individually, Contact.emailsPausedAt), per-FIRM chase pausing
+// (the existing solicitor audience flags), and the hold state.
+
+export type EmailSettingsContact = {
+  id: string;
+  name: string;
+  roleType: "vendor" | "purchaser";
+  paused: boolean;
+};
+
+export type EmailSettingsState = {
+  suppressPortalConfirmEmails: boolean;
+  status: "active" | "on_hold" | "other";
+  clientEmailsPaused: boolean;
+  serviceType: string | null;
+  contacts: EmailSettingsContact[];
+  vendorSolicitor: { name: string; paused: boolean } | null;
+  purchaserSolicitor: { name: string; paused: boolean } | null;
+};
+
+export async function loadEmailSettings(
+  transactionId: string,
+): Promise<ActionResult<EmailSettingsState>> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where,
+    select: {
+      status: true,
+      serviceType: true,
+      suppressPortalConfirmEmails: true,
+      clientEmailsPaused: true,
+      vendorSolicitorEmailsPaused: true,
+      purchaserSolicitorEmailsPaused: true,
+      vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+      activeBuyerRoundId: true,
+      contacts: {
+        where: {
+          roleType: { in: ["vendor", "purchaser"] },
+          email: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          roleType: true,
+          emailsPausedAt: true,
+          buyerRoundId: true,
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+  if (!tx) return { ok: false, error: "Not found" };
+
+  // Archived-round buyers stay attached to the file after a relist but
+  // must not appear as pausable recipients (the chase cron already
+  // excludes them). Vendors are file-level and always show.
+  const contacts: EmailSettingsContact[] = tx.contacts
+    .filter((c) =>
+      c.roleType === "vendor" ||
+      c.buyerRoundId === null ||
+      c.buyerRoundId === tx.activeBuyerRoundId,
+    )
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      roleType: c.roleType as "vendor" | "purchaser",
+      paused: c.emailsPausedAt != null,
+    }));
+
+  return {
+    ok: true,
+    data: {
+      suppressPortalConfirmEmails: tx.suppressPortalConfirmEmails,
+      status: tx.status === "active" ? "active" : tx.status === "on_hold" ? "on_hold" : "other",
+      clientEmailsPaused: tx.clientEmailsPaused,
+      serviceType: tx.serviceType ?? null,
+      contacts,
+      vendorSolicitor: tx.vendorSolicitorFirm
+        ? { name: tx.vendorSolicitorFirm.name, paused: tx.vendorSolicitorEmailsPaused }
+        : null,
+      purchaserSolicitor: tx.purchaserSolicitorFirm
+        ? { name: tx.purchaserSolicitorFirm.name, paused: tx.purchaserSolicitorEmailsPaused }
+        : null,
+    },
+  };
+}
+
+// Pause / resume chase emails for ONE contact. The legacy whole-file
+// clientEmailsPaused flag stays in sync as "every pausable client contact
+// is paused" so status pills and the silenced-files list keep working.
+export async function setContactEmailsPaused(
+  transactionId: string,
+  contactId: string,
+  paused: boolean,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where,
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  if (!tx) return { ok: false, error: "Not found" };
+
+  // Ownership guard: the contact must belong to THIS transaction and be a
+  // client-side contact (solicitor firms pause via their own flags).
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: contactId,
+      propertyTransactionId: tx.id,
+      roleType: { in: ["vendor", "purchaser"] },
+    },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false, error: "Not found" };
+
+  await prisma.contact.update({
+    where: { id: contact.id },
+    data: { emailsPausedAt: paused ? new Date() : null },
+  });
+
+  // Re-derive the legacy whole-file flag from the current per-contact
+  // state (active-round, emailable contacts only, matching the drawer's
+  // list and the cron's recipients).
+  const pausable = await prisma.contact.findMany({
+    where: {
+      propertyTransactionId: tx.id,
+      roleType: { in: ["vendor", "purchaser"] },
+      email: { not: null },
+    },
+    select: { roleType: true, emailsPausedAt: true, buyerRoundId: true },
+  });
+  const relevant = pausable.filter((c) =>
+    c.roleType === "vendor" ||
+    c.buyerRoundId === null ||
+    c.buyerRoundId === tx.activeBuyerRoundId,
+  );
+  const allPaused = relevant.length > 0 && relevant.every((c) => c.emailsPausedAt != null);
+  await prisma.propertyTransaction.update({
+    where: { id: tx.id },
+    data: {
+      clientEmailsPaused: allPaused,
+      ...(paused ? { pausedAt: new Date(), pausedById: session.user.id } : {}),
+    },
+  });
+
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/transactions/${transactionId}`);
+  return { ok: true };
+}
+
 export async function putFileOnHold(
   transactionId: string,
   // Planned return date (UI: "Come back to this on") — null/undefined means

@@ -127,12 +127,13 @@ export type DueChaseTuple = {
   anchorDate: Date;
   firstDueDate: Date;
   reason: "first_chase" | "repeat_due";
-  // When set, this chase is being SKIPPED because emails are paused (either
-  // per-file or agency-wide). The cron caller routes these to the fallback
-  // path (manual-handoff ChaseTask with the "client_emails_paused" chip)
-  // instead of enqueueing a digest. The chase clock stays where it was, so
-  // unpausing picks up the schedule from there.
-  pausedScope?: "agency" | "file";
+  // When set, this chase is being SKIPPED because emails are paused (for
+  // this contact, per-file, or agency-wide). The cron caller routes these
+  // to the fallback path (manual-handoff ChaseTask with the
+  // "client_emails_paused" chip) instead of enqueueing a digest. The chase
+  // clock stays where it was, so unpausing picks up the schedule from
+  // there.
+  pausedScope?: "agency" | "file" | "contact";
 };
 
 export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
@@ -179,12 +180,12 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       id: true,
       createdAt: true,
       agencyId: true,
+      // Whole-file pause (AutomationStopModal "pause" choice + legacy
+      // sync). Per-PERSON pausing moved to Contact.emailsPausedAt
+      // (2026-08-11 email-settings drawer) — the per-side
+      // vendorEmailsPaused / purchaserEmailsPaused columns are no longer
+      // read here.
       clientEmailsPaused: true,
-      // Per-party pause (solicitor-confirm feature): a VM chase honours
-      // vendorEmailsPaused, a PM chase purchaserEmailsPaused. Legacy
-      // clientEmailsPaused stays as the both-sides fallback.
-      vendorEmailsPaused: true,
-      purchaserEmailsPaused: true,
       chaseRuleSnapshot: true,
       // Needed for the purchaser contact-scoping below. After a relist,
       // old buyers stay attached to the file (Contact.propertyTransactionId
@@ -268,6 +269,8 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       propertyTransactionId: true,
       roleType: true,
       buyerRoundId: true,
+      // Per-contact chase pause (2026-08-11 email-settings drawer).
+      emailsPausedAt: true,
     },
   });
   // Purchaser scoping: vendors are file-level (buyerRoundId IS NULL), but
@@ -410,23 +413,24 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       if (!side) continue;
       const recipients = txContacts.filter((c) => c.roleType === side);
 
-      // Per-side file pause: a vendor chase is silenced by vendorEmailsPaused,
-      // a purchaser chase by purchaserEmailsPaused (solicitor-confirm feature's
-      // 4-toggle menu). Legacy clientEmailsPaused remains the both-sides value.
-      const fileOff =
-        side === "vendor"
-          ? transaction.vendorEmailsPaused
-          : side === "purchaser"
-            ? transaction.purchaserEmailsPaused
-            : transaction.clientEmailsPaused;
-      const pausedScope: "agency" | "file" | undefined = agencyOff
-        ? "agency"
-        : fileOff
-          ? "file"
-          : undefined;
+      // Pause gates, most-specific last (2026-08-11 email-settings drawer):
+      // agency-wide master toggle, whole-file pause (clientEmailsPaused,
+      // the AutomationStopModal "pause" choice), then per-CONTACT pause
+      // (Contact.emailsPausedAt) checked inside the loop. The old per-side
+      // vendorEmailsPaused / purchaserEmailsPaused reads are replaced by
+      // the per-contact flag (backfilled at migration time).
+      const fileOff = transaction.clientEmailsPaused;
 
       for (const contact of recipients) {
         if (!contact.email) continue; // belt+braces
+
+        const pausedScope: "agency" | "file" | "contact" | undefined = agencyOff
+          ? "agency"
+          : fileOff
+            ? "file"
+            : contact.emailsPausedAt != null
+              ? "contact"
+              : undefined;
 
         const state = stateByKey.get(`${transaction.id}:${contact.id}:${targetCode}`);
 

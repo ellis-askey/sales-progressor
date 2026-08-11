@@ -604,6 +604,14 @@ model Contact {
   // client-chase arc (A2/A3 of Sub-arc A in
   // docs/active/client-chase-discovery.md). No callers yet.
   unsubscribedAt        DateTime?
+  // Agent-side per-contact chase-email pause (2026-08-11 email-settings
+  // drawer). Null = chase emails send; set = paused by an agent. Replaces
+  // the per-SIDE PropertyTransaction.vendorEmailsPaused /
+  // purchaserEmailsPaused reads in the client-chase cron (those columns
+  // remain in place, backfilled into this one at migration time).
+  // Distinct from unsubscribedAt: that is the CLIENT opting out of
+  // everything; this is the AGENT pausing chasing for one person.
+  emailsPausedAt        DateTime?
   // White-labelled "Getting your sale moving" intro email — fired once per
   // contact, on outsourced sale creation. Atomic check-and-stamp (updateMany
   // where outsourceIntroSentAt IS NULL) guarantees one send per contact per

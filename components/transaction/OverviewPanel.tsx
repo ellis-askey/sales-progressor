@@ -29,8 +29,6 @@ import { countActionable, countOverdue } from "@/lib/reminders/classify";
 import { toUKDateStr } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
-import { AutomationControls } from "@/components/transaction/AutomationControls";
-import { EmailAudienceMenu } from "@/components/transaction/EmailAudienceMenu";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
@@ -442,24 +440,9 @@ export async function OverviewPanel({
       <PropertyIntelCard transactionId={transaction.id} />
       <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={currentUserName} />
 
-      {/* Automation on this file - relocated 2026-07-06 from the top of
-          Overview to the tail. Small row (styled via variant="row" prop)
-          instead of the big card the top slot used. */}
-      {(transaction.status === "active" || transaction.status === "on_hold") && (
-        <>
-          {/* Per-party email pausing (seller / buyer / each firm). Replaces the
-              single client-emails toggle (solicitor-confirm feature). */}
-          <EmailAudienceMenu transactionId={transaction.id} />
-          {/* Hold-only — email pausing now lives in the menu above. */}
-          <AutomationControls
-            transactionId={transaction.id}
-            initialClientEmailsPaused={transaction.clientEmailsPaused}
-            status={transaction.status as "active" | "on_hold"}
-            variant="row"
-            hideEmailPause
-          />
-        </>
-      )}
+      {/* Email + hold controls moved off the Overview tail into the
+          hero's email-settings drawer (EmailSettingsDrawer, 2026-08-11
+          feedback item 1) — one home, per-contact pausing included. */}
 
       {/* isDirectorRole reserved for future director-only widgets in this tab. */}
       {isDirectorRole ? null : null}

@@ -37,10 +37,13 @@ type Props = {
   // relocated slot at the tail of the Overview tab. Default "card"
   // matches the previous shape for any other consumer.
   variant?: "card" | "row";
-  // Solicitor-confirm feature: when true, email pausing is handled by the
-  // per-party EmailAudienceMenu, so this control is HOLD-only. The toggle
+  // Email-settings drawer (2026-08-11): per-person email pausing lives in
+  // EmailSettingsDrawer, so this control is HOLD-only there. The toggle
   // then means active ⇄ on_hold, and the stop modal skips the pause option.
   hideEmailPause?: boolean;
+  // Called after any successful state change so a wrapping surface (the
+  // email-settings drawer) can refresh its own summary.
+  onModeChange?: (mode: Mode) => void;
 };
 
 type Mode = "active" | "paused" | "on_hold";
@@ -62,6 +65,7 @@ export function AutomationControls({
   status,
   variant = "card",
   hideEmailPause = false,
+  onModeChange,
 }: Props) {
   const [paused, setPaused] = useState(initialClientEmailsPaused);
   const [currentStatus, setCurrentStatus] = useState<"active" | "on_hold">(status);
@@ -97,6 +101,7 @@ export function AutomationControls({
         setPaused(false);
         setCurrentStatus("active");
         toast.success(wasOnHold ? "File active" : "Client emails resumed");
+        onModeChange?.("active");
       } else {
         setError(result.error);
         toast.error(
@@ -120,6 +125,7 @@ export function AutomationControls({
         else setCurrentStatus("on_hold");
         setModalOpen(false);
         toast.success(choice === "pause" ? "Client emails paused" : "File on hold");
+        onModeChange?.(choice === "pause" ? "paused" : "on_hold");
       } else {
         setError(result.error);
         setModalOpen(false);
