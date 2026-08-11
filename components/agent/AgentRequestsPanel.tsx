@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CaretDown } from "@phosphor-icons/react";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
 function fmtDate(d: Date) {
@@ -32,51 +33,83 @@ export function AgentRequestsPanel({ requests }: { requests: ManualTaskWithRelat
             </span>
           )}
         </div>
-        <svg
-          className={`w-4 h-4 text-slate-900/40 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        {/* Canonical rotating chevron (2026-08-11 drawer-consistency pass) */}
+        <CaretDown
+          size={14}
+          weight="bold"
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            color: "var(--agent-text-muted)",
+            transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
       </button>
 
-      {open && (
-        <div className="border-t border-white/20">
-          {pending.length === 0 && resolved.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-slate-900/40 text-center">No requests raised yet.</p>
-          ) : (
-            <>
-              {pending.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-slate-900/40">All requests resolved.</p>
-              ) : (
-                <div className="divide-y divide-white/15">
-                  {pending.map((r) => (
-                    <RequestRow key={r.id} request={r} />
-                  ))}
-                </div>
-              )}
+      {/* Body — agent-acc slide (previously mounted with no animation) */}
+      <div className={`agent-acc${open ? " open" : ""}`}>
+        <div className="agent-acc-in">
+          <div className="border-t border-white/20">
+            {pending.length === 0 && resolved.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-slate-900/40 text-center">No requests raised yet.</p>
+            ) : (
+              <>
+                {pending.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-900/40">All requests resolved.</p>
+                ) : (
+                  <div className="divide-y divide-white/15">
+                    {pending.map((r) => (
+                      <RequestRow key={r.id} request={r} />
+                    ))}
+                  </div>
+                )}
 
-              {resolved.length > 0 && (
-                <div className="px-5 py-3 border-t border-white/15">
-                  <button
-                    onClick={() => setShowResolved((v) => !v)}
-                    className="text-xs text-slate-900/40 hover:text-slate-900/60"
-                  >
-                    {showResolved ? "Hide resolved" : `Show ${resolved.length} resolved`}
-                  </button>
-                  {showResolved && (
-                    <div className="mt-3 space-y-2">
-                      {resolved.map((r) => (
-                        <RequestRow key={r.id} request={r} />
-                      ))}
+                {resolved.length > 0 && (
+                  <>
+                    {/* Resolved tail — canonical disclosure bar (was a
+                        "Show N resolved" text link with instant mount). */}
+                    <div
+                      className="agent-acc-hdr"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={showResolved}
+                      onClick={() => setShowResolved((v) => !v)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowResolved((v) => !v); } }}
+                      style={{ borderTop: "0.5px solid var(--agent-border-default)", borderBottom: "none" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="agent-acc-title" style={{ color: "var(--agent-text-muted)" }}>Resolved</span>
+                        <span className="agent-badge">{resolved.length}</span>
+                      </div>
+                      <CaretDown
+                        size={12}
+                        weight="bold"
+                        aria-hidden
+                        style={{
+                          flexShrink: 0,
+                          color: "var(--agent-text-muted)",
+                          transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                          transform: showResolved ? "rotate(180deg)" : "rotate(0deg)",
+                        }}
+                      />
                     </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
+                    <div className={`agent-acc${showResolved ? " open" : ""}`}>
+                      <div className="agent-acc-in">
+                        <div className="px-5 py-3 space-y-2">
+                          {resolved.map((r) => (
+                            <RequestRow key={r.id} request={r} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

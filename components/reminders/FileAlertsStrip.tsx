@@ -39,8 +39,18 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
   return (
     // Design Lab: `reminders-alerts-strip`. Default v27 per Ellis's pick, 2026-08-09.
     <GlassCard glassId="reminders-alerts-strip" label="Reminders · File alerts strip" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      {/* Header — agent-card-hdr-warning (canonical, ANIMATION_STANDARDS §S5) */}
-      <div className="agent-card-hdr-warning">
+      {/* Header — agent-card-hdr-warning (canonical, ANIMATION_STANDARDS §S5).
+          Whole bar is the disclosure trigger (2026-08-11 drawer-consistency
+          pass; was a small Show/Hide link on the right). */}
+      <div
+        className="agent-card-hdr-warning"
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed((p) => !p)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setCollapsed((p) => !p); } }}
+        style={{ cursor: "pointer" }}
+      >
         <div className="flex items-center gap-2 flex-wrap">
           <Warning weight="fill" style={{ width: 13, height: 13, color: "var(--agent-warning)", flexShrink: 0 }} />
           <span className="agent-card-title">
@@ -65,14 +75,17 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setCollapsed((p) => !p)}
-          className="agent-link agent-link-muted"
-          style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-        >
-          {collapsed ? "Show" : "Hide"}
-          <CaretDown size={10} style={{ transition: "transform 200ms", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
-        </button>
+        <CaretDown
+          size={12}
+          weight="bold"
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            color: "var(--agent-text-muted)",
+            transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
+          }}
+        />
       </div>
 
       {/* Expanded body — agent-acc / agent-acc-in for animated height transition */}

@@ -988,13 +988,11 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
 
         return (
           <div key={groupKey} className="space-y-2" id={sectionId}>
-            {/* E1 exception preserved: semantic colour-coded header is the primary
-                urgency signal — intentionally NOT agent-acc-hdr. See ANIMATION_STANDARDS §E1.
-                Click-anywhere-on-row toggle added 2026-08-09 to match the
-                AutomatedEmailsCard header pattern — Ellis flagged the two
-                looked inconsistent. Row-wide onClick + role="button" +
-                keyboard handler; the inner Show/Hide button keeps its own
-                onClick with stopPropagation so it doesn't double-toggle. */}
+            {/* E1 (amended 2026-08-11): semantic colour-coded header is the
+                primary urgency signal — the tinted STYLING stays, while the
+                behaviour is canonical: row-wide onClick + role="button" +
+                keyboard handler + bare rotating chevron (the Show/Hide
+                words went in the 2026-08-11 drawer-consistency pass). */}
             <div
               className={`flex items-center justify-between px-3 py-2 rounded-xl ${cfg.headerCls}`}
               role="button"
@@ -1013,17 +1011,17 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
                 <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.labelCls}`}>{cfg.label}</span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.badgeCls}`}>{cards.length}</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); toggleCollapse(groupKey); }}
-                className="agent-link agent-link-muted"
-                style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+              <CaretDown
+                size={12}
+                weight="bold"
                 aria-hidden
-                tabIndex={-1}
-              >
-                {isCollapsed ? "Show" : "Hide"}
-                <CaretDown size={10} style={{ transition: "transform 200ms", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
-              </button>
+                style={{
+                  flexShrink: 0,
+                  color: "var(--agent-text-muted)",
+                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                }}
+              />
             </div>
             {/* agent-acc / agent-acc-in: mounted always, animated height transition */}
             <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>

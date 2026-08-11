@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CaretDown } from "@phosphor-icons/react";
 import type { DraftEntry } from "@/components/transactions-v2/types";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
@@ -94,9 +95,12 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
         </div>
       )}
 
+      {/* 2026-08-11 drawer-consistency pass: constant label + rotating
+          chevron instead of the "N drafts / Hide drafts" label swap. */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         onMouseEnter={() => setPillHovered(true)}
         onMouseLeave={() => setPillHovered(false)}
         style={{
@@ -122,7 +126,17 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
             background: "var(--agent-coral-deep)", flexShrink: 0,
           }}
         />
-        {open ? "Hide drafts" : `${drafts.length} draft${drafts.length !== 1 ? "s" : ""}`}
+        {`${drafts.length} draft${drafts.length !== 1 ? "s" : ""}`}
+        <CaretDown
+          size={11}
+          weight="bold"
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
       </button>
     </div>
   );
