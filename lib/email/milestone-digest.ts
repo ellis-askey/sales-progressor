@@ -24,7 +24,7 @@
 // here doesn't need to re-evaluate suppression. If a row reached the
 // queue, its recipient is entitled to that item.
 
-import { JOURNEY_ORDER } from "@/lib/email-skeletons/journey-order";
+import { JOURNEY_ORDER, BILATERAL_PAIR_OF } from "@/lib/email-skeletons/journey-order";
 
 // ─── Digest payload shape ────────────────────────────────────────────────
 //
@@ -47,6 +47,15 @@ export type MilestoneDigestPayload = {
   address: string;                             // property address
   firstName: string;                           // recipient's first name
   portalUrl: string;                           // per-recipient portal link
+
+  // Review-tray digest edit (2026-08-11). When the agent edits the merged
+  // digest preview for a recipient, the edited subject + body are stamped
+  // onto EVERY pending row in that recipient's group. At drain time, a
+  // group of N>=2 rows carrying an override sends the override verbatim
+  // instead of re-assembling from DIGEST_LINES. Cancelling any row in the
+  // group clears the override on the survivors (the edited body would
+  // otherwise still mention the removed item).
+  digestOverride?: { subject: string; text: string };
 };
 
 // ─── Side helpers ────────────────────────────────────────────────────────
@@ -195,6 +204,46 @@ export function getMilestoneDigestLine(
   return line;
 }
 
+// ─── Bilateral pair-collapse ─────────────────────────────────────────────
+//
+// When BOTH halves of a bilateral pair land in the same recipient's
+// digest window (e.g. VM12 "seller's solicitor sent replies" + PM15
+// "buyer's solicitor received them", both queued for the buyer), the two
+// digest lines would say the same real-world thing twice. Per the locked
+// paired-read rule, the nudge sheds and the ack keeps: the counterpart-
+// classified half is dropped and the acted-side half carries the event.
+// The acted-side lines already name the other side ("Your solicitor has
+// the seller's formal replies.") so no combined copy is needed.
+//
+// Returns one entry per KEPT code, in input order. `absorbedCodes` lists
+// the shed partner code(s) this entry now represents — callers that map
+// digest bullets back to queue rows (the review tray's per-bullet remove)
+// must treat the absorbed rows as part of the kept bullet.
+export type CollapsedDigestItem = {
+  milestoneCode: string;
+  absorbedCodes: string[];
+};
+
+export function collapseBilateralPairs(
+  codes: string[],
+  recipientSide: "vendor" | "purchaser",
+): CollapsedDigestItem[] {
+  const present = new Set(codes);
+  const out: CollapsedDigestItem[] = [];
+  for (const code of codes) {
+    const partner = BILATERAL_PAIR_OF[code];
+    const pairComplete = partner !== undefined && present.has(partner);
+    if (pairComplete && classifyForRecipient(code, recipientSide) === "counterpart") {
+      continue; // nudge sheds; the acted half of this pair keeps
+    }
+    out.push({
+      milestoneCode: code,
+      absorbedCodes: pairComplete && partner ? [partner] : [],
+    });
+  }
+  return out;
+}
+
 // ─── Digest assembly ─────────────────────────────────────────────────────
 
 const JOURNEY_INDEX: Record<string, number> = (() => {
@@ -257,18 +306,24 @@ export function assembleMilestoneDigest(
   const firstName = first.firstName;
   const portalUrl = first.portalUrl;
 
-  // Split rows into acted vs counterpart for this recipient. Then sort
-  // each by JOURNEY_ORDER — items must read in natural transaction
-  // sequence regardless of when the agent ticked them off.
+  // Collapse bilateral pairs first (both halves present → the counterpart
+  // half sheds, see collapseBilateralPairs above), then split the kept
+  // items into acted vs counterpart for this recipient. Sorted by
+  // JOURNEY_ORDER — items must read in natural transaction sequence
+  // regardless of when the agent ticked them off.
+  const collapsed = collapseBilateralPairs(
+    rows.map((r) => r.milestoneCode),
+    recipientSide,
+  );
   const actedItems: Array<{ milestoneCode: string; line: string }> = [];
   const counterpartItems: Array<{ milestoneCode: string; line: string }> = [];
-  for (const row of rows) {
-    const cls = classifyForRecipient(row.milestoneCode, recipientSide);
-    const line = getMilestoneDigestLine(row.milestoneCode, recipientSide);
+  for (const item of collapsed) {
+    const cls = classifyForRecipient(item.milestoneCode, recipientSide);
+    const line = getMilestoneDigestLine(item.milestoneCode, recipientSide);
     if (cls === "acted") {
-      actedItems.push({ milestoneCode: row.milestoneCode, line });
+      actedItems.push({ milestoneCode: item.milestoneCode, line });
     } else {
-      counterpartItems.push({ milestoneCode: row.milestoneCode, line });
+      counterpartItems.push({ milestoneCode: item.milestoneCode, line });
     }
   }
   actedItems.sort((a, b) => compareByJourney(a.milestoneCode, b.milestoneCode));
@@ -338,4 +393,49 @@ export function assembleMilestoneDigest(
   const subject = `Updates on ${address}`;
 
   return { subject, text, html, acted, counterpart };
+}
+
+// ─── Edited-email HTML ───────────────────────────────────────────────────
+//
+// Renders an agent-edited plain-text body in the same branded shell the
+// digest uses, so "what you saved is what sends" holds for the HTML part
+// too (email apps display the HTML part, not the plain text). Used by:
+//   • updateEmailPayload (single queued row edited in the review tray) —
+//     rebuilds payload.html at save time; previously the stale original
+//     html shipped and the edit was invisible to most recipients.
+//   • decideSendForGroup (digest override) — renders the edited digest
+//     at drain time.
+//
+// Lines containing the portal URL are dropped from the rendered body —
+// the CTA button below carries the link, and rendering both reads twice.
+export function renderEditedEmailHtml(args: {
+  address: string;
+  heading: string;   // the edited subject doubles as the hero heading
+  text: string;      // edited plain-text body, greeting included
+  portalUrl: string;
+}): string {
+  const { address, heading, text, portalUrl } = args;
+  const paragraphs = text
+    .split(/\r?\n\r?\n/)
+    .map((block) =>
+      block
+        .split(/\r?\n/)
+        .filter((line) => !portalUrl || !line.includes(portalUrl))
+        .map(escapeHtml)
+        .join("<br />"),
+    )
+    .filter((block) => block.trim().length > 0)
+    .map((block) => `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#4a5162">${block}</p>`)
+    .join("\n  ");
+
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${escapeHtml(address)}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${escapeHtml(heading)}</h1>
+</div>
+<div style="padding:28px 32px">
+  ${paragraphs}
+  <p style="margin:0 0 28px"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
+</div>
+</body></html>`;
 }

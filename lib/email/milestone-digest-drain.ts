@@ -21,6 +21,7 @@ import { isContactEmailSuppressed } from "@/lib/email";
 import { logAutomatedEmail } from "@/lib/services/portal";
 import {
   assembleMilestoneDigest,
+  renderEditedEmailHtml,
   type MilestoneDigestPayload,
 } from "@/lib/email/milestone-digest";
 
@@ -80,6 +81,30 @@ export function decideSendForGroup<T extends { payload: unknown }>(
     return { mode: "single", row, payload };
   }
   const payloads = rows.map((r) => r.payload as MilestoneDigestPayload);
+
+  // Agent-edited digest (review tray, 2026-08-11): the override is stamped
+  // identically onto every row in the group at save time, so any row's copy
+  // is authoritative. When present, send the agent's words verbatim instead
+  // of re-assembling from DIGEST_LINES — that's the "what you saved is what
+  // sends" contract. The HTML part is rendered fresh from the edited text.
+  const override = payloads.map((p) => p.digestOverride).find(Boolean);
+  if (override && override.subject.trim() && override.text.trim()) {
+    const first = payloads[0];
+    const assembled = {
+      subject: override.subject,
+      text: override.text,
+      html: renderEditedEmailHtml({
+        address: first.address,
+        heading: override.subject,
+        text: override.text,
+        portalUrl: first.portalUrl,
+      }),
+      acted: { heading: "", items: [] },
+      counterpart: { heading: "", items: [] },
+    };
+    return { mode: "digest", rows, assembled };
+  }
+
   const assembled = assembleMilestoneDigest(payloads);
   return { mode: "digest", rows, assembled };
 }

@@ -20,6 +20,7 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { renderEditedEmailHtml } from "@/lib/email/milestone-digest";
 
 type ActionResult<T = void> =
   | ({ ok: true } & (T extends void ? object : { data: T }))
@@ -460,12 +461,33 @@ export async function updateEmailPayload(
     return { ok: false, error: "You don't have permission to edit this email." };
   }
 
-  // Overwrite subject + text in the payload JSON, leave html alone.
+  // 2026-08-11: for milestone-confirmation rows, re-render the HTML part
+  // from the edited text. Email apps display the HTML part, and leaving
+  // the original html in place meant the edit shipped invisibly (new
+  // subject, stale body). Older rows without address/portalUrl metadata
+  // keep their original html (pre-batching rows; none should be pending).
+  // CLIENT_CHASE html handling is unchanged.
   const currentPayload = (email.payload ?? {}) as Record<string, unknown>;
+  let rebuiltHtml: string | null = null;
+  if (email.emailType === "MILESTONE_CONFIRMATION") {
+    const address = typeof currentPayload.address === "string" ? currentPayload.address : null;
+    const portalUrl = typeof currentPayload.portalUrl === "string" ? currentPayload.portalUrl : null;
+    if (address && portalUrl) {
+      rebuiltHtml = renderEditedEmailHtml({
+        address,
+        heading: patch.subject.trim(),
+        text: patch.text.trim(),
+        portalUrl,
+      });
+    }
+  }
+
+  // Overwrite subject + text (and, where rebuilt, html) in the payload JSON.
   const nextPayload = {
     ...currentPayload,
     subject: patch.subject.trim(),
     text: patch.text.trim(),
+    ...(rebuiltHtml ? { html: rebuiltHtml } : {}),
   };
 
   await prisma.outboundEmailQueue.update({

@@ -357,8 +357,10 @@ export async function getAutomatedEmailsForTransaction(
     let digestSubject = "Updates";
     try {
       const payloads = group.map((r) => r.payload as unknown as MilestoneDigestPayload);
-      const assembled = assembleMilestoneDigest(payloads);
-      digestSubject = assembled.subject;
+      // An agent-edited digest sent the override subject, not the
+      // re-assembled one. Mirror what actually landed in the inbox.
+      const override = payloads.map((p) => p.digestOverride).find(Boolean);
+      digestSubject = override?.subject ?? assembleMilestoneDigest(payloads).subject;
     } catch {
       // Defensive: keep the bundled row visible with a generic subject
       // rather than dropping it from the feed.

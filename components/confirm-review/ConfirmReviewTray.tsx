@@ -19,6 +19,7 @@ import { Eye, X } from "@phosphor-icons/react/dist/ssr";
 import {
   getPendingConfirmQueueForFile,
   type PendingQueueItem,
+  type RecipientDigest,
 } from "@/app/actions/confirm-review-queue";
 import { ConfirmReviewModal } from "./ConfirmReviewModal";
 
@@ -30,6 +31,7 @@ const POLL_MS = 15_000;
 
 export function ConfirmReviewTray({ transactionId }: Props) {
   const [items, setItems] = useState<PendingQueueItem[]>([]);
+  const [digests, setDigests] = useState<RecipientDigest[]>([]);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
   const [modalOpen, setModalOpen] = useState(false);
@@ -39,7 +41,10 @@ export function ConfirmReviewTray({ transactionId }: Props) {
     setLoading(true);
     try {
       const res = await getPendingConfirmQueueForFile(transactionId);
-      if (res.ok) setItems(res.items);
+      if (res.ok) {
+        setItems(res.items);
+        setDigests(res.digests);
+      }
     } finally {
       setLoading(false);
     }
@@ -183,6 +188,7 @@ export function ConfirmReviewTray({ transactionId }: Props) {
         onClose={() => setModalOpen(false)}
         transactionId={transactionId}
         items={items}
+        digests={digests}
         loading={loading}
         onChange={() => { void load(); }}
       />

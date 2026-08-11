@@ -1,13 +1,17 @@
 "use client";
 
 // Review modal — opened from the ConfirmReviewTray pill. Groups queued
-// milestone-confirmation emails by recipient, lets the agent edit each
-// body inline, cancel per recipient (or all), or send now.
+// milestone-confirmation emails by recipient, one tab per recipient.
 //
-// One tab per recipient (usually vendor + purchaser). Each tab shows
-// the composed subject + body that will land in that inbox. Editing
-// calls updateEmailPayload from app/actions/automation.ts (which was
-// widened in commit A to accept MILESTONE_CONFIRMATION).
+// What each tab shows is what will ACTUALLY land in that inbox
+// (2026-08-11):
+//   • 1 pending row  → the single email, editable inline
+//     (updateEmailPayload).
+//   • 2+ pending rows → the MERGED digest email the drain will send,
+//     with per-bullet remove (cancels just that update's rows) and
+//     whole-body edit (updateDigestForRecipient). The old view showed
+//     each queued row as if it were a separate email, which misled
+//     agents about both what sends and what "Don't send" removes.
 //
 // Send now → drainMilestoneDigestsForFile flushes the whole batch
 // immediately (digest-assembles per-recipient when N>=2).
@@ -18,7 +22,9 @@ import { X, PaperPlaneTilt, Trash, PencilSimple, Check } from "@phosphor-icons/r
 import {
   cancelPendingConfirmEmails,
   sendPendingConfirmEmailsNow,
+  updateDigestForRecipient,
   type PendingQueueItem,
+  type RecipientDigest,
 } from "@/app/actions/confirm-review-queue";
 import { updateEmailPayload } from "@/app/actions/automation";
 
@@ -27,6 +33,10 @@ type Props = {
   onClose: () => void;
   transactionId: string;
   items: PendingQueueItem[];
+  /** Merged-email previews for recipients with 2+ queued rows. Optional
+   *  so mock consumers (dev gallery) keep working; without it those
+   *  recipients fall back to per-row cards. */
+  digests?: RecipientDigest[];
   loading: boolean;
   /** Called after any mutation so the tray + list refresh. */
   onChange: () => void;
@@ -63,7 +73,7 @@ function groupByRecipient(items: PendingQueueItem[]): RecipientGroup[] {
   });
 }
 
-export function ConfirmReviewModal({ open, onClose, transactionId, items, loading, onChange }: Props) {
+export function ConfirmReviewModal({ open, onClose, transactionId, items, digests, loading, onChange }: Props) {
   const groups = useMemo(() => groupByRecipient(items), [items]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [busy, startTransition] = useTransition();
@@ -247,6 +257,8 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, loadin
             <RecipientBody
               key={activeGroup.contactId}
               group={activeGroup}
+              digest={digests?.find((d) => d.recipientContactId === activeGroup.contactId) ?? null}
+              transactionId={transactionId}
               onEdited={onChange}
               onCancelRecipient={() => setConfirmingCancel(activeGroup.contactId)}
             />
@@ -340,6 +352,11 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, loadin
               ? groups.find((g) => g.contactId === confirmingCancel)?.name ?? ""
               : ""
           }
+          updateCount={
+            confirmingCancel === "all"
+              ? items.length
+              : groups.find((g) => g.contactId === confirmingCancel)?.items.length ?? 0
+          }
           busy={busy}
           onCancel={() => setConfirmingCancel(null)}
           onConfirm={() => {
@@ -355,32 +372,50 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, loadin
   );
 }
 
-// ─── Per-recipient body (editable subject + text) ────────────────────
+// ─── Per-recipient body ──────────────────────────────────────────────
+// 2+ queued rows sends as ONE merged email, so that's what we preview
+// (DigestEmailCard). A single queued row previews + edits the single
+// email as before. Fallback: if the merged preview couldn't be
+// assembled server-side, show the per-row cards with a note.
 function RecipientBody({
-  group, onEdited, onCancelRecipient,
+  group, digest, transactionId, onEdited, onCancelRecipient,
 }: {
   group: RecipientGroup;
+  digest: RecipientDigest | null;
+  transactionId: string;
   onEdited: () => void;
   onCancelRecipient: () => void;
 }) {
+  const merged = group.items.length > 1 && digest !== null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {group.items.length > 1 && (
-        <div style={{
-          padding: "8px 12px",
-          borderRadius: 10,
-          background: "#f8fafc",
-          border: "0.5px solid rgba(15, 23, 42, 0.06)",
-          fontSize: 11,
-          color: "#64748b",
-        }}>
-          Combined into one digest email covering {group.items.length} confirmations.
-        </div>
+      {merged ? (
+        <DigestEmailCard
+          digest={digest}
+          recipientEmail={group.email}
+          updateCount={group.items.length}
+          transactionId={transactionId}
+          onEdited={onEdited}
+        />
+      ) : (
+        <>
+          {group.items.length > 1 && (
+            <div style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              background: "#f8fafc",
+              border: "0.5px solid rgba(15, 23, 42, 0.06)",
+              fontSize: 11,
+              color: "#64748b",
+            }}>
+              These will be combined into one email covering {group.items.length} updates.
+            </div>
+          )}
+          {group.items.map((item) => (
+            <EditableEmailCard key={item.id} item={item} onEdited={onEdited} />
+          ))}
+        </>
       )}
-
-      {group.items.map((item) => (
-        <EditableEmailCard key={item.id} item={item} onEdited={onEdited} />
-      ))}
 
       <button
         type="button"
@@ -400,6 +435,261 @@ function RecipientBody({
         Don&apos;t send to {group.name}
       </button>
     </div>
+  );
+}
+
+// ─── Merged email — the ONE digest email a 2+-row recipient receives ─
+// View mode renders subject + section bullets, each bullet with a
+// two-step Remove (cancels the queue rows behind that bullet; a
+// collapsed pair's bullet removes both rows). Edit mode edits the whole
+// merged body; the saved version sends exactly as written. Removing a
+// bullet after an edit reverts to the auto-composed version (the server
+// clears the edit so it can't mention a removed update).
+function DigestEmailCard({
+  digest, recipientEmail, updateCount, transactionId, onEdited,
+}: {
+  digest: RecipientDigest;
+  recipientEmail: string;
+  updateCount: number;
+  transactionId: string;
+  onEdited: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [subject, setSubject] = useState(digest.subject);
+  const [text, setText]       = useState(digest.bodyText);
+  const [busy, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  // Two-step remove: first click arms the bullet, second confirms.
+  const [armedRemove, setArmedRemove] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing) {
+      setSubject(digest.subject);
+      setText(digest.bodyText);
+    }
+  }, [editing, digest]);
+
+  function save() {
+    setErr(null);
+    startTransition(async () => {
+      const res = await updateDigestForRecipient({
+        transactionId,
+        recipientContactId: digest.recipientContactId,
+        subject,
+        bodyText: text,
+      });
+      if (res.ok) {
+        setEditing(false);
+        setSaved(true);
+        window.setTimeout(() => setSaved(false), 1600);
+        onEdited();
+      } else {
+        setErr(res.error ?? "Couldn't save");
+      }
+    });
+  }
+
+  function removeBullet(emailIds: string[]) {
+    setErr(null);
+    startTransition(async () => {
+      const res = await cancelPendingConfirmEmails({ transactionId, emailIds });
+      if (res.ok) {
+        setArmedRemove(null);
+        onEdited();
+      } else {
+        setErr(res.error);
+      }
+    });
+  }
+
+  return (
+    <article style={{
+      border: "0.5px solid rgba(15, 23, 42, 0.10)",
+      borderRadius: 12,
+      background: "#fff",
+      overflow: "hidden",
+    }}>
+      <header style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "10px 14px",
+        borderBottom: "0.5px solid rgba(15, 23, 42, 0.06)",
+        background: "#f8fafc",
+        gap: 8,
+      }}>
+        <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {recipientEmail}
+            {digest.overridden && <span style={{ marginLeft: 6, fontSize: 11, color: "#64748b", fontWeight: 500 }}>· edited</span>}
+          </span>
+          <span style={{ fontSize: 10, color: "#64748b" }}>
+            Sends as one email covering {updateCount} updates
+          </span>
+        </span>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            style={{
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 999,
+              border: "0.5px solid rgba(15, 23, 42, 0.12)",
+              background: "#fff",
+              color: "#5b8cff",
+              cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              flexShrink: 0,
+            }}
+          >
+            <PencilSimple size={10} weight="bold" />
+            Edit
+          </button>
+        ) : (
+          <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={busy}
+              style={{
+                padding: "4px 10px", fontSize: 11, fontWeight: 500,
+                borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.12)",
+                background: "#fff", color: "#64748b", cursor: "pointer",
+              }}
+            >Cancel</button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy || !subject.trim() || !text.trim()}
+              style={{
+                padding: "4px 10px", fontSize: 11, fontWeight: 600,
+                borderRadius: 999, border: "none",
+                background: "#5b8cff", color: "#fff", cursor: "pointer",
+                opacity: busy ? 0.6 : 1,
+              }}
+            >{busy ? "Saving…" : "Save"}</button>
+          </span>
+        )}
+        {saved && !editing && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "#047857", flexShrink: 0 }}>
+            <Check size={11} weight="bold" /> Saved
+          </span>
+        )}
+      </header>
+
+      <div style={{ padding: "12px 14px" }}>
+        {editing ? (
+          <>
+            <label style={{ display: "block", marginBottom: 8 }}>
+              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#64748b", marginBottom: 3 }}>Subject</span>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                style={{
+                  width: "100%", padding: "8px 10px", fontSize: 13,
+                  borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.15)",
+                  background: "#fff", outline: "none",
+                }}
+              />
+            </label>
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#64748b", marginBottom: 3 }}>Body</span>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={10}
+                style={{
+                  width: "100%", padding: "8px 10px", fontSize: 13,
+                  borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.15)",
+                  background: "#fff", outline: "none", resize: "vertical",
+                  fontFamily: "inherit", lineHeight: 1.5,
+                }}
+              />
+            </label>
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+          </>
+        ) : digest.overridden ? (
+          <>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{digest.subject}</p>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{digest.bodyText}</p>
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "#64748b" }}>
+              Edited version. Sends exactly as written.
+            </p>
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+          </>
+        ) : (
+          <>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{digest.subject}</p>
+            {digest.sections.map((section) => (
+              <div key={section.heading} style={{ marginTop: 10 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#334155" }}>{section.heading}</p>
+                <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+                  {section.bullets.map((bullet) => {
+                    const key = bullet.emailIds.join(",");
+                    const armed = armedRemove === key;
+                    return (
+                      <li
+                        key={key}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                          padding: "6px 10px", borderRadius: 8,
+                          background: armed ? "#fef2f2" : "#f8fafc",
+                          border: `0.5px solid ${armed ? "rgba(153,27,27,0.25)" : "rgba(15,23,42,0.06)"}`,
+                        }}
+                      >
+                        <span style={{ fontSize: 13, color: "#334155", lineHeight: 1.5 }}>{bullet.line}</span>
+                        {armed ? (
+                          <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => setArmedRemove(null)}
+                              disabled={busy}
+                              style={{
+                                padding: "3px 9px", fontSize: 11, fontWeight: 500,
+                                borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.12)",
+                                background: "#fff", color: "#64748b", cursor: "pointer",
+                              }}
+                            >Keep</button>
+                            <button
+                              type="button"
+                              onClick={() => removeBullet(bullet.emailIds)}
+                              disabled={busy}
+                              style={{
+                                padding: "3px 9px", fontSize: 11, fontWeight: 600,
+                                borderRadius: 999, border: "none",
+                                background: "#991b1b", color: "#fff", cursor: "pointer",
+                                opacity: busy ? 0.6 : 1,
+                              }}
+                            >{busy ? "…" : "Remove"}</button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setArmedRemove(key)}
+                            aria-label={`Remove this update: ${bullet.line}`}
+                            style={{
+                              padding: "3px 9px", fontSize: 11, fontWeight: 500,
+                              borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.10)",
+                              background: "#fff", color: "#991b1b", cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          >Remove</button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+          </>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -554,10 +844,11 @@ function EditableEmailCard({
 
 // ─── Cancel confirm dialog ──────────────────────────────────────────
 function ConfirmCancelDialog({
-  scope, recipientName, busy, onCancel, onConfirm,
+  scope, recipientName, updateCount, busy, onCancel, onConfirm,
 }: {
   scope: "all" | "recipient";
   recipientName: string;
+  updateCount: number;
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -586,7 +877,10 @@ function ConfirmCancelDialog({
           {scope === "all" ? "Cancel all queued client updates?" : `Don't send to ${recipientName}?`}
         </h3>
         <p style={{ margin: "6px 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
-          The milestone confirmations stay on the file. Only the client email{scope === "all" ? "s" : ""} will not go out.
+          {scope === "all"
+            ? `This stops all ${updateCount} queued update${updateCount === 1 ? "" : "s"} across every recipient.`
+            : `This stops ${updateCount === 1 ? "the 1 update" : `all ${updateCount} updates`} queued for ${recipientName}.`}
+          {" "}The milestone confirmations stay on the file.
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button

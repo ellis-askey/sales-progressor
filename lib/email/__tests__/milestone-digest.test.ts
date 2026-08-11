@@ -22,6 +22,7 @@
 
 import {
   assembleMilestoneDigest,
+  collapseBilateralPairs,
   getMilestoneDigestLine,
   actedSideForCode,
   type MilestoneDigestPayload,
@@ -260,11 +261,13 @@ describe("5. Harder case: both halves of a bilateral pair within the window", ()
     expect(decision.mode).toBe("digest");
     if (decision.mode !== "digest") return;
 
-    // Acted-side (PM7) and counterpart (VM7) both appear in the digest.
+    // Pair-collapse (2026-08-11): both halves of the VM7/PM7 pair are in
+    // the same recipient's digest, so the counterpart half (VM7) sheds
+    // and the acted half (PM7) carries the event. One bullet, not two
+    // near-identical ones.
     expect(decision.assembled.acted.items).toHaveLength(1);
     expect(decision.assembled.acted.items[0].milestoneCode).toBe("PM7");
-    expect(decision.assembled.counterpart.items).toHaveLength(1);
-    expect(decision.assembled.counterpart.items[0].milestoneCode).toBe("VM7");
+    expect(decision.assembled.counterpart.items).toHaveLength(0);
 
     // Subject is the digest subject, not either single-event subject.
     expect(decision.assembled.subject).toBe("Updates on 22 Example Road, London SW1A 1AA");
@@ -338,6 +341,102 @@ describe("6. Digest sort order — reverse input renders in journey order", () =
     const vm6Line = getMilestoneDigestLine("VM6", "vendor");
     // VM1 appears before VM6 in the rendered body.
     expect(assembled.text.indexOf(vm1Line)).toBeLessThan(assembled.text.indexOf(vm6Line));
+  });
+});
+
+// ── 7. Bilateral pair-collapse in the digest ─────────────────────────────
+
+describe("7. Bilateral pair-collapse in the digest", () => {
+  // Ellis's exact 2026-08-11 case: agent confirms VM12 (seller's
+  // solicitor sent replies) then PM15 (buyer's solicitor received them)
+  // in the same window. The buyer's digest previously carried both
+  // lines, which say the same real-world thing twice.
+  test("VM12+PM15 for the buyer renders one line (the acted ack), not two", () => {
+    const payloads = [
+      makePayload({ milestoneCode: "VM12", recipientSide: "purchaser" }),
+      makePayload({ milestoneCode: "PM15", recipientSide: "purchaser" }),
+    ];
+    const assembled = assembleMilestoneDigest(payloads);
+
+    expect(assembled.acted.items.map((i) => i.milestoneCode)).toEqual(["PM15"]);
+    expect(assembled.counterpart.items).toHaveLength(0);
+    expect(assembled.text).toContain("Your solicitor has the seller's formal replies.");
+    expect(assembled.text).not.toContain("The seller's solicitor has issued the formal replies.");
+  });
+
+  test("collapse only affects the pair; other items keep rendering", () => {
+    const payloads = [
+      makePayload({ milestoneCode: "VM12", recipientSide: "purchaser" }),
+      makePayload({ milestoneCode: "PM15", recipientSide: "purchaser" }),
+      makePayload({ milestoneCode: "PM13", recipientSide: "purchaser" }),
+      makePayload({ milestoneCode: "VM6",  recipientSide: "purchaser" }),
+    ];
+    const assembled = assembleMilestoneDigest(payloads);
+
+    expect(assembled.acted.items.map((i) => i.milestoneCode)).toEqual(["PM13", "PM15"]);
+    expect(assembled.counterpart.items.map((i) => i.milestoneCode)).toEqual(["VM6"]);
+  });
+
+  test("one half alone does NOT collapse", () => {
+    const payloads = [
+      makePayload({ milestoneCode: "VM12", recipientSide: "purchaser" }),
+      makePayload({ milestoneCode: "PM13", recipientSide: "purchaser" }),
+    ];
+    const assembled = assembleMilestoneDigest(payloads);
+
+    expect(assembled.acted.items.map((i) => i.milestoneCode)).toEqual(["PM13"]);
+    expect(assembled.counterpart.items.map((i) => i.milestoneCode)).toEqual(["VM12"]);
+  });
+
+  test("collapseBilateralPairs maps the absorbed rows onto the kept bullet", () => {
+    expect(collapseBilateralPairs(["VM12", "PM15"], "purchaser")).toEqual([
+      { milestoneCode: "PM15", absorbedCodes: ["VM12"] },
+    ]);
+  });
+
+  test("vendor recipient keeps the vendor half of a pair", () => {
+    expect(collapseBilateralPairs(["VM12", "PM15"], "vendor")).toEqual([
+      { milestoneCode: "VM12", absorbedCodes: ["PM15"] },
+    ]);
+  });
+
+  test("non-pair codes pass through untouched", () => {
+    expect(collapseBilateralPairs(["VM1", "PM4"], "vendor")).toEqual([
+      { milestoneCode: "VM1", absorbedCodes: [] },
+      { milestoneCode: "PM4", absorbedCodes: [] },
+    ]);
+  });
+});
+
+// ── 8. Edited digest override ────────────────────────────────────────────
+
+describe("8. Edited digest override (review tray edit of the merged email)", () => {
+  test("a group carrying digestOverride sends the edited subject + body verbatim", () => {
+    const override = { subject: "A quick update from us", text: "Hi Alex,\n\nThe seller's replies are in and your solicitor is reviewing them." };
+    const rows = [
+      makeRow("r1", "c1", makePayload({ milestoneCode: "VM12", recipientSide: "purchaser", digestOverride: override })),
+      makeRow("r2", "c1", makePayload({ milestoneCode: "PM15", recipientSide: "purchaser", digestOverride: override })),
+    ];
+
+    const decision = decideSendForGroup(rows);
+    expect(decision.mode).toBe("digest");
+    if (decision.mode !== "digest") return;
+    expect(decision.assembled.subject).toBe(override.subject);
+    expect(decision.assembled.text).toBe(override.text);
+    // HTML is re-rendered from the edited text, not assembled from lines.
+    expect(decision.assembled.html).toContain("your solicitor is reviewing them");
+    expect(decision.assembled.html).not.toContain("What you&#39;ve confirmed today");
+  });
+
+  test("a group without digestOverride assembles from digest lines as before", () => {
+    const rows = [
+      makeRow("r1", "c1", makePayload({ milestoneCode: "VM4", recipientSide: "vendor" })),
+      makeRow("r2", "c1", makePayload({ milestoneCode: "VM6", recipientSide: "vendor" })),
+    ];
+    const decision = decideSendForGroup(rows);
+    expect(decision.mode).toBe("digest");
+    if (decision.mode !== "digest") return;
+    expect(decision.assembled.subject).toBe("Updates on 22 Example Road, London SW1A 1AA");
   });
 });
 
