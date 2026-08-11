@@ -119,31 +119,36 @@ export function PlanTermsCollapsed({ trialState, agreed }: PlanTermsCollapsedPro
               textAlign: "left",
             }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
+              View your agreed terms ({agreed.versionTag})
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+              {agreed.acknowledgedAt && (
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                  Acknowledged{" "}
+                  {agreed.acknowledgedAt.toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              )}
+              {/* Canonical chevron: right-aligned, 0 -> 180deg rotation
+                  (2026-08-11 drawer-consistency pass; was left-aligned
+                  with a -90deg "pointer" rotation). */}
               <CaretDown
                 weight="bold"
+                aria-hidden
                 style={{
-                  width: 11,
-                  height: 11,
+                  width: 12,
+                  height: 12,
+                  flexShrink: 0,
                   color: "#6b7280",
-                  transition: "transform 180ms",
-                  transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: open ? "rotate(180deg)" : "rotate(0deg)",
                 }}
               />
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
-                View your agreed terms ({agreed.versionTag})
-              </span>
             </span>
-            {agreed.acknowledgedAt && (
-              <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                Acknowledged{" "}
-                {agreed.acknowledgedAt.toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            )}
           </button>
           <div className={`agent-acc${open ? " open" : ""}`}>
             <div className="agent-acc-in">

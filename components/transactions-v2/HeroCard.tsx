@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { CaretDown } from "@phosphor-icons/react";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import type { DraftEntry } from "@/components/transactions-v2/types";
 
@@ -318,13 +319,26 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
       {/* View all drafts */}
       {drafts.length > 1 && (
         <div style={{ marginTop: 14, textAlign: "center" }}>
+          {/* 2026-08-11 drawer-consistency pass: constant label + rotating
+              chevron (state lives in the chevron), replacing the
+              "View all drafts / Hide drafts" label swap. */}
           <button
             type="button"
             onClick={showAllDrafts ? closeDrafts : openDrafts}
             className="agent-link"
-            style={{ fontSize: 12, padding: "2px 0" }}
+            aria-expanded={showAllDrafts}
+            style={{ fontSize: 12, padding: "2px 0", display: "inline-flex", alignItems: "center", gap: 5 }}
           >
-            {showAllDrafts ? "Hide drafts" : `View all drafts (${drafts.length})`}
+            All drafts ({drafts.length})
+            <CaretDown
+              size={11}
+              weight="bold"
+              aria-hidden
+              style={{
+                transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: showAllDrafts ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            />
           </button>
 
           {/* Animated drawer — grid-template-rows 0fr → 1fr */}
