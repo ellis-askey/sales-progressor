@@ -15,17 +15,27 @@
 
 import type { ThemeMode } from "@/lib/agent/theme-mode";
 
-export function ThemeModeBoot({ initialMode }: { initialMode: ThemeMode }) {
+export function ThemeModeBoot({
+  initialMode,
+  initialAuroraOpacity = 100,
+}: {
+  initialMode: ThemeMode;
+  // Per-user aurora intensity 0–100. Applied here pre-paint as --aurora-opacity
+  // (0–1) so the background starts at the saved level with no flash.
+  initialAuroraOpacity?: number;
+}) {
   // Everything below runs as a string in the client's HTML head, so keep
-  // it dependency-free and defensive. `initialMode` is embedded via
-  // JSON.stringify — always a plain literal, no user-controlled input.
+  // it dependency-free and defensive. Both values are embedded via
+  // JSON.stringify — always plain literals, no user-controlled input.
   const script = `
 (function() {
   try {
     var initial = ${JSON.stringify(initialMode)};
+    var auroraOpacity = ${JSON.stringify(initialAuroraOpacity)};
     var w = window;
     var mq = w.matchMedia('(prefers-color-scheme: dark)');
     w.__salesProgressorThemeMode__ = initial;
+    document.documentElement.style.setProperty('--aurora-opacity', String(Math.max(0, Math.min(100, auroraOpacity)) / 100));
     var apply = function() {
       var mode = w.__salesProgressorThemeMode__;
       var resolved = (mode === 'light' || mode === 'dark')

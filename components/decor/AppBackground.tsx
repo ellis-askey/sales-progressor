@@ -28,7 +28,15 @@ import { SoftAurora } from "./SoftAurora";
 import { Iridescence } from "./Iridescence";
 
 const Wrap: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+  // --aurora-opacity (0–1, per-user; set pre-paint by ThemeModeBoot and live by
+  // the topbar control) fades the whole backdrop. It sits here on the background
+  // element — a sibling of page content, not an ancestor — so it never becomes a
+  // backdrop root that would sever card backdrop-filter.
+  <div
+    aria-hidden
+    className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    style={{ opacity: "var(--aurora-opacity, 1)" }}
+  >
     {children}
   </div>
 );

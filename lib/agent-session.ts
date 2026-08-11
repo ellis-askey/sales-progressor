@@ -31,6 +31,7 @@ import {
   type MobileAgentTheme,
 } from "@/lib/agent/themes";
 import { readThemeModeFromPrefs, type ThemeMode } from "@/lib/agent/theme-mode";
+import { readAuroraOpacityFromPrefs } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, type GlassVariantId, type GlassPick, type GlassPicks } from "@/lib/glass/variants";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
@@ -80,6 +81,10 @@ export type AgentSessionContext = {
   // still use the old --agent-* palette. themeMode drives the Elevra
   // background layer + the toggle in the topbar.
   themeMode: ThemeMode;
+  // Aurora (moving background) intensity, 0–100. 100 = full, 0 = off.
+  // Drives --aurora-opacity, set pre-paint by ThemeModeBoot and live-adjusted
+  // by the topbar control. 2026-08-11.
+  backgroundOpacity: number;
   // Design Lab (Ellis-only): per-card glass-variant picks. Empty {} for
   // non-Ellis users so their tagged cards render as defaultVariant every
   // time. Written to User.agentPreferences.glassPicks by
@@ -117,6 +122,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
+  const backgroundOpacity = readAuroraOpacityFromPrefs(userRecord?.agentPreferences);
   const glassPicks = readGlassPicksFromPrefs(userRecord?.agentPreferences);
   const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
   const agencyModeProfile = userRecord?.agency?.modeProfile ?? "self_progressed";
@@ -130,6 +136,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     mobileTheme,
     nightModePref,
     themeMode,
+    backgroundOpacity,
     glassPicks,
     chainDeclineNotif,
     agencyModeProfile,

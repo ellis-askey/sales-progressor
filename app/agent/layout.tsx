@@ -23,7 +23,7 @@ import "@/app/styles/elevra.css";
 import "@/app/styles/glass.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, themeMode, glassPicks, chainDeclineNotif, agencyModeProfile } =
+  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agencyModeProfile } =
     await resolveAgentSession();
 
   const kineticEnabled = shouldSeeKineticShell(session);
@@ -39,7 +39,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     <div data-theme={theme} style={{ display: "contents" }}>
       {/* Inline script runs BEFORE React hydrates — sets data-theme +
           elevra-bg on <html> so first paint has the right background. */}
-      <ThemeModeBoot initialMode={themeMode} />
+      <ThemeModeBoot initialMode={themeMode} initialAuroraOpacity={backgroundOpacity} />
       {/* WebGL backdrop: SoftAurora on dark, Iridescence on light,
           CSS fallback on iOS. Reads data-theme on <html> and swaps live. */}
       <AppBackground />
@@ -48,7 +48,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} themeMode={themeMode} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

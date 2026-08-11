@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
 import { isThemeMode, type ThemeMode } from "@/lib/agent/theme-mode";
+import { clampAuroraOpacity } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, DEFAULT_VARIANT } from "@/lib/glass/variants";
 import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
 import { pushToUser } from "@/lib/services/push";
@@ -115,6 +116,36 @@ export async function updateThemeMode(themeMode: ThemeMode) {
   // needlessly.
 
   return { ok: true as const, themeMode };
+}
+
+// Persist the per-user aurora (moving background) intensity, 0–100. Applied
+// live via the CSS var by the topbar control; this just saves it so the choice
+// survives reloads. Read-merge-write so other prefs are preserved.
+export async function updateAuroraOpacityAction(value: number) {
+  const session = await requireSession();
+  const clamped = clampAuroraOpacity(value);
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: {
+        ...existingPrefs,
+        auroraOpacity: clamped,
+      },
+    },
+  });
+
+  return { ok: true as const, value: clamped };
 }
 
 export async function updateAgentNightMode(nightMode: boolean | null) {

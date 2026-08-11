@@ -11,6 +11,7 @@ import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import type { ThemeMode } from "@/lib/agent/theme-mode";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { DesignLabToggle } from "@/components/glass/DesignLabToggle";
+import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
@@ -237,7 +238,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, themeMode, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; themeMode: ThemeMode; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -334,6 +335,8 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <span suppressHydrationWarning>{`As of ${formatAgentTime(refreshedAt)}`}</span>
           </button>
           <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>
+          {/* Moving-background intensity — all users, slider popover. */}
+          <div className="hidden md:block"><AuroraOpacityControl initialOpacity={backgroundOpacity} /></div>
           {/* Design Lab — Ellis-only per-card glass picker. Invisible for
               everyone else so it doesn't clutter the topbar. */}
           {session.user.email === "ellis@thesalesprogressor.co.uk" && (
