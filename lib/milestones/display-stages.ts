@@ -3,33 +3,40 @@
 // summary read for the Overview tab; the Steps tab still lists every
 // underlying milestone.
 //
-// Design principles:
-//   - Each stage has ONE anchor milestone code. Stage is "complete"
-//     when the anchor is complete. This keeps the summary honest — a
-//     stage is done when the observable-to-the-agent milestone is
-//     done, not when every underlying code has ticked.
-//   - Only the first non-complete stage is "active"; every subsequent
-//     stage is "pending". Never more than one active at a time.
-//   - Forecast dates come from tx-level fields (expectedExchangeDate /
-//     overridePredictedDate / completionDate), not from the milestone
-//     engine.
+// 2026-08-11 honesty rework (file-page feedback, item 3). The original
+// model gave each stage ONE anchor and ticked the stage when the anchor
+// fired — but the anchors were ENTRY events (enquiries raised, searches
+// ordered), so a stage ticked the moment it began and the strip ran one
+// stage ahead of reality ("Exchange in progress" while enquiries were
+// still being answered).
 //
-// Anchor rationale (per docs/MILESTONES_SPEC_v1.md):
-//   - Instructed = VM1 (seller has instructed their solicitor). Both
-//     sides typically instruct on/near day 1 so this is the earliest
-//     observable milestone.
-//   - Draft pack = VM7 (seller's solicitor issued the draft contract
-//     pack). This is the milestone that unblocks the buyer side.
-//   - Searches  = PM8 (buyer's solicitor ordered searches). Once
-//     ordered, the wait shifts to the search authority. PM13 (received)
-//     could be an alternative but PM8 fires earlier and marks entry to
-//     the stage.
-//   - Enquiries = PM14 (buyer's solicitor raised initial enquiries).
-//     Fires once enquiries are in the seller's court.
-//   - Exchange  = VM19 (seller received exchange confirmation). Both
-//     sides fire on the same event; using VM19 keeps the anchor on the
-//     vendor timeline (mirrors the Steps tab convention).
-//   - Completion = VM20 (seller received completion confirmation).
+// New model — each stage has entry codes and exit codes:
+//   - complete     → every exit code is complete
+//   - in_progress  → any entry code fired, exits not all complete.
+//     SEVERAL stages can be in progress at once, because conveyancing is
+//     parallel: searches awaited while enquiries are raised and answered
+//     is normal (and best practice). The strip shows that honestly.
+//   - up_next      → nothing is in progress anywhere and this is the
+//     earliest non-complete stage (the file is between stages).
+//   - pending      → everything else.
+//
+// Stage boundaries (per docs/MILESTONES_SPEC_v1.md codes):
+//   - Instructed  = begins when either side instructs (VM1 / PM1),
+//                   done when BOTH have.
+//   - Draft pack  = begins when the seller's solicitor issues it (VM7),
+//                   done when the buyer's solicitor has it (PM7).
+//   - Searches    = begins at ordering (PM8), done when results are
+//                   back with the buyer's solicitor (PM13).
+//   - Enquiries   = begins when initial enquiries are raised (PM14),
+//                   done when the buyer's solicitor confirms ALL
+//                   enquiries satisfied (PM20, covers follow-up rounds).
+//   - Exchange    = begins when either solicitor confirms readiness
+//                   (VM18 / PM25), done on exchange (VM19).
+//   - Completion  = the completion event itself (VM20).
+//
+// Forecast dates come from tx-level fields (expectedExchangeDate /
+// overridePredictedDate / completionDate), not from the milestone
+// engine.
 
 // Icons are NOT stored here so this module stays server-serializable.
 // Passing a React component from a Server Component to a Client
@@ -41,16 +48,19 @@ export type DisplayStageKey = "instructed" | "draft_pack" | "searches" | "enquir
 export type DisplayStageDef = {
   key: DisplayStageKey;
   name: string;
-  anchorCode: string;
+  /** Stage has begun when ANY of these codes is complete. */
+  entryCodes: string[];
+  /** Stage is done when ALL of these codes are complete. */
+  exitCodes: string[];
 };
 
 export const DISPLAY_STAGES: DisplayStageDef[] = [
-  { key: "instructed", name: "Instructed", anchorCode: "VM1"  },
-  { key: "draft_pack", name: "Draft pack", anchorCode: "VM7"  },
-  { key: "searches",   name: "Searches",   anchorCode: "PM8"  },
-  { key: "enquiries",  name: "Enquiries",  anchorCode: "PM14" },
-  { key: "exchange",   name: "Exchange",   anchorCode: "VM19" },
-  { key: "completion", name: "Completion", anchorCode: "VM20" },
+  { key: "instructed", name: "Instructed", entryCodes: ["VM1", "PM1"],   exitCodes: ["VM1", "PM1"] },
+  { key: "draft_pack", name: "Draft pack", entryCodes: ["VM7"],          exitCodes: ["PM7"]  },
+  { key: "searches",   name: "Searches",   entryCodes: ["PM8"],          exitCodes: ["PM13"] },
+  { key: "enquiries",  name: "Enquiries",  entryCodes: ["PM14"],         exitCodes: ["PM20"] },
+  { key: "exchange",   name: "Exchange",   entryCodes: ["VM18", "PM25"], exitCodes: ["VM19"] },
+  { key: "completion", name: "Completion", entryCodes: ["VM20"],         exitCodes: ["VM20"] },
 ];
 
 export type MilestoneRowForStages = {
@@ -59,10 +69,12 @@ export type MilestoneRowForStages = {
   completion?: { completedAt: Date | null } | null;
 };
 
+export type StageStatus = "complete" | "in_progress" | "up_next" | "pending";
+
 export type ResolvedStage = {
   key: DisplayStageKey;
   name: string;
-  status: "complete" | "active" | "pending";
+  status: StageStatus;
   completedAt: Date | null;
   forecastDate: Date | null;
 };
@@ -75,9 +87,9 @@ export type ForecastInputs = {
 
 /**
  * Resolve each display stage against the current milestone state + tx-level
- * forecast dates. The first non-complete stage is marked active; the rest
- * are pending. Uses vendor + purchaser milestones combined so an anchor on
- * either side flips complete when hit.
+ * forecast dates. Statuses are per-stage and independent (see module
+ * header): more than one stage can be in_progress at once; up_next only
+ * appears when nothing anywhere is in progress.
  */
 export function resolveDisplayStages(
   milestones: MilestoneRowForStages[],
@@ -86,10 +98,22 @@ export function resolveDisplayStages(
   const byCode = new Map<string, MilestoneRowForStages>();
   for (const m of milestones) byCode.set(m.code, m);
 
+  const isCodeComplete = (code: string) => !!byCode.get(code)?.isComplete;
+  const completedAtOf = (code: string) => byCode.get(code)?.completion?.completedAt ?? null;
+
   const rows = DISPLAY_STAGES.map((def) => {
-    const m = byCode.get(def.anchorCode);
-    const isComplete = !!m?.isComplete;
-    const completedAt = m?.completion?.completedAt ?? null;
+    const isComplete = def.exitCodes.every(isCodeComplete);
+    const hasBegun = def.entryCodes.some(isCodeComplete);
+
+    // completedAt = the LATEST exit completion (multi-exit stages finish
+    // when the last code lands).
+    let completedAt: Date | null = null;
+    if (isComplete) {
+      for (const code of def.exitCodes) {
+        const at = completedAtOf(code);
+        if (at && (!completedAt || at > completedAt)) completedAt = at;
+      }
+    }
 
     let forecastDate: Date | null = null;
     if (def.key === "exchange") {
@@ -98,23 +122,29 @@ export function resolveDisplayStages(
       forecastDate = forecast.targetCompletionDate ?? null;
     }
 
-    return {
-      def,
-      isComplete,
-      completedAt,
-      forecastDate,
-    };
+    return { def, isComplete, hasBegun, completedAt, forecastDate };
   });
 
-  // Active = first non-complete stage; every stage after is pending.
-  let activeIndex = rows.findIndex((r) => !r.isComplete);
-  if (activeIndex === -1) activeIndex = rows.length; // everything done
+  const anyInProgress = rows.some((r) => !r.isComplete && r.hasBegun);
+  const firstNotComplete = rows.findIndex((r) => !r.isComplete);
 
-  return rows.map((r, i) => ({
-    key: r.def.key,
-    name: r.def.name,
-    status: r.isComplete ? "complete" : i === activeIndex ? "active" : "pending",
-    completedAt: r.completedAt,
-    forecastDate: r.forecastDate,
-  }));
+  return rows.map((r, i) => {
+    let status: StageStatus;
+    if (r.isComplete) {
+      status = "complete";
+    } else if (r.hasBegun) {
+      status = "in_progress";
+    } else if (!anyInProgress && i === firstNotComplete) {
+      status = "up_next";
+    } else {
+      status = "pending";
+    }
+    return {
+      key: r.def.key,
+      name: r.def.name,
+      status,
+      completedAt: r.completedAt,
+      forecastDate: r.forecastDate,
+    };
+  });
 }

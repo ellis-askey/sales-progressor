@@ -3,11 +3,18 @@
 // 6-stage summary of a file's journey: Instructed / Draft pack /
 // Searches / Enquiries / Exchange / Completion.
 //
-// 2026-08-08 hero redesign: stage circles now carry their number rather
-// than an icon (mock direction) —
-//   - complete  → emerald ring + tick + real completedAt date
-//   - active    → coral ring + coral stage number + "In progress"
-//   - pending   → slate outline + muted number + forecast date or "Pending"
+// 2026-08-08 hero redesign: stage circles carry their number rather
+// than an icon (mock direction). 2026-08-11 honesty rework (feedback
+// item 3) — statuses come from lib/milestones/display-stages' entry/
+// exit model:
+//   - complete     → emerald ring + tick + real completedAt date
+//   - in_progress  → coral ring + coral stage number + "In progress".
+//     More than one stage can be in progress at once (searches awaited
+//     while enquiries are answered is normal, and best practice).
+//   - up_next      → slate outline, coral "Up next" (file is between
+//     stages; nothing has begun yet)
+//   - pending      → slate outline + muted number + forecast date or
+//     "Pending"
 // plus a "View timeline" button on the right that switches to the Steps
 // tab via TabContext (the strip renders inside PropertyFileTabs'
 // beforeContent slot, so the context is always live on this page).
@@ -19,10 +26,10 @@
 import type { ReactNode } from "react";
 import { Check, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { formatDate } from "@/lib/utils";
-import type { DisplayStageKey } from "@/lib/milestones/display-stages";
+import type { DisplayStageKey, StageStatus } from "@/lib/milestones/display-stages";
 import { useTabContext } from "./TabContext";
 
-export type StageStatus = "complete" | "active" | "pending";
+export type { StageStatus } from "@/lib/milestones/display-stages";
 
 export type MilestoneStage = {
   key: DisplayStageKey;
@@ -46,10 +53,17 @@ const STAGE_TONES: Record<StageStatus, {
     labelColor: "var(--agent-text-primary)",
     dateColor: "var(--agent-text-muted)",
   },
-  active: {
+  in_progress: {
     ring: "var(--agent-coral)",
     bg: "rgba(var(--agent-coral-rgb), 0.10)",
     iconColor: "var(--agent-coral-deep)",
+    labelColor: "var(--agent-text-primary)",
+    dateColor: "var(--agent-coral-deep)",
+  },
+  up_next: {
+    ring: "rgba(15, 23, 42, 0.15)",
+    bg: "transparent",
+    iconColor: "var(--agent-text-secondary)",
     labelColor: "var(--agent-text-primary)",
     dateColor: "var(--agent-coral-deep)",
   },
@@ -66,8 +80,11 @@ function formatStageDate(stage: MilestoneStage): string {
   if (stage.status === "complete" && stage.completedAt) {
     return formatDate(stage.completedAt);
   }
-  if (stage.status === "active") {
+  if (stage.status === "in_progress") {
     return "In progress";
+  }
+  if (stage.status === "up_next") {
+    return "Up next";
   }
   if (stage.forecastDate) {
     return `~ ${formatDate(stage.forecastDate)}`;
@@ -162,7 +179,7 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
           alignItems: "center",
           justifyContent: "center",
           color: tone.iconColor,
-          boxShadow: stage.status === "active"
+          boxShadow: stage.status === "in_progress"
             ? "0 2px 8px rgba(var(--agent-coral-rgb), 0.20)"
             : stage.status === "complete"
               ? "0 1px 3px rgba(15,23,42,0.06)"
@@ -193,7 +210,7 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
           fontSize: 11,
           color: tone.dateColor,
           lineHeight: 1.3,
-          fontWeight: stage.status === "active" ? 600 : 400,
+          fontWeight: stage.status === "in_progress" || stage.status === "up_next" ? 600 : 400,
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
