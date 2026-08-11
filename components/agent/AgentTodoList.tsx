@@ -353,17 +353,39 @@ function Section({
         </div>
       ) : null}
 
-      {/* Done toggle */}
+      {/* Completed section — canonical disclosure bar (2026-08-11
+          drawer-consistency pass). Replaces the small "Show N completed"
+          text link: whole bar clickable, rotating chevron, same
+          agent-acc slide. */}
       {doneCount > 0 && (
         <div style={{ marginTop: 16 }}>
-          <button
-            onClick={onToggleShowDone}
-            className="agent-link agent-link-muted"
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12 }}
-          >
-            <CaretDown size={12} style={{ transition: "transform 200ms", transform: showDone ? "rotate(180deg)" : "rotate(0deg)" }} />
-            {showDone ? "Hide completed" : `Show ${doneCount} completed`}
-          </button>
+          <div className="agent-glass" style={{ borderRadius: 12, overflow: "hidden" }}>
+            <div
+              className="agent-acc-hdr"
+              style={{ borderBottom: "none" }}
+              role="button"
+              tabIndex={0}
+              aria-expanded={showDone}
+              onClick={onToggleShowDone}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleShowDone(); } }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="agent-acc-title" style={{ color: "var(--agent-text-muted)" }}>Completed</span>
+                <span className="agent-badge">{doneCount}</span>
+              </div>
+              <CaretDown
+                size={12}
+                weight="bold"
+                aria-hidden
+                style={{
+                  flexShrink: 0,
+                  color: "var(--agent-text-muted)",
+                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: showDone ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
+            </div>
+          </div>
 
           <div className={`agent-acc${showDone ? " open" : ""}`}>
             <div className="agent-acc-in" style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 10 }}>

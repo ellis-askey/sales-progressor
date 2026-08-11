@@ -1,12 +1,61 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
+import { CaretDown } from "@phosphor-icons/react";
 import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { Card } from "@/components/ui/Card";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
+
+// Canonical disclosure bar for the done/resolved tails of each card
+// (2026-08-11 drawer-consistency pass). Whole bar clickable, rotating
+// chevron, agent-acc slide — replaces the three "Show N done / Hide
+// done" text links this component used to carry.
+function DoneDisclosure({
+  label, count, open, onToggle, children,
+}: {
+  label: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <div
+        className="agent-acc-hdr"
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+        style={{ borderTop: "0.5px solid var(--agent-border-default)", borderBottom: "none" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="agent-acc-title" style={{ color: "var(--agent-text-muted)" }}>{label}</span>
+          <span className="agent-badge">{count}</span>
+        </div>
+        <CaretDown
+          size={12}
+          weight="bold"
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            color: "var(--agent-text-muted)",
+            transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </div>
+      <div className={`agent-acc${open ? " open" : ""}`}>
+        <div className="agent-acc-in">{children}</div>
+      </div>
+    </>
+  );
+}
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -225,7 +274,6 @@ export function ManualTaskList({
 
   const myOpen  = myTasks.filter((t) => t.status === "open");
   const myDone  = myTasks.filter((t) => t.status === "done");
-  const myVisible = filter === "open" ? myOpen : myTasks;
 
   const agentOpen = agentTasks.filter((t) => t.status === "open");
   const agentDone = agentTasks.filter((t) => t.status === "done");
@@ -252,40 +300,31 @@ export function ManualTaskList({
         )}
       </div>
 
-      {myVisible.length === 0 ? (
+      {myOpen.length === 0 && (
         <div className="agent-empty-card" style={{ padding: "28px 16px", textAlign: "center" }}>
           <p style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
-            {filter === "open" ? "Nothing to do. Nice." : "No tasks yet."}
+            {myDone.length > 0 ? "Nothing to do. Nice." : "No tasks yet."}
           </p>
         </div>
-      ) : (
+      )}
+      {myOpen.length > 0 && (
         <div>
           {myOpen.map((task) => (
             <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
           ))}
-          <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
-            <div className="agent-acc-in">
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
-                Done
-              </div>
-              {myDone.map((task) => (
-                <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
-              ))}
-            </div>
-          </div>
         </div>
       )}
-
       {showDone && myDone.length > 0 && (
-        <div style={{ padding: "8px 16px", borderTop: myVisible.length > 0 ? "none" : "0.5px solid var(--agent-border-default)" }}>
-          <button
-            onClick={() => setFilter(filter === "open" ? "all" : "open")}
-            className="agent-link agent-link-muted"
-            style={{ fontSize: 11 }}
-          >
-            {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
-          </button>
-        </div>
+        <DoneDisclosure
+          label="Done"
+          count={myDone.length}
+          open={filter === "all"}
+          onToggle={() => setFilter(filter === "open" ? "all" : "open")}
+        >
+          {myDone.map((task) => (
+            <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
+          ))}
+        </DoneDisclosure>
       )}
     </Card>
   );
@@ -302,15 +341,6 @@ export function ManualTaskList({
           </h3>
           {agentOpen.length > 0 && <span className="agent-badge">{agentOpen.length}</span>}
         </div>
-        {agentDone.length > 0 && (
-          <button
-            onClick={() => setShowAgentDone((v) => !v)}
-            className="agent-link agent-link-muted"
-            style={{ fontSize: 11 }}
-          >
-            {showAgentDone ? "Hide resolved" : `Show ${agentDone.length} resolved`}
-          </button>
-        )}
       </div>
 
       <div>
@@ -319,24 +349,26 @@ export function ManualTaskList({
             ? <AgentRequestRow key={task.id} task={task} />
             : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
         ))}
-        {showAgentDone && agentDone.length > 0 && (
-          <>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
-              Resolved
-            </div>
-            {agentDone.map((task) => (
-              perspective === "agent"
-                ? <AgentRequestRow key={task.id} task={task} />
-                : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
-            ))}
-          </>
-        )}
-        {agentOpen.length === 0 && !showAgentDone && (
+        {agentOpen.length === 0 && (
           <div style={{ padding: "24px 16px", textAlign: "center" }}>
             <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
               {perspective === "agent" ? "Nothing pending with us." : "All agent requests resolved."}
             </p>
           </div>
+        )}
+        {agentDone.length > 0 && (
+          <DoneDisclosure
+            label="Resolved"
+            count={agentDone.length}
+            open={showAgentDone}
+            onToggle={() => setShowAgentDone((v) => !v)}
+          >
+            {agentDone.map((task) => (
+              perspective === "agent"
+                ? <AgentRequestRow key={task.id} task={task} />
+                : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+            ))}
+          </DoneDisclosure>
         )}
       </div>
     </Card>
@@ -380,26 +412,17 @@ export function ManualTaskList({
           {internalOpen.map((task) => (
             <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
           ))}
-          {showInternalDone && internalDone.length > 0 && (
-            <>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
-                Done
-              </div>
+          {internalDone.length > 0 && (
+            <DoneDisclosure
+              label="Done"
+              count={internalDone.length}
+              open={showInternalDone}
+              onToggle={() => setShowInternalDone((v) => !v)}
+            >
               {internalDone.map((task) => (
                 <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
               ))}
-            </>
-          )}
-          {internalDone.length > 0 && (
-            <div style={{ padding: "8px 16px", borderTop: internalOpen.length > 0 ? "none" : "0.5px solid var(--agent-border-default)" }}>
-              <button
-                onClick={() => setShowInternalDone((v) => !v)}
-                className="agent-link agent-link-muted"
-                style={{ fontSize: 11 }}
-              >
-                {showInternalDone ? "Hide done" : `Show ${internalDone.length} done`}
-              </button>
-            </div>
+            </DoneDisclosure>
           )}
         </div>
       )}
