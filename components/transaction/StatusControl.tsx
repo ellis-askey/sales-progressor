@@ -180,7 +180,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
           status === "active"    ? "File active" :
           status === "on_hold"   ? "File on hold" :
           status === "completed" ? "File completed" :
-          status === "withdrawn" ? (inChain ? "Withdrawn — chain notified" : "Withdrawn") :
+          status === "withdrawn" ? (inChain ? "Withdrawn, chain notified" : "Withdrawn") :
           "Status updated";
         toast.success(label);
       } catch (err) {
@@ -188,7 +188,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
         if (msg.startsWith("Cannot mark as completed")) {
           toast.error(msg);
         } else {
-          toast.error("Couldn't update status — try again");
+          toast.error("Couldn't update status. Try again");
         }
       } finally {
         setSaving(false);
@@ -576,7 +576,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 />
                 <ResumeOptionCard
                   title="Reactivate, keep emails paused"
-                  description="File is active again but no client emails fire. Manual chasing only — flip back on from the Automation card any time."
+                  description="File is active again but no client emails fire. Manual chasing only. Flip back on from the file's email settings any time."
                   onClick={resumeKeepingEmailsPaused}
                 />
               </div>

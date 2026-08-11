@@ -72,7 +72,7 @@ export function ReconcileLaterBanner({
 
   async function handleSubmit() {
     if (!tenure || !purchaseType) {
-      setError("This file is missing tenure or purchase type — can't reconcile.");
+      setError("This file is missing tenure or purchase type, so it can't be reconciled yet.");
       return;
     }
     setError(null);
@@ -110,7 +110,7 @@ export function ReconcileLaterBanner({
         kind="info"
         icon={<Info size={18} weight="fill" />}
         title="Bring this file up to date"
-        body="Mark which milestones are already done and (if you know) when they happened — your file's timeline and predictions will track accurately from there."
+        body="Mark which milestones are already done and (if you know) when they happened. Your file's timeline and predictions will track accurately from there."
         action={{ label: "Set up milestones →", onClick: () => setModalOpen(true) }}
         dismissible={{ onDismiss: handleDismiss }}
         className="mb-1"

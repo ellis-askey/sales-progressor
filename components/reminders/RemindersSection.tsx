@@ -481,7 +481,7 @@ function ColumnSection({
                   <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
                   <button
                     onClick={() => optimisticChase(task.id, log.id, task.chaseCount)}
-                    title="Mark as chased — advances the next chase date without sending an email"
+                    title="Mark as chased. Advances the next chase date without sending an email"
                     style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
                     ↻ Chased
@@ -775,7 +775,7 @@ export function RemindersSection({
       // Auto-expand Coming Up so the user sees the row land there
       // (the section is collapsed by default).
       setCollapsed((prev) => ({ ...prev, upcoming: false }));
-      toast.success(`Chased — next in ${repeat} ${repeat === 1 ? "day" : "days"}`);
+      toast.success(`Chased, next in ${repeat} ${repeat === 1 ? "day" : "days"}`);
     }
     act(taskId, () => advanceChaseTaskAction(taskId, pathname));
   }

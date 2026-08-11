@@ -111,7 +111,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
         setSearchError(null);
         setFirms(await res.json());
       } catch {
-        setSearchError("Search failed — check your connection");
+        setSearchError("Search failed. Check your connection");
         setFirms([]);
       }
     }, 200);

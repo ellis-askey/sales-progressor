@@ -51,7 +51,7 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2, marginBottom: 0 }}>
               {level === "low"
                 ? "No significant risk factors on this file"
-                : "This file has chases or activity gaps that need attention — separate from how steps are progressing"}
+                : "This file has chases or activity gaps that need attention, separate from how steps are progressing"}
             </p>
           </>
         )}

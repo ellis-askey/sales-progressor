@@ -677,9 +677,9 @@ export function ContactsSection({
                           {autoTone && (
                             <span
                               title={autoCount >= AUTO_EMAIL_RED_AT
-                                ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days — likely over-chasing; consider pausing client emails`
+                                ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Likely over-chasing, consider pausing client emails`
                                 : autoCount >= AUTO_EMAIL_AMBER_AT
-                                  ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days — review chase cadence`
+                                  ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Review the chase cadence`
                                   : `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days`}
                               style={{
                                 display: "inline-flex", alignItems: "center", gap: 3,

@@ -212,14 +212,14 @@ export function ChaseDrawer({
       });
       const data = await res.json();
       if (generationIdRef.current !== genId) return;
-      if (res.status === 429) { setError(data.message ?? "Too many requests — wait a few minutes and try again."); return; }
-      if (!res.ok) { setError(data.error ?? "Couldn't generate — try again"); return; }
+      if (res.status === 429) { setError(data.message ?? "Too many requests. Wait a few minutes and try again."); return; }
+      if (!res.ok) { setError(data.error ?? "Couldn't generate. Try again"); return; }
       setGeneratedText(data.generated);
       setMessage(data.generated);
       setGeneratedContext(data.context);
     } catch {
       if (generationIdRef.current !== genId) return;
-      setError("Something went wrong — try again.");
+      setError("Something went wrong. Try again.");
     } finally {
       if (generationIdRef.current === genId) setIsGenerating(false);
     }
@@ -229,7 +229,7 @@ export function ChaseDrawer({
     if (!message.trim()) return;
     if (needsWaPick) { setError("Choose a contact to WhatsApp."); return; }
     if (channel === "email" && !(clientContact ?? solicitorContact ?? contacts.find((c) => c.email))) {
-      setError("No email address on file — add one to a contact first.");
+      setError("No email address on file. Add one to a contact first.");
       return;
     }
     setIsSending(true);
@@ -261,7 +261,7 @@ export function ChaseDrawer({
         });
         if (!commRes.ok) {
           const err = await commRes.json();
-          setError(err.error ?? "Couldn't log this — try again");
+          setError(err.error ?? "Couldn't log this. Try again");
           setIsSending(false);
           return;
         }
@@ -285,8 +285,8 @@ export function ChaseDrawer({
           const emailData: SendResult = await emailRes.json();
           if (!emailRes.ok) {
             const msg = emailRes.status === 429
-              ? (emailData as { message?: string }).message ?? "Too many emails sent — wait a few minutes before sending more."
-              : `Logged — but email didn't send: ${emailData.error ?? "unknown error"}`;
+              ? (emailData as { message?: string }).message ?? "Too many emails sent. Wait a few minutes before sending more."
+              : `Logged, but the email didn't send: ${emailData.error ?? "unknown error"}`;
             setError(msg);
             onSent();
             onClose();
@@ -308,8 +308,8 @@ export function ChaseDrawer({
       onSent();
       onClose();
     } catch {
-      setError("Couldn't send — try again.");
-      toast.error("Couldn't send chase — try again or check the recipient");
+      setError("Couldn't send. Try again.");
+      toast.error("Couldn't send chase. Try again or check the recipient");
     } finally {
       setIsSending(false);
     }
@@ -660,7 +660,7 @@ export function ChaseDrawer({
                 : "We'll log this and open WhatsApp"
               : (() => {
                   const rec = clientContact ?? solicitorContact ?? contacts.find((c) => c.email);
-                  if (!rec?.email) return "No email on file — this will be logged, not sent";
+                  if (!rec?.email) return "No email on file. This will be logged, not sent";
                   const ccPart = effectiveCc.length ? ` · CC: ${effectiveCc[0]}` : "";
                   return `To: ${rec.email}${ccPart}`;
                 })()}

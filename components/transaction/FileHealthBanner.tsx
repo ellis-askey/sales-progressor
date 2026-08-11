@@ -39,7 +39,7 @@ export function FileHealthBanner({ actionableCount, overdueCount, onTrack }: Pro
       : "File may be behind schedule";
   const body =
     actionableCount > 0 && isBehind
-      ? "File may be behind schedule too — take a look."
+      ? "File may be behind schedule too. Take a look."
       : undefined;
 
   return (

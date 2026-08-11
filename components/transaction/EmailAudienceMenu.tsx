@@ -47,7 +47,7 @@ export function EmailAudienceMenu({ transactionId }: { transactionId: string }) 
         setState((s) => (s ? { ...s, [`${audience}EmailsPaused`]: nextPaused } : s));
         toast.success(nextPaused ? "Emails paused" : "Emails resumed");
       } else {
-        toast.error("Couldn't update — try again");
+        toast.error("Couldn't update. Try again");
       }
       setPendingAudience(null);
     });

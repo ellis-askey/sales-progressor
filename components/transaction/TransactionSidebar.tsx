@@ -208,9 +208,9 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
     unknown:   "No data yet",
   };
   const TRACK_TOOLTIP: Record<string, string> = {
-    on_track:  "You're ahead of the 12-week pace — based on steps completed",
-    at_risk:   "Behind the 12-week pace — based on steps completed",
-    off_track: "Well behind the 12-week pace — based on steps completed",
+    on_track:  "You're ahead of the 12-week pace, based on steps completed",
+    at_risk:   "Behind the 12-week pace, based on steps completed",
+    off_track: "Well behind the 12-week pace, based on steps completed",
     unknown:   "",
   };
 

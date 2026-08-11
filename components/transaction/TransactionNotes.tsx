@@ -68,12 +68,12 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
       const result = await withErrorToast(
         toast,
         () => addNoteAction(transactionId, content),
-        "Couldn't save note — try again",
+        "Couldn't save note. Try again",
       );
       if (result !== null) {
         toast.success("Note added");
       } else {
-        setError("Couldn't save note — please try again");
+        setError("Couldn't save note. Try again");
       }
     });
   }
@@ -89,7 +89,7 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
       const result = await withErrorToast(
         toast,
         () => deleteCommAction(id, transactionId),
-        "Couldn't delete note — try again",
+        "Couldn't remove note. Try again",
       );
       setDeleting(null);
       if (result !== null) toast.success("Note deleted");

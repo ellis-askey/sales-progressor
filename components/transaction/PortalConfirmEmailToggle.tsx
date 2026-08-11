@@ -41,7 +41,7 @@ export function PortalConfirmEmailToggle({
         toast.success(next ? "Portal emails on" : "Portal emails paused");
       } catch (err) {
         setEmailsOn(!next);
-        toast.error("Couldn't update — try again");
+        toast.error("Couldn't update. Try again");
       }
     });
   }

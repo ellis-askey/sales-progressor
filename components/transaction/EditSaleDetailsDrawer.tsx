@@ -501,7 +501,7 @@ export function EditSaleDetailsDrawer({
       }
       setPriceFeeStage("idle");
     } catch (err) {
-      setPriceFeeError(err instanceof Error ? err.message : "Couldn't save — tap Save again to retry");
+      setPriceFeeError(err instanceof Error ? err.message : "Couldn't save. Tap Save again to retry");
       setPriceFeeStage("idle");
     }
   }
@@ -533,7 +533,7 @@ export function EditSaleDetailsDrawer({
       }
       setTimelineStage("idle");
     } catch (err) {
-      setTimelineError(err instanceof Error ? err.message : "Couldn't save — tap Save again to retry");
+      setTimelineError(err instanceof Error ? err.message : "Couldn't save. Tap Save again to retry");
       setTimelineStage("idle");
     }
   }

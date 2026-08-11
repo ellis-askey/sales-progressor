@@ -52,8 +52,8 @@ function deriveMode(paused: boolean, status: "active" | "on_hold"): Mode {
 
 const SUBTEXT: Record<Mode, string> = {
   active: "Automated chases sending as scheduled.",
-  paused: "Paused — client emails won't send. The team still sees this file in their reminders.",
-  on_hold: "On hold — everything is frozen until you reactivate.",
+  paused: "Paused. Client emails won't send, but the team still sees this file in their reminders.",
+  on_hold: "On hold. Everything is frozen until you reactivate.",
 };
 
 export function AutomationControls({
@@ -101,8 +101,8 @@ export function AutomationControls({
         setError(result.error);
         toast.error(
           wasOnHold
-            ? "Couldn't reactivate file — try again"
-            : "Couldn't resume client emails — try again",
+            ? "Couldn't reactivate file. Try again"
+            : "Couldn't resume client emails. Try again",
         );
       }
     });
@@ -125,8 +125,8 @@ export function AutomationControls({
         setModalOpen(false);
         toast.error(
           choice === "pause"
-            ? "Couldn't pause client emails — try again"
-            : "Couldn't put file on hold — try again",
+            ? "Couldn't pause client emails. Try again"
+            : "Couldn't put file on hold. Try again",
         );
       }
     });
@@ -157,7 +157,7 @@ export function AutomationControls({
             {error ??
               (hideEmailPause
                 ? mode === "on_hold"
-                  ? "On hold — everything is frozen until you reactivate."
+                  ? "On hold. Everything is frozen until you reactivate."
                   : "Not on hold. Reminders and chases run as normal."
                 : SUBTEXT[mode])}
           </span>

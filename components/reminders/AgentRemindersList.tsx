@@ -494,7 +494,7 @@ function SideColumn({
               <button
                 onClick={() => optimisticChase(task.id, log.id, task.chaseCount)}
                 disabled={isExiting}
-                title="Mark as chased — advances the next chase date without sending an email"
+                title="Mark as chased. Advances the next chase date without sending an email"
                 className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
                 style={{ flexShrink: 0, whiteSpace: "nowrap" }}
               >
