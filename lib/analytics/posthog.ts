@@ -73,7 +73,6 @@ const ALLOWED_PROPS = new Set([
   "agencyId",
   "agencyName",
   "userRole",
-  "email",
 
   // Transactions
   "transactionId",
@@ -112,14 +111,24 @@ const ALLOWED_PROPS = new Set([
   "theme",
 ]);
 
+// Person-profile-only props — allowed on identify() (PostHog person
+// properties) but ALWAYS stripped from event capture. ADMIN_10
+// non-negotiable #2: no PII on events. "email" briefly sat in
+// ALLOWED_PROPS above (added for identify), which silently let it onto
+// captured events too and broke the compliance regression test.
+const IDENTIFY_ONLY_PROPS = new Set(["email"]);
+
 // Module-level init flag — the single source of truth for "has consent been given."
 // Reset only possible via a full page reload (SDK limitation).
 let _initialized = false;
 
-function sanitize(props: Record<string, unknown>): Record<string, unknown> {
+function sanitize(
+  props: Record<string, unknown>,
+  extraAllowed?: Set<string>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(props)) {
-    if (ALLOWED_PROPS.has(k)) out[k] = v;
+    if (ALLOWED_PROPS.has(k) || extraAllowed?.has(k)) out[k] = v;
   }
   return out;
 }
@@ -148,7 +157,7 @@ export function init(consent: boolean): void {
 /** Wire the authenticated user to their PostHog person. No-op before consent. */
 export function identify(userId: string, props: Record<string, unknown>): void {
   if (!_initialized) return;
-  posthog.identify(userId, sanitize(props));
+  posthog.identify(userId, sanitize(props, IDENTIFY_ONLY_PROPS));
 }
 
 /** Capture a named event. No-op before consent or if event name not in allow-list. */
