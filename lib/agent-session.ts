@@ -10,8 +10,17 @@
 // helper, each layout would re-resolve session/role/theme independently,
 // hitting Prisma twice per render.
 
-import { cache } from "react";
+import { cache as reactCache } from "react";
 import { redirect } from "next/navigation";
+
+// React's `cache()` only exists in the server-components build of React.
+// Under Jest's node environment (which loads this module transitively via
+// lib/security/access-scope → lib/services/* import chains) it's
+// undefined, and calling it at module scope crashed every test suite that
+// touched those chains. Fall back to identity — per-request memoisation is
+// a render-time optimisation, irrelevant in tests.
+const cache: typeof reactCache =
+  typeof reactCache === "function" ? reactCache : ((fn: never) => fn) as typeof reactCache;
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
