@@ -560,6 +560,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       // Auto-save draft on MOS upload so the navigation guard doesn't fire
       const mosDraftInput = buildDraftInput(newFields, data, undefined);
       saveDraftAction(mosDraftInput).then((result) => {
+        if (result.id === null) return; // internal account, no agency: silent skip (manual save shows the message)
         setCurrentDraftId(result.id);
         upsertDraftInList(result.id, mosDraftInput.propertyAddress, {
           tenure: newFields.tenure || null,
@@ -685,6 +686,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     try {
       const input = buildDraftInput(formFields, extractedData, currentDraftId ?? undefined);
       const result = await saveDraftAction(input);
+      if (result.id === null) {
+        // Internal-staff account with no agency: drafts can't be created
+        // (sales always belong to a customer agency). Honest message
+        // instead of the generic failure toast.
+        toast.error("This account isn't linked to an agency, so drafts can't be saved here.");
+        return;
+      }
       setCurrentDraftId(result.id);
       upsertDraftInList(result.id, input.propertyAddress, {
         tenure: formFields.tenure || null,

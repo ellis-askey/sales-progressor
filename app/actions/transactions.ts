@@ -1391,6 +1391,19 @@ export async function saveDraftAction(data: {
     return { id: data.draftId };
   }
 
+  // Internal staff (agencyId = null) can't CREATE drafts: every
+  // PropertyTransaction row belongs to a customer agency (agencyId is a
+  // required column), and createTransactionAction blocks the same case
+  // with "Cannot create transaction without an agency". Without this
+  // guard the create below dies in Prisma with a constraint error the
+  // UI can only render as a generic failure (reported 2026-08-11 by
+  // Ellis saving a draft while logged in as internal staff). Updating
+  // an EXISTING agency draft (the branch above) stays allowed for
+  // internal admins — the agency is already set on the row.
+  if (!session.user.agencyId) {
+    return { id: null, error: "no_agency" } as const;
+  }
+
   // Create new draft. Phase 1: stand up Round 1 inside the same
   // $transaction as the PropertyTransaction.create — every tx in the
   // database has a Round 1 from the first millisecond, even drafts.
