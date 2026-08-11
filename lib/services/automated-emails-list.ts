@@ -37,6 +37,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
+import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 
 export type EmailListTab = "pending" | "sent" | "errored" | "upcoming";
 
@@ -53,17 +54,7 @@ export type EmailDeliveryStatus =
   | "errored"
   | "failed";
 
-export type EmailListInput = {
-  // Resolved from the session — caller is responsible for passing the right
-  // values from session.user.
-  role: "director" | "negotiator" | "sales_progressor" | "admin" | "superadmin" | "viewer";
-  userId: string;
-  agencyId: string | null;
-  // True for admin/superadmin AND for the hybrid sales_progressor exception
-  // (ellis). Lets a hybrid SP see the platform-wide list while keeping role=SP.
-  hasAdminPowers?: boolean;
-  mineOnly?: boolean;       // director's "my files only" toggle
-  fileId?: string;          // when present, list filtered to one transaction
+export type EmailListInput = EmailScopeInput & {
   tab: EmailListTab;
 };
 
@@ -102,36 +93,6 @@ export type EmailListResponse = {
 // One page of the feed. Pre-launch volumes are small; PR 3 introduces proper
 // cursor pagination + a "load more" control that consumes `hasMore`.
 const PAGE_SIZE = 200;
-
-// Build the transaction-where clause from caller role + scope. This stays the
-// single scope resolver for the whole feed (both sources scope off the txIds
-// it yields). It intentionally narrows MORE than access-scope.ts's
-// scopeTransactionWhere (self-managed only; negotiator → own files), so it is
-// deliberately not replaced by that helper — see the PR 1 note in the report.
-function buildTxWhere(input: EmailListInput): Prisma.PropertyTransactionWhereInput {
-  const where: Prisma.PropertyTransactionWhereInput = {};
-
-  if (input.hasAdminPowers) {
-    // No agency filter — admin (and hybrid SP) sees the whole platform.
-  } else if (input.role === "sales_progressor") {
-    where.assignedUserId = input.userId;
-  } else if (input.role === "negotiator" || input.role === "viewer") {
-    where.agencyId = input.agencyId ?? "__none__";
-    where.agentUserId = input.userId;
-    // Founder rule 2026-08-09: agencies only see automated emails for the
-    // files they progress themselves. Outsourced files' client emails are
-    // handled by the SP team, so they don't belong on the agency's page.
-    where.serviceType = "self_managed";
-  } else if (input.role === "director") {
-    where.agencyId = input.agencyId ?? "__none__";
-    where.serviceType = "self_managed";
-    if (input.mineOnly) where.agentUserId = input.userId;
-  }
-
-  if (input.fileId) where.id = input.fileId;
-
-  return where;
-}
 
 function categoriseEmailType(emailType: string): "chase" | "notification" {
   return emailType === "CLIENT_CHASE" || emailType === "SOLICITOR_CHASE" ? "chase" : "notification";
@@ -272,35 +233,9 @@ function mapMessageRow(
   };
 }
 
-// Solicitor automated sends only. createdByRole="director" is the solicitor-
-// chase mirror's signature — it isolates those from the drain's client-chase
-// mirrors ("system") and historical imported chase rows (null).
-function solicitorMessageWhere(txIds: string[]): Prisma.OutboundMessageWhereInput {
-  return {
-    transactionId: { in: txIds },
-    channel: "email",
-    purpose: "chase",
-    isAutomated: true,
-    createdByRole: "director",
-  };
-}
-
 export async function listAutomatedEmails(input: EmailListInput): Promise<EmailListResponse> {
-  const txWhere = buildTxWhere(input);
-
-  // Resolve the in-scope transactions once. Both sources scope off these ids:
-  // the queue via its recipientContact relation, OutboundMessage via its own
-  // transactionId column. activeBuyerRoundId lets us hide queue rows aimed at a
-  // fall-through buyer's Contact (a previous sale) from the live surface.
-  const transactions = await prisma.propertyTransaction.findMany({
-    where: txWhere,
-    select: { id: true, propertyAddress: true, activeBuyerRoundId: true },
-  });
-  const txIds = transactions.map((t) => t.id);
-  const txAddressById = new Map(transactions.map((t) => [t.id, t.propertyAddress]));
-  const activeRoundIds = transactions
-    .map((t) => t.activeBuyerRoundId)
-    .filter((id): id is string => id !== null);
+  // Single scope resolution feeds both sources (queue + solicitor messages).
+  const { txIds, txAddressById, queueScope, solicitorScope } = await resolveEmailScope(input);
 
   // Empty-scope short-circuit. Avoids the count fan-out with `in: []`.
   if (txIds.length === 0) {
@@ -310,19 +245,6 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
-  // Round-aware contact filter for the queue (purchaser contacts from a
-  // fall-through round are hidden; vendor/solicitor/broker are file-level).
-  const queueScope: Prisma.OutboundEmailQueueWhereInput = {
-    recipientContact: {
-      propertyTransactionId: { in: txIds },
-      OR: [
-        { roleType: { not: "purchaser" as const } },
-        { buyerRoundId: null },
-        { buyerRoundId: { in: activeRoundIds } },
-      ],
-    },
-  };
-  const solicitorScope = solicitorMessageWhere(txIds);
   // A solicitor row is an "issue" when the send failed or bounced.
   const solicitorErroredScope: Prisma.OutboundMessageWhereInput = {
     ...solicitorScope,

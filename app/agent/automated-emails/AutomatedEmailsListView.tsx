@@ -313,13 +313,6 @@ export function AutomatedEmailsListView({
   const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
   return (
     <div className="space-y-4">
-      {/* KPI strip — each card jumps to the matching tab on click */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-        <KpiCard label="Pending now" value={counts.pending} href={tabHref("pending", mineOnly, fileId)} />
-        <KpiCard label="Sent (7d)"   value={counts.sentLast7d} href={tabHref("sent",    mineOnly, fileId)} />
-        <KpiCard label="Errored"     value={counts.errored}    href={tabHref("errored", mineOnly, fileId)} />
-      </div>
-
       {/* Director toggle + file filter pill */}
       {(showMineToggle || fileId) && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -444,16 +437,3 @@ export function AutomatedEmailsListView({
 // Clickable KPI card — whole card is a Link that jumps to the matching tab.
 // Uses the .agent-kpi-card class for hover lift + chevron reveal (defined
 // in agent-system.css alongside the segment-pill recipe).
-function KpiCard({ label, value, href }: { label: string; value: number; href: string }) {
-  return (
-    <Link href={href} className="agent-kpi-card">
-      <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>
-        {label}
-      </span>
-      <span style={{ fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", marginTop: 2 }}>
-        {value}
-      </span>
-      <span className="agent-kpi-card-chevron" aria-hidden>→</span>
-    </Link>
-  );
-}

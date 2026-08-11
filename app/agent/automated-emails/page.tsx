@@ -16,11 +16,15 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { listAutomatedEmails, type EmailListTab } from "@/lib/services/automated-emails-list";
+import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
+import { AutomationActivityPanel } from "@/components/automated-emails/AutomationActivityPanel";
+import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentionPanel";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming"] as const;
+const VALID_PERIODS = [7, 30, 90];
 
 function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, isHybridAdmin: boolean): string {
   if (fileLabel) return `Automated emails for ${fileLabel}.`;
@@ -38,7 +42,7 @@ function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, 
 export default async function AutomatedEmailsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; mine?: string; fileId?: string }>;
+  searchParams: Promise<{ tab?: string; mine?: string; fileId?: string; period?: string }>;
 }) {
   const session = await requireSession();
   // Founder rule 2026-08-09: an agency that outsources everything has no
@@ -53,6 +57,7 @@ export default async function AutomatedEmailsPage({
     : "pending";
   const mineOnly = sp.mine === "1";
   const fileId = sp.fileId || undefined;
+  const period = VALID_PERIODS.includes(Number(sp.period)) ? Number(sp.period) : 30;
 
   const role = session.user.role as
     | "director"
@@ -76,15 +81,24 @@ export default async function AutomatedEmailsPage({
     fileLabel = tx?.propertyAddress ?? null;
   }
 
-  const { rows, counts } = await listAutomatedEmails({
+  // Shared scope for every data module so counts, KPIs, issues and the feed
+  // can never diverge on visibility.
+  const scopeBase = {
     role,
     userId: session.user.id,
     agencyId: session.user.agencyId || null,
     hasAdminPowers: hasAdminPowers(session),
     mineOnly: role === "director" ? mineOnly : false,
     fileId,
-    tab,
-  });
+  };
+
+  // Each module degrades independently — a failure in the overview or the
+  // issues panel must not blank the whole page.
+  const [list, overview, needs] = await Promise.all([
+    listAutomatedEmails({ ...scopeBase, tab }),
+    getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
+    getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
+  ]);
 
   if (sp.fileId && !fileLabel) {
     // fileId in URL but no matching transaction OR not in scope — show empty
@@ -98,9 +112,19 @@ export default async function AutomatedEmailsPage({
         title="Automated emails"
         subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
       />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div className="lg:col-span-2">
+          {overview && <AutomationActivityPanel overview={overview} />}
+        </div>
+        <div className="lg:col-span-1">
+          {needs && <NeedsAttentionPanel data={needs} />}
+        </div>
+      </div>
+
       <AutomatedEmailsListView
-        rows={rows}
-        counts={counts}
+        rows={list.rows}
+        counts={list.counts}
         tab={tab}
         mineOnly={mineOnly}
         fileId={fileId}
