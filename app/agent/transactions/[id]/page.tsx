@@ -43,7 +43,6 @@ import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
-import { AiSummaryButton } from "@/components/transaction/AiSummaryButton";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { ClaimedToast } from "@/components/transaction/ClaimedToast";
@@ -261,26 +260,21 @@ export default async function AgentTransactionDetailPage({
 
   // Role-gated header controls — 2026-08-08 hero redesign: these moved
   // from the tab bar's rightSlot into the hero's top-right corner (one
-  // home per control, no same-screen duplication). Gates unchanged:
-  // AI summary is Ellis-only, portal-emails toggle is internal staff.
+  // home per control, no same-screen duplication). 2026-08-11: the hero
+  // AI-summary button was removed — the Overview tab's AiSummaryCard is
+  // the single home for it (same Ellis-only gate).
   const heroTopRightSlot = (() => {
     const internal =
       session.user.role === "sales_progressor" ||
       session.user.role === "admin" ||
       session.user.role === "superadmin";
-    const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";
-    if (!internal && !isEllis) return null;
+    if (!internal) return null;
     return (
-      <>
-        {isEllis && <AiSummaryButton transactionId={transaction.id} />}
-        {internal && (
-          <PortalConfirmEmailToggle
-            transactionId={transaction.id}
-            initialValue={transaction.suppressPortalConfirmEmails}
-            pathname={`/agent/transactions/${transaction.id}`}
-          />
-        )}
-      </>
+      <PortalConfirmEmailToggle
+        transactionId={transaction.id}
+        initialValue={transaction.suppressPortalConfirmEmails}
+        pathname={`/agent/transactions/${transaction.id}`}
+      />
     );
   })();
 
