@@ -17,6 +17,7 @@ import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { CaretDown } from "@phosphor-icons/react";
 
 // Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
 // components/reminders/AgentRemindersList.tsx (kept duplicated here to keep
@@ -853,14 +854,34 @@ export function RemindersSection({
 
         return (
           <Card key={groupKey} glassId="reminders-group" glassLabel="Reminders · Urgency groups" glassDefault="v05" padding="none">
-            <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
+            {/* Whole-bar disclosure header (2026-08-11 drawer-consistency
+                pass): chevron + click-anywhere, replacing the old
+                Show/Hide text link. Urgency label colours unchanged.
+                ANIMATION_STANDARDS E1 amended in the same commit. */}
+            <div
+              className="agent-acc-hdr"
+              style={{ borderBottom: "none" }}
+              role="button"
+              tabIndex={0}
+              aria-expanded={!isCollapsed}
+              onClick={() => toggleCollapse(groupKey)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse(groupKey); } }}
+            >
               <div className="flex items-center gap-2">
                 <span className={`agent-acc-title ${cfg.labelCls}`}>{cfg.label}</span>
                 <span className="agent-badge">{logs.length}</span>
               </div>
-              <button onClick={() => toggleCollapse(groupKey)} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
-                {isCollapsed ? "Show" : "Hide"}
-              </button>
+              <CaretDown
+                size={12}
+                weight="bold"
+                aria-hidden
+                style={{
+                  flexShrink: 0,
+                  color: "var(--agent-text-muted)",
+                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                }}
+              />
             </div>
             <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
               <div className="agent-acc-in">
@@ -882,14 +903,30 @@ export function RemindersSection({
       {/* Snoozed */}
       {snoozedLogs.length > 0 && (
         <Card glassId="reminders-snoozed" glassLabel="Reminders · Snoozed" glassDefault="v05" padding="none">
-          <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
+          <div
+            className="agent-acc-hdr"
+            style={{ borderBottom: "none" }}
+            role="button"
+            tabIndex={0}
+            aria-expanded={!collapsed.snoozed}
+            onClick={() => toggleCollapse("snoozed")}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse("snoozed"); } }}
+          >
             <div className="flex items-center gap-2">
               <span className="agent-acc-title text-purple-700">Snoozed</span>
               <span className="agent-badge">{snoozedLogs.length}</span>
             </div>
-            <button onClick={() => toggleCollapse("snoozed")} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
-              {collapsed.snoozed ? "Show" : "Hide"}
-            </button>
+            <CaretDown
+              size={12}
+              weight="bold"
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                color: "var(--agent-text-muted)",
+                transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: collapsed.snoozed ? "rotate(0deg)" : "rotate(180deg)",
+              }}
+            />
           </div>
           <div className={`agent-acc ${!collapsed.snoozed ? "open" : ""}`}>
             <div className="agent-acc-in">
@@ -930,14 +967,30 @@ export function RemindersSection({
       {/* Completed */}
       {completedLogs.length > 0 && (
         <Card glassId="reminders-completed" glassLabel="Reminders · Completed" glassDefault="v05" padding="none">
-          <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
+          <div
+            className="agent-acc-hdr"
+            style={{ borderBottom: "none" }}
+            role="button"
+            tabIndex={0}
+            aria-expanded={!collapsed.completed}
+            onClick={() => toggleCollapse("completed")}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse("completed"); } }}
+          >
             <div className="flex items-center gap-2">
               <span className="agent-acc-title text-slate-900/50">Completed</span>
               <span className="agent-badge">{completedLogs.length}</span>
             </div>
-            <button onClick={() => toggleCollapse("completed")} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
-              {collapsed.completed ? "Show" : "Hide"}
-            </button>
+            <CaretDown
+              size={12}
+              weight="bold"
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                color: "var(--agent-text-muted)",
+                transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: collapsed.completed ? "rotate(0deg)" : "rotate(180deg)",
+              }}
+            />
           </div>
           <div className={`agent-acc ${!collapsed.completed ? "open" : ""}`}>
             <div className="agent-acc-in">

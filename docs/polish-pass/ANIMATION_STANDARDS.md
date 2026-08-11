@@ -451,19 +451,17 @@ Default `marginBottom` is 16px. Override inline where 20px is needed (e.g. Pipel
 
 Components where semantic colour coding overrides canonical class rules. Do not "fix" these on any future pass — the exception is intentional and documented here.
 
-### E1 — RemindersSection urgency group headers
+### E1 — RemindersSection urgency group headers (AMENDED 2026-08-11)
 
-**Component:** `components/reminders/RemindersSection.tsx`, `GROUP_CONFIG` constant (lines 47–52).
+**Component:** `components/reminders/RemindersSection.tsx`, `GROUP_CONFIG` constant.
 
-**Why not `.agent-acc-hdr`:** The urgency group headers carry semantically meaningful background colour coding:
-- Escalated: `bg-red-50/70 border border-red-200`
-- Overdue: `bg-orange-50/70 border border-orange-100`
-- Due today: `bg-amber-50/60 border border-amber-100`
-- Upcoming: `bg-white/30 border border-white/50`
+**Original exception (2026-05-11, now retired):** the urgency headers carried semantic background colour coding (`bg-red-50/70`, `bg-orange-50/70`, `bg-amber-50/60`, `bg-white/30`) and were plain section dividers (not clickable), so `.agent-acc-hdr` was banned for them.
 
-This colour coding is the primary UI signal for urgency state and the most important information on the work queue. Applying `.agent-acc-hdr` would suppress all colour coding behind a neutral hover-state accordion header. The urgency headers are also not clickable (they are section dividers, not expand/collapse triggers), making `.agent-acc-hdr`'s cursor and hover states misleading.
+**Why it was retired:** the code moved on. The headers became collapsible (initially via a small "Show"/"Hide" text link) and the colour coding migrated from header backgrounds to the label text (`GROUP_CONFIG.labelCls`), so neither leg of the original rationale still held. Founder sign-off 2026-08-11 ("the old rule is now redundant").
 
-**Rule:** Do not apply `.agent-acc-hdr` to urgency group headers on any future pass. The exception is permanent.
+**Current rule:** urgency group headers follow the canonical disclosure pattern like every other collapsible section: `.agent-acc-hdr`, whole-bar click, rotating chevron, `.agent-acc` body animation. The urgency colour coding stays on the label text and badge, which the canonical header does not suppress.
+
+**What survives of E1:** semantic colour is still allowed to override neutral header STYLING where it carries meaning (e.g. `AgentRemindersList`'s tinted group headers on the work queue keep their colours while using the canonical click/chevron/animation behaviour).
 
 ---
 
