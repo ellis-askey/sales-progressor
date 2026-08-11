@@ -17,7 +17,7 @@ import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { getEmailForPreview, updateEmailPayload } from "@/app/actions/automation";
-import { getFileEmailTimeline, type FileEmailActivityItem } from "@/app/actions/automated-emails";
+import { getFileEmailTimeline, cancelPendingEmail, sendPendingEmailNow, type FileEmailActivityItem } from "@/app/actions/automated-emails";
 import { deliveryStatusMeta } from "./deliveryStatus";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
 
@@ -78,10 +78,29 @@ export function EmailDetailDrawer({ row, onClose, onChanged }: { row: EmailRow |
   const [text, setText] = useState("");
   const [saving, startSaving] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [acting, startActing] = useTransition();
 
   const emailId = row?.id ?? null;
   const isQueue = row?.source === "queue" && row.status !== "upcoming";
+  const isPending = row?.status === "pending" && row.source === "queue";
   const txId = row?.transactionId ?? "";
+
+  function doSendNow() {
+    if (!emailId) return;
+    startActing(async () => {
+      const res = await sendPendingEmailNow(emailId);
+      if (res.ok) { toast.success(res.message); onChanged?.(); onClose(); }
+      else { toast.error(res.error); onChanged?.(); }
+    });
+  }
+  function doCancel() {
+    if (!emailId) return;
+    startActing(async () => {
+      const res = await cancelPendingEmail(emailId);
+      if (res.ok) { toast.success(res.message); onChanged?.(); onClose(); }
+      else { toast.error(res.error); onChanged?.(); }
+    });
+  }
 
   // Load the payload (queue rows only) + the file's recent activity on open.
   useEffect(() => {
@@ -214,8 +233,18 @@ export function EmailDetailDrawer({ row, onClose, onChanged }: { row: EmailRow |
           <Link href={`/agent/transactions/${txId}`} className="agent-link agent-link-muted" style={{ fontSize: 12 }}>
             View file →
           </Link>
-          {isQueue && canEdit && mode === "view" && (
-            <button onClick={() => setMode("edit")} className="agent-btn-color-primary" style={primaryBtn}>Edit email</button>
+          {mode === "view" && (
+            <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+              {isQueue && canEdit && (
+                <button onClick={() => setMode("edit")} className="agent-link" style={{ fontSize: 12, fontWeight: 600 }} disabled={acting}>Edit</button>
+              )}
+              {isPending && (
+                <button onClick={doCancel} className="agent-link" style={{ fontSize: 12, color: "var(--agent-danger)" }} disabled={acting}>Cancel</button>
+              )}
+              {isPending && (
+                <button onClick={doSendNow} className="agent-btn-color-primary" style={primaryBtn} disabled={acting}>{acting ? "Sending…" : "Send now"}</button>
+              )}
+            </span>
           )}
           {isQueue && mode === "edit" && (
             <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
