@@ -470,35 +470,19 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               survey) arrive blank and must be filled. */}
           {showEventDate && (
             <div className="mt-2 space-y-2 agent-reveal-in">
-              <div className="flex items-center gap-2">
-                <div>
-                  <label className="block text-xs text-slate-900/50 mb-1">
-                    {def.eventDateRequired ? getEventDateLabel(def.code) : "Date this happened"}
-                    {def.eventDateRequired && <span className="text-red-400"> *</span>}
-                  </label>
-                  <input
-                    type="date"
-                    value={eventDate}
-                    max={new Date().toISOString().split("T")[0]}
-                    disabled={isPM6 && desktopValuation}
-                    onChange={(e) => setEventDate(e.target.value)}
-                    className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => doComplete()}
-                  disabled={(def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-                  className="mt-5"
-                >
-                  Confirm
-                </Button>
-                <button
-                  onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
-                  className="mt-5 agent-link agent-link-muted" style={{ fontSize: 11 }}
-                >
-                  Cancel
-                </button>
+              <div>
+                <label className="block text-xs text-slate-900/50 mb-1">
+                  {def.eventDateRequired ? getEventDateLabel(def.code) : "Date this happened"}
+                  {def.eventDateRequired && <span className="text-red-400"> *</span>}
+                </label>
+                <input
+                  type="date"
+                  value={eventDate}
+                  max={new Date().toISOString().split("T")[0]}
+                  disabled={isPM6 && desktopValuation}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
+                />
               </div>
               {!def.eventDateRequired && (
                 <p className="text-[10px] text-slate-900/50">
@@ -537,31 +521,40 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && (
-            <>
-              {effectivelyAvailable && (
-                <Button
-                  size="sm"
-                  onClick={handleConfirmClick}
-                  disabled={loading || isPending}
-                  className="ms-appear"
-                  style={{ minWidth: 76 }}
-                >
-                  {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
-                </Button>
-              )}
-              {effectivelyAvailable && canBeNR && (
-                <button
-                  onClick={handleNRClick}
-                  disabled={loading || isPending}
-                  className="agent-link agent-link-muted"
-                  style={{ fontSize: 11 }}
-                  title="Mark as not required"
-                >
-                  N/R
-                </button>
-              )}
-            </>
+          {/* First tap reveals the date (pre-filled today); a second tap on the
+              SAME button commits it, so an in-time confirm is a double-tap with
+              no pointer travel. The revealed date only needs touching when the
+              step happened earlier. */}
+          {!isDone && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
+            <Button
+              size="sm"
+              onClick={showEventDate ? () => doComplete() : handleConfirmClick}
+              disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
+              className="ms-appear"
+              style={{ minWidth: 76 }}
+            >
+              {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
+            </Button>
+          )}
+          {!isDone && showEventDate && (
+            <button
+              onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 11 }}
+            >
+              Cancel
+            </button>
+          )}
+          {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
+            <button
+              onClick={handleNRClick}
+              disabled={loading || isPending}
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 11 }}
+              title="Mark as not required"
+            >
+              N/R
+            </button>
           )}
           {isDone && (
             <button
