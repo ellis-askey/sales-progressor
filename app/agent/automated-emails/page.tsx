@@ -17,6 +17,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { listAutomatedEmails, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
+import { getUpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
@@ -107,10 +108,15 @@ export default async function AutomatedEmailsPage({
 
   // Each module degrades independently — a failure in the overview or the
   // issues panel must not blank the whole page.
-  const [list, overview, needs] = await Promise.all([
-    listAutomatedEmails({ ...scopeBase, tab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
+  // On the Upcoming tab the feed comes from the richer forecast (client +
+  // solicitor predictions + exhausted), so the list only needs its counts —
+  // fetch cheap pending rows to avoid a second per-file prediction fan-out.
+  const listTab = tab === "upcoming" ? "pending" : tab;
+  const [list, overview, needs, forecast] = await Promise.all([
+    listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
+    tab === "upcoming" ? getUpcomingForecast(scopeBase).catch(() => null) : Promise.resolve(null),
   ]);
 
   if (sp.fileId && !fileLabel) {
@@ -144,6 +150,7 @@ export default async function AutomatedEmailsPage({
         fileLabel={fileLabel}
         showMineToggle={role === "director"}
         hasMore={list.hasMore}
+        forecast={forecast}
       />
     </div>
   );

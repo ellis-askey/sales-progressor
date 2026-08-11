@@ -18,7 +18,9 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { EmailRow, EmailListTab } from "@/lib/services/automated-emails-list";
 import { EmailDetailDrawer } from "@/components/automated-emails/EmailDetailDrawer";
+import { UpcomingView } from "@/components/automated-emails/UpcomingView";
 import { deliveryStatusMeta } from "@/components/automated-emails/deliveryStatus";
+import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
@@ -32,6 +34,7 @@ type Props = {
   fileLabel: string | null;
   showMineToggle: boolean;
   hasMore: boolean;
+  forecast?: UpcomingForecast | null;
 };
 
 const TABS: { value: EmailListTab; label: string }[] = [
@@ -65,10 +68,11 @@ const CATEGORY_OPTIONS = [
 ];
 const FILTER_KEYS = ["q", "category", "role", "status", "from"];
 
-function countForTab(t: EmailListTab, counts: Props["counts"], rows: EmailRow[], activeTab: EmailListTab): number | null {
+function countForTab(t: EmailListTab, counts: Props["counts"], rows: EmailRow[], activeTab: EmailListTab, forecast?: UpcomingForecast | null): number | null {
   if (t === "pending") return counts.pending;
   if (t === "sent") return counts.sentLast30d;
   if (t === "errored") return counts.errored;
+  if (forecast) return forecast.predictedTotal;
   return t === activeTab ? rows.length : null;
 }
 
@@ -104,7 +108,7 @@ function groupByDay(rows: EmailRow[]): { key: string; label: string; rows: Email
 }
 
 export function AutomatedEmailsListView(props: Props) {
-  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore } = props;
+  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast } = props;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<EmailRow | null>(null);
@@ -139,7 +143,7 @@ export function AutomatedEmailsListView(props: Props) {
       {/* Tabs */}
       <div className="flex flex-wrap gap-1" role="tablist" aria-label="Email views">
         {TABS.map((t) => {
-          const n = countForTab(t.value, counts, rows, tab);
+          const n = countForTab(t.value, counts, rows, tab, t.value === "upcoming" ? forecast : null);
           return (
             <Link
               key={t.value}
@@ -206,7 +210,9 @@ export function AutomatedEmailsListView(props: Props) {
       )}
 
       {/* Feed */}
-      {rows.length === 0 ? (
+      {tab === "upcoming" && forecast ? (
+        <UpcomingView forecast={forecast} />
+      ) : rows.length === 0 ? (
         <EmptyState
           title={emptyTitle(tab, anyFilter || !!fileId)}
           description={emptyDescription(tab, anyFilter || !!fileId)}
