@@ -16,6 +16,7 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { listAutomatedEmails, type EmailListTab } from "@/lib/services/automated-emails-list";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
 
@@ -63,10 +64,13 @@ export default async function AutomatedEmailsPage({
 
   // If a fileId was deep-linked, resolve the address up-front so the subtitle
   // can name it and the filter pill can show "Filtered to: <address>".
+  // Scope the lookup: an out-of-scope fileId must NOT resolve an address, or
+  // the subtitle leaks the property address of a file the viewer can't access
+  // (a deep-linked cross-agency id would otherwise render "...for <address>").
   let fileLabel: string | null = null;
   if (fileId) {
-    const tx = await prisma.propertyTransaction.findUnique({
-      where: { id: fileId },
+    const tx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(getAccessScope(session), fileId),
       select: { propertyAddress: true },
     });
     fileLabel = tx?.propertyAddress ?? null;
