@@ -35,7 +35,7 @@
 // mechanic and stays on its own surface — not part of this feed.
 
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, ContactRole } from "@prisma/client";
 import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 
@@ -54,8 +54,20 @@ export type EmailDeliveryStatus =
   | "errored"
   | "failed";
 
-export type EmailListInput = EmailScopeInput & {
+// Server-side search + filters. Applied to BOTH sources and to the tab counts,
+// always ANDed on top of the caller's scope so they can only ever narrow what
+// the viewer is already allowed to see — never widen it.
+export type EmailFilters = {
+  search?: string;                        // address / recipient / email / subject
+  category?: "chase" | "notification";    // email type
+  recipientRole?: string;                 // vendor / purchaser / solicitor / ...
+  deliveryStatus?: EmailDeliveryStatus;   // delivered / bounced / ...
+  fromDate?: Date;                        // records created on or after
+};
+
+export type EmailListInput = EmailScopeInput & EmailFilters & {
   tab: EmailListTab;
+  limit?: number;   // page size; "load more" grows this via the URL. Default 200.
 };
 
 export type EmailRow = {
@@ -233,9 +245,101 @@ function mapMessageRow(
   };
 }
 
+// ── Filter translation ──────────────────────────────────────────────────────
+
+const contains = (s: string): Prisma.StringFilter => ({ contains: s, mode: "insensitive" });
+
+// Map a fine-grained delivery status to a queue timestamp predicate.
+function queueStatusWhere(status: EmailDeliveryStatus): Prisma.OutboundEmailQueueWhereInput {
+  switch (status) {
+    case "pending":   return { sentAt: null, errorAt: null };
+    case "delivered": return { deliveredAt: { not: null } };
+    case "deferred":  return { deferredAt: { not: null }, deliveredAt: null };
+    case "bounced":   return { bouncedAt: { not: null } };
+    case "blocked":   return { blockedAt: { not: null } };
+    case "errored":
+    case "failed":    return { errorAt: { not: null } };
+    case "sent":      return { sentAt: { not: null }, deliveredAt: null, deferredAt: null, bouncedAt: null, blockedAt: null, errorAt: null };
+  }
+}
+
+// Map a delivery status to a solicitor (OutboundMessage) predicate, or null
+// when the status can't apply to a solicitor send (so the source is excluded).
+function messageStatusWhere(status: EmailDeliveryStatus): Prisma.OutboundMessageWhereInput | null {
+  switch (status) {
+    case "delivered": return { OR: [{ status: { in: ["delivered", "opened", "clicked"] } }, { deliveredAt: { not: null } }] };
+    case "bounced":   return { status: "bounced" };
+    case "errored":
+    case "failed":    return { OR: [{ status: "failed" }, { failedAt: { not: null } }] };
+    case "sent":      return { status: "sent" };
+    case "pending":
+    case "deferred":
+    case "blocked":   return null; // solicitor sends have no such state
+  }
+}
+
+// AND-able filter clause for the queue. Excludes nothing on its own.
+function buildQueueFilter(f: EmailFilters): Prisma.OutboundEmailQueueWhereInput {
+  const and: Prisma.OutboundEmailQueueWhereInput[] = [];
+  if (f.search) {
+    const s = f.search.trim();
+    and.push({
+      OR: [
+        { recipientEmail: contains(s) },
+        { recipientContact: { name: contains(s) } },
+        { recipientContact: { transaction: { propertyAddress: contains(s) } } },
+        { payload: { path: ["subject"], string_contains: s } },
+      ],
+    });
+  }
+  if (f.category === "chase") and.push({ emailType: "CLIENT_CHASE" });
+  if (f.category === "notification") and.push({ emailType: { not: "CLIENT_CHASE" } });
+  if (f.recipientRole) and.push({ recipientContact: { roleType: f.recipientRole as ContactRole } });
+  if (f.deliveryStatus) and.push(queueStatusWhere(f.deliveryStatus));
+  if (f.fromDate) and.push({ createdAt: { gte: f.fromDate } });
+  return and.length ? { AND: and } : {};
+}
+
+// AND-able filter clause for solicitor sends, or null to exclude the source
+// entirely (e.g. filtering to notifications, or a non-solicitor recipient role).
+function buildSolicitorFilter(f: EmailFilters): Prisma.OutboundMessageWhereInput | null {
+  if (f.category === "notification") return null;
+  if (f.recipientRole && f.recipientRole !== "solicitor") return null;
+  const and: Prisma.OutboundMessageWhereInput[] = [];
+  if (f.search) {
+    const s = f.search.trim();
+    and.push({
+      OR: [
+        { recipientEmail: contains(s) },
+        { recipientName: contains(s) },
+        { subject: contains(s) },
+        { transaction: { propertyAddress: contains(s) } },
+      ],
+    });
+  }
+  if (f.deliveryStatus) {
+    const w = messageStatusWhere(f.deliveryStatus);
+    if (!w) return null; // status not representable for solicitor sends
+    and.push(w);
+  }
+  if (f.fromDate) and.push({ createdAt: { gte: f.fromDate } });
+  return and.length ? { AND: and } : {};
+}
+
 export async function listAutomatedEmails(input: EmailListInput): Promise<EmailListResponse> {
   // Single scope resolution feeds both sources (queue + solicitor messages).
   const { txIds, txAddressById, queueScope, solicitorScope } = await resolveEmailScope(input);
+
+  const pageSize = Math.min(Math.max(input.limit ?? PAGE_SIZE, PAGE_SIZE), 2000);
+
+  // Search + filters, ANDed on top of scope (narrow-only). sFilter === null
+  // means the current filters exclude solicitor sends entirely.
+  const qFilter = buildQueueFilter(input);
+  const sFilter = buildSolicitorFilter(input);
+  const qWhere = (pred: Prisma.OutboundEmailQueueWhereInput): Prisma.OutboundEmailQueueWhereInput =>
+    ({ AND: [queueScope, qFilter, pred] });
+  const sWhere = (pred: Prisma.OutboundMessageWhereInput): Prisma.OutboundMessageWhereInput | null =>
+    (sFilter === null ? null : { AND: [solicitorScope, sFilter, pred] });
 
   // Empty-scope short-circuit. Avoids the count fan-out with `in: []`.
   if (txIds.length === 0) {
@@ -246,29 +350,24 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
   // A solicitor row is an "issue" when the send failed or bounced.
-  const solicitorErroredScope: Prisma.OutboundMessageWhereInput = {
-    ...solicitorScope,
+  const solErroredPred: Prisma.OutboundMessageWhereInput = {
     OR: [{ status: { in: ["failed", "bounced"] } }, { failedAt: { not: null } }],
   };
+  const solSent7dWhere = sWhere({ sentAt: { gte: sevenDaysAgo } });
+  const solSent30dWhere = sWhere({ sentAt: { gte: thirtyDaysAgo } });
+  const solErroredWhere = sWhere(solErroredPred);
 
   // KPI + tab-label counts across BOTH sources, in parallel. Pending is
-  // queue-only (solicitor chases send synchronously — they're never pending).
-  const [
-    qPending,
-    qSent7d,
-    qSent30d,
-    qErrored,
-    sSent7d,
-    sSent30d,
-    sErrored,
-  ] = await Promise.all([
-    prisma.outboundEmailQueue.count({ where: { ...queueScope, sentAt: null, errorAt: null } }),
-    prisma.outboundEmailQueue.count({ where: { ...queueScope, sentAt: { gte: sevenDaysAgo } } }),
-    prisma.outboundEmailQueue.count({ where: { ...queueScope, sentAt: { gte: thirtyDaysAgo } } }),
-    prisma.outboundEmailQueue.count({ where: { ...queueScope, errorAt: { not: null } } }),
-    prisma.outboundMessage.count({ where: { ...solicitorScope, sentAt: { gte: sevenDaysAgo } } }),
-    prisma.outboundMessage.count({ where: { ...solicitorScope, sentAt: { gte: thirtyDaysAgo } } }),
-    prisma.outboundMessage.count({ where: solicitorErroredScope }),
+  // queue-only (solicitor chases send synchronously). A null solicitor where
+  // means the active filters exclude solicitor sends → that count is 0.
+  const [qPending, qSent7d, qSent30d, qErrored, sSent7d, sSent30d, sErrored] = await Promise.all([
+    prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: null, errorAt: null }) }),
+    prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: { gte: sevenDaysAgo } }) }),
+    prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: { gte: thirtyDaysAgo } }) }),
+    prisma.outboundEmailQueue.count({ where: qWhere({ errorAt: { not: null } }) }),
+    solSent7dWhere ? prisma.outboundMessage.count({ where: solSent7dWhere }) : 0,
+    solSent30dWhere ? prisma.outboundMessage.count({ where: solSent30dWhere }) : 0,
+    solErroredWhere ? prisma.outboundMessage.count({ where: solErroredWhere }) : 0,
   ]);
   const counts = {
     pending: qPending,
@@ -277,99 +376,110 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     errored: qErrored + sErrored,
   };
 
-  // Tab-specific row fetch.
+  // Tab-specific row fetch (filters ANDed via qWhere/sWhere).
   let rows: EmailRow[] = [];
   let hasMore = false;
 
   if (input.tab === "pending") {
     const queueRows = await prisma.outboundEmailQueue.findMany({
-      where: { ...queueScope, sentAt: null, errorAt: null },
+      where: qWhere({ sentAt: null, errorAt: null }),
       select: queueRowSelect,
       orderBy: { scheduledFor: "asc" },
-      take: PAGE_SIZE + 1,
+      take: pageSize + 1,
     });
-    hasMore = queueRows.length > PAGE_SIZE;
-    rows = queueRows.slice(0, PAGE_SIZE).map((r) => mapQueueRow(r, "pending", txAddressById));
+    hasMore = queueRows.length > pageSize;
+    rows = queueRows.slice(0, pageSize).map((r) => mapQueueRow(r, "pending", txAddressById));
   } else if (input.tab === "sent") {
+    const sentSol = sWhere({ sentAt: { gte: thirtyDaysAgo } });
     const [queueRows, messageRows] = await Promise.all([
       prisma.outboundEmailQueue.findMany({
-        where: { ...queueScope, sentAt: { gte: thirtyDaysAgo } },
-        select: queueRowSelect,
-        orderBy: { sentAt: "desc" },
-        take: PAGE_SIZE + 1,
+        where: qWhere({ sentAt: { gte: thirtyDaysAgo } }),
+        select: queueRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1,
       }),
-      prisma.outboundMessage.findMany({
-        where: { ...solicitorScope, sentAt: { gte: thirtyDaysAgo } },
-        select: messageRowSelect,
-        orderBy: { sentAt: "desc" },
-        take: PAGE_SIZE + 1,
-      }),
+      sentSol ? prisma.outboundMessage.findMany({ where: sentSol, select: messageRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1 }) : [],
     ]);
     const merged = [
       ...queueRows.map((r) => mapQueueRow(r, "sent", txAddressById)),
       ...messageRows.map((m) => mapMessageRow(m, "sent", txAddressById)),
     ].sort((a, b) => (b.sentAt?.getTime() ?? 0) - (a.sentAt?.getTime() ?? 0));
-    hasMore = merged.length > PAGE_SIZE;
-    rows = merged.slice(0, PAGE_SIZE);
+    hasMore = merged.length > pageSize;
+    rows = merged.slice(0, pageSize);
   } else if (input.tab === "errored") {
+    const errSol = sWhere(solErroredPred);
     const [queueRows, messageRows] = await Promise.all([
       prisma.outboundEmailQueue.findMany({
-        where: { ...queueScope, errorAt: { not: null } },
-        select: queueRowSelect,
-        orderBy: { errorAt: "desc" },
-        take: PAGE_SIZE + 1,
+        where: qWhere({ errorAt: { not: null } }),
+        select: queueRowSelect, orderBy: { errorAt: "desc" }, take: pageSize + 1,
       }),
-      prisma.outboundMessage.findMany({
-        where: solicitorErroredScope,
-        select: messageRowSelect,
-        orderBy: { sentAt: "desc" },
-        take: PAGE_SIZE + 1,
-      }),
+      errSol ? prisma.outboundMessage.findMany({ where: errSol, select: messageRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1 }) : [],
     ]);
     const merged = [
       ...queueRows.map((r) => mapQueueRow(r, "errored", txAddressById)),
       ...messageRows.map((m) => mapMessageRow(m, "errored", txAddressById)),
     ].sort((a, b) => (b.errorAt?.getTime() ?? 0) - (a.errorAt?.getTime() ?? 0));
-    hasMore = merged.length > PAGE_SIZE;
-    rows = merged.slice(0, PAGE_SIZE);
+    hasMore = merged.length > pageSize;
+    rows = merged.slice(0, pageSize);
   } else {
-    // Upcoming: predictions from per-file logic flattened. Caps in the preview
-    // module bound each tx to a 14-day window. Solicitor-chase prediction and
-    // the "automation exhausted" signal land in PR 5; this stays client-only.
-    const previews = await Promise.all(
-      txIds.map((id) =>
-        getAutomatedEmailsForTransaction(id).catch(() => ({
-          pending: [],
-          sentToday: [],
-          upcoming: [],
-          pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null },
-        })),
-      ),
-    );
-    rows = previews.flatMap((preview, idx) => {
-      const txId = txIds[idx];
-      const address = txAddressById.get(txId) ?? "(unknown file)";
-      return preview.upcoming.map((u) => ({
+    rows = await buildUpcomingRows(txIds, txAddressById, input);
+  }
+
+  return { rows, counts, hasMore };
+}
+
+// Upcoming = predictions (client chases only in this feed; solicitor prediction
+// + "automation exhausted" arrive in PR 5). Filters are applied in memory —
+// predictions are synthetic, not DB rows.
+async function buildUpcomingRows(
+  txIds: string[],
+  txAddressById: Map<string, string>,
+  f: EmailFilters,
+): Promise<EmailRow[]> {
+  // Predictions are pending client chases; any incompatible filter short-circuits.
+  if (f.category === "notification") return [];
+  if (f.deliveryStatus && f.deliveryStatus !== "pending") return [];
+  if (f.recipientRole && f.recipientRole !== "vendor" && f.recipientRole !== "purchaser") return [];
+
+  const previews = await Promise.all(
+    txIds.map((id) =>
+      getAutomatedEmailsForTransaction(id).catch(() => ({
+        pending: [], sentToday: [], upcoming: [],
+        pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null },
+      })),
+    ),
+  );
+  const search = f.search?.trim().toLowerCase();
+  const rows = previews.flatMap((preview, idx) => {
+    const txId = txIds[idx];
+    const address = txAddressById.get(txId) ?? "(unknown file)";
+    return preview.upcoming
+      .filter((u) => !f.recipientRole || u.contactRole === f.recipientRole)
+      .filter((u) => {
+        if (!search) return true;
+        return (
+          address.toLowerCase().includes(search) ||
+          u.contactName.toLowerCase().includes(search) ||
+          u.milestoneLabel.toLowerCase().includes(search)
+        );
+      })
+      .map((u): EmailRow => ({
         id: `upcoming-${txId}-${u.contactId}-${u.milestoneCode}`,
-        source: "queue" as const,
+        source: "queue",
         emailType: "CLIENT_CHASE",
-        category: "chase" as const,
+        category: "chase",
         transactionId: txId,
         transactionAddress: address,
         recipientName: u.contactName,
         recipientRole: u.contactRole,
         subject: `${u.milestoneLabel} chase`,
-        status: "upcoming" as const,
-        deliveryStatus: "pending" as const,
+        status: "upcoming",
+        deliveryStatus: "pending",
         scheduledFor: u.predictedFireDate,
         sentAt: null,
         errorAt: null,
         errorMessage: null,
         chaseNumber: u.chaseNumber,
       }));
-    });
-    rows.sort((a, b) => (a.scheduledFor?.getTime() ?? 0) - (b.scheduledFor?.getTime() ?? 0));
-  }
-
-  return { rows, counts, hasMore };
+  });
+  rows.sort((a, b) => (a.scheduledFor?.getTime() ?? 0) - (b.scheduledFor?.getTime() ?? 0));
+  return rows;
 }

@@ -503,6 +503,19 @@
     opacity: 1;
     transform: translateX(0);
   }
+  /* Automated-emails feed row: hover + keyboard focus states (Law 12). */
+  .agent-email-feed-row {
+    transition: background 120ms ease, border-color 120ms ease;
+    cursor: pointer;
+  }
+  .agent-email-feed-row:hover {
+    background: var(--agent-surface-nested, rgba(15, 23, 42, 0.03));
+    border-color: var(--agent-border-default);
+  }
+  .agent-email-feed-row:focus-visible {
+    outline: 2px solid var(--agent-coral);
+    outline-offset: 1px;
+  }
   .agent-segment-pill-note {
     font-size: var(--agent-text-micro);
     font-weight: var(--agent-weight-regular);

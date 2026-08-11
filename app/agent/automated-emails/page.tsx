@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
-import { listAutomatedEmails, type EmailListTab } from "@/lib/services/automated-emails-list";
+import { listAutomatedEmails, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
@@ -42,7 +42,10 @@ function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, 
 export default async function AutomatedEmailsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; mine?: string; fileId?: string; period?: string }>;
+  searchParams: Promise<{
+    tab?: string; mine?: string; fileId?: string; period?: string;
+    q?: string; category?: string; role?: string; status?: string; from?: string; limit?: string;
+  }>;
 }) {
   const session = await requireSession();
   // Founder rule 2026-08-09: an agency that outsources everything has no
@@ -58,6 +61,16 @@ export default async function AutomatedEmailsPage({
   const mineOnly = sp.mine === "1";
   const fileId = sp.fileId || undefined;
   const period = VALID_PERIODS.includes(Number(sp.period)) ? Number(sp.period) : 30;
+
+  // Feed search + filters (validated; passed to the service which applies them
+  // server-side, ANDed on top of scope so they can only narrow).
+  const DELIVERY_STATUSES = ["pending", "sent", "delivered", "deferred", "bounced", "blocked", "errored", "failed"];
+  const search = sp.q?.trim() || undefined;
+  const category = sp.category === "chase" || sp.category === "notification" ? sp.category : undefined;
+  const recipientRole = sp.role || undefined;
+  const deliveryStatus = sp.status && DELIVERY_STATUSES.includes(sp.status) ? (sp.status as EmailDeliveryStatus) : undefined;
+  const fromDate = sp.from && !Number.isNaN(Date.parse(sp.from)) ? new Date(sp.from) : undefined;
+  const limit = Number(sp.limit) > 0 ? Number(sp.limit) : undefined;
 
   const role = session.user.role as
     | "director"
@@ -95,7 +108,7 @@ export default async function AutomatedEmailsPage({
   // Each module degrades independently — a failure in the overview or the
   // issues panel must not blank the whole page.
   const [list, overview, needs] = await Promise.all([
-    listAutomatedEmails({ ...scopeBase, tab }),
+    listAutomatedEmails({ ...scopeBase, tab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
   ]);
@@ -130,6 +143,7 @@ export default async function AutomatedEmailsPage({
         fileId={fileId}
         fileLabel={fileLabel}
         showMineToggle={role === "director"}
+        hasMore={list.hasMore}
       />
     </div>
   );
