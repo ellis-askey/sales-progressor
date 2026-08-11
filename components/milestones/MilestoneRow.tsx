@@ -108,13 +108,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [error, setError] = useState<string | null>(null);
   const [showEventDate, setShowEventDate] = useState(false);
   const [eventDate, setEventDate] = useState("");
-  // 2026-08-09 backdate flow: separate state from showEventDate (which
-  // is for milestones whose event date is REQUIRED, like exchange).
-  // showBackdate opens the same-shaped inline picker but for milestones
-  // whose date isn't required — agent uses it to record "this actually
-  // happened X days ago" so the queued client email can reflect that.
-  const [showBackdate, setShowBackdate] = useState(false);
-  const [backdateValue, setBackdateValue] = useState("");
   const [desktopValuation, setDesktopValuation] = useState(false);
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
@@ -172,56 +165,20 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       return;
     }
     onConfirmStart?.();
-    if (def.eventDateRequired && !RECONCILIATION_CODES.has(def.code)) {
-      setShowEventDate(true);
+    // Exchange / completion capture their date in the reconciliation modal.
+    if (RECONCILIATION_CODES.has(def.code)) {
+      doComplete();
       return;
     }
-    doComplete();
-  }
-
-  // 2026-08-09: dedicated backdate submit. Fires confirmMilestoneAction
-  // with the chosen date as eventDate. Separate from doComplete so the
-  // rest of the confirm/reconciliation flow stays untouched.
-  function doBackdateConfirm() {
-    const chosen = backdateValue || null;
-    setShowBackdate(false);
-    setError(null);
-    startTransition(async () => {
-      addOptimistic("complete");
-      setLoading(true);
-      try {
-        const result = await confirmMilestoneAction({
-          transactionId,
-          milestoneDefinitionId: def.id,
-          eventDate: chosen,
-        });
-        if (result.ok === false) {
-          if (result.kind === "prereqs_missing") {
-            const first = result.missing[0];
-            const msg = first
-              ? `Confirm "${first.name}" first.`
-              : "An earlier step needs to be confirmed first.";
-            addOptimistic("reverse");
-            setError(msg);
-            return;
-          }
-        } else if (result.triggeredCelebration && result.propertyAddress) {
-          setCelebrationAddress(result.propertyAddress);
-          setCelebrating(true);
-        } else {
-          // Toast makes it clear the backdate landed on the record.
-          const dateLabel = chosen
-            ? ` (as of ${new Date(chosen).toLocaleDateString("en-GB", { day: "numeric", month: "short" })})`
-            : "";
-          toast.success(`${def.name}${dateLabel}`);
-        }
-      } catch (err: unknown) {
-        setError(softenServerError(err, "Could not confirm this step."));
-      } finally {
-        setLoading(false);
-        setBackdateValue("");
-      }
-    });
+    // Every other step surfaces the real event date on confirm. Ordinary
+    // steps pre-fill to today so a real-time confirm is one tap; the agent
+    // changes it when catching up a file. Required-date steps (valuation,
+    // survey) stay blank so the agent consciously enters the real date. This
+    // is what populates eventDate across the journey for velocity averages.
+    if (!def.eventDateRequired) {
+      setEventDate(new Date().toISOString().split("T")[0]);
+    }
+    setShowEventDate(true);
   }
 
   function doComplete() {
@@ -507,56 +464,22 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
             </div>
           )}
 
-          {/* Backdate picker — optional date input for "actually
-              happened earlier". Separate from the required-date input
-              below (showEventDate). Blank + Confirm = today. */}
-          {showBackdate && (
-            <div className="mt-2 space-y-2 agent-reveal-in">
-              <div className="flex items-center gap-2">
-                <div>
-                  <label className="block text-xs text-slate-900/60 mb-1">
-                    Actually happened on
-                  </label>
-                  <input
-                    type="date"
-                    value={backdateValue}
-                    onChange={(e) => setBackdateValue(e.target.value)}
-                    max={new Date().toISOString().split("T")[0]}
-                    className="glass-input px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={doBackdateConfirm}
-                  disabled={loading || isPending}
-                  className="mt-5"
-                >
-                  {loading ? "Confirming…" : "Confirm"}
-                </Button>
-                <button
-                  onClick={() => { setShowBackdate(false); setBackdateValue(""); }}
-                  className="mt-5 agent-link agent-link-muted" style={{ fontSize: 11 }}
-                >
-                  Cancel
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-900/50">
-                Client update email will note the real date so the timing reads honestly.
-              </p>
-            </div>
-          )}
-
-          {/* Event date input */}
+          {/* Event date input — shown on confirm for every non-reconciliation
+              step. Ordinary steps arrive pre-filled to today (change it when
+              the step happened earlier); required-date steps (valuation,
+              survey) arrive blank and must be filled. */}
           {showEventDate && (
             <div className="mt-2 space-y-2 agent-reveal-in">
               <div className="flex items-center gap-2">
                 <div>
                   <label className="block text-xs text-slate-900/50 mb-1">
-                    {getEventDateLabel(def.code)} <span className="text-red-400">*</span>
+                    {def.eventDateRequired ? getEventDateLabel(def.code) : "Date this happened"}
+                    {def.eventDateRequired && <span className="text-red-400"> *</span>}
                   </label>
                   <input
                     type="date"
                     value={eventDate}
+                    max={new Date().toISOString().split("T")[0]}
                     disabled={isPM6 && desktopValuation}
                     onChange={(e) => setEventDate(e.target.value)}
                     className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
@@ -565,7 +488,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <Button
                   size="sm"
                   onClick={() => doComplete()}
-                  disabled={(!eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
+                  disabled={(def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
                   className="mt-5"
                 >
                   Confirm
@@ -577,6 +500,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   Cancel
                 </button>
               </div>
+              {!def.eventDateRequired && (
+                <p className="text-[10px] text-slate-900/50">
+                  Defaults to today. Change it only if this step happened earlier.
+                </p>
+              )}
               {isPM6 && (
                 <label className="flex items-center gap-2 text-xs text-slate-900/50 cursor-pointer select-none">
                   <input
@@ -609,7 +537,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isDone && !showEventDate && !showBackdate && !showNotRequired && !showCounterpartNotice && (
+          {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && (
             <>
               {effectivelyAvailable && (
                 <Button
@@ -621,26 +549,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 >
                   {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
                 </Button>
-              )}
-              {/* Backdate link — only for milestones where the event date
-                  isn't required (those already open the date picker on
-                  Confirm). Reconciliation codes handle date entry in
-                  their own modal. Added 2026-08-09 for the "found out
-                  ages ago" flow — sets a historical eventDate so the
-                  queued client email can reference the real date. */}
-              {effectivelyAvailable && !def.eventDateRequired && !RECONCILIATION_CODES.has(def.code) && (
-                <button
-                  onClick={() => {
-                    setBackdateValue("");
-                    setShowBackdate(true);
-                  }}
-                  disabled={loading || isPending}
-                  className="agent-link agent-link-muted"
-                  style={{ fontSize: 11 }}
-                  title="Record this as having happened on an earlier date"
-                >
-                  Backdate
-                </button>
               )}
               {effectivelyAvailable && canBeNR && (
                 <button
