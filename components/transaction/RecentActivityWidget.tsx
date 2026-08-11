@@ -151,7 +151,6 @@ export function RecentActivityWidget({ entries }: Props) {
                 const { Icon: EntryIcon, color, bg } = iconFor(entry);
                 const title = titleFor(entry);
                 const subtitle = subtitleFor(entry);
-                const isInternal = entry.kind === "comm" && entry.type === "internal_note";
                 return (
                   <ActivityRow
                     key={entry.id}
@@ -161,7 +160,6 @@ export function RecentActivityWidget({ entries }: Props) {
                     title={title}
                     subtitle={subtitle}
                     time={when.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                    trailingTag={isInternal ? "Internal note" : null}
                   />
                 );
               })}
@@ -173,8 +171,11 @@ export function RecentActivityWidget({ entries }: Props) {
   );
 }
 
+// 2026-08-11: the trailing "Internal note" tag was removed. The row title
+// already reads "Internal note" for those entries, so the right-side pill
+// said the same thing twice on the same line.
 function ActivityRow({
-  IconEl, iconColor, iconBg, title, subtitle, time, trailingTag,
+  IconEl, iconColor, iconBg, title, subtitle, time,
 }: {
   IconEl: ReactNode;
   iconColor: string;
@@ -182,7 +183,6 @@ function ActivityRow({
   title: string;
   subtitle: string;
   time: string;
-  trailingTag: string | null;
 }) {
   return (
     <div className="agent-hover-row" style={{
@@ -207,17 +207,6 @@ function ActivityRow({
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{title}</span>
           <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{time}</span>
-          {trailingTag && (
-            <span style={{
-              fontSize: 10,
-              fontWeight: 500,
-              color: "var(--agent-text-secondary)",
-              background: "rgba(15, 23, 42, 0.06)",
-              borderRadius: 4,
-              padding: "1px 6px",
-              marginLeft: "auto",
-            }}>{trailingTag}</span>
-          )}
         </div>
         <p style={{
           margin: "2px 0 0",
