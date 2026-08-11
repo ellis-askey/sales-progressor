@@ -413,10 +413,17 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
 
   return (
     <Card glassId="reminders-automated-emails" glassLabel="Reminders · Automated emails" glassDefault="v22" padding="none" className="mb-3">
+      {/* 2026-08-11 drawer-consistency pass: the redundant inner
+          "Show"/"Hide" button went; the whole bar was already clickable
+          and now carries the bare rotating chevron plus keyboard/ARIA. */}
       <div
         className="agent-acc-hdr"
         style={{ cursor: "pointer", borderBottom: open ? undefined : "none" }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } }}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <span
@@ -439,22 +446,17 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
             {text}
           </p>
         </div>
-        <button
-          type="button"
-          className="agent-link agent-link-muted"
-          style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
-          onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        >
-          <CaretDown
-            size={10}
-            weight="bold"
-            style={{
-              transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-              transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            }}
-          />
-          {open ? "Hide" : "Show"}
-        </button>
+        <CaretDown
+          size={12}
+          weight="bold"
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            color: "var(--agent-text-muted)",
+            transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
       </div>
 
       <div className={`agent-acc ${open ? "open" : ""}`}>
