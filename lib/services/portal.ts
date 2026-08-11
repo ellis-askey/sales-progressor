@@ -1740,8 +1740,10 @@ function renderCompletionPackBody(args: {
   const completionStr = completionDate
     ? new Date(completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : null;
-  const dateBlurb = completionStr ? ` on <strong>${completionStr}</strong>` : "";
-  const datePlain = completionStr ? ` on ${completionStr}` : "";
+  // Completion is a SEPARATE sentence — never glued to "exchanged on", or the
+  // completion date reads as the exchange date. (Bug fix 2026-08-11.)
+  const completionSentenceHtml = completionStr ? ` Completion is set for <strong>${completionStr}</strong>.` : "";
+  const completionSentencePlain = completionStr ? ` Completion is set for ${completionStr}.` : "";
   const portalUrl = contact.portalToken ? `${base}/portal/${contact.portalToken}` : base;
 
   // Concrete-agent prefix ("Emily or ") only when we have a real name;
@@ -1750,7 +1752,7 @@ function renderCompletionPackBody(args: {
 
   const bodyHtml = side === "vendor"
     ? `
-    <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. The sale is now legally committed.</p>
+    <p>Contracts have been exchanged on <strong>${address}</strong>. The sale is now legally committed.${completionSentenceHtml}</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
       <li>Your solicitor will handle the transfer of funds. You don't need to be at the property.</li>
@@ -1760,7 +1762,7 @@ function renderCompletionPackBody(args: {
       <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
     </ul>`
     : `
-    <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. Your purchase is now legally committed.</p>
+    <p>Contracts have been exchanged on <strong>${address}</strong>. Your purchase is now legally committed.${completionSentenceHtml}</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
       <li>Keep your phone on. Your solicitor will call you when the funds have been transferred.</li>
@@ -1771,8 +1773,8 @@ function renderCompletionPackBody(args: {
     </ul>`;
 
   const bodyPlain = side === "vendor"
-    ? `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds. You don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).\n- Leave appliance manuals, warranties, and service records. The buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
-    : `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on. Your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk. If your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+    ? `Contracts have been exchanged on ${address}. The sale is now legally committed.${completionSentencePlain}\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds. You don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).\n- Leave appliance manuals, warranties, and service records. The buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
+    : `Contracts have been exchanged on ${address}. Your purchase is now legally committed.${completionSentencePlain}\n\nWhat to expect on completion day:\n- Keep your phone on. Your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk. If your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
 
   const subject = side === "vendor"
     ? `Contracts exchanged: what happens next for your sale`
