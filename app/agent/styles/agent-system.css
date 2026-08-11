@@ -2386,3 +2386,19 @@
   --agent-protip-bg: rgba(245, 158, 11, 0.10);
   --agent-card-header-veil: rgba(255, 255, 255, 0.05);
 }
+
+/* ── Contacts header — WhatsApp group label swap ───────────────────────
+ * The header's right column stacks "+ Add contact" above the WhatsApp
+ * group button (2026-08-11 file-page feedback, item 5). Full label on
+ * desktop; under 640px only "WhatsApp group" shows. */
+.contacts-wagroup-short {
+  display: none;
+}
+@media (max-width: 640px) {
+  .contacts-wagroup-full {
+    display: none;
+  }
+  .contacts-wagroup-short {
+    display: inline;
+  }
+}

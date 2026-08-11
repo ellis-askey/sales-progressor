@@ -33,7 +33,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Modal } from "@/components/ui/Modal";
-import { Envelope, ArrowSquareOut, HouseSimple, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
 import { PropertyPhotoField } from "./PropertyPhotoField";
 import type { ContactRole } from "@prisma/client";
@@ -570,21 +570,18 @@ export function ContactsSection({
 
   return shell(
     <>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+      {/* Header — 2026-08-11 feedback, item 5: the property photo IS the
+          card's icon (the little house tile went), the title block top-
+          aligns against the photo, and the right-side actions stack with
+          Add contact on top. When a group link is saved the WhatsApp
+          button opens the group directly; the pencil beside it manages
+          the link. */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
           {/* Property photo (agent-only). Compact tile + upload/replace/remove. */}
           <PropertyPhotoField transactionId={transactionId} initialUrl={photoUrl} />
           <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                width: 26, height: 26, borderRadius: 7,
-                background: "rgba(var(--agent-coral-rgb), 0.12)",
-                color: "var(--agent-coral-deep)",
-              }}>
-                <HouseSimple size={14} weight="regular" />
-              </span>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
               {contacts.length > 0 && (
                 <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", padding: "1px 7px", borderRadius: 10, background: "rgba(15,23,42,0.06)" }}>
@@ -595,17 +592,7 @@ export function ContactsSection({
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</span>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={() => setWhatsappOpen(true)}
-            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-            title={whatsappGroupInviteUrl ? "Invite clients to the group" : "Set up a WhatsApp group for this sale"}
-          >
-            <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
-            {whatsappGroupInviteUrl ? "WhatsApp group" : "Set up WhatsApp group"}
-          </button>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, flexShrink: 0 }}>
           {!showForm && (
             <button
               type="button"
@@ -613,6 +600,43 @@ export function ContactsSection({
               className="agent-btn agent-btn-sm agent-btn-primary"
             >
               + Add contact
+            </button>
+          )}
+          {whatsappGroupInviteUrl ? (
+            <div style={{ display: "flex", alignItems: "stretch", gap: 6 }}>
+              <a
+                href={whatsappGroupInviteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}
+                title="Open the WhatsApp group"
+              >
+                <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
+                WhatsApp group
+              </a>
+              <button
+                type="button"
+                onClick={() => setWhatsappOpen(true)}
+                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 8px" }}
+                aria-label="Change the WhatsApp group link"
+                title="Change the WhatsApp group link"
+              >
+                <PencilSimple size={12} weight="regular" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setWhatsappOpen(true)}
+              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              title="Set up a WhatsApp group for this sale"
+            >
+              <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
+              <span className="contacts-wagroup-full">Set up WhatsApp group</span>
+              <span className="contacts-wagroup-short">WhatsApp group</span>
             </button>
           )}
         </div>
