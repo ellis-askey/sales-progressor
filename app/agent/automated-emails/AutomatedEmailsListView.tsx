@@ -156,9 +156,12 @@ function EmailRowCard({ row, onPreview }: { row: EmailRow; onPreview: (emailId: 
   const backMine = searchParams.get("mine") === "1";
   const backHref =
     `/agent/automated-emails?tab=${backTab}${backMine ? "&mine=1" : ""}`;
-  // Upcoming rows are predictions with synthetic IDs (no queue row yet) —
-  // the preview modal has nothing to load, so the row is plain.
-  const isPreviewable = row.status !== "upcoming";
+  // Upcoming rows are predictions with synthetic IDs (no queue row yet), and
+  // solicitor rows (source "message") live in OutboundMessage, which the
+  // queue-only preview modal can't load — for both, the row's property link
+  // is the way in (a dedicated detail drawer lands in PR 3). Only real queue
+  // rows open the modal.
+  const isPreviewable = row.status !== "upcoming" && row.source !== "message";
   return (
     // Design Lab: `auto-emails-row`. Default v05 per Ellis's pick, 2026-08-09.
     <GlassCard
