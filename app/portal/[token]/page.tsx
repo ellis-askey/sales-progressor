@@ -125,6 +125,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   };
 
   const instructedDone = isMilestoneCompleteByCode(side === "vendor" ? "VM1" : "PM1");
+  // Once the buyer's survey is booked (PM9) the quote prompt is redundant.
+  // Reactive to milestone state, so undoing PM9 brings the card back.
+  const surveyBooked = milestones.some((m) => m.code === "PM9" && m.isComplete);
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
   const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered
   const pm13Done       = isMilestoneCompleteByCode("PM13"); // results back
@@ -470,7 +473,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       )}
 
       {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
-      {side === "purchaser" && instructedDone && !hasExchanged && !hasCompleted && (
+      {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && (
         <Link
           href={`/quote/${token}`}
           className="block rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
