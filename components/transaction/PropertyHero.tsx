@@ -6,6 +6,7 @@ import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@pris
 import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
+import { HeroSaleFields } from "./HeroSaleFields";
 import { formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -48,6 +49,10 @@ type Props = {
   // Role-gated header controls (AI summary, portal-emails toggle) built
   // at the page level and floated in the hero's top-right corner.
   topRightSlot?: React.ReactNode;
+  // True once the file has exchanged. Locks inline purchase-type / tenure
+  // edits (the NR cascade could reverse completed post-exchange steps);
+  // price stays editable.
+  exchanged?: boolean;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -217,7 +222,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -464,9 +469,21 @@ export function PropertyHero({
             className="grid grid-cols-2 gap-x-4 gap-y-4 md:flex md:flex-wrap md:gap-x-6"
             style={{ marginTop: 20 }}
           >
-            <HeroStatCell Icon={CurrencyGbp} label="Sale price" value={price ?? "–"} sensitive />
-            <HeroStatCell Icon={UserCircle} label="Purchase type" value={purchaseType ? formatPurchaseType(purchaseType) : "–"} />
-            <HeroStatCell Icon={HouseSimple} label="Tenure" value={tenure ? formatTenure(tenure) : "–"} />
+            {transactionId ? (
+              <HeroSaleFields
+                transactionId={transactionId}
+                purchasePrice={purchasePrice ?? null}
+                purchaseType={purchaseType ?? null}
+                tenure={tenure ?? null}
+                exchanged={exchanged}
+              />
+            ) : (
+              <>
+                <HeroStatCell Icon={CurrencyGbp} label="Sale price" value={price ?? "–"} sensitive />
+                <HeroStatCell Icon={UserCircle} label="Purchase type" value={purchaseType ? formatPurchaseType(purchaseType) : "–"} />
+                <HeroStatCell Icon={HouseSimple} label="Tenure" value={tenure ? formatTenure(tenure) : "–"} />
+              </>
+            )}
             <HeroStatCell
               Icon={CalendarBlank}
               label="Expected exchange"

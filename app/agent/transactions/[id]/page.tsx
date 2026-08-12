@@ -398,6 +398,7 @@ export default async function AgentTransactionDetailPage({
           photoUrl={heroPhotoUrl}
           overridePredictedDate={transaction.overridePredictedDate ?? null}
           topRightSlot={heroTopRightSlot}
+          exchanged={transaction.exchangedAt !== null}
           roundChipSlot={
             <RoundChip
               transactionId={transaction.id}
