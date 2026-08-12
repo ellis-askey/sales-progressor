@@ -215,6 +215,7 @@ function SolicitorTile({
   }
 
   const tileTone = ROLE_TILE_STYLE[side];
+  const roleTone: "brand" | "info" = side === "vendor" ? "brand" : "info";
   const roleLabel = side === "vendor" ? "Vendor" : "Purchaser";
 
   const emailHref =
@@ -239,14 +240,7 @@ function SolicitorTile({
       <div style={tileWrapperStyle}>
         <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 4,
-              fontSize: 10, fontWeight: 500,
-              borderRadius: 4, padding: "1px 6px",
-              background: tileTone.pillBg, color: tileTone.pillColor,
-            }}>
-              {roleLabel} solicitor
-            </span>
+            <Pill glass tone={roleTone} size="sm">{roleLabel} solicitor</Pill>
           </div>
           <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
             No {side} solicitor yet
@@ -278,14 +272,7 @@ function SolicitorTile({
               {/* Firm name + role */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  fontSize: 10, fontWeight: 500,
-                  borderRadius: 4, padding: "1px 6px",
-                  background: tileTone.pillBg, color: tileTone.pillColor,
-                }}>
-                  {roleLabel}
-                </span>
+                <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
               </div>
               {info.contact && (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{info.contact.name}</p>
@@ -369,14 +356,7 @@ function SolicitorTile({
           style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 4,
-              fontSize: 10, fontWeight: 500,
-              borderRadius: 4, padding: "1px 6px",
-              background: tileTone.pillBg, color: tileTone.pillColor,
-            }}>
-              {roleLabel} solicitor
-            </span>
+            <Pill glass tone={roleTone} size="sm">{roleLabel} solicitor</Pill>
           </div>
           <SolicitorPicker
             label=""
