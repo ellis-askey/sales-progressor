@@ -143,6 +143,9 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   // client/solicitor confirms (those carry their own attribution) or historical
   // rows with no recorded actor.
   completedByName?: string | null;
+  // The side's client name(s) when the client confirmed via the portal. The
+  // specific contact isn't stored, so this names the milestone's side.
+  confirmedByClientName?: string | null;
 };
 
 export type MilestonesByTransaction = {
@@ -522,9 +525,20 @@ export async function getMilestonesForTransaction(
 ): Promise<MilestonesByTransaction> {
   const transaction = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true, activeBuyerRoundId: true },
+    select: {
+      id: true,
+      activeBuyerRoundId: true,
+      contacts: { select: { name: true, roleType: true } },
+    },
   });
   if (!transaction) throw new Error("Transaction not found");
+
+  // Client name(s) per side, for "Confirmed by {name}" on portal confirms
+  // (the specific contact isn't stored, so we name the side's client).
+  const joinContactNames = (names: string[]): string =>
+    names.length <= 1 ? (names[0] ?? "") : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const vendorClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name)) || null;
+  const purchaserClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)) || null;
 
   const definitions = await prisma.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
@@ -595,6 +609,9 @@ export async function getMilestonesForTransaction(
           : null,
         completedByName: completion?.completedById
           ? userNameById.get(completion.completedById) ?? null
+          : null,
+        confirmedByClientName: completion?.confirmedByPortal
+          ? (def.side === "vendor" ? vendorClientName : purchaserClientName)
           : null,
       };
     });

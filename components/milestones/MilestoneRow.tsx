@@ -28,6 +28,7 @@ type Props = {
     isAvailable: boolean;
     confirmedBySolicitorFirmName?: string | null;
     completedByName?: string | null;
+    confirmedByClientName?: string | null;
   };
   transactionId: string;
   onConfirmStart?: () => void;
@@ -452,7 +453,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <span>
                   <span style={{ color: "var(--agent-text-muted)" }}>Confirmed by </span>
                   {def.completion.confirmedByPortal
-                    ? "Client"
+                    ? (def.confirmedByClientName ?? "Client")
                     : def.confirmedBySolicitorFirmName ?? def.completedByName ?? "Unknown"}
                 </span>
                 <span>
