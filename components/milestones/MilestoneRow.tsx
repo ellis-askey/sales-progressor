@@ -16,6 +16,7 @@ import type { ReconciliationItem } from "@/components/milestones/ReconciliationD
 import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import { Button } from "@/components/ui/Button";
+import { Pill } from "@/components/ui/Pill";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -386,31 +387,31 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
              * level row beneath the name so chips no longer wrap mid-
              * sentence. */}
             <span className="ms-pills-row">
-              {isGate && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Exchange gate</span>}
+              {isGate && <Pill glass tone="brand" size="md" className="ml-2">Last step before exchange</Pill>}
               {slownessSignal && !isDone && !isBlocked && (
-                <span
-                  className="ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5"
+                <Pill
+                  glass dot tone="warning" size="md" className="ml-2"
                   title={`Typical for this step: ${slownessSignal.median} days. This file is on day ${slownessSignal.daysAvailable}.`}
                 >
                   {slownessSignal.daysOver} days slower than typical
-                </span>
+                </Pill>
               )}
               {stalenessSignal && !isDone && !isBlocked && (
-                <span
-                  className="ml-2 text-[10px] font-normal text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
+                <Pill
+                  glass dot tone="warning" size="md" className="ml-2"
                   title={`Chase rule allows ${stalenessSignal.graceDays} days before this is considered overdue. This file is on day ${stalenessSignal.daysAwaiting}.`}
                 >
                   Awaiting {stalenessSignal.daysAwaiting} days
-                </span>
+                </Pill>
               )}
               {/* Client-chase chip (B6 of the client-chase arc). One of three
                 * states. Same eligibility as slowness/staleness chips. */}
               {clientChase && !isDone && !isBlocked && (() => {
-                const cn = clientChase.kind === "engaged"
-                  ? "ml-2 text-[10px] font-normal text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5"
+                const tone: "success" | "muted" | "warning" = clientChase.kind === "engaged"
+                  ? "success"
                   : clientChase.kind === "opted_out"
-                  ? "ml-2 text-[10px] font-normal text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5"
-                  : "ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5";
+                  ? "muted"
+                  : "warning";
                 const text = clientChase.kind === "engaged"
                   ? `Client engaged ${formatRelative(clientChase.lastEngagedAt)}`
                   : clientChase.kind === "opted_out"
@@ -421,7 +422,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   clientChase.lastEngagedAt ? `Last engaged: ${formatDate(clientChase.lastEngagedAt)}` : null,
                   clientChase.contactCount > 1 ? `Across ${clientChase.contactCount} contacts` : null,
                 ].filter(Boolean).join(" • ");
-                return <span className={cn} title={tooltip}>{text}</span>;
+                return <Pill glass dot tone={tone} size="md" className="ml-2" title={tooltip}>{text}</Pill>;
               })()}
             </span>
           </p>
@@ -430,16 +431,16 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               Completed {formatDate(def.completion.completedAt)}
               {def.completion.eventDate && <span style={{ marginLeft: 8 }}>· Event: {formatDate(def.completion.eventDate)}</span>}
               {def.completion.confirmedByPortal && (
-                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">
+                <Pill glass tone="info" size="md" className="ml-2">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   Client confirmed
-                </span>
+                </Pill>
               )}
               {def.completion.confirmedBySolicitorFirmId && (
-                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                <Pill glass tone="success" size="md" className="ml-2">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
-                </span>
+                </Pill>
               )}
             </p>
           )}
