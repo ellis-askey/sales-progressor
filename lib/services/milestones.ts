@@ -138,6 +138,11 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   // Firm name when a step was confirmed by a solicitor (solicitor-confirm
   // feature), so the timeline can render "Confirmed by {firm}". Null otherwise.
   confirmedBySolicitorFirmName?: string | null;
+  // Name of the agent/progressor who confirmed the step (completedById -> User),
+  // so the completed-row disclosure can render "Confirmed by {name}". Null for
+  // client/solicitor confirms (those carry their own attribution) or historical
+  // rows with no recorded actor.
+  completedByName?: string | null;
 };
 
 export type MilestonesByTransaction = {
@@ -553,6 +558,24 @@ export async function getMilestonesForTransaction(
     firms.forEach((f) => firmNameById.set(f.id, f.name));
   }
 
+  // Look up the confirming agent's name for each completed step (one query),
+  // so the completed-row disclosure can show "Confirmed by {name}".
+  const userIds = [
+    ...new Set(
+      completions
+        .map((c) => c.completedById)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const userNameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true },
+    });
+    users.forEach((u) => { if (u.name) userNameById.set(u.id, u.name); });
+  }
+
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");
 
@@ -569,6 +592,9 @@ export async function getMilestonesForTransaction(
         isAvailable: state === "available" || state === "complete" || state === "not_required",
         confirmedBySolicitorFirmName: completion?.confirmedBySolicitorFirmId
           ? firmNameById.get(completion.confirmedBySolicitorFirmId) ?? null
+          : null,
+        completedByName: completion?.completedById
+          ? userNameById.get(completion.completedById) ?? null
           : null,
       };
     });

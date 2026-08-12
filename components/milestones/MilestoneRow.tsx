@@ -17,6 +17,7 @@ import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-s
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
+import { CaretDown } from "@phosphor-icons/react";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -26,6 +27,7 @@ type Props = {
     isNotRequired: boolean;
     isAvailable: boolean;
     confirmedBySolicitorFirmName?: string | null;
+    completedByName?: string | null;
   };
   transactionId: string;
   onConfirmStart?: () => void;
@@ -125,6 +127,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [reconcileInitialDate, setReconcileInitialDate] = useState("");
   const [showCounterpartNotice, setShowCounterpartNotice] = useState(false);
+
+  // Completed rows collapse to a clickable bar; the details (who/when/event
+  // date + Undo) slide open on demand.
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Detect when this row transitions from blocked → available and play unlock animation
   const wasAvailableRef = useRef(def.isAvailable);
@@ -363,7 +369,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // N/R milestones are rendered in the NotRequired section, not here
   if (isNotRequired) return null;
 
-  const isExpanded = showEventDate || showNotRequired || showCounterpartNotice;
+  const isExpanded = showEventDate || showNotRequired || showCounterpartNotice || (isDone && detailsOpen);
 
   return (
     <>
@@ -377,8 +383,18 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           style={isExpanded ? { marginTop: 3, transition: "background 200ms" } : { transition: "background 200ms" }}
         />
 
-        {/* Name + meta */}
-        <div className="flex-1 min-w-0">
+        {/* Name + meta. Completed rows turn the whole name area into a
+            disclosure bar — click to reveal who confirmed it, when, the event
+            date, and the Undo control. */}
+        <div
+          className="flex-1 min-w-0"
+          onClick={isDone ? () => setDetailsOpen((o) => !o) : undefined}
+          onKeyDown={isDone ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailsOpen((o) => !o); } } : undefined}
+          role={isDone ? "button" : undefined}
+          tabIndex={isDone ? 0 : undefined}
+          aria-expanded={isDone ? detailsOpen : undefined}
+          style={isDone ? { cursor: "pointer" } : undefined}
+        >
           <p style={{ fontSize: 12, fontWeight: isBlocked ? 400 : 600, color: isDone || isBlocked ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
             {def.name}
             {/* Chips wrapper — see .ms-pills-row in agent-system.css.
@@ -426,23 +442,59 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               })()}
             </span>
           </p>
-          {isDone && def.completion && (
-            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>
-              Completed {formatDate(def.completion.completedAt)}
-              {def.completion.eventDate && <span style={{ marginLeft: 8 }}>· Event: {formatDate(def.completion.eventDate)}</span>}
-              {def.completion.confirmedByPortal && (
-                <Pill glass tone="info" size="md" className="ml-2">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Client confirmed
-                </Pill>
-              )}
-              {def.completion.confirmedBySolicitorFirmId && (
-                <Pill glass tone="success" size="md" className="ml-2">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
-                </Pill>
-              )}
-            </p>
+          {isDone && detailsOpen && def.completion && (
+            <div
+              className="agent-reveal-in"
+              onClick={(e) => e.stopPropagation()}
+              style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--agent-border-default)" }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, color: "var(--agent-text-secondary)" }}>
+                <span>
+                  <span style={{ color: "var(--agent-text-muted)" }}>Confirmed by </span>
+                  {def.completion.confirmedByPortal
+                    ? "Client"
+                    : def.confirmedBySolicitorFirmName ?? def.completedByName ?? "Unknown"}
+                </span>
+                <span>
+                  <span style={{ color: "var(--agent-text-muted)" }}>Completed </span>
+                  {formatDate(def.completion.completedAt)}
+                  {def.completion.completedAt
+                    ? ` at ${new Date(def.completion.completedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                    : ""}
+                </span>
+                {def.completion.eventDate && (
+                  <span>
+                    <span style={{ color: "var(--agent-text-muted)" }}>Event date </span>
+                    {formatDate(def.completion.eventDate)}
+                  </span>
+                )}
+                {def.completion.outOfOrderCompletion && (
+                  <span style={{ color: "var(--agent-warning)" }}>Confirmed out of order</span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {def.completion.confirmedByPortal && (
+                  <Pill glass tone="info" size="sm">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Client confirmed
+                  </Pill>
+                )}
+                {def.completion.confirmedBySolicitorFirmId && (
+                  <Pill glass tone="success" size="sm">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
+                  </Pill>
+                )}
+                <button
+                  onClick={handleUndoClick}
+                  disabled={loading || isPending}
+                  className="agent-link agent-link-muted"
+                  style={{ fontSize: 11 }}
+                >
+                  {loading ? "…" : "Undo"}
+                </button>
+              </div>
+            </div>
           )}
           {isBlocked && <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>Previous steps must be completed first</p>}
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -526,51 +578,62 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* First tap reveals the date (pre-filled today); a second tap on the
-              SAME button commits it, so an in-time confirm is a double-tap with
-              no pointer travel. The revealed date only needs touching when the
-              step happened earlier. */}
-          {!isDone && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
-            <Button
-              size="sm"
-              onClick={showEventDate ? () => doComplete() : handleConfirmClick}
-              disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-              className="ms-appear"
-              style={{ minWidth: 76 }}
-            >
-              {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
-            </Button>
-          )}
-          {!isDone && showEventDate && (
-            <button
-              onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 11 }}
-            >
-              Cancel
-            </button>
-          )}
-          {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
-            <button
-              onClick={handleNRClick}
-              disabled={loading || isPending}
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 11 }}
-              title="Mark as not required"
-            >
-              N/R
-            </button>
+        {/* Actions. Confirm stays pinned top-right (N/R sits to its LEFT so its
+            right edge never moves); Cancel drops to a second line bottom-right,
+            so an in-time confirm is a same-spot double-tap that can't land on
+            Cancel. Completed rows show only the disclosure chevron — Undo lives
+            inside the drop-down. */}
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          {!isDone && (
+            <>
+              <div className="flex items-center gap-2">
+                {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
+                  <button
+                    onClick={handleNRClick}
+                    disabled={loading || isPending}
+                    className="agent-link agent-link-muted"
+                    style={{ fontSize: 11 }}
+                    title="Mark as not required"
+                  >
+                    N/R
+                  </button>
+                )}
+                {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
+                  <Button
+                    size="sm"
+                    onClick={showEventDate ? () => doComplete() : handleConfirmClick}
+                    disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
+                    className="ms-appear"
+                    style={{ minWidth: 76 }}
+                  >
+                    {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
+                  </Button>
+                )}
+              </div>
+              {showEventDate && (
+                <button
+                  onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
+                  className="agent-link agent-link-muted"
+                  style={{ fontSize: 11 }}
+                >
+                  Cancel
+                </button>
+              )}
+            </>
           )}
           {isDone && (
             <button
-              onClick={handleUndoClick}
-              disabled={loading || isPending}
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 11 }}
+              onClick={() => setDetailsOpen((o) => !o)}
+              aria-expanded={detailsOpen}
+              aria-label={detailsOpen ? "Hide details" : "Show details"}
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ color: "var(--agent-text-muted)" }}
             >
-              {loading ? "…" : "Undo"}
+              <CaretDown
+                size={14}
+                weight="bold"
+                style={{ transition: "transform 200ms cubic-bezier(0.4,0,0.2,1)", transform: detailsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
             </button>
           )}
         </div>
