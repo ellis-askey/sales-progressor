@@ -31,6 +31,7 @@ import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
 import {
   Warning,
   HouseSimple,
@@ -162,23 +163,10 @@ function PropertyThumb({ photoUrl, tone }: { photoUrl: string | null; tone: Tone
 }
 
 function TypePill({ label, tone, title }: { label: string; tone: Tone; title?: string }) {
-  const t = TONE[tone];
   return (
-    <span
-      title={title}
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        color: t.color,
-        background: t.iconBg,
-        padding: "3px 10px",
-        borderRadius: 999,
-        whiteSpace: "nowrap",
-        flexShrink: 0,
-      }}
-    >
+    <Pill glass tone={tone === "coral" ? "brand" : tone} size="md" title={title} style={{ flexShrink: 0 }}>
       {label}
-    </span>
+    </Pill>
   );
 }
 

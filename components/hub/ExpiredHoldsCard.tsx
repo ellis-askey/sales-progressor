@@ -20,6 +20,7 @@ import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
 import {
   Warning,
   HouseLine,
@@ -275,21 +276,9 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
                     </p>
                   )}
                 </div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    background: "rgba(15,23,42,0.06)",
-                    color: "var(--agent-text-secondary)",
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                    flexShrink: 0,
-                  }}
-                >
+                <Pill glass tone="muted" size="sm" className="uppercase" style={{ letterSpacing: "0.04em", flexShrink: 0 }}>
                   On hold
-                </span>
+                </Pill>
               </div>
 
               {/* Meta strip: overdue pill · hold started · placed by */}
@@ -304,21 +293,10 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
                   color: "var(--agent-text-muted)",
                 }}
               >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontWeight: 600,
-                    color: DANGER,
-                    background: "rgba(199,62,62,0.10)",
-                    padding: "3px 9px",
-                    borderRadius: 999,
-                  }}
-                >
+                <Pill glass tone="danger" size="md">
                   <Clock size={12} weight="bold" />
                   {overdueLabel(item.plannedEndAt)}
-                </span>
+                </Pill>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <CalendarBlank size={12} />
                   Hold started {formatShortDate(item.startedAt)}

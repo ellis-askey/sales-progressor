@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
-import { RoleIcon, ROLE_PILL_BG, roleColour } from "@/components/ui/RoleIcon";
+import { RoleIcon } from "@/components/ui/RoleIcon";
+import { Pill } from "@/components/ui/Pill";
 import { GlassCard } from "@/components/glass/GlassCard";
 
 function relativeDate(iso: string) {
@@ -105,18 +106,12 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-[13px] font-medium text-slate-900/80">{m.milestoneName}</span>
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{
-                                  display: "inline-flex", alignItems: "center", gap: 4,
-                                  background: ROLE_PILL_BG[m.side === "vendor" ? "vendor" : "purchaser"],
-                                  color: roleColour(m.side === "vendor" ? "vendor" : "purchaser"),
-                                }}>
+                                <Pill glass tone={m.side === "vendor" ? "brand" : "info"} size="sm">
                                   <RoleIcon role={m.side === "vendor" ? "vendor" : "purchaser"} size={10} />
                                   {m.side === "vendor" ? "Vendor" : "Purchaser"}
-                                </span>
+                                </Pill>
                                 {m.confirmedByPortal && (
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(var(--agent-info-rgb), 0.08)", color: "var(--agent-info)", border: "0.5px solid rgba(var(--agent-info-rgb), 0.2)" }}>
-                                    Client confirmed
-                                  </span>
+                                  <Pill glass tone="info" size="sm">Client confirmed</Pill>
                                 )}
                               </div>
                               {/* A4: actor line rendered only when a real name is available for a non-portal entry */}

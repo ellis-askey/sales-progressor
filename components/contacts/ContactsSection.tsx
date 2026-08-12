@@ -31,7 +31,8 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CommsButton } from "@/components/ui/CommsButton";
-import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
+import { RoleIcon, roleLabel, asRole } from "@/components/ui/RoleIcon";
+import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
@@ -111,6 +112,12 @@ function autoEmailTone(count: number): { bg: string; fg: string } | null {
   if (count >= AUTO_EMAIL_RED_AT) return { bg: "rgba(var(--agent-danger-rgb), 0.10)", fg: "var(--agent-danger)" };
   if (count >= AUTO_EMAIL_AMBER_AT) return { bg: "rgba(var(--agent-warning-rgb), 0.10)", fg: "var(--agent-warning)" };
   return { bg: "rgba(15,23,42,0.06)", fg: "var(--agent-text-muted)" };
+}
+
+// Role -> canonical Pill tone. Vendor carries the brand (coral), purchaser the
+// info blue; everyone else stays quiet.
+function roleTone(r: string): "brand" | "info" | "muted" {
+  return r === "vendor" ? "brand" : r === "purchaser" ? "info" : "muted";
 }
 
 // ── Portal state resolver ──────────────────────────────────────────────
@@ -689,43 +696,33 @@ export function ContactsSection({
                         {/* Name + role */}
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span data-sensitive="true" style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, borderRadius: 4, padding: "1px 6px", background: ROLE_PILL_BG[r], color: roleColour(r) }}>
+                          <Pill glass tone={roleTone(r)} size="sm">
                             <RoleIcon role={r} size={11} />
                             {roleLabel(r)}
-                          </span>
+                          </Pill>
                         </div>
 
                         {/* Status pills row: last contacted, chase count, opted out */}
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                           <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
                           {autoTone && (
-                            <span
+                            <Pill
+                              glass size="sm"
+                              tone={autoCount >= AUTO_EMAIL_RED_AT ? "danger" : autoCount >= AUTO_EMAIL_AMBER_AT ? "warning" : "muted"}
                               title={autoCount >= AUTO_EMAIL_RED_AT
                                 ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Likely over-chasing, consider pausing client emails`
                                 : autoCount >= AUTO_EMAIL_AMBER_AT
                                   ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Review the chase cadence`
                                   : `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days`}
-                              style={{
-                                display: "inline-flex", alignItems: "center", gap: 3,
-                                fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
-                                background: autoTone.bg, color: autoTone.fg,
-                              }}
                             >
                               <Envelope size={11} weight="fill" />
                               {`${autoCount} chase${autoCount === 1 ? "" : "s"} this week`}
-                            </span>
+                            </Pill>
                           )}
                           {optedOut && (
-                            <span
-                              title="This client has opted out of automated emails via the unsubscribe link."
-                              style={{
-                                display: "inline-flex", alignItems: "center", gap: 3,
-                                fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
-                                background: "rgba(148,163,184,0.14)", color: "#64748b",
-                              }}
-                            >
+                            <Pill glass tone="muted" size="sm" title="This client has opted out of automated emails via the unsubscribe link.">
                               Opted out
-                            </span>
+                            </Pill>
                           )}
                         </div>
 

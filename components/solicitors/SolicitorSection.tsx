@@ -5,6 +5,7 @@ import { Scales, Phone, ChatCircleText, EnvelopeSimple } from "@phosphor-icons/r
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
+import { Pill } from "@/components/ui/Pill";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CommsButton } from "@/components/ui/CommsButton";
@@ -72,13 +73,6 @@ function solicitorEmailSubject(address: string, clientNames: string[]): string {
   return `Sale of ${address} - Clients: ${joined}`;
 }
 
-const INTEL_PILL: Record<string, { bg: string; color: string }> = {
-  fast:    { bg: "rgba(16,185,129,.1)", color: "#059669" },
-  average: { bg: "rgba(15,23,42,.06)",  color: "var(--agent-text-muted)" },
-  slow:    { bg: "rgba(239,68,68,.1)",  color: "#dc2626" },
-  unknown: { bg: "rgba(15,23,42,.06)",  color: "var(--agent-text-muted)" },
-};
-
 const RATING_LABEL: Record<string, string> = {
   fast: "Fast", average: "Average", slow: "Slow", unknown: "—",
 };
@@ -105,30 +99,14 @@ function SolicitorIntelChips({ firmId }: { firmId: string }) {
     `${intel.totalFiles} file${intel.totalFiles !== 1 ? "s" : ""}`,
     intel.avgWeeksToExchange !== null ? `Avg ${intel.avgWeeksToExchange}w` : null,
   ].filter(Boolean).join(" · ");
-  const pill = intel.rating === "unknown"
-    ? INTEL_PILL.unknown
-    : (INTEL_PILL[intel.rating] ?? INTEL_PILL.unknown);
+  const intelTone: "success" | "danger" | "muted" =
+    intel.rating === "fast" ? "success" : intel.rating === "slow" ? "danger" : "muted";
 
   return (
     <div className="agent-reveal-in" style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
-      <span style={{
-        fontSize: 10,
-        fontWeight: 500,
-        borderRadius: 4,
-        padding: "2px 7px",
-        alignSelf: "flex-start",
-        ...pill,
-      }}>{parts}</span>
+      <Pill glass tone={intelTone} size="sm" style={{ alignSelf: "flex-start" }}>{parts}</Pill>
       {intel.warning && (
-        <span style={{
-          fontSize: 10,
-          color: "#b45309",
-          background: "rgba(245,158,11,.10)",
-          border: "0.5px solid rgba(245,158,11,.25)",
-          borderRadius: 4,
-          padding: "2px 7px",
-          alignSelf: "flex-start",
-        }}>{intel.warning}</span>
+        <Pill glass tone="warning" size="sm" style={{ alignSelf: "flex-start" }}>{intel.warning}</Pill>
       )}
     </div>
   );

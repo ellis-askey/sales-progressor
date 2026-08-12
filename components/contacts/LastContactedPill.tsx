@@ -14,6 +14,7 @@
 //   never          muted grey + dashed border, "Not contacted yet"
 
 import { toUKDateStr } from "@/lib/utils";
+import { Pill } from "@/components/ui/Pill";
 
 type Props = {
   // ISO string from the server, or null/undefined for "never". Component
@@ -46,24 +47,15 @@ function formatRelative(days: number): string {
 export function LastContactedPill({ lastContactedAt }: Props) {
   if (!lastContactedAt) {
     return (
-      <span
+      <Pill
+        tone="muted"
+        size="sm"
+        outline
         title="No outbound contact recorded yet for this contact"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "1px 8px",
-          borderRadius: 999,
-          fontSize: 10,
-          fontWeight: 500,
-          color: "var(--agent-text-muted)",
-          background: "transparent",
-          border: "1px dashed rgba(15,23,42,0.18)",
-          lineHeight: 1.5,
-        }}
+        style={{ borderStyle: "dashed" }}
       >
         Not contacted yet
-      </span>
+      </Pill>
     );
   }
 
@@ -71,53 +63,26 @@ export function LastContactedPill({ lastContactedAt }: Props) {
   const isFresh = days <= 0;
   const isStale = days > 21;
 
-  const dotColour = isFresh
-    ? "var(--agent-success)"
-    : isStale
-      ? "var(--agent-warning)"
-      : "rgba(15,23,42,0.35)";
-  const textColour = isStale
-    ? "var(--agent-warning)"
-    : "var(--agent-text-muted)";
-  const bg = isStale
-    ? "rgba(var(--agent-warning-rgb), 0.10)"
-    : "rgba(15,23,42,0.05)";
-
+  // Fresh reads positive (green), stale needs the amber nudge, everything in
+  // between stays quiet grey. The leading dot inherits the tone colour.
+  const tone: "success" | "warning" | "muted" = isFresh ? "success" : isStale ? "warning" : "muted";
   const prefix = isStale ? "Last contacted" : "Contacted";
   const label = isFresh ? "today" : formatRelative(days);
 
   return (
-    <span
+    <Pill
+      glass
+      dot
+      tone={tone}
+      size="sm"
       title={`${prefix} ${new Date(lastContactedAt).toLocaleString("en-GB", {
         day: "numeric",
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
       })}`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "1px 8px",
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: 500,
-        color: textColour,
-        background: bg,
-        lineHeight: 1.5,
-      }}
     >
-      <span
-        aria-hidden
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: dotColour,
-          flexShrink: 0,
-        }}
-      />
       {prefix} {label}
-    </span>
+    </Pill>
   );
 }

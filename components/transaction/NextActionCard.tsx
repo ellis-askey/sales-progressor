@@ -18,6 +18,7 @@
 import { Fire, CalendarBlank, DotsThree, Phone, EnvelopeSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { Pill } from "@/components/ui/Pill";
 
 export type NextActionKind = "chase" | "milestone" | "reminder";
 
@@ -38,10 +39,10 @@ export type NextActionCardProps = {
   belowActions?: ReactNode;         // e.g. the "up next" reminder list, in-card
 };
 
-const DUE_TONE: Record<Required<NextActionCardProps>["dueTone"], { color: string; bg: string }> = {
-  coral: { color: "var(--agent-coral-deep)", bg: "rgba(var(--agent-coral-rgb), 0.12)" },
-  warn:  { color: "var(--agent-warning)",    bg: "rgba(245, 158, 11, 0.12)" },
-  muted: { color: "var(--agent-text-secondary)", bg: "rgba(15,23,42,0.06)" },
+const DUE_PILL_TONE: Record<Required<NextActionCardProps>["dueTone"], "brand" | "warning" | "muted"> = {
+  coral: "brand",
+  warn:  "warning",
+  muted: "muted",
 };
 
 export function NextActionCard({
@@ -59,7 +60,7 @@ export function NextActionCard({
   onCalendar,
   belowActions,
 }: NextActionCardProps) {
-  const due = DUE_TONE[dueTone];
+  const duePillTone = DUE_PILL_TONE[dueTone];
 
   return (
     // Design Lab: `overview-next-action`. Default v15 (Gradient hairline)
@@ -125,16 +126,9 @@ export function NextActionCard({
       )}
 
       {/* Due badge */}
-      <p style={{
-        margin: "10px 0 12px",
-        display: "inline-block",
-        fontSize: 12,
-        fontWeight: 600,
-        color: due.color,
-        background: due.bg,
-        borderRadius: 6,
-        padding: "3px 9px",
-      }}>{dueLabel}</p>
+      <div style={{ margin: "10px 0 12px" }}>
+        <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
+      </div>
 
       {/* Action row */}
       <div style={{
