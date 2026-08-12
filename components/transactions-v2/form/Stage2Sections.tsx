@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import type { MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields, SolicitorSelection, InMemoryStub } from "./types";
+import { isChainLikely, chainOpenReason } from "./types";
 import type { StubFormData } from "@/components/chain/AddNodeDrawer";
 import { ContactsRow } from "./ContactsRow";
 import { SolicitorSection } from "./SolicitorSection";
@@ -128,6 +129,23 @@ export function Stage2Sections({
     if (!vendorError && !purchaserError) return;
     contactsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [vendorError, purchaserError]);
+
+  // Audit #5 — chain, brought to the surface. For purchase types where a
+  // chain is near-certain (mortgage / cash-from-proceeds) the section opens
+  // by default and asks the question outright, instead of sitting collapsed
+  // and "(optional)" at the bottom. We track a manual touch so once the
+  // agent opens or dismisses it themselves, we stop steering the state.
+  const chainTouchedRef = useRef(false);
+  const chainReason = chainOpenReason(fields.purchaseType);
+  useEffect(() => {
+    if (chainTouchedRef.current) return;
+    if (fields.chainStubs.length > 0) return;
+    const shouldOpen = isChainLikely(fields.purchaseType);
+    if (shouldOpen !== fields.chainExpanded) onChange({ chainExpanded: shouldOpen });
+    // Reacts to the purchase type only; the other fields are read fresh via
+    // closure whenever the type changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.purchaseType]);
 
   function ms(n: number) { return (startDelay + n) * 80; }
 
@@ -260,15 +278,23 @@ export function Stage2Sections({
         </CollapsibleSection>
       </Section>
 
-      {/* 5 — Chain (collapsed by default) */}
+      {/* 5 — Chain. Opens by default when the purchase type makes a chain
+          likely (audit #5). The key remounts the collapse wrapper when that
+          likelihood flips, so the outer bar re-evaluates its open state. */}
       <Section delayMs={ms(5)}>
-        <CollapsibleSection title="Chain" summary={chainSummary(fields.chainStubs)}>
+        <CollapsibleSection
+          key={isChainLikely(fields.purchaseType) ? "chain-open" : "chain-shut"}
+          title="Chain"
+          summary={chainSummary(fields.chainStubs)}
+          defaultOpen={isChainLikely(fields.purchaseType)}
+        >
           <FormChainSection
             stubs={fields.chainStubs}
             expanded={fields.chainExpanded}
+            autoOpenReason={chainReason}
             originatorAddress={originatorAddress}
-            onExpand={() => onChange({ chainExpanded: true })}
-            onCollapse={() => onChange({ chainExpanded: false, chainStubs: [] })}
+            onExpand={() => { chainTouchedRef.current = true; onChange({ chainExpanded: true }); }}
+            onCollapse={() => { chainTouchedRef.current = true; onChange({ chainExpanded: false, chainStubs: [] }); }}
             onAddStub={(stub: InMemoryStub) => onChange({ chainStubs: [...fields.chainStubs, stub] })}
             onEditStub={(id: string, data: StubFormData) =>
               onChange({ chainStubs: fields.chainStubs.map((s) => (s.id === id ? { ...s, ...data } : s)) })

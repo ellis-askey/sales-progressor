@@ -7,6 +7,9 @@ type Props = {
   stubs: InMemoryStub[];
   expanded: boolean;
   originatorAddress: string;
+  // Plain-English reason the section auto-opened (audit #5). Null when the
+  // agent opened it themselves / it isn't a chain-likely purchase type.
+  autoOpenReason?: string | null;
   onExpand: () => void;
   onCollapse: () => void;
   onAddStub: (stub: InMemoryStub) => void;
@@ -15,12 +18,13 @@ type Props = {
 };
 
 export function FormChainSection({
-  stubs, expanded, originatorAddress,
+  stubs, expanded, originatorAddress, autoOpenReason,
   onExpand, onCollapse, onAddStub, onEditStub, onRemoveStub,
 }: Props) {
   return (
     <ChainSection
       expanded={expanded}
+      autoOpenReason={autoOpenReason}
       onExpand={onExpand}
       onCollapse={() => {
         onCollapse();

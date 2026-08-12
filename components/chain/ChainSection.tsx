@@ -21,6 +21,10 @@ type Props = {
   onEditStub: (id: string, data: StubFormData) => void;
   onRemoveStub: (id: string) => void;
   originatorAddress: string;
+  // When set, the section opened itself because the purchase type makes a
+  // chain likely (audit #5). Reframes the header as a direct question and
+  // shows the reason so the open state never feels arbitrary.
+  autoOpenReason?: string | null;
 };
 
 function StubCard({
@@ -103,6 +107,7 @@ export function ChainSection({
   onEditStub,
   onRemoveStub,
   originatorAddress,
+  autoOpenReason,
 }: Props) {
   const [position, setPosition] = useState<ChainPosition>("unknown");
   const [addNodeDir, setAddNodeDir] = useState<"above" | "below" | null>(null);
@@ -181,19 +186,31 @@ export function ChainSection({
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="glass-section-label text-slate-900/40">
-          Chain{" "}
-          <span className="text-slate-900/30 font-normal normal-case">(optional)</span>
-        </h2>
-        <button
-          type="button"
-          onClick={handleCollapse}
-          className="text-xs text-slate-900/40 hover:text-red-500 transition-colors"
-        >
-          × Remove chain
-        </button>
+      {/* Header. When the section opened itself (audit #5) it leads with the
+          question + the reason; a manual open keeps the plain "Chain" label. */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between">
+          {autoOpenReason ? (
+            <h2 className="text-sm font-semibold text-slate-900/80">Is this sale part of a chain?</h2>
+          ) : (
+            <h2 className="glass-section-label text-slate-900/40">
+              Chain{" "}
+              <span className="text-slate-900/30 font-normal normal-case">(optional)</span>
+            </h2>
+          )}
+          <button
+            type="button"
+            onClick={handleCollapse}
+            className="text-xs text-slate-900/40 hover:text-red-500 transition-colors flex-shrink-0"
+          >
+            {autoOpenReason ? "Not in a chain" : "× Remove chain"}
+          </button>
+        </div>
+        {autoOpenReason && (
+          <p className="text-xs text-slate-900/50 mt-1.5 leading-relaxed">
+            This looks like a chain, because {autoOpenReason}, so we&rsquo;ve opened it for you. Add the linked sales and we&rsquo;ll invite their agents.
+          </p>
+        )}
       </div>
 
       {/* Position selector */}
