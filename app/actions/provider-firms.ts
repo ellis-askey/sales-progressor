@@ -16,7 +16,7 @@ import {
   uploadProviderLogo,
   deleteProviderLogo,
 } from "@/lib/supabase-storage";
-import { outwardCode } from "@/lib/utils/address";
+import { outwardCodeFromInput } from "@/lib/utils/address";
 import type { ProviderKind } from "@prisma/client";
 
 async function requireSuperadmin() {
@@ -170,7 +170,7 @@ export async function addProviderCoverage(
   const outwards: string[] = [];
   const skipped: string[] = [];
   for (const token of tokens) {
-    const out = outwardCode(token);
+    const out = outwardCodeFromInput(token);
     if (out) outwards.push(out);
     else skipped.push(token);
   }

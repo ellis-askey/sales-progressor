@@ -101,3 +101,14 @@ export function outwardCode(postcode: string | null | undefined): string | null 
   if (!match) return null;
   return match[1].toUpperCase();
 }
+
+// Like outwardCode, but also accepts a BARE outward code as input — so both
+// "EN8 8AB" and "EN8" return "EN8". Used by the provider-coverage editor,
+// where admins add outward codes directly (not full postcodes).
+export function outwardCodeFromInput(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const full = outwardCode(token);
+  if (full) return full;
+  const bare = token.toUpperCase().replace(/\s+/g, "");
+  return /^[A-Z]{1,2}[0-9][0-9A-Z]?$/.test(bare) ? bare : null;
+}
