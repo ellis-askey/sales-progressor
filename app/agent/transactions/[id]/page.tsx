@@ -279,6 +279,7 @@ export default async function AgentTransactionDetailPage({
       <EmailSettingsButton
         transactionId={transaction.id}
         isInternalStaff={internal}
+        hasPhoto={!!heroPhotoUrl}
       />
     );
   })();

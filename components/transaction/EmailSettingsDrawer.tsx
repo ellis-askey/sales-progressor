@@ -329,9 +329,16 @@ function EmailSettingsDrawer({
 export function EmailSettingsButton({
   transactionId,
   isInternalStaff,
+  hasPhoto = false,
 }: {
   transactionId: string;
   isInternalStaff: boolean;
+  // When the hero has a property photo behind it, the pill mirrors the
+  // "Back to files" control: a dark translucent fill + blur so the label
+  // stays legible over imagery. Without a photo it uses the solid overlay
+  // surface. Either way it's never transparent (the old resting state was
+  // invisible over the warm hero on mobile).
+  hasPhoto?: boolean;
 }) {
   const [state, setState] = useState<EmailSettingsState | null>(null);
   const [open, setOpen] = useState(false);
@@ -363,6 +370,18 @@ export function EmailSettingsButton({
         ? "Some emails paused"
         : "Emails on";
 
+  // Solid fill in every state, matching the "Back to files" pill: dark blur
+  // over a photo, overlay surface otherwise. Attention (paused / on hold) is
+  // carried by an amber border + amber label, not by the fill — so the pill
+  // is always legible instead of a transparent chip that vanishes on mobile.
+  const fill = hasPhoto ? "rgba(15,23,42,0.38)" : "var(--agent-surface-overlay)";
+  const accent = hasPhoto ? "#fdba74" : "#9a3412";
+  const rest = hasPhoto ? "#fff" : "var(--agent-text-secondary, #475569)";
+  const tone = attention ? accent : rest;
+  const borderColor = attention
+    ? (hasPhoto ? "rgba(253,186,116,0.55)" : "rgba(234,88,12,0.45)")
+    : (hasPhoto ? "rgba(255,255,255,0.28)" : "var(--agent-border-default, rgba(15,23,42,0.12))");
+
   return (
     <>
       <button
@@ -375,21 +394,21 @@ export function EmailSettingsButton({
           gap: 7,
           padding: "5px 12px",
           borderRadius: 999,
-          background: attention ? "rgba(234, 88, 12, 0.08)" : "transparent",
-          border: attention
-            ? "0.5px solid rgba(234, 88, 12, 0.3)"
-            : "0.5px solid var(--agent-border-default, rgba(15,23,42,0.12))",
+          background: fill,
+          backdropFilter: hasPhoto ? "blur(8px)" : undefined,
+          WebkitBackdropFilter: hasPhoto ? "blur(8px)" : undefined,
+          border: `0.5px solid ${borderColor}`,
           cursor: "pointer",
           flexShrink: 0,
           whiteSpace: "nowrap",
         }}
       >
-        <EnvelopeSimple size={13} weight="regular" style={{ color: attention ? "#9a3412" : "var(--agent-text-muted, #64748b)" }} />
+        <EnvelopeSimple size={13} weight="regular" style={{ color: tone }} />
         <span
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: attention ? "#9a3412" : "var(--agent-text-muted, #64748b)",
+            color: tone,
             letterSpacing: 0.02,
           }}
         >
