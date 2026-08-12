@@ -28,7 +28,7 @@ export function UpcomingView({ forecast }: { forecast: UpcomingForecast }) {
         <div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
             <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: "0.02em", color: "var(--agent-warning, #b45309)" }}>AUTOMATION EXHAUSTED</h3>
-            <Pill tone="warning" size="sm">{exhausted.length}</Pill>
+            <Pill glass tone="warning" size="sm">{exhausted.length}</Pill>
           </div>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--agent-text-muted)" }}>
             Every automated chase has been sent and the step is still open. These need a person.

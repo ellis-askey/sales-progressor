@@ -287,7 +287,7 @@ function CompactRow({ row, onOpen }: { row: EmailRow; onOpen: (row: EmailRow) =>
       <span style={{ flexShrink: 0 }}>
         {row.status === "upcoming"
           ? <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{dayLabel(t)}{row.chaseNumber ? ` · chase ${row.chaseNumber}/2` : ""}</span>
-          : <Pill tone={meta.tone} size="sm">{meta.label}</Pill>}
+          : <Pill glass tone={meta.tone} size="sm">{meta.label}</Pill>}
       </span>
     </button>
   );

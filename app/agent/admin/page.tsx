@@ -20,6 +20,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
+import { Pill } from "@/components/ui/Pill";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -237,8 +238,7 @@ export default async function AgentAdminPage() {
 }
 
 function Flag({ color }: { color: "blue" | "green" }) {
-  const cls = color === "blue" ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-700";
-  return <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${cls}`}>✓</span>;
+  return <Pill glass tone={color === "blue" ? "info" : "success"} size="sm">✓</Pill>;
 }
 
 function Dash() {

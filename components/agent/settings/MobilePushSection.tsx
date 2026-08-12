@@ -18,6 +18,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { updateAgentPushPrefAction, sendTestPushAction } from "@/app/actions/agent-preferences";
+import { Pill } from "@/components/ui/Pill";
 import type { NotificationPrefs, PushKey } from "@/lib/agent/notification-prefs";
 
 export type SubscribedDevice = {
@@ -307,9 +308,7 @@ export function MobilePushSection({
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-slate-800 truncate">{deviceLabel(d)}</p>
                       {isThisDevice && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 flex-shrink-0">
-                          This device
-                        </span>
+                        <Pill glass tone="brand" size="sm" className="uppercase tracking-wider flex-shrink-0">This device</Pill>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">{deviceSubLabel(d)}</p>

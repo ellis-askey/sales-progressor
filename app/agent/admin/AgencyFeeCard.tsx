@@ -11,6 +11,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { saveAgencyFeeAction } from "@/app/actions/agency-fees";
 import type { ClientType } from "@prisma/client";
@@ -193,7 +194,7 @@ export function AgencyFeeCard({ agencies, legacyCount, totalCount }: Props) {
                 <td className="px-4 py-2.5 text-slate-900/80">{a.name}</td>
                 <td className="px-3 py-2.5 text-xs">
                   {a.feeTier === "legacy" ? (
-                    <span className="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Legacy</span>
+                    <Pill glass tone="warning" size="sm">Legacy</Pill>
                   ) : (
                     <span className="inline-block px-2 py-0.5 rounded bg-white/10 text-slate-900/60">Sliding</span>
                   )}

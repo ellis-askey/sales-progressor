@@ -2,6 +2,7 @@
 
 import { Eye, EyeSlash, Crown, Trash, UserPlus, EnvelopeSimple, X } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { Pill } from "@/components/ui/Pill";
 
 export type TeamMember = {
   id: string;
@@ -60,9 +61,7 @@ export function TeamListView({
             <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
             <p className="text-xs text-slate-900/40 truncate">{m.email}</p>
           </div>
-          <span className="flex-shrink-0 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-            Director
-          </span>
+          <Pill glass tone="brand" size="sm" className="flex-shrink-0 uppercase tracking-wider">Director</Pill>
         </div>
       ))}
 
@@ -131,9 +130,7 @@ export function TeamListView({
               </p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                Pending
-              </span>
+              <Pill glass tone="muted" size="sm" className="uppercase tracking-wider">Pending</Pill>
               {onResendInvitation && (
                 <button
                   onClick={() => onResendInvitation(inv.id)}

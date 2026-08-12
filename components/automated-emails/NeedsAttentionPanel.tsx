@@ -42,7 +42,7 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Needs attention</h2>
-          <Pill tone="danger" size="sm">{data.total}</Pill>
+          <Pill glass tone="danger" size="sm">{data.total}</Pill>
         </div>
         <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
           Across {data.affectedFiles} {data.affectedFiles === 1 ? "transaction" : "transactions"}
@@ -86,7 +86,7 @@ function IssueRow({ item }: { item: NeedsAttentionItem }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        <Pill tone={meta.tone} size="sm">{meta.label}</Pill>
+        <Pill glass tone={meta.tone} size="sm">{meta.label}</Pill>
         <Link
           href={fileHref}
           className="agent-link"

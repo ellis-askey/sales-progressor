@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import type { SaleDetailsDelta, SaleDetailsDeltaItem } from "@/app/actions/transactions";
+import { Pill } from "@/components/ui/Pill";
 
 function DeltaList({ label, items, color }: { label: string; items: SaleDetailsDeltaItem[]; color: "red" | "green" }) {
   const [expanded, setExpanded] = useState(items.length <= 5);
@@ -25,9 +26,7 @@ function DeltaList({ label, items, color }: { label: string; items: SaleDetailsD
           <div key={item.id} className="px-3 py-2 flex items-center gap-2">
             <span className="flex-1 text-sm text-slate-700 leading-snug">{item.name}</span>
             {item.wasComplete && (
-              <span className="text-[10px] font-medium text-orange-600 bg-orange-50 border border-orange-100 rounded px-1.5 py-0.5 flex-shrink-0">
-                was complete
-              </span>
+              <Pill glass tone="warning" size="sm" className="flex-shrink-0">was complete</Pill>
             )}
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${c.side}`}>
               {item.side === "vendor" ? "Seller" : "Buyer"}

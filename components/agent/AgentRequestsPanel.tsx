@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
 function fmtDate(d: Date) {
@@ -28,9 +29,7 @@ export function AgentRequestsPanel({ requests }: { requests: ManualTaskWithRelat
           </svg>
           <span className="text-sm font-semibold text-slate-900/80">My requests</span>
           {pending.length > 0 && (
-            <span className="text-xs font-medium bg-amber-100/80 text-amber-700 px-2 py-0.5 rounded-full">
-              {pending.length} pending
-            </span>
+            <Pill glass tone="warning" size="md">{pending.length} pending</Pill>
           )}
         </div>
         {/* Canonical rotating chevron (2026-08-11 drawer-consistency pass) */}
@@ -140,9 +139,7 @@ function RequestRow({ request }: { request: ManualTaskWithRelations }) {
         </div>
       </div>
       {isDone && (
-        <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100/80 text-emerald-700">
-          Resolved
-        </span>
+        <Pill glass tone="success" size="sm" className="flex-shrink-0">Resolved</Pill>
       )}
     </div>
   );

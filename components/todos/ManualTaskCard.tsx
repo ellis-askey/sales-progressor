@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
+import { Pill } from "@/components/ui/Pill";
 import { toUKDateStr } from "@/lib/utils";
 
 function timeAgo(date: Date): string {
@@ -120,9 +121,7 @@ export function ManualTaskCard({
             {task.title}
           </p>
           {task.isAgentRequest && (
-            <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100/80 text-amber-700">
-              From agent
-            </span>
+            <Pill glass tone="brand" size="sm" className="flex-shrink-0">From agent</Pill>
           )}
         </div>
 

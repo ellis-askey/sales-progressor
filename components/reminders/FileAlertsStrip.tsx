@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CaretDown, Warning } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import { ALERT_CONFIG } from "@/lib/services/work-queue";
 import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -57,22 +58,15 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             {items.length} file alert{items.length !== 1 ? "s" : ""}
           </span>
           {overdueCount > 0 && (
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-100">
-              {overdueCount} overdue exchange
-            </span>
+            <Pill glass tone="danger" size="md">{overdueCount} overdue exchange</Pill>
           )}
           {missingCount > 0 && (
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-600 border border-amber-100">
-              {missingCount} missing solicitor
-            </span>
+            <Pill glass tone="warning" size="md">{missingCount} missing solicitor</Pill>
           )}
           {staleCount > 0 && (
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-600 border border-sky-100">
-              {/* OLD: "{N} stale" — Rule 2: "stale" is dev shorthand. The per-row label
-                   in ALERT_CONFIG already reads "No progress in 14+ days"; this summary
-                   badge now matches that spirit in active voice. */}
-              {staleCount} not progressing
-            </span>
+            // "not progressing" (not the dev shorthand "stale"); matches the
+            // per-row "No progress in 14+ days" label in active voice.
+            <Pill glass tone="info" size="md">{staleCount} not progressing</Pill>
           )}
         </div>
         <CaretDown

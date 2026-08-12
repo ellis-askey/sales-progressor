@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
 import { CheckCircle, Clock, CaretDown, CaretUp } from "@phosphor-icons/react";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
@@ -328,11 +329,7 @@ export function ReminderCard({
 
   const party = getPartyFromCode(log.reminderRule.targetMilestoneCode);
   const partyLabel = party === "vendor" ? "Seller" : party === "purchaser" ? "Buyer" : null;
-  const partyPillClass = party === "vendor"
-    ? "bg-orange-50 text-orange-600 border border-orange-100"
-    : party === "purchaser"
-      ? "bg-blue-50 text-blue-600 border border-blue-100"
-      : "";
+  const partyTone: "warning" | "info" = party === "purchaser" ? "info" : "warning";
 
   const chaseContacts = filterContactsForChase(contacts, log.reminderRule.targetMilestoneCode);
   const contactName = chaseContacts[0]?.name ?? null;
@@ -403,10 +400,10 @@ export function ReminderCard({
           <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
           {partyLabel && party && (
             <div className="flex items-center gap-2 mt-1.5">
-              <span className={`inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-md ${partyPillClass}`}>
+              <Pill glass tone={partyTone} size="md">
                 <RoleIcon role={party} size={11} />
                 Waiting on {partyLabel}
-              </span>
+              </Pill>
             </div>
           )}
         </div>
@@ -475,10 +472,10 @@ export function ReminderCard({
               <p className="text-xs text-slate-900/50">{log.reminderRule.description}</p>
             )}
             {partyLabel && party && (
-              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md ${partyPillClass}`}>
+              <Pill glass tone={partyTone} size="md">
                 <RoleIcon role={party} size={11} />
                 Waiting on {partyLabel}
-              </span>
+              </Pill>
             )}
           </div>
 

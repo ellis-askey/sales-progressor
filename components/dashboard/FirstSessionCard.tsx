@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Pill } from "@/components/ui/Pill";
 
 const DISMISSED_KEY = "sp_welcome_dismissed";
 
@@ -127,7 +128,7 @@ export function FirstSessionCard() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1.5 mb-0.5">
               <p className="text-sm font-semibold text-slate-900/80">Watch a tour</p>
-              <span className="text-[9px] font-bold bg-slate-900/8 text-slate-900/40 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Soon</span>
+              <Pill glass tone="muted" size="sm" className="uppercase tracking-wide">Soon</Pill>
             </div>
             <p className="text-xs text-slate-900/40">Video walkthrough</p>
           </div>

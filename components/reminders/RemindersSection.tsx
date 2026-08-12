@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Pill } from "@/components/ui/Pill";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
@@ -801,9 +802,7 @@ export function RemindersSection({
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Reminders & Tasks</h2>
           {escalatedCount > 0 && (
-            <span className="text-xs bg-red-100 text-red-600 rounded-full px-2 py-0.5 font-medium">
-              {escalatedCount} escalated
-            </span>
+            <Pill glass tone="danger" size="md">{escalatedCount} escalated</Pill>
           )}
         </div>
         <button

@@ -139,7 +139,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged }: { row: EmailRow |
       <Drawer.Header>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span className="agent-eyebrow">{row.category === "chase" ? "Chase" : "Notification"}</span>
-          <Pill tone={statusMeta.tone} size="sm">{statusMeta.label}</Pill>
+          <Pill glass tone={statusMeta.tone} size="sm">{statusMeta.label}</Pill>
         </div>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)" }}>{row.subject}</h2>
       </Drawer.Header>
