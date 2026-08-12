@@ -119,6 +119,9 @@ export default async function CommandProviderDetailPage({
                 website: firm.website,
                 notes: firm.notes,
                 active: firm.active,
+                ricsRegulated: firm.ricsRegulated,
+                establishedYear: firm.establishedYear,
+                turnaround: firm.turnaround,
               }}
             />
           </Section>

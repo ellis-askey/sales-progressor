@@ -41,6 +41,9 @@ export type FirmInput = {
   website?: string | null;
   notes?: string | null;
   active: boolean;
+  ricsRegulated?: boolean;
+  establishedYear?: number | null;
+  turnaround?: string | null;
 };
 
 function validateFirmInput(input: FirmInput): string | null {
@@ -52,7 +55,22 @@ function validateFirmInput(input: FirmInput): string | null {
   if (input.website && !/^https?:\/\//i.test(input.website)) {
     return "Website must start with http:// or https://";
   }
+  if (input.establishedYear != null) {
+    const y = input.establishedYear;
+    if (!Number.isInteger(y) || y < 1800 || y > new Date().getFullYear()) {
+      return "Established year doesn't look valid.";
+    }
+  }
   return null;
+}
+
+// The trust fields common to create + update.
+function firmTrustData(input: FirmInput) {
+  return {
+    ricsRegulated: input.ricsRegulated ?? false,
+    establishedYear: input.establishedYear ?? null,
+    turnaround: input.turnaround?.trim() || null,
+  };
 }
 
 export async function createProviderFirm(input: FirmInput): Promise<ActionResult<{ id: string }>> {
@@ -69,6 +87,7 @@ export async function createProviderFirm(input: FirmInput): Promise<ActionResult
       website: input.website?.trim() || null,
       notes: input.notes?.trim() || null,
       active: input.active,
+      ...firmTrustData(input),
     },
   });
 
@@ -102,6 +121,7 @@ export async function updateProviderFirm(id: string, input: FirmInput): Promise<
       website: input.website?.trim() || null,
       notes: input.notes?.trim() || null,
       active: input.active,
+      ...firmTrustData(input),
     },
   });
 

@@ -12,6 +12,7 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { NewProviderForm } from "./NewProviderForm";
+import { CopyOnboardingButton } from "./CopyOnboardingButton";
 import { Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -36,12 +37,15 @@ export default async function CommandProvidersPage() {
         <h1 className="text-[20px] font-semibold text-[#fafafa] tracking-tight">
           Providers
         </h1>
-        <Link
-          href="/command/providers/service-types"
-          className="text-[11px] text-[#737373] hover:text-[#d4d4d4] transition-colors"
-        >
-          Manage service types →
-        </Link>
+        <div className="flex items-center gap-3">
+          <CopyOnboardingButton />
+          <Link
+            href="/command/providers/service-types"
+            className="text-[11px] text-[#737373] hover:text-[#d4d4d4] transition-colors"
+          >
+            Manage service types →
+          </Link>
+        </div>
       </div>
       <p className="text-[13px] text-[#737373] mb-6">
         Third-party firms clients can request quotes from via the public

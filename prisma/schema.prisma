@@ -767,6 +767,11 @@ model ProviderFirm {
   // when absent.
   logoPath  String?
   notes     String?
+  // Client-facing trust signals shown on the survey-quote card (no contact
+  // details — clients request quotes through us, they don't contact directly).
+  ricsRegulated   Boolean @default(false)
+  establishedYear Int?
+  turnaround      String? // e.g. "Quotes within 2 working days"
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
