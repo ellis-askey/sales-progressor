@@ -275,6 +275,9 @@ function CompactRow({ row, onOpen }: { row: EmailRow; onOpen: (row: EmailRow) =>
         </span>
         <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {row.subject}
+          {row.bundleCount && row.bundleCount > 1 && (
+            <span style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}> · +{row.bundleCount - 1} more update{row.bundleCount - 1 === 1 ? "" : "s"}</span>
+          )}
         </span>
       </div>
       <span className="hidden md:inline-flex" style={{ alignItems: "center", gap: 4, fontSize: 11, color: "var(--agent-text-muted)", minWidth: 0, maxWidth: 160 }}>

@@ -104,6 +104,7 @@ function IssueRow({ item }: { item: NeedsAttentionItem }) {
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {item.recipientEmail || item.recipientName}
           </span>
+          {item.count > 1 && <span style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>×{item.count}</span>}
         </span>
         <span style={{ display: "inline-flex", gap: 10, flexShrink: 0 }}>
           {(item.status === "bounced" || item.status === "blocked") && (

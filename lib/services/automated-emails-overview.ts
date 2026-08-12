@@ -44,11 +44,18 @@ const dayLabelFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "s
 
 // Period-bounded problem predicate for the queue (post-send delivery issues +
 // hard send errors + repeated deferrals). from inclusive, to exclusive.
+// Non-failures that also stamp errorAt — excluded from "issues" everywhere:
+// dead-round skips (system correctly refused to email a fell-through buyer)
+// and manual cancellations.
+const NON_FAILURE_ERROR: Prisma.OutboundEmailQueueWhereInput = {
+  NOT: { OR: [{ errorMessage: { in: ["recipient_round_archived"] } }, { errorMessage: { startsWith: "Cancelled" } }] },
+};
+
 function queueProblemOr(from: Date, to: Date): Prisma.OutboundEmailQueueWhereInput[] {
   return [
     { bouncedAt: { gte: from, lt: to } },
     { blockedAt: { gte: from, lt: to } },
-    { errorAt: { gte: from, lt: to } },
+    { AND: [{ errorAt: { gte: from, lt: to } }, NON_FAILURE_ERROR] },
     { AND: [{ deferredCount: { gte: 2 } }, { deferredAt: { gte: from, lt: to } }, { deliveredAt: null }] },
   ];
 }
@@ -82,7 +89,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     prisma.outboundEmailQueue.findMany({
       where: { ...queueScope, sentAt: { gte: periodStart } },
       select: {
-        sentAt: true, emailType: true, deliveredAt: true, bouncedAt: true, blockedAt: true,
+        sentAt: true, emailType: true, recipientContactId: true, deliveredAt: true, bouncedAt: true, blockedAt: true,
         recipientContact: { select: { propertyTransactionId: true } },
       },
       take: 20000,
@@ -93,11 +100,12 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
       take: 20000,
     }),
     prisma.outboundEmailQueue.count({ where: { ...queueScope, sentAt: null, errorAt: null } }),
-    // previous equal period sent total (queue + solicitor)
+    // previous equal period sent total (digest-aware, queue + solicitor)
     Promise.all([
-      prisma.outboundEmailQueue.count({ where: { ...queueScope, sentAt: { gte: prevStart, lt: periodStart } } }),
+      prisma.outboundEmailQueue.count({ where: { ...queueScope, emailType: { not: "MILESTONE_CONFIRMATION" }, sentAt: { gte: prevStart, lt: periodStart } } }),
+      prisma.outboundEmailQueue.groupBy({ by: ["recipientContactId", "sentAt"], where: { ...queueScope, emailType: "MILESTONE_CONFIRMATION", sentAt: { gte: prevStart, lt: periodStart } } }),
       prisma.outboundMessage.count({ where: { ...solicitorScope, sentAt: { gte: prevStart, lt: periodStart } } }),
-    ]).then(([a, b]) => a + b),
+    ]).then(([a, b, c]) => a + b.length + c),
     // issues this period (queue problems + solicitor failures)
     Promise.all([
       prisma.outboundEmailQueue.count({ where: { ...queueScope, OR: queueProblemOr(periodStart, now) } }),
@@ -118,10 +126,20 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
   let notificationsSent = 0;
   let failures = 0;
 
+  // Milestone confirmations delivered as one digest count once. Track seen
+  // (recipientContactId, sentAt) groups so a bundle is a single email.
+  const seenDigest = new Set<string>();
+  let queueEmails = 0;
   for (const r of queueSent) {
+    if (r.recipientContact?.propertyTransactionId) files.add(r.recipientContact.propertyTransactionId);
+    if (r.emailType === "MILESTONE_CONFIRMATION" && r.recipientContactId && r.sentAt) {
+      const key = `${r.recipientContactId}|${r.sentAt.getTime()}`;
+      if (seenDigest.has(key)) continue; // already counted this digest
+      seenDigest.add(key);
+    }
+    queueEmails++;
     const isChase = r.emailType === "CLIENT_CHASE";
     if (isChase) chasesSent++; else notificationsSent++;
-    if (r.recipientContact?.propertyTransactionId) files.add(r.recipientContact.propertyTransactionId);
     if (r.bouncedAt || r.blockedAt) failures++;
     if (r.sentAt) {
       const bucket = dayByKey.get(toUKDateStr(r.sentAt));
@@ -138,7 +156,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     }
   }
 
-  const emailsSent = queueSent.length + solSent.length;
+  const emailsSent = queueEmails + solSent.length;
   const deliveryRatePct = emailsSent > 0
     ? Math.round(((emailsSent - failures) / emailsSent) * 1000) / 10
     : null;
@@ -199,6 +217,7 @@ export type NeedsAttentionItem = {
   reason: string | null;
   deferredCount: number;
   action: IssueAction; // safe, link-only actions (no send/retry here)
+  count: number;       // occurrences deduped into this item (e.g. a bad address hit N times)
 };
 
 export type NeedsAttention = {
@@ -242,9 +261,10 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     }),
   ]);
 
-  const byStatus: Record<IssueStatus, number> = { bounced: 0, blocked: 0, deferred: 0, errored: 0, failed: 0 };
   const files = new Set<string>();
-  const items: NeedsAttentionItem[] = [];
+  // Dedupe by (status, recipientEmail): a single bad address that bounced N
+  // times is ONE thing to fix, shown with count = N, not N separate rows.
+  const byKey = new Map<string, NeedsAttentionItem>();
 
   // Priority: bounced > blocked > failed > errored > deferred.
   const rank: Record<IssueStatus, number> = { bounced: 0, blocked: 1, failed: 2, errored: 3, deferred: 4 };
@@ -256,10 +276,16 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     else if (r.blockedAt) { status = "blocked"; reason = r.blockedReason; }
     else if (r.errorAt) { status = "errored"; reason = r.errorMessage; }
     else { status = "deferred"; reason = "Repeatedly deferred by the recipient's mail server"; }
-    byStatus[status]++;
     const txId = r.recipientContact?.propertyTransactionId ?? "";
     if (txId) files.add(txId);
-    items.push({
+    const key = `${status}|${r.recipientEmail}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.count++;
+      if (r.deferredCount > existing.deferredCount) existing.deferredCount = r.deferredCount;
+      continue;
+    }
+    byKey.set(key, {
       emailId: r.id,
       source: "queue",
       status,
@@ -273,14 +299,14 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       // A bad address is fixable by updating the contact; deferrals/errors are
       // for a human to review (no safe auto-action).
       action: status === "bounced" || status === "blocked" ? "update_contact" : "review",
+      count: 1,
     });
   }
 
   for (const m of solProblems) {
-    byStatus.failed++;
     const txId = m.transactionId ?? "";
     if (txId) files.add(txId);
-    items.push({
+    byKey.set(`failed-msg|${m.id}`, {
       emailId: m.id,
       source: "message",
       status: "failed",
@@ -292,14 +318,16 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       reason: m.failureReason,
       deferredCount: 0,
       action: "review",
+      count: 1,
     });
   }
 
-  items.sort((a, b) => rank[a.status] - rank[b.status]);
-  const total = items.length;
+  const items = [...byKey.values()].sort((a, b) => rank[a.status] - rank[b.status]);
+  const byStatus: Record<IssueStatus, number> = { bounced: 0, blocked: 0, deferred: 0, errored: 0, failed: 0 };
+  for (const it of items) byStatus[it.status]++;
 
   return {
-    total,
+    total: items.length,
     affectedFiles: files.size,
     byStatus,
     items: items.slice(0, ISSUE_ITEM_CAP),

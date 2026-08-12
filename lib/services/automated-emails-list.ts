@@ -87,6 +87,7 @@ export type EmailRow = {
   errorAt: Date | null;
   errorMessage: string | null;
   chaseNumber?: number;        // upcoming only — "chase X of 2"
+  bundleCount?: number;        // milestone digests: N updates delivered as 1 email
 };
 
 export type EmailListResponse = {
@@ -115,6 +116,7 @@ function categoriseEmailType(emailType: string): "chase" | "notification" {
 type QueueRowWithContact = {
   id: string;
   emailType: string;
+  recipientContactId: string | null;
   scheduledFor: Date;
   sentAt: Date | null;
   errorAt: Date | null;
@@ -148,6 +150,7 @@ function mapQueueRow(
   r: QueueRowWithContact,
   status: "pending" | "sent" | "errored",
   txAddressById: Map<string, string>,
+  bundleCount = 1,
 ): EmailRow {
   const payload = (r.payload ?? {}) as { subject?: string };
   const txId = r.recipientContact?.propertyTransactionId ?? "";
@@ -167,12 +170,44 @@ function mapQueueRow(
     sentAt: r.sentAt,
     errorAt: r.errorAt,
     errorMessage: r.errorMessage,
+    ...(bundleCount > 1 ? { bundleCount } : {}),
   };
+}
+
+// Milestone confirmations sent as one digest share (recipientContactId,
+// timestamp) — the drain stamps them together. Collapse each such group into a
+// single feed row carrying bundleCount, so the feed reflects the ONE email the
+// client actually received rather than N pre-digest rows. Non-milestone rows
+// pass through untouched.
+function mapQueueRowsCollapsed(
+  rows: QueueRowWithContact[],
+  status: "pending" | "sent" | "errored",
+  ts: (r: QueueRowWithContact) => Date | null,
+  txAddressById: Map<string, string>,
+): EmailRow[] {
+  const out: EmailRow[] = [];
+  const groupIdx = new Map<string, number>();
+  for (const r of rows) {
+    const stamp = ts(r);
+    if (r.emailType === "MILESTONE_CONFIRMATION" && r.recipientContactId && stamp) {
+      const key = `${r.recipientContactId}|${stamp.getTime()}`;
+      const at = groupIdx.get(key);
+      if (at !== undefined) {
+        const row = out[at];
+        row.bundleCount = (row.bundleCount ?? 1) + 1;
+        continue;
+      }
+      groupIdx.set(key, out.length);
+    }
+    out.push(mapQueueRow(r, status, txAddressById));
+  }
+  return out;
 }
 
 const queueRowSelect = {
   id: true,
   emailType: true,
+  recipientContactId: true,
   scheduledFor: true,
   sentAt: true,
   errorAt: true,
@@ -357,14 +392,35 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   const solSent30dWhere = sWhere({ sentAt: { gte: thirtyDaysAgo } });
   const solErroredWhere = sWhere(solErroredPred);
 
+  // "Errored" means a GENUINE send failure. Exclude the two non-failures that
+  // also stamp errorAt: dead-round skips (the system correctly refusing to
+  // email a fell-through buyer) and manual cancellations. Neither is an issue.
+  const genuineFailurePred: Prisma.OutboundEmailQueueWhereInput = {
+    errorAt: { not: null },
+    NOT: { OR: [{ errorMessage: { in: ["recipient_round_archived"] } }, { errorMessage: { startsWith: "Cancelled" } }] },
+  };
+
+  // Sent-email count that treats a milestone digest (N confirmations delivered
+  // to one recipient in one send) as ONE email, matching what the client got.
+  const sentEmailCount = async (since: Date): Promise<number> => {
+    const [nonMilestone, digests] = await Promise.all([
+      prisma.outboundEmailQueue.count({ where: qWhere({ emailType: { not: "MILESTONE_CONFIRMATION" }, sentAt: { gte: since } }) }),
+      prisma.outboundEmailQueue.groupBy({
+        by: ["recipientContactId", "sentAt"],
+        where: { AND: [queueScope, qFilter, { emailType: "MILESTONE_CONFIRMATION", sentAt: { gte: since } }] },
+      }),
+    ]);
+    return nonMilestone + digests.length;
+  };
+
   // KPI + tab-label counts across BOTH sources, in parallel. Pending is
   // queue-only (solicitor chases send synchronously). A null solicitor where
   // means the active filters exclude solicitor sends → that count is 0.
   const [qPending, qSent7d, qSent30d, qErrored, sSent7d, sSent30d, sErrored] = await Promise.all([
     prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: null, errorAt: null }) }),
-    prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: { gte: sevenDaysAgo } }) }),
-    prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: { gte: thirtyDaysAgo } }) }),
-    prisma.outboundEmailQueue.count({ where: qWhere({ errorAt: { not: null } }) }),
+    sentEmailCount(sevenDaysAgo),
+    sentEmailCount(thirtyDaysAgo),
+    prisma.outboundEmailQueue.count({ where: qWhere(genuineFailurePred) }),
     solSent7dWhere ? prisma.outboundMessage.count({ where: solSent7dWhere }) : 0,
     solSent30dWhere ? prisma.outboundMessage.count({ where: solSent30dWhere }) : 0,
     solErroredWhere ? prisma.outboundMessage.count({ where: solErroredWhere }) : 0,
@@ -376,7 +432,8 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     errored: qErrored + sErrored,
   };
 
-  // Tab-specific row fetch (filters ANDed via qWhere/sWhere).
+  // Tab-specific row fetch (filters ANDed via qWhere/sWhere). Queue rows are
+  // digest-collapsed so milestone bundles show as one row.
   let rows: EmailRow[] = [];
   let hasMore = false;
 
@@ -387,8 +444,9 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
       orderBy: { scheduledFor: "asc" },
       take: pageSize + 1,
     });
-    hasMore = queueRows.length > pageSize;
-    rows = queueRows.slice(0, pageSize).map((r) => mapQueueRow(r, "pending", txAddressById));
+    const collapsed = mapQueueRowsCollapsed(queueRows, "pending", (r) => r.scheduledFor, txAddressById);
+    hasMore = collapsed.length > pageSize;
+    rows = collapsed.slice(0, pageSize);
   } else if (input.tab === "sent") {
     const sentSol = sWhere({ sentAt: { gte: thirtyDaysAgo } });
     const [queueRows, messageRows] = await Promise.all([
@@ -399,7 +457,7 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
       sentSol ? prisma.outboundMessage.findMany({ where: sentSol, select: messageRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1 }) : [],
     ]);
     const merged = [
-      ...queueRows.map((r) => mapQueueRow(r, "sent", txAddressById)),
+      ...mapQueueRowsCollapsed(queueRows, "sent", (r) => r.sentAt, txAddressById),
       ...messageRows.map((m) => mapMessageRow(m, "sent", txAddressById)),
     ].sort((a, b) => (b.sentAt?.getTime() ?? 0) - (a.sentAt?.getTime() ?? 0));
     hasMore = merged.length > pageSize;
@@ -408,13 +466,13 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     const errSol = sWhere(solErroredPred);
     const [queueRows, messageRows] = await Promise.all([
       prisma.outboundEmailQueue.findMany({
-        where: qWhere({ errorAt: { not: null } }),
+        where: qWhere(genuineFailurePred),
         select: queueRowSelect, orderBy: { errorAt: "desc" }, take: pageSize + 1,
       }),
       errSol ? prisma.outboundMessage.findMany({ where: errSol, select: messageRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1 }) : [],
     ]);
     const merged = [
-      ...queueRows.map((r) => mapQueueRow(r, "errored", txAddressById)),
+      ...mapQueueRowsCollapsed(queueRows, "errored", (r) => r.errorAt, txAddressById),
       ...messageRows.map((m) => mapMessageRow(m, "errored", txAddressById)),
     ].sort((a, b) => (b.errorAt?.getTime() ?? 0) - (a.errorAt?.getTime() ?? 0));
     hasMore = merged.length > pageSize;
