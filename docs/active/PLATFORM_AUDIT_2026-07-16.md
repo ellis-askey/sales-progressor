@@ -20,11 +20,11 @@
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Directors and negotiators can't see their notifications | pending |
+| 1 | Directors and negotiators can't see their notifications | done |
 | 2 | Turn on the "how long things really take" numbers | pending |
 | 3 | Give the "To-Do" tab a real inbox | pending |
-| 4 | Stop leaking developer pages into production | pending |
-| 5 | Chains are being hidden inside the "create a sale" form | pending |
+| 4 | Stop leaking developer pages into production | in progress |
+| 5 | Chains are being hidden inside the "create a sale" form | in progress |
 | 6 | Use portal engagement as a warning signal | pending |
 | 7 | Let clients ask a question from the portal | pending |
 | 8 | Add a preview line to every email | pending |
@@ -33,8 +33,8 @@
 | 11 | Let a client pause chases from an email | pending |
 | 12 | Rewrite chase-email subject lines | pending |
 | 13 | Show which milestone is killing sales, at a glance | pending |
-| 14 | Promote two better demo pages to being real features | pending |
-| 15 | Give clients basic self-serve controls | pending |
+| 14 | Promote two better demo pages to being real features | in progress |
+| 15 | Give clients basic self-serve controls | in progress |
 | 16 | Tell the client who's on their team | pending |
 | 17 | Start measuring email performance properly | pending |
 | 18 | Suggest smarter chase timings based on real behaviour | pending |
@@ -43,8 +43,26 @@
 | 21 | Two small admin tools that retire a lot of DB work | pending |
 | 22 | Kill the leftover duplicate routes | pending |
 | 23 | Finish or delete the "read this email for me" widget | pending |
-| 24 | Send a proper "welcome" email to people who signed up via a chain claim | pending |
+| 24 | Send a proper "welcome" email to people who signed up via a chain claim | done |
 | 25 | Two Command Centre nav items that show "Coming soon" are teaching you to ignore them | pending |
+
+---
+
+## Reconciliation against the codebase — 2026-08-12
+
+All 25 items were checked against the current code (a parallel read of the
+actual files, not from memory). Result:
+
+- **Done (2):** #1 (notifications bell now works for every role) and #24
+  (chain-claim welcome email is wired). Ticked off above, with evidence in
+  their Notes blocks.
+- **Partly done (3):** #4, #14, #15 — set to `in progress`. Each item's Notes
+  block records exactly what's live and what's still missing.
+- **Not started (20):** everything else stays `pending`. Confirmed still
+  matching the "Today" description in each.
+
+**Bottom line: 23 of the 25 are still open**, and 3 of those 23 are already
+part-built. Only 2 are fully closed.
 
 ---
 
@@ -52,7 +70,7 @@
 
 ### 1. Directors and negotiators can't see their notifications
 
-**Status:** pending
+**Status:** done
 
 **Today.** Taylor at Akeman logs in. The bell in the top-right shows nothing. There is no red dot. She thinks nothing's happened. Behind the scenes, twelve things have happened — her client Ben confirmed a milestone from the portal, someone set an expected date, a solicitor email came in. All of it is sitting in the database with her name on it. None of it is on her screen. When she does eventually click the bell out of curiosity, nothing marks as read either. The counter never moves.
 
@@ -62,7 +80,7 @@ Ellis has the same problem — 305 unread notifications, none of which he's ever
 
 **After the fix.** The bell shows a count that matches what actually happened. Taylor logs in on Monday, sees "3", clicks it, gets a short list — "Ben confirmed searches ordered", "Chain agent Philippa declined", "Sarah set an expected date of 25 July". She clicks any of them and lands on the file. The count clears. When she logs in from her phone tomorrow, that state is preserved.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** DONE (verified 2026-08-12). Rewritten in the 2026-08-09 bell pass. `app/api/agent/notifications/route.ts` routes director/negotiator through `resolveAgentVisibility` (their agency's files) and admin/sales_progressor/viewer through `resolveInternalVisibility`, returning a real per-role count + items list. `components/layout/AgentBell.tsx` polls with an `after=` last-read timestamp, shows the unread badge, and opening the bell stamps a fresh timestamp into a per-user `localStorage` key (`agent-bell-cleared-${userKey}`) so the count clears and persists per browser.
 
 ---
 
@@ -98,7 +116,7 @@ Meanwhile the app has now watched more than a hundred real sales go through. We 
 
 ### 4. Stop leaking developer pages into production
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** There are about twenty URLs on the live app that are supposed to be internal preview/audit/mockup pages. They're reachable by anyone who guesses or gets a link. Some of them literally have comments in them like "clicking these buttons will error harmlessly" — but a customer landing there sees a broken page. Names like `/agent/polish/slowness-demo`, `/agent/audit/before-after`, `/bg-test`, `/login-preview`, `/helpdrawertest`.
 
@@ -106,13 +124,13 @@ Meanwhile the app has now watched more than a hundred real sales go through. We 
 
 **After the fix.** These pages continue to exist for internal use, but on the live site they either don't render or redirect to the real page. Nobody outside the team can reach them.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** PARTLY DONE (verified 2026-08-12). Unauthenticated visitors are now blocked: `middleware.ts` removed `bg-test`, `login-preview`, `helpdrawertest`, `audit-gallery`, and `test` from the matcher exclusions (2026-05-25), so public visitors get redirected to `/login`; `/dev/*` is separately prod-blocked via page-level `notFound()`. STILL OPEN: the `/agent/polish/*` and `/agent/audit/*` demo/mockup pages (e.g. `slowness-demo`, `before-after`) have no production gate, and any signed-in director/negotiator can still reach them under `/agent`. Needs a prod gate on those two trees to close.
 
 ---
 
 ### 5. Chains are being hidden inside the "create a sale" form
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** When an agent creates a new sale, the form has five sections. The chain section is the last one, collapsed, labelled "(optional)". If the agent doesn't open it and add chain-mates, no chain is created. Result on prod: only 27% of active sales ever get a chain (12 out of 44). The rest are lonely files with no visibility into what the other sales are doing.
 
@@ -122,7 +140,7 @@ Compounding this: even when a chain IS created, the invite flow means only one a
 
 **After the fix.** When the file is a purchase-with-mortgage or freehold-with-onward-sale (the situations where a chain is almost certain), the chain section defaults to open. The agent sees "is this file in a chain?" instead of "there's an optional collapsed section". Chain adoption rises from 27% to something closer to 60-70%. Once we've got a normal sample of files in chains, we can add a small hub prompt: "You've got 4 active files without a chain — do any of them need one added?"
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-12, awaiting push + staging test. Trigger uses the real purchase-type field, not the audit's "freehold-with-onward-sale" (the form doesn't capture onward sale): **Mortgage** and **Cash from proceeds** open the chain section by default; a pure **Cash** buyer keeps the quiet collapsed prompt. When it auto-opens, the header reframes to the question "Is this sale part of a chain?" with a one-line reason ("This looks like a chain, because a mortgaged buyer is usually selling too…") and a one-click "Not in a chain" dismiss. Nothing forced, no data-model change, the drawer + add-sale flow are untouched. Helpers `isChainLikely` / `chainOpenReason` in `components/transactions-v2/form/types.ts`; wiring in `Stage2Sections.tsx`; copy in `components/chain/ChainSection.tsx`. Interactive mockup approved by Ellis before build. STILL DEFERRED: the "you've got N files without a chain" hub nudge (do once adoption data builds).
 
 ---
 
@@ -250,7 +268,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 14. Promote two better demo pages to being real features
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** Two of the pages hidden in the developer preview tree are, honestly, better than the live equivalents. One is a nicer chain drawer (better copy, better invite explanation). One is a nicer prediction of when a sale will exchange, phased by which stage it's at.
 
@@ -258,13 +276,13 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Both get promoted to the real routes. The chain drawer becomes what agents open when they click "Open chain". The prediction becomes what shows on the sidebar. The old versions come out.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** HALF DONE (verified 2026-08-12). The phased exchange-date prediction IS promoted — `formatPredictedBand` renders on the real agent sidebar (`components/transaction/TransactionSidebar.tsx`) as the "Expected exchange" band. STILL OPEN: the nicer chain drawer was NOT swapped in — agents still open the older `components/chain/ChainDrawer.tsx`, and the richer preview at `app/dev/vibe/chain/page.tsx` still self-labels "not linked from production". So this is one of two done; the chain-drawer half remains.
 
 ---
 
 ### 15. Give clients basic self-serve controls
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** A buyer on the portal cannot change their email address, cannot change their phone number, cannot pause chases from within the portal, cannot re-subscribe if they previously unsubscribed. Every one of these becomes a phone call or email to the agent.
 
@@ -272,7 +290,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** A small profile icon in the top-right of the portal opens a four-item panel: change email, change phone, pause chases for N days, subscribe/unsubscribe. Changes are logged for the agent to see. Client sorts themselves, agent doesn't get the call.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** 3 OF 4 DONE (verified 2026-08-12). `components/portal/PortalMenuDrawer.tsx` (opened top-right via `PortalShell.tsx`) already does change name/email/phone (`updateMyContactAction`), subscribe/unsubscribe via the notifications email toggle, and logs every edit as an `internal_note` for the agent. STILL OPEN: the "pause chases for N days" control — `app/actions/portal-menu.ts` has no timed-pause action, only a binary email on/off. Just that one control left to add.
 
 ---
 
@@ -392,7 +410,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 24. Send a proper "welcome" email to people who signed up via a chain claim
 
-**Status:** pending
+**Status:** done
 
 **Today.** When an agent claims a chain invite from another agent, and creates their account through that flow, they get a generic "Welcome, let's get you started with your first sale" email, written for someone who has no file. But they just claimed a real file. The email is contextually wrong.
 
@@ -400,7 +418,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** The dedicated claim-welcome email (which exists but isn't wired) fires instead. Something like "Welcome, you're now working with Sarah at Akeman on 83 Highfield Road. Here's what happens next." Contextual, correct, warmer.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** DONE (verified 2026-08-12). The dedicated claim-welcome email is wired into the chain-claim signup flow: `app/api/claim/route.ts` imports `sendClaimWelcomeIfNotSent` and fires it on the brand-new-account branch (passing userId, transactionId, propertyAddress), while `app/api/register/route.ts` explicitly skips the generic welcome for claim signups so the dedicated one fires instead. Builder at `lib/emails/send-claim-welcome.ts`.
 
 ---
 
