@@ -528,13 +528,16 @@ export async function getMilestonesForTransaction(
     select: {
       id: true,
       activeBuyerRoundId: true,
-      contacts: { select: { name: true, roleType: true } },
+      contacts: { select: { id: true, name: true, roleType: true } },
     },
   });
   if (!transaction) throw new Error("Transaction not found");
 
-  // Client name(s) per side, for "Confirmed by {name}" on portal confirms
-  // (the specific contact isn't stored, so we name the side's client).
+  // For "Confirmed by {name}" on portal confirms: prefer the exact Contact who
+  // confirmed (confirmedByContactId — they each have their own link), and fall
+  // back to the milestone side's client name(s) for older rows that didn't
+  // record the specific contact.
+  const contactNameById = new Map(transaction.contacts.map((c) => [c.id, c.name]));
   const joinContactNames = (names: string[]): string =>
     names.length <= 1 ? (names[0] ?? "") : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   const vendorClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name)) || null;
@@ -611,7 +614,8 @@ export async function getMilestonesForTransaction(
           ? userNameById.get(completion.completedById) ?? null
           : null,
         confirmedByClientName: completion?.confirmedByPortal
-          ? (def.side === "vendor" ? vendorClientName : purchaserClientName)
+          ? ((completion.confirmedByContactId ? contactNameById.get(completion.confirmedByContactId) : null)
+              ?? (def.side === "vendor" ? vendorClientName : purchaserClientName))
           : null,
       };
     });
@@ -804,6 +808,9 @@ export async function completeMilestone(
     input.confirmer.kind === "solicitor" ? input.confirmer.firmId : null;
   const confirmedBySolicitorContactId =
     input.confirmer.kind === "solicitor" ? input.confirmer.contactId : null;
+  // Which client Contact confirmed via their own portal link (each client has
+  // their own token), so we can name them rather than a generic "Client".
+  const confirmedByContactId = input.confirmer.kind === "contact" ? input.confirmer.id : null;
 
   // Find-then-update-or-create: see comment above initializeMilestoneCompletions
   // for why the compound upsert key no longer exists.
@@ -850,6 +857,7 @@ export async function completeMilestone(
         confirmedByPortal,
         confirmedBySolicitorFirmId,
         confirmedBySolicitorContactId,
+        confirmedByContactId,
         summaryText,
         notRequiredReason: null,
         // 2026-07-13 (Chunk 6a): if the row was previously NR'd, flipping
@@ -880,6 +888,7 @@ export async function completeMilestone(
           confirmedByPortal,
           confirmedBySolicitorFirmId,
           confirmedBySolicitorContactId,
+          confirmedByContactId,
           summaryText,
           // Stamp the active round on purchaser-side rows; vendor rows
           // stay file-level (NULL). Same attribution rule as

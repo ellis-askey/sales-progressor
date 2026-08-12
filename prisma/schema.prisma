@@ -974,6 +974,11 @@ model MilestoneCompletion {
   notRequiredAt                 DateTime?
   completedById                 String?
   confirmedByPortal             Boolean        @default(false)
+  // The specific Contact who confirmed via their own portal link. Each client
+  // has their own token, so a portal confirm knows exactly who did it — this
+  // stores their id so the timeline can name them, not just "Client". Plain
+  // scalar (no relation) — the name is resolved on read.
+  confirmedByContactId          String?
   // Solicitor-confirmer attribution (solicitor-confirm feature). Set when a
   // step is confirmed by a solicitor via their /s/<token> link, so the
   // timeline can render "confirmed by {firm}" — distinct from a client portal
