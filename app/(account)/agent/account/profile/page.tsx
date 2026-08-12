@@ -39,7 +39,7 @@ export default async function AccountProfilePage({
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phone: true, agentPreferences: true },
+    select: { phone: true, agentPreferences: true, image: true },
   });
   const currentTheme = getAgentTheme(userRecord?.agentPreferences);
   const currentMobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
@@ -71,6 +71,7 @@ export default async function AccountProfilePage({
           initialName={session.user.name ?? ""}
           initialEmail={session.user.email ?? ""}
           initialPhone={userRecord?.phone ?? ""}
+          initialImage={userRecord?.image ?? null}
           role={session.user.role}
         />
       </section>

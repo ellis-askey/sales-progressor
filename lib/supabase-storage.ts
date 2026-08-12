@@ -106,3 +106,36 @@ export async function deleteProviderLogo(path: string): Promise<void> {
   const client = getClient();
   await client.storage.from(PROVIDER_LOGOS_BUCKET).remove([path]);
 }
+
+// ── Staff avatars (public bucket) ────────────────────────────────────────────
+// Internal-staff / agent profile photos. Public-read like provider logos so
+// the buyer/seller portal and every "who did it" surface can render them
+// without a signed-URL round trip. Path is `{userId}.{ext}` (upsert), and the
+// full public URL is stored on User.image. Bucket created in staging
+// 2026-08-12; see docs/active/ELLIS_MANUAL_TODO.md for the prod step.
+export const AVATARS_BUCKET = "avatars";
+
+export async function uploadAvatar(
+  path: string,
+  buffer: Buffer,
+  mimeType: string,
+): Promise<string> {
+  const client = getClient();
+  const { error } = await client.storage
+    .from(AVATARS_BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+  if (error) throw new Error(`Avatar upload failed: ${error.message}`);
+  return path;
+}
+
+export function getAvatarPublicUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  return `${url}/storage/v1/object/public/${AVATARS_BUCKET}/${path}`;
+}
+
+export async function deleteAvatar(path: string): Promise<void> {
+  const client = getClient();
+  await client.storage.from(AVATARS_BUCKET).remove([path]);
+}

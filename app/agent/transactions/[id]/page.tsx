@@ -140,7 +140,7 @@ export default async function AgentTransactionDetailPage({
       ? timed("s1:agentUser",
           prisma.user.findUnique({
             where: { id: transaction.agentUserId },
-            select: { id: true, name: true, email: true, firmName: true },
+            select: { id: true, name: true, email: true, firmName: true, image: true },
           }),
           perfTimings)
       : Promise.resolve(null),
@@ -247,6 +247,9 @@ export default async function AgentTransactionDetailPage({
   const assignedDisplayName = transaction.serviceType === "outsourced"
     ? ((transaction.assignedUser as { name?: string | null } | null)?.name ?? null)
     : (agentUser?.name ?? null);
+  const assignedDisplayImage = transaction.serviceType === "outsourced"
+    ? ((transaction.assignedUser as { image?: string | null } | null)?.image ?? null)
+    : (agentUser?.image ?? null);
 
   // Tab strip — badges (counts on Reminders + To-Do) update via
   // TabBadgeReporter once the relevant panels stream in.
@@ -391,6 +394,7 @@ export default async function AgentTransactionDetailPage({
           hideServiceTypeBadge={false}
           backHref="/agent/transactions"
           assignedUserName={assignedDisplayName}
+          assignedUserImage={assignedDisplayImage}
           createdAt={transaction.createdAt}
           transactionId={transaction.id}
           inChain={!!transaction.chainLinkId}

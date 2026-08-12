@@ -43,9 +43,12 @@ type AvatarBaseProps = {
   side: Side;
   size?: number;
   className?: string;
+  // When set, the photo fills the circle and the initials become the fallback
+  // (shown only if the image fails to load).
+  image?: string | null;
 };
 
-function AvatarBase({ initials, side, size = 32, className }: AvatarBaseProps) {
+function AvatarBase({ initials, side, size = 32, className, image }: AvatarBaseProps) {
   const { bg, color } = SIDE_STYLES[side];
   const fontSize = Math.round(size * 0.375);
 
@@ -62,11 +65,22 @@ function AvatarBase({ initials, side, size = 32, className }: AvatarBaseProps) {
     fontWeight: 600,
     flexShrink: 0,
     userSelect: "none",
+    overflow: "hidden",
   };
 
   return (
     <span style={style} className={className} aria-hidden>
-      {initials}
+      {image ? (
+        <img
+          src={image}
+          alt=""
+          width={size}
+          height={size}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 }
@@ -88,12 +102,12 @@ export function ContactAvatar({ contact, size = 32, className }: ContactAvatarPr
 // ─── UserAvatar ───────────────────────────────────────────────────────────────
 
 type UserAvatarProps = {
-  user: { name: string };
+  user: { name: string; image?: string | null };
   size?: number;
   className?: string;
 };
 
 export function UserAvatar({ user, size = 32, className }: UserAvatarProps) {
   const initials = getInitials({ name: user.name });
-  return <AvatarBase initials={initials} side="internal" size={size} className={className} />;
+  return <AvatarBase initials={initials} side="internal" size={size} className={className} image={user.image ?? null} />;
 }

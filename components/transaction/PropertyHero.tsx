@@ -28,6 +28,7 @@ type Props = {
   // PropertyHero stays unaware of round semantics.
   roundChipSlot?: React.ReactNode;
   assignedUserName?: string | null;
+  assignedUserImage?: string | null;
   createdAt?: Date | string | null;
   transactionId?: string;
   hideServiceTypeBadge?: boolean;
@@ -222,7 +223,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -525,7 +526,12 @@ export function PropertyHero({
                   fontSize: 12,
                   fontWeight: 700,
                   flexShrink: 0,
-                }}>{initials}</span>
+                  overflow: "hidden",
+                }}>
+                  {assignedUserImage
+                    ? <img src={assignedUserImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    : initials}
+                </span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>
                     {assignedUserName}

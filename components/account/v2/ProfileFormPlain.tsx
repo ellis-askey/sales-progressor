@@ -12,27 +12,57 @@
 // Original at components/agent/ProfileForm.tsx remains in use by the
 // legacy /agent/settings page until Stage 4 retire.
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { updateProfileAction } from "@/app/actions/profile";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 export function ProfileFormPlain({
   initialName,
   initialEmail,
   initialPhone,
+  initialImage = null,
   role,
 }: {
   initialName: string;
   initialEmail: string;
   initialPhone: string;
+  initialImage?: string | null;
   role: string;
 }) {
   const { toast } = useAgentToast();
+  const router = useRouter();
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState(initialPhone);
+  const [image, setImage] = useState<string | null>(initialImage);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  async function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingPhoto(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/agent/upload-avatar", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setImage(data.url);
+      toast.success("Photo updated");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't upload that photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   const emailChanged = email.trim().toLowerCase() !== initialEmail.toLowerCase();
   const dirty =
@@ -86,6 +116,41 @@ export function ProfileFormPlain({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Profile photo — shown wherever your name appears (files, updates,
+          notes, and to your clients in the portal). */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <UserAvatar user={{ name: name || initialName, image }} size={56} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingPhoto}
+            style={{
+              alignSelf: "flex-start",
+              padding: "7px 14px",
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: "#374151",
+              background: "#fff",
+              border: "0.5px solid rgba(0,0,0,0.16)",
+              borderRadius: 8,
+              cursor: uploadingPhoto ? "default" : "pointer",
+              opacity: uploadingPhoto ? 0.5 : 1,
+            }}
+          >
+            {uploadingPhoto ? "Uploading…" : image ? "Change photo" : "Upload photo"}
+          </button>
+          <span style={{ fontSize: 11.5, color: "#9ca3af" }}>JPG, PNG or WEBP, up to 5 MB.</span>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handlePhotoPick}
+          style={{ display: "none" }}
+        />
+      </div>
+
       <div
         style={{
           display: "grid",
