@@ -475,10 +475,16 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   {def.eventDateRequired ? getEventDateLabel(def.code) : "Date this happened"}
                   {def.eventDateRequired && <span className="text-red-400"> *</span>}
                 </label>
+                {/* Booking steps (PM6 valuation, PM9 survey) record an
+                    APPOINTMENT, usually in the future, so they accept any
+                    date. Every other step records when something happened
+                    and stays clamped to today. The 2026-08-09 backdate
+                    change (f9974bf) assumed past-only and accidentally
+                    clamped the two bookings too. */}
                 <input
                   type="date"
                   value={eventDate}
-                  max={new Date().toISOString().split("T")[0]}
+                  max={def.code === "PM6" || def.code === "PM9" ? undefined : new Date().toISOString().split("T")[0]}
                   disabled={isPM6 && desktopValuation}
                   onChange={(e) => setEventDate(e.target.value)}
                   className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
