@@ -2,17 +2,20 @@ import Link from "next/link";
 import { ClockCountdown } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getAgentCompletions, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { getAgentCompletions, getAgentCompletedFiles, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   CompletionsGroupList,
   type CompletionGroup,
   type CompletionFileRow,
 } from "@/components/completions/CompletionsGroupList";
+import { CompletionStats } from "@/components/completions/CompletionStats";
+import { CompletedSection } from "@/components/completions/CompletedSection";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { toUKDateStr } from "@/lib/utils";
 
 // Bespoke composer per Skeleton.tsx's contract — encodes the
@@ -72,7 +75,17 @@ export default async function AgentCompletionsPage() {
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const files = await getAgentCompletions(vis);
+  const [files, completedFiles] = await Promise.all([
+    getAgentCompletions(vis),
+    getAgentCompletedFiles(vis),
+  ]);
+
+  // Sign every property photo (pending + completed) in one round trip.
+  const photoMap = await getSignedUrlMap([
+    ...files.map((f) => f.photoStoragePath),
+    ...completedFiles.map((f) => f.photoStoragePath),
+  ]);
+  const signed = (p: string | null) => (p ? photoMap.get(p) ?? null : null);
 
   const now = new Date();
   const todayStr = toUKDateStr(now);
@@ -123,6 +136,7 @@ export default async function AgentCompletionsPage() {
         vendorSolicitorName:   f.vendorSolicitorName ?? null,
         purchaserSolicitorName: f.purchaserSolicitorName ?? null,
         agencyName:            isInternalStaff ? (f.agencyName ?? null) : undefined,
+        photoUrl:              signed(f.photoStoragePath),
       }));
 
     return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
@@ -156,20 +170,18 @@ export default async function AgentCompletionsPage() {
                 weight="regular"
                 style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }}
               />
-              {/* OLD: "No files awaiting completion" */}
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                No completions
+                {completedFiles.length > 0 ? "Nothing heading to completion right now" : "No completions"}
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                {isProgressor
-                  ? "Files appear here once they exchange."
+                {completedFiles.length > 0
+                  ? "Files appear here once they exchange. Your completed files are below."
                   : "Files appear here once they exchange."}
               </p>
             </div>
 
-            {/* Ghost — abstract agent-skeleton bars in urgency-group shape.
-                OLD: fake real-looking content (addresses, solicitor names, hardcoded hex colours).
-                Per polish-pass standard: no fake copy, no hardcoded hex, opacity 0.35. */}
+            {/* Ghost skeleton only when the page is genuinely empty (no completed history below). */}
+            {completedFiles.length === 0 && (
             <div style={{ opacity: 0.35, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Ghost group 1 — overdue shape */}
               <div className="agent-glass" style={{ overflow: "hidden" }}>
@@ -211,28 +223,41 @@ export default async function AgentCompletionsPage() {
                 </div>
               </div>
             </div>
+            )}
           </>
         )}
 
-        {/* Pipeline summary — numbers prominent, descriptors muted */}
-        {/* OLD: color: "rgba(15,23,42,0.40)" */}
+        {/* Headed summary tiles */}
         {files.length > 0 && (
-          <p style={{ fontSize: 13, color: "var(--agent-text-muted)", margin: 0 }}>
-            <span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{files.length}</span>
-            {" "}{files.length !== 1 ? "files" : "file"}
-            {filesWithFee > 0 && (
-              <>{" · "}<span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{fmtCompact(totalFees)}</span>{" total fees"}</>
-            )}
-            {filesWithPrice > 0 && (
-              <>{" · "}<span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{fmtCompact(totalValue)}</span>{" in sales"}</>
-            )}
-          </p>
+          <CompletionStats
+            tiles={[
+              { label: files.length !== 1 ? "Files" : "File", value: String(files.length) },
+              ...(filesWithPrice > 0 ? [{ label: "Sale value", value: fmtCompact(totalValue) }] : []),
+              ...(filesWithFee > 0 ? [{ label: "Your fees", value: fmtCompact(totalFees), accent: true }] : []),
+              { label: "This week", value: String(counts.this_week) },
+            ]}
+          />
         )}
 
         {/* ── Groups (collapsible, all start collapsed) ───────────────────── */}
         {completionGroups.length > 0 && (
           <CompletionsGroupList groups={completionGroups} />
         )}
+
+        {/* ── Completed history (collapsed, 3 most recent) ─────────────────── */}
+        <CompletedSection
+          files={completedFiles.map((f) => ({
+            id: f.id,
+            propertyAddress: f.propertyAddress,
+            completionDateIso: f.completionDate ? new Date(f.completionDate).toISOString() : null,
+            purchasePrice: f.purchasePrice ?? null,
+            agentFeeAmount: f.agentFeeAmount ?? null,
+            purchasers: f.purchasers,
+            agencyName: isInternalStaff ? (f.agencyName ?? null) : undefined,
+            assignedUserName: f.assignedUserName ?? null,
+            photoUrl: signed(f.photoStoragePath),
+          }))}
+        />
       </div>
     </>
   );

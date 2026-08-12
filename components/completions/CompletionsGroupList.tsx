@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { saveCompletionDateAction } from "@/app/actions/transactions";
+import { completeFileAction } from "@/app/actions/completions";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { CaretDown } from "@phosphor-icons/react";
 import {
   CompletionFileRowView,
@@ -31,8 +33,11 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [openDatePickerId, setOpenDatePickerId] = useState<string | null>(null);
   const [dateValue, setDateValue] = useState("");
+  const [openCompleteId, setOpenCompleteId] = useState<string | null>(null);
+  const [completeDate, setCompleteDate] = useState("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { toast } = useAgentToast();
   const today = new Date().toISOString().split("T")[0];
 
   function toggle(key: string) {
@@ -108,22 +113,15 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                           <CompletionFileRowView
                             file={f}
                             groupKey={key}
-                            onSetDate={() => { setOpenDatePickerId(f.id); setDateValue(""); }}
+                            onSetDate={() => { setOpenCompleteId(null); setOpenDatePickerId(f.id); setDateValue(f.completionDateIso ? f.completionDateIso.split("T")[0] : ""); }}
+                            onComplete={() => { setOpenDatePickerId(null); setOpenCompleteId(f.id); setCompleteDate(f.completionDateIso ? f.completionDateIso.split("T")[0] : today); }}
                           />
                         </Link>
+
+                        {/* Change / set completion date */}
                         {openDatePickerId === f.id && (
-                          <div
-                            className="agent-reveal-in"
-                            style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
-                          >
-                            <input
-                              type="date"
-                              className="glass-input px-2 py-1.5 text-sm"
-                              min={today}
-                              value={dateValue}
-                              onChange={(e) => setDateValue(e.target.value)}
-                              autoFocus
-                            />
+                          <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <input type="date" className="glass-input px-2 py-1.5 text-sm" min={today} value={dateValue} onChange={(e) => setDateValue(e.target.value)} autoFocus />
                             <Button
                               size="sm"
                               disabled={!dateValue || isPending}
@@ -135,15 +133,31 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                                 });
                               }}
                             >
-                              {isPending ? "Saving…" : "Set date"}
+                              {isPending ? "Saving…" : "Save date"}
                             </Button>
-                            <button
-                              className="agent-link agent-link-muted"
-                              style={{ fontSize: 11 }}
-                              onClick={() => setOpenDatePickerId(null)}
+                            <button className="agent-link agent-link-muted" style={{ fontSize: 11 }} onClick={() => setOpenDatePickerId(null)}>Cancel</button>
+                          </div>
+                        )}
+
+                        {/* Quick-confirm completion */}
+                        {openCompleteId === f.id && (
+                          <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>Mark completed as of</span>
+                            <input type="date" className="glass-input px-2 py-1.5 text-sm" value={completeDate} onChange={(e) => setCompleteDate(e.target.value)} autoFocus />
+                            <Button
+                              size="sm"
+                              disabled={!completeDate || isPending}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  const res = await completeFileAction(f.id, completeDate);
+                                  if (res.ok) { toast.success(`${f.propertyAddress} completed`); setOpenCompleteId(null); router.refresh(); }
+                                  else { toast.error(res.error); }
+                                });
+                              }}
                             >
-                              Cancel
-                            </button>
+                              {isPending ? "Completing…" : "Complete file"}
+                            </Button>
+                            <button className="agent-link agent-link-muted" style={{ fontSize: 11 }} onClick={() => setOpenCompleteId(null)}>Cancel</button>
                           </div>
                         )}
                       </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+
 function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
 
 function fmtDate(d: string | null) {
@@ -25,7 +27,8 @@ function computeDays(iso: string | null): { label: string; color: string } {
   let color = "var(--agent-text-muted)";
   if (rel < 0)        { label = `${Math.abs(rel)} days overdue`; color = "var(--agent-danger)"; }
   else if (rel === 0) { label = "today";    color = "var(--agent-warning)"; }
-  else if (rel === 1) { label = "tomorrow"; }
+  else if (rel === 1) { label = "tomorrow"; color = "var(--agent-warning)"; }
+  else if (rel <= 7)  { label = `in ${rel} days`; color = "var(--agent-warning)"; }
   else                { label = `in ${rel} days`; }
   return { label, color };
 }
@@ -37,16 +40,6 @@ export const GROUP_STYLES = {
   later:     { dotColor: "#94a3b8",              label: "text-slate-900/60", border: "border-white/20"      },
   no_date:   { dotColor: "#cbd5e1",              label: "text-slate-900/40", border: "border-white/15"      },
 } as const;
-
-const SET_DATE_STYLE = {
-  fontSize: 12,
-  color: "var(--agent-text-muted)",
-  border: "1px solid var(--agent-border-subtle)",
-  borderRadius: 6,
-  padding: "3px 8px",
-  whiteSpace: "nowrap" as const,
-  display: "inline-block",
-};
 
 export type CompletionFileRow = {
   id: string;
@@ -60,98 +53,91 @@ export type CompletionFileRow = {
   vendorSolicitorName: string | null;
   purchaserSolicitorName: string | null;
   agencyName?: string | null;
+  photoUrl?: string | null;
 };
+
+// Action buttons live inside the row's <Link>, so every click must stop the
+// link from firing. This wrapper does that once.
+function ActionButton({ onClick, primary, children }: { onClick: () => void; primary?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClick(); }}
+      className={primary ? "agent-btn-color-primary" : "agent-link"}
+      style={primary
+        ? { fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 8, border: "none", cursor: "pointer" }
+        : { fontSize: 12, fontWeight: 600 }}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function CompletionFileRowView({
   file,
   groupKey,
   onSetDate,
+  onComplete,
 }: {
   file: CompletionFileRow;
   groupKey: keyof typeof GROUP_STYLES;
   onSetDate?: () => void;
+  onComplete?: () => void;
 }) {
   const s = GROUP_STYLES[groupKey];
-  const isNoDate = groupKey === "no_date";
   const hasNeitherSol = !file.vendorSolicitorName && !file.purchaserSolicitorName;
   const exchangeLine = timeSinceExchange(file.exchangedAtIso);
   const { label: daysLabel, color: daysColor } = computeDays(file.completionDateIso);
 
-  const DateBlock = () =>
-    isNoDate ? (
-      <button
-        style={{ ...SET_DATE_STYLE, cursor: "pointer", background: "none" }}
-        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onSetDate?.(); }}
-      >
-        Set date
-      </button>
-    ) : (
-      <div className="text-right">
-        <p className={`text-sm font-bold mb-0.5 ${s.label}`}>{fmtDate(file.completionDateIso)}</p>
-        {daysLabel && <p className="text-xs" style={{ color: daysColor }}>{daysLabel}</p>}
-      </div>
-    );
+  // Right-hand date + countdown block.
+  const DateBlock = () => (
+    <div className="text-right" style={{ flexShrink: 0 }}>
+      <p className={`text-sm font-bold mb-0.5 ${file.completionDateIso ? s.label : "text-slate-900/40"}`}>
+        {fmtDate(file.completionDateIso)}
+      </p>
+      {daysLabel && <p className="text-xs font-semibold" style={{ color: daysColor }}>{daysLabel}</p>}
+    </div>
+  );
+
+  const solLine = hasNeitherSol
+    ? <span style={{ color: "var(--agent-warning)" }}>No solicitors on file</span>
+    : <>{file.vendorSolicitorName ?? "not set"}{"  ↔  "}{file.purchaserSolicitorName ?? "not set"}</>;
 
   return (
-    <>
-      {/* Desktop layout */}
-      <div className="hidden md:flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold text-slate-900/90 mb-1 truncate">{file.propertyAddress}</p>
-          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-1">
-            {file.purchasePrice && <span className="text-sm text-slate-900/50">{fmt(file.purchasePrice / 100)}</span>}
-            {/* OLD: color: "rgba(15,23,42,0.7)" */}
-            {file.agentFeeAmount && <span className="text-sm font-medium" style={{ color: "var(--agent-text-primary)" }}>Fee: {fmt(file.agentFeeAmount / 100)}</span>}
-            {file.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {file.purchasers.join(", ")}</span>}
-            {/* OLD: "Progressor: {file.assignedUserName}" */}
-            {file.assignedUserName && <span className="text-sm text-slate-900/50">Handled by: {file.assignedUserName}</span>}
-            {file.agencyName && <span className="text-sm text-slate-900/50">Agency: {file.agencyName}</span>}
-          </div>
-          {/* OLD: <p className="text-xs text-slate-900/40 mb-0.5">{timeSinceExchange(file.exchangedAtIso)}</p> — always rendered */}
-          {exchangeLine && <p className="text-xs text-slate-900/40 mb-0.5">{exchangeLine}</p>}
-          {hasNeitherSol ? (
-            /* OLD: color: "#b45309", text: "No solicitors set" */
-            <p className="text-xs" style={{ color: "var(--agent-warning)" }}>No solicitors on file</p>
-          ) : (
-            <p className="text-xs text-slate-900/40 truncate">
-              Vendor sol: {file.vendorSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}
-              {" · "}
-              Purchaser sol: {file.purchaserSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}
-            </p>
+    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+      <PropertyThumb photoUrl={file.photoUrl} size={48} />
+
+      <div className="min-w-0 flex-1">
+        {/* Line 1: address + date/countdown */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <p className="text-[15px] font-bold mb-0.5 truncate" style={{ color: "var(--agent-text-primary)" }}>{file.propertyAddress}</p>
+          <DateBlock />
+        </div>
+
+        {/* Line 2: the money — sale muted, fee emphasised */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 10, marginBottom: 2 }}>
+          {file.purchasePrice != null && <span className="text-sm" style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>{fmt(file.purchasePrice / 100)}</span>}
+          {file.agentFeeAmount != null && (
+            <span className="text-sm" style={{ color: "var(--agent-coral, #c2410c)", fontWeight: 700 }}>Fee {fmt(file.agentFeeAmount / 100)}</span>
           )}
         </div>
-        <div className="flex-shrink-0 self-start">
-          <DateBlock />
-        </div>
-      </div>
 
-      {/* Mobile layout */}
-      <div className="flex md:hidden flex-col gap-1">
-        <p className="text-[15px] font-bold text-slate-900/90 leading-snug">{file.propertyAddress}</p>
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-          {file.purchasePrice && <span className="text-sm text-slate-900/50">{fmt(file.purchasePrice / 100)}</span>}
-          {/* OLD: color: "rgba(15,23,42,0.7)" */}
-          {file.agentFeeAmount && <span className="text-sm font-medium" style={{ color: "var(--agent-text-primary)" }}>Fee: {fmt(file.agentFeeAmount / 100)}</span>}
-          {file.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {file.purchasers.join(", ")}</span>}
-          {/* OLD: "Progressor: {file.assignedUserName}" */}
-          {file.assignedUserName && <span className="text-sm text-slate-900/50">Handled by: {file.assignedUserName}</span>}
-          {file.agencyName && <span className="text-sm text-slate-900/50">Agency: {file.agencyName}</span>}
-        </div>
-        {/* OLD: <p className="text-xs text-slate-900/40">{timeSinceExchange(file.exchangedAtIso)}</p> — always rendered */}
-        {exchangeLine && <p className="text-xs text-slate-900/40">{exchangeLine}</p>}
-        {hasNeitherSol ? (
-          /* OLD: color: "#b45309", text: "No solicitors set" */
-          <p className="text-xs" style={{ color: "var(--agent-warning)" }}>No solicitors on file</p>
-        ) : (
-          <div className="flex flex-col gap-0.5">
-            <p className="text-xs text-slate-900/40">Vendor sol: {file.vendorSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}</p>
-            <p className="text-xs text-slate-900/40">Purchaser sol: {file.purchaserSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}</p>
-          </div>
-        )}
-        <div className="flex justify-end mt-1">
-          <DateBlock />
+        {/* Line 3 (quiet): buyers · exchange · solicitors · agency */}
+        <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>
+          {file.purchasers.length > 0 && <>{file.purchasers.join(", ")}</>}
+          {file.purchasers.length > 0 && exchangeLine && " · "}
+          {exchangeLine}
+          {file.assignedUserName && <> · {file.assignedUserName}</>}
+          {file.agencyName && <> · {file.agencyName}</>}
+        </p>
+        <p className="text-xs truncate" style={{ color: "var(--agent-text-muted)", marginTop: 1 }}>{solLine}</p>
+
+        {/* Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
+          {onComplete && <ActionButton onClick={onComplete} primary>Mark completed</ActionButton>}
+          {onSetDate && <ActionButton onClick={onSetDate}>{file.completionDateIso ? "Change date" : "Set date"}</ActionButton>}
         </div>
       </div>
-    </>
+    </div>
   );
 }

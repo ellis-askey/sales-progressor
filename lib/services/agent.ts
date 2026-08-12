@@ -187,6 +187,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       completionDate: true,
       purchasePrice: true,
       agentFeeAmount: true,
+      photoStoragePath: true,
       agency:       { select: { name: true } },
       assignedUser: { select: { name: true } },
       contacts: { select: { name: true, roleType: true } },
@@ -214,6 +215,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         completionDate: tx.completionDate,
         purchasePrice: tx.purchasePrice,
         agentFeeAmount: tx.agentFeeAmount,
+        photoStoragePath: tx.photoStoragePath,
         agencyName:       tx.agency?.name ?? null,
         assignedUserName: tx.assignedUser?.name ?? null,
         purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
@@ -228,6 +230,40 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       if (!b.completionDate) return -1;
       return new Date(a.completionDate).getTime() - new Date(b.completionDate).getTime();
     });
+}
+
+// Recently COMPLETED files (status flipped to "completed" when both VM20 + PM27
+// were confirmed). Powers the collapsed "Completed" history on /agent/completions.
+// Newest completion first, capped — the page shows the 3 most recent and lets
+// the rest expand, so a busy agency never gets an endless page.
+export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
+  const rows = await prisma.propertyTransaction.findMany({
+    where: { ...txWhere(vis), status: "completed" },
+    select: {
+      id: true,
+      propertyAddress: true,
+      completionDate: true,
+      purchasePrice: true,
+      agentFeeAmount: true,
+      photoStoragePath: true,
+      agency:       { select: { name: true } },
+      assignedUser: { select: { name: true } },
+      contacts: { select: { name: true, roleType: true } },
+    },
+    orderBy: { completionDate: "desc" },
+    take: limit,
+  });
+  return rows.map((tx) => ({
+    id: tx.id,
+    propertyAddress: tx.propertyAddress,
+    completionDate: tx.completionDate,
+    purchasePrice: tx.purchasePrice,
+    agentFeeAmount: tx.agentFeeAmount,
+    photoStoragePath: tx.photoStoragePath,
+    agencyName:       tx.agency?.name ?? null,
+    assignedUserName: tx.assignedUser?.name ?? null,
+    purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
+  }));
 }
 
 // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
