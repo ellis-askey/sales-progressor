@@ -3,7 +3,9 @@
 // not Sales Progressor: from-name combines agent + agency, no SP wording in
 // the copy, no mention of pricing or VAT.
 //
-// Copy is locked. Variables interpolated below; fallbacks handle a missing
+// Copy refreshed 2026-08-12 — warmer, congratulatory opener (Ellis-approved;
+// keeps the "agreed!" exclamation as a deliberate VOICE.md override for this
+// milestone email). Variables interpolated below; fallbacks handle a missing
 // client first name and a missing address cleanly so the message still
 // reads naturally.
 
@@ -38,8 +40,8 @@ function buildOpener({
     ? `Hi ${clientFirstName},`
     : "Hi there,";
   const opener = address
-    ? `Good to hear the sale at ${address} is agreed. The next stage is getting everything through to completion, and we're already getting things underway.`
-    : "Good to hear the sale is agreed. The next stage is getting everything through to completion, and we're already getting things underway.";
+    ? `Congratulations, your sale at ${address} has been agreed! It's a big milestone and genuinely great news. From here, our job is to help get everything through to completion, and we've already made a start.`
+    : "Congratulations, your sale has been agreed! It's a big milestone and genuinely great news. From here, our job is to help get everything through to completion, and we've already made a start.";
   return { greeting, opener };
 }
 
@@ -70,9 +72,9 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
   const text =
     `${greeting}\n\n` +
     `${opener}\n\n` +
-    `Someone from our team will call you within two working days to introduce themselves and talk you through what happens from here. They'll be your point of contact all the way through, so you'll always know who to ask and where things are up to.\n\n` +
-    `In the meantime, if you haven't already, please complete your onboarding, the quick ID and document checks. Getting those out of the way now keeps everything moving and means nothing holds your sale up later.\n\n` +
-    `And if you need us before that call, you can message us on WhatsApp any time.\n\n` +
+    `Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They'll be your point of contact throughout the sale, so you'll always know who to speak to and where things are up to.\n\n` +
+    `In the meantime, if you haven't already, please complete your onboarding, including the quick ID and document checks. Getting these out of the way early helps us keep everything moving and avoids unnecessary delays later on.\n\n` +
+    `If you need anything before that call, you can message us on WhatsApp at any time.\n\n` +
     `WhatsApp us: ${WHATSAPP_URL}\n\n` +
     `Talk soon,\n` +
     `${signOff}\n` +
@@ -91,15 +93,15 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
   </p>
 
   <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1d29">
-    Someone from our team will call you within two working days to introduce themselves and talk you through what happens from here. They&apos;ll be your point of contact all the way through, so you&apos;ll always know who to ask and where things are up to.
+    Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They&apos;ll be your point of contact throughout the sale, so you&apos;ll always know who to speak to and where things are up to.
   </p>
 
   <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1d29">
-    In the meantime, if you haven&apos;t already, please complete your onboarding, the quick ID and document checks. Getting those out of the way now keeps everything moving and means nothing holds your sale up later.
+    In the meantime, if you haven&apos;t already, please complete your onboarding, including the quick ID and document checks. Getting these out of the way early helps us keep everything moving and avoids unnecessary delays later on.
   </p>
 
   <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#1a1d29">
-    And if you need us before that call, you can message us on WhatsApp any time.
+    If you need anything before that call, you can message us on WhatsApp at any time.
   </p>
 
   <p style="margin:0 0 28px">
