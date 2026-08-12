@@ -37,6 +37,7 @@ export type ActivityEntry =
       content: string;
       createdById: string | null;
       createdByName: string | null;
+      createdByImage: string | null;
       createdByRole: string | null;
       contactNames: string[];
       // Raw fields exposed so the inline edit form on ActivityTimeline can
@@ -136,7 +137,7 @@ export async function getActivityTimeline(
       },
       orderBy: { createdAt: "desc" },
       include: {
-        createdBy: { select: { name: true } },
+        createdBy: { select: { name: true, image: true } },
       },
     }),
   ]);
@@ -170,6 +171,7 @@ export async function getActivityTimeline(
     content: c.content,
     createdById: c.createdById ?? null,
     createdByName: c.createdBy?.name ?? null,
+    createdByImage: c.createdBy?.image ?? null,
     createdByRole: c.createdByRole ?? null,
     contactNames: c.contactIds
       .map((id) => contactMap.get(id))

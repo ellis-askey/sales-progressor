@@ -19,10 +19,11 @@ import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
 import { SavingPulse } from "@/components/ui/SavingPulse";
+import { UserAvatar } from "@/components/ui/Avatar";
 
-type Props = { transactionId: string; entries: ActivityEntry[]; currentUserName: string };
+type Props = { transactionId: string; entries: ActivityEntry[]; currentUserName: string; currentUserImage?: string | null };
 
-type OptimisticNote = { id: string; content: string; createdByName: string | null; at: Date };
+type OptimisticNote = { id: string; content: string; createdByName: string | null; createdByImage: string | null; at: Date };
 
 const FEED_PREVIEW = 6;
 const NOTES_PREVIEW = 5;
@@ -72,7 +73,7 @@ function isNote(e: ActivityEntry): boolean {
   return e.kind === "comm" && e.type === "internal_note";
 }
 
-export function ActivityNotesCard({ transactionId, entries, currentUserName }: Props) {
+export function ActivityNotesCard({ transactionId, entries, currentUserName, currentUserImage = null }: Props) {
   const { setActiveTab } = useTabContext();
   const router = useRouter();
   const { toast } = useAgentToast();
@@ -95,7 +96,7 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName }: P
     setDraft("");
     const tempId = `temp-${Date.now()}`;
     startTransition(async () => {
-      setOptimistic((prev) => [{ id: tempId, content, createdByName: currentUserName, at: new Date() }, ...prev]);
+      setOptimistic((prev) => [{ id: tempId, content, createdByName: currentUserName, createdByImage: currentUserImage, at: new Date() }, ...prev]);
       try {
         await addNoteAction(transactionId, content);
         toast.success("Note added");
@@ -183,14 +184,14 @@ function FeedView({ optimistic, entries, removedIds, deleting, isPending, onDele
   return (
     <div>
       {optimistic.map((n) => (
-        <NoteRow key={n.id} content={n.content} author={n.createdByName} time="just now" optimistic />
+        <NoteRow key={n.id} content={n.content} author={n.createdByName} authorImage={n.createdByImage} time="just now" optimistic />
       ))}
       {bands.map((band) => (
         <div key={band.key}>
           <BandLabel label={band.label} />
           {band.items.map((entry) =>
             isNote(entry)
-              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} time={fmtTime(entry)} onDelete={deleting || isPending ? undefined : () => onDelete(entry.id)} deleting={deleting === entry.id} />
+              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} time={fmtTime(entry)} onDelete={deleting || isPending ? undefined : () => onDelete(entry.id)} deleting={deleting === entry.id} />
               : <ActivityRow key={entry.id} entry={entry} />,
           )}
         </div>
@@ -208,8 +209,8 @@ function NotesView({ optimistic, entries, removedIds, deleting, isPending, onDel
   const total = optimistic.length + realNotes.length;
   if (total === 0) return <Empty label="No notes yet. Add the first one above." />;
 
-  const optRows = optimistic.map((n) => ({ id: n.id, content: n.content, author: n.createdByName, time: "just now", optimistic: true as const }));
-  const realRows = realNotes.map((e) => ({ id: e.id, content: subtitleFor(e), author: e.kind === "comm" ? e.createdByName : null, time: fmtTime(e), optimistic: false as const }));
+  const optRows = optimistic.map((n) => ({ id: n.id, content: n.content, author: n.createdByName, authorImage: n.createdByImage, time: "just now", optimistic: true as const }));
+  const realRows = realNotes.map((e) => ({ id: e.id, content: subtitleFor(e), author: e.kind === "comm" ? e.createdByName : null, authorImage: e.kind === "comm" ? e.createdByImage : null, time: fmtTime(e), optimistic: false as const }));
   const all = [...optRows, ...realRows];
   const shown = expanded ? all : all.slice(0, NOTES_PREVIEW);
   const hidden = all.length - NOTES_PREVIEW;
@@ -217,7 +218,7 @@ function NotesView({ optimistic, entries, removedIds, deleting, isPending, onDel
   return (
     <div>
       {shown.map((r) => (
-        <NoteRow key={r.id} content={r.content} author={r.author} time={r.time} optimistic={r.optimistic}
+        <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} time={r.time} optimistic={r.optimistic}
           onDelete={r.optimistic || deleting || isPending ? undefined : () => onDelete(r.id)} deleting={deleting === r.id} />
       ))}
       {!expanded && hidden > 0 && (
@@ -264,14 +265,18 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 
 // The leveled-up note row: the note text leads, author + time beneath, a quiet
 // delete that reveals on hover.
-function NoteRow({ content, author, time, optimistic, onDelete, deleting }: {
-  content: string; author: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
+function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting }: {
+  content: string; author: string | null; authorImage?: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
 }) {
   return (
     <div className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`} style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative" }}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 7, background: "rgba(59, 130, 246, 0.10)", color: "#1d4ed8", flexShrink: 0 }}>
-        <NoteBlank size={14} weight="regular" />
-      </span>
+      {author ? (
+        <UserAvatar user={{ name: author, image: authorImage }} size={28} />
+      ) : (
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 7, background: "rgba(59, 130, 246, 0.10)", color: "#1d4ed8", flexShrink: 0 }}>
+          <NoteBlank size={14} weight="regular" />
+        </span>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap", paddingRight: onDelete ? 20 : 0 }}>{content}</p>
         <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>

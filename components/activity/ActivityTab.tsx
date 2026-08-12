@@ -75,6 +75,7 @@ export function ActivityTab(props: Props) {
         content,
         createdById: null,
         createdByName: props.currentUserName,
+        createdByImage: null,
         createdByRole: props.currentUserRole,
         contactNames,
         contactIds,

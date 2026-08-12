@@ -93,6 +93,7 @@ type Props = {
   isDirectorRole: boolean;
   currentUserId: string;
   currentUserName: string;
+  currentUserImage?: string | null;
   recommendedFirms?: Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null;
   // Ellis-only AI summary prototype toggle. When true, the AiSummaryCard
   // renders below the reminders widget on the Overview tab.
@@ -141,6 +142,7 @@ export async function OverviewPanel({
   isDirectorRole,
   currentUserId,
   currentUserName,
+  currentUserImage,
   recommendedFirms,
   isEllis = false,
 }: Props) {
@@ -395,6 +397,7 @@ export async function OverviewPanel({
         transactionId={transaction.id}
         entries={activityEntries}
         currentUserName={currentUserName}
+        currentUserImage={currentUserImage}
       />
 
       <Card id="chain-section" padding="none">
