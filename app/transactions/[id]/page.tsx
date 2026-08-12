@@ -301,7 +301,7 @@ export default async function TransactionDetailPage({
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           {/* File health banner (conditional) */}
-          <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
+          <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           {/* Compact meta strip */}
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>

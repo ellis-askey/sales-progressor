@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Warning } from "@phosphor-icons/react";
 import { useTabContext } from "./TabContext";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 
 type Props = {
+  transactionId: string;
   // Rows that need attention right now — overdue + due_today + escalated.
   // This is what the tab badge shows.
   actionableCount: number;
@@ -14,8 +16,40 @@ type Props = {
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
 };
 
-export function FileHealthBanner({ actionableCount, overdueCount, onTrack }: Props) {
+// Local-time YYYY-MM-DD, so "a new day" respects the agent's timezone rather
+// than UTC.
+function todayKey(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+export function FileHealthBanner({ transactionId, actionableCount, overdueCount, onTrack }: Props) {
   const { setActiveTab } = useTabContext();
+
+  // Count-aware dismissal. The X hides the banner for the rest of the day, but
+  // it comes back if the situation worsens (the actionable count rises above
+  // what was dismissed) or a new day rolls over — a genuine "you're behind"
+  // signal shouldn't be silenceable forever. Stored per file in localStorage.
+  const storageKey = `fileHealthDismiss:${transactionId}`;
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) { setDismissed(false); return; }
+      const parsed = JSON.parse(raw) as { count: number; day: string };
+      setDismissed(parsed.day === todayKey() && actionableCount <= parsed.count);
+    } catch {
+      setDismissed(false);
+    }
+  }, [storageKey, actionableCount]);
+
+  const handleDismiss = () => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ count: actionableCount, day: todayKey() }));
+    } catch {
+      /* localStorage unavailable (private mode) — just hide for this render */
+    }
+    setDismissed(true);
+  };
 
   // On-hold files don't get the health banner — the OnHoldBanner above it
   // already says everything is frozen, and the at_risk/off_track signal is
@@ -24,6 +58,7 @@ export function FileHealthBanner({ actionableCount, overdueCount, onTrack }: Pro
 
   const isBehind = onTrack === "at_risk" || onTrack === "off_track";
   if (actionableCount === 0 && !isBehind) return null;
+  if (dismissed) return null;
 
   const isRed = actionableCount > 0 && isBehind;
   const kind = isRed ? "danger" : "warning";
@@ -53,6 +88,8 @@ export function FileHealthBanner({ actionableCount, overdueCount, onTrack }: Pro
           ? { label: "View reminders →", onClick: () => setActiveTab("reminders") }
           : undefined
       }
+      actionPlacement="bottom-right"
+      dismissible={{ onDismiss: handleDismiss }}
     />
   );
 }

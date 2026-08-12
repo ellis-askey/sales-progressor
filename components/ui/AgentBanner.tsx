@@ -31,6 +31,11 @@ type Props = {
   title: string;
   body?: string;
   action?: { label: string; onClick: () => void };
+  // Where the action link sits. "inline" (default) puts it centre-right on the
+  // same row as the title. "bottom-right" drops it below the body, right-
+  // aligned — used when the banner also carries a top-right dismiss X so the
+  // two controls don't crowd the same corner.
+  actionPlacement?: "inline" | "bottom-right";
   dismissible?: { onDismiss: () => void };
   // Optional className for cases where a caller needs extra spacing (e.g.
   // mb-3). Container styling otherwise comes from this component.
@@ -44,8 +49,24 @@ const TOKEN_FOR_KIND: Record<BannerKind, { tint: string; border: string }> = {
   success: { tint: "var(--agent-success)", border: "var(--agent-success-border-strong)" },
 };
 
-export function AgentBanner({ kind, icon, title, body, action, dismissible, className }: Props) {
+export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", dismissible, className }: Props) {
   const t = TOKEN_FOR_KIND[kind];
+  const actionBtn = action ? (
+    <button
+      type="button"
+      onClick={action.onClick}
+      className="agent-link"
+      style={{
+        flexShrink: 0,
+        fontSize: 12,
+        fontWeight: 600,
+        color: t.tint,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {action.label}
+    </button>
+  ) : null;
   return (
     <div
       className={`agent-reveal-in ${className ?? ""}`.trim()}
@@ -91,24 +112,15 @@ export function AgentBanner({ kind, icon, title, body, action, dismissible, clas
             {body}
           </p>
         )}
+        {actionBtn && actionPlacement === "bottom-right" && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+            {actionBtn}
+          </div>
+        )}
       </div>
 
-      {action && (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="agent-link"
-          style={{
-            flexShrink: 0,
-            alignSelf: "center",
-            fontSize: 12,
-            fontWeight: 600,
-            color: t.tint,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {action.label}
-        </button>
+      {actionBtn && actionPlacement === "inline" && (
+        <span style={{ alignSelf: "center" }}>{actionBtn}</span>
       )}
 
       {dismissible && (

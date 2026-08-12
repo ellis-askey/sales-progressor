@@ -324,7 +324,7 @@ export async function OverviewPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
+      <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
       {/* People: Clients (contacts) + Professionals (solicitors) in one card
           with a header toggle, so the solicitor is one tap away. */}
