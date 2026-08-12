@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { detectPhase } from "@/lib/services/fees";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
 const DRAFT = "draft" as TransactionStatus;
@@ -292,6 +293,67 @@ export async function getAgentMilestoneActivity(
       completedBy: { select: { name: true, image: true } },
     },
   });
+}
+
+// Per-file snapshot for the Updates feed's right column: weight-based
+// completion %, the human stage, and the next available step. Round-scoped to
+// each file's active buyer round (mirrors the file page), computed for all
+// feed files in a couple of batched queries.
+export type FileSnapshot = { percent: number; stage: string; nextAction: string | null };
+
+const SNAPSHOT_STAGE_LABEL: Record<string, string> = {
+  onboarding: "Onboarding",
+  conveyancing: "Conveyancing",
+  pre_exchange: "Nearing exchange",
+  post_exchange: "Post-exchange",
+};
+
+export async function getFileSnapshots(
+  vis: AgentVisibility,
+  txIds: string[],
+): Promise<Map<string, FileSnapshot>> {
+  const result = new Map<string, FileSnapshot>();
+  const ids = [...new Set(txIds)];
+  if (ids.length === 0) return result;
+
+  const activeRoundIds = await loadActiveRoundIds({ ...txWhere(vis), id: { in: ids } });
+  const defs = await prisma.milestoneDefinition.findMany({
+    select: { id: true, code: true, name: true, side: true, weight: true, orderIndex: true },
+    orderBy: [{ orderIndex: "asc" }],
+  });
+  const defById = new Map(defs.map((d) => [d.id, d]));
+  const completions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: { in: ids }, OR: roundScopedOR(activeRoundIds) },
+    select: { transactionId: true, milestoneDefinitionId: true, state: true },
+  });
+
+  type Row = { code: string; name: string; side: string; weight: number; orderIndex: number; state: string };
+  const byTx = new Map<string, Row[]>();
+  for (const c of completions) {
+    const d = defById.get(c.milestoneDefinitionId);
+    if (!d) continue;
+    const arr = byTx.get(c.transactionId) ?? [];
+    arr.push({ code: d.code, name: d.name, side: d.side, weight: Number(d.weight), orderIndex: d.orderIndex, state: c.state });
+    byTx.set(c.transactionId, arr);
+  }
+
+  const sidePercent = (rows: Row[]): number => {
+    const applicable = rows.filter((r) => r.state !== "not_required");
+    const total = applicable.reduce((s, r) => s + r.weight, 0);
+    if (total === 0) return 0;
+    const done = applicable.filter((r) => r.state === "complete").reduce((s, r) => s + r.weight, 0);
+    return (done / total) * 100;
+  };
+
+  for (const id of ids) {
+    const rows = byTx.get(id) ?? [];
+    const percent = Math.round((sidePercent(rows.filter((r) => r.side === "vendor")) + sidePercent(rows.filter((r) => r.side === "purchaser"))) / 2);
+    const completedCodes = new Set(rows.filter((r) => r.state === "complete").map((r) => r.code));
+    const stage = SNAPSHOT_STAGE_LABEL[detectPhase(completedCodes).fileLevelPhase] ?? "In progress";
+    const next = rows.filter((r) => r.state === "available").sort((a, b) => a.orderIndex - b.orderIndex)[0];
+    result.set(id, { percent, stage, nextAction: next?.name ?? null });
+  }
+  return result;
 }
 
 export async function getDraftTransactions(vis: AgentVisibility) {

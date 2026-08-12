@@ -59,6 +59,7 @@ export type TxGroup = {
   photoUrl: string | null;
   expectedExchangeIso: string | null;
   status: string;
+  snapshot: { percent: number; stage: string; nextAction: string | null } | null;
   milestones: MilestoneRow[];
 };
 
@@ -72,6 +73,7 @@ function TxCard({ tx }: { tx: TxGroup }) {
   const { line1, line2 } = splitAddress(tx.transactionAddress);
   const status = STATUS_META[tx.status];
   const exchange = exchangeLabel(tx.expectedExchangeIso);
+  const snap = tx.snapshot;
 
   return (
     <div className="agent-glass overflow-hidden rounded-[12px]" style={{ border: "0.5px solid var(--agent-border-subtle)" }}>
@@ -101,13 +103,26 @@ function TxCard({ tx }: { tx: TxGroup }) {
             )}
           </span>
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {exchange && (
-            <span className="comms-snapshot-exchange" style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
-              {exchange}
+        {/* File snapshot: status + progress, stage · exchange, next step.
+            Hidden on the narrowest screens so the address keeps its room. */}
+        <div className="hidden sm:flex" style={{ flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0, minWidth: 150 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {status && <Pill glass tone={status.tone} size="sm">{status.label}</Pill>}
+            {snap && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{snap.percent}%</span>}
+          </div>
+          {snap && (
+            <div style={{ width: 132, height: 4, borderRadius: 999, background: "var(--agent-hero-track, rgba(15,23,42,0.08))", overflow: "hidden" }}>
+              <div style={{ width: `${snap.percent}%`, height: "100%", borderRadius: 999, background: "var(--agent-coral)" }} />
+            </div>
+          )}
+          <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right" }}>
+            {snap?.stage ?? ""}{snap?.stage && exchange ? " · " : ""}{exchange ?? ""}
+          </span>
+          {snap?.nextAction && (
+            <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right", maxWidth: 210, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              Next: {snap.nextAction.replace(/\.$/, "")}
             </span>
           )}
-          {status && <Pill glass tone={status.tone} size="sm">{status.label}</Pill>}
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { getAgentMilestoneActivity, getFileSnapshots, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
@@ -43,6 +43,9 @@ export default async function AgentCommsPage({
   // Sign every property photo in one round trip so each file card can show it.
   const photoMap = await getSignedUrlMap(milestones.map((m) => m.transaction.photoStoragePath));
 
+  // Per-file snapshot (progress %, stage, next step) for the right column.
+  const snapshotMap = await getFileSnapshots(vis, milestones.map((m) => m.transaction.id));
+
   // Group into day buckets, each day grouped by transaction
   const dayOrder: string[] = [];
   const dayTxMap = new Map<string, Map<string, TxGroup>>();
@@ -61,6 +64,7 @@ export default async function AgentCommsPage({
         photoUrl: m.transaction.photoStoragePath ? photoMap.get(m.transaction.photoStoragePath) ?? null : null,
         expectedExchangeIso: m.transaction.expectedExchangeDate ? m.transaction.expectedExchangeDate.toISOString() : null,
         status: m.transaction.status,
+        snapshot: snapshotMap.get(m.transaction.id) ?? null,
         milestones: [],
       });
     }
