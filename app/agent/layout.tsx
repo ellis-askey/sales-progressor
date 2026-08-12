@@ -24,7 +24,7 @@ import "@/app/styles/elevra.css";
 import "@/app/styles/glass.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, brandColor, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agencyModeProfile } =
+  const { session, isInternalStaff, showWelcome, theme, brandColor, userImage, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agencyModeProfile } =
     await resolveAgentSession();
   void theme; void mobileTheme; // legacy preset fields; the app now runs on the custom brand colour
 
@@ -53,7 +53,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

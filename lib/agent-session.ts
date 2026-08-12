@@ -75,6 +75,7 @@ export type AgentSessionContext = {
   showWelcome: boolean;
   theme: AgentTheme;
   brandColor: string;
+  userImage: string | null;
   mobileTheme: MobileAgentTheme;
   nightModePref: boolean | null;
   // Elevra-backgrounds pass, 2026-08-08. Three-state theme axis
@@ -111,6 +112,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     select: {
       hasSeenAgentWelcome: true,
       agentPreferences: true,
+      image: true,
       chainDeclineNotificationAddress: true,
       chainDeclineNotificationAt: true,
       agency: { select: { modeProfile: true } },
@@ -122,6 +124,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const showWelcome = isInternalStaff ? false : !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const brandColor = getBrandColor(userRecord?.agentPreferences);
+  const userImage = userRecord?.image ?? null;
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
@@ -137,6 +140,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     showWelcome,
     theme,
     brandColor,
+    userImage,
     mobileTheme,
     nightModePref,
     themeMode,

@@ -78,7 +78,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   viewer:           "Viewer",
 };
 
-function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
+function UserDropdown({ session, role, userImage }: { session: Session; role: UserRole; userImage?: string | null }) {
   const [open, setOpen] = useState(false);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -142,7 +142,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
           aria-label="User menu"
           aria-expanded={open}
         >
-          <UserAvatar user={{ name: session.user.name ?? "" }} size={26} />
+          <UserAvatar user={{ name: session.user.name ?? "", image: userImage }} size={26} />
           <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", flex: 1, textAlign: "left", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {session.user.name}
           </span>
@@ -238,7 +238,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -343,7 +343,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <div className="hidden md:block"><DesignLabToggle /></div>
           )}
           <AgentBell userKey={session.user.email ?? session.user.id} />
-          <div className="hidden md:block"><UserDropdown session={session} role={role} /></div>
+          <div className="hidden md:block"><UserDropdown session={session} role={role} userImage={userImage} /></div>
         </div>
       </header>
 
@@ -518,7 +518,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <UserAvatar user={{ name: session.user.name ?? "" }} size={26} />
+            <UserAvatar user={{ name: session.user.name ?? "", image: userImage }} size={26} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {session.user.name}
