@@ -4,6 +4,8 @@
  * block in app/agent/styles/themes.css are the two places that change
  * when shipping a new theme.
  */
+import { normaliseHex, DEFAULT_BRAND_HEX } from "./brand-theme";
+
 export const AGENT_THEMES = [
   "sunset",
   "coastal",
@@ -35,6 +37,32 @@ export function getAgentTheme(agentPreferences: unknown): AgentTheme {
     return (agentPreferences as { theme: AgentTheme }).theme;
   }
   return DEFAULT_AGENT_THEME;
+}
+
+// ── Custom brand colour ─────────────────────────────────────────────────────
+// The 6 presets are retired in favour of one user-picked brand colour, stored
+// as a hex on agentPreferences.brandColor. Users still on a legacy preset map
+// to that preset's original accent so nothing changes for them until they pick.
+
+const LEGACY_THEME_HEX: Record<AgentTheme, string> = {
+  sunset: "#ff6b4a",
+  coastal: "#1f5a6e",
+  heritage: "#4a6fb5",
+  slate: "#3d4e66",
+  emerald: "#2d5a3d",
+  claret: "#6e1f2e",
+};
+
+/** The user's brand colour: explicit hex if set, else their old preset's
+ *  accent, else the classic coral. Always a valid #rrggbb. */
+export function getBrandColor(agentPreferences: unknown): string {
+  if (agentPreferences && typeof agentPreferences === "object") {
+    const prefs = agentPreferences as Record<string, unknown>;
+    const explicit = normaliseHex(typeof prefs.brandColor === "string" ? prefs.brandColor : "");
+    if (explicit) return explicit;
+    if (isAgentTheme(prefs.theme)) return LEGACY_THEME_HEX[prefs.theme];
+  }
+  return DEFAULT_BRAND_HEX;
 }
 
 // ── Mobile themes ─────────────────────────────────────────────────────────────

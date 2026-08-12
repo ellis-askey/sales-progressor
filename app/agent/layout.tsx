@@ -10,6 +10,7 @@ import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
+import { brandThemeCss } from "@/lib/agent/brand-theme";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
 import "./styles/kinetic-shell.css";
@@ -23,8 +24,9 @@ import "@/app/styles/elevra.css";
 import "@/app/styles/glass.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agencyModeProfile } =
+  const { session, isInternalStaff, showWelcome, theme, brandColor, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agencyModeProfile } =
     await resolveAgentSession();
+  void theme; void mobileTheme; // legacy preset fields; the app now runs on the custom brand colour
 
   const kineticEnabled = shouldSeeKineticShell(session);
 
@@ -36,7 +38,10 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   );
 
   return (
-    <div data-theme={theme} style={{ display: "contents" }}>
+    <div data-theme="custom" style={{ display: "contents" }}>
+      {/* The user's brand colour, derived into the full token set at render
+          (light + dark), overriding the neutral [data-theme="custom"] base. */}
+      <style dangerouslySetInnerHTML={{ __html: brandThemeCss(brandColor) }} />
       {/* Inline script runs BEFORE React hydrates — sets data-theme +
           elevra-bg on <html> so first paint has the right background. */}
       <ThemeModeBoot initialMode={themeMode} initialAuroraOpacity={backgroundOpacity} />

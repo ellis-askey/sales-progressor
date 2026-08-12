@@ -25,6 +25,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
   getAgentTheme,
+  getBrandColor,
   getMobileAgentTheme,
   getNightMode,
   type AgentTheme,
@@ -73,6 +74,7 @@ export type AgentSessionContext = {
   isInternalStaff: boolean;
   showWelcome: boolean;
   theme: AgentTheme;
+  brandColor: string;
   mobileTheme: MobileAgentTheme;
   nightModePref: boolean | null;
   // Elevra-backgrounds pass, 2026-08-08. Three-state theme axis
@@ -119,6 +121,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     role === "admin" || role === "sales_progressor" || role === "viewer";
   const showWelcome = isInternalStaff ? false : !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
+  const brandColor = getBrandColor(userRecord?.agentPreferences);
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
@@ -133,6 +136,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     isInternalStaff,
     showWelcome,
     theme,
+    brandColor,
     mobileTheme,
     nightModePref,
     themeMode,

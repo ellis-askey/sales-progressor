@@ -275,6 +275,135 @@
 }
 
 /* ============================================================
+   Custom (the base for the user-picked brand colour)
+   ============================================================
+   A clean, neutral palette: warm off-white surfaces, neutral dark text,
+   white glass, fixed semantic colours. The accent family, focus rings,
+   hover tints, backgrounds, avatar and aurora are given sensible coral
+   defaults here, then OVERRIDDEN at render by the generated brand <style>
+   (see lib/agent/brand-theme.ts) with values derived from the user's hex.
+   Everything not colour-derived is identical to the presets.
+   ============================================================ */
+[data-theme="custom"] {
+    /* Backgrounds — near-white (overridden with a whisper of the brand hue) */
+    --agent-bg-base:  #FBFAF8;
+    --agent-bg-mid:   #F4F2EE;
+    --agent-bg-warm:  #EEEBE5;
+    --agent-bg-deep:  #E7E3DC;
+    --agent-bg-paper: #FDFCFA;
+
+    /* Text — neutral warm dark, colour-agnostic so any accent stays readable */
+    --agent-text-primary:    #211D18;
+    --agent-text-secondary:  #4E483F;
+    --agent-text-tertiary:   #6B6459;
+    --agent-text-muted:      rgba(33, 29, 24, 0.55);
+    --agent-text-disabled:   rgba(33, 29, 24, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #FBFAF8;
+
+    /* Coral / brand — default coral, overridden by the brand <style> */
+    --agent-coral:                #FF8A65;
+    --agent-coral-deep:           #FF6B4A;
+    --agent-coral-darker:         #E55B3D;
+    --agent-coral-light:          #FFB18F;
+    --agent-coral-pale:           #FFD4C2;
+    --agent-coral-bg-tint:        rgba(255, 107, 74, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(255, 107, 74, 0.14);
+
+    /* Semantic — FIXED (meaning-bearing, never themed) */
+    --agent-success:        #1F8A4A;
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
+    --agent-success-border-strong: rgba(31, 138, 74, 0.45);
+    --agent-warning:        #C97D1A;
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
+    --agent-warning-border-strong: rgba(201, 125, 26, 0.50);
+    --agent-danger:         #C73E3E;
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
+    --agent-danger-border-strong: rgba(199, 62, 62, 0.55);
+    --agent-info:           #3D7AB8;
+    --agent-info-bg:        rgba(61, 122, 184, 0.08);
+    --agent-info-border:    rgba(61, 122, 184, 0.30);
+    --agent-info-border-strong: rgba(61, 122, 184, 0.45);
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
+
+    /* Glass — FIXED white glass (never themed) */
+    --agent-glass-bg:           rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:    rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:    rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:     rgba(255, 255, 255, 0.68);
+    --agent-glass-border:       rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright:rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:        0 4px 20px rgba(30, 25, 20, 0.05),
+                                 0 1px  4px rgba(30, 25, 20, 0.04);
+    --agent-glass-shadow-lifted: 0 8px 32px rgba(30, 25, 20, 0.08),
+                                 0 2px  8px rgba(30, 25, 20, 0.06);
+    --agent-surface-glass:      rgba(255, 255, 255, 0.62);
+
+    /* Borders — neutral */
+    --agent-border-subtle:  rgba(33, 29, 24, 0.06);
+    --agent-border-default: rgba(33, 29, 24, 0.10);
+    --agent-border-strong:  rgba(33, 29, 24, 0.18);
+    --agent-border-focus:   rgba(255, 107, 74, 0.45);
+    --agent-focus-ring:       0 0 0 1.5px rgba(255, 107, 74, 0.50), 0 0 12px 2px rgba(255, 107, 74, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px rgba(255, 107, 74, 0.60), 0 0 8px 1px rgba(255, 107, 74, 0.22);
+
+    /* Structure — theme-agnostic (identical to every preset) */
+    --agent-radius-sm:   6px;
+    --agent-radius-md:   8px;
+    --agent-radius-lg:  12px;
+    --agent-radius-xl:  16px;
+    --agent-radius-pill: 999px;
+    --agent-space-1:   4px;  --agent-space-2:  8px;  --agent-space-3: 12px;
+    --agent-space-4:  16px;  --agent-space-5: 20px;  --agent-space-6: 24px;
+    --agent-space-8:  32px;  --agent-space-10: 40px; --agent-space-12: 48px;
+    --agent-ease:            cubic-bezier(0.4, 0, 0.2, 1);
+    --agent-transition-fast: 150ms var(--agent-ease);
+    --agent-transition-base: 200ms var(--agent-ease);
+    --agent-transition-slow: 300ms var(--agent-ease);
+    --agent-text-display: 32px; --agent-text-h1: 28px; --agent-text-h2: 22px;
+    --agent-text-h3: 17px; --agent-text-h4: 15px; --agent-text-body: 14px;
+    --agent-text-body-sm: 13px; --agent-text-caption: 12px; --agent-text-micro: 11px;
+    --agent-text-eyebrow: 10px;
+    --agent-weight-regular: 400; --agent-weight-medium: 500; --agent-weight-semibold: 600;
+    --agent-line-tight: 1.25; --agent-line-base: 1.50; --agent-line-relaxed: 1.70;
+    --agent-tracking-tight: -0.01em; --agent-tracking-normal: 0em;
+    --agent-tracking-wide: 0.02em; --agent-tracking-eyebrow: 0.05em;
+    --agent-z-base: 0; --agent-z-elevated: 10; --agent-z-overlay: 100;
+    --agent-z-modal: 1000; --agent-z-dropdown: 1500; --agent-z-toast: 2000;
+    --agent-surface-elevated: #FFFFFF;
+
+    /* RGB channels — coral ones overridden by the brand <style> */
+    --agent-shadow-rgb:      33, 29, 24;
+    --agent-coral-rgb:       255, 107, 74;
+    --agent-coral-base-rgb:  255, 138, 101;
+    --agent-bloom-gold-rgb:  255, 220, 100;
+    --agent-success-rgb:     31, 138, 74;
+    --agent-danger-rgb:      199, 62, 62;
+    --agent-warning-rgb:     201, 125, 26;
+    --agent-info-rgb:        61, 122, 184;
+    --agent-bg-base-rgb:     251, 250, 248;
+
+    /* Hover / avatar / aurora — overridden by the brand <style> */
+    --agent-hover-tint:         rgba(255, 107, 74, 0.10);
+    --agent-hover-tint-strong:  rgba(255, 107, 74, 0.18);
+    --agent-hover-tint-warning: rgba(254, 215, 170, 0.55);
+    --agent-avatar-user-start: #FAEEDA;
+    --agent-avatar-user-end:   #FAC775;
+    --agent-avatar-user-text:  #633806;
+    --agent-aurora-band1: rgba(255, 138, 101, 0.22);
+    --agent-aurora-band2: rgba(255, 190, 140, 0.20);
+    --agent-aurora-band3: rgba(255, 215,  95, 0.16);
+}
+
+/* ============================================================
    Coastal
    ============================================================ */
 

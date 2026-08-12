@@ -286,7 +286,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   }
 
   return (
-    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme="custom" data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
 
       {/* Elevra-backgrounds pass, 2026-08-08: the old plasma-SVG + coral
           aurora was removed. Backdrop now lives in <AppBackground /> mounted

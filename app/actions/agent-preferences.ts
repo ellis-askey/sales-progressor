@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
+import { normaliseHex } from "@/lib/agent/brand-theme";
 import { isThemeMode, type ThemeMode } from "@/lib/agent/theme-mode";
 import { clampAuroraOpacity } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, DEFAULT_VARIANT } from "@/lib/glass/variants";
@@ -44,6 +45,29 @@ export async function updateAgentTheme(theme: AgentTheme) {
   revalidatePath("/agent", "layout");
 
   return { ok: true as const, theme };
+}
+
+export async function updateBrandColor(hexInput: string) {
+  const session = await requireSession();
+  const hex = normaliseHex(hexInput);
+  if (!hex) return { ok: false as const, error: "Enter a valid colour (e.g. #2563EB)" };
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { agentPreferences: { ...existingPrefs, brandColor: hex } },
+  });
+
+  revalidatePath("/agent", "layout");
+  return { ok: true as const, brandColor: hex };
 }
 
 export async function updateAgentMobileTheme(mobileTheme: MobileAgentTheme) {
