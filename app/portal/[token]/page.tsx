@@ -30,9 +30,9 @@ function ordinal(n: number): string {
   const v = n % 100;
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 }
-function fmtConfirmedOn(d: Date | string): string {
+function fmtDayMonth(d: Date | string): string {
   const date = new Date(d);
-  return `Confirmed on ${ordinal(date.getDate())} ${date.toLocaleDateString("en-GB", { month: "long" })}`;
+  return `${ordinal(date.getDate())} ${date.toLocaleDateString("en-GB", { month: "long" })}`;
 }
 
 
@@ -625,7 +625,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           recentActivity.map((entry: TimelineEntry, i) => (
             <div
               key={entry.id}
-              className="px-5 py-4 flex items-start gap-3"
+              className="px-5 py-4 flex items-center gap-3"
               style={{ borderBottom: i < recentActivity.length - 1 ? `1px solid ${P.border}` : undefined }}
             >
               {entry.type === "milestone" ? (
@@ -633,20 +633,30 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                   {/* Who confirmed it: the team member's photo (or initials),
                       a client badge when the client confirmed it themselves. */}
                   {entry.confirmedByClient ? (
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.primaryBg }}>
-                      <UserCircle size={16} weight="fill" style={{ color: P.primaryText }} />
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.primaryBg }}>
+                      <UserCircle size={18} weight="fill" style={{ color: P.primaryText }} />
                     </div>
                   ) : entry.completedByName ? (
-                    <UserAvatar user={{ name: entry.completedByName, image: entry.completedByImage }} size={24} className="mt-0.5" />
+                    <UserAvatar user={{ name: entry.completedByName, image: entry.completedByImage }} size={28} />
                   ) : (
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
-                      <UserCircle size={16} weight="fill" style={{ color: P.success }} />
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.successBg }}>
+                      <UserCircle size={18} weight="fill" style={{ color: P.success }} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>{entry.label}</p>
-                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtConfirmedOn(entry.createdAt ?? new Date())}</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
+                      {(() => {
+                        const who = entry.confirmedByClient ? "you" : entry.completedByName;
+                        const day = fmtDayMonth(entry.createdAt ?? new Date());
+                        return who ? `Confirmed by ${who} on ${day}` : `Confirmed on ${day}`;
+                      })()}
+                    </p>
                   </div>
+                  {/* Bare green tick — the step is done. */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
                 </>
               ) : (
                 <div className="flex-1 min-w-0">
