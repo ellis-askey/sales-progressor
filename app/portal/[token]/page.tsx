@@ -11,7 +11,8 @@ import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
-import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
+import { UserAvatar } from "@/components/ui/Avatar";
 import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
@@ -23,6 +24,15 @@ function fmtDate(d: Date | string) {
 }
 function fmtDateShort(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+}
+function fmtConfirmedOn(d: Date | string): string {
+  const date = new Date(d);
+  return `Confirmed on ${ordinal(date.getDate())} ${date.toLocaleDateString("en-GB", { month: "long" })}`;
 }
 
 
@@ -545,18 +555,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         </div>
       )}
 
-      {/* ── Target exchange date ──────────────────────────────────── */}
-      {transaction.expectedExchangeDate && !hasExchanged && (
-        <div
-          className="flex items-center justify-between px-5 py-4 rounded-2xl"
-          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
-        >
-          <p className="text-[13px]" style={{ color: P.textSecondary }}>Target exchange</p>
-          <p className="text-[13px] font-semibold" style={{ color: P.accent }}>
-            {fmtDate(transaction.expectedExchangeDate)}
-          </p>
-        </div>
-      )}
+      {/* Target-exchange card removed 2026-08-12 — it duplicated the
+          "12-week target" already shown in the hero. */}
 
       {/* ── Tips / What's next ───────────────────────────────────── */}
       {stage === "completed" ? (
@@ -630,14 +630,22 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             >
               {entry.type === "milestone" ? (
                 <>
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  </div>
+                  {/* Who confirmed it: the team member's photo (or initials),
+                      a client badge when the client confirmed it themselves. */}
+                  {entry.confirmedByClient ? (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.primaryBg }}>
+                      <UserCircle size={16} weight="fill" style={{ color: P.primaryText }} />
+                    </div>
+                  ) : entry.completedByName ? (
+                    <UserAvatar user={{ name: entry.completedByName, image: entry.completedByImage }} size={24} className="mt-0.5" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
+                      <UserCircle size={16} weight="fill" style={{ color: P.success }} />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>{entry.label}</p>
-                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt ?? new Date())}</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtConfirmedOn(entry.createdAt ?? new Date())}</p>
                   </div>
                 </>
               ) : (

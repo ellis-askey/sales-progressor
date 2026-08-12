@@ -729,7 +729,7 @@ export function PortalOverviewHero({
               </div>
               <div style={{ minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 11, color: P.textSecondary, fontWeight: 500 }}>
-                  Expected exchange
+                  12-week target
                 </p>
                 <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: P.textPrimary, lineHeight: 1.2 }}>
                   {fmtDateLong(predictedExchangeDate)}

@@ -1954,6 +1954,7 @@ export type TimelineEntry =
       label: string;
       side: "vendor" | "purchaser";
       completedByName: string | null;
+      completedByImage: string | null;
       confirmedByClient: boolean;
       eventDate: Date | null;
       createdAt: Date | null;
@@ -2009,7 +2010,7 @@ export async function getPortalTimeline(
         where: { transactionId, state: "complete", ...completionScope },
         include: {
           milestoneDefinition: { select: { code: true, side: true } },
-          completedBy: { select: { name: true } },
+          completedBy: { select: { name: true, image: true } },
         },
         orderBy: { completedAt: "desc" },
       }),
@@ -2031,6 +2032,7 @@ export async function getPortalTimeline(
           label,
           side: c.milestoneDefinition.side as "vendor" | "purchaser",
           completedByName: c.completedBy?.name ?? null,
+          completedByImage: c.completedBy?.image ?? null,
           confirmedByClient: c.confirmedByPortal,
           eventDate: c.eventDate ?? null,
           createdAt: c.completedAt,
