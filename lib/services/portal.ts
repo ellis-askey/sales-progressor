@@ -1951,10 +1951,12 @@ export type TimelineEntry =
   | {
       type: "milestone";
       id: string;
+      code: string;
       label: string;
       side: "vendor" | "purchaser";
       completedByName: string | null;
       completedByImage: string | null;
+      confirmedBySolicitorFirmName: string | null;
       confirmedByClient: boolean;
       eventDate: Date | null;
       createdAt: Date | null;
@@ -2011,6 +2013,7 @@ export async function getPortalTimeline(
         include: {
           milestoneDefinition: { select: { code: true, side: true } },
           completedBy: { select: { name: true, image: true } },
+          confirmedBySolicitorFirm: { select: { name: true } },
         },
         orderBy: { completedAt: "desc" },
       }),
@@ -2029,10 +2032,12 @@ export async function getPortalTimeline(
         return {
           type: "milestone" as const,
           id: c.id,
+          code: c.milestoneDefinition.code,
           label,
           side: c.milestoneDefinition.side as "vendor" | "purchaser",
           completedByName: c.completedBy?.name ?? null,
           completedByImage: c.completedBy?.image ?? null,
+          confirmedBySolicitorFirmName: c.confirmedBySolicitorFirm?.name ?? null,
           confirmedByClient: c.confirmedByPortal,
           eventDate: c.eventDate ?? null,
           createdAt: c.completedAt,

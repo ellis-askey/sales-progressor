@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
+import { portalConfirmationSentence } from "@/lib/updates-copy";
 import { P } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 
@@ -127,7 +128,17 @@ export default async function PortalUpdatesPage({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
-                            {entry.label}
+                            {portalConfirmationSentence({
+                              code: entry.code,
+                              side: entry.side,
+                              viewerSide: side,
+                              confirmer: entry.confirmedByClient
+                                ? { kind: "client" }
+                                : entry.confirmedBySolicitorFirmName
+                                  ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
+                                  : { kind: "agent", name: entry.completedByName ?? "Your team" },
+                              milestoneName: entry.label,
+                            })}
                           </p>
                           <span
                             className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -142,12 +153,7 @@ export default async function PortalUpdatesPage({
                           </p>
                         )}
                         <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
-                          {entry.confirmedByClient
-                            ? "Confirmed by you"
-                            : entry.completedByName
-                              ? `Confirmed by ${entry.completedByName}`
-                              : "Milestone confirmed"}
-                          {" · "}{fmtDate(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
+                          {fmtDate(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
                         </p>
                       </div>
                     </div>

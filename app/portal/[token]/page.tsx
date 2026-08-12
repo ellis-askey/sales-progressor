@@ -13,6 +13,7 @@ import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBa
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { portalConfirmationSentence } from "@/lib/updates-copy";
 import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
@@ -633,9 +634,13 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             >
               {entry.type === "milestone" ? (
                 <>
-                  {/* Who confirmed it: the team member's photo (or initials),
-                      a client badge when the client confirmed it themselves. */}
-                  {entry.confirmedByClient ? (
+                  {/* Photo: the team member who confirmed it (or a neutral mark
+                      for the client's own step / the other party's step). */}
+                  {entry.side !== side ? (
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.successBg }}>
+                      <UserCircle size={18} weight="fill" style={{ color: P.success }} />
+                    </div>
+                  ) : entry.confirmedByClient ? (
                     <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.primaryBg }}>
                       <UserCircle size={18} weight="fill" style={{ color: P.primaryText }} />
                     </div>
@@ -647,14 +652,20 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>{entry.label}</p>
-                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
-                      {(() => {
-                        const who = entry.confirmedByClient ? "you" : entry.completedByName;
-                        const day = fmtDayMonth(entry.createdAt ?? new Date());
-                        return who ? `Confirmed by ${who} on ${day}` : `Confirmed on ${day}`;
-                      })()}
+                    <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>
+                      {portalConfirmationSentence({
+                        code: entry.code,
+                        side: entry.side,
+                        viewerSide: side,
+                        confirmer: entry.confirmedByClient
+                          ? { kind: "client" }
+                          : entry.confirmedBySolicitorFirmName
+                            ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
+                            : { kind: "agent", name: entry.completedByName ?? "Your team" },
+                        milestoneName: entry.label,
+                      })}
                     </p>
+                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtDayMonth(entry.createdAt ?? new Date())}</p>
                   </div>
                   {/* Bare green tick — the step is done. */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>

@@ -127,3 +127,43 @@ export function confirmationSentence(opts: {
   if (!core) return `${who} confirmed: ${milestoneName}`;
   return `${who} confirmed that ${clientPossessive(sideContacts, side)} ${core}`;
 }
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Client-portal wording. When the step is on the VIEWER's own side it's
+ *  second person ("You confirmed your survey…", "Ellis Askey confirmed your
+ *  survey…"). When it's the OTHER party's step it's a plain third-person fact
+ *  with no confirmer named ("The seller's solicitor has issued the draft
+ *  contract pack"). */
+export function portalConfirmationSentence(opts: {
+  code: string;
+  side: "vendor" | "purchaser";
+  viewerSide: "vendor" | "purchaser";
+  confirmer: UpdateConfirmer;
+  milestoneName: string;
+}): string {
+  const { code, side, viewerSide, confirmer, milestoneName } = opts;
+  const general = GENERAL[code];
+  const core = CORES[code];
+
+  // The other party's progress — generic, no name, no confirmer.
+  if (side !== viewerSide) {
+    const party = side === "vendor" ? "seller" : "buyer";
+    if (general) return capitalise(general);
+    if (!core) return milestoneName;
+    return capitalise(`the ${party}'s ${core}`);
+  }
+
+  // The viewer's own step.
+  if (confirmer.kind === "client") {
+    if (general) return `You confirmed ${general}`;
+    if (!core) return `You confirmed: ${milestoneName}`;
+    return `You confirmed your ${core}`;
+  }
+  const who = confirmer.kind === "agent" ? confirmer.name : confirmer.firm;
+  if (general) return `${who} confirmed that ${general}`;
+  if (!core) return `${who} confirmed: ${milestoneName}`;
+  return `${who} confirmed your ${core}`;
+}
