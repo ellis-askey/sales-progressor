@@ -11,6 +11,7 @@ import {
   type MilestoneRow,
 } from "@/components/comms/CommsActivityFeed";
 import { toUKDateStr } from "@/lib/utils";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 
 function dayLabel(d: Date | string) {
   const date = new Date(d);
@@ -39,6 +40,9 @@ export default async function AgentCommsPage({
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const milestones = await getAgentMilestoneActivity(vis, portalOnly);
 
+  // Sign every property photo in one round trip so each file card can show it.
+  const photoMap = await getSignedUrlMap(milestones.map((m) => m.transaction.photoStoragePath));
+
   // Group into day buckets, each day grouped by transaction
   const dayOrder: string[] = [];
   const dayTxMap = new Map<string, Map<string, TxGroup>>();
@@ -54,6 +58,9 @@ export default async function AgentCommsPage({
       txMap.set(m.transaction.id, {
         transactionId: m.transaction.id,
         transactionAddress: m.transaction.propertyAddress,
+        photoUrl: m.transaction.photoStoragePath ? photoMap.get(m.transaction.photoStoragePath) ?? null : null,
+        expectedExchangeIso: m.transaction.expectedExchangeDate ? m.transaction.expectedExchangeDate.toISOString() : null,
+        status: m.transaction.status,
         milestones: [],
       });
     }
@@ -64,6 +71,7 @@ export default async function AgentCommsPage({
       side: m.milestoneDefinition.side,
       milestoneName: m.milestoneDefinition.name,
       completedByName: m.completedBy?.name ?? null,
+      completedByImage: m.completedBy?.image ?? null,
     };
     txMap.get(m.transaction.id)!.milestones.push(row);
   }

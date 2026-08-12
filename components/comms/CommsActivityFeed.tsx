@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CaretDown } from "@phosphor-icons/react";
-import { RoleIcon } from "@/components/ui/RoleIcon";
+import { CaretDown, UserCircle } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 function relativeDate(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -20,6 +20,29 @@ function relativeDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+// Split "15 Bushy Avenue, Broxbourne, EN10 6QE" into the street line and the
+// town + postcode line so the header reads like the rest of the app.
+function splitAddress(addr: string): { line1: string; line2: string } {
+  const [first, ...rest] = addr.split(",");
+  return { line1: first.trim(), line2: rest.join(",").trim() };
+}
+
+const STATUS_META: Record<string, { tone: "success" | "warning" | "info" | "muted"; label: string }> = {
+  active: { tone: "success", label: "Active" },
+  on_hold: { tone: "warning", label: "On hold" },
+  completed: { tone: "info", label: "Completed" },
+  withdrawn: { tone: "muted", label: "Withdrawn" },
+};
+
+function exchangeLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const days = Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return "Exchange overdue";
+  if (days === 0) return "Exchange today";
+  if (days < 14) return `~${days}d to exchange`;
+  return `~${Math.round(days / 7)} wks to exchange`;
+}
+
 export type MilestoneRow = {
   id: string;
   completedAtIso: string;
@@ -27,11 +50,15 @@ export type MilestoneRow = {
   side: string;
   milestoneName: string;
   completedByName: string | null;
+  completedByImage: string | null;
 };
 
 export type TxGroup = {
   transactionId: string;
   transactionAddress: string;
+  photoUrl: string | null;
+  expectedExchangeIso: string | null;
+  status: string;
   milestones: MilestoneRow[];
 };
 
@@ -40,6 +67,89 @@ export type DayBucket = {
   txGroups: TxGroup[];
   defaultOpen: boolean;
 };
+
+function TxCard({ tx }: { tx: TxGroup }) {
+  const { line1, line2 } = splitAddress(tx.transactionAddress);
+  const status = STATUS_META[tx.status];
+  const exchange = exchangeLabel(tx.expectedExchangeIso);
+
+  return (
+    <div className="agent-glass overflow-hidden rounded-[12px]" style={{ border: "0.5px solid var(--agent-border-subtle)" }}>
+      {/* Header: photo + address, with a light file snapshot on the right */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 14px",
+          borderBottom: "0.5px solid var(--agent-border-subtle)",
+        }}
+      >
+        <Link
+          href={`/agent/transactions/${tx.transactionId}`}
+          style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, textDecoration: "none" }}
+        >
+          <PropertyThumb photoUrl={tx.photoUrl} size={40} />
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {line1}
+            </span>
+            {line2 && (
+              <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {line2}
+              </span>
+            )}
+          </span>
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {exchange && (
+            <span className="comms-snapshot-exchange" style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
+              {exchange}
+            </span>
+          )}
+          {status && <Pill glass tone={status.tone} size="sm">{status.label}</Pill>}
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div>
+        {tx.milestones.map((m, mi) => (
+          <div key={m.id} className="flex items-start gap-3 px-4 py-3" style={{ borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
+            <div className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: m.confirmedByPortal ? "rgba(var(--agent-info-rgb), 0.12)" : "rgba(var(--agent-success-rgb), 0.12)" }}>
+              <svg className="w-3 h-3" style={{ color: m.confirmedByPortal ? "var(--agent-info)" : "var(--agent-success)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              {/* Step name + a quiet party tag (which SIDE this step belongs to) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[13px] font-medium text-slate-900/80">{m.milestoneName}</span>
+                <Pill glass tone={m.side === "vendor" ? "brand" : "info"} size="sm">
+                  {m.side === "vendor" ? "Seller side" : "Buyer side"}
+                </Pill>
+              </div>
+              {/* Attribution: WHO confirmed it (photo + name), or the client */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+                {m.confirmedByPortal ? (
+                  <UserCircle size={16} weight="fill" style={{ color: "var(--agent-info)", flexShrink: 0 }} />
+                ) : (
+                  <UserAvatar user={{ name: m.completedByName ?? "", image: m.completedByImage }} size={16} />
+                )}
+                <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
+                  {m.confirmedByPortal
+                    ? "Confirmed by the client"
+                    : `Confirmed by ${m.completedByName ?? "a team member"}`}
+                  {" · "}
+                  {relativeDate(m.completedAtIso)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   // openDays: true = open, false = closed.
@@ -58,14 +168,10 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         const { label, txGroups } = d;
         const open = openDays[label] ?? d.defaultOpen;
         const milestoneCount = txGroups.reduce((n, t) => n + t.milestones.length, 0);
-        const countLabel = `${milestoneCount} milestone${milestoneCount !== 1 ? "s" : ""}`;
+        const countLabel = `${milestoneCount} step${milestoneCount !== 1 ? "s" : ""}`;
 
         return (
-          // Design Lab: `updates-day`. Default v05 per Ellis's pick, 2026-08-09.
-          // borderRadius restored (2026-08-09): the GlassCard conversion
-          // dropped the rounding the old agent-glass class provided, leaving
-          // square corners. Matches the app's --agent-radius-xl (16px).
-          <GlassCard key={label} glassId="updates-day" label="Updates · Day bucket" defaultVariant="v05" style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
+          <div key={label} className="agent-glass" style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
             <div
               className="agent-acc-hdr"
               role="button"
@@ -82,53 +188,12 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
 
             <div className={`agent-acc${open ? " open" : ""}`}>
               <div className="agent-acc-in">
-                <div className="agent-acc-body">
-                  {txGroups.map((tx) => (
-                    // Design Lab: `updates-tx-card`. Default v16 per Ellis's
-                    // pick, 2026-08-09. rounded-[12px] restores the corner
-                    // radius the old glass-card class provided (the variant
-                    // classes don't set radius).
-                    <GlassCard key={tx.transactionId} glassId="updates-tx-card" label="Updates · File card" defaultVariant="v16" className="overflow-hidden rounded-[12px]">
-                      <Link
-                        href={`/agent/transactions/${tx.transactionId}`}
-                        className="comms-tx-link"
-                      >
-                        <p className="text-xs font-semibold text-slate-900/70 truncate">{tx.transactionAddress}</p>
-                      </Link>
-                      <div>
-                        {tx.milestones.map((m, mi) => (
-                          <div key={m.id} className="flex items-start gap-3 px-4 py-3" style={{ borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
-                            <div className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: m.confirmedByPortal ? "rgba(var(--agent-info-rgb), 0.12)" : "rgba(var(--agent-success-rgb), 0.12)" }}>
-                              <svg className="w-3 h-3" style={{ color: m.confirmedByPortal ? "var(--agent-info)" : "var(--agent-success)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[13px] font-medium text-slate-900/80">{m.milestoneName}</span>
-                                <Pill glass tone={m.side === "vendor" ? "brand" : "info"} size="sm">
-                                  <RoleIcon role={m.side === "vendor" ? "vendor" : "purchaser"} size={10} />
-                                  {m.side === "vendor" ? "Vendor" : "Purchaser"}
-                                </Pill>
-                                {m.confirmedByPortal && (
-                                  <Pill glass tone="info" size="sm">Client confirmed</Pill>
-                                )}
-                              </div>
-                              {/* A4: actor line rendered only when a real name is available for a non-portal entry */}
-                              {!m.confirmedByPortal && m.completedByName && (
-                                <p className="text-xs text-slate-900/40 mt-0.5">{m.completedByName}</p>
-                              )}
-                            </div>
-                            <span className="text-[11px] text-slate-900/35 flex-shrink-0 mt-0.5">{relativeDate(m.completedAtIso)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </GlassCard>
-                  ))}
+                <div className="agent-acc-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {txGroups.map((tx) => <TxCard key={tx.transactionId} tx={tx} />)}
                 </div>
               </div>
             </div>
-          </GlassCard>
+          </div>
         );
       })}
     </div>

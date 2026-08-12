@@ -287,9 +287,9 @@ export async function getAgentMilestoneActivity(
     orderBy: { completedAt: "desc" },
     take: 150,
     include: {
-      transaction: { select: { id: true, propertyAddress: true } },
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, status: true } },
       milestoneDefinition: { select: { name: true, side: true } },
-      completedBy: { select: { name: true } },
+      completedBy: { select: { name: true, image: true } },
     },
   });
 }
