@@ -32,15 +32,13 @@ import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
-import { RemindersWidget } from "@/components/transaction/RemindersWidget";
-import { RecentActivityWidget } from "@/components/transaction/RecentActivityWidget";
+import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
-import { TransactionNotes } from "@/components/transaction/TransactionNotes";
 import { AiSummaryCard } from "@/components/transaction/AiSummaryCard";
 import { Card } from "@/components/ui/Card";
 import type { PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
@@ -252,13 +250,6 @@ export async function OverviewPanel({
   const actionableCount = onHold ? 0 : countActionable(reminderLogs, now);
   const overdueCount = onHold ? 0 : countOverdue(reminderLogs, now);
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
-  const topReminders = activeReminders.slice(0, 2).map((l) => ({
-    id: l.id,
-    ruleName: l.reminderRule.name,
-    nextDueDate: l.nextDueDate,
-    snoozedUntil: l.snoozedUntil ?? null,
-    pendingChaseCount: l.chaseTasks.filter((t: { status: string }) => t.status === "pending").length,
-  }));
 
   // NextActionCard input — top non-snoozed reminder + its earliest pending
   // chase task ID. The card falls back to the next milestone if no reminder
@@ -276,6 +267,15 @@ export async function OverviewPanel({
         nextDueDate: topActiveReminder.nextDueDate,
       }
     : null;
+
+  // "Up next" list for the merged card: the remaining active reminders (soonest
+  // first), excluding the one already shown as the hero, so nothing repeats.
+  const heroReminderId = topActiveReminder?.id ?? null;
+  const otherReminders = [...activeReminders]
+    .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())
+    .filter((l) => l.id !== heroReminderId)
+    .slice(0, 3)
+    .map((l) => ({ id: l.id, ruleName: l.reminderRule.name, nextDueDate: l.nextDueDate, snoozedUntil: l.snoozedUntil ?? null }));
 
   // ── Next-step computation per side ─────────────────────────────────────
   const computeSideState = makeComputeMilestoneSideState(transaction.completionDate, todayUKStr);
@@ -321,15 +321,6 @@ export async function OverviewPanel({
 
   // Milestone strip moved to page level (Zone 4 - always visible, above
   // the tab content grid). See app/agent/transactions/[id]/page.tsx.
-
-  // ── Internal notes (filtered activity) ─────────────────────────────────
-  const internalNotes = (activityEntries as ActivityEntry[])
-    .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> =>
-      e.kind === "comm" &&
-      e.type === "internal_note" &&
-      !(typeof e.content === "string" && e.content.includes("viewed their client portal")),
-    )
-    .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -392,15 +383,19 @@ export async function OverviewPanel({
               ? { name: purchaserSideState.milestone.name, code: purchaserSideState.milestone.code }
               : null
         }
+        otherReminders={otherReminders}
+        totalActive={actionableCount}
       />
-
-      <RemindersWidget reminders={topReminders} totalActive={actionableCount} />
 
       {/* Ellis-only AI summary card. Same gate as the header modal button
           at app/agent/transactions/[id]/page.tsx line 357-361. */}
       {isEllis && <AiSummaryCard transactionId={transaction.id} />}
 
-      <RecentActivityWidget entries={activityEntries} />
+      <ActivityNotesCard
+        transactionId={transaction.id}
+        entries={activityEntries}
+        currentUserName={currentUserName}
+      />
 
       <Card id="chain-section" padding="none">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
@@ -438,7 +433,6 @@ export async function OverviewPanel({
 
       <RiskScoreWidget input={riskInput} />
       <PropertyIntelCard transactionId={transaction.id} />
-      <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={currentUserName} />
 
       {/* Email + hold controls moved off the Overview tail into the
           hero's email-settings drawer (EmailSettingsDrawer, 2026-08-11

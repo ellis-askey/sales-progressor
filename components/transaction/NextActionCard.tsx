@@ -35,6 +35,7 @@ export type NextActionCardProps = {
   onTertiary?: () => void;
   onMore?: () => void;
   onCalendar?: () => void;          // top-right calendar icon
+  belowActions?: ReactNode;         // e.g. the "up next" reminder list, in-card
 };
 
 const DUE_TONE: Record<Required<NextActionCardProps>["dueTone"], { color: string; bg: string }> = {
@@ -56,6 +57,7 @@ export function NextActionCard({
   onTertiary,
   onMore,
   onCalendar,
+  belowActions,
 }: NextActionCardProps) {
   const due = DUE_TONE[dueTone];
 
@@ -171,6 +173,12 @@ export function NextActionCard({
           </IconButton>
         )}
       </div>
+
+      {belowActions && (
+        <div style={{ marginTop: 14, borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 12 }}>
+          {belowActions}
+        </div>
+      )}
     </GlassCard>
   );
 }
