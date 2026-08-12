@@ -775,19 +775,41 @@ select {
   box-shadow: 0 2px 6px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.05) !important;
 }
 
-/* Work queue: urgency-group header bars — glass/solid transition with semantic
- * colour identity preserved across modes (E1 exception). Glass mode = slightly
- * transparent pale tint; solid mode = fully solid pale tint. Border stays. */
-.wq-urgency-bar { transition: background 150ms ease; }
-.wq-urgency-bar-escalated { background: rgba(254, 242, 242, 0.78); border: 1px solid rgb(254, 202, 202); }
-.wq-urgency-bar-overdue   { background: rgba(255, 247, 237, 0.78); border: 1px solid rgb(254, 215, 170); }
-.wq-urgency-bar-due-today { background: rgba(255, 251, 235, 0.78); border: 1px solid rgb(253, 230, 138); }
-.wq-urgency-bar-coming-up { background: rgba(248, 250, 252, 0.78); border: 1px solid rgb(226, 232, 240); }
+/* Work queue: urgency-group header bars. Frosted glass surface — the same
+ * --agent-glass-* treatment every other container on this page uses (file
+ * alerts strip, filter bar, file cards) — so the bars read as the SAME kind
+ * of container. The semantic urgency colour is carried as a 3px left accent
+ * stripe (matching the file cards' own left stripe, GROUP_LEFT_BORDER) plus
+ * the coloured label + count badge in the component. Replaces the old flat
+ * pale-tint fills. 2026-08-12. */
+.wq-urgency-bar {
+  background: var(--agent-glass-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 0.5px solid var(--agent-glass-border);
+  border-top-color: var(--agent-glass-border-bright);
+  border-left-width: 3px;
+  border-left-style: solid;
+  box-shadow: var(--agent-glass-shadow);
+  transition: background 150ms ease;
+}
+.wq-urgency-bar-escalated { border-left-color: var(--agent-danger); }
+.wq-urgency-bar-overdue   { border-left-color: #ea580c; }
+.wq-urgency-bar-due-today { border-left-color: var(--agent-warning); }
+.wq-urgency-bar-coming-up { border-left-color: var(--agent-border-subtle); }
 
-[data-solid] .wq-urgency-bar-escalated { background: rgb(254, 242, 242) !important; }
-[data-solid] .wq-urgency-bar-overdue   { background: rgb(255, 247, 237) !important; }
-[data-solid] .wq-urgency-bar-due-today { background: rgb(255, 251, 235) !important; }
-[data-solid] .wq-urgency-bar-coming-up { background: rgb(248, 250, 252) !important; }
+/* Solid mode: drop the blur, solid white surface — parity with
+ * [data-solid] .agent-glass-strong. Per-side borders (not shorthand) so the
+ * coloured left stripe set above survives the override. */
+[data-solid] .wq-urgency-bar {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: #ffffff !important;
+  border-top:    1px solid rgba(30,20,10,0.11) !important;
+  border-right:  1px solid rgba(30,20,10,0.11) !important;
+  border-bottom: 1px solid rgba(30,20,10,0.11) !important;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.05) !important;
+}
 [data-solid] .glass-subtle {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
@@ -1235,11 +1257,9 @@ select {
     background: rgba(22, 33, 52, 0.85);
   }
 
-  /* ── Work queue urgency bars ── */
-  :root[data-theme="dark"] .agent-shell-root .wq-urgency-bar-escalated { background: rgba(220, 38,  38,  0.12); border-color: rgba(220, 38,  38,  0.25); }
-  :root[data-theme="dark"] .agent-shell-root .wq-urgency-bar-overdue   { background: rgba(234, 88,  12,  0.12); border-color: rgba(234, 88,  12,  0.25); }
-  :root[data-theme="dark"] .agent-shell-root .wq-urgency-bar-due-today { background: rgba(217, 119, 6,   0.12); border-color: rgba(217, 119, 6,   0.25); }
-  :root[data-theme="dark"] .agent-shell-root .wq-urgency-bar-coming-up { background: rgba(30,  41,  59,  0.50); border-color: rgba(255, 255, 255, 0.08); }
+  /* Work queue urgency bars: no dark override needed — .wq-urgency-bar reads
+   * --agent-glass-bg (already dark frosted glass in dark mode) and keeps its
+   * coloured left stripe. See the base rule near the light-mode block. */
 
   /* ── Green / emerald ── */
   :root[data-theme="dark"] .agent-shell-root .bg-emerald-50        { background-color: rgba(16,185,129,0.10); }
