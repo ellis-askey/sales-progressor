@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CaretDown, UserCircle } from "@phosphor-icons/react";
+import { CaretDown, Scales } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar } from "@/components/ui/Avatar";
@@ -46,9 +46,8 @@ function exchangeLabel(iso: string | null): string | null {
 export type MilestoneRow = {
   id: string;
   completedAtIso: string;
-  confirmedByPortal: boolean;
-  side: string;
-  milestoneName: string;
+  sentence: string;
+  who: "client" | "agent" | "solicitor";
   completedByName: string | null;
   completedByImage: string | null;
 };
@@ -130,34 +129,20 @@ function TxCard({ tx }: { tx: TxGroup }) {
       <div>
         {tx.milestones.map((m, mi) => (
           <div key={m.id} className="flex items-start gap-3 px-4 py-3" style={{ borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
-            <div className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: m.confirmedByPortal ? "rgba(var(--agent-info-rgb), 0.12)" : "rgba(var(--agent-success-rgb), 0.12)" }}>
-              <svg className="w-3 h-3" style={{ color: m.confirmedByPortal ? "var(--agent-info)" : "var(--agent-success)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
+            {/* Who confirmed it: their photo (or the generic client / solicitor mark) */}
+            {m.who === "agent" ? (
+              <UserAvatar user={{ name: m.completedByName ?? "", image: m.completedByImage }} size={26} className="flex-shrink-0" />
+            ) : m.who === "client" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/client-avatar-fallback.png" alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block" }} />
+            ) : (
+              <span aria-hidden style={{ width: 26, height: 26, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Scales size={14} weight="regular" />
+              </span>
+            )}
             <div className="flex-1 min-w-0">
-              {/* Step name + a quiet party tag (which SIDE this step belongs to) */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[13px] font-medium text-slate-900/80">{m.milestoneName}</span>
-                <Pill glass tone={m.side === "vendor" ? "brand" : "info"} size="sm">
-                  {m.side === "vendor" ? "Seller side" : "Buyer side"}
-                </Pill>
-              </div>
-              {/* Attribution: WHO confirmed it (photo + name), or the client */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-                {m.confirmedByPortal ? (
-                  <UserCircle size={16} weight="fill" style={{ color: "var(--agent-info)", flexShrink: 0 }} />
-                ) : (
-                  <UserAvatar user={{ name: m.completedByName ?? "", image: m.completedByImage }} size={16} />
-                )}
-                <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
-                  {m.confirmedByPortal
-                    ? "Confirmed by the client"
-                    : `Confirmed by ${m.completedByName ?? "a team member"}`}
-                  {" · "}
-                  {relativeDate(m.completedAtIso)}
-                </span>
-              </div>
+              <p className="text-[13px] font-medium" style={{ color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{m.sentence}</p>
+              <p className="text-[11px]" style={{ color: "var(--agent-text-muted)", marginTop: 2 }}>{relativeDate(m.completedAtIso)}</p>
             </div>
           </div>
         ))}

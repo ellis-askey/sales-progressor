@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Bell, ArrowRight } from "@phosphor-icons/react";
+import { Bell, ArrowRight, Scales } from "@phosphor-icons/react";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 // Notification bell (rebuilt 2026-08-09). Polls the agent-scoped updates feed
 // and shows an unread badge; clicking opens a dropdown of the latest updates
@@ -16,11 +17,28 @@ type BellItem = {
   id: string;
   txId: string;
   address: string;
-  milestoneName: string;
-  side: string;
-  confirmedByPortal: boolean;
+  sentence: string;
+  who: "client" | "agent" | "solicitor";
+  avatarImage: string | null;
+  avatarName: string;
   at: string;
 };
+
+function BellAvatar({ it }: { it: BellItem }) {
+  if (it.who === "agent") {
+    return <UserAvatar user={{ name: it.avatarName, image: it.avatarImage }} size={30} />;
+  }
+  if (it.who === "client") {
+    // Clients have no photo — a friendly generic person.
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src="/client-avatar-fallback.png" alt="" aria-hidden width={30} height={30} style={{ borderRadius: 999, flexShrink: 0, display: "block" }} />;
+  }
+  return (
+    <span aria-hidden style={{ width: 30, height: 30, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Scales size={15} weight="regular" />
+    </span>
+  );
+}
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -33,10 +51,6 @@ function relativeTime(iso: string): string {
   if (days === 1) return "yesterday";
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-function sideLabel(side: string): string {
-  return side === "seller" ? "Seller" : side === "buyer" ? "Buyer" : "";
 }
 
 export function AgentBell({ userKey }: { userKey: string }) {
@@ -169,27 +183,25 @@ export function AgentBell({ userKey }: { userKey: string }) {
                   onClick={() => setOpen(false)}
                   className="agent-hover-row"
                   style={{
-                    display: "block", padding: "10px 14px", textDecoration: "none",
+                    display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 14px", textDecoration: "none",
                     borderBottom: "0.5px solid var(--agent-border-subtle)",
                   }}
                 >
-                  <p style={{
-                    margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {it.address}
-                  </p>
-                  <p style={{
-                    margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {it.milestoneName}
-                  </p>
-                  <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>
-                    {sideLabel(it.side)}{sideLabel(it.side) ? " · " : ""}
-                    {it.confirmedByPortal ? "Confirmed by client · " : ""}
-                    {relativeTime(it.at)}
-                  </p>
+                  <span style={{ marginTop: 1 }}><BellAvatar it={it} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      margin: 0, fontSize: 10.5, color: "var(--agent-text-muted)",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {it.address}
+                    </p>
+                    <p style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+                      {it.sentence}
+                    </p>
+                    <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>
+                      {relativeTime(it.at)}
+                    </p>
+                  </div>
                 </Link>
               ))
             )}

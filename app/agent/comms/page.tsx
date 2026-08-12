@@ -12,6 +12,7 @@ import {
 } from "@/components/comms/CommsActivityFeed";
 import { toUKDateStr } from "@/lib/utils";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { confirmationSentence } from "@/lib/updates-copy";
 
 function dayLabel(d: Date | string) {
   const date = new Date(d);
@@ -68,12 +69,20 @@ export default async function AgentCommsPage({
         milestones: [],
       });
     }
+    const side = m.milestoneDefinition.side as "vendor" | "purchaser";
+    const sideContacts = (m.transaction.contacts ?? [])
+      .filter((c) => c.roleType === side)
+      .map((c) => ({ name: c.name }));
+    const confirmer = m.confirmedByPortal
+      ? ({ kind: "client" } as const)
+      : m.confirmedBySolicitorFirmId
+        ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
+        : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
     const row: MilestoneRow = {
       id: m.id,
       completedAtIso: (m.completedAt ?? new Date()).toISOString(),
-      confirmedByPortal: m.confirmedByPortal,
-      side: m.milestoneDefinition.side,
-      milestoneName: m.milestoneDefinition.name,
+      sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
+      who: confirmer.kind,
       completedByName: m.completedBy?.name ?? null,
       completedByImage: m.completedBy?.image ?? null,
     };
