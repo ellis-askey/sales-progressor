@@ -46,7 +46,7 @@ export async function listTransactions(
     orderBy: { createdAt: "desc" },
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
-      assignedUser: { select: { id: true, name: true } },
+      assignedUser: { select: { id: true, name: true, image: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       // Phase-3: scope Contact list reads to the active round + file-level.
       // Pre-Phase-3 the cross-tx include returned every contact regardless
@@ -240,7 +240,7 @@ export async function getTransaction(id: string, agencyId: string) {
     where: { id, agencyId },
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
-      assignedUser: { select: { id: true, name: true } },
+      assignedUser: { select: { id: true, name: true, image: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
@@ -273,7 +273,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
     where: scopeOwnershipWhere(scope, id),
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
-      assignedUser: { select: { id: true, name: true } },
+      assignedUser: { select: { id: true, name: true, image: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
@@ -349,7 +349,7 @@ export async function listTransactionsByScope(scope: AccessScope) {
     where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
-      assignedUser: { select: { id: true, name: true } },
+      assignedUser: { select: { id: true, name: true, image: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: {
         where: { OR: contactRoundScopedOR(activeRoundIds) },
