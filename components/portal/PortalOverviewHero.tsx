@@ -13,7 +13,7 @@
 // here as pre-computed `text` values on each tile.
 
 import Link from "next/link";
-import { HouseSimple, Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
+import { Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 
 export type OverviewTile = {
@@ -486,17 +486,19 @@ export function PortalOverviewHero({
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
+          /* No property photo: a soft line-art streetscape on the coral
+             gradient that already dissolves to white at the foot, so it
+             fades beautifully into the page (reinforced by the bottom-fade
+             overlay below). */
           <div
             aria-hidden
             style={{
               position: "absolute", inset: 0,
-              background: P.heroGradient,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "rgba(255,255,255,0.35)",
+              backgroundImage: "url(/portal-hero-fallback.png)",
+              backgroundSize: "cover",
+              backgroundPosition: "center 35%",
             }}
-          >
-            <HouseSimple size={96} weight="thin" />
-          </div>
+          />
         )}
 
         {/* Bottom fade — the ONLY overlay on the photo. Fades transparent
