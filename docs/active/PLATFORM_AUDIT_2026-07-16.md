@@ -31,7 +31,7 @@
 | 9 | Voice pass on emails that have drifted | pending |
 | 10 | Send an email the moment both sides are ready to exchange | pending |
 | 11 | Let a client pause chases from an email | pending |
-| 12 | Rewrite chase-email subject lines | pending |
+| 12 | Rewrite chase-email subject lines | in progress |
 | 13 | Show which milestone is killing sales, at a glance | pending |
 | 14 | Promote two better demo pages to being real features | in progress |
 | 15 | Give clients basic self-serve controls | in progress |
@@ -240,7 +240,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 12. Rewrite chase-email subject lines
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** The chase emails go out with the subject "42 Elm Road: one update needed" or "3 updates needed". Reads like a bill.
 
@@ -248,7 +248,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Warmer variants: "Quick update on 42 Elm Road", "Sarah, one thing on 42 Elm Road", "On your sale at 42 Elm Road". Rotate them. Measure which lift opens the most.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13 (after #17 so it's measurable), awaiting push + staging test. The chase digest (`lib/email/client-chase-digest.ts`) now sends one of three warm variants instead of "N updates needed": **quick** ("Quick update on {address}"), **personal** ("{first}, an update on {address}"), **soft** ("On your {purchase/sale} at {address}"). The count moved out of the subject into the body. Assignment is a stable hash of the contact id, so each recipient always sees the same style (their chases read consistently) while the population splits three ways. The chosen variant id is stamped on the queue payload as `templateVersion`, so #17's tagging sends it to SendGrid as a category (`CLIENT_CHASE:quick|personal|soft`) — opens per variant are comparable in the dashboard. 76 email/chase tests pass. Later: once the numbers are in, keep the winner (or iterate) and retire the laggards.
 
 ---
 
