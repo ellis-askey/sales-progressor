@@ -36,7 +36,7 @@
 | 14 | Promote two better demo pages to being real features | in progress |
 | 15 | Give clients basic self-serve controls | in progress |
 | 16 | Tell the client who's on their team | pending |
-| 17 | Start measuring email performance properly | pending |
+| 17 | Start measuring email performance properly | in progress |
 | 18 | Suggest smarter chase timings based on real behaviour | pending |
 | 19 | Score prediction accuracy per agent | pending |
 | 20 | Build three new founder-brief signals | pending |
@@ -310,7 +310,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 17. Start measuring email performance properly
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** No email we send is tagged with what type it is when we hand it to SendGrid. So there's no way to look at SendGrid analytics and ask "did our chase emails open at a higher rate this month?" We're flying blind on every copy change.
 
@@ -318,7 +318,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Each email hands SendGrid two labels: what type of email it was, and which version of the template. The analytics side then works: opens per type, click rates per template version, response rate on chases by subject variant.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13, awaiting push + staging test. Done ahead of #12 so the subject-line change is measurable from day one. `lib/email.ts` (`sendEmail` + `sendChainEmail`) now accept optional `emailType` + `templateVersion` and pass them to SendGrid as **categories** (its native aggregation dimension): `[emailType, "env:<vercel-env>"]`, plus `"<emailType>:<version>"` when a template stamps a version. The `env:` tag keeps staging traffic out of prod's numbers; the same labels are mirrored into customArgs for the Event Webhook. Wired at the two drains that carry the automated volume: the outbound-email queue drain (`lib/email/outboundQueue.ts` — tags CLIENT_CHASE / EXCHANGE / COMPLETION / CELEBRATION / outsource-intro / etc., and reads `templateVersion` off the queue payload) and the milestone-digest drain (MILESTONE_CONFIRMATION). No SendGrid setup needed — categories auto-appear under Stats. NOT YET TAGGED (opt-in later via the same optional param, low priority — not the measurement target): one-off transactional sends (invites, welcome, password reset, weekly briefs, portal messages).
 
 ---
 
