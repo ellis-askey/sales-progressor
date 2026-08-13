@@ -25,7 +25,7 @@
 | 3 | Give the "To-Do" tab a real inbox | pending |
 | 4 | Stop leaking developer pages into production | in progress |
 | 5 | Chains are being hidden inside the "create a sale" form | in progress |
-| 6 | Use portal engagement as a warning signal | pending |
+| 6 | Use portal engagement as a warning signal | in progress |
 | 7 | Let clients ask a question from the portal | won't do |
 | 8 | Add a preview line to every email | in progress |
 | 9 | Voice pass on emails that have drifted | pending |
@@ -148,7 +148,7 @@ Compounding this: even when a chain IS created, the invite flow means only one a
 
 ### 6. Use portal engagement as a warning signal
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** The app knows when each buyer/seller last logged into their portal. It doesn't do anything with that. Files where the buyer used to log in every day and then went silent for three weeks look identical, on the agent's dashboard, to files where they log in every morning.
 
@@ -156,7 +156,7 @@ Compounding this: even when a chain IS created, the invite flow means only one a
 
 **After the fix.** The file's risk indicator picks up on this. A file where the buyer visited daily for two weeks and then not at all for two weeks flips into "watch this". The agent gets a heads-up before the deal goes cold.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT PROPERLY 2026-08-13, awaiting migration + push + staging test. Decisions with Ellis: 14-day silence window; low-key (a "watch"-severity risk flag only, no bell); proper visit-history tracking (not the single-timestamp approximation); PORTAL-ONLY signal — Ellis confirmed he's no longer logging WhatsApp into the app, so we don't infer engagement from it. New `PortalVisit` table (migration `20260815130000_portal_visit`, apply STAGING-FIRST) records one row per contact per UK day, deduped via unique(contactId, day), written in `app/portal/[token]/layout.tsx`. The risk engine (`lib/services/problem-detection.ts`) gains a `portal_gone_quiet` flag: a client who visited on ≥3 distinct days (was engaged) whose last visit was ≥14 days ago, on a live file. Distinct from the existing `no_portal_activity` ("never engaged"). Severity "watch" in `hub.ts`, so it surfaces wherever risk flags already show. tsc clean, 188 tests pass. Note: the signal only has data from launch of this tracking onward (no back-fill of historical visits).
 
 ---
 
