@@ -6,6 +6,7 @@
 // Files tab reads). No new instrumentation.
 
 import { commandDb } from "@/lib/command/prisma";
+import { eventLabel } from "@/lib/command/event-labels";
 
 const AGENT_ROLES = ["director", "negotiator"];
 const DAY_MS = 86_400_000;
@@ -169,4 +170,123 @@ export async function getUsageOverview(): Promise<UsageOverview> {
   };
 
   return { agents, agencies, summary };
+}
+
+// ── Single-agent drill-down ───────────────────────────────────────────────────
+
+export type AgentFileTime = {
+  transactionId: string;
+  address: string;
+  seconds: number;
+  sessions: number;
+  lastActivity: Date | null;
+};
+export type AgentActivityItem = {
+  id: string;
+  label: string;
+  at: Date;
+  address: string | null;
+};
+export type AgentDetail = {
+  userId: string;
+  name: string;
+  role: string;
+  agencyName: string;
+  lastActive: Date | null;
+  totalSeconds: number;
+  sessionCount: number;
+  logins7d: number;
+  weeksSeconds: number[]; // WEEKS weekly engaged-seconds, oldest → newest
+  files: AgentFileTime[];
+  recent: AgentActivityItem[];
+};
+
+export async function getAgentDetail(userId: string): Promise<AgentDetail | null> {
+  const user = await commandDb.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, role: true, agency: { select: { name: true } } },
+  });
+  if (!user) return null;
+
+  const now = Date.now();
+  const since7 = new Date(now - 7 * DAY_MS);
+  const since12w = new Date(now - WEEKS * 7 * DAY_MS);
+
+  const [sessions, logins7d, lastEvent, recentEvents] = await Promise.all([
+    commandDb.fileTimeSession.findMany({
+      where: { userId },
+      select: { transactionId: true, totalEngagedSeconds: true, endedAt: true, startedAt: true, lastActivityAt: true },
+    }),
+    commandDb.event.count({ where: { userId, type: "user_logged_in" as never, occurredAt: { gte: since7 } } }),
+    commandDb.event.aggregate({ where: { userId }, _max: { occurredAt: true } }),
+    commandDb.event.findMany({
+      where: { userId },
+      select: { id: true, type: true, occurredAt: true, entityType: true, entityId: true },
+      orderBy: { occurredAt: "desc" },
+      take: 15,
+    }),
+  ]);
+
+  // Per-file totals + weekly trend.
+  const byTx = new Map<string, { seconds: number; sessions: number; last: Date | null }>();
+  const weeksSeconds = new Array(WEEKS).fill(0);
+  let totalSeconds = 0;
+  let sessionCount = 0;
+  for (const s of sessions) {
+    const secs = s.endedAt && s.totalEngagedSeconds ? s.totalEngagedSeconds : 0;
+    const cur = byTx.get(s.transactionId) ?? { seconds: 0, sessions: 0, last: null as Date | null };
+    cur.seconds += secs;
+    cur.sessions += 1;
+    if (!cur.last || s.lastActivityAt > cur.last) cur.last = s.lastActivityAt;
+    byTx.set(s.transactionId, cur);
+    totalSeconds += secs;
+    sessionCount += 1;
+    if (secs > 0 && s.startedAt >= since12w) {
+      const idx = WEEKS - 1 - Math.min(WEEKS - 1, Math.floor((now - s.startedAt.getTime()) / (7 * DAY_MS)));
+      if (idx >= 0 && idx < WEEKS) weeksSeconds[idx] += secs;
+    }
+  }
+
+  // Resolve addresses for the files worked + the transaction-scoped activity.
+  const txIds = new Set<string>(byTx.keys());
+  for (const e of recentEvents) if (e.entityType === "transaction" && e.entityId) txIds.add(e.entityId);
+  const txs = txIds.size
+    ? await commandDb.propertyTransaction.findMany({
+        where: { id: { in: [...txIds] } },
+        select: { id: true, propertyAddress: true },
+      })
+    : [];
+  const addrMap = new Map(txs.map((t) => [t.id, t.propertyAddress]));
+
+  const files: AgentFileTime[] = [...byTx.entries()]
+    .map(([transactionId, v]) => ({
+      transactionId,
+      address: addrMap.get(transactionId) ?? "A file",
+      seconds: v.seconds,
+      sessions: v.sessions,
+      lastActivity: v.last,
+    }))
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 20);
+
+  const recent: AgentActivityItem[] = recentEvents.map((e) => ({
+    id: e.id,
+    label: eventLabel(e.type),
+    at: e.occurredAt,
+    address: e.entityType === "transaction" && e.entityId ? addrMap.get(e.entityId) ?? null : null,
+  }));
+
+  return {
+    userId: user.id,
+    name: user.name,
+    role: user.role,
+    agencyName: user.agency?.name ?? "—",
+    lastActive: lastEvent._max.occurredAt ?? null,
+    totalSeconds,
+    sessionCount,
+    logins7d,
+    weeksSeconds,
+    files,
+    recent,
+  };
 }
