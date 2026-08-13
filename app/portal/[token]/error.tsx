@@ -30,7 +30,7 @@ export default function PortalError({
           Something went wrong
         </h1>
         <p className="text-[14px] leading-relaxed mb-6" style={{ color: "#4A5162" }}>
-          We couldn&apos;t load this page. Please try again — if the problem continues, contact your sales progressor.
+          We couldn&apos;t load this page. Please try again. If the problem continues, contact your sales progressor.
         </p>
         <button
           onClick={reset}

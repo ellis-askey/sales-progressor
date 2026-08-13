@@ -338,7 +338,7 @@ export function RespondList({
                   )}
                   {item.expectedDate && (
                     <p style={{ fontSize: 12, color: P.textMuted, margin: "8px 0 0", fontStyle: "italic" }}>
-                      You said around {formatDdMmm(item.expectedDate)} — has that changed?
+                      You said around {formatDdMmm(item.expectedDate)}. Has that changed?
                     </p>
                   )}
 

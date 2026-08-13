@@ -34,7 +34,7 @@ export async function sendNegotiatorAcceptedEmail(
     ``,
     `View your team: ${teamUrl}`,
     ``,
-    `— The Sales Progressor team`,
+    `Sales Progressor`,
   ].join("\n");
 
   const html = `<!DOCTYPE html>

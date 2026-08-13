@@ -17,7 +17,7 @@ ${input.directorName} has accepted your invitation and set up their account at $
 
 They can now see all of your active sales and reach you directly through the platform.
 
-— The Sales Progressor team`;
+Sales Progressor`;
 
   const html = `<!DOCTYPE html>
 <html>

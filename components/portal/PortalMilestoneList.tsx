@@ -457,7 +457,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Not getting a survey?
               </p>
               <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
-                This will mark both "Book your survey" and "Survey report received" as not required. You can still proceed without a survey — this just removes those steps from your progress list.
+                This will mark both "Book your survey" and "Survey report received" as not required. You can still proceed without a survey. This just removes those steps from your progress list.
               </p>
               <button
                 onClick={() => skipSurvey(skipSurveyId!)}

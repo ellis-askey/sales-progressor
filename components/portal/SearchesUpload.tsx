@@ -40,7 +40,7 @@ export function SearchesUpload({ token }: Props) {
     } else {
       const json = await res.json().catch(() => ({}));
       setState("error");
-      setError(json.error ?? "Upload failed — please try again.");
+      setError(json.error ?? "Upload failed. Please try again.");
     }
   }
 
@@ -55,7 +55,7 @@ export function SearchesUpload({ token }: Props) {
         </svg>
         <div>
           <p className="text-[13px] font-semibold" style={{ color: P.success }}>
-            Uploaded — thank you
+            Uploaded, thank you
           </p>
           <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
             {uploaded.join(", ")}
@@ -69,7 +69,7 @@ export function SearchesUpload({ token }: Props) {
     <div className="mt-3 space-y-2">
       <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>
         Got a copy of your survey report? Upload it here and we&apos;ll keep it on file.{" "}
-        <span style={{ color: P.textMuted }}>(Optional — you don&apos;t have to.)</span>
+        <span style={{ color: P.textMuted }}>(Optional, you don&apos;t have to.)</span>
       </p>
 
       <input
@@ -107,7 +107,7 @@ export function SearchesUpload({ token }: Props) {
       </button>
 
       <p className="text-[11px]" style={{ color: P.textMuted }}>
-        PDF, JPG, PNG or Word — up to 3 files, 10 MB each
+        PDF, JPG, PNG or Word. Up to 3 files, 10 MB each
       </p>
 
       {error && (

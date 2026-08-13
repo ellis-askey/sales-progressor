@@ -96,7 +96,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
         style={{ background: P.successBg, border: `1px solid rgba(16,185,129,0.20)`, boxShadow: P.shadowMd }}
       >
         <p className="text-[15px] font-semibold" style={{ color: P.success }}>
-          ✓ Step confirmed — updating your progress…
+          ✓ Step confirmed, updating your progress…
         </p>
       </div>
     );

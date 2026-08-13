@@ -11,25 +11,25 @@ type ChecklistItem = { text: string; sub?: string };
 type InfoItem = { title: string; body: string };
 
 const VENDOR_CHECKLIST: ChecklistItem[] = [
-  { text: "Book your removal company",              sub: "Good firms fill up 2–3 weeks in advance — book now if you haven't already" },
+  { text: "Book your removal company",              sub: "Good firms fill up 2–3 weeks in advance. Book now if you haven't already" },
   { text: "Notify utility providers of your moving date", sub: "Contact gas, electricity, water, and broadband with your completion date" },
-  { text: "Give notice to your broadband provider", sub: "Arrange transfer or cancellation — most need at least 2 weeks notice" },
+  { text: "Give notice to your broadband provider", sub: "Arrange transfer or cancellation: most need at least 2 weeks notice" },
   { text: "Update your address",                    sub: "Bank, DVLA, HMRC, GP, employer, pension providers, and subscriptions" },
-  { text: "Set up a Post Office mail redirect",     sub: "A safety net for anything you miss — set up at least a week before completion" },
-  { text: "Prepare for meter readings",             sub: "Note down each meter's location — gas, electricity, and water — ready for moving day" },
-  { text: "Confirm what's staying",                 sub: "Check your fixtures and fittings list with your solicitor — leave agreed items in place" },
+  { text: "Set up a Post Office mail redirect",     sub: "A safety net for anything you miss: set up at least a week before completion" },
+  { text: "Prepare for meter readings",             sub: "Note down each meter's location (gas, electricity, and water) ready for moving day" },
+  { text: "Confirm what's staying",                 sub: "Check your fixtures and fittings list with your solicitor. Leave agreed items in place" },
   { text: "Start packing non-essentials",           sub: "Books, off-season clothes, anything you won't need before completion day" },
 ];
 
 const PURCHASER_CHECKLIST: ChecklistItem[] = [
-  { text: "Confirm buildings insurance is active",  sub: "Legal responsibility transferred to you at exchange — check your policy covers your completion date" },
-  { text: "Book your removal company",              sub: "The best firms fill up fast — if you haven't booked, do it today" },
-  { text: "Order broadband at your new address",    sub: "Most providers need 2+ weeks to get you connected — order now to avoid living without internet" },
+  { text: "Confirm buildings insurance is active",  sub: "Legal responsibility transferred to you at exchange. Check your policy covers your completion date" },
+  { text: "Book your removal company",              sub: "The best firms fill up fast. If you haven't booked, do it today" },
+  { text: "Order broadband at your new address",    sub: "Most providers need 2+ weeks to get you connected. Order now to avoid living without internet" },
   { text: "Arrange contents insurance",             sub: "Get contents insurance in place for your new home from completion day" },
   { text: "Set up a Post Office mail redirect",     sub: "Covers you for anything that gets sent to your old address after you move" },
-  { text: "Start updating your address",            sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions — start the list now" },
-  { text: "Plan your moving day logistics",         sub: "Keys are usually available from midday — plan your arrival time accordingly" },
-  { text: "Consider getting the locks changed",     sub: "Previous owners may have spare keys — a locksmith costs £100–200 and is worth it for peace of mind" },
+  { text: "Start updating your address",            sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions: start the list now" },
+  { text: "Plan your moving day logistics",         sub: "Keys are usually available from midday: plan your arrival time accordingly" },
+  { text: "Consider getting the locks changed",     sub: "Previous owners may have spare keys. A locksmith costs £100–200 and is worth it for peace of mind" },
 ];
 
 const VENDOR_WHAT_TO_KNOW: InfoItem[] = [
@@ -39,7 +39,7 @@ const VENDOR_WHAT_TO_KNOW: InfoItem[] = [
   },
   {
     title: "On completion day, stay available",
-    body: "Your solicitor manages the transfer of funds electronically. Keep your phone on in case they need to reach you — completion can happen any time during business hours.",
+    body: "Your solicitor manages the transfer of funds electronically. Keep your phone on in case they need to reach you. Completion can happen any time during business hours.",
   },
   {
     title: "You can't pull out without a financial penalty",
@@ -66,7 +66,7 @@ const PURCHASER_WHAT_TO_KNOW: InfoItem[] = [
   },
   {
     title: "Transfer the remaining balance in good time",
-    body: "Your solicitor will tell you exactly how much to send and when. Allow a few days for bank transfers — this must be cleared funds before completion day.",
+    body: "Your solicitor will tell you exactly how much to send and when. Allow a few days for bank transfers. This must be cleared funds before completion day.",
   },
   {
     title: "Mortgage offer validity",
@@ -129,7 +129,7 @@ export default async function PortalExchangePage({
           {transaction.propertyAddress}
         </h1>
         <p className="text-[14px] text-white/80">
-          Contracts exchanged — your {saleWord} is legally committed
+          Contracts exchanged. Your {saleWord} is legally binding
         </p>
         {completionDate && days !== null && (
           <div
@@ -165,7 +165,7 @@ export default async function PortalExchangePage({
             Things to do before completion
           </p>
           <p className="text-[13px] mt-0.5" style={{ color: P.textMuted }}>
-            Do these as soon as possible — don't leave them to the last minute
+            Do these as soon as possible, don't leave them to the last minute
           </p>
         </div>
         {checklist.map((item, i) => (

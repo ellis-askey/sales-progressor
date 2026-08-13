@@ -1119,6 +1119,20 @@ export async function logPortalMilestoneConfirm(
     }
 
     const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
+    const otherSaleWord = otherSideRole === "vendor" ? "sale" : "purchase";
+    // Name the step that was confirmed, using its ready-made other-side label
+    // ("Seller instructed their solicitor" → "the seller instructed their
+    // solicitor"), so the email says WHAT changed instead of a vague "there's
+    // been a progress update". Falls back to the generic line for the few
+    // steps with no other-side label. (Audit #9.)
+    const otherLabelRaw = milestoneCode ? getMilestoneCopy(milestoneCode).labelOther : undefined;
+    const otherStep = otherLabelRaw ? `the ${otherLabelRaw.charAt(0).toLowerCase()}${otherLabelRaw.slice(1)}` : null;
+    const otherUpdateText = otherStep
+      ? `There's an update on your ${otherSaleWord} at ${address}: ${otherStep}. Log in to see the latest.`
+      : `There's been a progress update on your ${otherSaleWord} at ${address}. Log in to see the latest.`;
+    const otherUpdateHtml = otherStep
+      ? `There's an update on your ${otherSaleWord} at <strong>${address}</strong>: ${otherStep}. Log in to see the latest.`
+      : `There's been a progress update on your ${otherSaleWord} at <strong>${address}</strong>. Log in to your portal to see the latest.`;
     const otherContacts = tx.contacts.filter(
       (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
     );
@@ -1128,7 +1142,7 @@ export async function logPortalMilestoneConfirm(
       const otherText = [
         buildGreeting(other.name),
         ``,
-        `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`,
+        otherUpdateText,
         ``,
         `View your portal: ${portalUrl}`,
       ].join("\n");
@@ -1139,7 +1153,7 @@ export async function logPortalMilestoneConfirm(
         replyTo,
         html: portalEmailHtml({
           greeting: buildGreeting(other.name),
-          body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${address}</strong>. Log in to your portal to see the latest.`,
+          body: otherUpdateHtml,
           ctaText: "View your portal",
           ctaUrl: portalUrl,
         }),
@@ -1147,7 +1161,7 @@ export async function logPortalMilestoneConfirm(
       otherIds.push(other.id);
     }
     if (otherIds.length > 0) {
-      logAutomatedEmail(transactionId, otherIds, `Progress update: ${address}`, `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`).catch(() => {});
+      logAutomatedEmail(transactionId, otherIds, `Progress update: ${address}`, otherUpdateText).catch(() => {});
     }
   }
 

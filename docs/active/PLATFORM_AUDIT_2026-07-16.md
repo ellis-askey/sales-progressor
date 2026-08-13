@@ -28,7 +28,7 @@
 | 6 | Use portal engagement as a warning signal | in progress |
 | 7 | Let clients ask a question from the portal | won't do |
 | 8 | Add a preview line to every email | in progress |
-| 9 | Voice pass on emails that have drifted | pending |
+| 9 | Voice pass on emails that have drifted | in progress |
 | 10 | Send an email the moment both sides are ready to exchange | in progress |
 | 11 | Let a client pause chases from an email | in progress |
 | 12 | Rewrite chase-email subject lines | in progress |
@@ -192,7 +192,7 @@ There's already a fully-built "Ask" component sitting in the codebase, orphaned.
 
 ### 9. Voice pass on emails that have drifted
 
-**Status:** pending
+**Status:** in progress (built, awaiting push)
 
 **Today.** Three specific emails are visibly off-brand. A retention email tells the reader "The system starts working once the first few steps are ticked off" — we banned "the system" language months ago. Two "welcome to the team" emails sign off with "The Sales Progressor team", with an em-dash we also banned. A fallback "there's been a progress update" email doesn't say what actually updated.
 
@@ -202,7 +202,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 **After the fix.** Each of those templates gets a small rewrite. "We start moving as soon as you tick off the first few steps." "Sales Progressor" alone as sign-off. The "progress update" email actually tells you what updated. The portal loses its em-dashes and softens its exclamations. Nothing dramatic; the tone just steadies.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13, awaiting push. Reviewed with Ellis via a full before/after artifact. Done: retention "The system starts working…" → "We start moving as soon as you tick off the first few steps"; all "— The Sales Progressor team" sign-offs → "Sales Progressor" (director-accepted, negotiator-accepted, retention ×6); the fallback other-side progress email now names the step via `labelOther` ("There's an update on your purchase at {addr}: the seller instructed their solicitor. Log in to see the latest.") — lowercase after the colon, "the buyer/the seller" prefix, per Ellis; falls back to the generic line for steps with no `labelOther`. ~40 portal em-dashes swapped to colon / full-stop / comma / brackets (mechanical, no meaning change; en-dashes in ranges kept). "legally committed" → "legally binding". DECISION: the three celebratory exclamations ("Today!", "Sale complete!", "Purchase complete!") are KEPT as deliberate celebration at the biggest moments. Remaining em-dashes are code comments only. tsc clean, 188 tests pass.
 
 ---
 

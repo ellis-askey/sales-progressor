@@ -13,31 +13,31 @@ function fmtPrice(p: number) {
 type ChecklistItem = { text: string; sub?: string };
 
 const VENDOR_CHECKLIST: ChecklistItem[] = [
-  { text: "Read all utility meters",                  sub: "Gas, electricity, and water — take a photo of each meter as a record" },
-  { text: "Leave all keys, fobs, and remotes",        sub: "Gate remotes, alarm codes, window/door keys — leave everything at the property" },
+  { text: "Read all utility meters",                  sub: "Gas, electricity, and water: take a photo of each meter as a record" },
+  { text: "Leave all keys, fobs, and remotes",        sub: "Gate remotes, alarm codes, window/door keys: leave everything at the property" },
   { text: "Leave appliance manuals and warranties",   sub: "Boiler, kitchen appliances, and any installed systems" },
   { text: "Leave service and guarantee records",      sub: "Damp-proofing, window installation, FENSA certificates, boiler service history" },
-  { text: "Clear the property completely",            sub: "Remove all personal items and rubbish — the buyer is entitled to vacant possession" },
+  { text: "Clear the property completely",            sub: "Remove all personal items and rubbish. The buyer is entitled to vacant possession" },
 ];
 
 const PURCHASER_CHECKLIST: ChecklistItem[] = [
-  { text: "Collect keys from us",                      sub: "Usually available from midday once your solicitor confirms completion — call ahead" },
-  { text: "Read all utility meters immediately",      sub: "Gas, electricity, and water — take photos and note the readings on arrival" },
-  { text: "Check buildings insurance is active",      sub: "This should have been arranged at exchange — confirm the policy is in force from today" },
+  { text: "Collect keys from us",                      sub: "Usually available from midday once your solicitor confirms completion. Call ahead" },
+  { text: "Read all utility meters immediately",      sub: "Gas, electricity, and water: take photos and note the readings on arrival" },
+  { text: "Check buildings insurance is active",      sub: "This should have been arranged at exchange. Confirm the policy is in force from today" },
   { text: "Check what's been left for you",           sub: "Manuals, warranties, and service records should be at the property" },
 ];
 
 const VENDOR_BEFORE_CHECKLIST: ChecklistItem[] = [
-  { text: "Confirm post redirect is in place",        sub: "Post Office redirect — covers anything sent to your old address" },
+  { text: "Confirm post redirect is in place",        sub: "Post Office redirect: covers anything sent to your old address" },
   { text: "Final packing and moving",                 sub: "Ensure the property will be fully cleared before completion time" },
-  { text: "Cancel direct debits for this address",    sub: "Council tax, water rates, building insurance — check nothing is still being taken" },
+  { text: "Cancel direct debits for this address",    sub: "Council tax, water rates, building insurance: check nothing is still being taken" },
 ];
 
 const PURCHASER_BEFORE_CHECKLIST: ChecklistItem[] = [
-  { text: "Transfer the remaining balance",           sub: "Your solicitor will tell you the exact amount and timing — allow a few days for clearing" },
-  { text: "Confirm broadband is ordered",             sub: "If not already arranged, order it now — even a short delay can leave you without internet for weeks" },
-  { text: "Check your address change list",           sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions — notify them all" },
-  { text: "Post Office redirect active",              sub: "Set this up if you haven't already — covers anything sent to your old address" },
+  { text: "Transfer the remaining balance",           sub: "Your solicitor will tell you the exact amount and timing. Allow a few days for clearing" },
+  { text: "Confirm broadband is ordered",             sub: "If not already arranged, order it now. Even a short delay can leave you without internet for weeks" },
+  { text: "Check your address change list",           sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions: notify them all" },
+  { text: "Post Office redirect active",              sub: "Set this up if you haven't already. Covers anything sent to your old address" },
 ];
 
 const VENDOR_NEXT_STEPS = [
@@ -47,11 +47,11 @@ const VENDOR_NEXT_STEPS = [
   },
   {
     title: "Mortgage redemption confirmation",
-    body: "Your lender will write to confirm your mortgage has been fully redeemed. Keep this letter — you may need it for tax or financial records.",
+    body: "Your lender will write to confirm your mortgage has been fully redeemed. Keep this letter. You may need it for tax or financial records.",
   },
   {
     title: "Capital gains tax (if applicable)",
-    body: "If the property was not your primary residence, you may have a capital gains tax liability. Your solicitor or accountant can advise — any CGT must be reported to HMRC within 60 days of completion.",
+    body: "If the property was not your primary residence, you may have a capital gains tax liability. Your solicitor or accountant can advise. Any CGT must be reported to HMRC within 60 days of completion.",
   },
   {
     title: "Keep your paperwork",
@@ -62,11 +62,11 @@ const VENDOR_NEXT_STEPS = [
 const PURCHASER_NEXT_STEPS = [
   {
     title: "Land Registry registration",
-    body: "Your solicitor is registering your ownership at HM Land Registry. This can take several months but they manage it — you'll receive a copy of the official title register once complete.",
+    body: "Your solicitor is registering your ownership at HM Land Registry. This can take several months but they manage it. You'll receive a copy of the official title register once complete.",
   },
   {
     title: "Stamp Duty Land Tax",
-    body: "If SDLT applied to your purchase, your solicitor will have filed the return and paid any tax from completion funds. You'll receive a confirmation receipt — keep it with your records.",
+    body: "If SDLT applied to your purchase, your solicitor will have filed the return and paid any tax from completion funds. You'll receive a confirmation receipt. Keep it with your records.",
   },
   {
     title: "Mortgage confirmation",
@@ -165,7 +165,7 @@ export default async function PortalCompletePage({
               Last things to check
             </p>
             <p className="text-[13px] mt-0.5" style={{ color: P.textMuted }}>
-              These should have been set up after exchange — confirm they're in place
+              These should have been set up after exchange. Confirm they're in place
             </p>
           </div>
           {beforeList.map((item, i) => (
@@ -192,7 +192,7 @@ export default async function PortalCompletePage({
       <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
         <div className="px-5 pt-5 pb-4" style={{ borderBottom: `1px solid ${P.border}` }}>
           <p className="text-[16px] font-bold" style={{ color: P.textPrimary }}>
-            {isVendor ? "On the day — before you hand over the keys" : "On the day — when you pick up the keys"}
+            {isVendor ? "On the day, before you hand over the keys" : "On the day, when you pick up the keys"}
           </p>
         </div>
         {checklist.map((item, i) => (
@@ -247,7 +247,7 @@ export default async function PortalCompletePage({
           Keep this portal bookmarked
         </p>
         <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>
-          Your full transaction timeline — every milestone, update, and message from your team — is saved here.
+          Your full transaction timeline, with every milestone, update, and message from your team, is saved here.
           You can always come back to review it.
         </p>
       </div>

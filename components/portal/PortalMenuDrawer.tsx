@@ -593,7 +593,7 @@ function UpdateSolicitorForm({
     <>
       <div style={{ padding: "8px 4px 4px" }}>
         <p style={{ margin: 0, fontSize: 12, color: P.textMuted, lineHeight: 1.4 }}>
-          Updating details for <strong style={{ color: P.textSecondary }}>{firmName}</strong>. Other files with this firm aren&apos;t affected — we save your changes just for your sale.
+          Updating details for <strong style={{ color: P.textSecondary }}>{firmName}</strong>. Other files with this firm aren&apos;t affected. We save your changes just for your sale.
         </p>
       </div>
       <Field label="Handler name" value={name}  onChange={setName}  />

@@ -132,7 +132,7 @@ export function PortalPushPrompt({ token, vapidPublicKey }: { token: string; vap
     <div className="mx-4 mb-4 px-4 py-4 rounded-2xl" style={{ background: "#EFF6FF", border: "1px solid #BFDBFE" }}>
       <p className="text-[13px] font-semibold text-blue-900 mb-1">Get notified of progress</p>
       <p className="text-[12px] text-blue-700 mb-3 leading-relaxed">
-        We&apos;ll notify you when your transaction moves forward — no need to keep checking.
+        We&apos;ll notify you when your transaction moves forward, no need to keep checking.
       </p>
       <div className="flex gap-2">
         <button
