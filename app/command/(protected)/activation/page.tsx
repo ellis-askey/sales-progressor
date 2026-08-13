@@ -202,9 +202,9 @@ export default async function ActivationPage({
   ]);
 
   const cohortBuckets = [
-    { label: "Last 7 days",    total: b7ids.length,  txn: b7txn,  ms: b7ms },
-    { label: "Days 8-30",      total: b30ids.length, txn: b30txn, ms: b30ms },
-    { label: "Days 31-90",     total: b90ids.length, txn: b90txn, ms: b90ms },
+    { label: "Last 7 days",       total: b7ids.length,  txn: b7txn,  ms: b7ms },
+    { label: "8 to 30 days ago",  total: b30ids.length, txn: b30txn, ms: b30ms },
+    { label: "31 to 90 days ago", total: b90ids.length, txn: b90txn, ms: b90ms },
   ];
 
   // Original 30-day summary cards
@@ -236,11 +236,11 @@ export default async function ActivationPage({
     curr.signups === 0 ? "—" : `${Math.round((n / curr.signups) * 100)}%`;
 
   const summaryCards = [
-    { label: "Signups",          metric: "signups",      curr: curr.signups,           prev: prev.signups },
-    { label: "Logins",           metric: "logins",       curr: curr.logins,            prev: prev.logins },
-    { label: "Unique actives",   metric: "active_users", curr: curr.uniqueActiveUsers, prev: prev.uniqueActiveUsers },
-    { label: "Txns created",     metric: "transactions", curr: curr.txnsCreated,       prev: prev.txnsCreated },
-    { label: "Milestones conf.", metric: "milestones",   curr: curr.milestones,        prev: prev.milestones },
+    { label: "New sign-ups",       metric: "signups",      curr: curr.signups,           prev: prev.signups },
+    { label: "Sign-ins",           metric: "logins",       curr: curr.logins,            prev: prev.logins },
+    { label: "People active",      metric: "active_users", curr: curr.uniqueActiveUsers, prev: prev.uniqueActiveUsers },
+    { label: "Sales started",      metric: "transactions", curr: curr.txnsCreated,       prev: prev.txnsCreated },
+    { label: "Milestones confirmed", metric: "milestones", curr: curr.milestones,        prev: prev.milestones },
   ];
 
   function fmtDays(d: number | null): string {
@@ -252,11 +252,12 @@ export default async function ActivationPage({
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold text-neutral-100">Getting started</h1>
+      <p className="text-sm text-neutral-400 -mt-4">Are new sign-ups reaching their first real actions, and where do they get stuck?</p>
 
       {/* 30-day summary vs prior 30 */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Last 30 days vs prior 30 days
+          Last 30 days vs the 30 before
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {summaryCards.map((c) => (
@@ -275,9 +276,11 @@ export default async function ActivationPage({
       {/* Event-level drop-off chain (cohort from last 30d signups) */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
-          Drop-off chain — agencies signed up in last 30 days (n={cohortIds.length})
+          Where new sign-ups fall away
         </h2>
-        <p className="text-[11px] text-neutral-600 mb-4">Distinct agencies that reached each step at any time since signup.</p>
+        <p className="text-[11px] text-neutral-600 mb-4">
+          Of the {cohortIds.length} {cohortIds.length === 1 ? "agency" : "agencies"} that joined in the last 30 days, how many reached each step.
+        </p>
         {cohortIds.length === 0 ? (
           <p className="text-sm text-neutral-600">No new agencies in the last 30 days.</p>
         ) : (
@@ -332,13 +335,13 @@ export default async function ActivationPage({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <section>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-            Time to first transaction — last 90 days (n={Number(ttft.n)})
+            How long until a new agency starts their first sale
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
             {[
-              { label: "Median (p50)", v: ttft.median_days },
-              { label: "p75",          v: ttft.p75_days },
-              { label: "p90",          v: ttft.p90_days },
+              { label: "Half within", v: ttft.median_days },
+              { label: "3 in 4 within", v: ttft.p75_days },
+              { label: "9 in 10 within", v: ttft.p90_days },
             ].map(({ label, v }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-xs text-neutral-400">{label}</span>
@@ -353,12 +356,12 @@ export default async function ActivationPage({
 
         <section>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-            Time from transaction → first milestone — last 90 days (n={Number(ttfm.n)})
+            How long until they confirm their first milestone
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
             {[
-              { label: "Median (p50)", v: ttfm.median_days },
-              { label: "p75",          v: ttfm.p75_days },
+              { label: "Half within", v: ttfm.median_days },
+              { label: "3 in 4 within", v: ttfm.p75_days },
             ].map(({ label, v }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-xs text-neutral-400">{label}</span>
@@ -375,18 +378,18 @@ export default async function ActivationPage({
       {/* First-action cohort table by signup bucket */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          First-action cohort — by signup recency
+          What new agencies do first, by when they joined
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-800 bg-neutral-800/50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Signup bucket</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Joined</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Agencies</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Created txn</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Txn rate</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Confirmed ms</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Ms rate</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Started a sale</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Sale rate</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Confirmed a milestone</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Milestone rate</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800">
@@ -416,23 +419,23 @@ export default async function ActivationPage({
       {/* Standard activation funnel */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Activation funnel — last 30 days (base: signups)
+          The full journey, last 30 days
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-800 bg-neutral-800/50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Stage</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Step</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">Count</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">% of signups</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">% of sign-ups</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800">
               {[
-                { label: "Signups",              n: curr.signups           },
-                { label: "Logins (any)",         n: curr.logins            },
-                { label: "Unique active users",  n: curr.uniqueActiveUsers },
-                { label: "Created a transaction",n: curr.txnsCreated       },
+                { label: "New sign-ups",         n: curr.signups           },
+                { label: "Signed in",            n: curr.logins            },
+                { label: "People active",        n: curr.uniqueActiveUsers },
+                { label: "Started a sale",       n: curr.txnsCreated       },
                 { label: "Confirmed a milestone",n: curr.milestones        },
               ].map((row) => (
                 <tr key={row.label}>
@@ -453,7 +456,7 @@ export default async function ActivationPage({
       {/* Day-by-day table */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Day-by-day — last 30 days
+          Day by day, last 30 days
         </h2>
         {rows30.length === 0 ? (
           <p className="text-sm text-neutral-600">No rollup data yet. Cron runs nightly.</p>

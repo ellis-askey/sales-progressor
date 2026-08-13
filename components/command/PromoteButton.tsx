@@ -8,7 +8,7 @@ export function PromoteButton({ signalId }: { signalId: string }) {
   const [done, setDone] = useState(false);
 
   if (done) {
-    return <span className="text-xs text-emerald-500">Promoted</span>;
+    return <span className="text-xs text-emerald-500">Added</span>;
   }
 
   return (
@@ -22,7 +22,7 @@ export function PromoteButton({ signalId }: { signalId: string }) {
       }
       className="text-xs px-2 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 transition-colors disabled:opacity-40"
     >
-      {pending ? "…" : "→ Experiment"}
+      {pending ? "…" : "Make a test"}
     </button>
   );
 }

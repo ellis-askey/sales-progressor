@@ -149,10 +149,11 @@ export default async function InsightsPage({
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold text-neutral-100">Briefing</h1>
+      <p className="text-sm text-neutral-400 -mt-4">A plain-English read on the platform, and anything worth a look.</p>
 
       {/* AI Briefs */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">AI Briefs</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Today&rsquo;s briefing</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <BriefCard
             title="Latest daily brief"
@@ -173,11 +174,11 @@ export default async function InsightsPage({
 
       {/* Signal feed */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal feed</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">What needs your attention</h2>
 
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap mb-5">
-          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Severity</span>
+          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Priority</span>
           {sevOptions.map((o) => (
             <a
               key={o.value}
@@ -193,7 +194,7 @@ export default async function InsightsPage({
           ))}
           <span className="ml-auto">
             <a href={ackToggle()} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
-              {showAcked ? "Hide acknowledged" : "Show acknowledged"}
+              {showAcked ? "Hide dealt-with" : "Show dealt-with"}
             </a>
           </span>
         </div>
@@ -201,10 +202,10 @@ export default async function InsightsPage({
         {/* Unacknowledged */}
         <div className="mb-3">
           <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
-            Unacknowledged · {unacknowledged.length}
+            Needs a look · {unacknowledged.length}
           </p>
           {unacknowledged.length === 0 ? (
-            <p className="text-sm text-neutral-600">All signals acknowledged.</p>
+            <p className="text-sm text-neutral-600">Nothing needs a look right now.</p>
           ) : (
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-800">
               {unacknowledged.map((s) => (
@@ -239,7 +240,7 @@ export default async function InsightsPage({
         {showAcked && acknowledged.length > 0 && (
           <div>
             <p className="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider mb-3">
-              Acknowledged · {acknowledged.length}
+              Dealt with · {acknowledged.length}
             </p>
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-800 opacity-60">
               {acknowledged.map((s) => (
@@ -250,7 +251,7 @@ export default async function InsightsPage({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-neutral-300">{s.detectorName.replace(/_/g, " ")}</p>
                     <p className="text-[10px] text-neutral-600">
-                      {Math.round(s.confidence * 100)}% · {fmtWindow(s.windowStart, s.windowEnd)} · acked {fmtDate(s.acknowledgedAt!)}
+                      {Math.round(s.confidence * 100)}% · {fmtWindow(s.windowStart, s.windowEnd)} · dealt with {fmtDate(s.acknowledgedAt!)}
                     </p>
                   </div>
                 </div>

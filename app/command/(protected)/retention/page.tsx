@@ -1,5 +1,6 @@
 import { commandDb } from "@/lib/command/prisma";
 import { parseMode, parseAgencies, modeProfileScope } from "@/lib/command/scope";
+import { eventLabel } from "@/lib/command/event-labels";
 import Link from "next/link";
 
 function pctChange(curr: number | null, prev: number | null): string {
@@ -131,9 +132,9 @@ export default async function RetentionPage({
   const sessionGap = sessionGapRows[0] ?? { p25: null, median: null, p75: null, n: BigInt(0) };
 
   const cards = [
-    { label: "Unique active users", curr: c.uniqueActiveUsers ?? 0, prev: p.uniqueActiveUsers ?? 0 },
-    { label: "Logins",              curr: c.logins ?? 0,            prev: p.logins ?? 0 },
-    { label: "Signups",             curr: c.signups ?? 0,           prev: p.signups ?? 0 },
+    { label: "People who used it", curr: c.uniqueActiveUsers ?? 0, prev: p.uniqueActiveUsers ?? 0 },
+    { label: "Sign-ins",           curr: c.logins ?? 0,            prev: p.logins ?? 0 },
+    { label: "New sign-ups",       curr: c.signups ?? 0,           prev: p.signups ?? 0 },
   ];
 
   const maxFeatureCount = Math.max(1, ...featureUsage.map((r) => r._count.id));
@@ -141,11 +142,12 @@ export default async function RetentionPage({
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold text-neutral-100">Repeat use</h1>
+      <p className="text-sm text-neutral-400 -mt-4">Are people coming back, and who&rsquo;s drifting away?</p>
 
       {/* 30-day engagement summary */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Engagement — last 30 days vs prior 30 days
+          Are people coming back? Last 30 days vs the 30 before
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {cards.map((card) => (
@@ -163,7 +165,7 @@ export default async function RetentionPage({
       {/* Feature usage heatmap */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Feature usage — last 30 days (non-internal users)
+          What people actually do, last 30 days
         </h2>
         {featureUsage.length === 0 ? (
           <p className="text-sm text-neutral-600">No event data yet.</p>
@@ -180,8 +182,8 @@ export default async function RetentionPage({
                   : "bg-neutral-700/40";
                 return (
                   <div key={row.type} className="px-5 py-2.5 flex items-center gap-3">
-                    <span className="text-xs text-neutral-300 w-52 shrink-0 font-mono">
-                      {row.type.replace(/_/g, " ")}
+                    <span className="text-xs text-neutral-300 w-52 shrink-0">
+                      {eventLabel(row.type)}
                     </span>
                     <div className="flex-1 bg-neutral-800 rounded-full h-1.5 overflow-hidden">
                       <div className={`h-full rounded-full ${bg}`} style={{ width: `${barPct.toFixed(1)}%` }} />
@@ -200,7 +202,7 @@ export default async function RetentionPage({
       {/* Time-between-sessions */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Time between sessions — last 90 days (n={Number(sessionGap.n)} gaps)
+          How often people come back, last 90 days
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
           {Number(sessionGap.n) === 0 ? (
@@ -208,14 +210,14 @@ export default async function RetentionPage({
           ) : (
             <div className="grid grid-cols-3 gap-6">
               {[
-                { label: "p25 (engaged)", v: sessionGap.p25 },
-                { label: "Median (p50)", v: sessionGap.median },
-                { label: "p75 (casual)",  v: sessionGap.p75 },
+                { label: "Most engaged", v: sessionGap.p25 },
+                { label: "Typical", v: sessionGap.median },
+                { label: "Least engaged", v: sessionGap.p75 },
               ].map(({ label, v }) => (
                 <div key={label} className="text-center">
                   <p className="text-[11px] text-neutral-500 mb-1">{label}</p>
                   <p className="text-2xl font-bold text-white tabular-nums">{fmtHours(v)}</p>
-                  <p className="text-[10px] text-neutral-600 mt-0.5">gap between logins</p>
+                  <p className="text-[10px] text-neutral-600 mt-0.5">between sign-ins</p>
                 </div>
               ))}
             </div>
@@ -226,7 +228,7 @@ export default async function RetentionPage({
       {/* Power agency fingerprints */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Power agencies — last 30 days
+          Most active agencies, last 30 days
         </h2>
         {powerAgencies.length === 0 ? (
           <p className="text-sm text-neutral-600">No per-agency data yet.</p>
@@ -239,7 +241,7 @@ export default async function RetentionPage({
                   <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Milestones</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Logins</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Chases</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Txns</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Sales</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800">
@@ -271,10 +273,10 @@ export default async function RetentionPage({
       {/* Drop-off analysis */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
-          Drop-off analysis — churned user last actions
+          Before people go quiet
         </h2>
         <p className="text-[11px] text-neutral-600 mb-4">
-          Users active in days 31–60 but absent in the last 30 days — what were they doing before they left?
+          People who were active a month or two ago but haven&rsquo;t been back in the last 30 days. What was the last thing they did?
         </p>
         {churnedLastEvents.length === 0 ? (
           <p className="text-sm text-neutral-600">No churned users in this window (or no event data).</p>
@@ -283,15 +285,15 @@ export default async function RetentionPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-800 bg-neutral-800/50">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Last action before churn</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">Count</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Last thing they did</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">People</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800">
                 {churnedLastEvents.map((row) => (
                   <tr key={row.type} className="hover:bg-neutral-800/50 transition-colors">
-                    <td className="px-5 py-2.5 text-xs text-neutral-200 font-mono">
-                      {row.type.replace(/_/g, " ")}
+                    <td className="px-5 py-2.5 text-xs text-neutral-200">
+                      {eventLabel(row.type)}
                     </td>
                     <td className="px-5 py-2.5 text-right text-xs tabular-nums text-white font-medium">
                       {Number(row.cnt).toLocaleString()}
@@ -308,13 +310,13 @@ export default async function RetentionPage({
       <section>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-xs font-medium text-neutral-300">Signup cohort retention table</p>
+            <p className="text-xs font-medium text-neutral-300">How many new sign-ups stick around</p>
             <p className="text-[11px] text-neutral-500 mt-0.5">
-              Week-1 / 2 / 4 / 8 / 12 retention by cohort — see the Growth tab.
+              Week 1 / 2 / 4 / 8 / 12: how many are still active later, grouped by when they joined. See Trends.
             </p>
           </div>
           <Link href="/command/growth" className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors shrink-0">
-            Go to Growth →
+            Go to Trends →
           </Link>
         </div>
       </section>
