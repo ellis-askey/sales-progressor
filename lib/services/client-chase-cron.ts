@@ -271,6 +271,8 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       buyerRoundId: true,
       // Per-contact chase pause (2026-08-11 email-settings drawer).
       emailsPausedAt: true,
+      // Client-set timed pause (audit #11 / #15). Future date = skip chases.
+      chasesPausedUntil: true,
     },
   });
   // Purchaser scoping: vendors are file-level (buyerRoundId IS NULL), but
@@ -424,11 +426,16 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       for (const contact of recipients) {
         if (!contact.email) continue; // belt+braces
 
+        // Client's own timed pause (audit #11 / #15): a future date means they
+        // asked to hold reminders; auto-resumes once it passes.
+        const clientPaused =
+          contact.chasesPausedUntil != null && contact.chasesPausedUntil > new Date();
+
         const pausedScope: "agency" | "file" | "contact" | undefined = agencyOff
           ? "agency"
           : fileOff
             ? "file"
-            : contact.emailsPausedAt != null
+            : contact.emailsPausedAt != null || clientPaused
               ? "contact"
               : undefined;
 

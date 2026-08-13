@@ -65,3 +65,11 @@ export function buildContactUnsubscribeUrl(contactId: string): string {
   const token = generateUnsubscribeToken(`contact:${contactId}`);
   return `${portalBase()}/api/unsubscribe?t=${encodeURIComponent(token)}`;
 }
+
+// "Pause for a week" one-click link in chase emails (audit #11). Reuses the
+// same signed-token mechanism; clicking sets Contact.chasesPausedUntil to a
+// week out, pausing only chases (not real updates), then auto-resuming.
+export function buildContactPauseUrl(contactId: string): string {
+  const token = generateUnsubscribeToken(`pause:${contactId}`);
+  return `${portalBase()}/api/pause-chases?t=${encodeURIComponent(token)}`;
+}

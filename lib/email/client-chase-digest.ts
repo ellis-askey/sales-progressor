@@ -34,7 +34,7 @@ import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { recordEvent } from "@/lib/command/events/write";
-import { buildContactUnsubscribeUrl } from "@/lib/email/unsubscribe";
+import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/unsubscribe";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
@@ -155,6 +155,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const codes = milestones.map((m) => m.code).join(",");
   const respondUrl = `${base}/portal/${contact.portalToken}/respond?items=${encodeURIComponent(codes)}`;
   const unsubscribeUrl = buildContactUnsubscribeUrl(contact.id);
+  const pauseUrl = buildContactPauseUrl(contact.id);
 
   const address = shortAddress(transaction.propertyAddress);
   const first = extractFirstName(contact.name);
@@ -332,6 +333,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
         </td></tr>
       </table>
       <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="${pauseUrl}" style="color:#c0c4d0;text-decoration:none;">Pause reminders for a week</a> &nbsp;&middot;&nbsp;
         <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;&middot;&nbsp;
         <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
       </p>

@@ -192,6 +192,13 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
     const note = String(payload.notePreview ?? "").trim();
     return `We followed up with ${name} about ${label}, and they replied: "${note}"`;
   }
+  if (type === "portal_chases_paused") {
+    const raw = payload.pausedUntil ? new Date(String(payload.pausedUntil)) : null;
+    const date = raw && !isNaN(raw.getTime())
+      ? raw.toLocaleDateString("en-GB", { day: "numeric", month: "long" })
+      : "soon";
+    return `${name} paused their chase reminders until ${date}.`;
+  }
   // portal_chain_agent_updated + any other allowlisted type carry a
   // pre-rendered body/title in their payload.
   return String(payload.body ?? payload.title ?? "Update on your file");

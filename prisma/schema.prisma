@@ -612,6 +612,13 @@ model Contact {
   // Distinct from unsubscribedAt: that is the CLIENT opting out of
   // everything; this is the AGENT pausing chasing for one person.
   emailsPausedAt        DateTime?
+  // Client-set timed pause on CHASE emails only (audit #11 / #15). Set to a
+  // future date when a client hits "pause for a week" in a chase email or
+  // picks a pause length in the portal menu. The chase cron skips them while
+  // this is in the future; it auto-resumes once it passes. Distinct from
+  // emailsPausedAt (agent-set, indefinite) and unsubscribedAt (client opted
+  // out of everything). Milestone / chain / exchange emails ignore this.
+  chasesPausedUntil     DateTime?
   // White-labelled "Getting your sale moving" intro email — fired once per
   // contact, on outsourced sale creation. Atomic check-and-stamp (updateMany
   // where outsourceIntroSentAt IS NULL) guarantees one send per contact per

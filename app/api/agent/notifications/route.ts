@@ -13,7 +13,14 @@ const BELL_NOTIFICATION_TYPES = [
   "portal_chain_agent_updated",
   "portal_expected_date_set",
   "portal_chase_note",
+  "portal_chases_paused",
 ];
+
+// The small pill shown on a bell item, per notification type. "Paused" for a
+// chase pause; "Update" for every other informational client item.
+function pillLabelForType(type: string): string {
+  return type === "portal_chases_paused" ? "Paused" : "Update";
+}
 
 // Bell feed = the same "completed step" activity shown on the Updates page
 // (/agent/comms), scoped through the canonical visibility resolver so every
@@ -74,7 +81,7 @@ export async function GET(req: NextRequest) {
           : null,
         avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "") : "",
         at: (m.completedAt ?? new Date()).toISOString(),
-        isUpdate: false,
+        updateLabel: null as string | null,
       },
     };
   });
@@ -100,9 +107,9 @@ export async function GET(req: NextRequest) {
         avatarImage: null as string | null,
         avatarName: "",
         at: n.createdAt.toISOString(),
-        // These are informational "for your awareness" items — the bell shows
-        // a quiet "Update" pill on them to tell them from confirmations.
-        isUpdate: true,
+        // Informational "for your awareness" item — a quiet pill tells it from
+        // confirmations ("Paused" for a chase pause, "Update" otherwise).
+        updateLabel: pillLabelForType(n.type),
       },
     };
   });

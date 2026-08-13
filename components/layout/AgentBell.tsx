@@ -23,9 +23,10 @@ type BellItem = {
   avatarImage: string | null;
   avatarName: string;
   at: string;
-  // Informational client update (date set / note left / chain agent added)
-  // rather than a confirmation — shows a quiet "Update" pill.
-  isUpdate?: boolean;
+  // Pill text for informational client items (date set / note / chain agent /
+  // chase paused). Null on confirmations, which show no pill. "Paused" for a
+  // chase pause, "Update" otherwise.
+  updateLabel?: string | null;
 };
 
 function BellAvatar({ it }: { it: BellItem }) {
@@ -207,7 +208,7 @@ export function AgentBell({ userKey }: { userKey: string }) {
                       <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
                         {relativeTime(it.at)}
                       </span>
-                      {it.isUpdate && <Pill glass tone="default" size="sm">Update</Pill>}
+                      {it.updateLabel && <Pill glass tone="default" size="sm">{it.updateLabel}</Pill>}
                     </div>
                   </div>
                 </Link>

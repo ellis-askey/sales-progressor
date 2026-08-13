@@ -19,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { createChainV2, addChainLink, updateChainLinkStub, getChainForTransactionV2 } from "@/lib/services/chains";
 import { createNotification } from "@/lib/services/notifications";
 import { getPortalChainAgent, type PortalChainAgent } from "@/lib/services/portal";
+import { pauseContactChases, resumeContactChases } from "@/lib/services/chase-pause";
 
 // ── Token → Contact resolver (single source of truth) ────────────────
 async function requirePortalContact(token: string) {
@@ -36,6 +37,7 @@ async function requirePortalContact(token: string) {
       propertyTransactionId: true,
       unsubscribedAt: true,
       image: true,
+      chasesPausedUntil: true,
     },
   });
   if (!contact) throw new Error("Invalid token");
@@ -52,6 +54,7 @@ export type MyPortalDetails = {
     emailOptedOut: boolean;
     image: string | null;
     roleType: string;
+    chasesPausedUntil: string | null;
   };
   propertyAddress: string;
   solicitor: {
@@ -95,6 +98,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
       emailOptedOut: contact.unsubscribedAt !== null,
       image: contact.image,
       roleType: contact.roleType,
+      chasesPausedUntil: contact.chasesPausedUntil?.toISOString() ?? null,
     },
     propertyAddress: tx?.propertyAddress ?? "",
     solicitor: firm
@@ -376,4 +380,31 @@ export async function updateMyNotificationsAction(input: {
 
   revalidatePath(`/portal/${input.token}`, "layout");
   return { ok: true as const, changed: true };
+}
+
+// ── Write 6: pause / resume my chase reminders (audit #11 / #15) ─────────
+// The portal-side door to the same timed pause the chase-email link uses.
+// 1 or 2 weeks; the shared helper logs a note + notifies the agent (bell).
+export async function pauseMyChasesAction(input: { token: string; weeks: number }) {
+  const contact = await requirePortalContact(input.token);
+  const weeks = input.weeks === 2 ? 2 : 1;
+  const until = new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000);
+  await pauseContactChases(contact.id, until, "portal");
+  revalidatePath(`/portal/${input.token}`, "layout");
+  return { ok: true as const, until: until.toISOString() };
+}
+
+export async function resumeMyChasesAction(input: { token: string }) {
+  const contact = await requirePortalContact(input.token);
+  await resumeContactChases(contact.id);
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId: contact.propertyTransactionId,
+      type: "internal_note",
+      contactIds: [],
+      content: `${contact.name} turned their chase reminders back on via the portal.`,
+    },
+  }).catch(() => {});
+  revalidatePath(`/portal/${input.token}`, "layout");
+  return { ok: true as const };
 }

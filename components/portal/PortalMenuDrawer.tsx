@@ -21,6 +21,8 @@ import {
   switchMySolicitorFirmAction,
   updateMyNotificationsAction,
   updateMyChainAgentAction,
+  pauseMyChasesAction,
+  resumeMyChasesAction,
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
 
@@ -680,6 +682,27 @@ function NotificationsSection({
   const [saved, setSaved] = useState(false);
   const emailOn = !details.contact.emailOptedOut;
 
+  const pausedUntil = details.contact.chasesPausedUntil ? new Date(details.contact.chasesPausedUntil) : null;
+  const isPaused = pausedUntil != null && pausedUntil.getTime() > Date.now();
+  const pausedLabel = pausedUntil?.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+
+  function flashSaved() {
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1600);
+  }
+  function pause(weeks: number) {
+    startTransition(async () => {
+      const res = await pauseMyChasesAction({ token, weeks });
+      if (res.ok) { flashSaved(); await onSaved(); }
+    });
+  }
+  function resume() {
+    startTransition(async () => {
+      const res = await resumeMyChasesAction({ token });
+      if (res.ok) { flashSaved(); await onSaved(); }
+    });
+  }
+
   return (
     <SectionCard icon={<Bell size={16} weight="regular" />} title="Notifications">
       <div style={{
@@ -721,6 +744,34 @@ function NotificationsSection({
           }} />
         </label>
       </div>
+
+      {/* Pause chase reminders (audit #11 / #15). Only chases pause; the
+          important updates keep coming, and it lifts itself when the time's up. */}
+      <div style={{ borderTop: `1px solid ${P.borderSubtle}`, marginTop: 4, paddingTop: 12 }}>
+        {isPaused ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Reminders paused</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: P.textMuted }}>
+                Until {pausedLabel}. Your other updates still come through.
+              </p>
+            </div>
+            <button type="button" onClick={resume} disabled={busy} className="portal-menu-btn" style={btnGhost}>Turn back on</button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Pause reminders</p>
+            <p style={{ margin: "2px 0 8px", fontSize: 12, color: P.textMuted }}>
+              Going away? Pause chase reminders. Your important updates still come through.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={() => pause(1)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Pause 1 week</button>
+              <button type="button" onClick={() => pause(2)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Pause 2 weeks</button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {saved && (
         <div style={{ paddingTop: 4 }}>
           <SavedFlash />
