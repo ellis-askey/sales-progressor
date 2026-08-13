@@ -3,6 +3,12 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { confirmationSentence } from "@/lib/updates-copy";
+import { prisma } from "@/lib/prisma";
+
+// Non-milestone notification types the bell surfaces (audit #16 phase 3 — the
+// first of "more than just confirmations"). Strict allowlist so the legacy
+// Notification backlog doesn't flood the bell; scoped to the caller's userId.
+const BELL_NOTIFICATION_TYPES = ["portal_chain_agent_updated"];
 
 // Bell feed = the same "completed step" activity shown on the Updates page
 // (/agent/comms), scoped through the canonical visibility resolver so every
@@ -32,12 +38,7 @@ export async function GET(req: NextRequest) {
 
   const milestones = await getAgentMilestoneActivity(vis, false);
 
-  // Newest first.
-  const sorted = [...milestones].sort(
-    (a, b) => new Date(b.completedAt ?? 0).getTime() - new Date(a.completedAt ?? 0).getTime(),
-  );
-
-  const items = sorted.slice(0, MENU_LIMIT).map((m) => {
+  const milestoneRows = milestones.map((m) => {
     const side = m.milestoneDefinition.side as "vendor" | "purchaser";
     const sideContacts = (m.transaction.contacts ?? [])
       .filter((c) => c.roleType === side)
@@ -56,22 +57,53 @@ export async function GET(req: NextRequest) {
           ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
         : null;
     return {
-      id: m.id,
-      txId: m.transaction.id,
-      address: m.transaction.propertyAddress,
-      sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
-      who: confirmer.kind,
-      avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
-        : confirmer.kind === "client" ? (clientContact?.image ?? null)
-        : null,
-      avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "") : "",
-      at: (m.completedAt ?? new Date()).toISOString(),
+      at: new Date(m.completedAt ?? 0),
+      item: {
+        id: m.id,
+        txId: m.transaction.id,
+        address: m.transaction.propertyAddress,
+        sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
+        who: confirmer.kind,
+        avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
+          : confirmer.kind === "client" ? (clientContact?.image ?? null)
+          : null,
+        avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "") : "",
+        at: (m.completedAt ?? new Date()).toISOString(),
+      },
     };
   });
 
+  // Allowlisted non-confirmation notifications for this user (e.g. a client
+  // added their chain agent). Scoped to session.user.id — no cross-tenant leak.
+  const notifications = await prisma.notification.findMany({
+    where: { userId: session.user.id, type: { in: BELL_NOTIFICATION_TYPES } },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { transaction: { select: { propertyAddress: true } } },
+  });
+  const notifRows = notifications.map((n) => {
+    const payload = (n.payload ?? {}) as { body?: string; title?: string };
+    return {
+      at: n.createdAt,
+      item: {
+        id: n.id,
+        txId: n.transactionId ?? "",
+        address: n.transaction?.propertyAddress ?? "",
+        sentence: payload.body ?? payload.title ?? "Update on your file",
+        who: "client" as const,
+        avatarImage: null as string | null,
+        avatarName: "",
+        at: n.createdAt.toISOString(),
+      },
+    };
+  });
+
+  // Merge both sources, newest first.
+  const all = [...milestoneRows, ...notifRows].sort((a, b) => b.at.getTime() - a.at.getTime());
+  const items = all.slice(0, MENU_LIMIT).map((r) => r.item);
   // Unread = everything newer than the last-read stamp (across the full set,
   // not just the menu slice, so the badge is accurate even past 12).
-  const count = sorted.filter((m) => new Date(m.completedAt ?? 0) > since).length;
+  const count = all.filter((r) => r.at > since).length;
 
   return NextResponse.json({ count, items });
 }

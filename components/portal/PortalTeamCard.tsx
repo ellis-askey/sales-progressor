@@ -8,6 +8,7 @@
 
 import { P } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
+import { OpenAgentsButton } from "@/components/portal/OpenAgentsButton";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -32,8 +33,13 @@ function MailIcon() {
 }
 
 export function PortalTeamCard({ team }: { team: PortalTeam }) {
-  const { managing, solicitorFirmName } = team;
-  if (!managing && !solicitorFirmName) return null;
+  const { managing, solicitorFirmName, chainAgent } = team;
+  // Buyers only, per Ellis: show their "selling agent" row (the chain link
+  // below them). Sellers' onward-purchase agent is left off the card for now,
+  // though both can still add theirs from the drawer.
+  const showAgentRow = chainAgent.direction === "below" && chainAgent.canManage;
+  const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
+  if (!managing && !solicitorFirmName && !showAgentRow) return null;
 
   return (
     <div style={{ background: P.cardBg, borderRadius: P.radiusLg, boxShadow: P.shadowSm, overflow: "hidden" }}>
@@ -171,6 +177,35 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>Your conveyancer</p>
           </div>
+        </div>
+      )}
+
+      {showAgentRow && (
+        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "center", borderTop: `1px solid ${P.borderSubtle}` }}>
+          <div
+            style={{
+              width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontWeight: 700, fontSize: agentHas ? 13 : 22,
+              color: agentHas ? "#fff" : P.textMuted,
+              background: agentHas ? "linear-gradient(135deg,#3f4a63,#243049)" : P.pageBg,
+              border: agentHas ? "none" : `1.5px dashed ${P.border}`,
+              boxShadow: agentHas ? "0 2px 6px rgba(36,48,73,0.28)" : "none",
+            }}
+          >
+            {agentHas ? initials(chainAgent.agentName || chainAgent.agencyName || "?") : "+"}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+              {agentHas ? (chainAgent.agentName || chainAgent.agencyName) : "Your selling agent"}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
+              {agentHas
+                ? (chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : "Your selling agent")
+                : "Selling somewhere too? Add your agent to keep the chain moving."}
+            </p>
+          </div>
+          <OpenAgentsButton label={agentHas ? "Edit" : "Add"} />
         </div>
       )}
     </div>

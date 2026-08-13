@@ -20,6 +20,7 @@ import {
   updateMySolicitorContactAction,
   switchMySolicitorFirmAction,
   updateMyNotificationsAction,
+  updateMyChainAgentAction,
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
 
@@ -29,9 +30,13 @@ type Props = {
   token: string;
   contactName: string;
   contactRole: string;
+  // Deep-link target (audit #16 phase 3): when the team card's "Add" opens
+  // the drawer with "agents", scroll the Your-agents section into view.
+  scrollToSection?: string | null;
 };
 
-export function PortalMenuDrawer({ open, onClose, token, contactName, contactRole }: Props) {
+export function PortalMenuDrawer({ open, onClose, token, contactName, contactRole, scrollToSection }: Props) {
+  const agentsRef = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -47,6 +52,14 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
     const t = window.setTimeout(() => setContentReady(true), 260);
     return () => window.clearTimeout(t);
   }, [open]);
+
+  // Deep-link: scroll the Your-agents section into view once content settles.
+  useEffect(() => {
+    if (!open || !contentReady || !details) return;
+    if (scrollToSection === "agents" && agentsRef.current) {
+      agentsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [open, contentReady, details, scrollToSection]);
 
   // Esc closes.
   useEffect(() => {
@@ -175,6 +188,9 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <YourDetailsSection details={details} token={token} onSaved={reload} />
               <YourSolicitorSection details={details} token={token} onSaved={reload} />
+              <div ref={agentsRef}>
+                <YourAgentsSection details={details} token={token} onSaved={reload} />
+              </div>
               {contactRole === "purchaser" && <ServicesSection token={token} />}
               <NotificationsSection details={details} token={token} onSaved={reload} />
               <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
@@ -354,6 +370,143 @@ function YourDetailsSection({
         </>
       )}
     </SectionCard>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Section — Your agents (the client's neighbour in the chain, audit #16 p3)
+// ═══════════════════════════════════════════════════════════════════════
+
+function YourAgentsSection({
+  details, token, onSaved,
+}: { details: MyPortalDetails; token: string; onSaved: () => void | Promise<void> }) {
+  const ca = details.chainAgent;
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const has = ca.present && !!(ca.agentName || ca.agencyName);
+
+  function onSaveDone() {
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1600);
+    setEditing(false);
+    void onSaved();
+  }
+
+  // The other agent has joined the platform — their details are theirs now.
+  if (ca.present && !ca.editable) {
+    return (
+      <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
+        <ReadRow label="Agent"  value={ca.agentName ?? "—"} />
+        <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
+        <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted }}>
+          They&apos;re on the platform now, so their details are kept up to date by them.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  // Nobody to attribute a chain change to on this file yet.
+  if (!ca.canManage) {
+    return (
+      <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
+        <p style={{ margin: 0, fontSize: 13, color: P.textMuted, padding: "4px 0" }}>
+          Your agent will add this for you.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  if (editing) {
+    return (
+      <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
+        <AgentEditForm
+          token={token}
+          initialAgent={ca.agentName ?? ""}
+          initialAgency={ca.agencyName ?? ""}
+          initialEmail={ca.agentEmail ?? ""}
+          initialPhone={ca.agentPhone ?? ""}
+          initialAddress={ca.propertyAddress ?? ""}
+          onCancel={() => setEditing(false)}
+          onSaved={onSaveDone}
+        />
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
+      {has ? (
+        <>
+          <ReadRow label="Agent"  value={ca.agentName ?? "—"} />
+          <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
+          <SectionFooter>
+            <button type="button" onClick={() => setEditing(true)} className="portal-menu-btn" style={btnGhost}>Update</button>
+            {saved && <SavedFlash />}
+          </SectionFooter>
+        </>
+      ) : (
+        <>
+          <p style={{ margin: 0, fontSize: 13, color: P.textSecondary, padding: "2px 0 6px", lineHeight: 1.5 }}>
+            {ca.direction === "below"
+              ? "Selling somewhere too? Add the agent handling your sale so we can keep the chain moving."
+              : "Buying onward? Add the agent for the place you're buying so we can keep the chain moving."}
+          </p>
+          <SectionFooter>
+            <button type="button" onClick={() => setEditing(true)} className="portal-menu-btn" style={btnPrimary}>Add agent</button>
+          </SectionFooter>
+        </>
+      )}
+    </SectionCard>
+  );
+}
+
+function AgentEditForm({
+  token, initialAgent, initialAgency, initialEmail, initialPhone, initialAddress, onCancel, onSaved,
+}: {
+  token: string;
+  initialAgent: string; initialAgency: string; initialEmail: string; initialPhone: string; initialAddress: string;
+  onCancel: () => void; onSaved: () => void;
+}) {
+  const [agent, setAgent]     = useState(initialAgent);
+  const [agency, setAgency]   = useState(initialAgency);
+  const [email, setEmail]     = useState(initialEmail);
+  const [phone, setPhone]     = useState(initialPhone);
+  const [address, setAddress] = useState(initialAddress);
+  const [busy, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function save() {
+    setError(null);
+    startTransition(async () => {
+      const res = await updateMyChainAgentAction({
+        token,
+        agentName: agent || null,
+        agencyName: agency || null,
+        agentEmail: email || null,
+        agentPhone: phone || null,
+        propertyAddress: address || null,
+      });
+      if (res.ok) onSaved();
+      else setError(res.error ?? "Failed to save");
+    });
+  }
+
+  return (
+    <>
+      <Field label="Agent name" value={agent}  onChange={setAgent} />
+      <Field label="Agency"     value={agency} onChange={setAgency} />
+      <Field label="Email"      value={email}  onChange={setEmail} type="email" />
+      <Field label="Phone"      value={phone}  onChange={setPhone} type="tel" />
+      <Field label="Property address (optional)" value={address} onChange={setAddress} />
+      <p style={{ margin: "6px 4px 0", fontSize: 11.5, color: P.textMuted, lineHeight: 1.5 }}>
+        We won&apos;t contact them automatically. Your progressor will see this and decide the next step.
+      </p>
+      {error && <p style={{ margin: "6px 4px 0", color: P.warning, fontSize: 12 }}>{error}</p>}
+      <SectionFooter>
+        <button type="button" onClick={onCancel} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
+        <button type="button" onClick={save} disabled={busy} className="portal-menu-btn" style={btnPrimary}>{busy ? "Saving…" : "Save"}</button>
+      </SectionFooter>
+    </>
   );
 }
 

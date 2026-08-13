@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail, resolveSenderForTransaction } from "@/lib/email";
+import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 // ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
@@ -324,7 +325,79 @@ export type PortalTeam = {
     whatsappUrl: string | null;
   } | null;
   solicitorFirmName: string | null;
+  // The client's neighbouring chain agent (phase 3) — drives the buyer's
+  // "add your selling agent" row on the card.
+  chainAgent: PortalChainAgent;
 };
+
+// ── The client's neighbouring chain agent (audit #16, phase 3) ──────────────
+// The agent on the other side of the client's own move:
+//   - Seller (vendor) is buying onward → the agent selling the place they're
+//     BUYING = the chain link ABOVE them (position - 1).
+//   - Buyer (purchaser) is selling their current home → the agent selling
+//     THAT = the chain link BELOW them (position + 1).
+// Pre-filled from whatever the managing agent already entered as a stub. Once
+// that agent has actually joined (link.transactionId set) it's read-only.
+export type PortalChainAgent = {
+  label: string;                 // client-facing label for this neighbour
+  direction: "above" | "below";
+  present: boolean;              // is there a neighbour link at all?
+  editable: boolean;             // stub → editable; claimed agent → read-only
+  linkId: string | null;
+  agentName: string | null;
+  agencyName: string | null;
+  agentEmail: string | null;
+  agentPhone: string | null;
+  propertyAddress: string | null;
+  canManage: boolean;            // is there a managing user to attribute writes to?
+};
+
+export async function getPortalChainAgent(
+  transactionId: string,
+  side: "vendor" | "purchaser",
+): Promise<PortalChainAgent> {
+  const direction: "above" | "below" = side === "vendor" ? "above" : "below";
+  const label = side === "vendor" ? "Your onward-purchase agent" : "Your selling agent";
+
+  // A managing user is required to attribute any chain write (createdByUserId).
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true },
+  });
+  const managingUserId = tx
+    ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
+    : null;
+
+  const base: PortalChainAgent = {
+    label, direction, present: false, editable: true, linkId: null,
+    agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
+    propertyAddress: null, canManage: !!managingUserId,
+  };
+
+  const chain = await getChainForTransactionV2(transactionId).catch(() => null);
+  if (!chain) return base; // no chain yet — adding one is allowed (creates it)
+
+  const own = chain.links.find((l) => l.transactionId === transactionId);
+  if (!own) return base;
+  const targetPos = direction === "above" ? own.position - 1 : own.position + 1;
+  const neighbour = chain.links.find((l) => l.position === targetPos);
+  if (!neighbour) return base; // no neighbour link yet — client can add one
+
+  const claimed = neighbour.transactionId !== null;
+  return {
+    ...base,
+    present: true,
+    editable: !claimed,
+    linkId: neighbour.id,
+    agentName:   claimed ? (neighbour.claimedBy?.name ?? null)    : neighbour.stubAgentName,
+    agencyName:  claimed ? (neighbour.claimedBy?.firmName ?? null) : neighbour.stubAgencyName,
+    // A joined agent's contact details aren't exposed here (they're on the
+    // platform now); only unclaimed stub details are shown back to the client.
+    agentEmail:  claimed ? null : neighbour.stubAgentEmail,
+    agentPhone:  claimed ? null : neighbour.stubAgentPhone,
+    propertyAddress: claimed ? (neighbour.transaction?.propertyAddress ?? null) : neighbour.stubPropertyAddress,
+  };
+}
 
 export async function getPortalTeam(
   transactionId: string,
@@ -341,7 +414,19 @@ export async function getPortalTeam(
         purchaserSolicitorFirm: { select: { name: true } },
       },
     });
-    if (!tx) return { managing: null, solicitorFirmName: null };
+    if (!tx) {
+      return {
+        managing: null,
+        solicitorFirmName: null,
+        chainAgent: {
+          label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
+          direction: side === "vendor" ? "above" : "below",
+          present: false, editable: false, linkId: null,
+          agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
+          propertyAddress: null, canManage: false,
+        },
+      };
+    }
 
     const isOutsourced = tx.serviceType !== "self_managed";
     const person = isOutsourced ? tx.assignedUser : tx.agentUser;
@@ -375,7 +460,9 @@ export async function getPortalTeam(
         ? tx.vendorSolicitorFirm?.name ?? null
         : tx.purchaserSolicitorFirm?.name ?? null;
 
-    return { managing, solicitorFirmName };
+    const chainAgent = await getPortalChainAgent(transactionId, side);
+
+    return { managing, solicitorFirmName, chainAgent };
   });
 }
 

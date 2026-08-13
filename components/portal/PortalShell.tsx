@@ -29,6 +29,18 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
 
   // Menu drawer (hamburger top-right of the header, added 2026-08-09).
   const [menuOpen, setMenuOpen] = useState(false);
+  // Deep-link target inside the drawer (audit #16 phase 3): the team card's
+  // "Add" dispatches `portal:open-menu` with a section to scroll to.
+  const [menuSection, setMenuSection] = useState<string | null>(null);
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const section = (e as CustomEvent<{ section?: string }>).detail?.section ?? null;
+      setMenuSection(section);
+      setMenuOpen(true);
+    };
+    window.addEventListener("portal:open-menu", onOpen);
+    return () => window.removeEventListener("portal:open-menu", onOpen);
+  }, []);
   // Close the drawer on navigation — if the user taps a link inside it,
   // the underlying page changes but the drawer would linger without this.
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -112,10 +124,11 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
       {/* Menu drawer */}
       <PortalMenuDrawer
         open={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={() => { setMenuOpen(false); setMenuSection(null); }}
         token={token}
         contactName={contactName}
         contactRole={roleType}
+        scrollToSection={menuSection}
       />
 
       {/* 2026-08-09 hero rebuild: the property photo is now rendered

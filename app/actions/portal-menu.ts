@@ -16,6 +16,9 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { createChainV2, addChainLink, updateChainLinkStub, getChainForTransactionV2 } from "@/lib/services/chains";
+import { createNotification } from "@/lib/services/notifications";
+import { getPortalChainAgent, type PortalChainAgent } from "@/lib/services/portal";
 
 // ── Token → Contact resolver (single source of truth) ────────────────
 async function requirePortalContact(token: string) {
@@ -59,6 +62,7 @@ export type MyPortalDetails = {
     email: string | null;
     phone: string | null;
   } | null;
+  chainAgent: PortalChainAgent;
 };
 
 export async function getMyPortalDetailsAction(token: string): Promise<MyPortalDetails> {
@@ -80,6 +84,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const firm    = side === "vendor" ? tx?.vendorSolicitorFirm    : tx?.purchaserSolicitorFirm;
   const solCtc  = side === "vendor" ? tx?.vendorSolicitorContact : tx?.purchaserSolicitorContact;
+  const chainAgent = await getPortalChainAgent(contact.propertyTransactionId, side);
 
   return {
     contact: {
@@ -102,7 +107,105 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
           phone: solCtc?.phone ?? null,
         }
       : null,
+    chainAgent,
   };
+}
+
+// ── Write 5: my neighbouring chain agent (audit #16 phase 3) ─────────────
+// A buyer records their SELLING agent; a seller records their ONWARD-PURCHASE
+// agent. Pre-filled from the stub the managing agent entered. If no chain
+// exists yet, this creates one; if the neighbour stub exists, it's updated; if
+// the agent has already joined, it's read-only and this refuses. NO invite is
+// sent — the managing agent is notified (Updates feed + a bell notification)
+// and decides whether to invite. All chain writes are attributed to the
+// managing user (the client is a Contact, not a User).
+export async function updateMyChainAgentAction(input: {
+  token: string;
+  agentName: string | null;
+  agencyName: string | null;
+  agentEmail: string | null;
+  agentPhone: string | null;
+  propertyAddress: string | null;
+}) {
+  const contact = await requirePortalContact(input.token);
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const direction: "above" | "below" = side === "vendor" ? "above" : "below";
+
+  const agentName  = input.agentName?.trim() || null;
+  const agencyName = input.agencyName?.trim() || null;
+  const agentEmail = input.agentEmail?.trim() || null;
+  const agentPhone = input.agentPhone?.trim() || null;
+  const propertyAddress = input.propertyAddress?.trim() || "";
+
+  if (!agentName && !agencyName) {
+    return { ok: false as const, error: "Add at least the agent's name or their agency." };
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true, agencyId: true },
+  });
+  const managingUserId = tx
+    ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
+    : null;
+  if (!tx || !managingUserId || !tx.agencyId) {
+    return { ok: false as const, error: "We can't update the chain on this file yet. Your agent can add it for you." };
+  }
+
+  const stub = {
+    stubPropertyAddress: propertyAddress,
+    stubAgencyName: agencyName ?? "",
+    stubAgentName: agentName,
+    stubAgentEmail: agentEmail,
+    stubAgentPhone: agentPhone,
+  };
+
+  const chain = await getChainForTransactionV2(contact.propertyTransactionId).catch(() => null);
+  if (!chain) {
+    await createChainV2({
+      transactionId: contact.propertyTransactionId,
+      agencyId: tx.agencyId,
+      userId: managingUserId,
+      stubs: [{ direction, ...stub }],
+    });
+  } else {
+    const own = chain.links.find((l) => l.transactionId === contact.propertyTransactionId);
+    const targetPos = own ? (direction === "above" ? own.position - 1 : own.position + 1) : null;
+    const neighbour = targetPos != null ? chain.links.find((l) => l.position === targetPos) : null;
+    if (neighbour && neighbour.transactionId !== null) {
+      return { ok: false as const, error: "That agent has already joined, so their details can't be changed here." };
+    }
+    if (neighbour) {
+      await updateChainLinkStub(neighbour.id, {
+        stubPropertyAddress: propertyAddress || undefined,
+        stubAgencyName: stub.stubAgencyName,
+        stubAgentName: agentName,
+        stubAgentEmail: agentEmail,
+        stubAgentPhone: agentPhone,
+      });
+    } else {
+      await addChainLink({ chainId: chain.id, userId: managingUserId, direction, ...stub });
+    }
+  }
+
+  // Notify the managing agent — Updates feed (internal note) + a bell
+  // notification (the first non-confirmation event surfaced in the bell).
+  const sideWord = side === "vendor" ? "onward-purchase" : "selling";
+  const who = agentName ?? agencyName ?? "their agent";
+  const at = agentName && agencyName ? ` at ${agencyName}` : "";
+  const body = `${contact.name} added their ${sideWord} agent via the portal: ${who}${at}.`;
+  await prisma.outboundMessage.create({
+    data: { transactionId: contact.propertyTransactionId, type: "internal_note", contactIds: [], content: body },
+  });
+  await createNotification({
+    userId: managingUserId,
+    type: "portal_chain_agent_updated",
+    transactionId: contact.propertyTransactionId,
+    payload: { title: "Chain agent added", body, contactName: contact.name },
+  });
+
+  revalidatePath(`/portal/${input.token}`, "layout");
+  return { ok: true as const };
 }
 
 // ── Write 1: my own contact details ──────────────────────────────────
