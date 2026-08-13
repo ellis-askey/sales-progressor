@@ -26,7 +26,7 @@
 | 4 | Stop leaking developer pages into production | in progress |
 | 5 | Chains are being hidden inside the "create a sale" form | in progress |
 | 6 | Use portal engagement as a warning signal | pending |
-| 7 | Let clients ask a question from the portal | pending |
+| 7 | Let clients ask a question from the portal | won't do |
 | 8 | Add a preview line to every email | in progress |
 | 9 | Voice pass on emails that have drifted | pending |
 | 10 | Send an email the moment both sides are ready to exchange | pending |
@@ -162,7 +162,7 @@ Compounding this: even when a chain IS created, the invite flow means only one a
 
 ### 7. Let clients ask a question from the portal
 
-**Status:** pending
+**Status:** won't do
 
 **Today.** A buyer opens their portal, sees a status update they don't understand, and has nowhere to ask about it. They have to leave the portal, find the agent's email, write a fresh email, and hope the agent connects it to the right sale.
 
@@ -172,7 +172,7 @@ There's already a fully-built "Ask" component sitting in the codebase, orphaned.
 
 **After the fix.** Every portal page has an "Ask us" button. The client types a question. It shows up as a message on the file for the agent to reply to. Their conversation stays inside the tool where the context is.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** WON'T DO (Ellis, 2026-08-13). Client messaging already happens in WhatsApp groups and is working well. Adding a second "Ask us" route on the portal splits the conversation across two places and creates an inbox that can be missed — net noise, not value. The orphaned `PortalMessageCompose` component stays unwired. Revisit only if the WhatsApp-group channel stops scaling.
 
 ---
 
