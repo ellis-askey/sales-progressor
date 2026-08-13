@@ -534,6 +534,129 @@ export async function getChainForTransactionV2(
   return getChainV2(txn.chainLink.chainId, viewerUserId);
 }
 
+// ─── Chain activity feed (#14) ────────────────────────────────────────────────
+// Cross-chain "what's happened" feed for the wide drawer's opt-in activity card.
+// Aggregates the real, already-happened events across every link:
+//   • milestone confirmations on each claimed file
+//   • an agent joining the chain (claim)
+//   • a chain invite being declined
+//   • a sale withdrawing
+// Only the viewer's OWN milestone events name them as "You". Nothing here
+// exposes a live "currently stuck on X" state — that stays private to the file
+// owner (see stuckMilestoneLabel above).
+
+export type ChainActivityTone = "success" | "danger" | "info";
+
+export type ChainActivityEvent = {
+  id: string;
+  // Short property label (address line 1) for the uppercase link line.
+  linkAddress: string;
+  // Human sentence, e.g. "You confirmed searches received".
+  message: string;
+  at: string; // ISO timestamp
+  tone: ChainActivityTone;
+};
+
+export async function getChainActivity(
+  chainId: string,
+  viewerUserId: string,
+  limit = 12,
+): Promise<ChainActivityEvent[]> {
+  const chain = await prisma.propertyChain.findUnique({
+    where: { id: chainId },
+    select: {
+      links: {
+        select: {
+          id: true,
+          transactionId: true,
+          claimedByUserId: true,
+          claimedAt: true,
+          inviteStatus: true,
+          inviteDeclinedAt: true,
+          stubPropertyAddress: true,
+          withdrawalRespondedAt: true,
+          claimedBy: { select: { name: true, firmName: true } },
+          transaction: {
+            select: {
+              propertyAddress: true,
+              status: true,
+              milestoneCompletions: {
+                where: { state: "complete", completedAt: { not: null } },
+                select: {
+                  id: true,
+                  completedAt: true,
+                  eventDate: true,
+                  milestoneDefinition: { select: { code: true } },
+                },
+                orderBy: { completedAt: "desc" },
+                take: 6,
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!chain) return [];
+
+  const events: ChainActivityEvent[] = [];
+  for (const l of chain.links) {
+    const addrFull = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
+    const addr = addrFull.split(",")[0].trim() || "A sale in the chain";
+    const isViewer = l.claimedByUserId === viewerUserId;
+    const who = l.claimedBy?.firmName?.trim() || l.claimedBy?.name?.trim() || "The agent";
+
+    for (const c of l.transaction?.milestoneCompletions ?? []) {
+      const at = c.completedAt ?? c.eventDate;
+      if (!at) continue;
+      const step = getMilestoneShortLabel(c.milestoneDefinition?.code ?? "") ?? "a step";
+      events.push({
+        id: `mc_${c.id}`,
+        linkAddress: addr,
+        message: isViewer ? `You confirmed ${step}` : `${who} confirmed ${step}`,
+        at: at.toISOString(),
+        tone: "success",
+      });
+    }
+
+    if (l.transaction?.status === "withdrawn") {
+      const at = l.withdrawalRespondedAt ?? l.claimedAt;
+      if (at) {
+        events.push({
+          id: `wd_${l.id}`,
+          linkAddress: addr,
+          message: `${addr} withdrew from the chain`,
+          at: at.toISOString(),
+          tone: "danger",
+        });
+      }
+    }
+
+    if (l.inviteStatus === "DECLINED" && l.inviteDeclinedAt) {
+      events.push({
+        id: `dec_${l.id}`,
+        linkAddress: addr,
+        message: "An agent declined the chain invite",
+        at: l.inviteDeclinedAt.toISOString(),
+        tone: "danger",
+      });
+    }
+
+    if (l.claimedAt && !isViewer && l.transactionId) {
+      events.push({
+        id: `join_${l.id}`,
+        linkAddress: addr,
+        message: `${who} joined the chain`,
+        at: l.claimedAt.toISOString(),
+        tone: "info",
+      });
+    }
+  }
+
+  events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  return events.slice(0, limit);
+}
+
 export type CreateChainInput = {
   transactionId: string;
   agencyId: string;

@@ -147,6 +147,11 @@ model User {
   chainDeclineNotificationAddress String?
   chainDeclineNotificationAt      DateTime?
 
+  // Per-agent opt-in for the chain drawer's live activity feed (#14). Default
+  // OFF: the feed only renders once the agent turns it on, and it stays on
+  // across every chain they view. Toggled via POST /api/chains/activity.
+  chainActivityOptIn Boolean @default(false)
+
   emailVerified          DateTime?
   image                  String?
   accounts               Account[]

@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
+import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2 } from "@/lib/services/chains";
+import { computeChainSummary, formatChainValueShort } from "@/lib/chain/summary";
 import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
@@ -28,6 +30,71 @@ function ChainIcon() {
       <path strokeLinecap="round" strokeLinejoin="round"
         d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
     </svg>
+  );
+}
+
+// "Late Sept" style month band — coarse on purpose (a chain-level completion
+// forecast is never precise). Only ever rendered when MEDIANS_READY has already
+// gated the date to a real prediction inside computeChainSummary.
+function formatCompletionBand(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDate();
+  const part = day <= 10 ? "Early" : day <= 20 ? "Mid" : "Late";
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  return `${part} ${month}`;
+}
+
+// Right-column value + health card. Every figure is a real derivation from the
+// live chain (computeChainSummary); rows with no honest value are omitted.
+function ChainSummaryCard({ chain }: { chain: ChainV2 }) {
+  const s = computeChainSummary(chain);
+  const claimPct = s.totalCount ? Math.round((s.claimedCount / s.totalCount) * 100) : 0;
+  const riskLabel = s.risk === "high" ? "High" : s.risk === "medium" ? "Medium" : "Low";
+  const riskClass = s.risk === "high" ? "danger" : s.risk === "medium" ? "warn" : "";
+
+  return (
+    <div className="chain-scard">
+      <div className="chain-slab">Chain value</div>
+      <div className="chain-sval">
+        {s.totalValuePence != null ? formatChainValueShort(s.totalValuePence) : "Not priced yet"}
+      </div>
+      {s.totalValuePence != null && (
+        <div className="chain-smeta">
+          Across the {s.pricedCount} priced {s.pricedCount === 1 ? "sale" : "sales"}
+        </div>
+      )}
+
+      <div className="chain-claimwrap">
+        <div className="chain-claimrow">
+          <span className="k">Claim rate</span>
+          <span className="v">{s.claimedCount} of {s.totalCount}</span>
+        </div>
+        <div className="chain-claimbar"><i style={{ width: `${claimPct}%` }} /></div>
+      </div>
+
+      {s.weakest && (
+        <div className="chain-srow">
+          <span className="k">Weakest link</span>
+          <span className={`v ${s.weakest.tone}`}>Link {s.weakest.position}</span>
+        </div>
+      )}
+      {s.predictedCompletion && (
+        <div className="chain-srow">
+          <span className="k">Predicted completion</span>
+          <span className="v">{formatCompletionBand(s.predictedCompletion)}</span>
+        </div>
+      )}
+      {s.oldestSaleDays != null && (
+        <div className="chain-srow">
+          <span className="k">Oldest sale</span>
+          <span className="v">{s.oldestSaleDays} days</span>
+        </div>
+      )}
+      <div className="chain-srow">
+        <span className="k">Chain risk</span>
+        <span className={`v ${riskClass}`}>{riskLabel}</span>
+      </div>
+    </div>
   );
 }
 
@@ -260,7 +327,7 @@ export function ChainDrawer({
         aria-label="Chain"
         className="relative z-10 flex flex-col h-full"
         style={{
-          width: "min(440px, 100vw)",
+          width: "min(760px, 100vw)",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
@@ -272,8 +339,14 @@ export function ChainDrawer({
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Chain</p>
-            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>Every linked sale, in one place</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              {chain?.name?.trim() || "Chain"}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
+              {links.length > 0
+                ? `${links.length} linked ${links.length === 1 ? "sale" : "sales"}, top to bottom. When one moves, everything below moves with it.`
+                : "Every linked sale, in one place"}
+            </p>
           </div>
           <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
             <X size={14} weight="bold" />
@@ -286,9 +359,17 @@ export function ChainDrawer({
           {loading && (
             <div className="space-y-2 py-2">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="animate-pulse rounded-xl bg-white/40 border border-white/30 px-4 py-3">
-                  <div className="h-3 bg-slate-900/10 rounded w-3/4 mb-2.5" />
-                  <div className="h-2 bg-slate-900/06 rounded w-1/2" />
+                <div
+                  key={i}
+                  className="animate-pulse px-4 py-3"
+                  style={{
+                    background: "var(--agent-surface-elevated)",
+                    border: "1px solid var(--agent-border-default)",
+                    borderRadius: 14,
+                  }}
+                >
+                  <div className="h-3 rounded w-3/4 mb-2.5" style={{ background: "var(--agent-border-strong)" }} />
+                  <div className="h-2 rounded w-1/2" style={{ background: "var(--agent-border-default)" }} />
                 </div>
               ))}
             </div>
@@ -354,7 +435,8 @@ export function ChainDrawer({
 
           {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
-            <div className="space-y-0">
+            <div className="chain-dbody">
+              <div className="chain-stack">
               {/* Decline notification banner */}
               {declineNotification && !declineDismissed && (
                 <div style={{
@@ -557,7 +639,7 @@ export function ChainDrawer({
               {showAddAbove && (
                 <button
                   onClick={() => onOpenAddNode?.("above", chain.id)}
-                  className="w-full text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 mb-3 transition-colors"
+                  className="chain-addbtn chain-addbtn-above"
                 >
                   + Add sale above
                 </button>
@@ -567,18 +649,23 @@ export function ChainDrawer({
               {links.map((link, i) => (
                 <div key={link.id} className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
                   {confirmingDeleteId === link.id ? (
-                    <div className="rounded-xl bg-white/40 border border-white/30 px-4 py-3 flex items-center gap-3">
-                      <p className="flex-1 text-sm text-slate-900/70">Remove this sale from the chain?</p>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                      background: "var(--agent-surface-elevated)",
+                      border: "1px solid var(--agent-danger-border)", borderRadius: 14,
+                      boxShadow: "var(--agent-glass-shadow)",
+                    }}>
+                      <p style={{ flex: 1, margin: 0, fontSize: 13, color: "var(--agent-text-primary)" }}>
+                        Remove this sale from the chain?
+                      </p>
                       <button
                         onClick={() => { void doDeleteConfirmed(link.id); }}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                        className="chain-act-link"
+                        style={{ color: "var(--agent-danger)", fontWeight: 600 }}
                       >
                         Remove
                       </button>
-                      <button
-                        onClick={() => setConfirmingDeleteId(null)}
-                        className="text-xs agent-link-muted"
-                      >
+                      <button onClick={() => setConfirmingDeleteId(null)} className="chain-act-link">
                         Cancel
                       </button>
                     </div>
@@ -587,6 +674,15 @@ export function ChainDrawer({
                       link={link}
                       totalLinks={links.length}
                       currentUserId={currentUserId}
+                      edge={
+                        links.length > 1
+                          ? i === 0
+                            ? "top"
+                            : i === links.length - 1
+                              ? "bottom"
+                              : undefined
+                          : undefined
+                      }
                       directional={directional[link.id]}
                       isYourFile={
                         link.claimedByUserId === currentUserId ||
@@ -617,19 +713,29 @@ export function ChainDrawer({
               {showAddBelow && (
                 <button
                   onClick={() => onOpenAddNode?.("below", chain.id)}
-                  className="w-full text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 mt-3 transition-colors"
+                  className="chain-addbtn chain-addbtn-below"
                 >
                   + Add sale below
                 </button>
               )}
+              </div>
+
+              {/* Right column: value summary + activity feed */}
+              <div className="chain-side">
+                <ChainSummaryCard chain={chain} />
+                <ChainActivityCard chainId={chain.id} refreshKey={refreshKey} />
+              </div>
             </div>
           )}
         </div>
 
         {/* Sticky footer: bulk invite */}
         {invitablePending.length > 0 && (
-          <div className="flex-shrink-0 px-6 py-4 border-t border-white/30 bg-white/20 flex items-center justify-between">
-            <p className="text-xs text-slate-900/60">
+          <div
+            className="flex-shrink-0 px-6 py-4 flex items-center justify-between"
+            style={{ borderTop: "1px solid var(--agent-border-subtle)", background: "var(--agent-glass-bg-subtle)" }}
+          >
+            <p className="text-xs" style={{ color: "var(--agent-text-secondary)" }}>
               {invitablePending.length} agent{invitablePending.length !== 1 ? "s" : ""} ready to invite
             </p>
             <button

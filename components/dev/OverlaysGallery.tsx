@@ -224,6 +224,8 @@ export function OverlaysGallery() {
       const json = (body: unknown) =>
         new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
       if (url.includes(`/api/chains?transactionId=${MOCK_TX_ID}`)) return json(MOCK_CHAIN_RESPONSE);
+      // Activity feed is opt-in + default off, so the mock returns the off-state.
+      if (url.includes("/api/chains/activity")) return json({ optedIn: false, events: [] });
       if (url.includes(`/api/transactions/${MOCK_TX_ID}/rounds/`)) return json(MOCK_ROUND_RESPONSE);
       return orig(input, init);
     }) as typeof window.fetch;
