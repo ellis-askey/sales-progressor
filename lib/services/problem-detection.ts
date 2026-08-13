@@ -9,6 +9,7 @@ export type FlagKind =
   | "exchange_approaching_gaps"
   | "on_hold_extended"
   | "no_portal_activity"
+  | "portal_gone_quiet"
   | "overdue_milestone";
 
 const FLAG_LABELS: Record<FlagKind, string> = {
@@ -18,6 +19,7 @@ const FLAG_LABELS: Record<FlagKind, string> = {
   exchange_approaching_gaps: "Exchange approaching",
   on_hold_extended: "Extended hold",
   no_portal_activity: "No portal engagement",
+  portal_gone_quiet: "Client gone quiet",
   overdue_milestone: "Overdue milestone",
 };
 
@@ -37,7 +39,7 @@ type TxData = {
   _count: { milestoneCompletions: number };
   communications: { createdAt: Date; type: string }[];
   chaseTasks: { dueDate: Date }[];
-  contacts: { portalToken: string | null }[];
+  contacts: { portalToken: string | null; visitDayCount: number; lastVisitDay: string | null }[];
   milestoneCompletions: { completedAt: Date | null }[];
 };
 
@@ -117,6 +119,25 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     const hasInbound = tx.communications.some((c) => c.type === "inbound");
     if (daysActive >= 14 && hasPortalContacts && !hasInbound) {
       flags.push({ kind: "no_portal_activity", context: `Portal set up ${daysActive} days ago but no client activity recorded` });
+    }
+  }
+
+  // Client gone quiet: a client who was CHECKING IN regularly (portal visits
+  // on ≥3 distinct days) and then stopped for ≥14 days. The single strongest
+  // early sign of a wobble. Distinct from no_portal_activity (which is "never
+  // engaged"). Portal-only signal — WhatsApp isn't reliably logged, so we
+  // don't try to infer engagement from it. (Audit #6.)
+  if (tx.status === "active") {
+    const ENGAGED_DISTINCT_DAYS = 3;
+    const QUIET_DAYS = 14;
+    for (const c of tx.contacts) {
+      if (c.visitDayCount >= ENGAGED_DISTINCT_DAYS && c.lastVisitDay) {
+        const daysSince = Math.floor((now - new Date(`${c.lastVisitDay}T00:00:00Z`).getTime()) / 86400000);
+        if (daysSince >= QUIET_DAYS) {
+          flags.push({ kind: "portal_gone_quiet", context: `A client was checking the portal regularly but hasn't in ${daysSince} days` });
+          break; // one flag per file even if both sides went quiet
+        }
+      }
     }
   }
 
@@ -225,7 +246,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
         take: 3,
         select: { dueDate: true },
       },
-      contacts: { select: { portalToken: true } },
+      contacts: { select: { id: true, portalToken: true } },
     },
   });
 
@@ -260,11 +281,32 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
     const inboundCount = await prisma.outboundMessage.count({
       where: { transactionId: tx.id, type: "inbound" },
     });
+
+    // Per-contact portal-visit history (audit #6): distinct visit-days + the
+    // most recent, so detectFlags can tell "was engaged then went quiet" from
+    // "never engaged".
+    const contactIds = tx.contacts.map((c) => c.id);
+    const visitAgg = contactIds.length
+      ? await prisma.portalVisit.groupBy({
+          by: ["contactId"],
+          where: { contactId: { in: contactIds } },
+          _count: { day: true },
+          _max: { day: true },
+        })
+      : [];
+    const visitByContact = new Map(
+      visitAgg.map((v) => [v.contactId, { count: v._count.day, lastDay: v._max.day }]),
+    );
+
     const enriched: TxData = {
       ...tx,
       activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
       _count: { milestoneCompletions: completedCount },
       milestoneCompletions: lastCompleted ? [lastCompleted] : [],
+      contacts: tx.contacts.map((c) => {
+        const v = visitByContact.get(c.id);
+        return { portalToken: c.portalToken, visitDayCount: v?.count ?? 0, lastVisitDay: v?.lastDay ?? null };
+      }),
       communications: [
         ...tx.communications,
         ...(inboundCount > 0 ? [{ createdAt: new Date(), type: "inbound" }] : []),

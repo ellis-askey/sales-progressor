@@ -31,6 +31,7 @@ const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
   long_silence:              "watch",
   milestone_stalled:         "watch",
   on_hold_extended:          "watch",
+  portal_gone_quiet:         "watch",
   no_portal_activity:        "attention",
   overdue_milestone:         "attention",
 };

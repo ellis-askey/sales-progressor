@@ -5,6 +5,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
 import { DeadRoundNotice } from "@/components/portal/DeadRoundNotice";
 import { prisma } from "@/lib/prisma";
+import { toUKDateStr } from "@/lib/utils";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
@@ -89,6 +90,15 @@ export default async function PortalLayout({
       await prisma.contact.update({
         where: { id: contact.id },
         data:  { lastVisitedPortalAt: now },
+      }).catch(() => {});
+      // One row per contact per UK day (audit #6). Idempotent via the
+      // unique (contactId, day) index — the risk engine reads this history
+      // to spot a client who was engaged and then went quiet.
+      const day = toUKDateStr(now);
+      await prisma.portalVisit.upsert({
+        where:  { contactId_day: { contactId: contact.id, day } },
+        create: { contactId: contact.id, day },
+        update: {},
       }).catch(() => {});
       void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_VISITED, {
         contactId:     contact.id,

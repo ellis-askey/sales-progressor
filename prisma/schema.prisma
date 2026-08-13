@@ -637,8 +637,24 @@ model Contact {
   outboundEmails    OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientContact")
   clientChaseStates ClientChaseState[]
   quoteRequests     QuoteRequest[]
+  portalVisits      PortalVisit[]
 
   @@index([buyerRoundId])
+}
+
+// One row per contact per day they open their portal (audit #6). Lets the
+// risk engine tell a client who was checking in regularly and then went quiet
+// (a strong early sign of a wobble) apart from one who never engaged. Deduped
+// to one row per contact per UK day via the unique index, so volume stays low.
+model PortalVisit {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  day       String   // YYYY-MM-DD, UK local day of the visit
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, day])
+  @@index([contactId])
 }
 
 model PortalPushSubscription {
