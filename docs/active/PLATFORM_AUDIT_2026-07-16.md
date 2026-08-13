@@ -21,48 +21,54 @@
 | # | Item | Status |
 |---|------|--------|
 | 1 | Directors and negotiators can't see their notifications | done |
-| 2 | Turn on the "how long things really take" numbers | pending |
+| 2 | Turn on the "how long things really take" numbers | deferred (needs data) |
 | 3 | Give the "To-Do" tab a real inbox | won't do (covered) |
-| 4 | Stop leaking developer pages into production | in progress |
-| 5 | Chains are being hidden inside the "create a sale" form | in progress |
-| 6 | Use portal engagement as a warning signal | in progress |
+| 4 | Stop leaking developer pages into production | done |
+| 5 | Chains are being hidden inside the "create a sale" form | done |
+| 6 | Use portal engagement as a warning signal | done |
 | 7 | Let clients ask a question from the portal | won't do |
-| 8 | Add a preview line to every email | in progress |
-| 9 | Voice pass on emails that have drifted | in progress |
-| 10 | Send an email the moment both sides are ready to exchange | in progress |
-| 11 | Let a client pause chases from an email | in progress |
-| 12 | Rewrite chase-email subject lines | in progress |
-| 13 | Show which milestone is killing sales, at a glance | pending |
+| 8 | Add a preview line to every email | done |
+| 9 | Voice pass on emails that have drifted | done |
+| 10 | Send an email the moment both sides are ready to exchange | done |
+| 11 | Let a client pause chases from an email | done |
+| 12 | Rewrite chase-email subject lines | done |
+| 13 | Show which milestone is killing sales, at a glance | held (Command Centre) |
 | 14 | Promote two better demo pages to being real features | done |
 | 15 | Give clients basic self-serve controls | done |
 | 16 | Tell the client who's on their team | done |
-| 17 | Start measuring email performance properly | in progress |
-| 18 | Suggest smarter chase timings based on real behaviour | pending |
-| 19 | Score prediction accuracy per agent | pending |
-| 20 | Build three new founder-brief signals | pending |
-| 21 | Two small admin tools that retire a lot of DB work | pending |
-| 22 | Kill the leftover duplicate routes | in progress |
+| 17 | Start measuring email performance properly | done |
+| 18 | Suggest smarter chase timings based on real behaviour | held (Command Centre) |
+| 19 | Score prediction accuracy per agent | deferred (needs data) |
+| 20 | Build three new founder-brief signals | held (Command Centre) |
+| 21 | Two small admin tools that retire a lot of DB work | held (Command Centre) |
+| 22 | Kill the leftover duplicate routes | done |
 | 23 | Finish or delete the "read this email for me" widget | done (removed) |
 | 24 | Send a proper "welcome" email to people who signed up via a chain claim | done |
-| 25 | Two Command Centre nav items that show "Coming soon" are teaching you to ignore them | pending |
+| 25 | Two Command Centre nav items that show "Coming soon" are teaching you to ignore them | held (Command Centre) |
 
 ---
 
-## Reconciliation against the codebase — 2026-08-12
+## Where we landed — 2026-08-13
 
-All 25 items were checked against the current code (a parallel read of the
-actual files, not from memory). Result:
+We worked through the audit in priority order. Final tally:
 
-- **Done (2):** #1 (notifications bell now works for every role) and #24
-  (chain-claim welcome email is wired). Ticked off above, with evidence in
-  their Notes blocks.
-- **Partly done (3):** #4, #14, #15 — set to `in progress`. Each item's Notes
-  block records exactly what's live and what's still missing.
-- **Not started (20):** everything else stays `pending`. Confirmed still
-  matching the "Today" description in each.
+- **Done + shipped to prod (16):** #1, #4, #5, #6, #8, #9, #10, #11, #12, #14,
+  #15, #16, #17, #22, #23, #24. Evidence in each item's Notes block.
+- **Won't do (2):** #3 (intent covered elsewhere) and #7 (declined — another
+  route to message is noise; WhatsApp groups already cover it).
+- **Deferred, needs data (2):** #2 and #19. Both wait on trustworthy
+  prediction / median data before they're worth building (better to show no
+  predictions than false ones). Not Command Centre — agent/client-facing.
+- **Held for the Command Centre / admin redo (5):** #13, #18, #20, #21, #25.
+  All are founder-brief / admin-page / Command Centre surfaces, parked until
+  the admin + control-panel rebuild.
 
-**Bottom line: 23 of the 25 are still open**, and 3 of those 23 are already
-part-built. Only 2 are fully closed.
+**Bottom line: everything customer- and agent-facing is done. The only open
+items are #2 and #19 (blocked on data) and the five Command Centre items
+folded into the coming admin redo.**
+
+The 2026-08-12 pre-work reconciliation (which found only #1 and #24 fully
+closed) is superseded by this line.
 
 ---
 
@@ -116,7 +122,7 @@ Meanwhile the app has now watched more than a hundred real sales go through. We 
 
 ### 4. Stop leaking developer pages into production
 
-**Status:** in progress
+**Status:** done
 
 **Today.** There are about twenty URLs on the live app that are supposed to be internal preview/audit/mockup pages. They're reachable by anyone who guesses or gets a link. Some of them literally have comments in them like "clicking these buttons will error harmlessly" — but a customer landing there sees a broken page. Names like `/agent/polish/slowness-demo`, `/agent/audit/before-after`, `/bg-test`, `/login-preview`, `/helpdrawertest`.
 
@@ -130,7 +136,7 @@ Meanwhile the app has now watched more than a hundred real sales go through. We 
 
 ### 5. Chains are being hidden inside the "create a sale" form
 
-**Status:** in progress
+**Status:** done
 
 **Today.** When an agent creates a new sale, the form has five sections. The chain section is the last one, collapsed, labelled "(optional)". If the agent doesn't open it and add chain-mates, no chain is created. Result on prod: only 27% of active sales ever get a chain (12 out of 44). The rest are lonely files with no visibility into what the other sales are doing.
 
@@ -148,7 +154,7 @@ Compounding this: even when a chain IS created, the invite flow means only one a
 
 ### 6. Use portal engagement as a warning signal
 
-**Status:** in progress
+**Status:** done
 
 **Today.** The app knows when each buyer/seller last logged into their portal. It doesn't do anything with that. Files where the buyer used to log in every day and then went silent for three weeks look identical, on the agent's dashboard, to files where they log in every morning.
 
@@ -178,7 +184,7 @@ There's already a fully-built "Ask" component sitting in the codebase, orphaned.
 
 ### 8. Add a preview line to every email
 
-**Status:** in progress
+**Status:** done
 
 **Today.** When an email from us lands in Gmail, the preview line under the subject shows either "SALES PROGRESSOR" (the brand banner) or the "Hi Sarah" greeting. Nothing about what the email is actually about.
 
@@ -192,7 +198,7 @@ There's already a fully-built "Ask" component sitting in the codebase, orphaned.
 
 ### 9. Voice pass on emails that have drifted
 
-**Status:** in progress (built, awaiting push)
+**Status:** done
 
 **Today.** Three specific emails are visibly off-brand. A retention email tells the reader "The system starts working once the first few steps are ticked off" — we banned "the system" language months ago. Two "welcome to the team" emails sign off with "The Sales Progressor team", with an em-dash we also banned. A fallback "there's been a progress update" email doesn't say what actually updated.
 
@@ -210,7 +216,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 ### 10. Send an email the moment both sides are ready to exchange
 
-**Status:** in progress
+**Status:** done
 
 **Today.** When the seller's side and the buyer's side both hit "ready to exchange", the app sends a push notification saying "Ready to exchange, everything's in place." No dedicated email fires. The information rides on whichever side's confirmation email happens to send last.
 
@@ -224,7 +230,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 ### 11. Let a client pause chases from an email
 
-**Status:** in progress (built, awaiting migration + push)
+**Status:** done
 
 **Today.** A buyer is on holiday and doesn't want three more chase emails while they're away. Their only option, from the chase email itself, is a giant "unsubscribe" link that stops every future email, including their transactional chain updates.
 
@@ -240,7 +246,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 12. Rewrite chase-email subject lines
 
-**Status:** in progress
+**Status:** done
 
 **Today.** The chase emails go out with the subject "42 Elm Road: one update needed" or "3 updates needed". Reads like a bill.
 
@@ -254,7 +260,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 13. Show which milestone is killing sales, at a glance
 
-**Status:** pending
+**Status:** held (Command Centre) — folded into the planned admin + control-panel redo
 
 **Today.** On the founder's Command Centre overview, one number says "4 transactions stuck". No breakdown of what they're stuck ON.
 
@@ -318,7 +324,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 17. Start measuring email performance properly
 
-**Status:** in progress
+**Status:** done
 
 **Today.** No email we send is tagged with what type it is when we hand it to SendGrid. So there's no way to look at SendGrid analytics and ask "did our chase emails open at a higher rate this month?" We're flying blind on every copy change.
 
@@ -334,7 +340,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 18. Suggest smarter chase timings based on real behaviour
 
-**Status:** pending
+**Status:** held (Command Centre) — proposes rule changes on the admin page; part of the admin redo
 
 **Today.** Every "we'll chase after 3 days, and then again every 5 days" rule was set by hand months ago. We now know how quickly clients actually respond, per type of chase, from real data. Nothing feeds that back.
 
@@ -348,7 +354,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 19. Score prediction accuracy per agent
 
-**Status:** pending
+**Status:** deferred (needs data) — agent-hub + founder-brief; blocked on trustworthy prediction/median data, same as #2
 
 **Today.** When an agent creates a file, the app predicts when it'll exchange. Some agents override that with their own guess. Nothing later compares "what did they predict?" against "what actually happened?"
 
@@ -362,7 +368,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 20. Build three new founder-brief signals
 
-**Status:** pending
+**Status:** held (Command Centre) — founder daily brief; part of the admin redo
 
 **Today.** The daily "here's what's happening across the platform" brief that Ellis reads is built on twelve signal detectors. None of them look at actual sale progress, chase behaviour, or milestone completions. They only look at product-side signals like session friction and PostHog events (which aren't even wired yet).
 
@@ -376,7 +382,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 21. Two small admin tools that retire a lot of DB work
 
-**Status:** pending
+**Status:** held (Command Centre) — admin tools inside the Command Centre; part of the admin redo
 
 **Today.** When a client unsubscribes and later asks to be re-added, Ellis logs into the database and runs a manual SQL update. When an agency needs to be blocked from creating new files (unpaid invoice) or unblocked (paid), same thing. Both are documented as manual database work.
 
@@ -390,7 +396,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 22. Kill the leftover duplicate routes
 
-**Status:** in progress (built, awaiting push)
+**Status:** done
 
 **Today.** The site has multiple URLs pointing at the same thing. `/agent/transactions/new` (redirect stub) → `/agent/transactions/new-v2` → the real page. `/dashboard` redirects to `/agent/hub`. Some don't redirect at all and just sit there. Nobody's sure which one is current.
 
@@ -432,7 +438,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 25. Two Command Centre nav items that show "Coming soon" are teaching you to ignore them
 
-**Status:** pending
+**Status:** held (Command Centre) — part of the admin redo
 
 **Today.** Two items in the Command Centre sidebar, Friction and Automations, open pages that render only "Coming soon" boxes. One is waiting on a PostHog contract. One is waiting on a big rule-engine build.
 
