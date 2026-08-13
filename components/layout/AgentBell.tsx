@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Bell, ArrowRight, Scales } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { Pill } from "@/components/ui/Pill";
 
 // Notification bell (rebuilt 2026-08-09). Polls the agent-scoped updates feed
 // and shows an unread badge; clicking opens a dropdown of the latest updates
@@ -22,6 +23,9 @@ type BellItem = {
   avatarImage: string | null;
   avatarName: string;
   at: string;
+  // Informational client update (date set / note left / chain agent added)
+  // rather than a confirmation — shows a quiet "Update" pill.
+  isUpdate?: boolean;
 };
 
 function BellAvatar({ it }: { it: BellItem }) {
@@ -199,9 +203,12 @@ export function AgentBell({ userKey }: { userKey: string }) {
                     <p style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
                       {it.sentence}
                     </p>
-                    <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>
-                      {relativeTime(it.at)}
-                    </p>
+                    <div style={{ margin: "3px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
+                        {relativeTime(it.at)}
+                      </span>
+                      {it.isUpdate && <Pill glass tone="default" size="sm">Update</Pill>}
+                    </div>
                   </div>
                 </Link>
               ))

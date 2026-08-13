@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
-import { confirmationSentence } from "@/lib/updates-copy";
+import { confirmationSentence, bellNotificationSentence } from "@/lib/updates-copy";
 import { prisma } from "@/lib/prisma";
 
-// Non-milestone notification types the bell surfaces (audit #16 phase 3 — the
-// first of "more than just confirmations"). Strict allowlist so the legacy
+// Non-milestone notification types the bell surfaces ("more than just
+// confirmations"): a client added their chain agent (#16), set an expected
+// date, or left a note on a chase reply. Strict allowlist so the legacy
 // Notification backlog doesn't flood the bell; scoped to the caller's userId.
-const BELL_NOTIFICATION_TYPES = ["portal_chain_agent_updated"];
+const BELL_NOTIFICATION_TYPES = [
+  "portal_chain_agent_updated",
+  "portal_expected_date_set",
+  "portal_chase_note",
+];
 
 // Bell feed = the same "completed step" activity shown on the Updates page
 // (/agent/comms), scoped through the canonical visibility resolver so every
@@ -69,6 +74,7 @@ export async function GET(req: NextRequest) {
           : null,
         avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "") : "",
         at: (m.completedAt ?? new Date()).toISOString(),
+        isUpdate: false,
       },
     };
   });
@@ -82,18 +88,21 @@ export async function GET(req: NextRequest) {
     include: { transaction: { select: { propertyAddress: true } } },
   });
   const notifRows = notifications.map((n) => {
-    const payload = (n.payload ?? {}) as { body?: string; title?: string };
+    const payload = (n.payload ?? {}) as Record<string, unknown>;
     return {
       at: n.createdAt,
       item: {
         id: n.id,
         txId: n.transactionId ?? "",
         address: n.transaction?.propertyAddress ?? "",
-        sentence: payload.body ?? payload.title ?? "Update on your file",
+        sentence: bellNotificationSentence(n.type, payload),
         who: "client" as const,
         avatarImage: null as string | null,
         avatarName: "",
         at: n.createdAt.toISOString(),
+        // These are informational "for your awareness" items — the bell shows
+        // a quiet "Update" pill on them to tell them from confirmations.
+        isUpdate: true,
       },
     };
   });

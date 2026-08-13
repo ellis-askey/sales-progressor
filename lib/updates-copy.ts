@@ -167,3 +167,32 @@ export function portalConfirmationSentence(opts: {
   if (!core) return `${who} confirmed: ${milestoneName}`;
   return `${who} confirmed your ${core}`;
 }
+
+// ── Bell phrasing for non-confirmation client updates (audit #6 follow-on) ──
+// Clients who reply to a chase can set an expected date or leave a note. Those
+// already create Notifications (portal_expected_date_set / portal_chase_note)
+// — this renders them as warm, for-your-awareness sentences in the bell,
+// alongside confirmations. Names the person who actually updated us; uses
+// singular "they" (we don't store gender); the client's own words go in quotes.
+function lowerFirst(s: string): string {
+  return s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+}
+
+export function bellNotificationSentence(type: string, payload: Record<string, unknown>): string {
+  const name = String(payload.contactName ?? "A client");
+  const label = lowerFirst(String(payload.milestoneLabel ?? "their sale"));
+  if (type === "portal_expected_date_set") {
+    const raw = payload.expectedDate ? new Date(String(payload.expectedDate)) : null;
+    const date = raw && !isNaN(raw.getTime())
+      ? raw.toLocaleDateString("en-GB", { day: "numeric", month: "long" })
+      : "soon";
+    return `We followed up with ${name} about ${label}. They expect it by ${date}.`;
+  }
+  if (type === "portal_chase_note") {
+    const note = String(payload.notePreview ?? "").trim();
+    return `We followed up with ${name} about ${label}, and they replied: "${note}"`;
+  }
+  // portal_chain_agent_updated + any other allowlisted type carry a
+  // pre-rendered body/title in their payload.
+  return String(payload.body ?? payload.title ?? "Update on your file");
+}
