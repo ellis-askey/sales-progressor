@@ -22,8 +22,10 @@
 //   "your solicitor"            (all NUDGE items are who:"solicitor")
 //   "your lender"               (all NUDGE items are who:"lender" — PM6/PM11)
 //   "your solicitor or lender"  (mixed solicitor + lender NUDGE items)
-// House style: calm, address-first subject, no em-dashes, no exclamation
-// marks, no filler. The CTA is a single link (no per-item deep links —
+// House style: calm, warm subject rotated across a few human variants
+// (audit #12 — the old "N updates needed" read like a bill and dragged
+// opens down), no em-dashes, no exclamation marks, no filler. The count
+// lives in the body, not the subject. The CTA is a single link (no per-item deep links —
 // decided in the copy batch to keep the email a dumb text+link and let
 // the page be authoritative on what's due).
 // ────────────────────────────────────────────────────────────────────────────
@@ -57,6 +59,9 @@ export type AssembleDigestInput = {
 
 export type AssembledDigest = {
   subject: string;
+  // Which warm subject variant was used (audit #12). Rides to SendGrid as the
+  // template version (audit #17) so opens can be compared per variant.
+  subjectVariant: string;
   text: string;
   html: string;
   unsubscribeUrl: string;
@@ -124,6 +129,16 @@ function nudgeBlockHeading(nudgeParties: NudgeParty[]): string {
   return "With your solicitor (no action needed unless you want to chase):";
 }
 
+// Stable 0..n-1 bucket from a seed string. Deterministic (no Math.random) so
+// a given recipient always lands in the same subject cohort — their chase
+// emails read consistently, and the A/B split across the population is
+// reproducible and measurable (audit #12 + #17).
+function subjectVariantIndex(seed: string, n: number): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(h, 31) + seed.charCodeAt(i)) | 0;
+  return Math.abs(h) % n;
+}
+
 export function assembleDigestPayload(input: AssembleDigestInput): AssembledDigest {
   const { transaction, contact, milestones, agencyName, recipientSide } = input;
   const base = portalBase();
@@ -167,10 +182,20 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const overallTone: "diy" | "nudge" | "mixed" =
     diy.length > 0 && nudge.length > 0 ? "mixed" : diy.length > 0 ? "diy" : "nudge";
 
-  // ─── Subject (locked) ──────────────────────────────────────────────────
-  const subject = count === 1
-    ? `${address}: one update needed`
-    : `${address}: ${count} updates needed`;
+  // ─── Subject (warmer rotating variants — audit #12) ─────────────────────
+  // Three human variants replace the old "N updates needed" (which read like
+  // a bill). Assigned by a stable hash of the contact id, so each recipient
+  // consistently sees one style while the population splits three ways. The
+  // chosen variant id rides to SendGrid as the template version (audit #17),
+  // so opens per variant become measurable. The count sits in the body.
+  const subjectVariants: { id: string; build: () => string }[] = [
+    { id: "quick",    build: () => `Quick update on ${address}` },
+    { id: "personal", build: () => (first ? `${first}, an update on ${address}` : `An update on ${address}`) },
+    { id: "soft",     build: () => `On your ${transactionWord} at ${address}` },
+  ];
+  const chosenVariant = subjectVariants[subjectVariantIndex(contact.id, subjectVariants.length)];
+  const subject = chosenVariant.build();
+  const subjectVariant = chosenVariant.id;
 
   // ─── Text body ─────────────────────────────────────────────────────────
   // Singular/plural as fixed strings (no template fragments — robust).
@@ -314,7 +339,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
 </body>
 </html>`;
 
-  return { subject, text, html, unsubscribeUrl, respondUrl };
+  return { subject, subjectVariant, text, html, unsubscribeUrl, respondUrl };
 }
 
 // ─── enqueueClientChaseDigest ───────────────────────────────────────────────
@@ -402,6 +427,9 @@ export async function enqueueClientChaseDigest(input: {
       subject: payload.subject,
       text: payload.text,
       html: payload.html,
+      // Rides to SendGrid via the drain as the template version (audit #17),
+      // so opens can be compared across the warm subject variants (audit #12).
+      templateVersion: payload.subjectVariant,
     },
   });
 
