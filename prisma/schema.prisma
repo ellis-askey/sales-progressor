@@ -303,6 +303,13 @@ model PropertyTransaction {
   photoStoragePath String?
   photoUploadedAt  DateTime?
 
+  // Founder dismissed the "no photo" upkeep reminder for this file (Command
+  // Centre → Files). Set = drop off the "photos to add" list for good, even
+  // though the file still has no photo (e.g. an old file that'll never get one).
+  // Independent of photoStoragePath; uploading a photo naturally removes the
+  // file from the list too.
+  photoReminderDismissedAt DateTime?
+
   // Per-file pause toggle for automated client-facing chase emails. When
   // true, the client-chase cron skips digest enqueue for this file. The
   // chase clock keeps running underneath and escalation still fires —

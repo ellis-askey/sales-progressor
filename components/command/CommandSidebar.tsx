@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Workflow, Shield, AlertTriangle, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox,
+  RotateCcw, Handshake, Inbox, FolderOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -29,6 +29,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/command/overview", label: "Overview", Icon: LayoutDashboard },
       { href: "/command/insights", label: "Insights", Icon: Lightbulb },
+      { href: "/command/files", label: "Files", Icon: FolderOpen },
     ],
   },
   {
