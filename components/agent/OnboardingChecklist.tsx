@@ -36,7 +36,7 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-  { label: "Add your first sale",            href: "/agent/transactions/new-v2", progressKey: "hasSale" },
+  { label: "Add your first sale",            href: "/agent/transactions/new", progressKey: "hasSale" },
   { label: "Add client contact details",     href: "/agent/transactions", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/transactions", progressKey: "hasContactDetails" },
   { label: "Share the portal with a client", href: "/agent/comms",            progressKey: "hasContactEmail" },
   { label: "Verify your email address",      href: "/agent/account/profile", progressKey: "hasVerifiedEmail" },

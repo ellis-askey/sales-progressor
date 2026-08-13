@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { label: "My Files",     href: "/agent/transactions",     sub: "All your property files"       },
   { label: "Updates",      href: "/agent/comms",            sub: "Portal activity"               },
   { label: "Analytics",    href: "/agent/analytics",        sub: "Pipeline and fee data"         },
-  { label: "New sale",     href: "/agent/transactions/new-v2", sub: "Register a new property"       },
+  { label: "New sale",     href: "/agent/transactions/new", sub: "Register a new property"       },
 ];
 
 // The open modal is portaled to document.body with data-theme={AgentTheme}

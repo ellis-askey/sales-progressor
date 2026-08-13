@@ -111,7 +111,7 @@ export default async function AgentAnalyticsPage({
             </p>
             {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
               <Link
-                href="/agent/transactions/new-v2"
+                href="/agent/transactions/new"
                 className="agent-btn agent-btn-primary"
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
               >

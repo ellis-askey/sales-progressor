@@ -18,7 +18,7 @@
 // pre-resolved on the server) the step is skipped entirely.
 //
 // Source-aware behaviour:
-//   source="new-sale" (rendered on /agent/transactions/new-v2 as the page
+//   source="new-sale" (rendered on /agent/transactions/new as the page
 //   guard). Modal is unclosable; success step pauses ~1.8s then
 //   router.refresh() so the page re-runs its server check and renders
 //   NewSaleFlow (since stripeCustomerId is now set).

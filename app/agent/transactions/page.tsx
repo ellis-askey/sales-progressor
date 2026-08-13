@@ -155,7 +155,7 @@ export default async function AllTransactionsPage({
         {/* "New sale" — available to agents and admin; hidden for sales_progressor */}
         {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
           <Link
-            href="/agent/transactions/new-v2"
+            href="/agent/transactions/new"
             className="agent-btn agent-btn-primary agent-btn-sm"
             style={{ textDecoration: "none" }}
           >
@@ -271,7 +271,7 @@ export default async function AllTransactionsPage({
                   and progress to exchange.
                 </p>
                 <Link
-                  href="/agent/transactions/new-v2"
+                  href="/agent/transactions/new"
                   className="agent-btn agent-btn-primary agent-btn-md"
                   style={{ textDecoration: "none" }}
                 >

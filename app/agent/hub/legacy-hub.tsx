@@ -175,7 +175,7 @@ export default async function LegacyHub() {
 
       <PageHeader title={greeting} subtitle={subtitle}>
         {canCreateSale && (
-          <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+          <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
             <Plus size={14} weight="bold" />
             New sale
           </Link>
@@ -249,7 +249,7 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
         </div>
         {canCreateSale && (
           <Link
-            href="/agent/transactions/new-v2"
+            href="/agent/transactions/new"
             className="agent-btn agent-btn-primary agent-btn-md"
             style={{ textDecoration: "none", flexShrink: 0 }}
           >
@@ -1028,7 +1028,7 @@ async function ProTipSlot({ ctx }: { ctx: Ctx }) {
             A great moment to add your next sale or nudge a chain forward.
           </>
         ),
-        href: canCreateSale ? "/agent/transactions/new-v2" : null,
+        href: canCreateSale ? "/agent/transactions/new" : null,
       };
     }
   }

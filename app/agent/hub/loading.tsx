@@ -22,7 +22,7 @@ export default function HubLoading() {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PageHeader title={loadingGreeting()} subtitle="Here's what matters today.">
         <Link
-          href="/agent/transactions/new-v2"
+          href="/agent/transactions/new"
           className="agent-btn agent-btn-primary agent-btn-sm"
           style={{ textDecoration: "none" }}
         >

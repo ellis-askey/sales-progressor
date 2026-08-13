@@ -61,7 +61,7 @@ Each role uses a distinct surface. Do not mix them:
 |---|---|---|---|
 | **Marketing site** | `thesalesprogressor.co.uk` | Public | Dark navy + coral hero, glass cards |
 | **Agent app** | `portal.thesalesprogressor.co.uk/agent/*` | `director`, `negotiator` | Warm cream + coral + glass |
-| **Internal dashboard** | `portal.thesalesprogressor.co.uk/dashboard` | `admin`, `sales_progressor`, `superadmin` | Dark + glass + property photography backdrop (`AppShell`) |
+| **Internal dashboard** | `/dashboard` redirects to `/agent/hub` (internal staff land on the agent hub). The `AppShell` chrome is used on `/admin/*` and the internal `/transactions/[id]` file view. | `admin`, `sales_progressor`, `superadmin` | Dark + glass + property photography backdrop (`AppShell`) |
 | **Command Centre** | `portal.thesalesprogressor.co.uk/command/*` | `superadmin` only | Utilitarian dark, hairline borders, no glass, no photography (layout inline in `app/command/(protected)/layout.tsx`) |
 | **Buyer/seller portal** | `portal.thesalesprogressor.co.uk/portal/[token]` | Token-authenticated visitors | Light, clean, mobile-first |
 
@@ -94,7 +94,7 @@ The Command Centre has no separate shell component. Its layout is assembled inli
 ```
 /app                     Next.js App Router routes and API handlers
   /agent/*               Agent app (director, negotiator)
-  /dashboard             Internal dashboard (admin, sales_progressor)
+  /dashboard             Redirects to /agent/hub (AppShell chrome now lives on /admin/* + /transactions/[id])
   /portal/[token]        Buyer/seller portal
   /command               Command Centre (superadmin only)
     /(protected)         Auth-gated command centre routes

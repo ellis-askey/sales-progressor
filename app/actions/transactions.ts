@@ -1387,7 +1387,7 @@ export async function saveDraftAction(data: {
     await saveMosDocument(data.draftId);
     await saveChain(data.draftId, existing.chainLinkId);
 
-    revalidatePath("/agent/transactions/new-v2");
+    revalidatePath("/agent/transactions/new");
     return { id: data.draftId };
   }
 
@@ -1449,7 +1449,7 @@ export async function saveDraftAction(data: {
   await saveChain(tx.id, null);
 
   revalidatePath("/agent/quick-add");
-  revalidatePath("/agent/transactions/new-v2");
+  revalidatePath("/agent/transactions/new");
   return { id: tx.id };
 }
 
@@ -1556,7 +1556,7 @@ export async function discardDraftAction(draftId: string) {
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
   });
   revalidatePath("/agent/quick-add");
-  revalidatePath("/agent/transactions/new-v2");
+  revalidatePath("/agent/transactions/new");
 }
 
 // ─── Edit Sale Details reconciliation ────────────────────────────────────────

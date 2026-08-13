@@ -84,7 +84,7 @@ export default async function KineticHub() {
           </Suspense>
         </div>
         {canCreateSale && (
-          <Link href="/agent/transactions/new-v2" className={styles.primaryCta}>
+          <Link href="/agent/transactions/new" className={styles.primaryCta}>
             <Plus size={14} weight="bold" />
             New sale
           </Link>

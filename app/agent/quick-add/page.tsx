@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function QuickAddPage() {
-  redirect("/agent/transactions/new-v2");
+  redirect("/agent/transactions/new");
 }

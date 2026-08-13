@@ -402,10 +402,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         <nav style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
           {/* New sale CTA */}
           {(() => {
-            const isNewSale = pathname.startsWith("/agent/transactions/new-v2");
+            const isNewSale = pathname.startsWith("/agent/transactions/new");
             return (
               <Link
-                href="/agent/transactions/new-v2"
+                href="/agent/transactions/new"
                 onClick={() => setMobileOpen(false)}
                 className={isNewSale ? "agent-nav-item agent-nav-item-active" : undefined}
                 style={isNewSale ? { marginBottom: 6, fontWeight: 600 } : {

@@ -41,7 +41,7 @@
 | 19 | Score prediction accuracy per agent | pending |
 | 20 | Build three new founder-brief signals | pending |
 | 21 | Two small admin tools that retire a lot of DB work | pending |
-| 22 | Kill the leftover duplicate routes | pending |
+| 22 | Kill the leftover duplicate routes | in progress |
 | 23 | Finish or delete the "read this email for me" widget | pending |
 | 24 | Send a proper "welcome" email to people who signed up via a chain claim | done |
 | 25 | Two Command Centre nav items that show "Coming soon" are teaching you to ignore them | pending |
@@ -382,7 +382,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 22. Kill the leftover duplicate routes
 
-**Status:** pending
+**Status:** in progress (built, awaiting push)
 
 **Today.** The site has multiple URLs pointing at the same thing. `/agent/transactions/new` (redirect stub) → `/agent/transactions/new-v2` → the real page. `/dashboard` redirects to `/agent/hub`. Some don't redirect at all and just sit there. Nobody's sure which one is current.
 
@@ -390,7 +390,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Rename `new-v2` back to `new` (it's the real one now). Delete every stub. One URL per surface, and the URL you'd guess is the one that works.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13, awaiting push. DONE: renamed the new-sale page `new-v2` → `new` (moved `page.tsx` + `loading.tsx` onto `/agent/transactions/new`, deleted the `new-v2` folder), updated all ~23 references by hand (hub ×3, transactions list, analytics, global search, onboarding, welcome modal/email, AgentShell, revalidatePaths, and the two stubs now repoint to `/new`). CORRECTIONS to the audit's claims, verified in code: (a) `/dashboard` is NOT a dead duplicate — it's a load-bearing "home" redirect used by 10+ server actions/admin pages as their unauthorised-fallback, and it forwards to `/agent/hub`; KEPT. CLAUDE.md's claim that the internal dashboard "lives at /dashboard" was stale (the `AppShell` chrome actually lives on `/admin/*` + the internal `/transactions/[id]` view) — CLAUDE.md fixed. (b) The handful of legacy top-level redirects (`/comms`, `/tasks`, `/todos`, `/reports`, `/solicitors`, `/completing`, `/analytics`, `/not-our-files`) each still have internal references, so per Ellis's "leave if not pointless" they were LEFT. tsc clean, 188 tests pass.
 
 ---
 

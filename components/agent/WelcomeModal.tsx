@@ -37,7 +37,7 @@ export function WelcomeModal({ agencyModeProfile = "self_progressed" }: { agency
 
   function handleAddSale() {
     setVisible(false);
-    router.push("/agent/transactions/new-v2");
+    router.push("/agent/transactions/new");
   }
 
   if (!mounted || !visible) return null;
@@ -79,7 +79,7 @@ export function WelcomeModal({ agencyModeProfile = "self_progressed" }: { agency
               onClose={close}
               onFinish={() => {
                 setVisible(false);
-                router.push("/agent/transactions/new-v2");
+                router.push("/agent/transactions/new");
               }}
             />
           </div>

@@ -26,7 +26,7 @@ export function HubEmptyWelcomeCard() {
         </p>
       </div>
       <Link
-        href="/agent/transactions/new-v2"
+        href="/agent/transactions/new"
         className="agent-btn agent-btn-primary agent-btn-md"
         style={{ textDecoration: "none", flexShrink: 0 }}
       >

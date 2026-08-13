@@ -44,7 +44,7 @@ export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
     }
 
     const firstName = user.name?.trim() ? extractFirstName(user.name) : "there";
-    const ctaUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/new-v2`;
+    const ctaUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/new`;
 
     const built = buildActivationDay1({ firstName, ctaUrl });
 
