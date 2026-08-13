@@ -9,7 +9,7 @@ import type { CommandMode } from "@/lib/command/scope";
 import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
-  Workflow, Shield, AlertTriangle, PoundSterling, ChevronDown, Check,
+  Shield, PoundSterling, ChevronDown, Check,
   RotateCcw, Handshake, Inbox, FolderOpen, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -23,63 +23,51 @@ interface NavItem {
   soon?: boolean;
 }
 
+// Operator-oriented structure (redesign 2026-08-13). Grouped by what the
+// founder opens the Command Centre to DO, with plain-English labels. Dead /
+// not-ready surfaces (Content, Automations, Friction) are left out of the nav —
+// their routes still exist ("hide, not remove"). See
+// docs/audits/COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13.md.
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Overview",
+    label: "Today",
     items: [
-      { href: "/command/overview", label: "Overview", Icon: LayoutDashboard },
-      { href: "/command/insights", label: "Insights", Icon: Lightbulb },
+      { href: "/command/overview", label: "Today", Icon: LayoutDashboard },
+      { href: "/command/insights", label: "Briefing", Icon: Lightbulb },
+    ],
+  },
+  {
+    label: "Day to day",
+    items: [
       { href: "/command/agencies", label: "Agencies & agents", Icon: Users },
       { href: "/command/files", label: "Files", Icon: FolderOpen },
+      { href: "/command/outbound", label: "Messages", Icon: Send },
+    ],
+  },
+  {
+    label: "Money",
+    items: [
+      { href: "/command/revenue", label: "Revenue", Icon: PoundSterling },
+      { href: "/command/providers/quotes", label: "Quote inbox", Icon: Inbox },
+      { href: "/command/providers", label: "Surveyor firms", Icon: Handshake },
     ],
   },
   {
     label: "Growth",
     items: [
-      { href: "/command/growth", label: "Growth", Icon: TrendingUp },
-      { href: "/command/activation", label: "Activation", Icon: Zap },
-      { href: "/command/retention", label: "Retention", Icon: RefreshCw },
+      { href: "/command/activation", label: "Getting started", Icon: Zap },
+      { href: "/command/retention", label: "Repeat use", Icon: RefreshCw },
+      { href: "/command/growth", label: "Trends", Icon: TrendingUp },
+      { href: "/command/experiments", label: "Growth tests", Icon: FlaskConical },
     ],
   },
   {
-    label: "Operations",
+    label: "System",
     items: [
+      { href: "/command/health", label: "System status", Icon: HeartPulse },
       { href: "/command/activity", label: "Activity", Icon: Activity },
-      { href: "/command/outbound", label: "Outbound", Icon: Send },
-      { href: "/command/health", label: "Health", Icon: HeartPulse },
-    ],
-  },
-  {
-    label: "Experiments",
-    items: [
-      { href: "/command/experiments", label: "Experiments", Icon: FlaskConical },
-    ],
-  },
-  {
-    label: "Phase 5",
-    items: [
-      // Content hidden from the nav 2026-08-13 (audit COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13):
-      // the pipeline was never run, so its "smart" parts have no data and it reads
-      // as dead. Route + models left intact ("hide, not remove") pending a decision
-      // on full removal. Re-enable by uncommenting.
-      // { href: "/command/content", label: "Content", Icon: Pencil },
-      { href: "/command/automations", label: "Automations", Icon: Workflow, soon: true },
-    ],
-  },
-  {
-    label: "Directory",
-    items: [
-      { href: "/command/providers", label: "Providers", Icon: Handshake },
-      { href: "/command/providers/quotes", label: "Quote inbox", Icon: Inbox },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { href: "/command/audit", label: "Audit", Icon: Shield },
-      { href: "/command/friction", label: "Friction", Icon: AlertTriangle },
-      { href: "/command/revenue", label: "Revenue", Icon: PoundSterling },
-      { href: "/command/admin/demo", label: "Reset Demo", Icon: RotateCcw },
+      { href: "/command/audit", label: "Audit log", Icon: Shield },
+      { href: "/command/admin/demo", label: "Reset demo", Icon: RotateCcw },
     ],
   },
 ];

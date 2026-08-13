@@ -84,7 +84,7 @@ export default async function AuditPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-neutral-100">Audit</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Audit log</h1>
 
       {/* Filter bar */}
       <form method="GET" action="/command/audit" className="bg-neutral-900 border border-neutral-800 rounded-xl px-6 py-4">

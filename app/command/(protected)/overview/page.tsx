@@ -222,7 +222,7 @@ export default async function OverviewPage({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Overview</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Today</h1>
 
       {/* 7-day metric summary */}
       <section>

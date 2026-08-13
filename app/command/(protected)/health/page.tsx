@@ -54,7 +54,7 @@ export default async function HealthPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Health</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">System status</h1>
 
       {/* Job health summary */}
       <section>

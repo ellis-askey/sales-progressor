@@ -56,7 +56,7 @@ export default async function ExperimentsPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Experiments</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Growth tests</h1>
 
       {experiments.length === 0 && (
         <p className="text-sm text-neutral-600">No experiments yet. Create one via the API to track a hypothesis.</p>

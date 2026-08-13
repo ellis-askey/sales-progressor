@@ -251,7 +251,7 @@ export default async function ActivationPage({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Activation</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Getting started</h1>
 
       {/* 30-day summary vs prior 30 */}
       <section>

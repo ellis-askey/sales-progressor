@@ -148,7 +148,7 @@ export default async function InsightsPage({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Insights</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Briefing</h1>
 
       {/* AI Briefs */}
       <section>

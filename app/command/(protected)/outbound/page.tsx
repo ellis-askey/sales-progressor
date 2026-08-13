@@ -122,7 +122,7 @@ export default async function OutboundPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-neutral-100">Outbound</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Messages</h1>
 
       {/* Summary counts */}
       <div className="flex items-center gap-2 flex-wrap">

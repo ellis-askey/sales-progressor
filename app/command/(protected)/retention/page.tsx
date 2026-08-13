@@ -140,7 +140,7 @@ export default async function RetentionPage({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Retention</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Repeat use</h1>
 
       {/* 30-day engagement summary */}
       <section>

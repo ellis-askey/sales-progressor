@@ -35,7 +35,7 @@ export default async function CommandProvidersPage() {
     <div>
       <div className="flex items-start justify-between mb-1">
         <h1 className="text-[20px] font-semibold text-[#fafafa] tracking-tight">
-          Providers
+          Surveyor firms
         </h1>
         <div className="flex items-center gap-3">
           <CopyOnboardingButton />

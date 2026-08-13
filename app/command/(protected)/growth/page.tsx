@@ -162,7 +162,7 @@ export default async function GrowthPage({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Growth</h1>
+      <h1 className="text-2xl font-semibold text-neutral-100">Trends</h1>
 
       {/* Activation funnel */}
       <section>
