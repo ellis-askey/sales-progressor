@@ -618,6 +618,11 @@ model Contact {
   // sale even under concurrent callers. See lib/emails/send-outsource-intro.ts
   // for the orchestrator.
   outsourceIntroSentAt  DateTime?
+  // Client-uploaded profile photo (audit #16, phase 2). Full public Supabase
+  // Storage URL, same shape as User.image. Null = no photo; render sites fall
+  // back to the contact's initials, then the generic client silhouette. The
+  // client sets this themselves from the portal menu.
+  image                 String?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 

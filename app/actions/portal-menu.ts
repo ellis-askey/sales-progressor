@@ -32,6 +32,7 @@ async function requirePortalContact(token: string) {
       roleType: true,
       propertyTransactionId: true,
       unsubscribedAt: true,
+      image: true,
     },
   });
   if (!contact) throw new Error("Invalid token");
@@ -46,7 +47,10 @@ export type MyPortalDetails = {
     email: string | null;
     phone: string | null;
     emailOptedOut: boolean;
+    image: string | null;
+    roleType: string;
   };
+  propertyAddress: string;
   solicitor: {
     firmId: string;
     firmName: string;
@@ -70,6 +74,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
       vendorSolicitorContact:   { select: { id: true, name: true, email: true, phone: true } },
       purchaserSolicitorFirm:   { select: { id: true, name: true } },
       purchaserSolicitorContact:{ select: { id: true, name: true, email: true, phone: true } },
+      propertyAddress:          true,
     },
   });
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
@@ -83,7 +88,10 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
       email: contact.email,
       phone: contact.phone,
       emailOptedOut: contact.unsubscribedAt !== null,
+      image: contact.image,
+      roleType: contact.roleType,
     },
+    propertyAddress: tx?.propertyAddress ?? "",
     solicitor: firm
       ? {
           firmId: firm.id,

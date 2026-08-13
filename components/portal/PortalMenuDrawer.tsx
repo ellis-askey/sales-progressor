@@ -11,8 +11,8 @@
 //
 // 2026-08-09.
 
-import { useEffect, useState, useTransition } from "react";
-import { X, User, Buildings, Bell, CaretDown, Check, Wrench, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { X, User, Buildings, Bell, CaretDown, Check, Wrench, ArrowRight, Camera } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import {
   getMyPortalDetailsAction,
@@ -124,33 +124,38 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           <div aria-hidden style={{ width: 40, height: 4, borderRadius: 999, background: "rgba(15, 23, 42, 0.12)" }} />
         </div>
 
-        {/* Header */}
+        {/* Header — kicker + close, then the profile block (photo the client
+            can change, name, role · address). Audit #16 phase 2. */}
         <header style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "10px 20px 14px",
+          padding: "8px 20px 14px",
           borderBottom: `0.5px solid ${P.border}`,
         }}>
-          <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: P.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
               {contactRole === "vendor" ? "Your sale" : "Your purchase"}
             </p>
-            <h2 style={{ margin: "2px 0 0", fontSize: 17, fontWeight: 700, color: P.textPrimary }}>
-              Menu
-            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close menu"
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 36, borderRadius: 10,
+                border: `0.5px solid ${P.border}`,
+                background: "#fff", color: P.textSecondary, cursor: "pointer",
+              }}
+            >
+              <X size={16} weight="bold" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close menu"
-            style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 36, height: 36, borderRadius: 10,
-              border: `0.5px solid ${P.border}`,
-              background: "#fff", color: P.textSecondary, cursor: "pointer",
-            }}
-          >
-            <X size={16} weight="bold" />
-          </button>
+          <ProfileHeader
+            token={token}
+            name={details?.contact.name ?? contactName}
+            image={details?.contact.image ?? null}
+            roleLabel={contactRole === "vendor" ? "Seller" : "Buyer"}
+            address={details?.propertyAddress ?? ""}
+            onUploaded={reload}
+          />
         </header>
 
         {/* Body — fades in ~220ms after the drawer finishes sliding up. */}
@@ -180,6 +185,107 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
         </div>
       </aside>
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Profile header — photo the client can change (audit #16 phase 2)
+// ═══════════════════════════════════════════════════════════════════════
+
+function contactInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const two = (parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "");
+  return two.toUpperCase() || "?";
+}
+
+function ProfileHeader({
+  token, name, image, roleLabel, address, onUploaded,
+}: {
+  token: string;
+  name: string;
+  image: string | null;
+  roleLabel: string;
+  address: string;
+  onUploaded: () => void | Promise<void>;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/portal/${token}/upload-avatar`, { method: "POST", body: form });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Upload failed. Please try again.");
+      }
+      await onUploaded();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <div
+          style={{
+            width: 64, height: 64, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: 22, color: "#fff",
+            background: image ? "#eee" : P.heroGradient,
+            boxShadow: "0 2px 8px rgba(255,107,74,0.28)",
+            overflow: "hidden",
+            opacity: busy ? 0.6 : 1,
+            transition: "opacity 150ms ease",
+          }}
+        >
+          {image
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={image} alt={name} width={64} height={64} style={{ width: 64, height: 64, objectFit: "cover" }} />
+            : contactInitials(name)}
+        </div>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          aria-label="Change your photo"
+          style={{
+            position: "absolute", right: -2, bottom: -2,
+            width: 26, height: 26, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "#fff", border: `1px solid ${P.border}`,
+            color: P.primaryText, cursor: busy ? "wait" : "pointer",
+            boxShadow: P.shadowSm,
+          }}
+        >
+          <Camera size={13} weight="fill" />
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={onPick}
+          style={{ display: "none" }}
+        />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 19, fontWeight: 700, color: P.textPrimary, lineHeight: 1.2 }}>{name}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 13, color: P.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {roleLabel}{address ? ` · ${address}` : ""}
+        </p>
+        {error && <p style={{ margin: "4px 0 0", fontSize: 11.5, color: P.warning }}>{error}</p>}
+      </div>
+    </div>
   );
 }
 
