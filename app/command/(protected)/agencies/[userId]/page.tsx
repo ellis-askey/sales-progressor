@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAgentDetail } from "@/lib/command/usage";
+import { AgentPhotoManager } from "@/components/command/agents/AgentPhotoManager";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "0m";
@@ -52,14 +53,31 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ us
 
       {/* header */}
       <div className="flex items-center gap-3">
-        <span className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-neutral-950" style={{ background: avColor(a.name) }}>
-          {initials(a.name)}
-        </span>
+        {a.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={a.image} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" style={{ objectPosition: `${a.imageFocusX}% ${a.imageFocusY}%` }} />
+        ) : (
+          <span className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-neutral-950" style={{ background: avColor(a.name) }}>
+            {initials(a.name)}
+          </span>
+        )}
         <div>
           <h1 className="text-2xl font-semibold text-neutral-100 leading-tight">{a.name}</h1>
           <p className="text-sm text-neutral-400 capitalize">{a.role} · {a.agencyName}</p>
         </div>
       </div>
+
+      {/* photo management */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Photo</h2>
+        <AgentPhotoManager
+          userId={a.userId}
+          name={a.name}
+          image={a.image}
+          focusX={a.imageFocusX}
+          focusY={a.imageFocusY}
+        />
+      </section>
 
       {/* summary tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

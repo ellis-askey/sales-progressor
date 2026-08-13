@@ -154,6 +154,12 @@ model User {
 
   emailVerified          DateTime?
   image                  String?
+  // Focal point (percent) for cropping `image` into circular avatars, so a
+  // portrait headshot can be nudged to keep the face centred. Applied as
+  // object-position by UserAvatar. 50/50 = dead centre (the default, so
+  // existing photos are unaffected). Set from Command Centre → agent drill-down.
+  imageFocusX            Int       @default(50)
+  imageFocusY            Int       @default(50)
   accounts               Account[]
   sessions               Session[]
   transactionNotes       TransactionNote[]

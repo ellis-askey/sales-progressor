@@ -144,7 +144,12 @@ export default async function AgenciesPage({
                   <tr key={a.userId} className="border-b border-neutral-800 last:border-b-0">
                     <td className="px-3.5 py-2.5">
                       <Link href={`/command/agencies/${a.userId}`} className="flex items-center gap-2.5 group">
-                        <span className="w-[26px] h-[26px] rounded-full shrink-0 flex items-center justify-center text-[10.5px] font-bold text-neutral-950" style={{ background: avColor(a.name) }}>{initials(a.name)}</span>
+                        {a.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={a.image} alt="" className="w-[26px] h-[26px] rounded-full object-cover shrink-0" style={{ objectPosition: `${a.imageFocusX}% ${a.imageFocusY}%` }} />
+                        ) : (
+                          <span className="w-[26px] h-[26px] rounded-full shrink-0 flex items-center justify-center text-[10.5px] font-bold text-neutral-950" style={{ background: avColor(a.name) }}>{initials(a.name)}</span>
+                        )}
                         <div>
                           <div className="font-semibold text-neutral-100 group-hover:text-blue-300 transition-colors">{a.name}</div>
                           <div className="text-[11px] text-neutral-500 capitalize">{a.role}</div>

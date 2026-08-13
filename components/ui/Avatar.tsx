@@ -46,9 +46,13 @@ type AvatarBaseProps = {
   // When set, the photo fills the circle and the initials become the fallback
   // (shown only if the image fails to load).
   image?: string | null;
+  // Focal point (percent) for cropping the photo — keeps a face centred when a
+  // portrait fills a circle. Defaults to dead centre (50/50).
+  focusX?: number;
+  focusY?: number;
 };
 
-function AvatarBase({ initials, side, size = 32, className, image }: AvatarBaseProps) {
+function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50 }: AvatarBaseProps) {
   const { bg, color } = SIDE_STYLES[side];
   const fontSize = Math.round(size * 0.375);
 
@@ -76,7 +80,7 @@ function AvatarBase({ initials, side, size = 32, className, image }: AvatarBaseP
           alt=""
           width={size}
           height={size}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block" }}
         />
       ) : (
         initials
@@ -102,12 +106,22 @@ export function ContactAvatar({ contact, size = 32, className }: ContactAvatarPr
 // ─── UserAvatar ───────────────────────────────────────────────────────────────
 
 type UserAvatarProps = {
-  user: { name: string; image?: string | null };
+  user: { name: string; image?: string | null; imageFocusX?: number | null; imageFocusY?: number | null };
   size?: number;
   className?: string;
 };
 
 export function UserAvatar({ user, size = 32, className }: UserAvatarProps) {
   const initials = getInitials({ name: user.name });
-  return <AvatarBase initials={initials} side="internal" size={size} className={className} image={user.image ?? null} />;
+  return (
+    <AvatarBase
+      initials={initials}
+      side="internal"
+      size={size}
+      className={className}
+      image={user.image ?? null}
+      focusX={user.imageFocusX ?? 50}
+      focusY={user.imageFocusY ?? 50}
+    />
+  );
 }

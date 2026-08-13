@@ -20,6 +20,9 @@ export type AgentUsage = {
   role: string;
   agencyId: string;
   agencyName: string;
+  image: string | null;
+  imageFocusX: number;
+  imageFocusY: number;
   lastActive: Date | null;
   logins7d: number;
   seconds7d: number;
@@ -68,7 +71,11 @@ export async function getUsageOverview(): Promise<UsageOverview> {
 
   const users = await commandDb.user.findMany({
     where: { role: { in: AGENT_ROLES as never }, agencyId: { not: null } },
-    select: { id: true, name: true, role: true, agencyId: true, agency: { select: { name: true } } },
+    select: {
+      id: true, name: true, role: true, agencyId: true,
+      image: true, imageFocusX: true, imageFocusY: true,
+      agency: { select: { name: true } },
+    },
   });
   const userIds = users.map((u) => u.id);
   if (userIds.length === 0) {
@@ -119,6 +126,9 @@ export async function getUsageOverview(): Promise<UsageOverview> {
       role: u.role,
       agencyId: u.agencyId!,
       agencyName: u.agency?.name ?? "—",
+      image: u.image,
+      imageFocusX: u.imageFocusX,
+      imageFocusY: u.imageFocusY,
       lastActive,
       logins7d: loginMap.get(u.id) ?? 0,
       seconds7d: a.seconds,
@@ -192,6 +202,9 @@ export type AgentDetail = {
   name: string;
   role: string;
   agencyName: string;
+  image: string | null;
+  imageFocusX: number;
+  imageFocusY: number;
   lastActive: Date | null;
   totalSeconds: number;
   sessionCount: number;
@@ -204,7 +217,11 @@ export type AgentDetail = {
 export async function getAgentDetail(userId: string): Promise<AgentDetail | null> {
   const user = await commandDb.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, role: true, agency: { select: { name: true } } },
+    select: {
+      id: true, name: true, role: true,
+      image: true, imageFocusX: true, imageFocusY: true,
+      agency: { select: { name: true } },
+    },
   });
   if (!user) return null;
 
@@ -281,6 +298,9 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
     name: user.name,
     role: user.role,
     agencyName: user.agency?.name ?? "—",
+    image: user.image,
+    imageFocusX: user.imageFocusX,
+    imageFocusY: user.imageFocusY,
     lastActive: lastEvent._max.occurredAt ?? null,
     totalSeconds,
     sessionCount,
