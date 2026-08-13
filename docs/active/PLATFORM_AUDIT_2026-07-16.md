@@ -29,7 +29,7 @@
 | 7 | Let clients ask a question from the portal | won't do |
 | 8 | Add a preview line to every email | in progress |
 | 9 | Voice pass on emails that have drifted | pending |
-| 10 | Send an email the moment both sides are ready to exchange | pending |
+| 10 | Send an email the moment both sides are ready to exchange | in progress |
 | 11 | Let a client pause chases from an email | pending |
 | 12 | Rewrite chase-email subject lines | in progress |
 | 13 | Show which milestone is killing sales, at a glance | pending |
@@ -210,7 +210,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 ### 10. Send an email the moment both sides are ready to exchange
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** When the seller's side and the buyer's side both hit "ready to exchange", the app sends a push notification saying "Ready to exchange, everything's in place." No dedicated email fires. The information rides on whichever side's confirmation email happens to send last.
 
@@ -218,7 +218,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 **After the fix.** As soon as both gates close, one clean email goes out: "Everything's ready for exchange on 83 Highfield Road. Your solicitor will be in touch to agree a date." Clear moment, clear next action.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13, awaiting push + staging test. Decisions with Ellis: clients only (buyer + seller, not solicitors); fires once both exchange gates (VM18 vendor + PM25 purchaser) are complete, confirmed by the solicitor or by us; send-once. Copy softened per Ellis: "Everything's ready for exchange on {address}. This is the last big step before exchange itself... If an exchange date hasn't already been agreed, your solicitor will be in touch to arrange it." `lib/email/ready-to-exchange.ts` (`maybeSendReadyToExchangeEmail`) checks both gates (PM25 round-scoped to the active buyer round), white-labels the sender via `resolveSenderForTransaction`, skips unsubscribed contacts, and enqueues with `emailType: "READY_TO_EXCHANGE"` — send-once guaranteed by the queue's unique(emailType, sourceId, recipientContactId), no new migration. Hooked at both confirm paths: the agent action (`app/actions/milestones.ts`) and the solicitor confirm-by-link (`app/s/[token]/actions.ts`); dedup makes the double-hook safe. Carries the #8 preheader + #17 tag. tsc clean, 188 tests pass.
 
 ---
 
