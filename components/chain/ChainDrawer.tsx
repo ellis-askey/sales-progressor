@@ -148,12 +148,12 @@ export function ChainDrawer({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setRespondError(body.error ?? "Couldn't save your response — please reload and try again.");
+        setRespondError(body.error ?? "Couldn't save your response. Please reload and try again.");
         return;
       }
       await fetchChain();
     } catch {
-      setRespondError("Network error — please reload and try again.");
+      setRespondError("Network error. Please reload and try again.");
     } finally {
       setSubmittingNotificationId(null);
     }

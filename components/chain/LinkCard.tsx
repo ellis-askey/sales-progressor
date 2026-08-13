@@ -174,12 +174,12 @@ export function LinkCard({
   // Photo — real signed URL on claimed links, else the house illustration.
   const photoUrl = link.transaction?.photoUrl ?? null;
 
-  // Price — full figure when known, "Price TBC" for live-but-unpriced, "—" for
-  // dead links (declined / bounced).
+  // Price — full figure when known, "Price TBC" for a live-but-unpriced file,
+  // nothing for a dead link (declined / bounced) where the status pill says it all.
   const price = link.transaction?.purchasePrice ?? null;
   const isDead = status.kind === "declined" || status.kind === "bounced";
   const priceLabel =
-    price != null ? formatChainPriceFull(price) : isDead ? "—" : "Price TBC";
+    price != null ? formatChainPriceFull(price) : isDead ? null : "Price TBC";
 
   // Meta descriptor for the bottom bar (left side).
   let meta = "";
@@ -269,7 +269,9 @@ export function LinkCard({
           </div>
 
           <div className="chain-cright">
-            <div className={`chain-price${price == null ? " chain-price-tbc" : ""}`}>{priceLabel}</div>
+            {priceLabel && (
+              <div className={`chain-price${price == null ? " chain-price-tbc" : ""}`}>{priceLabel}</div>
+            )}
             <ChainStatusBadge status={status} label={label} />
           </div>
         </div>
