@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getAuditLog, getAuditUsers } from "@/lib/services/audit";
@@ -29,7 +30,7 @@ export default async function AuditPage({
   searchParams: Promise<{ userId?: string; page?: string }>;
 }) {
   const session = await requireSession();
-  if (session.user.role !== "admin") redirect("/dashboard");
+  if (session.user.role !== "admin" && !hasSuperAdminPowers(session)) redirect("/dashboard");
 
   const sp = await searchParams;
   const currentUserId = sp.userId ?? "";

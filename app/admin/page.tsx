@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/AppShell";
@@ -13,7 +14,8 @@ import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
 
 export default async function AdminPage() {
   const session = await requireSession();
-  if (session.user.role !== "admin") redirect("/dashboard");
+  // admin's home surface, but superadmin reaches it via Command Centre → Settings.
+  if (session.user.role !== "admin" && !hasSuperAdminPowers(session)) redirect("/dashboard");
 
   const [users, agents, progressors, milestoneDefs, reminderRules, todoCount] = await Promise.all([
     prisma.user.findMany({
