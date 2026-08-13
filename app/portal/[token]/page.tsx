@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPortalData, getPortalMilestones, getPortalTimeline, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
@@ -8,6 +8,7 @@ import { calculateProgress } from "@/lib/services/fees";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
+import { PortalTeamCard } from "@/components/portal/PortalTeamCard";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
@@ -59,10 +60,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const ownScope   = portalOwnSideScope(contact, transaction);
   const otherScope = portalOtherSideScope(contact, transaction);
-  const [rawMilestones, rawOtherMilestones, timeline] = await Promise.all([
+  const [rawMilestones, rawOtherMilestones, timeline, team] = await Promise.all([
     getPortalMilestones(transaction.id, side, ownScope),
     getPortalMilestones(transaction.id, otherSide, otherScope),
     getPortalTimeline(transaction.id, side, contact.id, { buyerRoundId: contact.buyerRoundId, activeBuyerRoundId: transaction.activeBuyerRoundId }),
+    getPortalTeam(transaction.id, side),
   ]);
 
   const milestones = rawMilestones.map((m) => ({
@@ -503,6 +505,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           </div>
         </Link>
       )}
+
+      {/* ── Your team (audit #16) ────────────────────────────────── */}
+      <PortalTeamCard team={team} />
 
       {/* ── Coming up (next 3 after next action) ─────────────────── */}
       {comingUp.length > 0 && !hasCompleted && (

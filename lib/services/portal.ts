@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, resolveSenderForTransaction } from "@/lib/email";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 // ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
@@ -300,6 +300,82 @@ export async function getPortalData(token: string): Promise<PortalDataResult> {
       };
     }
     return { kind: "ok" as const, data: inner };
+  });
+}
+
+// ── "Your team" card (audit #16) ────────────────────────────────────────────
+// The people looking after this file, for the portal overview:
+//   - The person managing it: the assigned progressor on an outsourced file,
+//     or the agency's own agent on a self-managed one. Name, photo, and the
+//     email that file actually sends from (verified-domain address, or the
+//     fallback for agencies without one) so "Email" reaches the right inbox.
+//   - The solicitor firm on the viewer's own side (name only; no contact
+//     details, per the deliberate decision not to route clients straight to
+//     the solicitor).
+// WhatsApp is currently the single progressor line (+447508862929, same number
+// the intro email uses), so it only surfaces on outsourced files; when
+// per-user WhatsApp numbers land this reads from the managing user instead.
+export type PortalTeam = {
+  managing: {
+    name: string;
+    image: string | null;
+    email: string;
+    roleLabel: string;
+    whatsappUrl: string | null;
+  } | null;
+  solicitorFirmName: string | null;
+};
+
+export async function getPortalTeam(
+  transactionId: string,
+  side: "vendor" | "purchaser",
+): Promise<PortalTeam> {
+  return withRetry(async () => {
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        serviceType: true,
+        assignedUser: { select: { id: true, name: true, email: true, image: true, role: true } },
+        agentUser:    { select: { id: true, name: true, email: true, image: true, role: true } },
+        vendorSolicitorFirm:    { select: { name: true } },
+        purchaserSolicitorFirm: { select: { name: true } },
+      },
+    });
+    if (!tx) return { managing: null, solicitorFirmName: null };
+
+    const isOutsourced = tx.serviceType !== "self_managed";
+    const person = isOutsourced ? tx.assignedUser : tx.agentUser;
+
+    let managing: PortalTeam["managing"] = null;
+    if (person) {
+      let email = person.email ?? "";
+      try {
+        const resolved = await resolveSenderForTransaction(transactionId, {
+          id: person.id,
+          email: person.email,
+          name: person.name,
+          role: person.role,
+          agencyId: null,
+        });
+        email = resolved.replyTo;
+      } catch {
+        // Fall back to the raw user email if sender resolution can't run.
+      }
+      managing = {
+        name: person.name ?? "Your progressor",
+        image: person.image ?? null,
+        email,
+        roleLabel: isOutsourced ? "Your progressor" : "Your agent",
+        whatsappUrl: isOutsourced ? "https://wa.me/447508862929" : null,
+      };
+    }
+
+    const solicitorFirmName =
+      side === "vendor"
+        ? tx.vendorSolicitorFirm?.name ?? null
+        : tx.purchaserSolicitorFirm?.name ?? null;
+
+    return { managing, solicitorFirmName };
   });
 }
 
