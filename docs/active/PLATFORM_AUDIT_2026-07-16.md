@@ -30,11 +30,11 @@
 | 8 | Add a preview line to every email | in progress |
 | 9 | Voice pass on emails that have drifted | pending |
 | 10 | Send an email the moment both sides are ready to exchange | in progress |
-| 11 | Let a client pause chases from an email | pending |
+| 11 | Let a client pause chases from an email | in progress |
 | 12 | Rewrite chase-email subject lines | in progress |
 | 13 | Show which milestone is killing sales, at a glance | pending |
 | 14 | Promote two better demo pages to being real features | in progress |
-| 15 | Give clients basic self-serve controls | in progress |
+| 15 | Give clients basic self-serve controls | done |
 | 16 | Tell the client who's on their team | done |
 | 17 | Start measuring email performance properly | in progress |
 | 18 | Suggest smarter chase timings based on real behaviour | pending |
@@ -224,7 +224,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 ### 11. Let a client pause chases from an email
 
-**Status:** pending
+**Status:** in progress (built, awaiting migration + push)
 
 **Today.** A buyer is on holiday and doesn't want three more chase emails while they're away. Their only option, from the chase email itself, is a giant "unsubscribe" link that stops every future email, including their transactional chain updates.
 
@@ -234,7 +234,7 @@ The portal itself has about 35 em-dashes in prose ("Ready to exchange, today"), 
 
 Same treatment for the unsubscribe page in general. Instead of one giant off-switch, it becomes a small preference centre: chain updates, chase emails, retention emails, celebrations. Turn off what you don't want, keep what you do.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13 (with #15), awaiting migration + push. Decisions with Ellis: email link = fixed 1 week; portal = 1 or 2 weeks; SKIP the preference-centre expansion (over-built for how Ellis works). New nullable `Contact.chasesPausedUntil` (migration `20260815140000`, apply STAGING-FIRST) — a future date pauses ONLY chases, auto-resumes when it passes; milestone / chain / exchange emails ignore it. Shared helper `lib/services/chase-pause.ts` (`pauseContactChases` / `resumeContactChases`) sets the date, logs a note, and notifies the managing agent. Email door: `buildContactPauseUrl` (reuses the signed unsubscribe token, subject `pause:{id}`) → `app/api/pause-chases/route.ts` → `app/chases-paused/page.tsx` confirmation. The chase cron (`client-chase-cron.ts`) skips clients whose pause is still in the future. Agent notified in the bell with a **"Paused"** pill (per Ellis) via `portal_chases_paused` on the allowlist; `bellNotificationSentence` phrases it. tsc clean, 188 tests pass. Deferred: the preference-centre (not building).
 
 ---
 
@@ -290,7 +290,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** A small profile icon in the top-right of the portal opens a four-item panel: change email, change phone, pause chases for N days, subscribe/unsubscribe. Changes are logged for the agent to see. Client sorts themselves, agent doesn't get the call.
 
-**Notes & decisions.** 3 OF 4 DONE (verified 2026-08-12). `components/portal/PortalMenuDrawer.tsx` (opened top-right via `PortalShell.tsx`) already does change name/email/phone (`updateMyContactAction`), subscribe/unsubscribe via the notifications email toggle, and logs every edit as an `internal_note` for the agent. STILL OPEN: the "pause chases for N days" control — `app/actions/portal-menu.ts` has no timed-pause action, only a binary email on/off. Just that one control left to add.
+**Notes & decisions.** DONE 2026-08-13, awaiting migration + push. Was 3 of 4; the missing timed-pause control now shipped alongside #11 (they share the mechanism). The portal Notifications section gained a "Pause reminders" control (1 or 2 weeks) with a live "Paused until {date} · Turn back on" state, via `pauseMyChasesAction` / `resumeMyChasesAction` in `portal-menu.ts`. See #11 for the shared plumbing.
 
 ---
 
