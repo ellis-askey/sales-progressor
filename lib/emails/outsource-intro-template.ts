@@ -9,6 +9,8 @@
 // client first name and a missing address cleanly so the message still
 // reads naturally.
 
+import { preheader } from "@/lib/email/preheader";
+
 export type OutsourceIntroVars = {
   clientFirstName: string | null;
   address: string | null;
@@ -85,7 +87,7 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
   const html =
 `<!DOCTYPE html>
 <html>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A quick hello from the team who'll handle everything through to completion.")}
   <p style="margin:0 0 16px;font-size:15px">${escapeHtml(greeting)}</p>
 
   <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1d29">

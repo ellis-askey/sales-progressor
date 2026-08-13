@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
 import { buildGreeting } from "@/lib/portal-copy";
@@ -69,7 +70,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
         : "";
 
-      const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+      const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("Nothing needed from you, just a quick note that things are moving.")}
 <p style="margin:0 0 4px;color:#6b7280;font-size:13px">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${buildGreeting(contact.name)}</h1>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Quick check-in on your <strong>${roleLabel}</strong> at <strong>${tx.propertyAddress}</strong> — everything's progressing as it should.</p>

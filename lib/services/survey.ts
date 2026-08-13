@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
 import { buildGreeting } from "@/lib/portal-copy";
@@ -48,7 +49,7 @@ export async function sendCompletionSurveys(transactionId: string): Promise<void
       `${surveyUrl}`,
     ].join("\n");
 
-    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A couple of minutes on how it went would mean a lot to us.")}
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Congratulations, ${extractFirstName(contact.name)}</h1>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your ${roleLabel} at <strong>${tx.propertyAddress}</strong> is officially complete. We hope it was as smooth as possible.</p>
 <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">If you've got a minute, we'd love to hear how it went. Your feedback helps us make the experience better for everyone who comes after you.</p>

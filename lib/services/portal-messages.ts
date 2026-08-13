@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -226,7 +227,7 @@ export async function sendProgressorPortalReply(
         "",
         `View your portal: ${portalUrl}`,
       ].join("\n"),
-      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader(`There's a reply waiting for you about ${address}.`)}
 <p style="margin:0 0 16px;font-size:15px">Hi ${contact.name},</p>
 <div style="margin:0 0 20px;padding:16px 20px;background:#F8F9FB;border-radius:12px;border-left:4px solid #3B82F6">
   <p style="margin:0 0 4px;font-size:12px;color:#8b91a3">${address} · ${progressorName}</p>

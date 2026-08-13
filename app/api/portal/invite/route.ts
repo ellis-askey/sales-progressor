@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { preheader } from "@/lib/email/preheader";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
       "",
       agencyName,
     ].join("\n"),
-    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader(`Follow every step of your ${saleWord} in one place, whenever you want to check.`)}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:40px 32px 32px;border-radius:0 0 24px 24px">
   <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${agencyName}</p>
   <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#fff;line-height:1.2">${address}</h1>

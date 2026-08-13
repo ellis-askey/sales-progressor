@@ -1,4 +1,5 @@
 import type { SolicitorSide } from "./codes";
+import { preheader } from "@/lib/email/preheader";
 
 // Builds the solicitor confirmation digest email — the productionised version
 // of the validated demo. One email per (file, side): a single open step shows
@@ -89,7 +90,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
     : `Could you please confirm where these ${steps.length} steps stand:`;
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:24px;background:#eef1f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:24px;background:#eef1f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">${preheader("A few steps on this file are waiting for your confirmation.")}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;"><tr><td>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${NAVY};border-radius:10px 10px 0 0;">
     <tr><td style="padding:22px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>

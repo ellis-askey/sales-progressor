@@ -31,6 +31,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from "@/lib/prisma";
+import { preheader } from "@/lib/email/preheader";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { recordEvent } from "@/lib/command/events/write";
 import { buildContactUnsubscribeUrl } from "@/lib/email/unsubscribe";
@@ -317,7 +318,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">${preheader(`A couple of quick things need you to keep your ${transactionWord} moving.`)}
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
     <tr><td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
