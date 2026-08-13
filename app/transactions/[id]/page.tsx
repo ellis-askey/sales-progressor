@@ -39,7 +39,6 @@ import { RecentActivityWidget } from "@/components/transaction/RecentActivityWid
 import { NextMilestoneWidget, type MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
-import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { DocumentsSection } from "@/components/transaction/DocumentsSection";
 import { prisma } from "@/lib/prisma";
 
@@ -426,7 +425,6 @@ export default async function TransactionDetailPage({
 
         {/* ── Tab 4: Activity ──────────────────────────────────────────── */}
         <div className="space-y-4">
-          <EmailParseWidget transactionId={transaction.id} />
           <CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />
           <ActivityTimeline entries={activityEntries} transactionId={transaction.id} mosDocUrl={mosDocUrl} />
         </div>

@@ -42,7 +42,7 @@
 | 20 | Build three new founder-brief signals | pending |
 | 21 | Two small admin tools that retire a lot of DB work | pending |
 | 22 | Kill the leftover duplicate routes | in progress |
-| 23 | Finish or delete the "read this email for me" widget | pending |
+| 23 | Finish or delete the "read this email for me" widget | done (removed) |
 | 24 | Send a proper "welcome" email to people who signed up via a chain claim | done |
 | 25 | Two Command Centre nav items that show "Coming soon" are teaching you to ignore them | pending |
 
@@ -396,7 +396,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 23. Finish or delete the "read this email for me" widget
 
-**Status:** pending
+**Status:** done (removed, not finished)
 
 **Today.** On two pages there's a dimmed card that says "Email reader, coming soon". Someone built the endpoint that would let an agent paste a solicitor email and get milestone-update suggestions back. Nobody wired the UI to the endpoint.
 
@@ -404,7 +404,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Either paste-solicitor-email actually works (paste an email, get "this looks like PM7, draft contract received. Confirm?"), or the card is removed and the space belongs to something else.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** REMOVED 2026-08-13 (Ellis chose remove over finish). The card lived on the internal-staff file view (`/transactions/[id]`, sales_progressor/admin), not the agent app or portal. Deleted the dimmed "coming soon" card + its import, the orphaned component `components/activity/EmailParseWidget.tsx`, the dead endpoint `app/api/ai/parse-email/route.ts`, and its service `lib/services/email-parse.ts` — all confirmed used only by the widget (the still-live `parseEmailMessage` in `lib/email.ts`, used by the chase route, is a different function and untouched). tsc clean, 188 tests pass.
 
 ---
 
