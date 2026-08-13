@@ -11,8 +11,14 @@
 // band, so it stays null (row hidden) until the medians in fees.ts are real.
 
 import type { ChainV2 } from "@/lib/services/chains";
-import { displayChainPosition } from "@/lib/chain/positions";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
+
+// Display convention (mirrors displayChainPosition in lib/chain/positions.ts):
+// bottom of chain = #1, counting up to the top = #N. Inlined here so this
+// client-safe helper never pulls positions.ts (which imports prisma).
+function displayPosition(dbPosition: number, totalLinks: number): number {
+  return totalLinks - dbPosition;
+}
 
 // purchasePrice is stored in PENCE across the schema (seed: "52500000 //
 // £525,000 in pence"). Every formatter here divides by 100 before rendering.
@@ -83,9 +89,9 @@ export function computeChainSummary(chain: ChainV2): ChainSummary {
     (l) => l.inviteStatus === "DECLINED" || l.inviteStatus === "BOUNCED",
   );
   if (withdrawn) {
-    weakest = { position: displayChainPosition(withdrawn.position, totalCount), tone: "danger" };
+    weakest = { position: displayPosition(withdrawn.position, totalCount), tone: "danger" };
   } else if (deadInvite) {
-    weakest = { position: displayChainPosition(deadInvite.position, totalCount), tone: "danger" };
+    weakest = { position: displayPosition(deadInvite.position, totalCount), tone: "danger" };
   } else {
     // Lowest-progress claimed file, flagged only when it meaningfully trails
     // the chain (>= 20 points behind the next-slowest) so we don't cry wolf.
@@ -96,7 +102,7 @@ export function computeChainSummary(chain: ChainV2): ChainSummary {
       const slowest = withProgress[0];
       const next = withProgress[1];
       if ((next.progressPercent ?? 0) - (slowest.progressPercent ?? 0) >= 20) {
-        weakest = { position: displayChainPosition(slowest.position, totalCount), tone: "warn" };
+        weakest = { position: displayPosition(slowest.position, totalCount), tone: "warn" };
       }
     }
   }
