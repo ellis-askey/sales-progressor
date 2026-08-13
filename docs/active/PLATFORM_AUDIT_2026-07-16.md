@@ -33,7 +33,7 @@
 | 11 | Let a client pause chases from an email | in progress |
 | 12 | Rewrite chase-email subject lines | in progress |
 | 13 | Show which milestone is killing sales, at a glance | pending |
-| 14 | Promote two better demo pages to being real features | in progress |
+| 14 | Promote two better demo pages to being real features | done |
 | 15 | Give clients basic self-serve controls | done |
 | 16 | Tell the client who's on their team | done |
 | 17 | Start measuring email performance properly | in progress |
@@ -268,7 +268,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 14. Promote two better demo pages to being real features
 
-**Status:** in progress
+**Status:** done
 
 **Today.** Two of the pages hidden in the developer preview tree are, honestly, better than the live equivalents. One is a nicer chain drawer (better copy, better invite explanation). One is a nicer prediction of when a sale will exchange, phased by which stage it's at.
 
@@ -276,7 +276,15 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Both get promoted to the real routes. The chain drawer becomes what agents open when they click "Open chain". The prediction becomes what shows on the sidebar. The old versions come out.
 
-**Notes & decisions.** HALF DONE (verified 2026-08-12). The phased exchange-date prediction IS promoted — `formatPredictedBand` renders on the real agent sidebar (`components/transaction/TransactionSidebar.tsx`) as the "Expected exchange" band. STILL OPEN: the nicer chain drawer was NOT swapped in — agents still open the older `components/chain/ChainDrawer.tsx`, and the richer preview at `app/dev/vibe/chain/page.tsx` still self-labels "not linked from production". So this is one of two done; the chain-drawer half remains.
+**Notes & decisions.** Prediction half verified done 2026-08-12: `formatPredictedBand` renders on the real agent sidebar (`components/transaction/TransactionSidebar.tsx`) as the "Expected exchange" band. **Chain-drawer half BUILT 2026-08-13 — #14 now DONE, awaiting push + staging test.** Rather than swap in the dev preview verbatim, Ellis approved lifting its richness into the REAL drawer as a wider-than-usual (760px) two-column drawer (mock `chain-wide-drawer-v1`). Built in 3 phases, all in the agent theme tokens so it tracks every theme + solid mode:
+
+- **Phase 1 (data).** `getChainV2`/`ChainLinkV2.transaction` now carry `purchasePrice` (pence) + a batch-signed `photoUrl` (one round trip via `getSignedUrlMap`). New client-safe `lib/chain/summary.ts` (`computeChainSummary`) derives chain value, claim rate, weakest link, oldest sale, and risk from real state; predicted completion stays gated behind `MEDIANS_READY` (row hidden until medians are real, same as the LinkCard band). Two dev demo pages updated for the new type.
+- **Phase 2 (drawer + cards).** `ChainDrawer` widened to 760px, two-column (`.chain-dbody`): rich link cards on the left (real property photo or house-illustration fallback, price, progress %, status pill, action bar), a value/health summary card on the right. ALL existing logic carried over unchanged — invite / resend / edit / remove gating, cascade respond cards, decline / broken / split / bottleneck banners, add-above/below permission gating, bulk-invite footer, loading / not-a-participant / empty states. `LinkCard` kept its exact prop interface (+ optional `edge`). Progress % remains the ONLY cross-agent signal on the cards (no other agent's current step). All chain styling lives in a new `.chain-*` block in `globals.css`.
+- **Phase 3 (activity feed).** New per-agent `User.chainActivityOptIn` flag (migration `20260815160000_chain_activity_opt_in`, **applied to STAGING**; prod pending push). `getChainActivity` aggregates real cross-chain events (milestone confirmations + join / decline / withdraw); `GET`/`POST` `/api/chains/activity` gated by the same `canViewChain` participant check; self-contained `ChainActivityCard` renders the toggle (default OFF) + feed. Only the viewer's own milestone events name them "You".
+
+  **Two data-exposure decisions to sign off before push:** (1) each claimed link's sale price is now visible to every chain participant (needed for the "chain value" headline; agreed prices are already common knowledge across a UK chain); (2) with the activity feed turned on, an opted-in agent sees other links' milestone confirmations by name (e.g. "Beechwood confirmed searches received"). This matches the approved mock and the feature's stated "share updates" purpose, but it is broader than the cards' "progress % only" rule — flagging it explicitly in case you want the feed limited to structural events (join / decline / withdraw) for other agents. Easy to dial back.
+
+  tsc clean, 188 tests pass. The old dev preview at `app/dev/vibe/chain/page.tsx` is left in place (still self-labels "not linked from production") — it was reference, not the thing shipped.
 
 ---
 
