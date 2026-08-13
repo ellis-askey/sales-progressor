@@ -133,8 +133,10 @@ function TxCard({ tx }: { tx: TxGroup }) {
             {m.who === "agent" ? (
               <UserAvatar user={{ name: m.completedByName ?? "", image: m.completedByImage }} size={26} className="flex-shrink-0" />
             ) : m.who === "client" ? (
+              // The client's own photo if they've uploaded one (audit #16
+              // phase 2), otherwise the generic silhouette.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/client-avatar-fallback.png" alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block" }} />
+              <img src={m.completedByImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />
             ) : (
               <span aria-hidden style={{ width: 26, height: 26, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Scales size={14} weight="regular" />

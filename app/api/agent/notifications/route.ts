@@ -47,13 +47,23 @@ export async function GET(req: NextRequest) {
       : m.confirmedBySolicitorFirmId
         ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
         : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    // For a portal-confirmed step, show the client's own photo (audit #16
+    // phase 2): the exact contact if we recorded who confirmed, else the
+    // side's contact. Null falls back to the generic silhouette in the bell.
+    const clientContact =
+      confirmer.kind === "client"
+        ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
+          ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
+        : null;
     return {
       id: m.id,
       txId: m.transaction.id,
       address: m.transaction.propertyAddress,
       sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
       who: confirmer.kind,
-      avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null) : null,
+      avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
+        : confirmer.kind === "client" ? (clientContact?.image ?? null)
+        : null,
       avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "") : "",
       at: (m.completedAt ?? new Date()).toISOString(),
     };

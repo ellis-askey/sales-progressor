@@ -78,13 +78,20 @@ export default async function AgentCommsPage({
       : m.confirmedBySolicitorFirmId
         ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
         : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    // Client-confirmed steps carry the client's own photo (audit #16 phase 2):
+    // the exact contact if recorded, else the side's contact.
+    const clientContact =
+      confirmer.kind === "client"
+        ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
+          ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
+        : null;
     const row: MilestoneRow = {
       id: m.id,
       completedAtIso: (m.completedAt ?? new Date()).toISOString(),
       sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
       who: confirmer.kind,
-      completedByName: m.completedBy?.name ?? null,
-      completedByImage: m.completedBy?.image ?? null,
+      completedByName: confirmer.kind === "client" ? (clientContact?.name ?? null) : (m.completedBy?.name ?? null),
+      completedByImage: confirmer.kind === "client" ? (clientContact?.image ?? null) : (m.completedBy?.image ?? null),
     };
     txMap.get(m.transaction.id)!.milestones.push(row);
   }

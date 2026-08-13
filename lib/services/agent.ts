@@ -291,7 +291,8 @@ export async function getAgentMilestoneActivity(
       transaction: {
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, status: true,
-          contacts: { select: { name: true, roleType: true } },
+          // id + image added for the client-confirmer avatar (audit #16 phase 2).
+          contacts: { select: { id: true, name: true, roleType: true, image: true } },
         },
       },
       milestoneDefinition: { select: { code: true, name: true, side: true } },

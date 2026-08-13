@@ -29,9 +29,10 @@ function BellAvatar({ it }: { it: BellItem }) {
     return <UserAvatar user={{ name: it.avatarName, image: it.avatarImage }} size={30} />;
   }
   if (it.who === "client") {
-    // Clients have no photo — a friendly generic person.
+    // The client's own uploaded photo if they've set one (audit #16 phase 2),
+    // otherwise a friendly generic person.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src="/client-avatar-fallback.png" alt="" aria-hidden width={30} height={30} style={{ borderRadius: 999, flexShrink: 0, display: "block" }} />;
+    return <img src={it.avatarImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={30} height={30} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />;
   }
   return (
     <span aria-hidden style={{ width: 30, height: 30, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
