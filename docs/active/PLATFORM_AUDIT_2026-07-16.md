@@ -35,7 +35,7 @@
 | 13 | Show which milestone is killing sales, at a glance | pending |
 | 14 | Promote two better demo pages to being real features | in progress |
 | 15 | Give clients basic self-serve controls | in progress |
-| 16 | Tell the client who's on their team | pending |
+| 16 | Tell the client who's on their team | in progress |
 | 17 | Start measuring email performance properly | in progress |
 | 18 | Suggest smarter chase timings based on real behaviour | pending |
 | 19 | Score prediction accuracy per agent | pending |
@@ -296,7 +296,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 ### 16. Tell the client who's on their team
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** The portal shows the agency name and the property address. It never names the actual person handling the sale, doesn't show a photo, doesn't say which solicitor firm is instructed, doesn't say who the other side's agent is.
 
@@ -304,7 +304,7 @@ Same treatment for the unsubscribe page in general. Instead of one giant off-swi
 
 **After the fix.** Small "Your team" card on the overview: progressor name and photo, solicitor firm (once instructed), other agent (if in a chain). Faces + names + roles.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** Grew into a 3-phase portal feature (mockups approved by Ellis: team card + a revamped settings drawer). Decisions locked with Ellis: contact details ARE shown for the progressor (WhatsApp + email); solicitor is firm-name only; sellers see no other agent; buyers who are also selling can add their own selling agent from the drawer; a client editing an agent does NOT auto-invite (the managing agent gets a bell notification and decides) — the first of "more than just confirmations" in the bell; a chain link goes read-only once the other agent has claimed it; client can add their OWN profile photo which feeds everywhere their face shows (bell, Updates feed, notes, portal). **PHASE 1 BUILT 2026-08-13 (the team card), awaiting push + staging test.** `getPortalTeam(txId, side)` in `lib/services/portal.ts` resolves the managing person (assignedUser for outsourced / agentUser for self-managed) with name, photo, the agency-resolved sender email (`resolveSenderForTransaction`), and a WhatsApp link (currently the single progressor number, outsourced-only); plus the viewer's own-side solicitor firm name. Rendered by `components/portal/PortalTeamCard.tsx` on the portal overview. tsc clean. STILL TO BUILD: Phase 2 (client photo + drawer revamp, needs a Contact.image migration, staging-first) and Phase 3 (the "Your agents" section + agent notification + deep-link).
 
 ---
 
