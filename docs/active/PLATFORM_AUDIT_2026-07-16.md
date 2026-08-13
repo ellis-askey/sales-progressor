@@ -27,7 +27,7 @@
 | 5 | Chains are being hidden inside the "create a sale" form | in progress |
 | 6 | Use portal engagement as a warning signal | pending |
 | 7 | Let clients ask a question from the portal | pending |
-| 8 | Add a preview line to every email | pending |
+| 8 | Add a preview line to every email | in progress |
 | 9 | Voice pass on emails that have drifted | pending |
 | 10 | Send an email the moment both sides are ready to exchange | pending |
 | 11 | Let a client pause chases from an email | pending |
@@ -178,7 +178,7 @@ There's already a fully-built "Ask" component sitting in the codebase, orphaned.
 
 ### 8. Add a preview line to every email
 
-**Status:** pending
+**Status:** in progress
 
 **Today.** When an email from us lands in Gmail, the preview line under the subject shows either "SALES PROGRESSOR" (the brand banner) or the "Hi Sarah" greeting. Nothing about what the email is actually about.
 
@@ -186,7 +186,7 @@ There's already a fully-built "Ask" component sitting in the codebase, orphaned.
 
 **After the fix.** Each email carries its own one-line preview: "Ben confirmed searches, 3 more steps to exchange", "Your buyer for 42 Elm Road has confirmed she wants to proceed", "One quick thing on 83 Highfield Road". Recipients see, at a glance in their inbox, why they should open. Opens go up.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** BUILT 2026-08-13 (option 1 — mechanism + the client-facing emails that drive opens), awaiting push + staging test. Scope confirmed against a "when does each fire" table Ellis approved. New shared helper `lib/email/preheader.ts` returns a hidden preview block (plus zero-width padding so the visible body doesn't leak into the preview) to drop in right after `<body>`. Applied to 8 client-facing templates: milestone update (single + merged digest), chase, outsource intro, portal invite, portal reply, weekly all-on-track, completion survey, solicitor chase. EXCLUDED: the survey-quote-link email is plain-text (no HTML body to inject into) and its first line already reads as a useful preview, so it was left as-is. The internal/agent emails (chain notifications, retention, invites, resets, weekly briefs) are the deferred follow-up. Minor wording note: the two milestone previews are side-agnostic ("Here's where things are up to") because that template doesn't carry the sale/purchase word; the rest use the approved copy. tsc clean, 76 email/chase/solicitor tests pass. Nothing a reader sees on open changed — this is purely the inbox grey line.
 
 ---
 
