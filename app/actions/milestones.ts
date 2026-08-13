@@ -38,6 +38,7 @@ import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
+import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -278,6 +279,14 @@ export async function confirmMilestoneAction(input: {
       body,
       urlPath: "/progress",
     }).catch(() => {});
+
+    // Ready-to-exchange email (audit #10): when this confirm was an exchange
+    // gate, check whether BOTH sides are now cleared and, if so, send the
+    // one-off "ready to exchange" email to clients. Fire-and-forget; the
+    // helper re-checks both gates and dedups the send.
+    if (code === "VM18" || code === "PM25") {
+      maybeSendReadyToExchangeEmail(input.transactionId).catch(() => {});
+    }
 
     // Email all vendor/purchaser portal contacts with a translated progress update.
     //

@@ -7,6 +7,7 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
 import { checkSolicitorConfirmLimit } from "@/lib/ratelimit";
+import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 import {
   sendAdminMilestoneNotificationToPortal,
   fireAutoCounterpartEmails,
@@ -141,6 +142,13 @@ export async function solicitorConfirmStepAction(
 
     if (def.code === "VM19" || def.code === "PM26") {
       scheduleOrSendCompletionPack(decoded.transactionId, def.code).catch(() => {});
+    }
+
+    // Ready-to-exchange email (audit #10): when the solicitor just confirmed
+    // an exchange gate, check whether both sides are now cleared and send the
+    // one-off "ready to exchange" email. Dedups against the agent-confirm path.
+    if (def.code === "VM18" || def.code === "PM25") {
+      maybeSendReadyToExchangeEmail(decoded.transactionId).catch(() => {});
     }
   }
 
