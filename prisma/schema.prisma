@@ -395,6 +395,7 @@ model PropertyTransaction {
   invoiceLines                     InvoiceLine[]
   creditNotes                      CreditNote[]
   fileTimeSessions                 FileTimeSession[]
+  portalTimeSessions               PortalTimeSession[]
   notifications                    Notification[]
   clientChaseStates                ClientChaseState[]
   solicitorChaseStates             SolicitorChaseState[]
@@ -650,6 +651,7 @@ model Contact {
   clientChaseStates ClientChaseState[]
   quoteRequests     QuoteRequest[]
   portalVisits      PortalVisit[]
+  portalTimeSessions PortalTimeSession[]
 
   @@index([buyerRoundId])
 }
@@ -2297,6 +2299,33 @@ model FileTimeSession {
   @@index([transactionId, userId])
   @@index([userId, startedAt])
   @@index([agencyId, startedAt])
+}
+
+// Portal-side twin of FileTimeSession — measures real engaged time a portal
+// CLIENT (a Contact, token-authenticated, not a User) spends on their portal.
+// FileTimeSession can't be reused because its userId/agencyId are non-null User
+// / Agency FKs; portal visitors have neither. engagementIntervals + the <10s
+// discard + heartbeat-timeout close mirror the agent system exactly, so the
+// two aggregate the same way. Added 2026-08-13 — no backfill, so it only
+// records from ship date forward.
+model PortalTimeSession {
+  id                  String    @id @default(cuid())
+  transactionId       String
+  contactId           String
+  startedAt           DateTime  @default(now())
+  endedAt             DateTime?
+  lastActivityAt      DateTime  @default(now())
+  engagementIntervals Json      @default("[]")
+  totalEngagedSeconds Int?
+  userAgent           String?
+  closedReason        String?
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  contact     Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId, contactId])
+  @@index([contactId, startedAt])
+  @@index([transactionId, startedAt])
 }
 
 // ── SystemNotification ───────────────────────────────────────────────────────

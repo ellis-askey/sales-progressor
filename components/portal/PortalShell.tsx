@@ -8,6 +8,7 @@ import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
 
 type Props = {
   token: string;
@@ -26,6 +27,11 @@ type Props = {
 export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, photoUrl, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
+
+  // Measure real engaged time the client spends on their portal (audit
+  // COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13). Mounts once for the whole portal
+  // shell, so it spans every sub-page. No backfill — records from ship forward.
+  usePortalTimeTracking(token);
 
   // Menu drawer (hamburger top-right of the header, added 2026-08-09).
   const [menuOpen, setMenuOpen] = useState(false);

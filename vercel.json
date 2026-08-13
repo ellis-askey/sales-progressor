@@ -49,19 +49,15 @@
       "schedule": "0 7 * * 1"
     },
     {
-      "path": "/api/cron/content-topics",
-      "schedule": "30 4 * * *"
-    },
-    {
-      "path": "/api/cron/content-batch",
-      "schedule": "30 6 * * *"
-    },
-    {
       "path": "/api/cron/data-retention",
       "schedule": "0 1 * * 0"
     },
     {
       "path": "/api/cron/file-time-close",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/portal-time-close",
       "schedule": "0 3 * * *"
     },
     {
