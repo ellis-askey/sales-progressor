@@ -174,12 +174,12 @@ export function LinkCard({
   // Photo — real signed URL on claimed links, else the house illustration.
   const photoUrl = link.transaction?.photoUrl ?? null;
 
-  // Price — full figure when known, "Price TBC" for a live-but-unpriced file,
-  // nothing for a dead link (declined / bounced) where the status pill says it all.
+  // Price is private to each agent: only ever shown on the viewer's OWN file
+  // (the server strips purchasePrice from every other link). On your own file
+  // it's the figure, or "Price TBC" until one is set; on any other card there's
+  // no price line at all — the status pill carries it.
   const price = link.transaction?.purchasePrice ?? null;
-  const isDead = status.kind === "declined" || status.kind === "bounced";
-  const priceLabel =
-    price != null ? formatChainPriceFull(price) : isDead ? null : "Price TBC";
+  const priceLabel = isYourFile ? (price != null ? formatChainPriceFull(price) : "Price TBC") : null;
 
   // Meta descriptor for the bottom bar (left side).
   let meta = "";

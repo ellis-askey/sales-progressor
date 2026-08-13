@@ -66,11 +66,11 @@ export function computeChainSummary(chain: ChainV2): ChainSummary {
   const links = chain.links;
   const totalCount = links.length;
 
-  const priced = links.filter((l) => l.transaction?.purchasePrice != null);
-  const pricedCount = priced.length;
-  const totalValuePence = pricedCount
-    ? priced.reduce((sum, l) => sum + (l.transaction!.purchasePrice ?? 0), 0)
-    : null;
+  // Value + priced count come from the server (chains.ts), which sums across
+  // every link before stripping individual prices for privacy. Summing here
+  // would undercount, since non-viewer links arrive with purchasePrice = null.
+  const totalValuePence = chain.valuePence;
+  const pricedCount = chain.pricedCount;
 
   const claimedLinks = links.filter((l) => l.transactionId !== null);
   const claimedCount = claimedLinks.length;

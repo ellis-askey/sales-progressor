@@ -94,9 +94,10 @@ export type ChainLinkV2 = {
     propertyAddress: string;
     status: string;
     agencyId: string;
-    // Agreed sale price for this link's claimed file. Shared across the chain
-    // (agreed prices are common knowledge to every party in a UK chain — they
-    // qualify the chain). Null when the file has no price recorded yet.
+    // Agreed sale price (pence) for this link's file. Exposed ONLY on the
+    // viewer's own link — stripped to null on every other link (an agent sees
+    // just their own price; the shared figure is the chain-level valuePence
+    // aggregate). Null also when the file has no price recorded yet.
     purchasePrice: number | null;
     // Signed URL (1h) for the link's property photo, minted at query time in
     // getChainV2 via a single batch round-trip. Null when the file has no
@@ -144,6 +145,13 @@ export type ChainV2 = {
   status: string;
   createdAt: Date;
   links: ChainLinkV2[];
+  // Combined chain value (pence) summed server-side across EVERY priced link,
+  // and how many links carry a price. Computed here because individual
+  // purchasePrice is stripped from every link except the viewer's own (privacy:
+  // an agent sees only their own sale price, but the aggregate total is shared).
+  // Null valuePence when no link is priced.
+  valuePence: number | null;
+  pricedCount: number;
   // Closed-loop chain arc (2026-06-05). Set when this chain has had one or
   // more links split off (typically because a withdraw in the cascade tore
   // the chain in two). Drives the "Chain split — N sales detached" banner
@@ -456,6 +464,13 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
     3600,
   ).catch(() => new Map<string, string>());
 
+  // Combined chain value computed from the RAW rows (before individual prices
+  // are stripped below). pricedCount powers the "across N priced sales" line.
+  const pricedCount = chain.links.filter((l) => l.transaction?.purchasePrice != null).length;
+  const valuePence = pricedCount
+    ? chain.links.reduce((sum, l) => sum + (l.transaction?.purchasePrice ?? 0), 0)
+    : null;
+
   // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
   // Strip the raw completions array AND the prediction inputs (createdAt /
   // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
@@ -465,6 +480,8 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
   return {
     ...chain,
     detachedSegment,
+    valuePence,
+    pricedCount,
     links: chain.links.map((l) => {
       if (!l.transaction) {
         return {
@@ -500,9 +517,19 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
       const isViewer = viewerUserId != null && l.claimedByUserId === viewerUserId;
       const stuckCode = isViewer ? computeStuckMilestoneCode(milestoneCompletions) : null;
       const stuckMilestoneLabel = stuckCode ? getMilestoneShortLabel(stuckCode) : null;
+      // Price privacy: an agent sees only their OWN sale price. Strip
+      // purchasePrice to null on every other link (own = claimed by, or the
+      // originator of, this file). The shared figure is valuePence above.
+      const isOwnFile =
+        viewerUserId != null &&
+        (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId);
       return {
         ...l,
-        transaction: { ...txnPublic, photoUrl },
+        transaction: {
+          ...txnPublic,
+          purchasePrice: isOwnFile ? txnPublic.purchasePrice : null,
+          photoUrl,
+        },
         progressPercent: computeWeightedProgress(milestoneCompletions),
         predictedExchangeDate: prediction.predictedExchangeDate,
         isEarlyEstimate: prediction.isEarlyEstimate,
