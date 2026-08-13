@@ -94,6 +94,14 @@ export type ChainLinkV2 = {
     propertyAddress: string;
     status: string;
     agencyId: string;
+    // Agreed sale price for this link's claimed file. Shared across the chain
+    // (agreed prices are common knowledge to every party in a UK chain — they
+    // qualify the chain). Null when the file has no price recorded yet.
+    purchasePrice: number | null;
+    // Signed URL (1h) for the link's property photo, minted at query time in
+    // getChainV2 via a single batch round-trip. Null when the file has no
+    // photo — the card falls back to the house illustration.
+    photoUrl: string | null;
   } | null;
   // Weighted progress 0–100 computed at query time from the claimed transaction's
   // milestone weights + completion states. Pooled across vendor + purchaser,
@@ -242,6 +250,8 @@ const LINK_V2_SELECT = {
       propertyAddress: true,
       status: true,
       agencyId: true,
+      purchasePrice: true,
+      photoStoragePath: true,
       createdAt: true,
       purchaseType: true,
       tenure: true,
@@ -437,12 +447,21 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
     };
   }
 
+  // Batch-sign every claimed link's property photo in a single round trip so
+  // the wide drawer can render real thumbnails (own file + others' claimed
+  // links). Unsigned/absent paths simply fall back to the house illustration.
+  const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+  const photoMap = await getSignedUrlMap(
+    chain.links.map((l) => l.transaction?.photoStoragePath),
+    3600,
+  ).catch(() => new Map<string, string>());
+
   // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
   // Strip the raw completions array AND the prediction inputs (createdAt /
   // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
   // returned shape — only the derived fields are exposed publicly. The link's
-  // transaction shape on the wire stays { id, propertyAddress, status, agencyId }
-  // for backward-compat with existing consumers (LinkCard, ChainDrawer, etc.).
+  // transaction shape on the wire is { id, propertyAddress, status, agencyId,
+  // purchasePrice, photoUrl } for consumers (LinkCard, ChainDrawer, etc.).
   return {
     ...chain,
     detachedSegment,
@@ -464,8 +483,10 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
         tenure,
         isShareOfFreehold,
         overridePredictedDate,
+        photoStoragePath,
         ...txnPublic
       } = l.transaction;
+      const photoUrl = photoStoragePath ? photoMap.get(photoStoragePath) ?? null : null;
       const prediction = computeChainLinkPrediction(milestoneCompletions, {
         createdAt,
         purchaseType,
@@ -481,7 +502,7 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
       const stuckMilestoneLabel = stuckCode ? getMilestoneShortLabel(stuckCode) : null;
       return {
         ...l,
-        transaction: txnPublic,
+        transaction: { ...txnPublic, photoUrl },
         progressPercent: computeWeightedProgress(milestoneCompletions),
         predictedExchangeDate: prediction.predictedExchangeDate,
         isEarlyEstimate: prediction.isEarlyEstimate,

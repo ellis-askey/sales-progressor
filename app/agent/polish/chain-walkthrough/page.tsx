@@ -138,7 +138,7 @@ const HEALTHY_LINKS: ChainLinkV2[] = [
     claimedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
     inviteStatus: "CLAIMED",
     claimedBy: { id: MOCK_USER_ID, name: "Sarah Hartwell", firmName: "Hartwell & Partners" },
-    transaction: { id: "txn_b", propertyAddress: "7 Orchard Close, St Albans, AL1 2HX", status: "active", agencyId: "agency_1" },
+    transaction: { id: "txn_b", propertyAddress: "7 Orchard Close, St Albans, AL1 2HX", status: "active", agencyId: "agency_1", purchasePrice: 62500000, photoUrl: null },
     progressPercent: 32,
   }),
   mockLink({
@@ -148,7 +148,7 @@ const HEALTHY_LINKS: ChainLinkV2[] = [
     claimedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
     inviteStatus: "CLAIMED",
     claimedBy: { id: MOCK_USER2_ID, name: "James Okafor", firmName: "Oakwood Estate Agents" },
-    transaction: { id: "txn_c", propertyAddress: "22 Birchwood Lane, Harpenden, AL5 1DP", status: "active", agencyId: "agency_2" },
+    transaction: { id: "txn_c", propertyAddress: "22 Birchwood Lane, Harpenden, AL5 1DP", status: "active", agencyId: "agency_2", purchasePrice: 48000000, photoUrl: null },
     progressPercent: 21,
   }),
   mockLink({
