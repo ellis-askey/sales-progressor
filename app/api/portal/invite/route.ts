@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       "",
       `Your portal: ${portalUrl}`,
       "",
-      "This link is personal to you — please don't share it with others.",
+      "This link is personal to you, so please don't share it with others.",
       "",
       agencyName,
     ].join("\n"),
