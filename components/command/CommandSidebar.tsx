@@ -8,7 +8,7 @@ import { saveCommandPreferencesAction } from "@/app/actions/command-preferences"
 import type { CommandMode } from "@/lib/command/scope";
 import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
-  Activity, Send, HeartPulse, FlaskConical, Pencil,
+  Activity, Send, HeartPulse, FlaskConical,
   Workflow, Shield, AlertTriangle, PoundSterling, ChevronDown, Check,
   RotateCcw, Handshake, Inbox,
 } from "lucide-react";
@@ -56,7 +56,11 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Phase 5",
     items: [
-      { href: "/command/content", label: "Content", Icon: Pencil },
+      // Content hidden from the nav 2026-08-13 (audit COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13):
+      // the pipeline was never run, so its "smart" parts have no data and it reads
+      // as dead. Route + models left intact ("hide, not remove") pending a decision
+      // on full removal. Re-enable by uncommenting.
+      // { href: "/command/content", label: "Content", Icon: Pencil },
       { href: "/command/automations", label: "Automations", Icon: Workflow, soon: true },
     ],
   },
