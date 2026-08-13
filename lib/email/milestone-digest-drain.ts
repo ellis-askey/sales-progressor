@@ -207,6 +207,7 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           text: decision.payload.text,
           html: decision.payload.html,
           queueId: decision.row.id,
+          emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
         await prisma.outboundEmailQueue.update({
           where: { id: decision.row.id },
@@ -236,6 +237,7 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           text: decision.assembled.text,
           html: decision.assembled.html,
           queueId: decision.rows.map((r) => r.id).join(","),
+          emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
         await prisma.outboundEmailQueue.updateMany({
           where: { id: { in: decision.rows.map((r) => r.id) } },
@@ -357,6 +359,7 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
           text: decision.payload.text,
           html: decision.payload.html,
           queueId: decision.row.id,
+          emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
         await prisma.outboundEmailQueue.update({
           where: { id: decision.row.id },
@@ -374,6 +377,7 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
           text: decision.assembled.text,
           html: decision.assembled.html,
           queueId: decision.rows.map((r) => r.id).join(","),
+          emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
         await prisma.outboundEmailQueue.updateMany({
           where: { id: { in: decision.rows.map((r) => r.id) } },

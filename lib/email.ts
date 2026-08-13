@@ -5,6 +5,32 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
 const DEFAULT_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
+// SendGrid analytics tagging (audit #17 — "start measuring email performance
+// properly"). `categories` is SendGrid's built-in aggregation dimension: the
+// dashboard breaks opens / clicks / bounces down by category. We stamp:
+//   - the email TYPE (e.g. "CLIENT_CHASE") so you can compare opens per type,
+//   - a VERSION category ("<type>:<version>") when a template carries one, so
+//     subject / copy experiments (audit #12) can be compared head to head,
+//   - an "env:<vercel-env>" tag so staging traffic never pollutes prod's
+//     numbers.
+// The same labels are mirrored into customArgs, which ride on every Event
+// Webhook event, in case we ever want the breakdown in our own DB too.
+function analyticsTags(
+  emailType?: string,
+  templateVersion?: string,
+): { categories?: string[]; customArgs: Record<string, string> } {
+  const customArgs: Record<string, string> = {};
+  if (!emailType) return { customArgs };
+  const env = (process.env.VERCEL_ENV || process.env.NODE_ENV || "development").toLowerCase();
+  const categories = [emailType, `env:${env}`];
+  customArgs.emailType = emailType;
+  if (templateVersion) {
+    categories.push(`${emailType}:${templateVersion}`);
+    customArgs.templateVersion = templateVersion;
+  }
+  return { categories, customArgs };
+}
+
 export async function sendEmail({
   to,
   cc,
@@ -14,6 +40,8 @@ export async function sendEmail({
   from,
   replyTo,
   queueId,
+  emailType,
+  templateVersion,
 }: {
   to: string;
   cc?: string[];
@@ -27,7 +55,15 @@ export async function sendEmail({
   // to the originating OutboundEmailQueue row for delivery-status writes.
   // Omit for direct/non-queued sends; the webhook just skips them.
   queueId?: string;
+  // Analytics tags (audit #17). emailType → a SendGrid category so opens /
+  // clicks aggregate per type; templateVersion → a second category for A/B
+  // comparison. Both optional and backward-compatible; untagged sends behave
+  // exactly as before.
+  emailType?: string;
+  templateVersion?: string;
 }) {
+  const tags = analyticsTags(emailType, templateVersion);
+  const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
   return sgMail.send({
     to,
     cc: cc && cc.length ? cc : undefined,
@@ -36,7 +72,8 @@ export async function sendEmail({
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
-    ...(queueId ? { customArgs: { queueId } } : {}),
+    ...(tags.categories ? { categories: tags.categories } : {}),
+    ...(Object.keys(customArgs).length ? { customArgs } : {}),
   });
 }
 
@@ -59,6 +96,8 @@ export async function sendChainEmail({
   queueId,
   from,
   replyTo,
+  emailType,
+  templateVersion,
 }: {
   to: string;
   subject: string;
@@ -69,6 +108,9 @@ export async function sendChainEmail({
   queueId?: string;
   from?: string;
   replyTo?: string;
+  // Analytics tags (audit #17) — see sendEmail for the full note.
+  emailType?: string;
+  templateVersion?: string;
 }): Promise<void> {
   const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
   const asmGroupId = process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID
@@ -85,6 +127,9 @@ export async function sendChainEmail({
   // logging into each neighbour agent's inbox. Prod doesn't set this var.
   const chainBcc = process.env.CHAIN_EMAIL_BCC?.trim();
 
+  const tags = analyticsTags(emailType, templateVersion);
+  const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
+
   await sgMail.send({
     to,
     from: from ?? DEFAULT_FROM,
@@ -94,7 +139,8 @@ export async function sendChainEmail({
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
     ...(asmGroupId ? { asm: { groupId: asmGroupId } } : {}),
-    ...(queueId ? { customArgs: { queueId } } : {}),
+    ...(tags.categories ? { categories: tags.categories } : {}),
+    ...(Object.keys(customArgs).length ? { customArgs } : {}),
     mailSettings: { sandboxMode: { enable: isSandbox } },
   });
 }

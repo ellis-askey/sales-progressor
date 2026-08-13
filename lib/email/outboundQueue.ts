@@ -270,6 +270,13 @@ export async function drainOutboundQueue(): Promise<{
         text: payload.text as string,
         html: payload.html as string | undefined,
         queueId: record.id,
+        // Analytics tags (audit #17): every queued email carries its type
+        // (CLIENT_CHASE / EXCHANGE / COMPLETION / …) so SendGrid can break
+        // opens down by type. A template that stamps `templateVersion` on its
+        // payload (e.g. a chase subject variant, audit #12) also gets a
+        // version category for A/B comparison.
+        emailType: record.emailType,
+        templateVersion: typeof payload.templateVersion === "string" ? payload.templateVersion : undefined,
         // White-labelled senders (e.g. the outsource-intro email) put their
         // own From/Reply-To on the payload at enqueue time. When absent
         // the chain defaults apply, preserving every existing call site's
