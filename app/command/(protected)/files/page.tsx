@@ -8,6 +8,7 @@ import {
   dismissPhotoReminder,
   type FileOperational,
 } from "@/lib/command/files";
+import { PhotoUploadButton } from "@/components/command/files/PhotoUploadButton";
 
 // ── formatters ───────────────────────────────────────────────────────────────
 function fmtDuration(seconds: number): string {
@@ -180,12 +181,7 @@ export default async function FilesPage({
                   <div className="text-[11px] text-neutral-500">{f.agencyName} · {fmtAge(f.createdAt)}</div>
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0 items-end">
-                  <Link
-                    href={`/transactions/${f.id}`}
-                    className="text-[11px] font-semibold text-neutral-950 bg-blue-500 hover:bg-blue-400 rounded-md px-2.5 py-1.5"
-                  >
-                    Add photo
-                  </Link>
+                  <PhotoUploadButton transactionId={f.id} />
                   <form action={dismissAction}>
                     <input type="hidden" name="txId" value={f.id} />
                     <button type="submit" className="text-[11px] text-neutral-500 hover:text-neutral-300">Dismiss</button>
@@ -230,12 +226,15 @@ function FilePanel({ file }: { file: FileOperational }) {
             )}
           </div>
         </div>
-        <Link
-          href={`/transactions/${file.id}`}
-          className="self-start text-xs text-blue-400 border border-blue-900 bg-blue-950/40 hover:bg-blue-950/70 px-2.5 py-1.5 rounded-lg whitespace-nowrap"
-        >
-          Open file →
-        </Link>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {!file.hasPhoto && <PhotoUploadButton transactionId={file.id} />}
+          <Link
+            href={`/transactions/${file.id}`}
+            className="text-xs text-blue-400 border border-blue-900 bg-blue-950/40 hover:bg-blue-950/70 px-2.5 py-1.5 rounded-lg whitespace-nowrap"
+          >
+            Open file →
+          </Link>
+        </div>
       </div>
 
       {/* team time */}
