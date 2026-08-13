@@ -22,7 +22,7 @@
 |---|------|--------|
 | 1 | Directors and negotiators can't see their notifications | done |
 | 2 | Turn on the "how long things really take" numbers | pending |
-| 3 | Give the "To-Do" tab a real inbox | pending |
+| 3 | Give the "To-Do" tab a real inbox | won't do (covered) |
 | 4 | Stop leaking developer pages into production | in progress |
 | 5 | Chains are being hidden inside the "create a sale" form | in progress |
 | 6 | Use portal engagement as a warning signal | in progress |
@@ -86,7 +86,7 @@ Ellis has the same problem — 305 unread notifications, none of which he's ever
 
 ### 2. Turn on the "how long things really take" numbers
 
-**Status:** pending
+**Status:** deferred
 
 **Today.** The app has a switch inside it that says "we have enough real data yet — false". Because it's set to false, every part of the UI that could say "this step usually takes 5 days and yours has been 12" stays silent. The agent looks at a stuck file and gets no context on whether it's stuck or normal.
 
@@ -102,7 +102,7 @@ Meanwhile the app has now watched more than a hundred real sales go through. We 
 
 ### 3. Give the "To-Do" tab a real inbox
 
-**Status:** pending
+**Status:** won't do (intent covered elsewhere)
 
 **Today.** When a client does something meaningful — sets an expected date, leaves a chase note, confirms something themselves — no page shows the agent "here's what your clients did that needs your attention". The information exists. There's even a fully-built component that could render it. It just isn't placed on any page.
 
@@ -110,7 +110,7 @@ Meanwhile the app has now watched more than a hundred real sales go through. We 
 
 **After the fix.** Taylor opens To-Do and the top of the page shows the things her clients did overnight: "Ben set expected date of 25 July for searches", "Sarah asked to pause chases", "Client note on 27 Willowbrook Crescent — 'solicitor won't reply'". She clicks each one, deals with it, it clears. Real inbox behaviour.
 
-**Notes & decisions.** _(filled in when we walk through this item)_
+**Notes & decisions.** WON'T DO the To-Do inbox (Ellis, 2026-08-13): keep To-Do as a manual notebook for agents/Ellis to add their own tasks. BUT the underlying need — "client dates + notes get lost" — is covered in the notification bell instead, which Ellis prefers over a third surface: the bell now surfaces `portal_expected_date_set` and `portal_chase_note` as warm, informational "Update" items ("We followed up with {name} about {step}, and they replied: '…'" / "They expect it by {date}"), with a quiet glass Update pill. Built 2026-08-13 on the #16 bell allowlist; `bellNotificationSentence` in `lib/updates-copy.ts`. Not a separate clearable inbox — visibility only.
 
 ---
 
