@@ -170,7 +170,7 @@ export async function updateMySolicitorContactAction(input: {
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const firmId = side === "vendor" ? tx.vendorSolicitorFirmId : tx.purchaserSolicitorFirmId;
   if (!firmId) {
-    return { ok: false as const, error: "No solicitor firm set yet — use \"Switch to a different firm\" instead" };
+    return { ok: false as const, error: "No solicitor firm set yet. Use \"Switch to a different firm\" instead." };
   }
 
   // Copy-on-write: new SolicitorContact under the same firm.
