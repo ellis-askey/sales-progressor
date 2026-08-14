@@ -87,6 +87,15 @@
 - **Verify:** 12/12 tests (copy + 8-case cadence/escalation decision); `tsc` clean; a live smoke on staging confirmed the cron's tracker query resolves a real tracker + its solicitor email. The actual send only fires when the master switch is on (off by default, so nothing sends in prod yet) — a full sandbox dry-run can be run when you're ready.
 - **Revert:** `git revert` the commit. No DB change. (Re-add the enquiries codes to `codes.ts` if you want the old chase to cover them again.)
 
+## Stage 1.6a — Tracker service + movement logging
+- **Date:** 2026-08-14
+- **What:** the read + mutations behind the internal panel. `logEnquiryMovement` records a one-line movement and **resets the chase** (clears `lastChasedAt` + `escalatedAt`) and **flips the court** if the ball moved; `setEnquiryOutstandingNote` and `setEnquirySnooze` (snooze N working days); `getEnquiryTrackerView` returns the display shape (status, next-chase date, movements). Server actions verify the file is in the caller's access scope (Law 7) before any write.
+- **Files:** `lib/enquiries/tracker.ts`, `app/actions/enquiries.ts`.
+- **DB:** none.
+- **Verify:** `tsc` clean; a staging smoke logged a movement on a chased + stalled file — the court flipped seller → buyer, `lastChasedAt` and `escalatedAt` cleared, movement recorded. Cleaned up.
+- **Next (1.6b):** the visual panel on the internal file view that drives these actions.
+- **Revert:** `git revert` the commit. No DB change.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
