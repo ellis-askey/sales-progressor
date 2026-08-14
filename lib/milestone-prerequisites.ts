@@ -1,6 +1,11 @@
 // Canonical direct-prerequisite map — no server imports, safe for client bundles.
 // Mirrors DIRECT_PREREQUISITES in lib/services/milestones.ts (import from here instead).
-
+//
+// Enquiries rework (docs/active/enquiries-stage-rework-SPEC.md): the per-round
+// enquiry sub-steps (buyer PM15-19, seller VM11-15) are retired — see
+// RETIRED_ENQUIRY_CODES below. PM20 "satisfied" now depends directly on PM14
+// "raised" (no phantom intermediate chain), and a new seller-side mirror VM21
+// "enquiries satisfied" depends on VM10 "received".
 export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM3:  ["VM1"],
   VM4:  ["VM3"],
@@ -9,11 +14,7 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM7:  ["VM6"],
   VM9:  ["VM8"],
   VM10: ["VM7"],
-  VM11: ["VM10"],
-  VM12: ["VM11"],
-  VM13: ["VM10"],
-  VM14: ["VM13"],
-  VM15: ["VM14"],
+  VM21: ["VM10"],
   VM16: ["VM7"],
   VM17: ["VM16"],
   VM19: ["VM18"],
@@ -28,12 +29,7 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   PM12: ["VM9"],
   PM13: ["PM8"],
   PM14: ["PM7"],
-  PM15: ["PM14"],
-  PM16: ["PM15"],
-  PM17: ["PM14"],
-  PM18: ["PM17"],
-  PM19: ["PM18"],
-  PM20: ["PM19"],
+  PM20: ["PM14"],
   PM21: ["PM20"],
   PM22: ["PM21"],
   PM23: ["PM22"],
@@ -41,3 +37,13 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   PM26: ["PM25"],
   PM27: ["PM26"],
 };
+
+// The enquiry sub-steps collapsed away by the enquiries rework. Their
+// MilestoneDefinition rows still exist (hard-deleted in a later stage so
+// existing files' completion rows don't orphan), but they no longer gate
+// exchange, carry weight, or act as prerequisites. New files never create
+// them, and every display list filters them out.
+export const RETIRED_ENQUIRY_CODES: ReadonlySet<string> = new Set([
+  "PM15", "PM16", "PM17", "PM18", "PM19",
+  "VM11", "VM12", "VM13", "VM14", "VM15",
+]);

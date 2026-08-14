@@ -158,7 +158,7 @@ export type MilestonesByTransaction = {
 
 // ── Prerequisite maps ──────────────────────────────────────────────────────────
 
-import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { DIRECT_PREREQUISITES, RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 export { DIRECT_PREREQUISITES };
 
 // Only PM9 can be manually marked Not Required; PM10 cascades from it.
@@ -241,9 +241,10 @@ export async function initializeMilestoneCompletions(
   db?: Prisma.TransactionClient | PrismaClient
 ) {
   const client = db ?? prisma;
-  const defs = await client.milestoneDefinition.findMany({
+  // Retired enquiry sub-steps are never created on new files (enquiries rework).
+  const defs = (await client.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-  });
+  })).filter((d) => !RETIRED_ENQUIRY_CODES.has(d.code));
 
   // Single source of truth: lib/milestone-auto-nr.ts. Shared with the
   // edit-sale-details cascade (confirmSaleDetailsAction) and the
@@ -543,9 +544,12 @@ export async function getMilestonesForTransaction(
   const vendorClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name)) || null;
   const purchaserClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)) || null;
 
-  const definitions = await prisma.milestoneDefinition.findMany({
+  // Retired enquiry sub-steps are hidden from every milestone list (enquiries
+  // rework) — they no longer gate or carry weight, and are removed for good in
+  // a later stage.
+  const definitions = (await prisma.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-  });
+  })).filter((d) => !RETIRED_ENQUIRY_CODES.has(d.code));
 
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
