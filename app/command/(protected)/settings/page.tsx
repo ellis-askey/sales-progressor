@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { commandDb } from "@/lib/command/prisma";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 
 // Command Centre → Settings. Folds the old /admin config into the Command
 // Centre: the read-only milestone + reminder-rule reference lives here
@@ -16,7 +17,7 @@ function Dash() {
 
 export default async function SettingsPage() {
   const [milestoneDefs, reminderRules] = await Promise.all([
-    commandDb.milestoneDefinition.findMany({ orderBy: [{ side: "asc" }, { orderIndex: "asc" }] }),
+    commandDb.milestoneDefinition.findMany({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } }, orderBy: [{ side: "asc" }, { orderIndex: "asc" }] }),
     commandDb.reminderRule.findMany({
       where: { isActive: true },
       include: { anchorMilestone: { select: { name: true, code: true, side: true, orderIndex: true } } },

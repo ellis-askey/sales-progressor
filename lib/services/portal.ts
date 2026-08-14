@@ -2192,7 +2192,16 @@ export async function getPortalTimeline(
       : { transactionId, visibleToClient: true };
     const [completions, updates] = await Promise.all([
       prisma.milestoneCompletion.findMany({
-        where: { transactionId, state: "complete", ...completionScope },
+        // Enquiries rework: never surface the retired granular enquiry steps to a
+        // client. Migrated in-flight files still carry completed rows for them,
+        // so filter here (the definition-driven reads filter already; this is a
+        // raw-completion feed and must too).
+        where: {
+          transactionId,
+          state: "complete",
+          milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
+          ...completionScope,
+        },
         include: {
           milestoneDefinition: { select: { code: true, side: true } },
           completedBy: { select: { name: true, image: true } },

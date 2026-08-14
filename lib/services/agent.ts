@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase } from "@/lib/services/fees";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
 const DRAFT = "draft" as TransactionStatus;
@@ -282,6 +283,9 @@ export async function getAgentMilestoneActivity(
     where: {
       transaction: txFilter,
       state: "complete",
+      // Enquiries rework: keep the retired granular enquiry steps out of the
+      // agent activity feed (migrated files still carry their completed rows).
+      milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
       OR: roundScopedOR(activeRoundIds),
       ...(portalOnly ? { confirmedByPortal: true } : {}),
     },
@@ -325,6 +329,9 @@ export async function getFileSnapshots(
 
   const activeRoundIds = await loadActiveRoundIds({ ...txWhere(vis), id: { in: ids } });
   const defs = await prisma.milestoneDefinition.findMany({
+    // Enquiries rework: exclude retired steps so a stale "available" retired row
+    // on a migrated file can't be surfaced as the file's next action.
+    where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
     select: { id: true, code: true, name: true, side: true, weight: true, orderIndex: true },
     orderBy: [{ orderIndex: "asc" }],
   });

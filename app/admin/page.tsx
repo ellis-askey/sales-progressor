@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { AgentFeeManager } from "@/components/admin/AgentFeeManager";
 import { AgentManager } from "@/components/admin/AgentManager";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 
 export default async function AdminPage() {
   const session = await requireSession();
@@ -34,6 +35,7 @@ export default async function AdminPage() {
       select: { id: true, name: true },
     }),
     prisma.milestoneDefinition.findMany({
+      where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
       orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
     }),
     prisma.reminderRule.findMany({
