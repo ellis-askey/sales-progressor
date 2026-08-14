@@ -62,6 +62,15 @@
 - **Verify:** 7/7 tests, `tsc` clean.
 - **Revert:** `git revert` the commit; counter-migration to restore the old weights if applied.
 
+## Stage 1.4a — Enquiries tracker lifecycle
+- **Date:** 2026-08-14
+- **What:** the enquiries tracker now opens automatically the moment enquiries are raised (PM14) or received (VM10) — with the ball starting on the seller's solicitor — and closes when the buyer's side confirms satisfied (PM20, or the seller reflection VM21). Wired into `completeMilestone`'s side-effect chain, alongside the existing unlock/gate hooks.
+- **Files:** `lib/services/milestones.ts` (`syncEnquiryTracker` helper + one hook).
+- **DB:** none (uses the tables from Stage 1.1).
+- **Verify:** `tsc` clean (Prisma calls + the `seller_solicitor` enum typecheck against the real client); runtime smoke test on staging opened and closed a throwaway tracker, then cleaned up.
+- **Revert:** `git revert` the commit. No DB change.
+- **Next (1.4b):** the chase send itself — the 9-working-day nudge to whoever holds the ball, the plain "Good morning/afternoon" copy + "Provide an update" button, and the 3-week escalation.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*

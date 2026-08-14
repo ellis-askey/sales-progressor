@@ -188,6 +188,41 @@ export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
   VM20: "PM27", PM27: "VM20",
 };
 
+// ── Enquiries tracker lifecycle (enquiries rework) ────────────────────────────
+// The tracker is the home for the enquiries loop: whose-court state, the
+// movement log, and the chase. It opens the moment enquiries are raised or
+// received, and closes when the buyer's side confirms all enquiries satisfied.
+// See docs/active/enquiries-stage-rework-SPEC.md.
+const ENQUIRY_OPEN_CODES = new Set(["PM14", "VM10"]);  // raised / received
+const ENQUIRY_CLOSE_CODES = new Set(["PM20", "VM21"]); // satisfied (+ seller reflection)
+
+export async function syncEnquiryTracker(
+  transactionId: string,
+  completedCode: string,
+  db?: Prisma.TransactionClient | PrismaClient,
+): Promise<void> {
+  const client = db ?? prisma;
+  if (ENQUIRY_OPEN_CODES.has(completedCode)) {
+    // Open the loop once (the ball starts with the seller's solicitor, who
+    // owes the replies). Idempotent: one tracker per transaction.
+    const existing = await client.enquiryTracker.findUnique({
+      where: { transactionId },
+      select: { id: true },
+    });
+    if (!existing) {
+      await client.enquiryTracker.create({
+        data: { transactionId, currentlyWith: "seller_solicitor" },
+      });
+    }
+  } else if (ENQUIRY_CLOSE_CODES.has(completedCode)) {
+    // Satisfied is terminal — close the loop (idempotent; stops the chase).
+    await client.enquiryTracker.updateMany({
+      where: { transactionId, closedAt: null },
+      data: { closedAt: new Date() },
+    });
+  }
+}
+
 function collectAllDependentCodes(startCode: string): string[] {
   const visited = new Set<string>();
   const queue = [startCode];
@@ -984,6 +1019,14 @@ export async function completeMilestone(
     await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] maybeUnlockExchangeGate failed:", err);
+  }
+
+  // Enquiries rework: open the enquiries tracker when enquiries are raised /
+  // received, close it when satisfied.
+  try {
+    await syncEnquiryTracker(input.transactionId, def.code, txForHelpers);
+  } catch (err) {
+    console.error("[completeMilestone] syncEnquiryTracker failed:", err);
   }
 
   // Self-resolve outOfOrderCompletion flags: clear them when their full prereq
