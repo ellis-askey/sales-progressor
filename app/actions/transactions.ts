@@ -576,6 +576,25 @@ export async function changeStatusAction(
       },
     });
 
+    // Enquiries rework: keep the enquiries tracker honest across status changes.
+    //   - Terminal (withdrawn / completed): close the loop for good, so its
+    //     chase can never fire again and it stops counting as "open" anywhere.
+    //   - Returning to active from a hold: restart the chase clock so the weeks
+    //     paused don't trigger an instant "stalled" escalation on day one back.
+    //   - Entering on_hold: no change needed — the chase cron already skips
+    //     non-active files; the loop resumes cleanly when the file reactivates.
+    if (status === "withdrawn" || status === "completed") {
+      await ptx.enquiryTracker.updateMany({
+        where: { transactionId, closedAt: null },
+        data: { closedAt: new Date() },
+      });
+    } else if (leavingHold && status === "active") {
+      await ptx.enquiryTracker.updateMany({
+        where: { transactionId, closedAt: null },
+        data: { lastChasedAt: new Date(), escalatedAt: null },
+      });
+    }
+
     // Persist the chain snapshot to the active BuyerRound. The round
     // stays "active" until the file is relisted (at which point the
     // existing STEP 1 archive logic carries the snapshot into the drawer).

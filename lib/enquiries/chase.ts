@@ -73,7 +73,12 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
   if (!isWeekdayLondon(now)) return { enabled: true, considered: 0, sent: 0, escalated: 0, skippedWeekend: true };
 
   const trackers = await prisma.enquiryTracker.findMany({
-    where: { closedAt: null },
+    // Only chase live files. A withdrawn / on-hold / completed sale keeps its
+    // open tracker (nothing closes it on a status change), but we must not
+    // email its solicitors or escalate to its owner. (The tracker is also
+    // closed/snoozed on status change — see the status-change handler — but
+    // this filter is the belt-and-braces guard the chase itself owns.)
+    where: { closedAt: null, transaction: { is: { status: "active" } } },
     select: {
       id: true,
       currentlyWith: true,
