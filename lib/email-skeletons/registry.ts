@@ -8,6 +8,14 @@
 // the registry is never consulted by the live send path — every email
 // behaves exactly as it did before this work began. Snapshot tooling
 // reads the registry directly (no flag) so authoring can be reviewed.
+//
+// ⚠ ENQUIRIES REWORK (2026-08-14): the enquiries skeletons (PM14, VM10, and
+// the now-retired PM15-19 / VM11-15) are STALE relative to the collapsed
+// enquiries model — they still carry the old bilateral direction variants and
+// hand-off nudges that point at deleted milestones. The LIVE enquiries emails
+// were fixed in lib/portal-copy.ts instead. DO NOT enable EMAIL_SKELETON_MODE
+// until the enquiries skeletons are reconciled with the new model, or those
+// emails will misbehave. See docs/active/enquiries-stage-rework-SPEC.md (1.8).
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 

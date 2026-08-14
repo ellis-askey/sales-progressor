@@ -39,10 +39,13 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
 };
 
 // The enquiry sub-steps collapsed away by the enquiries rework. Their
-// MilestoneDefinition rows still exist (hard-deleted in a later stage so
-// existing files' completion rows don't orphan), but they no longer gate
-// exchange, carry weight, or act as prerequisites. New files never create
-// them, and every display list filters them out.
+// MilestoneDefinition rows are INTENTIONALLY LEFT INERT (not deleted): weight
+// 0, don't gate exchange, not prerequisites, never created on new files, and
+// filtered out of every display list. We deliberately did NOT hard-delete
+// them — that would destroy completion-row history on existing files for zero
+// functional gain (there is no behavioural difference between "deleted" and
+// "inert + hidden"). Do not "tidy" them away or resurrect them.
+// See docs/active/enquiries-rework-CHANGELOG.md (Stage 1.8 / 1.9 decision).
 export const RETIRED_ENQUIRY_CODES: ReadonlySet<string> = new Set([
   "PM15", "PM16", "PM17", "PM18", "PM19",
   "VM11", "VM12", "VM13", "VM14", "VM15",

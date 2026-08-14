@@ -138,6 +138,23 @@
 - **Note:** migrated trackers default the ball to the seller's solicitor (the true court can't be known from milestones); the progressor can flip it from the panel. The chase is still off, so no file is nudged until switch-on.
 - **Revert:** `git revert` the migration; a counter-migration would delete the backfilled VM21 rows + migrated trackers, re-lock PM20, and unflip the VM21 gate.
 
+## Stage 1.11 — Regression
+- **Date:** 2026-08-14
+- **What:** ran the full unit/integration suite after the whole rework. **207/207 tests pass, 12/12 suites, `tsc` clean.** Nothing across the app broke. (The Playwright visual + E2E layers run in CI on the PR, not locally.)
+
+## Stages 1.8 / 1.9 — decision: LEAVE (documented, not built)
+- **Date:** 2026-08-14
+- **1.8 (bilateral email de-dup):** not done, on purpose. The skeleton email system it targets is switched off (no live effect), and the only live redundancy is pre-existing and out of scope. A signpost was added to `lib/email-skeletons/registry.ts`: the enquiries skeletons are now stale, so **EMAIL_SKELETON_MODE must not be enabled until they're reconciled**.
+- **1.9 (hard-delete retired steps):** not done, on purpose. Deleting the retired definitions means deleting their completion-row history on real files — destructive (hard rule) for **zero functional gain**, since the steps are already weight-0, non-gating, and hidden. They are **intentionally left inert**; a signpost was added to `lib/milestone-prerequisites.ts` ("do not tidy away or resurrect").
+- **Net:** the retired steps live on as inert, invisible rows. No behavioural difference from deletion; no data destroyed.
+
+---
+
+## Rollout — remaining (founder-triggered)
+1. Test on staging (deployed at commit `5de1d8c`).
+2. Push `staging → master` to take the migrations + code to prod.
+3. Flip the chase on: Settings → Automation (the `SolicitorChaseSettings` master switch).
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
