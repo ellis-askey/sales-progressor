@@ -200,7 +200,7 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
       : "soon";
     return `${name} paused their chase reminders until ${date}.`;
   }
-  // portal_chain_agent_updated + any other allowlisted type carry a
-  // pre-rendered body/title in their payload.
-  return String(payload.body ?? payload.title ?? "Update on your file");
+  // enquiries_stalled + solicitor_update carry a ready-made `message`;
+  // portal_chain_agent_updated + others carry a pre-rendered body/title.
+  return String(payload.message ?? payload.body ?? payload.title ?? "Update on your file");
 }

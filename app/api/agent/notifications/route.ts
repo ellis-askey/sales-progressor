@@ -14,12 +14,19 @@ const BELL_NOTIFICATION_TYPES = [
   "portal_expected_date_set",
   "portal_chase_note",
   "portal_chases_paused",
+  // Enquiries rework: surface the tracker's 3-week "stalled" escalation and a
+  // solicitor leaving an enquiries update, so self-managed (agent-owned) files
+  // see them in the bell — not just outsourced files' SP count.
+  "enquiries_stalled",
+  "solicitor_update",
 ];
 
 // The small pill shown on a bell item, per notification type. "Paused" for a
-// chase pause; "Update" for every other informational client item.
+// chase pause; "Stalled" for the enquiries escalation; "Update" otherwise.
 function pillLabelForType(type: string): string {
-  return type === "portal_chases_paused" ? "Paused" : "Update";
+  if (type === "portal_chases_paused") return "Paused";
+  if (type === "enquiries_stalled") return "Stalled";
+  return "Update";
 }
 
 // Bell feed = the same "completed step" activity shown on the Updates page

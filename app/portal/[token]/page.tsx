@@ -12,6 +12,7 @@ import { PortalTeamCard } from "@/components/portal/PortalTeamCard";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
+import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
@@ -91,7 +92,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);
 
-  const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && m.isAvailable);
+  // Exclude agent/solicitor-only steps (exchange gates, exchange/completion, and
+  // "all enquiries satisfied" PM20/VM21) from the client's next-action CTA — a
+  // client is never asked to confirm a solicitor's legal sign-off.
+  const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !isPortalAgentOnly(m.code) && m.isAvailable);
   const nextAction = available[0] ?? null;
   const nextAfter  = available[1] ?? null;
   const comingUp   = available.slice(2, 5);
