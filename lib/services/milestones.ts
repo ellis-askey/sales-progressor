@@ -768,6 +768,11 @@ export type CompleteMilestoneInput = {
   confirmer: Confirmer;
   eventDate?: Date | null;
   completedAt?: Date;
+  // Internal use only: skip the direct-prerequisite guard. Set solely by the
+  // PM20→VM21 reflection below, where VM21 (seller "all enquiries satisfied")
+  // is a pure mirror of the buyer's PM20 and must complete even if the
+  // seller-side VM10 ("received") was never ticked. Never set from a UI path.
+  bypassPrereqs?: boolean;
 };
 
 export async function completeMilestone(
@@ -804,7 +809,7 @@ export async function completeMilestone(
   // and looping (the original bug behind the 46 Ramilles Close
   // "kept clicking Done" report).
   const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
-  if (prereqCodes.length > 0) {
+  if (prereqCodes.length > 0 && !input.bypassPrereqs) {
     const prereqDefs = await db.milestoneDefinition.findMany({
       where: { code: { in: prereqCodes } },
       select: { id: true, code: true, name: true },
@@ -1027,6 +1032,39 @@ export async function completeMilestone(
     await syncEnquiryTracker(input.transactionId, def.code, txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] syncEnquiryTracker failed:", err);
+  }
+
+  // Enquiries rework: VM21 (seller "all enquiries satisfied") is a pure
+  // reflection of PM20 (the buyer's solicitor confirming satisfaction). It is
+  // never an independent action, so it must auto-complete whenever PM20 does —
+  // on EVERY confirm path (agent app, client portal, solicitor /s/ link, API
+  // route, chase task, reconciliation). Living here, at the single chokepoint
+  // all of those run through, is what guarantees the two sides never desync
+  // (the prior per-caller wiring left the solicitor link + API route out). The
+  // recursive call bypasses the prereq guard because VM21 mirrors the buyer's
+  // call and must not be blocked by an un-ticked seller-side VM10. completeMilestone
+  // is idempotent on an already-complete row, so a caller that still passed a
+  // PM20→VM21 pair (or a double-fire) is a safe no-op.
+  if (def.code === "PM20") {
+    try {
+      const vm21 = await db.milestoneDefinition.findFirst({
+        where: { code: "VM21" },
+        select: { id: true },
+      });
+      if (vm21) {
+        await completeMilestone(
+          {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: vm21.id,
+            confirmer: input.confirmer,
+            bypassPrereqs: true,
+          },
+          tx,
+        );
+      }
+    } catch (err) {
+      console.error("[completeMilestone] PM20→VM21 reflection failed:", err);
+    }
   }
 
   // Self-resolve outOfOrderCompletion flags: clear them when their full prereq

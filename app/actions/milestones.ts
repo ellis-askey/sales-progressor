@@ -79,10 +79,10 @@ export async function confirmMilestoneAction(input: {
   const BILATERAL_PAIRS: Record<string, string> = {
     VM19: "PM26", PM26: "VM19",
     VM20: "PM27", PM27: "VM20",
-    // Enquiries rework: confirming the buyer's "all enquiries satisfied" (PM20)
-    // auto-completes the seller-side reflection VM21. One-directional — VM21 is
-    // NOT mapped back to PM20 (the seller never declares the buyer satisfied).
-    PM20: "VM21",
+    // NB: PM20→VM21 (enquiries satisfied) is NOT here. That reflection now lives
+    // inside completeMilestone itself, so it fires on every confirm path — this
+    // map only carries the exchange/completion pairs that need caller-level
+    // event-date + reconciliation handling.
   };
   const counterCode = def?.code ? BILATERAL_PAIRS[def.code] : undefined;
   let counterDefId: string | undefined;

@@ -263,10 +263,11 @@ async function resolveEnquiries(token: string) {
   return { decoded, tx, side, firmName };
 }
 
-// (E1) Buyer's solicitor confirms all enquiries are satisfied → completes PM20,
-// which closes the tracker (syncEnquiryTracker) and bilaterally completes VM21
-// (the seller-side "all enquiries satisfied"). Only the buyer's solicitor can
-// declare this — they raised the enquiries, so satisfaction is their call.
+// (E1) Buyer's solicitor confirms all enquiries are satisfied → completes PM20.
+// completeMilestone then closes the tracker and auto-completes the seller-side
+// reflection VM21 (the reflection lives inside completeMilestone, so this path
+// gets it for free). Only the buyer's solicitor can declare this — they raised
+// the enquiries, so satisfaction is their call.
 export async function solicitorEnquiriesSatisfiedAction(token: string): Promise<{ ok: true }> {
   const { decoded, tx, side } = await resolveEnquiries(token);
   if (side !== "purchaser") {
@@ -279,11 +280,20 @@ export async function solicitorEnquiriesSatisfiedAction(token: string): Promise<
   });
   if (!pm20) throw new Error("That step could not be found.");
 
-  await completeMilestone({
-    transactionId: decoded.transactionId,
-    milestoneDefinitionId: pm20.id,
-    confirmer: { kind: "solicitor", firmId: null, contactId: null, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
-  });
+  // Completing PM20 auto-completes the seller-side reflection VM21 inside
+  // completeMilestone (the reflection lives at that shared chokepoint so every
+  // confirm path stays in sync). Wrap in a transaction so PM20 + VM21 land
+  // together or not at all.
+  await prisma.$transaction(async (ptx) => {
+    await completeMilestone(
+      {
+        transactionId: decoded.transactionId,
+        milestoneDefinitionId: pm20.id,
+        confirmer: { kind: "solicitor", firmId: null, contactId: null, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
+      },
+      ptx,
+    );
+  }, { timeout: 30000, maxWait: 10000 });
 
   // Fire the client-facing "enquiries satisfied" email exactly as the agent's
   // in-app confirm would (PM20 → seller hears once; VM21 stays progressor-only
