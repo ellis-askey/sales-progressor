@@ -116,33 +116,44 @@ async function main() {
     },
     {
       code: "VM10", orderIndex: 10, blocksExchange: true,  predecessorCode: "VM7",  canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 5.00, name: "Seller's solicitor has received initial enquiries",
+      weight: 8.00, name: "Seller's solicitor has received initial enquiries",
       summaryTemplate: "{agent} received confirmation from {solicitor} that initial enquiries have been received from the buyer's solicitor",
     },
+    // Enquiries rework: VM11-VM15 retired (collapsed into the enquiries tracker).
+    // Kept as inert rows (no gate, zero weight, hidden from every list) until a
+    // later stage hard-deletes them. See docs/active/enquiries-stage-rework-SPEC.md.
     {
-      code: "VM11", orderIndex: 11, blocksExchange: true,  predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 5.00, name: "Seller has provided initial replies to their solicitor",
+      code: "VM11", orderIndex: 11, blocksExchange: false, predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Seller has provided initial replies to their solicitor",
       summaryTemplate: "{agent} confirmed {vendors} provided initial replies to their solicitor",
     },
     {
-      code: "VM12", orderIndex: 12, blocksExchange: true,  predecessorCode: "VM11", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 5.00, name: "Seller's solicitor has issued initial responses to the buyer's solicitor",
+      code: "VM12", orderIndex: 12, blocksExchange: false, predecessorCode: "VM11", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Seller's solicitor has issued initial responses to the buyer's solicitor",
       summaryTemplate: "{agent} received confirmation from {solicitor} that initial replies have been issued to the buyer's solicitor",
     },
     {
-      code: "VM13", orderIndex: 13, blocksExchange: true,  predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 3.00, name: "Seller's solicitor has received additional enquiries",
+      code: "VM13", orderIndex: 13, blocksExchange: false, predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Seller's solicitor has received additional enquiries",
       summaryTemplate: "{agent} received confirmation from {solicitor} that further enquiries have been received",
     },
     {
-      code: "VM14", orderIndex: 14, blocksExchange: true,  predecessorCode: "VM13", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 3.00, name: "Seller has provided additional replies to their solicitor",
+      code: "VM14", orderIndex: 14, blocksExchange: false, predecessorCode: "VM13", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Seller has provided additional replies to their solicitor",
       summaryTemplate: "{agent} confirmed {vendors} provided further replies to their solicitor",
     },
     {
-      code: "VM15", orderIndex: 15, blocksExchange: true,  predecessorCode: "VM14", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 3.00, name: "Seller's solicitor has issued additional responses to the buyer's solicitor",
+      code: "VM15", orderIndex: 15, blocksExchange: false, predecessorCode: "VM14", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Seller's solicitor has issued additional responses to the buyer's solicitor",
       summaryTemplate: "{agent} received confirmation from {solicitor} that further replies have been issued to the buyer's solicitor",
+    },
+    // Enquiries rework: seller-side reflection of the buyer's "all enquiries
+    // satisfied" (PM20). Auto-completes when the buyer confirms; never ticked by
+    // the seller. blocksExchange flips true in the in-flight-migration stage.
+    {
+      code: "VM21", orderIndex: 15, blocksExchange: false, predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 16.00, name: "All enquiries satisfied",
+      summaryTemplate: "{agent} confirmed all enquiries on the file are satisfied",
     },
     {
       code: "VM16", orderIndex: 16, blocksExchange: true,  predecessorCode: "VM7",  canBeMarkedNr: CanBeMarkedNr.never,
@@ -240,37 +251,40 @@ async function main() {
     },
     {
       code: "PM14", orderIndex: 14, blocksExchange: true,  predecessorCode: "PM7",  canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 3.00, name: "Buyer's solicitor has raised initial enquiries to the seller's solicitor",
+      weight: 6.00, name: "Buyer's solicitor has raised initial enquiries to the seller's solicitor",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor has raised their initial enquiries",
     },
+    // Enquiries rework: PM15-PM19 retired (collapsed into the enquiries tracker).
+    // Kept as inert rows (no gate, zero weight, hidden from every list) until a
+    // later stage hard-deletes them. See docs/active/enquiries-stage-rework-SPEC.md.
     {
-      code: "PM15", orderIndex: 15, blocksExchange: true,  predecessorCode: "PM14", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 3.00, name: "Buyer's solicitor has received initial replies from the seller's solicitor",
+      code: "PM15", orderIndex: 15, blocksExchange: false, predecessorCode: "PM14", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Buyer's solicitor has received initial replies from the seller's solicitor",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor has received the initial replies from {solicitor}",
     },
     {
-      code: "PM16", orderIndex: 16, blocksExchange: true,  predecessorCode: "PM15", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 2.00, name: "Buyer's solicitor has reviewed the initial replies",
+      code: "PM16", orderIndex: 16, blocksExchange: false, predecessorCode: "PM15", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Buyer's solicitor has reviewed the initial replies",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor has reviewed the initial replies",
     },
     {
-      code: "PM17", orderIndex: 17, blocksExchange: true,  predecessorCode: "PM14", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 2.00, name: "Buyer's solicitor has raised additional enquiries",
+      code: "PM17", orderIndex: 17, blocksExchange: false, predecessorCode: "PM14", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Buyer's solicitor has raised additional enquiries",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor has raised further enquiries",
     },
     {
-      code: "PM18", orderIndex: 18, blocksExchange: true,  predecessorCode: "PM17", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 2.00, name: "Buyer's solicitor has received additional replies",
+      code: "PM18", orderIndex: 18, blocksExchange: false, predecessorCode: "PM17", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Buyer's solicitor has received additional replies",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor has received the further replies from {solicitor}",
     },
     {
-      code: "PM19", orderIndex: 19, blocksExchange: true,  predecessorCode: "PM18", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 2.00, name: "Buyer's solicitor has reviewed the additional replies",
+      code: "PM19", orderIndex: 19, blocksExchange: false, predecessorCode: "PM18", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 0, name: "Buyer's solicitor has reviewed the additional replies",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor has reviewed the further replies",
     },
     {
-      code: "PM20", orderIndex: 20, blocksExchange: true,  predecessorCode: "PM19", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 6.00, name: "Buyer's solicitor has confirmed all enquiries are now satisfied",
+      code: "PM20", orderIndex: 20, blocksExchange: true,  predecessorCode: "PM14", canBeMarkedNr: CanBeMarkedNr.never,
+      weight: 14.00, name: "Buyer's solicitor has confirmed all enquiries are now satisfied",
       summaryTemplate: "{agent} confirmed that all enquiries are now satisfied and {purchasers}'s solicitor is happy to proceed",
     },
     {

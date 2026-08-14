@@ -39,9 +39,11 @@
 
 ## Stage 1.2a — Seller step reframed (correction)
 - **Date:** 2026-08-14
-- **What:** the seller doesn't *confirm* enquiries satisfied — the buyer's solicitor does. So VM21 is renamed from "Seller's solicitor has confirmed…" to plain **"All enquiries satisfied"**, and is a **reflection** of the buyer's confirmation (auto-completes when PM20 is confirmed), never ticked by the seller. The repeatable "seller has replied to all *current* enquiries" is not a milestone at all — it's a movement in the tracker (flips the ball to the buyer's court), so more rounds never cause a re-tick problem.
-- **Files / DB:** see the git commit + migration noted when applied.
-- **Revert:** counter-migration to restore the old name; git revert the commit.
+- **What:** the seller doesn't *confirm* enquiries satisfied — the buyer's solicitor does. So VM21 is renamed from "Seller's solicitor has confirmed…" to plain **"All enquiries satisfied"**, and is a **reflection** of the buyer's confirmation (auto-completes when PM20 is confirmed — that auto-complete wiring lands in the completion-logic stage), never ticked by the seller. The repeatable "seller has replied to all *current* enquiries" is not a milestone at all — it's a movement in the tracker (flips the ball to the buyer's court), so more rounds never cause a re-tick problem.
+- **Files:** `prisma/seed.ts` (canonical list synced to the new model: VM10 8, VM11-15 retired, VM21 added, PM14 6, PM15-19 retired, PM20 14 + predecessor PM14), `prisma/migrations/20260815220000_rename_seller_enq_satisfied`.
+- **DB migration:** `20260815220000_rename_seller_enq_satisfied`. ⚠️ **NOT YET APPLIED** — the staging Supabase project was unreachable (auto-paused) at the time. Applies on the next `prisma migrate deploy` once staging is resumed. Until then, staging still shows VM21's old name.
+- **Verify:** `tsc` clean with the synced seed. DB apply pending (above).
+- **Revert:** `git revert` the commit; the rename migration is a no-op if never applied, else a counter-migration to restore the old name.
 
 ---
 
