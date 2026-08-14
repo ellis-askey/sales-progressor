@@ -82,8 +82,9 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
     const completions = tx.milestoneCompletions;
     const byCode = new Map(completions.map((c) => [c.milestoneDefinition.code, c.completedAt]));
 
-    // Weeks to exchange: file created → VM12 or PM16 completion
-    const exchangeDate = byCode.get("VM12") ?? byCode.get("PM16");
+    // Weeks to exchange: file created → actual exchange (VM19 / PM26).
+    // (Previously keyed on VM12/PM16 — enquiry-reply steps, now retired.)
+    const exchangeDate = byCode.get("VM19") ?? byCode.get("PM26");
     if (exchangeDate) {
       const weeks = (new Date(exchangeDate).getTime() - new Date(tx.createdAt).getTime()) / (7 * 86400000);
       if (weeks > 0 && weeks < 104) exchangeWeeksList.push(weeks);

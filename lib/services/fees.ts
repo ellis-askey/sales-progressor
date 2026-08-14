@@ -104,17 +104,22 @@ export type ProgressResult = {
 // Confirmed values (Ellis, May 2026): PM11 ~10d, PM13 ~21d, PM9 7–21d (median 14d).
 // All other values are range midpoints from the proposal doc.
 
+// Enquiries rework: the enquiries stage is now two steps a side (received/raised
+// -> satisfied). The "satisfied" median (VM21 / PM20 = 28 days) is the whole
+// enquiries resolution time and already averages however many rounds a file
+// runs. The retired sub-steps (VM11-15 / PM15-19) are removed — they never
+// complete, so leaving them here permanently inflated the forecast.
 export const MILESTONE_DURATION_MEDIANS: Record<string, number> = {
-  // Vendor side (20 milestones)
+  // Vendor side
   VM1: 1,  VM2: 1,  VM3: 3,  VM4: 8,  VM5: 2,  VM6: 17, VM7: 6,
   VM8: 1,  /* VM9: see isShareOfFreehold logic below */
-  VM10: 14, VM11: 8,  VM12: 3,  VM13: 9,  VM14: 6,  VM15: 3,
+  VM10: 14, VM21: 28,
   VM16: 13, VM17: 8,  VM18: 2,  VM19: 0,  VM20: 17,
-  // Purchaser side (27 milestones)
+  // Purchaser side
   PM1: 1,  PM2: 1,  PM3: 8,  PM4: 6,  PM5: 3,  PM6: 9,  PM7: 13,
   PM8: 2,  PM9: 14, PM10: 14, PM11: 10, /* PM12: same as VM9 */
-  PM13: 21, PM14: 14, PM15: 13, PM16: 3,  PM17: 9,  PM18: 13, PM19: 3,
-  PM20: 2,  PM21: 6,  PM22: 3,  PM23: 8,  PM24: 3,  PM25: 2,  PM26: 0, PM27: 17,
+  PM13: 21, PM14: 14, PM20: 28,
+  PM21: 6,  PM22: 3,  PM23: 8,  PM24: 3,  PM25: 2,  PM26: 0, PM27: 17,
 };
 
 export type PhaseAwareInput = {
@@ -172,10 +177,11 @@ function vendorRemainingDays(
   // Sequential chain: VM1 → VM3 → VM4 → VM5 → VM6 → VM7
   const toVM7 = d("VM1") + d("VM3") + d("VM4") + d("VM5") + d("VM6") + d("VM7");
 
-  // Enquiries track (parallel from VM7): VM10 → VM11 → VM12 [+ VM13–VM15 per extra round]
-  let enquiriesTrack = d("VM10") + d("VM11") + d("VM12");
-  if (enquiryRounds >= 2) enquiriesTrack += d("VM13") + d("VM14") + d("VM15");
-  if (enquiryRounds >= 3) enquiriesTrack += d("VM13") + d("VM14") + d("VM15");
+  // Enquiries track (parallel from VM7): received (VM10) → satisfied (VM21).
+  // The satisfied median already averages however many rounds a file runs, so
+  // there's no per-round expansion. (enquiryRounds retained for signature parity.)
+  void enquiryRounds;
+  const enquiriesTrack = d("VM10") + d("VM21");
 
   // Contract track (parallel from VM7): VM16 → VM17
   const contractTrack = d("VM16") + d("VM17");
@@ -207,15 +213,17 @@ function purchaserRemainingDays(
   // Search track (parallel from PM8): PM8 → PM13
   const searchTrack = d("PM8") + d("PM13");
 
-  // Enquiries track: PM14 → PM17 → PM18 → PM19 [+ repeat for leasehold round 3]
-  let enquiriesTrack = d("PM14") + d("PM17") + d("PM18") + d("PM19");
-  if (enquiryRounds >= 3) enquiriesTrack += d("PM17") + d("PM18") + d("PM19");
+  // Enquiries track: raised (PM14) → satisfied (PM20). The satisfied median
+  // already averages however many rounds run. (enquiryRounds retained for parity.)
+  void enquiryRounds;
+  let enquiriesTrack = d("PM14") + d("PM20");
   if (isCash) enquiriesTrack = Math.round(enquiriesTrack * 0.75);
 
   const parallelEnd = Math.max(mortgageTrack, searchTrack, enquiriesTrack);
 
-  // Sequential pre-exchange chain: PM20 → PM21 → PM22 → PM23 → PM24 → PM25
-  const preExchange = d("PM20") + d("PM21") + d("PM22") + d("PM23") + d("PM24") + d("PM25");
+  // Sequential pre-exchange chain. PM20 now lives in the enquiries track (it IS
+  // "satisfied"), so pre-exchange starts at the final report.
+  const preExchange = d("PM21") + d("PM22") + d("PM23") + d("PM24") + d("PM25");
 
   return toPM7 + parallelEnd + preExchange;
 }

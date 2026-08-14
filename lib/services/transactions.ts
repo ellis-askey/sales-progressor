@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
@@ -18,7 +19,7 @@ export async function listTransactions(
   scope?: AccessScope
 ) {
   const now = new Date();
-  const totalMilestones = await prisma.milestoneDefinition.count();
+  const totalMilestones = await prisma.milestoneDefinition.count({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } } }); // exclude retired enquiry steps
   let whereClause: Record<string, unknown>;
   // Internal staff path: scope overrides all agencyId-based filtering.
   // Agent callers pass no scope — they hit the existing branches below unchanged.
@@ -335,7 +336,7 @@ export async function countTransactionsByStatus(
 
 export async function listTransactionsByScope(scope: AccessScope) {
   const now = new Date();
-  const totalMilestones = await prisma.milestoneDefinition.count();
+  const totalMilestones = await prisma.milestoneDefinition.count({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } } }); // exclude retired enquiry steps
   const base = scopeTransactionWhere(scope);
   const whereClause: Record<string, unknown> =
     scope.kind === "agency"

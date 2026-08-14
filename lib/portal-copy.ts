@@ -342,14 +342,9 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial enquiries received", chaseLabel: "Buyer's initial enquiries arriving", who: "solicitor",
     description: "The buyer's solicitor has raised questions about the property. These might cover planning history, building works, boundaries, or anything in the documents that needs clarification.",
     emailCopy: {
-      purchaser: {
-        subject: "Your solicitor's questions are with the seller's side: {address}",
-        heroLabel: "Enquiries received",
-        opening: "Quick update on your purchase.",
-        whatHappened: "Your solicitor's initial enquiries have been received by the seller's solicitor. They'll now work through the questions with the seller.",
-        whatNext: "Nothing for you to do right now. This stage can take a few weeks; we're keeping an eye on both sides and we'll come to you when there's something worth sharing.",
-        action: "View your portal",
-      },
+      // E1 (enquiries rework): VM10 is vendor-only. The buyer hears about this
+      // same event once, via PM14 (raised), so the purchaser block is dropped
+      // to avoid a duplicate email on matched files.
       vendor: {
         subject: "Buyer's enquiries received: {address}",
         heroLabel: "Enquiries received",
@@ -1120,14 +1115,9 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial enquiries raised", chaseLabel: "Initial enquiries going out to the seller's side", who: "solicitor",
     description: "Your solicitor has sent questions to the seller's solicitor about the property. This is a normal part of the process. They're checking everything is in order before you exchange.",
     emailCopy: {
-      vendor: {
-        subject: "Buyer's solicitor has raised enquiries: {address}",
-        heroLabel: "Enquiries raised",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer's solicitor has raised their initial round of enquiries with your solicitor. They're asking questions about the property, the title, and documents in the contract pack; a normal part of conveyancing.",
-        whatNext: "Your solicitor will work through the questions and reply in their own time. This stage can take a few weeks; we're keeping an eye on it and we'll be in touch when there's something worth sharing.",
-        action: "View your portal",
-      },
+      // E1 (enquiries rework): PM14 is purchaser-only. On a matched file the
+      // seller hears about this same event once, via VM10 (received), so the
+      // vendor block is intentionally dropped to avoid a duplicate email.
       purchaser: {
         subject: "Your solicitor has raised enquiries: {address}",
         heroLabel: "Enquiries raised",

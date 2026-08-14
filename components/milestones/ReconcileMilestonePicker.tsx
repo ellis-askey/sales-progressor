@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { DIRECT_PREREQUISITES, RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { RoleIcon, type Role } from "@/components/ui/RoleIcon";
 
@@ -94,7 +94,7 @@ export function ReconcileMilestonePicker({
 }) {
   const autoNr = autoNrCodesFor(tenure, purchaseType);
   const filtered = milestoneDefinitions
-    .filter((m) => !autoNr.has(m.code) && !EXCHANGE_COMPLETION_CODES.has(m.code))
+    .filter((m) => !autoNr.has(m.code) && !EXCHANGE_COMPLETION_CODES.has(m.code) && !RETIRED_ENQUIRY_CODES.has(m.code))
     .sort((a, b) => {
       if (a.side !== b.side) return a.side === "vendor" ? -1 : 1;
       return a.orderIndex - b.orderIndex;
