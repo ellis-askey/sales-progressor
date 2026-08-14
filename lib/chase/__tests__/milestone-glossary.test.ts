@@ -24,10 +24,10 @@ const glossary = parseGlossary(content);
 // ---
 
 describe("parseGlossary — milestone count", () => {
-  test("parses all 47 milestones (VM1–VM20, PM1–PM27)", () => {
+  test("parses all 48 milestones (VM1–VM21, PM1–PM27)", () => {
     const keys = Object.keys(glossary);
-    // 20 vendor + 27 purchaser
-    expect(keys.filter((k) => k.startsWith("VM"))).toHaveLength(20);
+    // 21 vendor (VM21 = enquiries-rework "all enquiries satisfied") + 27 purchaser
+    expect(keys.filter((k) => k.startsWith("VM"))).toHaveLength(21);
     expect(keys.filter((k) => k.startsWith("PM"))).toHaveLength(27);
   });
 });

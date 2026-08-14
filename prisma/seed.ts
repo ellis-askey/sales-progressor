@@ -354,12 +354,11 @@ async function main() {
     { name: "Chase: Draft contract pack issued",                               targetMilestoneCode: "VM7",  anchorCode: "VM6",   graceDays: 5,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Management pack requested",                                targetMilestoneCode: "VM8",  anchorCode: null,    graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Management pack received (seller)",                        targetMilestoneCode: "VM9",  anchorCode: "VM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Initial enquiries received by seller's solicitor",         targetMilestoneCode: "VM10", anchorCode: "PM14",  graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller initial replies provided to solicitor",             targetMilestoneCode: "VM11", anchorCode: "VM10",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Initial replies issued by seller's solicitor",             targetMilestoneCode: "VM12", anchorCode: "VM11",  graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Further enquiries received by seller's solicitor",         targetMilestoneCode: "VM13", anchorCode: "PM17",  graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller further replies provided to solicitor",             targetMilestoneCode: "VM14", anchorCode: "VM13",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Further replies issued by seller's solicitor",             targetMilestoneCode: "VM15", anchorCode: "VM14",  graceDays: 2,  repeatEveryDays: 2,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    // Enquiries rework: VM10 (enquiries received) survives but is chased by the
+    // enquiries tracker, not the reminder engine — seed it inactive to match
+    // migration 20260815260000. VM11–VM15 (the granular seller enquiries loop)
+    // are retired (RETIRED_ENQUIRY_CODES) and no longer get a reminder rule.
+    { name: "Chase: Initial enquiries received by seller's solicitor",         targetMilestoneCode: "VM10", anchorCode: "PM14",  graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
     { name: "Chase: Contract documents issued to seller",                      targetMilestoneCode: "VM16", anchorCode: "PM20",  graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Signed contracts returned by seller",                      targetMilestoneCode: "VM17", anchorCode: "VM16",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller's solicitor ready to exchange",                     targetMilestoneCode: "VM18", anchorCode: "VM17",  graceDays: 2,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: true,  useEventDate: false },
@@ -378,13 +377,13 @@ async function main() {
     { name: "Chase: Mortgage offer received",                                  targetMilestoneCode: "PM11", anchorCode: "PM6",   graceDays: 14, repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
     { name: "Chase: Management pack received (buyer)",                         targetMilestoneCode: "PM12", anchorCode: "VM8",   graceDays: 14, repeatEveryDays: 10, escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Search results received",                                  targetMilestoneCode: "PM13", anchorCode: "PM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Initial enquiries raised by buyer's solicitor",            targetMilestoneCode: "PM14", anchorCode: "PM7",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Initial replies received by buyer's solicitor",            targetMilestoneCode: "PM15", anchorCode: "VM12",  graceDays: 14, repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Initial replies reviewed by buyer's solicitor",            targetMilestoneCode: "PM16", anchorCode: "PM15",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Further enquiries raised by buyer's solicitor",            targetMilestoneCode: "PM17", anchorCode: "PM16",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Further replies received by buyer's solicitor",            targetMilestoneCode: "PM18", anchorCode: "VM15",  graceDays: 14, repeatEveryDays: 7,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Further replies reviewed by buyer's solicitor",            targetMilestoneCode: "PM19", anchorCode: "PM18",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: All enquiries satisfied",                                  targetMilestoneCode: "PM20", anchorCode: "PM19",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    // Enquiries rework: PM14 (enquiries raised) and PM20 (all enquiries
+    // satisfied) survive but are chased by the enquiries tracker — seed them
+    // inactive to match migration 20260815260000. PM15–PM19 (the granular buyer
+    // enquiries loop) are retired (RETIRED_ENQUIRY_CODES); PM20 re-anchors to
+    // PM14 now that its old PM19 predecessor is gone.
+    { name: "Chase: Initial enquiries raised by buyer's solicitor",            targetMilestoneCode: "PM14", anchorCode: "PM7",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
+    { name: "Chase: All enquiries satisfied",                                  targetMilestoneCode: "PM20", anchorCode: "PM14",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
     { name: "Chase: Final report received by buyer",                           targetMilestoneCode: "PM21", anchorCode: "PM20",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Contract documents received by buyer",                     targetMilestoneCode: "PM22", anchorCode: "PM21",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Signed contracts returned by buyer",                       targetMilestoneCode: "PM23", anchorCode: "PM22",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },

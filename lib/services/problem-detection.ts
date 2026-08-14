@@ -25,6 +25,19 @@ const FLAG_LABELS: Record<FlagKind, string> = {
 
 export { FLAG_LABELS };
 
+// Progress heuristics. ACTIVE_MILESTONE_COUNT is the number of live milestone
+// definitions across both sides after the enquiries rework: 48 seeded
+// (VM1–VM21 + PM1–PM27) minus the 10 retired enquiry steps
+// (RETIRED_ENQUIRY_CODES: VM11–VM15, PM15–PM19) = 38. It is the rough
+// denominator for "how far through the file are we vs. how far we'd expect."
+// The two absolute thresholds below are judgement calls, not fractions of it:
+// near-exchange files should be well past NEAR_EXCHANGE_MIN_COMPLETE, and a
+// file with fewer than STALL_MAX_COMPLETE completions is early enough that a
+// long gap reads as a genuine stall rather than end-of-file quiet.
+const ACTIVE_MILESTONE_COUNT = 38;
+const NEAR_EXCHANGE_MIN_COMPLETE = 25;
+const STALL_MAX_COMPLETE = 35;
+
 type TxData = {
   id: string;
   propertyAddress: string;
@@ -75,7 +88,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   if (tx.status === "active") {
     const completedCount = tx._count.milestoneCompletions;
     const weeksElapsed = (now - new Date(fileStartAnchor).getTime()) / (7 * 86400000);
-    const actualPercent = Math.min(100, (completedCount / 38) * 100);
+    const actualPercent = Math.min(100, (completedCount / ACTIVE_MILESTONE_COUNT) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
     // Enquiries rework: don't flag a file that's mid-enquiries — the milestone
@@ -84,7 +97,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     if (completedCount > 0 && diff < -25 && !tx.hasOpenEnquiryTracker) {
       flags.push({
         kind: "milestone_stalled",
-        context: `${completedCount} milestones complete but expected ~${Math.round((expectedPercent / 100) * 38)} by now (${Math.round(weeksElapsed)} weeks in)`,
+        context: `${completedCount} milestones complete but expected ~${Math.round((expectedPercent / 100) * ACTIVE_MILESTONE_COUNT)} by now (${Math.round(weeksElapsed)} weeks in)`,
       });
     }
   }
@@ -104,7 +117,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
       (new Date(tx.expectedExchangeDate).getTime() - now) / 86400000
     );
     const completedCount = tx._count.milestoneCompletions;
-    if (daysToExchange >= 0 && daysToExchange <= 14 && completedCount < 25) {
+    if (daysToExchange >= 0 && daysToExchange <= 14 && completedCount < NEAR_EXCHANGE_MIN_COMPLETE) {
       flags.push({
         kind: "exchange_approaching_gaps",
         context: `Exchange target in ${daysToExchange} days but only ${completedCount} milestones complete`,
@@ -161,7 +174,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     const lastMilestoneAt = sorted[0]?.completedAt;
     // Enquiries rework: suppress during an open enquiries loop (milestone-quiet
     // by design; the tracker escalates at 15 working days instead).
-    if (lastMilestoneAt && completedCount > 0 && completedCount < 35 && !tx.hasOpenEnquiryTracker) {
+    if (lastMilestoneAt && completedCount > 0 && completedCount < STALL_MAX_COMPLETE && !tx.hasOpenEnquiryTracker) {
       const reference = tx.activeRoundCreatedAt
         ? new Date(Math.max(new Date(lastMilestoneAt).getTime(), tx.activeRoundCreatedAt.getTime()))
         : new Date(lastMilestoneAt);

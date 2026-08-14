@@ -352,6 +352,22 @@ This is the baseline for "How to refer to parties." Per-milestone entries below 
 
 ---
 
+### VM21 — All enquiries satisfied (seller side)
+
+| Field | Value |
+|---|---|
+| **Side** | Vendor (seller side) |
+| **Blocks exchange** | Yes |
+| **What this milestone tracks** | Whether the whole back-and-forth of legal enquiries between the two solicitors has finished on the seller side — every question raised by the buyer's solicitor has been answered to their satisfaction. It is the seller-side twin of PM20 and completes automatically when the buyer's solicitor confirms enquiries satisfied. |
+| **What "outstanding" means** | The enquiries loop is still open — the buyer's solicitor has questions that have not yet been fully answered. Progress is tracked on the enquiries tracker (whose-court state and movement log), not by chasing this milestone directly. |
+| **Who is responsible** | Managed internally off the enquiries tracker; confirmed in practice by the buyer's solicitor closing enquiries (PM20). Not chased on its own. |
+| **Also called** | "Enquiries satisfied", "enquiries all answered", "enquiries closed", "legal questions resolved". |
+| **How to refer to parties** | To the seller: "the legal enquiries are all resolved." Avoid implying the seller took any action — this is solicitor-to-solicitor work. |
+| **Common misframings to avoid** | Do not chase the seller or the seller's solicitor on this milestone — the enquiries tracker owns the chase cadence. This is a completion marker, not a chase target. Do not confuse with VM10 (enquiries first received). |
+| **Typical chase context** | Not independently chased. Completes alongside PM20 when the buyer's solicitor confirms all enquiries are satisfied. |
+
+---
+
 ## Purchaser milestones (PM1–PM27)
 
 ---
