@@ -151,7 +151,7 @@ async function main() {
     // satisfied" (PM20). Auto-completes when the buyer confirms; never ticked by
     // the seller. blocksExchange flips true in the in-flight-migration stage.
     {
-      code: "VM21", orderIndex: 15, blocksExchange: false, predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
+      code: "VM21", orderIndex: 15, blocksExchange: true, predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 12.00, name: "All enquiries satisfied",
       summaryTemplate: "{agent} confirmed all enquiries on the file are satisfied",
     },

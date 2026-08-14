@@ -24,6 +24,7 @@ const CORES: Record<string, string> = {
   VM8: "solicitor has requested the management pack",
   VM9: "solicitor has received the management pack",
   VM10: "solicitor has received the initial enquiries",
+  VM21: "all enquiries are satisfied now",
   VM11: "solicitor now has the initial replies",
   VM12: "solicitor has replied to the buyer's solicitor",
   VM13: "solicitor has received the additional enquiries",

@@ -686,6 +686,9 @@ export async function portalCompleteMilestone(input: {
   const BILATERAL_PAIRS: Record<string, string> = {
     VM19: "PM26", PM26: "VM19",
     VM20: "PM27", PM27: "VM20",
+    // Enquiries rework: PM20 (buyer satisfied) auto-completes VM21 (seller
+    // reflection). One-directional — see app/actions/milestones.ts.
+    PM20: "VM21",
   };
   const counterCode = BILATERAL_PAIRS[def.code];
   let counterDefId: string | undefined;

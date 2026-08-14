@@ -157,6 +157,10 @@ const DIGEST_LINES: Record<string, readonly [string, string]> = {
   PM18: ["Your solicitor has the seller's follow-up replies.", "The buyer's solicitor has received the follow-up replies."],
   PM19: ["Your solicitor has reviewed the follow-up replies.", ""],
   PM20: ["Your solicitor has confirmed all enquiries are satisfied.", "The buyer's solicitor has confirmed all enquiries are satisfied."],
+  // VM21 sends no client email (PM20's vendor block covers the seller), so this
+  // line is never reached in practice — kept defensive so getMilestoneDigestLine
+  // never throws if VM21 is ever given client copy.
+  VM21: ["All enquiries on your sale are satisfied.", "All enquiries are satisfied."],
 
   // Phase 12 — Final report and contract sign-off
   PM21: ["Your solicitor's final report has landed.", "The buyer has the final report."],

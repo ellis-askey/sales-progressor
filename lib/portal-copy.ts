@@ -1340,6 +1340,27 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
+  // Seller-side reflection of PM20 (buyer's "all enquiries satisfied"). It
+  // auto-completes when PM20 is confirmed and carries NO client email blocks on
+  // purpose: PM20's own vendor block already tells the seller enquiries are
+  // satisfied, so a VM21 client email would be a duplicate. The label/description
+  // exist so the step shows a proper name (never the raw code) on the portal and
+  // in the timeline; only the internal progressor log fires.
+  VM21: {
+    label: "All enquiries satisfied", chaseLabel: "Confirm all enquiries are satisfied", who: "solicitor",
+    description: "All of the buyer's solicitor's legal questions have been answered to their satisfaction. This is one of the final legal steps before exchange of contracts.",
+    emailCopy: {
+      progressor: {
+        subject: "VM21 complete: All enquiries satisfied at {address}",
+        heroLabel: "VM21: All enquiries satisfied",
+        opening: "Logged on {address}.",
+        whatHappened: "Seller-side reflection of all enquiries satisfied (mirrors the buyer's confirmation of PM20).",
+        whatNext: null,
+        action: "View transaction",
+      },
+    },
+  },
+
   PM21: {
     label: "Final report received from solicitor", chaseLabel: "Confirm the final report from your solicitor has arrived", who: "you",
     description: "Your solicitor has sent you their final report summarising everything about the property, the title, the searches, and any conditions on your mortgage offer. Read it and raise any questions before signing.",

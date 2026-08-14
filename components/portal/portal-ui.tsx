@@ -51,7 +51,7 @@ export const P = {
 export const VENDOR_GROUPS = [
   { label: "Onboarding",          icon: "👋", codes: ["VM1", "VM2", "VM3", "VM4"] },
   { label: "Contract Preparation",icon: "📝", codes: ["VM5", "VM6", "VM7", "VM8", "VM9"] },
-  { label: "Enquiries",           icon: "💬", codes: ["VM10", "VM11", "VM12", "VM13", "VM14", "VM15"] },
+  { label: "Enquiries",           icon: "💬", codes: ["VM10", "VM21"] },
   { label: "Ready to Exchange",   icon: "🔑", codes: ["VM16", "VM17", "VM18"] },
   { label: "After Exchange",      icon: "🎉", codes: ["VM19", "VM20"] },
 ];
@@ -61,7 +61,7 @@ export const PURCHASER_GROUPS = [
   { label: "Your Mortgage",      icon: "🏦", codes: ["PM5", "PM6", "PM11"] },
   { label: "Survey",             icon: "🔍", codes: ["PM9", "PM10"] },
   { label: "Searches & Legal",   icon: "⚖️",  codes: ["PM7", "PM8", "PM12", "PM13"] },
-  { label: "Enquiries",          icon: "💬", codes: ["PM14", "PM15", "PM16", "PM17", "PM18", "PM19", "PM20", "PM21"] },
+  { label: "Enquiries",          icon: "💬", codes: ["PM14", "PM20", "PM21"] },
   { label: "Ready to Exchange",  icon: "🔑", codes: ["PM22", "PM23", "PM24", "PM25"] },
   { label: "After Exchange",     icon: "🎉", codes: ["PM26", "PM27"] },
 ];
