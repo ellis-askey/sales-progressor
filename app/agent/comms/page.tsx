@@ -1,18 +1,22 @@
-import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getAgentMilestoneActivity, getFileSnapshots, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import {
+  getAgentUpdatesFeed,
+  getFileSnapshots,
+  resolveAgentVisibility,
+  resolveInternalVisibility,
+  type UpdateFeedEntry,
+} from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   CommsActivityFeed,
   type DayBucket,
   type TxGroup,
-  type MilestoneRow,
+  type UpdateRow,
 } from "@/components/comms/CommsActivityFeed";
 import { toUKDateStr } from "@/lib/utils";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
-import { confirmationSentence } from "@/lib/updates-copy";
 
 function dayLabel(d: Date | string) {
   const date = new Date(d);
@@ -24,14 +28,26 @@ function dayLabel(d: Date | string) {
   return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }
 
-export default async function AgentCommsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ filter?: string }>;
-}) {
+// Map a service entry to the client render row, resolving the document's signed
+// link from the batch-signed map.
+function toRow(e: UpdateFeedEntry, signed: Map<string, string>): UpdateRow {
+  const base = { id: e.id, atIso: e.at.toISOString(), who: e.who, side: e.side };
+  switch (e.kind) {
+    case "milestone":
+      return { ...base, kind: "milestone", code: e.code, sentence: e.sentence, byName: e.byName, byImage: e.byImage };
+    case "price":
+      return { ...base, kind: "price", oldPrice: e.oldPrice, newPrice: e.newPrice, reason: e.reason, byName: e.byName };
+    case "note":
+      return { ...base, kind: "note", content: e.content, byName: e.byName, byImage: e.byImage };
+    case "reply":
+      return { ...base, kind: "reply", content: e.content, method: e.method, byName: e.byName };
+    case "document":
+      return { ...base, kind: "document", filename: e.filename, mimeType: e.mimeType, docUrl: e.storagePath ? signed.get(e.storagePath) ?? null : null, byName: e.byName };
+  }
+}
+
+export default async function AgentCommsPage() {
   const session = await requireSession();
-  const { filter } = await searchParams;
-  const portalOnly = filter === "portal";
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
@@ -39,63 +55,42 @@ export default async function AgentCommsPage({
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const milestones = await getAgentMilestoneActivity(vis, portalOnly);
 
-  // Sign every property photo in one round trip so each file card can show it.
-  const photoMap = await getSignedUrlMap(milestones.map((m) => m.transaction.photoStoragePath));
+  const entries = await getAgentUpdatesFeed(vis);
+
+  // Sign every property photo AND document link in one round trip.
+  const signPaths: (string | null)[] = [
+    ...entries.map((e) => e.transaction.photoStoragePath),
+    ...entries.flatMap((e) => (e.kind === "document" ? [e.storagePath] : [])),
+  ];
+  const signedMap = await getSignedUrlMap(signPaths);
 
   // Per-file snapshot (progress %, stage, next step) for the right column.
-  const snapshotMap = await getFileSnapshots(vis, milestones.map((m) => m.transaction.id));
+  const snapshotMap = await getFileSnapshots(vis, entries.map((e) => e.transaction.id));
 
-  // Group into day buckets, each day grouped by transaction
+  // Group into day buckets, each day grouped by transaction.
   const dayOrder: string[] = [];
   const dayTxMap = new Map<string, Map<string, TxGroup>>();
 
-  for (const m of milestones) {
-    // Never fabricate "now" for an undated completion — that paints a stale
-    // backfilled row as live activity. Fall back to the row's real creation time.
-    const label = dayLabel(m.completedAt ?? m.createdAt);
+  for (const e of entries) {
+    const label = dayLabel(e.at);
     if (!dayTxMap.has(label)) {
       dayTxMap.set(label, new Map());
       dayOrder.push(label);
     }
     const txMap = dayTxMap.get(label)!;
-    if (!txMap.has(m.transaction.id)) {
-      txMap.set(m.transaction.id, {
-        transactionId: m.transaction.id,
-        transactionAddress: m.transaction.propertyAddress,
-        photoUrl: m.transaction.photoStoragePath ? photoMap.get(m.transaction.photoStoragePath) ?? null : null,
-        expectedExchangeIso: m.transaction.expectedExchangeDate ? m.transaction.expectedExchangeDate.toISOString() : null,
-        status: m.transaction.status,
-        snapshot: snapshotMap.get(m.transaction.id) ?? null,
-        milestones: [],
+    if (!txMap.has(e.transaction.id)) {
+      txMap.set(e.transaction.id, {
+        transactionId: e.transaction.id,
+        transactionAddress: e.transaction.propertyAddress,
+        photoUrl: e.transaction.photoStoragePath ? signedMap.get(e.transaction.photoStoragePath) ?? null : null,
+        expectedExchangeIso: e.transaction.expectedExchangeDate ? e.transaction.expectedExchangeDate.toISOString() : null,
+        status: e.transaction.status,
+        snapshot: snapshotMap.get(e.transaction.id) ?? null,
+        updates: [],
       });
     }
-    const side = m.milestoneDefinition.side as "vendor" | "purchaser";
-    const sideContacts = (m.transaction.contacts ?? [])
-      .filter((c) => c.roleType === side)
-      .map((c) => ({ name: c.name }));
-    const confirmer = m.confirmedByPortal
-      ? ({ kind: "client" } as const)
-      : m.confirmedBySolicitorFirmId
-        ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
-        : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
-    // Client-confirmed steps carry the client's own photo (audit #16 phase 2):
-    // the exact contact if recorded, else the side's contact.
-    const clientContact =
-      confirmer.kind === "client"
-        ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
-          ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
-        : null;
-    const row: MilestoneRow = {
-      id: m.id,
-      completedAtIso: (m.completedAt ?? m.createdAt).toISOString(),
-      sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
-      who: confirmer.kind,
-      completedByName: confirmer.kind === "client" ? (clientContact?.name ?? null) : (m.completedBy?.name ?? null),
-      completedByImage: confirmer.kind === "client" ? (clientContact?.image ?? null) : (m.completedBy?.image ?? null),
-    };
-    txMap.get(m.transaction.id)!.milestones.push(row);
+    txMap.get(e.transaction.id)!.updates.push(toRow(e, signedMap));
   }
 
   const days: DayBucket[] = dayOrder.map((label) => ({
@@ -104,11 +99,8 @@ export default async function AgentCommsPage({
     defaultOpen: label === "Today" || label === "Yesterday",
   }));
 
-  const filterBase = "/agent/comms";
-
   return (
     <>
-      {/* OLD subtitle: "Milestone activity across all your files." */}
       <PageHeader
         title="Updates"
         subtitle={
@@ -116,50 +108,27 @@ export default async function AgentCommsPage({
           isProgressor ? "What's happened on your assigned files." :
                          "What's happened across your files."
         }
-      >
-        {/* OLD filter strip: <Link> with inline rgba(0,0,0,0.05) container, rgba(255,255,255,0.9) active pill, rgba(0,0,0,0.08) shadow */}
-        <div style={{ display: "flex", gap: 4 }}>
-          <Link
-            href={filterBase}
-            className={`agent-segment-pill agent-segment-pill-sm${!portalOnly ? " on" : ""}`}
-          >
-            All steps
-          </Link>
-          <Link
-            href={`${filterBase}?filter=portal`}
-            className={`agent-segment-pill agent-segment-pill-sm${portalOnly ? " on" : ""}`}
-          >
-            Client confirmations
-          </Link>
-        </div>
-      </PageHeader>
+      />
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
-        {milestones.length === 0 && (
+        {entries.length === 0 && (
           <>
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                {/* OLD: portalOnly ? "No client confirmations yet" : "No milestone activity yet" */}
-                {portalOnly ? "No client confirmations yet" : "No completed steps yet"}
+                No updates yet
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                {/* OLD: portalOnly
-                  ? "Client confirmations will appear here when clients confirm their milestones via the portal."
-                  : "Completed milestones across your files will appear here." */}
-                {portalOnly
-                  ? "When clients confirm steps themselves, they'll appear here."
-                  : isAdmin
-                    ? "Confirmed steps appear here as they happen across the platform."
-                    : isProgressor
-                      ? "Confirmed steps on your assigned files appear here."
-                      : "Confirmed steps appear here as they happen."}
+                {isAdmin
+                  ? "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen across the platform."
+                  : isProgressor
+                    ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
+                    : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
               </p>
             </div>
 
-            {/* Ghost day-bucket preview — abstract agent-skeleton bars, filter-neutral.
-                OLD: fake content (14 Maple Close, coral icon, hardcoded milestone names). */}
+            {/* Ghost day-bucket preview — abstract agent-skeleton bars. */}
             <div style={{ opacity: 0.35, pointerEvents: "none" }}>
               <div className="agent-glass" style={{ overflow: "hidden" }}>
                 <div className="agent-acc-hdr">

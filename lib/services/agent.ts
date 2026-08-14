@@ -3,6 +3,7 @@ import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase } from "@/lib/services/fees";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
+import { confirmationSentence } from "@/lib/updates-copy";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
 const DRAFT = "draft" as TransactionStatus;
@@ -307,6 +308,218 @@ export async function getAgentMilestoneActivity(
       confirmedBySolicitorFirm: { select: { name: true } },
     },
   });
+}
+
+// ─── Updates feed (multi-type activity stream) ────────────────────────────────
+// The cross-file Updates page (/agent/comms) reads this. Where
+// getAgentMilestoneActivity (still used by the bell/notifications route) returns
+// milestone confirmations only, this merges the five kinds of thing we actually
+// record into one typed, date-sorted stream: milestone confirmations, price
+// changes, client-shared notes, replies in, and document uploads. Everything is
+// scoped through txWhere(vis) + the active-round OR, so multi-tenant + relist
+// rules match the rest of the feed. Signing of photos and document links happens
+// in the page (batched); this returns raw storage paths.
+
+export type UpdateWho = "agent" | "client" | "solicitor";
+export type UpdateSide = "vendor" | "purchaser" | null;
+
+export type UpdateFeedTx = {
+  id: string;
+  propertyAddress: string;
+  photoStoragePath: string | null;
+  expectedExchangeDate: Date | null;
+  status: string;
+};
+
+export type UpdateFeedEntry = {
+  id: string;
+  at: Date;
+  who: UpdateWho;
+  side: UpdateSide;
+  transaction: UpdateFeedTx;
+} & (
+  | { kind: "milestone"; code: string; sentence: string; byName: string | null; byImage: string | null }
+  | { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null }
+  | { kind: "note"; content: string; byName: string | null; byImage: string | null }
+  | { kind: "reply"; content: string; method: string | null; byName: string | null }
+  | { kind: "document"; documentId: string; filename: string; mimeType: string; storagePath: string; byName: string | null }
+);
+
+const FEED_TX_SELECT = {
+  id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, status: true,
+} as const;
+
+const sideFromRole = (roleType: string | null | undefined): UpdateSide =>
+  roleType === "vendor" ? "vendor" : roleType === "purchaser" ? "purchaser" : null;
+
+export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateFeedEntry[]> {
+  const txFilter = { ...txWhere(vis), status: { not: DRAFT } };
+  const activeRoundIds = await loadActiveRoundIds(txFilter);
+  const roundOR = roundScopedOR(activeRoundIds);
+
+  const [completions, priceRows, noteRows, replyRows, docRows] = await Promise.all([
+    prisma.milestoneCompletion.findMany({
+      where: {
+        transaction: txFilter,
+        state: "complete",
+        milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES, "VM21"] } },
+        OR: roundOR,
+      },
+      orderBy: { completedAt: "desc" },
+      take: 120,
+      include: {
+        transaction: {
+          select: { ...FEED_TX_SELECT, contacts: { select: { id: true, name: true, roleType: true, image: true } } },
+        },
+        milestoneDefinition: { select: { code: true, name: true, side: true } },
+        completedBy: { select: { name: true, image: true } },
+        confirmedBySolicitorFirm: { select: { name: true } },
+      },
+    }),
+    prisma.priceHistory.findMany({
+      where: { transaction: txFilter, OR: roundOR },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { transaction: { select: FEED_TX_SELECT } },
+    }),
+    // Notes: ONLY those the agent ticked "share with client" (visibleToClient).
+    // Internal jots — a bare internal_note, or the separate TransactionNote table
+    // (which has no share flag) — deliberately never reach this feed.
+    prisma.outboundMessage.findMany({
+      where: { transaction: txFilter, type: "internal_note", visibleToClient: true, OR: roundOR },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { transaction: { select: FEED_TX_SELECT }, createdBy: { select: { name: true, image: true } } },
+    }),
+    prisma.outboundMessage.findMany({
+      where: { transaction: txFilter, type: "inbound", OR: roundOR },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { transaction: { select: FEED_TX_SELECT } },
+    }),
+    prisma.transactionDocument.findMany({
+      where: { transaction: txFilter, OR: roundOR },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { transaction: { select: FEED_TX_SELECT }, contact: { select: { name: true, roleType: true } } },
+    }),
+  ]);
+
+  // PriceHistory carries changedById but no User relation — resolve names once.
+  const changerIds = [...new Set(priceRows.map((p) => p.changedById).filter((x): x is string => !!x))];
+  const changerNames = new Map<string, string>();
+  if (changerIds.length) {
+    const users = await prisma.user.findMany({ where: { id: { in: changerIds } }, select: { id: true, name: true } });
+    for (const u of users) changerNames.set(u.id, u.name ?? "");
+  }
+
+  // Inbound replies carry the sender in contactIds — resolve name + role once.
+  const replyContactIds = [...new Set(replyRows.flatMap((r) => r.contactIds).filter(Boolean))];
+  const replyContacts = new Map<string, { name: string; roleType: string }>();
+  if (replyContactIds.length) {
+    const cs = await prisma.contact.findMany({ where: { id: { in: replyContactIds } }, select: { id: true, name: true, roleType: true } });
+    for (const c of cs) replyContacts.set(c.id, { name: c.name, roleType: c.roleType });
+  }
+
+  const entries: UpdateFeedEntry[] = [];
+
+  for (const m of completions) {
+    const side = m.milestoneDefinition.side as "vendor" | "purchaser";
+    const sideContacts = (m.transaction.contacts ?? []).filter((c) => c.roleType === side).map((c) => ({ name: c.name }));
+    const confirmer = m.confirmedByPortal
+      ? ({ kind: "client" } as const)
+      : m.confirmedBySolicitorFirmId
+        ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
+        : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    // Client-confirmed steps carry the client's own photo (audit #16 phase 2):
+    // the exact contact if recorded, else the side's contact.
+    const clientContact = confirmer.kind === "client"
+      ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
+        ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
+      : null;
+    const { contacts: _contacts, ...txCore } = m.transaction;
+    entries.push({
+      kind: "milestone",
+      id: m.id,
+      at: m.completedAt ?? m.createdAt,
+      who: confirmer.kind,
+      side,
+      transaction: txCore,
+      code: m.milestoneDefinition.code,
+      sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
+      byName: confirmer.kind === "client" ? (clientContact?.name ?? null) : (m.completedBy?.name ?? null),
+      byImage: confirmer.kind === "client" ? (clientContact?.image ?? null) : (m.completedBy?.image ?? null),
+    });
+  }
+
+  for (const p of priceRows) {
+    if (!p.transaction) continue;
+    entries.push({
+      kind: "price",
+      id: p.id,
+      at: p.createdAt,
+      who: "agent",
+      side: null,
+      transaction: p.transaction,
+      oldPrice: p.oldPrice,
+      newPrice: p.newPrice,
+      reason: p.reason,
+      byName: p.changedById ? (changerNames.get(p.changedById) || null) : null,
+    });
+  }
+
+  for (const n of noteRows) {
+    if (!n.transaction) continue;
+    entries.push({
+      kind: "note",
+      id: n.id,
+      at: n.sentAt ?? n.createdAt,
+      who: "agent",
+      side: null,
+      transaction: n.transaction,
+      content: n.content,
+      byName: n.createdBy?.name ?? null,
+      byImage: n.createdBy?.image ?? null,
+    });
+  }
+
+  for (const r of replyRows) {
+    if (!r.transaction) continue;
+    const sender = r.contactIds.map((id) => replyContacts.get(id)).find(Boolean) ?? null;
+    entries.push({
+      kind: "reply",
+      id: r.id,
+      at: r.sentAt ?? r.createdAt,
+      // Inbound is always external: a solicitor reply, otherwise treat as client.
+      who: sender?.roleType === "solicitor" ? "solicitor" : "client",
+      side: sideFromRole(sender?.roleType),
+      transaction: r.transaction,
+      content: r.content,
+      method: r.method,
+      byName: sender?.name ?? null,
+    });
+  }
+
+  for (const d of docRows) {
+    if (!d.transaction) continue;
+    entries.push({
+      kind: "document",
+      id: d.id,
+      at: d.createdAt,
+      // No uploader contact = an agent / file-level upload (our own paperwork).
+      who: d.contact ? (d.contact.roleType === "solicitor" ? "solicitor" : "client") : "agent",
+      side: sideFromRole(d.contact?.roleType),
+      transaction: d.transaction,
+      documentId: d.id,
+      filename: d.filename,
+      mimeType: d.mimeType,
+      storagePath: d.storagePath,
+      byName: d.contact?.name ?? null,
+    });
+  }
+
+  entries.sort((a, b) => b.at.getTime() - a.at.getTime());
+  return entries.slice(0, 150);
 }
 
 // Per-file snapshot for the Updates feed's right column: weight-based

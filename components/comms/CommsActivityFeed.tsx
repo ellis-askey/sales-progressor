@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CaretDown, Scales } from "@phosphor-icons/react";
+import { CaretDown, Scales, Tag, NotePencil, ChatCircle, Paperclip } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar } from "@/components/ui/Avatar";
@@ -27,6 +27,10 @@ function splitAddress(addr: string): { line1: string; line2: string } {
   return { line1: first.trim(), line2: rest.join(",").trim() };
 }
 
+function formatPrice(pence: number): string {
+  return "£" + Math.round(pence / 100).toLocaleString("en-GB");
+}
+
 const STATUS_META: Record<string, { tone: "success" | "warning" | "info" | "muted"; label: string }> = {
   active: { tone: "success", label: "Active" },
   on_hold: { tone: "warning", label: "On hold" },
@@ -43,14 +47,18 @@ function exchangeLabel(iso: string | null): string | null {
   return `~${Math.round(days / 7)} wks to exchange`;
 }
 
-export type MilestoneRow = {
-  id: string;
-  completedAtIso: string;
-  sentence: string;
-  who: "client" | "agent" | "solicitor";
-  completedByName: string | null;
-  completedByImage: string | null;
-};
+export type UpdateKind = "milestone" | "price" | "note" | "reply" | "document";
+export type UpdateWho = "agent" | "client" | "solicitor";
+export type UpdateSide = "vendor" | "purchaser" | null;
+
+type RowBase = { id: string; atIso: string; who: UpdateWho; side: UpdateSide };
+
+export type UpdateRow =
+  | (RowBase & { kind: "milestone"; code: string; sentence: string; byName: string | null; byImage: string | null })
+  | (RowBase & { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null })
+  | (RowBase & { kind: "note"; content: string; byName: string | null; byImage: string | null })
+  | (RowBase & { kind: "reply"; content: string; method: string | null; byName: string | null })
+  | (RowBase & { kind: "document"; filename: string; mimeType: string; docUrl: string | null; byName: string | null });
 
 export type TxGroup = {
   transactionId: string;
@@ -59,7 +67,7 @@ export type TxGroup = {
   expectedExchangeIso: string | null;
   status: string;
   snapshot: { percent: number; stage: string; nextAction: string | null } | null;
-  milestones: MilestoneRow[];
+  updates: UpdateRow[];
 };
 
 export type DayBucket = {
@@ -67,6 +75,96 @@ export type DayBucket = {
   txGroups: TxGroup[];
   defaultOpen: boolean;
 };
+
+// Small tinted glyph used as the leading marker for the non-milestone update
+// kinds (milestones keep the confirmer's avatar, which carries more meaning).
+function KindBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 26, height: 26, borderRadius: 999,
+        background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)",
+        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Leading({ u }: { u: UpdateRow }) {
+  if (u.kind === "milestone" || u.kind === "note") {
+    // A step confirmed by us / a note we shared: show the person's avatar.
+    if (u.who === "agent") {
+      return <UserAvatar user={{ name: u.byName ?? "", image: u.byImage }} size={26} className="flex-shrink-0" />;
+    }
+    if (u.who === "client") {
+      // The client's own photo if they've uploaded one (audit #16 phase 2),
+      // otherwise the generic silhouette.
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img src={u.byImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />;
+    }
+    return (
+      <span aria-hidden style={{ width: 26, height: 26, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Scales size={14} weight="regular" />
+      </span>
+    );
+  }
+  if (u.kind === "price") return <KindBadge><Tag size={14} weight="regular" /></KindBadge>;
+  if (u.kind === "reply") return <KindBadge><ChatCircle size={14} weight="regular" /></KindBadge>;
+  return <KindBadge><Paperclip size={14} weight="regular" /></KindBadge>;
+}
+
+function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
+  const when = relativeDate(u.atIso);
+  const muted = "var(--agent-text-muted)";
+  const primary = "var(--agent-text-primary)";
+
+  // Main + optional secondary text per kind.
+  let main: React.ReactNode;
+  let secondary: string | null = null;
+
+  if (u.kind === "milestone") {
+    main = u.sentence;
+  } else if (u.kind === "price") {
+    main = u.oldPrice != null
+      ? `Price changed from ${formatPrice(u.oldPrice)} to ${formatPrice(u.newPrice)}`
+      : `Price set to ${formatPrice(u.newPrice)}`;
+    secondary = u.reason?.trim() || null;
+  } else if (u.kind === "note") {
+    main = u.content;
+  } else if (u.kind === "reply") {
+    main = `${u.byName ?? "Someone"} replied${u.method ? ` by ${u.method}` : ""}`;
+    secondary = u.content?.trim() || null;
+  } else {
+    // document
+    const label = `${u.byName ?? "Your team"} uploaded ${u.filename}`;
+    main = u.docUrl ? (
+      <a href={u.docUrl} target="_blank" rel="noopener noreferrer" style={{ color: primary, textDecoration: "underline", textUnderlineOffset: 2 }}>
+        {label}
+      </a>
+    ) : label;
+  }
+
+  return (
+    <div className="flex items-start gap-3 px-4 py-3" style={{ borderTop: first ? undefined : "0.5px solid var(--agent-border-subtle)" }}>
+      <Leading u={u} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium" style={{ color: primary, lineHeight: 1.4 }}>{main}</p>
+        {u.kind === "note" && (
+          <p className="text-[10.5px]" style={{ color: muted, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Shared with client</p>
+        )}
+        {secondary && (
+          <p className="text-[12px]" style={{ color: muted, marginTop: 2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {secondary}
+          </p>
+        )}
+        <p className="text-[11px]" style={{ color: muted, marginTop: 2 }}>{when}</p>
+      </div>
+    </div>
+  );
+}
 
 function TxCard({ tx }: { tx: TxGroup }) {
   const { line1, line2 } = splitAddress(tx.transactionAddress);
@@ -125,29 +223,9 @@ function TxCard({ tx }: { tx: TxGroup }) {
         </div>
       </div>
 
-      {/* Steps */}
+      {/* Updates */}
       <div>
-        {tx.milestones.map((m, mi) => (
-          <div key={m.id} className="flex items-start gap-3 px-4 py-3" style={{ borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
-            {/* Who confirmed it: their photo (or the generic client / solicitor mark) */}
-            {m.who === "agent" ? (
-              <UserAvatar user={{ name: m.completedByName ?? "", image: m.completedByImage }} size={26} className="flex-shrink-0" />
-            ) : m.who === "client" ? (
-              // The client's own photo if they've uploaded one (audit #16
-              // phase 2), otherwise the generic silhouette.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={m.completedByImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />
-            ) : (
-              <span aria-hidden style={{ width: 26, height: 26, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Scales size={14} weight="regular" />
-              </span>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium" style={{ color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{m.sentence}</p>
-              <p className="text-[11px]" style={{ color: "var(--agent-text-muted)", marginTop: 2 }}>{relativeDate(m.completedAtIso)}</p>
-            </div>
-          </div>
-        ))}
+        {tx.updates.map((u, i) => <UpdateLine key={`${u.kind}-${u.id}`} u={u} first={i === 0} />)}
       </div>
     </div>
   );
@@ -169,8 +247,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
       {days.map((d) => {
         const { label, txGroups } = d;
         const open = openDays[label] ?? d.defaultOpen;
-        const milestoneCount = txGroups.reduce((n, t) => n + t.milestones.length, 0);
-        const countLabel = `${milestoneCount} step${milestoneCount !== 1 ? "s" : ""}`;
+        const updateCount = txGroups.reduce((n, t) => n + t.updates.length, 0);
+        const countLabel = `${updateCount} update${updateCount !== 1 ? "s" : ""}`;
 
         return (
           <div key={label} className="agent-glass" style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
