@@ -207,20 +207,68 @@ export async function syncEnquiryTracker(
 ): Promise<void> {
   const client = db ?? prisma;
   if (ENQUIRY_OPEN_CODES.has(completedCode)) {
-    // Open the loop once (the ball starts with the seller's solicitor, who
-    // owes the replies). Idempotent: one tracker per transaction.
+    // Open the loop (the ball starts with the seller's solicitor, who owes the
+    // replies). One tracker per transaction. On a relist, a new buyer's
+    // enquiries REOPEN a previously-closed loop with the clocks reset, so the
+    // reply-loop chase runs for the second buyer too.
     const existing = await client.enquiryTracker.findUnique({
       where: { transactionId },
-      select: { id: true },
+      select: { id: true, closedAt: true },
     });
     if (!existing) {
       await client.enquiryTracker.create({
         data: { transactionId, currentlyWith: "seller_solicitor" },
       });
+    } else if (existing.closedAt) {
+      await client.enquiryTracker.update({
+        where: { id: existing.id },
+        data: {
+          closedAt: null,
+          currentlyWith: "seller_solicitor",
+          openedAt: new Date(),
+          lastMovementAt: null,
+          lastChasedAt: null,
+          chaseCount: 0,
+          escalatedAt: null,
+          snoozedUntil: null,
+          outstandingNote: null,
+        },
+      });
     }
   } else if (ENQUIRY_CLOSE_CODES.has(completedCode)) {
     // Satisfied is terminal — close the loop (idempotent; stops the chase).
     await client.enquiryTracker.updateMany({
+      where: { transactionId, closedAt: null },
+      data: { closedAt: new Date() },
+    });
+  }
+}
+
+// ── "Get enquiries raised" chase lifecycle (enquiries rework) ─────────────────
+// The pre-loop chase that gets the buyer's solicitor to raise enquiries in the
+// first place. Opens when searches are ordered, closes the moment enquiries are
+// raised (then the tracker above takes over). See enquiries-raise-chase-SPEC.md.
+const RAISE_OPEN_CODE = "PM8"; // searches ordered
+const RAISE_CLOSE_CODE = "PM14"; // enquiries raised
+
+export async function syncRaiseChase(
+  transactionId: string,
+  completedCode: string,
+  db?: Prisma.TransactionClient | PrismaClient,
+): Promise<void> {
+  const client = db ?? prisma;
+  if (completedCode === RAISE_OPEN_CODE) {
+    // Searches ordered -> open (or reopen fresh, e.g. after a relist) the raise
+    // chase, with the clock reset to now. If enquiries were somehow already
+    // raised, the cron closes it on its next pass, so no PM14 guard is needed.
+    await client.enquiryRaiseChase.upsert({
+      where: { transactionId },
+      create: { transactionId },
+      update: { closedAt: null, openedAt: new Date(), lastNudgedAt: null, lastTarget: null, nudgeCount: 0, escalatedAt: null },
+    });
+  } else if (completedCode === RAISE_CLOSE_CODE) {
+    // Enquiries raised -> the raise chase is done.
+    await client.enquiryRaiseChase.updateMany({
       where: { transactionId, closedAt: null },
       data: { closedAt: new Date() },
     });
@@ -1036,6 +1084,14 @@ export async function completeMilestone(
     await syncEnquiryTracker(input.transactionId, def.code, txForHelpers);
   } catch (err) {
     console.error("[completeMilestone] syncEnquiryTracker failed:", err);
+  }
+
+  // Enquiries rework: the pre-loop "get enquiries raised" chase — opens when
+  // searches are ordered, closes when enquiries are raised.
+  try {
+    await syncRaiseChase(input.transactionId, def.code, txForHelpers);
+  } catch (err) {
+    console.error("[completeMilestone] syncRaiseChase failed:", err);
   }
 
   // Enquiries rework: VM21 (seller "all enquiries satisfied") is a pure

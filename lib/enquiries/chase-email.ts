@@ -17,11 +17,37 @@ export type EnquiryChaseCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryChaseInput = {
   court: EnquiryChaseCourt;
   address: string;
+  clientNames: string[]; // the clients on the recipient's side (for the subject)
   senderName: string; // the person the email is from
   agencyName: string;
   provideUpdateUrl: string;
   now?: Date;
 };
+
+// Join names for a subject line: "A", "A & B", "A, B & C".
+function joinClientNames(names: string[]): string {
+  const clean = names.filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  return `${clean.slice(0, -1).join(", ")} & ${clean[clean.length - 1]}`;
+}
+
+// House convention for solicitor email subjects:
+//   "Purchase of <address>, Client: <name>"  (buyer's solicitor)
+//   "Sale of <address>, Clients: <a> & <b>"  (seller's solicitor)
+// Shared by the reply-loop chase and the raise chase so every solicitor email
+// is subjected the same way.
+export function solicitorEmailSubject(opts: {
+  side: "vendor" | "purchaser";
+  address: string;
+  clientNames: string[];
+}): string {
+  const deal = opts.side === "purchaser" ? "Purchase" : "Sale";
+  const names = opts.clientNames.filter(Boolean);
+  if (names.length === 0) return `${deal} of ${opts.address}`;
+  const label = names.length === 1 ? "Client" : "Clients";
+  return `${deal} of ${opts.address}, ${label}: ${joinClientNames(names)}`;
+}
 
 function esc(s: string): string {
   return s
@@ -36,11 +62,15 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
   text: string;
   html: string;
 } {
-  const { court, address, senderName, agencyName, provideUpdateUrl } = input;
+  const { court, address, clientNames, senderName, agencyName, provideUpdateUrl } = input;
   const greeting = timeGreeting(input.now ?? new Date());
-  const subject = `Enquiries on ${address}`;
-
   const isSeller = court === "seller_solicitor";
+  const subject = solicitorEmailSubject({
+    side: isSeller ? "vendor" : "purchaser",
+    address,
+    clientNames,
+  });
+
   const opener = isSeller
     ? `I'm just chasing for an update on the outstanding enquiries for ${address}.`
     : `I'm just chasing for an update on the enquiries for ${address}.`;

@@ -5,6 +5,7 @@ import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confi
 import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
 import { SolicitorRespond } from "./SolicitorRespond";
 import { SolicitorEnquiries } from "./SolicitorEnquiries";
+import { SolicitorRaisePanel } from "./SolicitorRaisePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -91,8 +92,18 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
       ? "The enquiries are with the buyer's solicitor to review the replies."
       : "We're waiting on the seller's solicitor to answer the outstanding enquiries.";
 
-  // Whether the recipient has anything to act on at all — steps OR the loop.
-  const hasAnything = steps.length > 0 || enquiriesOpen;
+  // Raise chase: shown to the buyer's solicitor when the file is still waiting
+  // on enquiries to be raised (an open raise chase). Mutually exclusive with the
+  // loop — raising closes this and opens the tracker.
+  const raiseChase =
+    side === "purchaser"
+      ? await prisma.enquiryRaiseChase.findUnique({ where: { transactionId: tx.id }, select: { closedAt: true } })
+      : null;
+  const raiseOpen = !!raiseChase && !raiseChase.closedAt && !enquiriesOpen;
+
+  // Whether the recipient has anything to act on at all — steps, the loop, or
+  // the raise chase.
+  const hasAnything = steps.length > 0 || enquiriesOpen || raiseOpen;
 
   return (
     <Shell>
@@ -131,6 +142,8 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
           outstandingNote={enquiries?.outstandingNote ?? null}
         />
       )}
+
+      {raiseOpen && <SolicitorRaisePanel token={token} />}
 
       <Footer brand={brand} />
     </Shell>

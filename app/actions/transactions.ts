@@ -588,10 +588,18 @@ export async function changeStatusAction(
         where: { transactionId, closedAt: null },
         data: { closedAt: new Date() },
       });
+      await ptx.enquiryRaiseChase.updateMany({
+        where: { transactionId, closedAt: null },
+        data: { closedAt: new Date() },
+      });
     } else if (leavingHold && status === "active") {
       await ptx.enquiryTracker.updateMany({
         where: { transactionId, closedAt: null },
         data: { lastChasedAt: new Date(), escalatedAt: null },
+      });
+      await ptx.enquiryRaiseChase.updateMany({
+        where: { transactionId, closedAt: null },
+        data: { lastNudgedAt: new Date(), escalatedAt: null },
       });
     }
 

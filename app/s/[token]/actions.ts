@@ -383,6 +383,88 @@ export async function solicitorEnquiriesExpectedDateAction(token: string, expect
   return { ok: true };
 }
 
+// ── Raise-enquiries chase (enquiries rework) ─────────────────────────────────
+// Before the enquiries loop begins, the buyer's solicitor can confirm they've
+// raised enquiries, or give a date, straight from the raise-chase email link.
+// Requires an OPEN EnquiryRaiseChase (the pre-loop chase).
+
+async function resolveRaise(token: string) {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+  if (decoded.side !== "purchaser") {
+    throw new Error("Only the buyer's solicitor can confirm enquiries have been raised.");
+  }
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: decoded.transactionId },
+    select: {
+      id: true,
+      activeBuyerRoundId: true,
+      suppressPortalConfirmEmails: true,
+      purchaserSolicitorFirm: { select: { name: true } },
+      enquiryRaiseChase: { select: { closedAt: true } },
+    },
+  });
+  if (!tx) throw new Error("This matter could not be found.");
+  if (!tx.enquiryRaiseChase || tx.enquiryRaiseChase.closedAt) {
+    throw new Error("This matter is not waiting on enquiries to be raised.");
+  }
+  return { decoded, tx };
+}
+
+// (R1) Confirm enquiries have been raised → completes PM14, which closes the
+// raise chase and opens the enquiries tracker (the reply loop begins).
+export async function solicitorRaisedConfirmAction(token: string): Promise<{ ok: true }> {
+  const { decoded, tx } = await resolveRaise(token);
+  const pm14 = await prisma.milestoneDefinition.findFirst({ where: { code: "PM14" }, select: { id: true } });
+  if (!pm14) throw new Error("That step could not be found.");
+
+  await completeMilestone({
+    transactionId: decoded.transactionId,
+    milestoneDefinitionId: pm14.id,
+    confirmer: { kind: "solicitor", firmId: null, contactId: null, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
+  });
+
+  // Fire the client-facing "enquiries raised" email, same as any PM14 confirm.
+  if (!tx.suppressPortalConfirmEmails) {
+    sendAdminMilestoneNotificationToPortal(
+      decoded.transactionId, "PM14", null, undefined, undefined, computeHandoffDirection("PM14", false),
+    ).catch(() => {});
+  }
+
+  revalidatePath(`/s/${token}`);
+  return { ok: true };
+}
+
+// (R2) Give an expected "raised by" date → stored on the PM14 step; the raise
+// chase holds off until then.
+export async function solicitorRaisedExpectedDateAction(token: string, expectedDate: string): Promise<{ ok: true }> {
+  if (!expectedDate) throw new Error("Please choose a date.");
+  const { decoded, tx } = await resolveRaise(token);
+  const date = new Date(expectedDate);
+  if (Number.isNaN(date.getTime())) throw new Error("Please choose a valid date.");
+  if (date.getTime() <= Date.now()) throw new Error("Please choose a date in the future.");
+
+  const pm14 = await prisma.milestoneDefinition.findFirst({ where: { code: "PM14" }, select: { id: true } });
+  if (!pm14) throw new Error("That step could not be found.");
+  const scope = forRound(tx.activeBuyerRoundId, decoded.transactionId);
+  const existing = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId: decoded.transactionId, milestoneDefinitionId: pm14.id, ...milestoneScopeWhere(scope) },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.milestoneCompletion.update({ where: { id: existing.id }, data: { expectedDate: date } });
+  } else {
+    await prisma.milestoneCompletion.create({
+      data: { transactionId: decoded.transactionId, milestoneDefinitionId: pm14.id, state: "available", expectedDate: date, buyerRoundId: tx.activeBuyerRoundId },
+    });
+  }
+
+  revalidatePath(`/s/${token}`);
+  return { ok: true };
+}
+
 // (3) Provide a written update → records an internal note on the file so the
 // agent sees it in the file's activity. Attributed to the file's agent with a
 // "[Solicitor update]" prefix (the solicitor isn't a system user).

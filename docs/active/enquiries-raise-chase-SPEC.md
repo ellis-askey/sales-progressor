@@ -1,6 +1,7 @@
 # Enquiries rework — the "get enquiries raised" chase
 
-**Status:** designed + founder-approved 2026-08-14. **Not yet built.** Slots in as its own stage after the downstream-audit fixes.
+**Status:** designed + founder-approved + **BUILT** 2026-08-14. tsc clean, 219 tests pass (12 new decision tests).
+Final build notes: solicitor email subject uses the house convention `Purchase of <address>, Client(s): <names>` (shared helper `solicitorEmailSubject`, also applied to the reply-loop chase for consistency); buyer email subject `A quick check on your enquiries: <address>`. Escalation surfaces as a bell notification (`enquiries_raise_stalled`), matching the founder's "lean on the bell" preference (no separate work-queue task / on-file amber flag). Relist handled: the tracker reopens for a second buyer, and the raise-chase reads the ACTIVE round's "raised" tick.
 **Why it exists:** Phase 1 switched off the old per-step reminder for "raise enquiries" (the tracker owns enquiries now), but the tracker only opens *after* enquiries are raised/received. So nothing chased to *get* them raised. This closes that gap.
 
 ## Scope

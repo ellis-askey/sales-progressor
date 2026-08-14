@@ -414,6 +414,7 @@ model PropertyTransaction {
   solicitorChaseStates             SolicitorChaseState[]
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
+  enquiryRaiseChase                EnquiryRaiseChase?
 
   // Phase 0 of the relist feature — shadow only. No reads or writes
   // currently consume these fields; populated by backfill so the
@@ -2581,6 +2582,40 @@ model EnquiryTracker {
 
   @@index([currentlyWith, closedAt])
   @@index([closedAt, lastMovementAt])
+}
+
+// Who the raise-chase last nudged, so the cadence can alternate buyer/solicitor.
+enum RaiseChaseTarget {
+  buyer
+  buyer_solicitor
+}
+
+// The "get enquiries raised" chase (enquiries rework). Runs BEFORE the enquiries
+// tracker exists — it chases to get the buyer's solicitor to raise enquiries in
+// the first place, nudging the buyer first then their solicitor, escalating to
+// the file owner if it stalls. Opens when searches are ordered, closes the
+// moment enquiries are raised (then the tracker takes over the reply loop).
+// One per transaction. The "hold until an expected date" lives on the PM14
+// MilestoneCompletion.expectedDate, not here.
+model EnquiryRaiseChase {
+  id            String            @id @default(cuid())
+  transactionId String            @unique
+  // Clock anchor: set when searches are ordered. All timings are working days
+  // measured from here.
+  openedAt      DateTime          @default(now())
+  lastNudgedAt  DateTime?
+  lastTarget    RaiseChaseTarget?
+  nudgeCount    Int               @default(0)
+  // Set once when the 2-week + 3-day ceiling escalates to the file owner.
+  escalatedAt   DateTime?
+  // Set when enquiries are marked raised — the chase is done.
+  closedAt      DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([closedAt])
 }
 
 model EnquiryMovement {

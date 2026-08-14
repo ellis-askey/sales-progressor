@@ -48,16 +48,18 @@ export function enquiryChaseDecision(
   return { chaseDue, escalateDue };
 }
 
-function isWeekdayLondon(d: Date): boolean {
+export function isWeekdayLondon(d: Date): boolean {
   const wd = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "long" }).format(d);
   return wd !== "Saturday" && wd !== "Sunday";
 }
 
-function baseUrl(): string {
+export function baseUrl(): string {
   return process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
 }
 
-async function isEnabled(): Promise<boolean> {
+// The single master switch for ALL enquiries chasing (reply-loop chase AND the
+// raise chase). OFF by default.
+export async function isChaseEnabled(): Promise<boolean> {
   const row = await prisma.solicitorChaseSettings.findUnique({ where: { id: "singleton" } });
   return row?.enabledByDefault ?? false;
 }
@@ -69,7 +71,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
   escalated: number;
   skippedWeekend?: boolean;
 }> {
-  if (!(await isEnabled())) return { enabled: false, considered: 0, sent: 0, escalated: 0 };
+  if (!(await isChaseEnabled())) return { enabled: false, considered: 0, sent: 0, escalated: 0 };
   // Solicitors don't work weekends; the cron schedule is 1-5 but this covers
   // manual / ad-hoc triggers too.
   if (!isWeekdayLondon(now)) return { enabled: true, considered: 0, sent: 0, escalated: 0, skippedWeekend: true };
@@ -100,6 +102,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           vendorSolicitorEmailsPaused: true,
           purchaserSolicitorContact: { select: { email: true } },
           purchaserSolicitorEmailsPaused: true,
+          contacts: { select: { name: true, roleType: true } },
         },
       },
     },
@@ -179,9 +182,15 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     }
 
     const token = signSolicitorToken(tx.id, seller ? "vendor" : "purchaser");
+    // Clients on the recipient's side name the subject: seller's solicitor sees
+    // the sellers, buyer's solicitor sees the buyers.
+    const clientNames = tx.contacts
+      .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
+      .map((c) => c.name);
     const mail = buildEnquiryChaseEmail({
       court: seller ? "seller_solicitor" : "buyer_solicitor",
       address: tx.propertyAddress,
+      clientNames,
       senderName,
       agencyName,
       provideUpdateUrl: `${baseUrl()}/s/${token}`,

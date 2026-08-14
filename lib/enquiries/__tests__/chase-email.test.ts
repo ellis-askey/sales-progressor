@@ -14,6 +14,7 @@ describe("timeGreeting", () => {
 describe("enquiries chase email", () => {
   const base = {
     address: "12 Elm Road",
+    clientNames: ["Jordan Blake"],
     senderName: "Ellis Askey",
     agencyName: "The Sales Progressor",
     provideUpdateUrl: "https://portal.thesalesprogressor.co.uk/s/tok123",
@@ -22,7 +23,7 @@ describe("enquiries chase email", () => {
 
   it("chases the seller's solicitor for the outstanding replies", () => {
     const e = buildEnquiryChaseEmail({ ...base, court: "seller_solicitor" });
-    expect(e.subject).toBe("Enquiries on 12 Elm Road");
+    expect(e.subject).toBe("Sale of 12 Elm Road, Client: Jordan Blake");
     expect(e.text).toContain("Good morning,");
     expect(e.text).toContain("I hope you are well.");
     expect(e.text).toContain("the outstanding enquiries for 12 Elm Road");
@@ -34,9 +35,15 @@ describe("enquiries chase email", () => {
 
   it("chases the buyer's solicitor about satisfaction", () => {
     const e = buildEnquiryChaseEmail({ ...base, court: "buyer_solicitor" });
+    expect(e.subject).toBe("Purchase of 12 Elm Road, Client: Jordan Blake");
     expect(e.text).toContain("the enquiries for 12 Elm Road");
     expect(e.text).toContain("satisfied with the replies");
     expect(e.text).not.toContain("where things currently stand");
+  });
+
+  it("subjects two clients with an ampersand", () => {
+    const e = buildEnquiryChaseEmail({ ...base, clientNames: ["Jordan Blake", "Sam Blake"], court: "buyer_solicitor" });
+    expect(e.subject).toBe("Purchase of 12 Elm Road, Clients: Jordan Blake & Sam Blake");
   });
 
   it("has no em-dashes or exclamation marks (voice)", () => {
