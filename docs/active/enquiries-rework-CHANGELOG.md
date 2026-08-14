@@ -150,6 +150,15 @@
 
 ---
 
+## Pre-prod hardening — two gaps found via the founder's prod-readiness question
+- **Date:** 2026-08-14
+- **What:** the migration handled milestones/weights/gate but two things it didn't cover would have been visible on prod. Both fixed + verified on staging:
+  1. **Client portal showed the dead steps.** `getPortalMilestones` pulled every definition with no retired-code filter, so the ten retired steps would have appeared on client portals. Filter added. (The internal file view and the agent Steps tab already filter via `getMilestonesForTransaction`.)
+  2. **Stale reminders chasing retired steps.** 8 active reminder logs were chasing retired sub-steps, and 11 reminder rules were anchored/targeted on them — left alone they'd have lingered as "chase" items and the cron could keep firing them. New migration cancels the logs + their pending chase tasks and deactivates the rules (mirrors `autoCompleteRemindersForMilestone`).
+- **Files:** `lib/services/portal.ts`, `prisma/migrations/20260815250000_enquiries_reminder_cleanup`.
+- **DB:** reminder migration applied to **staging** (8 stale reminders → 0, all 11 retired rules deactivated). Applies to prod on push.
+- **Verify:** `tsc` clean; 0 active reminders on retired rules; all three milestone-list surfaces (internal, agent, portal) confirmed filtering retired codes.
+
 ## Rollout — remaining (founder-triggered)
 1. Test on staging (deployed at commit `5de1d8c`).
 2. Push `staging → master` to take the migrations + code to prod.

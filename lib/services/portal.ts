@@ -5,6 +5,7 @@ import { sendEmail, resolveSenderForTransaction } from "@/lib/email";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 // ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
 //
 // When the feature flag is enabled AND the milestoneCode has a registered
@@ -483,10 +484,12 @@ export async function getPortalMilestones(
   scope: MilestoneScope,
 ): Promise<PortalMilestone[]> {
   return withRetry(async () => {
-    const defs = await prisma.milestoneDefinition.findMany({
+    // Retired enquiry sub-steps are hidden from the client portal too
+    // (enquiries rework).
+    const defs = (await prisma.milestoneDefinition.findMany({
       where: { side },
       orderBy: { orderIndex: "asc" },
-    });
+    })).filter((d) => !RETIRED_ENQUIRY_CODES.has(d.code));
 
     const completions = await prisma.milestoneCompletion.findMany({
       where: { transactionId, ...milestoneScopeWhere(scope) },
