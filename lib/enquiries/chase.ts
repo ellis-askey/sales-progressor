@@ -4,8 +4,10 @@
 // tracker's whose-court state), how long it's been silent, and:
 //   - sends the matching chase email every 9 working days, via the per-agency
 //     / EXP replyable sender (a reply lands in the right inbox), and
-//   - escalates to a task for the file's owner after 3 weeks (15 working days)
-//     of silence, instead of emailing into the void.
+//   - escalates after 3 weeks (15 working days) of silence: it sets the amber
+//     "stalled" flag on the tracker (surfaced on the file and in the hub
+//     attention list) and drops a bell notification to the file's owner, so a
+//     human steps in instead of the robot emailing into the void.
 //
 // Silence is measured from the last logged movement, or from when the loop
 // opened if nothing's moved. Logging a movement resets both clocks.

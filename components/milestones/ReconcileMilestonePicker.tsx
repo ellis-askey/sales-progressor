@@ -67,9 +67,10 @@ const CROSS_SIDE_PAIRS: Record<string, string> = {
   VM7: "PM7",   PM7: "VM7",     // Draft contract pack: vendor issued ↔ buyer received
   VM9: "PM12",  PM12: "VM9",    // Management pack: vendor received ↔ buyer received
   VM10: "PM14", PM14: "VM10",   // Initial enquiries: vendor received ↔ buyer raised
-  VM12: "PM15", PM15: "VM12",   // Initial responses: vendor issued ↔ buyer received
-  VM13: "PM17", PM17: "VM13",   // Additional enquiries: vendor received ↔ buyer raised
-  VM15: "PM18", PM18: "VM15",   // Additional responses: vendor issued ↔ buyer received
+  // Enquiries rework: the old granular response pairs (VM12/PM15, VM13/PM17,
+  // VM15/PM18) are retired and hidden, so their pairings are removed. PM20's
+  // seller mirror VM21 is not paired here — VM21 auto-completes with PM20 inside
+  // completeMilestone (and is excluded from the row list below).
 };
 
 const DEFAULT_ROW: ReconciliationRow = { ticked: false, eventDate: null };
@@ -94,7 +95,9 @@ export function ReconcileMilestonePicker({
 }) {
   const autoNr = autoNrCodesFor(tenure, purchaseType);
   const filtered = milestoneDefinitions
-    .filter((m) => !autoNr.has(m.code) && !EXCHANGE_COMPLETION_CODES.has(m.code) && !RETIRED_ENQUIRY_CODES.has(m.code))
+    // VM21 excluded: it's the auto-derived seller mirror of PM20 (never ticked
+    // on its own), like the exchange/completion counterparts above.
+    .filter((m) => !autoNr.has(m.code) && !EXCHANGE_COMPLETION_CODES.has(m.code) && !RETIRED_ENQUIRY_CODES.has(m.code) && m.code !== "VM21")
     .sort((a, b) => {
       if (a.side !== b.side) return a.side === "vendor" ? -1 : 1;
       return a.orderIndex - b.orderIndex;

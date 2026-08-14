@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { callClaude } from "@/lib/anthropic";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 
 export type FlagKind =
   | "long_silence"
@@ -286,6 +287,9 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
         where: {
           transactionId: tx.id,
           state: "complete",
+          // Exclude retired enquiry steps: the denominator (38) already excludes
+          // them, so counting their completes on legacy files over-credits the %.
+          milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
           ...milestoneScopeWhere(scope),
         },
       }),

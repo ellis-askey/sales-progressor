@@ -74,7 +74,7 @@ export async function listTransactions(
         select: {
           // Phase-3: count completes for active round + file-level only.
           // Cumulative inflation from archived rounds resolved.
-          milestoneCompletions: { where: { state: "complete", OR: roundScopedOR(activeRoundIds) } },
+          milestoneCompletions: { where: { state: "complete", milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } }, OR: roundScopedOR(activeRoundIds) } },
         },
       },
       chaseTasks: {
@@ -364,7 +364,7 @@ export async function listTransactionsByScope(scope: AccessScope) {
       },
       _count: {
         select: {
-          milestoneCompletions: { where: { state: "complete", OR: roundScopedOR(activeRoundIds) } },
+          milestoneCompletions: { where: { state: "complete", milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } }, OR: roundScopedOR(activeRoundIds) } },
         },
       },
       chaseTasks: {

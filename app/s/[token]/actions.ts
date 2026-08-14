@@ -362,6 +362,10 @@ export async function solicitorEnquiriesExpectedDateAction(token: string, expect
 
   const date = new Date(expectedDate);
   if (Number.isNaN(date.getTime())) throw new Error("Please choose a valid date.");
+  // Reject a past date up front: otherwise the snooze can't apply (we never hold
+  // off to a date already gone) yet the movement below would still reset the
+  // chase clock — backing off 9 days on a date that means nothing.
+  if (date.getTime() <= Date.now()) throw new Error("Please choose a date in the future.");
 
   await setEnquirySnoozeUntil(decoded.transactionId, date);
 
