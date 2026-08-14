@@ -82,6 +82,26 @@ Neither code is in `PORTAL_AGENT_ONLY_CODES`, and (post-rework) both go "availab
 
 ---
 
+## Resolution (all shipped to staging 2026-08-14, committed not pushed)
+| # | Item | Fix | Commit |
+|---|---|---|---|
+| C1 | VM21 stranded on solicitor path | VM21 made a true invariant of PM20 inside `completeMilestone` (fires on every path); redundant per-caller maps removed; solicitor action wrapped in a transaction | `81480d7` |
+| H1 | PM20 rollback when VM10 unticked | reflection bypasses VM21's prereq guard (`bypassPrereqs`) | `81480d7` |
+| H2 | VM21 survives relist | added to `RELIST_RESET_VM_CODES` + mirror | `903f4d4` |
+| H3 | Undo PM20 orphans VM21 | added to `BILATERAL_UNDO_PAIRS`; tracker reopens on undo of a close-code | `903f4d4` |
+| H4 | Backfill skipped non-active files | migration `20260815270000` backfills VM21 = PM20 on all statuses, dated to PM20's `completedAt`; staging verified 2→0 | `1be1d44` |
+| H5 | Chase ignores file status | enquiry cron filtered to active files; tracker closed on withdraw/complete, chase-clock reset on return-from-hold | `1be1d44` |
+| M1 | Portal timeline shows retired | retired filter on `getPortalTimeline` | `68b34d1` |
+| M2 | Clients can confirm "satisfied" | PM20+VM21 added to `PORTAL_AGENT_ONLY_CODES`; excluded from the portal next-action CTA. **Raised/received stay client-confirmable (founder decision).** | `81187ce` |
+| M3 | Agent feed/next-action show retired | retired filter on `getAgentMilestoneActivity` + `getFileSnapshots` | `68b34d1` |
+| M4 | Audit log shows retired | **Left as-is** — audit log is immutable history (founder default). | — |
+| M5 | Admin step tables show 48 | retired filtered in Command Settings + Admin config tables | `68b34d1` |
+| M6/M7 | Bell + API map | `enquiries_stalled` + `solicitor_update` added to the bell allowlist; M7 obviated by the C1 centralisation | `81187ce` / `81480d7` |
+
+**LOW (L1–L6) not yet actioned** — flagged for POLISH_TBD: L1 (legacy progress-% over-credit), L2 (escalation Notification vs ChaseTask), L3 (past-date snooze resets clock), L4 (dead reconcile pairs), L5 (dead retired copy), L6 (non-issue).
+
+**New scope that came out of this review:** a dedicated "get enquiries raised" chase (buyer → solicitor → escalate) — designed + founder-approved, spec at `docs/active/enquiries-raise-chase-SPEC.md`, not yet built.
+
 ## Recommended fix plan
 1. **Make VM21 a real invariant of PM20** — move the PM20→VM21 completion into the shared `completeMilestone`/`syncEnquiryTracker` chokepoint, tolerant of VM10 being unmet, so every path (solicitor, API, task, reconciliation) stays in sync. Closes C1, H1, M7 and prevents recurrence. (Core-function change — surface before landing.)
 2. **VM21 lifecycle parity:** add to `RELIST_RESET_VM_CODES` (+ mirror) [H2], `BILATERAL_UNDO_PAIRS` + reopen tracker on undo of a close-code [H3].
