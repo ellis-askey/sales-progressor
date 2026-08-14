@@ -112,6 +112,16 @@
 - **Verify:** `tsc` clean; a staging smoke confirmed an escalated tracker resolves through the attention query with the right shape.
 - **Revert:** `git revert` the commit. No DB change.
 
+## Stage 1.7 (part 1) — Enquiries-raised email expectations
+- **Date:** 2026-08-14
+- **What:** the **live** client emails for "enquiries raised" (PM14) and "enquiries received" (VM10) promised updates that no longer fire under the new model ("we'll let you know when replies have been sent" / "your solicitor will let you know when the replies come back"). Reworded to the true expectation: this stage can take a few weeks, we're keeping an eye on both sides and chasing where needed, and we'll come to you when there's something worth sharing. (VM10.vendor's "respond promptly to your solicitor" is still true and was kept.)
+- **Files:** `lib/portal-copy.ts`.
+- **DB:** none.
+- **Verify:** `tsc` clean; voice-checked (no em-dash / exclamation).
+- **Key finding:** the LIVE email system is `portal-copy.ts` (the skeleton system is behind an off-by-default flag), so this changes what clients actually receive today. The gated skeletons don't need touching for live behaviour.
+- **Remaining in 1.7 / 1.8:** the portal "enquiries underway" active state + passive "we're chasing" line + PM16 education harvest, and the bilateral email de-dup (a matched file can currently fire both PM14 and VM10 emails to the same side for what is one event). These are coupled and are the next focused unit.
+- **Revert:** `git revert` the commit.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*

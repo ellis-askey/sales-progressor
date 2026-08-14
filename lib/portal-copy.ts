@@ -347,7 +347,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Enquiries received",
         opening: "Quick update on your purchase.",
         whatHappened: "Your solicitor's initial enquiries have been received by the seller's solicitor. They'll now work through the questions with the seller.",
-        whatNext: "Nothing for you to do right now. Your solicitor will let you know when the replies come back.",
+        whatNext: "Nothing for you to do right now. This stage can take a few weeks; we're keeping an eye on both sides and we'll come to you when there's something worth sharing.",
         action: "View your portal",
       },
       vendor: {
@@ -1125,7 +1125,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Enquiries raised",
         opening: "Quick update on your sale.",
         whatHappened: "The buyer's solicitor has raised their initial round of enquiries with your solicitor. They're asking questions about the property, the title, and documents in the contract pack; a normal part of conveyancing.",
-        whatNext: "Your solicitor will work through the questions and reply. We'll let you know when replies have been sent.",
+        whatNext: "Your solicitor will work through the questions and reply in their own time. This stage can take a few weeks; we're keeping an eye on it and we'll be in touch when there's something worth sharing.",
         action: "View your portal",
       },
       purchaser: {
@@ -1133,7 +1133,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Enquiries raised",
         opening: "Enquiries are now with the seller's solicitor.",
         whatHappened: "Your solicitor has raised their first round of enquiries with the seller's solicitor: questions about the property, the title, and the documents in the contract pack. This is a completely normal and important part of the conveyancing process.",
-        whatNext: "The seller's solicitor will work through the questions and reply in due course. Your solicitor will review the replies and let you know if any further questions are needed.",
+        whatNext: "This stage can take a few weeks, and it's normal for things to go quiet while the solicitors work through it. We're keeping an eye on both sides and chasing for updates where needed, and we'll come to you as soon as there's something worth sharing.",
         action: "View your portal",
       },
       vendorAgent: {
