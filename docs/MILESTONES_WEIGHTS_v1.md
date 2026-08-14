@@ -1,8 +1,13 @@
 # Sales Progressor — Milestone Weights
 
-**Version:** 1.1 (Locked)
-**Last updated:** 2026-04-28
+**Version:** 1.2 (Locked)
+**Last updated:** 2026-08-14
 **Companion to:** `MILESTONES_SPEC_v1.md`
+
+**v1.2 change note (enquiries rework — see `docs/active/enquiries-stage-rework-SPEC.md`):** the per-round enquiry sub-steps are retired and their weight concentrated onto the two steps that survive, so each side's cluster total is unchanged and both sides still sum to 100.00.
+- Vendor: VM10 5.00 → **8.00**; VM11-VM15 (5+5+3+3+3 = 19) → **0** (retired); new **VM21 "All enquiries satisfied" = 16.00**. Cluster stays 24.00.
+- Purchaser: PM14 3.00 → **6.00**; PM15-PM19 (3+2+2+2+2 = 11) → **0** (retired); PM20 6.00 → **14.00**. Cluster stays 20.00.
+Retired steps keep weight 0 and are hidden from every list until a later stage hard-deletes them. VM21 auto-completes when the buyer's PM20 is confirmed (it is a reflection, not a seller action).
 
 **v1.1 change note:** PM25: 5.00 → 6.00; PM5: 3.00 → 4.00. Original PM25=5 was an arithmetic error in v1.0 that caused the purchaser total to sum to 98 instead of 100. Fix applied as PM25 6.00 (aligns with Major-band peers PM20/PM23/PM11) + PM5 4.00 (mortgage application deserves more weight than 3 as it kicks off the lender process). Net effect: purchaser sum remains 100.00.
 
@@ -69,19 +74,20 @@ Not-required milestones are excluded from the denominator on both sides before p
 | 7 | VM7 | Seller's solicitor has issued the draft contract pack | 8.00 |
 | 8 | VM8 | Seller's solicitor has requested the management pack | 3.00 |
 | 9 | VM9 | Seller's solicitor has received the management pack | 3.00 |
-| 10 | VM10 | Seller's solicitor has received initial enquiries | 5.00 |
-| 11 | VM11 | Seller has provided initial replies to their solicitor | 5.00 |
-| 12 | VM12 | Seller's solicitor has issued initial responses to the buyer's solicitor | 5.00 |
-| 13 | VM13 | Seller's solicitor has received additional enquiries | 3.00 |
-| 14 | VM14 | Seller has provided additional replies to their solicitor | 3.00 |
-| 15 | VM15 | Seller's solicitor has issued additional responses to the buyer's solicitor | 3.00 |
+| 10 | VM10 | Seller's solicitor has received initial enquiries **(underway)** | **8.00** |
+| 15 | VM21 | **All enquiries satisfied** (reflection of buyer's PM20) | **16.00** |
+| — | VM11 | ~~Seller has provided initial replies to their solicitor~~ (retired) | 0 |
+| — | VM12 | ~~Seller's solicitor has issued initial responses~~ (retired) | 0 |
+| — | VM13 | ~~Seller's solicitor has received additional enquiries~~ (retired) | 0 |
+| — | VM14 | ~~Seller has provided additional replies~~ (retired) | 0 |
+| — | VM15 | ~~Seller's solicitor has issued additional responses~~ (retired) | 0 |
 | 16 | VM16 | Seller's solicitor has issued contract documents to the seller | 4.00 |
 | 17 | VM17 | Seller's solicitor has received signed contract documents back from the seller | 8.00 |
 | 18 | VM18 | Seller's solicitor has confirmed readiness to exchange | 8.00 |
 | 19 | VM19 | Seller has received confirmation that contracts have exchanged | 9.00 |
 | 20 | VM20 | Seller has received confirmation that the sale has completed | 5.00 |
 
-**Total: 100.00** ✓
+**Total: 100.00** ✓ (enquiries cluster VM10 + VM21 = 24.00, unchanged)
 
 ---
 
@@ -102,13 +108,13 @@ Not-required milestones are excluded from the denominator on both sides before p
 | 11 | PM11 | Buyer's solicitor has received the mortgage offer | 6.00 |
 | 12 | PM12 | Buyer's solicitor has received the management pack from the vendor's solicitor | 2.00 |
 | 13 | PM13 | Buyer's solicitor has received the search results | 3.00 |
-| 14 | PM14 | Buyer's solicitor has raised initial enquiries to the seller's solicitor | 3.00 |
-| 15 | PM15 | Buyer's solicitor has received initial replies from the seller's solicitor | 3.00 |
-| 16 | PM16 | Buyer's solicitor has reviewed the initial replies | 2.00 |
-| 17 | PM17 | Buyer's solicitor has raised additional enquiries | 2.00 |
-| 18 | PM18 | Buyer's solicitor has received additional replies | 2.00 |
-| 19 | PM19 | Buyer's solicitor has reviewed the additional replies | 2.00 |
-| 20 | PM20 | Buyer's solicitor has confirmed all enquiries are now satisfied | 6.00 |
+| 14 | PM14 | Buyer's solicitor has raised initial enquiries **(underway)** | **6.00** |
+| 20 | PM20 | Buyer's solicitor has confirmed all enquiries are now satisfied | **14.00** |
+| — | PM15 | ~~Buyer's solicitor has received initial replies~~ (retired) | 0 |
+| — | PM16 | ~~Buyer's solicitor has reviewed the initial replies~~ (retired) | 0 |
+| — | PM17 | ~~Buyer's solicitor has raised additional enquiries~~ (retired) | 0 |
+| — | PM18 | ~~Buyer's solicitor has received additional replies~~ (retired) | 0 |
+| — | PM19 | ~~Buyer's solicitor has reviewed the additional replies~~ (retired) | 0 |
 | 21 | PM21 | Buyer has received the final report from their solicitor | 3.00 |
 | 22 | PM22 | Buyer's solicitor has issued contract documents to the buyer | 3.00 |
 | 23 | PM23 | Buyer's solicitor has received the signed contract documents back from the buyer | 6.00 |

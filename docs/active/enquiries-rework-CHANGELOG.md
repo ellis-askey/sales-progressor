@@ -45,6 +45,15 @@
 - **Verify:** `tsc` clean with the synced seed. DB apply pending (above).
 - **Revert:** `git revert` the commit; the rename migration is a no-op if never applied, else a counter-migration to restore the old name.
 
+## Stage 1.3 — Weights doc + sum-check test
+- **Date:** 2026-08-14
+- **What:** updated `MILESTONES_WEIGHTS_v1.md` to v1.2 (enquiries weights concentrated onto the survivors; both sides still 100). Added a guard test that reads the real prerequisite map (asserts PM20→PM14, VM21→VM10, no retired code in the graph) and locks each side's weight sum at 100.
+- **Files:** `docs/MILESTONES_WEIGHTS_v1.md`, `lib/milestones/__tests__/enquiry-weights.test.ts`.
+- **DB:** none.
+- **Note:** the sum-check asserts a canonical weight map held in the test (mirrors the doc + seed). A DB-sourced sum-check would need the seed's arrays extracted to an importable catalog — deferred to avoid moving the canonical list under time pressure. Live DB sums were already verified = 100 in Stage 1.2.
+- **Verify:** 7/7 tests pass; `tsc` clean.
+- **Revert:** `git revert` the commit. No DB change.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
