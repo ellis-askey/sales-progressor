@@ -148,6 +148,10 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
       {
         text: "The quickest thing you can do to speed up your transaction is reply to any requests from your solicitor within 24 hours. Delays compound: a 3-day delay often becomes 2 weeks.",
       },
+      {
+        text: "This stage can take a few weeks, and it's normal for it to go quiet while the solicitors work through the questions. We're keeping an eye on both sides and chasing for updates where needed, so there's nothing you need to chase yourself.",
+        hideOnceDone: ["PM20", "VM21"],
+      },
     ],
     vendor: [
       {
@@ -170,6 +174,10 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
         text: "Your mortgage offer should follow the lender's valuation within a week or two. Double-check the interest rate and repayment term match what you agreed with your broker.",
         requires: ["PM6"],
         hideOnceDone: ["PM11"],
+      },
+      {
+        text: "Once your solicitor has reviewed the replies, it usually lands one of three ways: everything's clear and the file moves on, a few follow-up questions are needed, or there's a point worth talking through with you. Your solicitor will let you know which.",
+        hideOnceDone: ["PM20"],
       },
     ],
   },

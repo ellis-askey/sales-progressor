@@ -122,6 +122,14 @@
 - **Remaining in 1.7 / 1.8:** the portal "enquiries underway" active state + passive "we're chasing" line + PM16 education harvest, and the bilateral email de-dup (a matched file can currently fire both PM14 and VM10 emails to the same side for what is one event). These are coupled and are the next focused unit.
 - **Revert:** `git revert` the commit.
 
+## Stage 1.7 (part 2) — Portal reassurance + education
+- **Date:** 2026-08-14
+- **What:** two tips added to the portal's enquiries stage — a reassurance ("this can take a few weeks, it's normal for it to go quiet, we're keeping an eye on both sides", replacing the drumbeat the deleted step-emails used to provide) and the PM16 "lands one of three ways" education (buyer-only), harvested from the deleted PM16 email. Both hide once enquiries are satisfied. The "underway" active state on the portal bar was already handled by the display-stages logic + the reweighting.
+- **Files:** `lib/portal-tips.ts`.
+- **DB:** none.
+- **Verify:** 29/29 portal-tips tests, `tsc` clean, voice clean.
+- **Revert:** `git revert` the commit.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
