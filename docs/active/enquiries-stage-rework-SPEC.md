@@ -309,6 +309,7 @@ Each stage below is scoped to be a single reviewable change (Law 5: one concern 
 #### Stage 2.1 — Client "Tell us an update" capture
 - **Goal:** the buyer and seller can report movement their solicitor told them about.
 - **Changes:** on both portals, a lightweight "Tell us an update" — free text plus a couple of quick options ("my solicitor has replied" / "raised new enquiries" / "waiting on the other side"). Writes an `EnquiryMovement` with `source = buyer_report | seller_report` in a **pending/soft** state (not yet shown, not yet authoritative).
+- **High-value buyer option (founder-requested, 2026-08-14):** *"My solicitor has confirmed they're happy with all the enquiry replies."* The buyer's solicitor declares satisfaction and usually tells their client before they tell us, so this is the single most valuable sensor signal. It is a **report, never a self-tick** — it lands as a pending movement in the review queue, and the progressor confirms and marks PM20. The seller equivalent is "my solicitor has sent all our replies across" (a movement that flips the ball to the buyer), since the seller's side doesn't own satisfaction.
 - **Verify:** a report from each portal lands as a pending movement scoped to the right transaction; nothing shows cross-party yet.
 - **Depends on:** Phase 1 complete.
 

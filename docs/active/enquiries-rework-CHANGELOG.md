@@ -130,6 +130,14 @@
 - **Verify:** 29/29 portal-tips tests, `tsc` clean, voice clean.
 - **Revert:** `git revert` the commit.
 
+## Stage 1.10 — Migrate existing files
+- **Date:** 2026-08-14
+- **What:** moved all **88 active** files onto the new shape. (1) Unlocked "enquiries satisfied" (PM20) on the **9 files** where it was stuck locked behind the retired chain. (2) Backfilled the seller "All enquiries satisfied" (VM21) completion on every active file (7 complete where already satisfied, 12 available where received, 69 locked). (3) Opened **12 trackers** for files mid-enquiries, with `openedAt = now` so the chase clock starts fresh and nothing escalates on day one. (4) Flipped VM21 to **gate exchange**. Fully idempotent (safe to re-run).
+- **Files:** `prisma/migrations/20260815240000_enquiries_migrate_existing`.
+- **DB migration:** applied to **staging** and verified (12 trackers, VM21 gating, 9 PM20 unlocked, VM21 on all 88 active files). **Prod untouched** — applies on the next prod deploy (at switch-on), per Law 3.
+- **Note:** migrated trackers default the ball to the seller's solicitor (the true court can't be known from milestones); the progressor can flip it from the panel. The chase is still off, so no file is nudged until switch-on.
+- **Revert:** `git revert` the migration; a counter-migration would delete the backfilled VM21 rows + migrated trackers, re-lock PM20, and unflip the VM21 gate.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
