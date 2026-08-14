@@ -1272,6 +1272,30 @@ export async function getHubAttentionItems(
     })
     .filter((x): x is HubAttentionItem => x !== null);
 
+  // Enquiries rework: a stalled enquiries loop (no movement in 3 weeks) surfaces
+  // as an escalated attention item too, using the same visibility scoping.
+  const stalled = await prisma.enquiryTracker.findMany({
+    where: { escalatedAt: { not: null }, closedAt: null, transaction: txLogFilter },
+    select: {
+      id: true,
+      escalatedAt: true,
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
+    },
+  });
+  for (const t of stalled) {
+    if (!t.escalatedAt) continue;
+    items.push({
+      id: `enq-${t.id}`,
+      urgency: "escalated",
+      reminderName: "Enquiries stalled",
+      transaction: t.transaction,
+      nextDueDate: t.escalatedAt,
+      escalationReason: "No movement in 3 weeks",
+      escalatedAt: t.escalatedAt,
+      escalatedByName: null,
+    });
+  }
+
   const order = { escalated: 0, overdue: 1, due_today: 2 };
   items.sort((a, b) => {
     const d = order[a.urgency] - order[b.urgency];

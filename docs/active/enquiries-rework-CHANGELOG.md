@@ -104,6 +104,14 @@
 - **Verify:** `tsc` clean. **Visual review pending** (needs the running app) — the panel only appears on a file whose enquiries loop is open, so to see it: mark "enquiries raised" on a test file (that opens a tracker via the 1.4a lifecycle), then open that file's Overview.
 - **Revert:** `git revert` the commit. No DB change.
 
+## Stage 1.5 — Stalled enquiries in the hub attention list
+- **Date:** 2026-08-14
+- **What:** a stalled enquiries loop (escalated, no movement in 3 weeks) now surfaces on the hub attention card as an "escalated" item ("Enquiries stalled"), using the same visibility scoping as the existing reminder attention items — so it's visible without opening the file. (The file-level amber flag and the owner notification were already there from 1.4b/1.6b; this is the third surface the spec asked for.)
+- **Files:** `lib/services/hub.ts` (extended `getHubAttentionItems`).
+- **DB:** none.
+- **Verify:** `tsc` clean; a staging smoke confirmed an escalated tracker resolves through the attention query with the right shape.
+- **Revert:** `git revert` the commit. No DB change.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
