@@ -16,6 +16,7 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "./raise-chase-email";
+import { logChaseSend } from "./chase-log";
 
 function firstNameOf(full: string): string {
   return full.trim().split(/\s+/)[0] || "there";
@@ -52,6 +53,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           activeBuyerRoundId: true,
           agency: { select: { name: true } },
           purchaserSolicitorContact: { select: { email: true } },
+          purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           contacts: {
             select: {
@@ -175,6 +177,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
               fileUrl: `${baseUrl()}/portal/${b.portalToken}`,
             });
             await sendChainEmail({ to: b.email as string, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+            await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer", recipientName: b.name }).catch(() => {});
             didSend = true;
           }
         }
@@ -192,6 +195,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             now,
           });
           await sendChainEmail({ to: email, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+          await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
           didSend = true;
         }
       }

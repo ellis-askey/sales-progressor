@@ -22,6 +22,7 @@ import { sendChainEmail, resolveSenderForTransaction } from "@/lib/email";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
+import { logChaseSend } from "./chase-log";
 
 const CHASE_WORKING_DAYS = 9; // nudge cadence
 const ESCALATE_WORKING_DAYS = 15; // 3 weeks of silence -> hand to a human
@@ -99,8 +100,10 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           agentUserId: true,
           agency: { select: { name: true } },
           vendorSolicitorContact: { select: { email: true } },
+          vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
           purchaserSolicitorContact: { select: { email: true } },
+          purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           contacts: { select: { name: true, roleType: true } },
         },
@@ -203,6 +206,12 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
         where: { id: t.id },
         data: { lastChasedAt: now, chaseCount: { increment: 1 } },
       });
+      await logChaseSend({
+        transactionId: tx.id,
+        kind: "reply_loop",
+        recipient: seller ? "seller_solicitor" : "buyer_solicitor",
+        recipientName: (seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? null,
+      }).catch(() => {});
       sent++;
     } catch (err) {
       console.error(`[enquiry-chase] send failed for tracker ${t.id}:`, err);

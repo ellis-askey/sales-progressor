@@ -415,6 +415,7 @@ model PropertyTransaction {
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
   enquiryRaiseChase                EnquiryRaiseChase?
+  chaseSends                       ChaseSend[]
 
   // Phase 0 of the relist feature — shadow only. No reads or writes
   // currently consume these fields; populated by backfill so the
@@ -2616,6 +2617,52 @@ model EnquiryRaiseChase {
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([closedAt])
+}
+
+// Which chaser sent it, and to whom. Used by the enquiries-chase experiment
+// board (Command Centre) to measure whether chasing actually works.
+enum ChaseSendKind {
+  raise // "get enquiries raised" chase
+  reply_loop // enquiries reply-loop tracker chase
+}
+
+enum ChaseSendRecipient {
+  buyer // client nudge (raise chase only)
+  seller_solicitor
+  buyer_solicitor
+}
+
+enum ChaseResponseType {
+  update // left a written update via the link
+  date // gave an expected date via the link
+  confirm // confirmed the step (raised / satisfied) via the link
+}
+
+// One row per chase email actually sent. The experiment log: did they open the
+// link, did they act (and how), or did they reply by email (a manual founder
+// tick). Written by the chase crons on a successful send.
+model ChaseSend {
+  id            String             @id @default(cuid())
+  transactionId String
+  kind          ChaseSendKind
+  recipient     ChaseSendRecipient
+  recipientName String? // solicitor firm (or buyer name), for the board
+  sentAt        DateTime           @default(now())
+  // Set when the recipient opens their /s/ link after this send.
+  openedAt      DateTime?
+  // Set when they take an action via the link.
+  respondedAt   DateTime?
+  responseType  ChaseResponseType?
+  // Manual: the founder ticks this when the solicitor replied by email instead
+  // of using the link.
+  repliedByEmailAt DateTime?
+  createdAt     DateTime           @default(now())
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([sentAt])
+  @@index([transactionId])
+  @@index([kind, sentAt])
 }
 
 model EnquiryMovement {

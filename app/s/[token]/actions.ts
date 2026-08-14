@@ -7,6 +7,7 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
 import { logEnquiryMovement, setEnquirySnoozeUntil } from "@/lib/enquiries/tracker";
+import { markChaseResponded, recipientForSide } from "@/lib/enquiries/chase-log";
 import { checkSolicitorConfirmLimit } from "@/lib/ratelimit";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 import {
@@ -309,6 +310,7 @@ export async function solicitorEnquiriesSatisfiedAction(token: string): Promise<
     ).catch(() => {});
   }
 
+  void markChaseResponded(decoded.transactionId, "buyer_solicitor", "confirm").catch(() => {});
   revalidatePath(`/s/${token}`);
   return { ok: true };
 }
@@ -349,6 +351,7 @@ export async function solicitorEnquiriesUpdateAction(token: string, message: str
     });
   }
 
+  void markChaseResponded(decoded.transactionId, recipientForSide(side), "update").catch(() => {});
   revalidatePath(`/s/${token}`);
   return { ok: true };
 }
@@ -379,6 +382,7 @@ export async function solicitorEnquiriesExpectedDateAction(token: string, expect
     source: "solicitor_reply",
   });
 
+  void markChaseResponded(decoded.transactionId, recipientForSide(side), "date").catch(() => {});
   revalidatePath(`/s/${token}`);
   return { ok: true };
 }
@@ -433,6 +437,7 @@ export async function solicitorRaisedConfirmAction(token: string): Promise<{ ok:
     ).catch(() => {});
   }
 
+  void markChaseResponded(decoded.transactionId, "buyer_solicitor", "confirm").catch(() => {});
   revalidatePath(`/s/${token}`);
   return { ok: true };
 }
@@ -461,6 +466,7 @@ export async function solicitorRaisedExpectedDateAction(token: string, expectedD
     });
   }
 
+  void markChaseResponded(decoded.transactionId, "buyer_solicitor", "date").catch(() => {});
   revalidatePath(`/s/${token}`);
   return { ok: true };
 }

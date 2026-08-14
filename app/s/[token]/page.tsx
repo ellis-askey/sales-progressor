@@ -3,6 +3,7 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
+import { markChaseOpened, recipientForSide } from "@/lib/enquiries/chase-log";
 import { SolicitorRespond } from "./SolicitorRespond";
 import { SolicitorEnquiries } from "./SolicitorEnquiries";
 import { SolicitorRaisePanel } from "./SolicitorRaisePanel";
@@ -51,6 +52,10 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
   }
 
   const side = decoded.side;
+  // Experiment tracking: record that the solicitor opened their link, against
+  // the most recent still-unopened chase send. Fire-and-forget — must never
+  // affect the page render.
+  void markChaseOpened(tx.id, recipientForSide(side)).catch(() => {});
   const brand = tx.agency?.name ?? "Sales Progression";
   const sellerNames = joinNames(tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name));
   const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name));

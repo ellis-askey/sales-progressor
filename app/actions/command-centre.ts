@@ -30,6 +30,18 @@ export async function startExperimentAction(experimentId: string) {
   revalidatePath("/command/experiments");
 }
 
+// Enquiries-chase experiment: the founder ticks a chase send as "the solicitor
+// replied by email" (rather than using the link), so email replies count in the
+// response rate.
+export async function setChaseRepliedByEmailAction(chaseSendId: string, on: boolean) {
+  await requireSuperAdmin();
+  await commandDb.chaseSend.update({
+    where: { id: chaseSendId },
+    data: { repliedByEmailAt: on ? new Date() : null },
+  });
+  revalidatePath("/command/enquiries-chase");
+}
+
 export async function abandonExperimentAction(experimentId: string, reason: string) {
   await requireSuperAdmin();
   await abandonExperiment(experimentId, reason);
