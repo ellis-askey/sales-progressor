@@ -413,6 +413,7 @@ model PropertyTransaction {
   clientChaseStates                ClientChaseState[]
   solicitorChaseStates             SolicitorChaseState[]
   holdPeriods                      TransactionHoldPeriod[]
+  enquiryTracker                   EnquiryTracker?
 
   // Phase 0 of the relist feature — shadow only. No reads or writes
   // currently consume these fields; populated by backfill so the
@@ -2523,6 +2524,84 @@ model SolicitorReminderRule {
   useAnchorEventDate  Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// ─── Enquiries tracker ──────────────────────────────────────────────────────
+// One per transaction's enquiries loop. See
+// docs/active/enquiries-stage-rework-SPEC.md.
+//
+// Replaces the deleted per-round enquiry milestones (buyer PM15-19, seller
+// VM11-15) with a single loop that carries a "whose court" state, an optional
+// unlabelled movement log, and one optional outstanding note. "Satisfied"
+// stays a milestone (PM20 + the new seller mirror); this tracker is the messy
+// middle the old ticks tried and failed to model.
+
+enum EnquiryCourt {
+  seller_solicitor
+  buyer_solicitor
+}
+
+enum EnquiryMovementSource {
+  progressor      // logged by the internal team / agent
+  buyer_report    // buyer told us (portal or WhatsApp, logged by us)
+  seller_report   // seller told us (portal or WhatsApp, logged by us)
+  solicitor_reply // a solicitor replied to a chase
+}
+
+enum EnquiryMovementStatus {
+  pending   // client report awaiting progressor review (Phase 2)
+  accepted  // counts: resets the chase clock, can flip the court
+  dismissed // reviewed and rejected
+}
+
+model EnquiryTracker {
+  id              String       @id @default(cuid())
+  transactionId   String       @unique
+  // Whose court the ball is in. Defaults to the seller's solicitor at "raised"
+  // (they owe the replies). Flips only on a real signal (a solicitor reply, a
+  // client report, or a progressor override) — never guessed.
+  currentlyWith   EnquiryCourt @default(seller_solicitor)
+  // One free-text scratch line ("waiting on: management pack, FENSA cert").
+  outstandingNote String?
+  openedAt        DateTime     @default(now())
+  // Silence is measured from lastMovementAt ?? openedAt. Logging a movement
+  // resets it, which restarts the chase cadence.
+  lastMovementAt  DateTime?
+  lastChasedAt    DateTime?
+  chaseCount      Int          @default(0)
+  escalatedAt     DateTime?
+  snoozedUntil    DateTime?
+  // Set when enquiries are marked satisfied — the loop is closed.
+  closedAt        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  movements   EnquiryMovement[]
+
+  @@index([currentlyWith, closedAt])
+  @@index([closedAt, lastMovementAt])
+}
+
+model EnquiryMovement {
+  id              String                @id @default(cuid())
+  trackerId       String
+  // Unlabelled: no round number, no initial-vs-additional — the distinction we
+  // often can't observe. Just a plain one-line record.
+  note            String
+  occurredAt      DateTime              @default(now())
+  source          EnquiryMovementSource
+  // Set when this movement moves the ball to the other side.
+  flipsCourtTo    EnquiryCourt?
+  status          EnquiryMovementStatus @default(accepted)
+  // Null for client reports. Plain id (no FK), matching SolicitorChaseSettings.updatedById.
+  createdByUserId String?
+  createdAt       DateTime              @default(now())
+
+  tracker EnquiryTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+
+  @@index([trackerId, occurredAt])
+  @@index([status])
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────
