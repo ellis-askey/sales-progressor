@@ -134,7 +134,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
   const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered
   const pm13Done       = isMilestoneCompleteByCode("PM13"); // results back
-  const enquiriesDone  = isMilestoneCompleteByCode("PM14");
+  // Enquiries rework: the tile completes when enquiries are SATISFIED (PM20),
+  // not merely raised (PM14) — matching display-stages.ts and avoiding telling
+  // a client "Enquiries: Completed" while their solicitor is still working.
+  const enquiriesDone  = isMilestoneCompleteByCode("PM20");
   const exchangeDone   = isMilestoneCompleteByCode(side === "vendor" ? "VM19" : "PM26");
   const completionDone = isMilestoneCompleteByCode(side === "vendor" ? "VM20" : "PM27");
 
@@ -258,7 +261,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         "The buyer's enquiries were answered",
         "Your enquiries were answered",
       ),
-      completeDate: dateForCode("PM14"),
+      completeDate: dateForCode("PM20"),
     },
     {
       key: "exchange",

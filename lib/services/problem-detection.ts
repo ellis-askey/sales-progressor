@@ -41,6 +41,11 @@ type TxData = {
   chaseTasks: { dueDate: Date }[];
   contacts: { portalToken: string | null; visitDayCount: number; lastVisitDay: string | null }[];
   milestoneCompletions: { completedAt: Date | null }[];
+  // Enquiries rework: when the file is mid-enquiries the milestone list goes
+  // quiet by design (activity lives in the tracker), so the generic
+  // milestone-silence detectors are suppressed. The enquiries stall signal is
+  // the tracker's own 15-working-day escalation, surfaced separately.
+  hasOpenEnquiryTracker: boolean;
 };
 
 type DetectedFlag = { kind: FlagKind; context: string };
@@ -73,7 +78,10 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     const actualPercent = Math.min(100, (completedCount / 38) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
-    if (completedCount > 0 && diff < -25) {
+    // Enquiries rework: don't flag a file that's mid-enquiries — the milestone
+    // list is quiet by design; the tracker's 15-working-day escalation is the
+    // enquiries stall signal.
+    if (completedCount > 0 && diff < -25 && !tx.hasOpenEnquiryTracker) {
       flags.push({
         kind: "milestone_stalled",
         context: `${completedCount} milestones complete but expected ~${Math.round((expectedPercent / 100) * 38)} by now (${Math.round(weeksElapsed)} weeks in)`,
@@ -151,7 +159,9 @@ function detectFlags(tx: TxData): DetectedFlag[] {
       (a, b) => (b.completedAt ? new Date(b.completedAt).getTime() : 0) - (a.completedAt ? new Date(a.completedAt).getTime() : 0)
     );
     const lastMilestoneAt = sorted[0]?.completedAt;
-    if (lastMilestoneAt && completedCount > 0 && completedCount < 35) {
+    // Enquiries rework: suppress during an open enquiries loop (milestone-quiet
+    // by design; the tracker escalates at 15 working days instead).
+    if (lastMilestoneAt && completedCount > 0 && completedCount < 35 && !tx.hasOpenEnquiryTracker) {
       const reference = tx.activeRoundCreatedAt
         ? new Date(Math.max(new Date(lastMilestoneAt).getTime(), tx.activeRoundCreatedAt.getTime()))
         : new Date(lastMilestoneAt);
@@ -282,6 +292,12 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       where: { transactionId: tx.id, type: "inbound" },
     });
 
+    // Enquiries rework: is the file mid-enquiries? (open, not-yet-satisfied loop)
+    const openEnquiryTracker = await prisma.enquiryTracker.findFirst({
+      where: { transactionId: tx.id, closedAt: null },
+      select: { id: true },
+    });
+
     // Per-contact portal-visit history (audit #6): distinct visit-days + the
     // most recent, so detectFlags can tell "was engaged then went quiet" from
     // "never engaged".
@@ -301,6 +317,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
     const enriched: TxData = {
       ...tx,
       activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
+      hasOpenEnquiryTracker: !!openEnquiryTracker,
       _count: { milestoneCompletions: completedCount },
       milestoneCompletions: lastCompleted ? [lastCompleted] : [],
       contacts: tx.contacts.map((c) => {

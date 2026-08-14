@@ -202,16 +202,22 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
             },
           },
         ],
-        NOT: {
-          // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
-          milestoneCompletions: {
-            some: {
-              state: "complete",
-              milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
-              OR: roundScopedOR(activeRoundIds),
+        NOT: [
+          {
+            // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
+            milestoneCompletions: {
+              some: {
+                state: "complete",
+                milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+                OR: roundScopedOR(activeRoundIds),
+              },
             },
           },
-        },
+          // Enquiries rework: exclude files mid-enquiries (open, unsatisfied
+          // loop). They're milestone-quiet by design; the tracker's own
+          // 15-working-day escalation is the enquiries stall signal.
+          { enquiryTracker: { is: { closedAt: null } } },
+        ],
       },
       select: { id: true },
     }),
