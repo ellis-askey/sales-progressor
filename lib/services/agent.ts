@@ -285,7 +285,10 @@ export async function getAgentMilestoneActivity(
       state: "complete",
       // Enquiries rework: keep the retired granular enquiry steps out of the
       // agent activity feed (migrated files still carry their completed rows).
-      milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
+      // Also hide VM21 ("all enquiries satisfied", seller side): it's a pure
+      // auto-mirror of the buyer's PM20, which is already in the feed, so showing
+      // both would double-count the one "enquiries satisfied" event.
+      milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES, "VM21"] } },
       OR: roundScopedOR(activeRoundIds),
       ...(portalOnly ? { confirmedByPortal: true } : {}),
     },

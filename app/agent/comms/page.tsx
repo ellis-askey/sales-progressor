@@ -52,7 +52,9 @@ export default async function AgentCommsPage({
   const dayTxMap = new Map<string, Map<string, TxGroup>>();
 
   for (const m of milestones) {
-    const label = dayLabel(m.completedAt ?? new Date());
+    // Never fabricate "now" for an undated completion — that paints a stale
+    // backfilled row as live activity. Fall back to the row's real creation time.
+    const label = dayLabel(m.completedAt ?? m.createdAt);
     if (!dayTxMap.has(label)) {
       dayTxMap.set(label, new Map());
       dayOrder.push(label);
@@ -87,7 +89,7 @@ export default async function AgentCommsPage({
         : null;
     const row: MilestoneRow = {
       id: m.id,
-      completedAtIso: (m.completedAt ?? new Date()).toISOString(),
+      completedAtIso: (m.completedAt ?? m.createdAt).toISOString(),
       sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
       who: confirmer.kind,
       completedByName: confirmer.kind === "client" ? (clientContact?.name ?? null) : (m.completedBy?.name ?? null),
