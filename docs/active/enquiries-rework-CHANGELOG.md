@@ -71,6 +71,14 @@
 - **Revert:** `git revert` the commit. No DB change.
 - **Next (1.4b):** the chase send itself — the 9-working-day nudge to whoever holds the ball, the plain "Good morning/afternoon" copy + "Provide an update" button, and the 3-week escalation.
 
+## Stage 1.4b (part 1) — Chase copy + greeting
+- **Date:** 2026-08-14
+- **What:** the time-based greeting helper ("Good morning" before noon London, else "Good afternoon" — never greets by name), and the enquiries chase email builder. Two directions keyed on the tracker's court (seller solicitor "any update on the replies?" / buyer solicitor "satisfied?"), plain Outlook-style, with a "Provide an update" button and a reply path, signed `Kind regards, {Sender}, {Agency}`. Variant-agnostic (no tenure/funding conditioning).
+- **Files:** `lib/emails/greeting.ts`, `lib/enquiries/chase-email.ts`, `lib/enquiries/__tests__/chase-email.test.ts`.
+- **DB:** none.
+- **Verify:** 4/4 tests (incl. a voice check for no em-dashes/exclamations), `tsc` clean.
+- **Next (1.4b part 2):** the chase engine — the cron that reads each open tracker, sends this copy to whoever holds the ball on the 9-working-day cadence via the per-agency replyable sender, and escalates at 3 weeks. Plus removing the enquiries codes from the old solicitor-confirm chase so the two don't overlap.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
