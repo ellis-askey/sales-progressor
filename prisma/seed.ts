@@ -76,12 +76,12 @@ async function main() {
     },
     {
       code: "VM2",  orderIndex: 2,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 3.00, name: "Seller has received the memorandum of sale",
+      weight: 4.00, name: "Seller has received the memorandum of sale",
       summaryTemplate: "{agent} confirmed {vendors} received the memorandum of sale",
     },
     {
       code: "VM3",  orderIndex: 3,  blocksExchange: true,  predecessorCode: "VM1",  canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 4.00, name: "Seller has received the welcome pack from their solicitor",
+      weight: 5.00, name: "Seller has received the welcome pack from their solicitor",
       summaryTemplate: "{agent} confirmed {vendors} received the welcome pack from their solicitor",
     },
     {
@@ -152,12 +152,12 @@ async function main() {
     // the seller. blocksExchange flips true in the in-flight-migration stage.
     {
       code: "VM21", orderIndex: 15, blocksExchange: false, predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 16.00, name: "All enquiries satisfied",
+      weight: 12.00, name: "All enquiries satisfied",
       summaryTemplate: "{agent} confirmed all enquiries on the file are satisfied",
     },
     {
       code: "VM16", orderIndex: 16, blocksExchange: true,  predecessorCode: "VM7",  canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 4.00, name: "Seller's solicitor has issued contract documents to the seller",
+      weight: 5.00, name: "Seller's solicitor has issued contract documents to the seller",
       summaryTemplate: "{agent} received confirmation from {solicitor} that contract documents have been issued to {vendors}",
     },
     {
@@ -177,7 +177,7 @@ async function main() {
     },
     {
       code: "VM20", orderIndex: 20, blocksExchange: false, predecessorCode: "VM19", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 5.00, name: "Seller has received confirmation that the sale has completed",
+      weight: 6.00, name: "Seller has received confirmation that the sale has completed",
       summaryTemplate: "{agent} confirmed that the sale of {vendors}'s property has completed",
     },
   ];

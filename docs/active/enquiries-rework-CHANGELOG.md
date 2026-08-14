@@ -54,6 +54,14 @@
 - **Verify:** 7/7 tests pass; `tsc` clean.
 - **Revert:** `git revert` the commit. No DB change.
 
+## Stage 1.3a — Ease the seller "satisfied" weight
+- **Date:** 2026-08-14
+- **What:** VM21 16 → 12 (a reflection shouldn't outweigh the buyer's own PM20=14). The freed 4 spread onto VM2 (→4), VM3 (→5), VM16 (→5), VM20 (→6). Vendor still sums to 100; enquiries cluster now 20 each side.
+- **Files:** `prisma/migrations/20260815230000_ease_enquiry_weights`, `prisma/seed.ts`, `docs/MILESTONES_WEIGHTS_v1.md`, `lib/milestones/__tests__/enquiry-weights.test.ts`.
+- **DB migration:** `20260815230000_ease_enquiry_weights`. ⚠️ **NOT YET APPLIED** — staging still paused. Applies with the other pending migrations on resume.
+- **Verify:** 7/7 tests, `tsc` clean.
+- **Revert:** `git revert` the commit; counter-migration to restore the old weights if applied.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*

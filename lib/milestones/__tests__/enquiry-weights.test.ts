@@ -36,9 +36,9 @@ describe("enquiries rework: prerequisite structure", () => {
 describe("enquiries rework: weight sums (mirror of MILESTONES_WEIGHTS_v1.md)", () => {
   // Canonical per-side weights. Keep in lockstep with the weights doc and the seed.
   const VENDOR: Record<string, number> = {
-    VM1: 6, VM2: 3, VM3: 4, VM4: 3, VM5: 4, VM6: 8, VM7: 8, VM8: 3, VM9: 3,
-    VM10: 8, VM11: 0, VM12: 0, VM13: 0, VM14: 0, VM15: 0, VM21: 16,
-    VM16: 4, VM17: 8, VM18: 8, VM19: 9, VM20: 5,
+    VM1: 6, VM2: 4, VM3: 5, VM4: 3, VM5: 4, VM6: 8, VM7: 8, VM8: 3, VM9: 3,
+    VM10: 8, VM11: 0, VM12: 0, VM13: 0, VM14: 0, VM15: 0, VM21: 12,
+    VM16: 5, VM17: 8, VM18: 8, VM19: 9, VM20: 6,
   };
   const PURCHASER: Record<string, number> = {
     PM1: 5, PM2: 3, PM3: 2, PM4: 6, PM5: 4, PM6: 2, PM7: 3, PM8: 3, PM9: 4,
@@ -58,7 +58,7 @@ describe("enquiries rework: weight sums (mirror of MILESTONES_WEIGHTS_v1.md)", (
 
   it("the enquiries weight is concentrated on the survivors", () => {
     expect(VENDOR.VM10).toBe(8);
-    expect(VENDOR.VM21).toBe(16);
+    expect(VENDOR.VM21).toBe(12);
     expect(PURCHASER.PM14).toBe(6);
     expect(PURCHASER.PM20).toBe(14);
     for (const c of RETIRED_ENQUIRY_CODES) {

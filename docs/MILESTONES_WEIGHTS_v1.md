@@ -5,7 +5,7 @@
 **Companion to:** `MILESTONES_SPEC_v1.md`
 
 **v1.2 change note (enquiries rework — see `docs/active/enquiries-stage-rework-SPEC.md`):** the per-round enquiry sub-steps are retired and their weight concentrated onto the two steps that survive, so each side's cluster total is unchanged and both sides still sum to 100.00.
-- Vendor: VM10 5.00 → **8.00**; VM11-VM15 (5+5+3+3+3 = 19) → **0** (retired); new **VM21 "All enquiries satisfied" = 16.00**. Cluster stays 24.00.
+- Vendor: VM10 5.00 → **8.00**; VM11-VM15 (5+5+3+3+3 = 19) → **0** (retired); new **VM21 "All enquiries satisfied" = 12.00** (a reflection of the buyer's PM20, so lighter than it). Enquiries cluster = 20.00. The 4 eased off VM21 went to VM2 (→4), VM3 (→5), VM16 (→5), VM20 (→6).
 - Purchaser: PM14 3.00 → **6.00**; PM15-PM19 (3+2+2+2+2 = 11) → **0** (retired); PM20 6.00 → **14.00**. Cluster stays 20.00.
 Retired steps keep weight 0 and are hidden from every list until a later stage hard-deletes them. VM21 auto-completes when the buyer's PM20 is confirmed (it is a reflection, not a seller action).
 
@@ -66,8 +66,8 @@ Not-required milestones are excluded from the denominator on both sides before p
 | Order | Milestone ID | Milestone | Weight |
 |---|---|---|---|
 | 1 | VM1 | Seller has instructed their solicitor | 6.00 |
-| 2 | VM2 | Seller has received the memorandum of sale | 3.00 |
-| 3 | VM3 | Seller has received the welcome pack from their solicitor | 4.00 |
+| 2 | VM2 | Seller has received the memorandum of sale | **4.00** |
+| 3 | VM3 | Seller has received the welcome pack from their solicitor | **5.00** |
 | 4 | VM4 | Seller has completed ID and AML checks with their solicitor | 3.00 |
 | 5 | VM5 | Seller has received the property information forms from their solicitor | 4.00 |
 | 6 | VM6 | Seller has returned completed property information forms to their solicitor | 8.00 |
@@ -75,19 +75,19 @@ Not-required milestones are excluded from the denominator on both sides before p
 | 8 | VM8 | Seller's solicitor has requested the management pack | 3.00 |
 | 9 | VM9 | Seller's solicitor has received the management pack | 3.00 |
 | 10 | VM10 | Seller's solicitor has received initial enquiries **(underway)** | **8.00** |
-| 15 | VM21 | **All enquiries satisfied** (reflection of buyer's PM20) | **16.00** |
+| 15 | VM21 | **All enquiries satisfied** (reflection of buyer's PM20) | **12.00** |
 | — | VM11 | ~~Seller has provided initial replies to their solicitor~~ (retired) | 0 |
 | — | VM12 | ~~Seller's solicitor has issued initial responses~~ (retired) | 0 |
 | — | VM13 | ~~Seller's solicitor has received additional enquiries~~ (retired) | 0 |
 | — | VM14 | ~~Seller has provided additional replies~~ (retired) | 0 |
 | — | VM15 | ~~Seller's solicitor has issued additional responses~~ (retired) | 0 |
-| 16 | VM16 | Seller's solicitor has issued contract documents to the seller | 4.00 |
+| 16 | VM16 | Seller's solicitor has issued contract documents to the seller | **5.00** |
 | 17 | VM17 | Seller's solicitor has received signed contract documents back from the seller | 8.00 |
 | 18 | VM18 | Seller's solicitor has confirmed readiness to exchange | 8.00 |
 | 19 | VM19 | Seller has received confirmation that contracts have exchanged | 9.00 |
-| 20 | VM20 | Seller has received confirmation that the sale has completed | 5.00 |
+| 20 | VM20 | Seller has received confirmation that the sale has completed | **6.00** |
 
-**Total: 100.00** ✓ (enquiries cluster VM10 + VM21 = 24.00, unchanged)
+**Total: 100.00** ✓ (enquiries cluster VM10 8 + VM21 12 = 20.00, matching the buyer; the 4 eased off VM21 went to VM2/VM3/VM16/VM20)
 
 ---
 
