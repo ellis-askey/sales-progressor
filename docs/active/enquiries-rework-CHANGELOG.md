@@ -159,8 +159,20 @@
 - **DB:** reminder migration applied to **staging** (8 stale reminders → 0, all 11 retired rules deactivated). Applies to prod on push.
 - **Verify:** `tsc` clean; 0 active reminders on retired rules; all three milestone-list surfaces (internal, agent, portal) confirmed filtering retired codes.
 
+## Full audit remediation — the six workstreams from the approved final plan
+- **Date:** 2026-08-14
+- **What:** after the founder asked for a full audit before go-live, six audits ran across everything that touches milestones. Findings ranked in `docs/audits/enquiries-rework-audit-2026-08-14.md`. All fixes shipped to staging across five commits (`8ac54ec`, `ed8f004`, `149d239`, `9a7053f`, `ceba972`):
+  1. **VM21 fully wired** (`8ac54ec`) — the new seller-side "all enquiries satisfied" was half-built: it auto-completes from PM20 (BILATERAL_PAIRS), has client-safe copy (progressor-only email so it doesn't double PM20's seller email), shows on Steps tab + portal, and has a digest line. Previously leaked the raw code "VM21" to clients.
+  2. **Forecast, health, stats** (`ed8f004`) — forecast back to ~12 weeks (was inflated by phantom retired steps); health % denominator excludes retired codes (was skewing files red); solicitor-intel exchange-date lookup re-pointed to VM19/PM26; reconcile picker hides retired codes; each side hears once (removed duplicate PM14.vendor / VM10.purchaser email blocks).
+  3. **Tracker owns reminders + stall** (`149d239`) — migration `20260815260000` turns the surviving enquiries reminder rules (PM14, VM10, PM20) off so the tracker is the single chaser; the generic "stalled"/"overdue" detectors (problem-detection + hub pipeline) are suppressed while a file has an open EnquiryTracker (the tracker's own 15-working-day escalation is the enquiries stall signal).
+  4. **Portal tile completes at satisfied** (`149d239`) — the client "Enquiries" tile now marks Completed at PM20 (satisfied), not PM14 (raised), so a client is never told enquiries are done while their solicitor is still working.
+  5. **Solicitor can action the loop** (`ceba972`) — the existing `/s/<token>` solicitor page gained an Enquiries panel reading the open tracker: buyer's solicitor confirms all enquiries satisfied (completes PM20 → closes tracker + completes VM21 + emails the seller); either solicitor replies with an update (logs an `EnquiryMovement` source `solicitor_reply`, resets the 9-day chase, hands the ball over, pings the agent) or gives an expected date (snoozes the chase until then). Enquiries codes were deliberately NOT re-added to `solicitorCodesForSide` — that would re-enable the double-chase the tracker replaced.
+  6. **Nits** (`9a7053f`) — VM21 glossary entry for the chase AI (+ test bumped to 21 VM / 48 total); the `/38`, `<25`, `<35` progress thresholds in problem-detection are now named constants with the derivation written down; seed's retired reminder rules removed and the surviving enquiries rules seeded inactive to match the migration.
+- **DB:** migration `20260815260000` applied to **staging** and verified (PM14 / VM10 / PM20 rules off). Applies to prod on push.
+- **Verify:** `tsc --noEmit` clean; full `jest` 207/207 (12 suites). No new user-facing em-dashes.
+
 ## Rollout — remaining (founder-triggered)
-1. Test on staging (deployed at commit `5de1d8c`).
+1. Test on staging (latest at commit `ceba972`). Retest: PM20 → VM21 auto-complete; the `/s/<token>` enquiries panel (satisfied / reply / expected date) on a file with an open tracker.
 2. Push `staging → master` to take the migrations + code to prod.
 3. Flip the chase on: Settings → Automation (the `SolicitorChaseSettings` master switch).
 
