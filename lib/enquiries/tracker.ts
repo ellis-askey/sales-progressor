@@ -82,12 +82,17 @@ export async function getEnquiryTrackerView(
 // Log a movement in the loop. Resets the chase (so an active file isn't nudged
 // as if it were silent) and clears any stalled flag; if the ball moved, flips
 // the court. This is the signal that keeps the chase honest.
+export type EnquiryMovementSource = "progressor" | "buyer_report" | "seller_report" | "solicitor_reply";
+
 export async function logEnquiryMovement(args: {
   transactionId: string;
   note: string;
   flipsCourtTo?: EnquiryCourt | null;
   createdByUserId?: string | null;
   occurredAt?: Date;
+  // Who this movement came from. Defaults to the internal team; a solicitor
+  // replying via /s/<token> passes "solicitor_reply".
+  source?: EnquiryMovementSource;
 }): Promise<boolean> {
   const tracker = await prisma.enquiryTracker.findUnique({
     where: { transactionId: args.transactionId },
@@ -101,7 +106,7 @@ export async function logEnquiryMovement(args: {
         trackerId: tracker.id,
         note: args.note.trim(),
         occurredAt: args.occurredAt ?? now,
-        source: "progressor",
+        source: args.source ?? "progressor",
         flipsCourtTo: args.flipsCourtTo ?? null,
         status: "accepted",
         createdByUserId: args.createdByUserId ?? null,
@@ -129,4 +134,14 @@ export async function setEnquiryOutstandingNote(transactionId: string, note: str
 export async function setEnquirySnooze(transactionId: string, workingDays: number | null): Promise<void> {
   const until = workingDays && workingDays > 0 ? addWorkingDays(new Date(), workingDays) : null;
   await prisma.enquiryTracker.updateMany({ where: { transactionId }, data: { snoozedUntil: until } });
+}
+
+// Snooze the chase until a specific calendar date. Used when a solicitor gives
+// an expected date via /s/<token> — we hold the chase off until then rather
+// than nudging over a date they've already committed to. Past/blank dates are
+// ignored (no-op) so a mistaken value can't silently disable the chase forever.
+export async function setEnquirySnoozeUntil(transactionId: string, date: Date | null): Promise<void> {
+  const until = date && date.getTime() > Date.now() ? date : null;
+  if (!until) return;
+  await prisma.enquiryTracker.updateMany({ where: { transactionId, closedAt: null }, data: { snoozedUntil: until } });
 }

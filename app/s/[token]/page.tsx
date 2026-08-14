@@ -2,7 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
+import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
 import { SolicitorRespond } from "./SolicitorRespond";
+import { SolicitorEnquiries } from "./SolicitorEnquiries";
 
 export const dynamic = "force-dynamic";
 
@@ -80,17 +82,29 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
     expectedDate: r.expectedDate ? r.expectedDate.toISOString().slice(0, 10) : null,
   }));
 
+  // Enquiries loop: shown whenever the file's enquiries stage is open, separate
+  // from the milestone steps above (the loop is tracked, not chased as a step).
+  const enquiries = await getEnquiryTrackerView(tx.id);
+  const enquiriesOpen = !!enquiries && enquiries.status !== "closed";
+  const courtLine =
+    enquiries?.currentlyWith === "buyer_solicitor"
+      ? "The enquiries are with the buyer's solicitor to review the replies."
+      : "We're waiting on the seller's solicitor to answer the outstanding enquiries.";
+
+  // Whether the recipient has anything to act on at all — steps OR the loop.
+  const hasAnything = steps.length > 0 || enquiriesOpen;
+
   return (
     <Shell>
       <Letterhead brand={brand} />
       <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "28px 26px 8px" }}>
         <p style={{ margin: "0 0 12px", fontSize: 15, color: "#0f2740", fontWeight: 600 }}>
-          {steps.length === 0 ? "Thank you" : "Where do things stand?"}
+          {hasAnything ? "Where do things stand?" : "Thank you"}
         </p>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#33475b" }}>
-          {steps.length === 0
-            ? "There is nothing outstanding on this matter from your side right now. Thank you for your help keeping things moving."
-            : `I'm looking after ${sellerNames || "our client"} and overseeing the progression on this sale. For each step below you can confirm it's done, give an expected date, or leave a short update. It takes about a minute and needs no password.`}
+          {hasAnything
+            ? `I'm looking after ${sellerNames || "our client"} and overseeing the progression on this sale. You can confirm where things stand, give an expected date, or leave a short update below. It takes about a minute and needs no password.`
+            : "There is nothing outstanding on this matter from your side right now. Thank you for your help keeping things moving."}
         </p>
       </div>
 
@@ -107,6 +121,15 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
         <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "8px 26px 4px" }}>
           <SolicitorRespond token={token} steps={steps} />
         </div>
+      )}
+
+      {enquiriesOpen && (
+        <SolicitorEnquiries
+          token={token}
+          side={side}
+          courtLine={courtLine}
+          outstandingNote={enquiries?.outstandingNote ?? null}
+        />
       )}
 
       <Footer brand={brand} />

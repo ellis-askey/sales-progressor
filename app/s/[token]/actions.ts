@@ -6,6 +6,7 @@ import { completeMilestone } from "@/lib/services/milestones";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
+import { logEnquiryMovement, setEnquirySnoozeUntil } from "@/lib/enquiries/tracker";
 import { checkSolicitorConfirmLimit } from "@/lib/ratelimit";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 import {
@@ -214,6 +215,157 @@ export async function solicitorStopEmailsAction(token: string): Promise<{ ok: tr
         ? { vendorSolicitorEmailsPaused: true }
         : { purchaserSolicitorEmailsPaused: true },
   });
+  return { ok: true };
+}
+
+// ─── Enquiries loop (enquiries rework) ─────────────────────────────────────
+//
+// The enquiries stage is NOT one of the solicitor-owned milestone steps (it
+// deliberately stays out of solicitorCodesForSide so the tracker owns the
+// chase, not the reminder engine). These three actions let a solicitor act on
+// the open EnquiryTracker straight from the same link: confirm enquiries
+// satisfied (buyer's solicitor), reply with an update, or give an expected
+// date. Each re-verifies the signed token and requires an OPEN tracker.
+
+// Lighter guard for the enquiries panel: verify the token + rate limit + load
+// the matter, and require an open (non-closed) EnquiryTracker. Unlike
+// resolveStep this does NOT gate on solicitorCodesForSide, because the
+// enquiries loop is tracked separately from the milestone steps.
+async function resolveEnquiries(token: string) {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: decoded.transactionId },
+    select: {
+      id: true,
+      agencyId: true,
+      agentUserId: true,
+      assignedUserId: true,
+      suppressPortalConfirmEmails: true,
+      vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+      enquiryTracker: { select: { id: true, closedAt: true } },
+    },
+  });
+  if (!tx) throw new Error("This matter could not be found.");
+  if (!tx.enquiryTracker || tx.enquiryTracker.closedAt) {
+    throw new Error("The enquiries stage on this matter is not open.");
+  }
+
+  const side: SolicitorSide = decoded.side;
+  const firmName =
+    (side === "vendor" ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? "the solicitor";
+
+  return { decoded, tx, side, firmName };
+}
+
+// (E1) Buyer's solicitor confirms all enquiries are satisfied → completes PM20,
+// which closes the tracker (syncEnquiryTracker) and bilaterally completes VM21
+// (the seller-side "all enquiries satisfied"). Only the buyer's solicitor can
+// declare this — they raised the enquiries, so satisfaction is their call.
+export async function solicitorEnquiriesSatisfiedAction(token: string): Promise<{ ok: true }> {
+  const { decoded, tx, side } = await resolveEnquiries(token);
+  if (side !== "purchaser") {
+    throw new Error("Only the buyer's solicitor can confirm enquiries are satisfied.");
+  }
+
+  const pm20 = await prisma.milestoneDefinition.findFirst({
+    where: { code: "PM20" },
+    select: { id: true },
+  });
+  if (!pm20) throw new Error("That step could not be found.");
+
+  await completeMilestone({
+    transactionId: decoded.transactionId,
+    milestoneDefinitionId: pm20.id,
+    confirmer: { kind: "solicitor", firmId: null, contactId: null, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
+  });
+
+  // Fire the client-facing "enquiries satisfied" email exactly as the agent's
+  // in-app confirm would (PM20 → seller hears once; VM21 stays progressor-only
+  // so it doesn't double up). Fire-and-forget so a mail failure can't 500.
+  if (!tx.suppressPortalConfirmEmails) {
+    sendAdminMilestoneNotificationToPortal(
+      decoded.transactionId,
+      "PM20",
+      null,
+      undefined,
+      undefined,
+      computeHandoffDirection("PM20", false),
+    ).catch(() => {});
+  }
+
+  revalidatePath(`/s/${token}`);
+  return { ok: true };
+}
+
+// (E2) Either solicitor leaves an update on the enquiries loop → records an
+// accepted EnquiryMovement (source: solicitor_reply), which resets the 9-day
+// chase clock and clears any stalled flag. A reply hands the ball to the other
+// side. Also drops a bell notification so the agent sees it promptly.
+export async function solicitorEnquiriesUpdateAction(token: string, message: string): Promise<{ ok: true }> {
+  const trimmed = message.trim();
+  if (!trimmed) throw new Error("Please type an update first.");
+  const { decoded, tx, side, firmName } = await resolveEnquiries(token);
+
+  // A reply from one side moves the ball to the other side's court.
+  const flipsCourtTo = side === "vendor" ? "buyer_solicitor" : "seller_solicitor";
+
+  const logged = await logEnquiryMovement({
+    transactionId: decoded.transactionId,
+    note: trimmed,
+    flipsCourtTo,
+    source: "solicitor_reply",
+  });
+  if (!logged) throw new Error("The enquiries stage on this matter is not open.");
+
+  const authorId = tx.agentUserId ?? tx.assignedUserId;
+  if (authorId) {
+    await prisma.notification.create({
+      data: {
+        userId: authorId,
+        type: "solicitor_update",
+        transactionId: decoded.transactionId,
+        payload: {
+          firmName,
+          step: "enquiries",
+          message: `${firmName} left an enquiries update: ${trimmed}`,
+        },
+      },
+    });
+  }
+
+  revalidatePath(`/s/${token}`);
+  return { ok: true };
+}
+
+// (E3) Either solicitor gives an expected date for the enquiries → snoozes the
+// tracker chase until that date (we hold off nudging over a date they've
+// committed to) and records it on the loop so it's visible on the file.
+export async function solicitorEnquiriesExpectedDateAction(token: string, expectedDate: string): Promise<{ ok: true }> {
+  if (!expectedDate) throw new Error("Please choose a date.");
+  const { decoded, side } = await resolveEnquiries(token);
+
+  const date = new Date(expectedDate);
+  if (Number.isNaN(date.getTime())) throw new Error("Please choose a valid date.");
+
+  await setEnquirySnoozeUntil(decoded.transactionId, date);
+
+  // Record it on the loop (no court flip — a promised date isn't a reply). This
+  // also resets the chase clock, consistent with the snooze.
+  const uk = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const who = side === "vendor" ? "seller's solicitor" : "buyer's solicitor";
+  await logEnquiryMovement({
+    transactionId: decoded.transactionId,
+    note: `Expected by ${uk} (${who})`,
+    source: "solicitor_reply",
+  });
+
+  revalidatePath(`/s/${token}`);
   return { ok: true };
 }
 
