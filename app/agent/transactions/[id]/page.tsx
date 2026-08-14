@@ -56,6 +56,7 @@ import { PerfOverlay } from "@/components/debug/PerfOverlay";
 
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
+import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
 import { ToDoPanel } from "@/components/transaction/ToDoPanel";
@@ -468,6 +469,9 @@ export default async function AgentTransactionDetailPage({
               recommendedFirms={null}
               isEllis={session.user.email === "ellis@thesalesprogressor.co.uk"}
             />
+            <div className="mt-5">
+              <EnquiryTrackerSection transactionId={transaction.id} />
+            </div>
             <RevealPing slotId="overview" />
           </Suspense>
         </RevealSlot>

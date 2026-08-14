@@ -96,6 +96,14 @@
 - **Next (1.6b):** the visual panel on the internal file view that drives these actions.
 - **Revert:** `git revert` the commit. No DB change.
 
+## Stage 1.6b — Tracker panel (both file views)
+- **Date:** 2026-08-14
+- **What:** the enquiries panel on the Overview tab of **both** the internal and the agent file views (so outsourced and self-managed files both get movement logging). Shows whose court the ball is in, the status (chasing with next-nudge date / amber "stalled 3 weeks" / snoozed / closed), a "log an update" box (with an optional "now with seller's/buyer's sol" hand-off that flips the court), the outstanding note, a snooze control, and the movement history. Only renders when the enquiries loop is open. A small server wrapper (`EnquiryTrackerSection`) drops the panel into both pages.
+- **Files:** `components/transaction/EnquiryTrackerPanel.tsx`, `components/transaction/EnquiryTrackerSection.tsx`, `app/transactions/[id]/page.tsx`, `app/agent/transactions/[id]/page.tsx`.
+- **DB:** none.
+- **Verify:** `tsc` clean. **Visual review pending** (needs the running app) — the panel only appears on a file whose enquiries loop is open, so to see it: mark "enquiries raised" on a test file (that opens a tracker via the 1.4a lifecycle), then open that file's Overview.
+- **Revert:** `git revert` the commit. No DB change.
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*

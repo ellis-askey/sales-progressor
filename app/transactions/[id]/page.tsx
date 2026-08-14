@@ -40,6 +40,7 @@ import { NextMilestoneWidget, type MilestoneSideState } from "@/components/trans
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { DocumentsSection } from "@/components/transaction/DocumentsSection";
+import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { prisma } from "@/lib/prisma";
 
 export default async function TransactionDetailPage({
@@ -345,6 +346,9 @@ export default async function TransactionDetailPage({
               referralFee={transaction.referralFee ?? null}
             />
           </div>
+
+          {/* Enquiries tracker (only while the enquiries loop is open) */}
+          <EnquiryTrackerSection transactionId={transaction.id} />
 
           {/* Next steps quick-complete */}
           <NextMilestoneWidget
