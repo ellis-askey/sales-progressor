@@ -2061,6 +2061,12 @@ const RELIST_RESET_VM_CODES = [
   "VM2", "VM7",
   "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
   "VM18", "VM19", "VM20",
+  // Enquiries rework: VM21 ("all enquiries satisfied") is numerically outside
+  // the VM10–VM20 range above, so it must be listed explicitly or it survives a
+  // relist as complete — which would let the new buyer's seller exchange gate
+  // open before their enquiries are even raised. resetStateFor derives it back
+  // to locked from VM10.
+  "VM21",
 ];
 
 // EXCHANGE_GATE codes are special-cased in initializeMilestoneCompletions

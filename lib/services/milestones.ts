@@ -186,6 +186,10 @@ const DIRECT_DEPENDENTS: Record<string, string[]> = (() => {
 export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
   VM19: "PM26", PM26: "VM19",
   VM20: "PM27", PM27: "VM20",
+  // Enquiries rework: undoing the buyer's "all enquiries satisfied" (PM20) also
+  // reverses the seller-side reflection VM21, mirroring the completion coupling
+  // in completeMilestone. One-directional — VM21 is never undone on its own.
+  PM20: "VM21",
 };
 
 // ── Enquiries tracker lifecycle (enquiries rework) ────────────────────────────
@@ -1964,6 +1968,18 @@ export async function executeUndoMilestone(input: {
     // Re-evaluate exchange gate (re-lock if a blocker was undone)
     for (const side of affectedSides) {
       await maybeLockExchangeGate(transactionId, side, ptx);
+    }
+
+    // Enquiries rework: undoing "all enquiries satisfied" (PM20/VM21) reopens
+    // the enquiries loop — the tracker was closed when it completed, so clear
+    // closedAt (and any stale stalled flag) and restart the chase clock from
+    // now so the loop and its chase resume without an immediate nudge.
+    const reopensEnquiries = Array.from(allReverseCodes).some((c) => ENQUIRY_CLOSE_CODES.has(c));
+    if (reopensEnquiries) {
+      await ptx.enquiryTracker.updateMany({
+        where: { transactionId, closedAt: { not: null } },
+        data: { closedAt: null, escalatedAt: null, lastChasedAt: new Date() },
+      });
     }
 
     // Cancel active reminder logs + pending chase tasks where EITHER the

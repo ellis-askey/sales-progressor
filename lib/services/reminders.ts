@@ -21,6 +21,7 @@ const RELIST_RESET_VM_CODE_SET = new Set([
   "VM2", "VM7",
   "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
   "VM18", "VM19", "VM20",
+  "VM21", // enquiries rework — mirror of RELIST_RESET_VM_CODES
 ]);
 
 // ─── UK chase-time helper ───────────────────────────────────────────────────
