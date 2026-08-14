@@ -12,15 +12,14 @@
 //   - Welcome pack, ID/AML, mortgage app, survey, deposit, MOS: client only.
 //   - Exchange + completion (VM19/PM26, VM20/PM27): nobody is asked.
 
+// Enquiries rework: the enquiries codes (VM10/12/13/15, PM14-20) are removed
+// here — enquiries chasing is now owned entirely by the tracker-driven
+// enquiries chase (lib/enquiries/chase.ts), so the two never double-send.
 export const VENDOR_SOLICITOR_CODES: ReadonlySet<string> = new Set([
   "VM5",  // property information forms issued to the seller (shared w/ client)
   "VM7",  // draft contract pack issued
   "VM8",  // management pack requested
   "VM9",  // management pack received
-  "VM10", // initial enquiries received
-  "VM12", // initial responses issued
-  "VM13", // further enquiries received
-  "VM15", // further responses issued
   "VM16", // contract documents issued to the seller (shared w/ client)
   "VM17", // signed contract documents received back
   "VM18", // ready to exchange
@@ -32,13 +31,6 @@ export const PURCHASER_SOLICITOR_CODES: ReadonlySet<string> = new Set([
   "PM11", // mortgage offer received
   "PM12", // management pack received
   "PM13", // search results received
-  "PM14", // initial enquiries raised
-  "PM15", // initial replies received
-  "PM16", // initial replies reviewed
-  "PM17", // further enquiries raised
-  "PM18", // further replies received
-  "PM19", // further replies reviewed
-  "PM20", // all enquiries satisfied
   "PM22", // contract documents issued to the buyer (shared w/ client)
   "PM23", // signed contract documents received back
   "PM25", // ready to exchange

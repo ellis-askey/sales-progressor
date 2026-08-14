@@ -5,6 +5,10 @@
       "schedule": "0 4 * * 1-6"
     },
     {
+      "path": "/api/cron/enquiries-chase",
+      "schedule": "0 9 * * 1-5"
+    },
+    {
       "path": "/api/cron/morning-digest",
       "schedule": "0 8 * * 1-5"
     },

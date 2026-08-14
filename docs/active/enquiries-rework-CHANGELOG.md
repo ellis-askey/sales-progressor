@@ -79,6 +79,14 @@
 - **Verify:** 4/4 tests (incl. a voice check for no em-dashes/exclamations), `tsc` clean.
 - **Next (1.4b part 2):** the chase engine — the cron that reads each open tracker, sends this copy to whoever holds the ball on the 9-working-day cadence via the per-agency replyable sender, and escalates at 3 weeks. Plus removing the enquiries codes from the old solicitor-confirm chase so the two don't overlap.
 
+## Stage 1.4b (part 2) — Chase engine
+- **Date:** 2026-08-14
+- **What:** the enquiries chase cron. Walks every open tracker, works out who holds the ball, and sends the 9-working-day nudge to that solicitor via the replyable per-agency / EXP sender; escalates to a notification for the file owner after 3 weeks of silence. Reuses the existing working-day calendar, sender resolver, and tokenised `/s/<token>` update page. Gated by the same `SolicitorChaseSettings` master switch (OFF by default). Also removed the enquiries codes (VM10/12/13/15, PM14-20) from the old solicitor-confirm chase so the two never double-send.
+- **Files:** `lib/enquiries/chase.ts`, `app/api/cron/enquiries-chase/route.ts`, `vercel.json` (cron entry), `lib/solicitor-confirm/codes.ts` (de-dup), `lib/enquiries/__tests__/chase-decision.test.ts`.
+- **DB:** none.
+- **Verify:** 12/12 tests (copy + 8-case cadence/escalation decision); `tsc` clean; a live smoke on staging confirmed the cron's tracker query resolves a real tracker + its solicitor email. The actual send only fires when the master switch is on (off by default, so nothing sends in prod yet) — a full sandbox dry-run can be run when you're ready.
+- **Revert:** `git revert` the commit. No DB change. (Re-add the enquiries codes to `codes.ts` if you want the old chase to cover them again.)
+
 ---
 
 *Append a new entry per stage. Keep it plain. This file is the first place to look if something needs undoing.*
