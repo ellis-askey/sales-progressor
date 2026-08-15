@@ -146,7 +146,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           <div className="flex items-center justify-between gap-3">
             {/* Greeting (left) */}
             <p
-              className="text-[15px] font-semibold truncate"
+              className="text-[17px] font-semibold truncate"
               style={{ color: P.textPrimary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
             >
               {greetingLabel}
@@ -237,7 +237,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
         }}
       >
         <div className="max-w-lg mx-auto">
-          <ul className="grid grid-cols-3 px-2 py-2 m-0 list-none">
+          <ul className="grid grid-cols-3 px-2 py-1 m-0 list-none">
             <li className="relative"><TabItem href={base}               active={isHome}     icon="home"     label="Overview" /></li>
             <li className="relative"><TabItem href={`${base}/progress`} active={isProgress} icon="progress" label="Progress" /></li>
             <li className="relative"><TabItem href={`${base}/updates`}  active={isUpdates}  icon="updates"  label="Updates" /></li>
@@ -265,7 +265,7 @@ function TabItem({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl"
+      className="flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl"
     >
       <span
         className="inline-flex items-center justify-center rounded-full"

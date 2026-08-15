@@ -656,18 +656,28 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-3 px-1" style={{ color: P.textMuted }}>
             Helpful to know
           </p>
-          <div className="flex gap-3 overflow-x-auto snap-x pb-1" style={{ scrollbarWidth: "none" }}>
-            {tips.map((tip, i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 snap-start rounded-2xl p-4"
-                style={{ background: P.cardBg, boxShadow: P.shadowSm, width: "220px" }}
-              >
-                <Lightbulb size={18} weight="fill" color={P.warning} style={{ marginBottom: 8 }} />
-                <p className="text-[13px] leading-relaxed" style={{ color: P.textPrimary }}>{tip.text}</p>
-              </div>
-            ))}
-          </div>
+          {tips.length === 1 ? (
+            // Single tip spreads full-width instead of a narrow scroll card.
+            <PortalGlassCard glassId="helpful-to-know" label="Helpful to know" className="p-4">
+              <Lightbulb size={18} weight="fill" color={P.warning} style={{ marginBottom: 8 }} />
+              <p className="text-[13px] leading-relaxed" style={{ color: P.textPrimary }}>{tips[0].text}</p>
+            </PortalGlassCard>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto snap-x pb-1" style={{ scrollbarWidth: "none" }}>
+              {tips.map((tip, i) => (
+                <PortalGlassCard
+                  key={i}
+                  glassId="helpful-to-know"
+                  label="Helpful to know"
+                  className="flex-shrink-0 snap-start p-4"
+                  style={{ width: "220px" }}
+                >
+                  <Lightbulb size={18} weight="fill" color={P.warning} style={{ marginBottom: 8 }} />
+                  <p className="text-[13px] leading-relaxed" style={{ color: P.textPrimary }}>{tip.text}</p>
+                </PortalGlassCard>
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
 

@@ -4,11 +4,14 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { P } from "@/components/portal/portal-ui";
+import { usePortalPick } from "@/lib/glass/portal-context";
+import { classFor } from "@/lib/glass/variants";
 
 type State = "idle" | "open" | "loading" | "result" | "error";
 
 export function ExplainEmailCard({ token }: { token: string }) {
   const [state, setState] = useState<State>("idle");
+  const glassPick = usePortalPick("explain-email");
   const [emailBody, setEmailBody] = useState("");
   const [explanation, setExplanation] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -48,11 +51,15 @@ export function ExplainEmailCard({ token }: { token: string }) {
     return (
       <button
         onClick={() => setState("open")}
+        className={glassPick ? classFor(glassPick) : undefined}
+        data-glass-id="explain-email"
+        data-glass-label="Explain a solicitor email"
+        data-glass-variant={glassPick ?? "v00"}
         style={{
           width: "100%",
-          background: P.cardBg,
-          border: `1px dashed ${P.border}`,
-          borderRadius: P.radiusLg,
+          ...(glassPick
+            ? { borderRadius: P.radiusLg }
+            : { background: P.cardBg, border: `1px dashed ${P.border}`, borderRadius: P.radiusLg }),
           padding: "16px 20px",
           display: "flex",
           alignItems: "center",

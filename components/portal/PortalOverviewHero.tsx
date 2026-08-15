@@ -100,7 +100,22 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
   const offset = circumference * (1 - clamped / 100);
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+      {/* Heavy-frost disc behind the ring — the non-orange part of the ring
+          reads as frosted glass over the photo (founder pick, 2026-08-16). */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: stroke / 2,
+          borderRadius: "50%",
+          background: "rgba(255,255,255,0.10)",
+          backdropFilter: "blur(40px) saturate(1.3)",
+          WebkitBackdropFilter: "blur(40px) saturate(1.3)",
+          border: "0.5px solid rgba(255,255,255,0.45)",
+          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.3)",
+        }}
+      />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "relative", transform: "rotate(-90deg)" }}>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -417,7 +432,10 @@ export function PortalOverviewHero({
           position: "relative",
           height: 380,
           overflow: "hidden",
-          background: P.pageBg,
+          // Match the ambient-wash base (#f6f8fc) exactly so the photo's bottom
+          // fade dissolves into the page with no visible seam (was P.pageBg,
+          // #F8F9FB, which left a faint line where the hero ended).
+          background: "#f6f8fc",
         }}
       >
         {/* Photo (or coral fallback if none) */}
@@ -455,9 +473,9 @@ export function PortalOverviewHero({
           style={{
             position: "absolute",
             bottom: 0, left: 0, right: 0,
-            height: "60%",
+            height: "62%",
             pointerEvents: "none",
-            background: `linear-gradient(180deg, transparent 0%, ${P.pageBg}CC 55%, ${P.pageBg} 100%)`,
+            background: "linear-gradient(180deg, transparent 0%, #f6f8fcCC 52%, #f6f8fc 100%)",
           }}
         />
 
@@ -495,10 +513,10 @@ export function PortalOverviewHero({
                   margin: "4px 0 0",
                   fontSize: 13,
                   color: P.textSecondary,
-                  display: "flex", alignItems: "center", gap: 5,
+                  display: "flex", alignItems: "flex-start", gap: 6,
                 }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, marginTop: 1 }}>
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>
