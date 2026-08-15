@@ -160,6 +160,42 @@ export default async function PortalUpdatesPage({
                   );
                 }
 
+                /* ── Document you uploaded ── */
+                if (entry.type === "document") {
+                  return (
+                    <div
+                      key={entry.id}
+                      className="rounded-2xl px-5 py-4"
+                      style={{ background: P.cardBg, boxShadow: P.shadowSm, borderLeft: `3px solid ${P.accent}` }}
+                    >
+                      <span
+                        className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
+                        style={{ background: P.accentBg, color: P.accent }}
+                      >
+                        Document
+                      </span>
+                      {entry.url ? (
+                        <a
+                          href={entry.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-[14px] font-semibold"
+                          style={{ color: P.accent, textDecoration: "underline", textUnderlineOffset: 2, wordBreak: "break-word" }}
+                        >
+                          {entry.filename}
+                        </a>
+                      ) : (
+                        <p className="text-[14px] font-semibold" style={{ color: P.textPrimary, wordBreak: "break-word" }}>
+                          {entry.filename}
+                        </p>
+                      )}
+                      <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
+                        {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                      </p>
+                    </div>
+                  );
+                }
+
                 /* ── Agent update ── */
                 const method = entry.method ? METHOD_STYLES[entry.method] : null;
                 return (

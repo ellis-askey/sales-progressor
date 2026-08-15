@@ -684,6 +684,17 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </>
+              ) : entry.type === "document" ? (
+                <div className="flex-1 min-w-0">
+                  {entry.url ? (
+                    <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-[14px] font-medium leading-snug" style={{ color: P.accent, textDecoration: "underline", textUnderlineOffset: 2, wordBreak: "break-word" }}>
+                      {entry.filename}
+                    </a>
+                  ) : (
+                    <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary, wordBreak: "break-word" }}>{entry.filename}</p>
+                  )}
+                  <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt ?? new Date())}</p>
+                </div>
               ) : (
                 <div className="flex-1 min-w-0">
                   {/* Strip portal deep-links + unsubscribe URLs from the

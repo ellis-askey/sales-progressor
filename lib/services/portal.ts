@@ -2150,6 +2150,14 @@ export type TimelineEntry =
       content: string;
       method: string | null;
       createdAt: Date;
+    }
+  | {
+      type: "document";
+      id: string;
+      filename: string;
+      mimeType: string;
+      url: string | null;
+      createdAt: Date;
     };
 
 // Milestone codes that always appear in the timeline regardless of timeSensitive
@@ -2190,7 +2198,15 @@ export async function getPortalTimeline(
           ],
         }
       : { transactionId, visibleToClient: true };
-    const [completions, updates] = await Promise.all([
+    // Documents: a client only ever sees uploads from their OWN side, never the
+    // other party's. A purchaser is further scoped to their own buyer round so a
+    // previous buyer's uploads can't leak. Agent / file-level uploads (no
+    // contact) stay internal — they never carry a client-role contact, so the
+    // roleType filter excludes them.
+    const documentWhere = side === "purchaser"
+      ? { transactionId, contact: { roleType: "purchaser" as const }, buyerRoundId: opts.buyerRoundId }
+      : { transactionId, contact: { roleType: "vendor" as const } };
+    const [completions, updates, documents] = await Promise.all([
       prisma.milestoneCompletion.findMany({
         // Enquiries rework: never surface the retired granular enquiry steps to a
         // client. Migrated in-flight files still carry completed rows for them,
@@ -2213,6 +2229,11 @@ export async function getPortalTimeline(
         where: messageWhere,
         orderBy: { createdAt: "desc" },
         select: { id: true, content: true, method: true, createdAt: true },
+      }),
+      prisma.transactionDocument.findMany({
+        where: documentWhere,
+        orderBy: { createdAt: "desc" },
+        select: { id: true, filename: true, mimeType: true, storagePath: true, createdAt: true },
       }),
     ]);
 
@@ -2244,7 +2265,19 @@ export async function getPortalTimeline(
       createdAt: u.createdAt,
     }));
 
-    const all = [...milestoneEntries, ...updateEntries];
+    const { getSignedUrl } = await import("@/lib/supabase-storage");
+    const documentEntries: TimelineEntry[] = await Promise.all(
+      documents.map(async (d) => ({
+        type: "document" as const,
+        id: d.id,
+        filename: d.filename,
+        mimeType: d.mimeType,
+        url: await getSignedUrl(d.storagePath, 3600).catch(() => null),
+        createdAt: d.createdAt,
+      })),
+    );
+
+    const all = [...milestoneEntries, ...updateEntries, ...documentEntries];
     all.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
     return all;
   });
