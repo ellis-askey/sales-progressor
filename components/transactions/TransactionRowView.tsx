@@ -22,11 +22,12 @@ import type { TransactionStatus, UserRole } from "@prisma/client";
 //   - Risk: a "will it fall through?" score is moot once done or dead.
 // Header + row share this one model so their grids stay in lockstep.
 export type FilesTab = "all" | "active" | "on_hold" | "completed" | "withdrawn" | "draft";
-export type FilesColumn = "activity" | "target" | "status" | "assigned" | "agency" | "risk";
+export type FilesColumn = "activity" | "target" | "withdrawn" | "status" | "assigned" | "agency" | "risk";
 
 export function filesColumns(tab: FilesTab, showAssigned: boolean, showAgency: boolean): FilesColumn[] {
   const cols: FilesColumn[] = ["activity"];
-  if (tab !== "withdrawn") cols.push("target");
+  if (tab === "withdrawn") cols.push("withdrawn");   // when it was withdrawn (+ reason on hover)
+  else cols.push("target");                          // exchange target / completion date
   if (tab === "all") cols.push("status");
   if (showAssigned) cols.push("assigned");
   if (showAgency) cols.push("agency");
@@ -35,7 +36,7 @@ export function filesColumns(tab: FilesTab, showAssigned: boolean, showAgency: b
 }
 
 const COL_WIDTH: Record<FilesColumn, string> = {
-  activity: "220px", target: "160px", status: "110px", assigned: "160px", agency: "140px", risk: "120px",
+  activity: "220px", target: "160px", withdrawn: "180px", status: "110px", assigned: "160px", agency: "140px", risk: "120px",
 };
 
 // Grid = 4px risk stripe + flexible property column + one track per visible column.
@@ -70,6 +71,13 @@ export type TransactionRow = {
   status: TransactionStatus;
   expectedExchangeDate: Date | null;
   completionDate?: Date | null;
+  // Withdrawal detail for the Withdrawn tab. No dedicated withdrawnAt is
+  // stored, so updatedAt (the file's last change — the withdrawal itself for a
+  // withdrawn file) stands in as "when". fallThroughReason is the free-text
+  // why; withdrawalReason is the structured fallback.
+  updatedAt?: Date | null;
+  fallThroughReason?: string | null;
+  withdrawalReason?: string | null;
   createdAt: Date;
   assignedUser: { id: string; name: string } | null;
   health?: HealthRaw;
@@ -359,6 +367,70 @@ function PropertyPeopleHover({
   );
 }
 
+const WITHDRAWAL_REASON_LABEL: Record<string, string> = {
+  BUYER_WITHDREW: "Buyer withdrew",
+  SELLER_WITHDREW: "Seller withdrew",
+  CHAIN_COLLAPSE_ABOVE: "Chain collapsed above",
+  OTHER: "Other",
+};
+
+/* WithdrawnCell — when a file was withdrawn (updatedAt stands in, since we don't
+ * stamp a dedicated withdrawal time) with the reason, if any, on hover. Free-text
+ * reason wins; the structured classification is the fallback. */
+function WithdrawnCell({ tx }: { tx: TransactionRow }) {
+  const when = tx.updatedAt ?? null;
+  const reason = tx.fallThroughReason?.trim()
+    || (tx.withdrawalReason ? WITHDRAWAL_REASON_LABEL[tx.withdrawalReason] ?? null : null);
+  const { theme } = usePortalTheme();
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  function show() {
+    if (ref.current) { const r = ref.current.getBoundingClientRect(); setPos({ top: r.bottom + 4, left: r.left }); }
+    setClosing(false); setOpen(true);
+  }
+  function hide() { setOpen((w) => { if (w) setClosing(true); return false; }); }
+
+  return (
+    <div>
+      <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>{when ? formatDate(when) : "—"}</p>
+      {reason ? (
+        <>
+          <span
+            ref={ref}
+            onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}
+            tabIndex={0}
+            style={{ fontSize: 11, color: "var(--agent-text-muted)", cursor: "default", borderBottom: "1px dotted rgba(15,23,42,0.30)", display: "inline-block", marginTop: 2 }}
+          >
+            Reason
+          </span>
+          {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+            <div
+              data-theme={theme}
+              className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+              onAnimationEnd={() => { if (closing) setClosing(false); }}
+              style={{
+                position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+                background: "rgba(255,255,255,0.97)", borderRadius: 10,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+                padding: "10px 14px", minWidth: 200, maxWidth: 320, pointerEvents: "none",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>Why it was withdrawn</p>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{reason}</p>
+            </div>,
+            document.body
+          )}
+        </>
+      ) : (
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>No reason recorded</p>
+      )}
+    </div>
+  );
+}
+
 export function TransactionRowView({
   tx,
   basePath = "/agent/transactions",
@@ -500,7 +572,7 @@ export function TransactionRowView({
             {!isDone && !isDead && riskContent}
           </div>
 
-          <div>{targetContent}</div>
+          <div>{isDead ? <WithdrawnCell tx={tx} /> : targetContent}</div>
           <div>
             <p style={{
               margin: 0, fontSize: 11,
@@ -551,6 +623,11 @@ export function TransactionRowView({
         {/* Exchange target / completion date — omitted on the Withdrawn tab */}
         {cols.includes("target") && (
           <div className="px-4 py-3.5">{targetContent}</div>
+        )}
+
+        {/* Withdrawn — when, with the reason on hover */}
+        {cols.includes("withdrawn") && (
+          <div className="px-4 py-3.5"><WithdrawnCell tx={tx} /></div>
         )}
 
         {/* Status — only on the All tab (redundant on a single-status tab) */}
