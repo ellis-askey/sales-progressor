@@ -915,6 +915,9 @@ model QuoteRequest {
   statusReason      String?
   statusChangedAt   DateTime?
   statusChangedById String?
+  // Set when the firm is marked booked from the survey-booked step. Distinct
+  // from statusChangedAt so a later "won" doesn't overwrite the booking date.
+  bookedAt          DateTime?
 
   // Filled in on "Won". saleFeePence = what surveyor charged client;
   // referralFeePence auto-computed as 10% but overridable in the CC form.
@@ -953,8 +956,11 @@ enum ProviderKind {
 
 enum QuoteRequestStatus {
   pending
+  booked      // the buyer chose this firm; referral in play (fee not yet settled)
   won
-  lost
+  not_chosen  // this firm quoted but the buyer booked a DIFFERENT firm of ours —
+              // neutral, NOT a loss (we still placed the business)
+  lost        // the buyer booked outside our network (or no referral to us)
   expired
 }
 

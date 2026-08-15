@@ -202,10 +202,12 @@ function Row({
   );
 }
 
-function StatusBadge({ status }: { status: "pending" | "won" | "lost" | "expired" }) {
+function StatusBadge({ status }: { status: "pending" | "booked" | "won" | "not_chosen" | "lost" | "expired" }) {
   const map = {
     pending: { text: "Pending", bg: "#1a2540", fg: "#93c5fd" },
+    booked: { text: "Booked", bg: "#2a2410", fg: "#fcd34d" },
     won: { text: "Won", bg: "#0c2418", fg: "#86efac" },
+    not_chosen: { text: "Not chosen", bg: "#1a1a1a", fg: "#a3a3a3" },
     lost: { text: "Lost", bg: "#2a1010", fg: "#fca5a5" },
     expired: { text: "Expired", bg: "#1a1a1a", fg: "#737373" },
   }[status];

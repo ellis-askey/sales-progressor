@@ -17,14 +17,18 @@ export const dynamic = "force-dynamic";
 
 const STATUS_TABS: { key: QuoteRequestStatus | "all"; label: string }[] = [
   { key: "pending", label: "Pending" },
+  { key: "booked", label: "Booked" },
   { key: "won", label: "Won" },
+  { key: "not_chosen", label: "Not chosen" },
   { key: "lost", label: "Lost" },
   { key: "expired", label: "Expired" },
   { key: "all", label: "All" },
 ];
 
+const ALL_STATUSES: QuoteRequestStatus[] = ["pending", "booked", "won", "not_chosen", "lost", "expired"];
+
 function isStatus(s: string): s is QuoteRequestStatus {
-  return s === "pending" || s === "won" || s === "lost" || s === "expired";
+  return (ALL_STATUSES as string[]).includes(s);
 }
 
 export default async function QuoteInboxPage({
@@ -176,10 +180,12 @@ export default async function QuoteInboxPage({
   );
 }
 
-function StatusBadge({ status }: { status: "pending" | "won" | "lost" | "expired" }) {
+function StatusBadge({ status }: { status: QuoteRequestStatus }) {
   const map = {
     pending: { text: "Pending", bg: "#1a2540", fg: "#93c5fd" },
+    booked: { text: "Booked", bg: "#2a2410", fg: "#fcd34d" },
     won: { text: "Won", bg: "#0c2418", fg: "#86efac" },
+    not_chosen: { text: "Not chosen", bg: "#1a1a1a", fg: "#a3a3a3" },
     lost: { text: "Lost", bg: "#2a1010", fg: "#fca5a5" },
     expired: { text: "Expired", bg: "#1a1a1a", fg: "#737373" },
   }[status];

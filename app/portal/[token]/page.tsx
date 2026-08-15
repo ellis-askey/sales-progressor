@@ -141,10 +141,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // as if nothing happened. Own data (scoped by this contact's id).
   const surveyQuotes = side === "purchaser"
     ? await getPortalSurveyQuotes(contact.id)
-    : { firmNames: [], lastQuotedAt: null };
+    : { firmNames: [], lastQuotedAt: null, bookedFirmName: null, bookedAt: null };
   const quotedFirmNames = surveyQuotes.firmNames;
   const lastQuotedAt = surveyQuotes.lastQuotedAt;
   const hasRequestedQuote = quotedFirmNames.length > 0;
+  const bookedSurveyorName = surveyQuotes.bookedFirmName;
+  const bookedSurveyorAt = surveyQuotes.bookedAt;
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
   const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered
   const pm13Done       = isMilestoneCompleteByCode("PM13"); // results back
@@ -493,7 +495,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       )}
 
       {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
-      {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && (
+      {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && (
         <Link
           href={`/quote/${token}`}
           className="block rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
@@ -523,8 +525,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         </Link>
       )}
 
-      {/* ── Survey quote requested — acknowledgement (purchasers, pre-booked) ── */}
-      {side === "purchaser" && !surveyBooked && !hasExchanged && !hasCompleted && hasRequestedQuote && (
+      {/* ── Survey status (purchasers): booked with a named firm, or quote requested ── */}
+      {side === "purchaser" && !hasExchanged && !hasCompleted && hasRequestedQuote && (bookedSurveyorName || !surveyBooked) && (
         <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
           <div className="flex items-center gap-3 p-5">
             <div
@@ -536,15 +538,28 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
-                Survey quote requested
-              </p>
-              <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
-                {quotedFirmNames.length === 1
-                  ? `${quotedFirmNames[0]} will be in touch with a quote.`
-                  : `${quotedFirmNames.length} firms will be in touch with a quote.`}
-                {lastQuotedAt ? ` Requested ${fmtDate(lastQuotedAt)}.` : ""} Not heard back? Let your agent know.
-              </p>
+              {bookedSurveyorName ? (
+                <>
+                  <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+                    Survey booked with {bookedSurveyorName}
+                  </p>
+                  <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+                    {bookedSurveyorAt ? `Booked for ${fmtDate(bookedSurveyorAt)}.` : ""} They&apos;ll be in touch to arrange access.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+                    Survey quote requested
+                  </p>
+                  <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+                    {quotedFirmNames.length === 1
+                      ? `${quotedFirmNames[0]} will be in touch with a quote.`
+                      : `${quotedFirmNames.length} firms will be in touch with a quote.`}
+                    {lastQuotedAt ? ` Requested ${fmtDate(lastQuotedAt)}.` : ""} Not heard back? Let your agent know.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

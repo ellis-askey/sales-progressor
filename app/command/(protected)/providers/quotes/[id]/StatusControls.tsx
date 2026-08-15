@@ -94,9 +94,14 @@ export function StatusControls({
     });
   }
 
-  if (status === "pending") {
+  if (status === "pending" || status === "booked") {
     return (
       <div className="space-y-4">
+        {status === "booked" && (
+          <p className="text-[11px] text-[#fcd34d]">
+            Booked{statusChangedAt ? ` ${statusChangedAt.toISOString().slice(0, 10)}` : ""}. Settle the fee below to mark it won.
+          </p>
+        )}
         <div className="border border-[#14532d]/50 rounded-md bg-[#0c2418]/40 p-3">
           <p className="text-[11px] font-semibold text-[#bbf7d0] uppercase tracking-widest mb-2">Mark won</p>
           <div className="grid grid-cols-2 gap-2 mb-2">
@@ -183,7 +188,7 @@ export function StatusControls({
     <div className="space-y-3">
       {statusChangedAt && (
         <p className="text-[11px] text-[#737373]">
-          {status === "won" ? "Won" : status === "lost" ? "Lost" : "Expired"}{" "}
+          {status === "won" ? "Won" : status === "lost" ? "Lost" : status === "not_chosen" ? "Not chosen" : "Expired"}{" "}
           {statusChangedAt.toISOString().slice(0, 10)}
           {statusChangedByName && ` by ${statusChangedByName}`}
         </p>

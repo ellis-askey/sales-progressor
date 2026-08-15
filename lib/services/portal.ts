@@ -2294,15 +2294,24 @@ const PORTAL_NOT_REQUIRED_WHITELIST: Record<string, string[]> = {
 // contact's own id — token already resolved upstream.
 export async function getPortalSurveyQuotes(
   contactId: string,
-): Promise<{ firmNames: string[]; lastQuotedAt: Date | null }> {
+): Promise<{
+  firmNames: string[];
+  lastQuotedAt: Date | null;
+  bookedFirmName: string | null;
+  bookedAt: Date | null;
+}> {
   const rows = await prisma.quoteRequest.findMany({
     where: { contactId },
-    select: { submittedAt: true, provider: { select: { name: true } } },
+    select: { submittedAt: true, status: true, bookedAt: true, provider: { select: { name: true } } },
     orderBy: { submittedAt: "desc" },
   });
+  // The firm the buyer actually booked (still "booked" or already "won").
+  const booked = rows.find((r) => r.status === "booked" || r.status === "won");
   return {
     firmNames: [...new Set(rows.map((r) => r.provider.name))],
     lastQuotedAt: rows[0]?.submittedAt ?? null,
+    bookedFirmName: booked?.provider.name ?? null,
+    bookedAt: booked?.bookedAt ?? null,
   };
 }
 

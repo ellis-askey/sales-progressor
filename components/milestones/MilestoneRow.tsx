@@ -10,6 +10,8 @@ import type { UndoImpact } from "@/app/actions/milestones";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 import { SurveyNrConfirmModal } from "@/components/milestones/SurveyNrConfirmModal";
+import { SurveyBookingModal } from "@/components/milestones/SurveyBookingModal";
+import { getSurveyBookingOptions, recordSurveyBooking, type SurveyBookingOption, type SurveyBookingChoice } from "@/app/actions/survey-booking";
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
 import type { ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
@@ -119,6 +121,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // PM9 N/R — simple survey confirmation modal
   const [showSurveyNrConfirm, setShowSurveyNrConfirm] = useState(false);
 
+  // PM9 survey-booking picker (only when the file requested quotes).
+  const [showSurveyBooking, setShowSurveyBooking] = useState(false);
+  const [surveyBookingOptions, setSurveyBookingOptions] = useState<SurveyBookingOption[]>([]);
+  const [surveyBookingSaving, setSurveyBookingSaving] = useState(false);
+
   // Undo modal state (two-step: read impact → show modal → confirm)
   const [showUndoModal, setShowUndoModal] = useState(false);
   const [undoData, setUndoData] = useState<UndoImpact | null>(null);
@@ -176,6 +183,27 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     // Exchange / completion capture their date in the reconciliation modal.
     if (RECONCILIATION_CODES.has(def.code)) {
       doComplete();
+      return;
+    }
+    // Survey booked: if the buyer requested quotes through us, capture the date
+    // AND which surveyor they booked in one modal. No quotes → fall through to
+    // the normal date modal.
+    if (isPM9) {
+      setLoading(true);
+      getSurveyBookingOptions(transactionId)
+        .then((opts) => {
+          setLoading(false);
+          if (opts.length > 0) {
+            setSurveyBookingOptions(opts);
+            setShowSurveyBooking(true);
+          } else {
+            setShowEventDate(true); // eventDateRequired → stays blank
+          }
+        })
+        .catch(() => {
+          setLoading(false);
+          setShowEventDate(true);
+        });
       return;
     }
     // Every other step surfaces the real event date on confirm. Ordinary
@@ -320,6 +348,37 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not undo this step."));
       } finally {
+        setLoading(false);
+      }
+    });
+  }
+
+  // Survey booked confirm: complete PM9 with the survey date, then record which
+  // surveyor was booked. Booking is best-effort — a failure there never blocks
+  // the milestone (the surveyor is the backstop).
+  function doSurveyBookingConfirm(surveyDate: string, choice: SurveyBookingChoice) {
+    setSurveyBookingSaving(true);
+    startTransition(async () => {
+      addOptimistic("complete");
+      try {
+        const result = await confirmMilestoneAction({
+          transactionId,
+          milestoneDefinitionId: def.id,
+          eventDate: surveyDate || null,
+        });
+        if (result.ok === false && result.kind === "prereqs_missing") {
+          const first = result.missing[0];
+          addOptimistic("reverse");
+          setError(first ? `Confirm "${first.name}" first.` : "An earlier step needs to be confirmed first.");
+          return;
+        }
+        await recordSurveyBooking({ transactionId, choice }).catch(() => {});
+        toast.success(def.name);
+      } catch (err: unknown) {
+        setError(softenServerError(err, "Could not complete this step."));
+      } finally {
+        setSurveyBookingSaving(false);
+        setShowSurveyBooking(false);
         setLoading(false);
       }
     });
@@ -645,6 +704,16 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         <SurveyNrConfirmModal
           onConfirm={() => doNotRequired()}
           onCancel={() => setShowSurveyNrConfirm(false)}
+        />
+      )}
+
+      {/* PM9 survey-booking picker (file requested quotes) */}
+      {showSurveyBooking && (
+        <SurveyBookingModal
+          options={surveyBookingOptions}
+          saving={surveyBookingSaving}
+          onConfirm={doSurveyBookingConfirm}
+          onCancel={() => setShowSurveyBooking(false)}
         />
       )}
 
