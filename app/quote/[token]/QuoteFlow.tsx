@@ -397,13 +397,16 @@ export function QuoteFlow({
       {serviceTypeId && selectedFirms.size > 0 && (
         <div
           style={{
-            background: A.coralTint,
+            background: A.cardBg,
+            backdropFilter: A.cardBlur,
+            WebkitBackdropFilter: A.cardBlur,
             border: `1px solid ${A.cardBorder}`,
-            borderRadius: 16,
-            padding: "14px 16px",
+            borderRadius: 20,
+            padding: "16px 20px",
+            boxShadow: A.cardShadow,
           }}
         >
-          <p style={{ ...labelStyle, marginBottom: 10, color: A.coralDark }}>What the surveyor will see</p>
+          <p style={{ ...labelStyle, marginBottom: 10 }}>What the surveyor will see</p>
           <ShareRow label="Property" value={propertyAddress} />
           {priceLabel && <ShareRow label="Purchase price" value={priceLabel} />}
           {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}

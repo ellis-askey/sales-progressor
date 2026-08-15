@@ -79,6 +79,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
           purchasePrice: true,
           tenure: true,
           isShareOfFreehold: true,
+          agentUser: { select: { email: true, name: true } },
           assignedUser: { select: { email: true, name: true } },
         },
       },
@@ -127,7 +128,10 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   // 3. Create one QuoteRequest per valid firm.
   const propertyAddress = contact.transaction.propertyAddress;
   const propertyPostcode = extractPostcodeFromAddress(propertyAddress);
-  const agentEmail = contact.transaction.assignedUser?.email ?? null;
+  // CC the agency's own agent on the file (e.g. ellis@akeman-residential for an
+  // Akeman sale). No agent email on file → fall back to the Sales Progressor
+  // address so a copy always lands somewhere we can see.
+  const agencyAgentEmail = contact.transaction.agentUser?.email ?? null;
   const pricePence = contact.transaction.purchasePrice ?? null;
   const tenure = contact.transaction.tenure ?? null;
   const tenureText = tenureLabel(tenure, contact.transaction.isShareOfFreehold);
@@ -175,11 +179,9 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     created.map(async (q, idx) => {
       try {
         const firm = validFirms[idx];
-        const cc: string[] = [];
-        if (agentEmail) cc.push(agentEmail);
-        cc.push(FALLBACK_CC);
-        // Dedupe in case the agent IS ellis
-        const dedupedCc = [...new Set(cc)];
+        // Agency agent's email, or the Sales Progressor fallback when the file
+        // has no agent email. Deduped defensively.
+        const dedupedCc = [...new Set(agencyAgentEmail ? [agencyAgentEmail] : [FALLBACK_CC])];
 
         const subject = `Survey quote request: ${propertyAddress}`;
         const text = renderQuoteEmailText({

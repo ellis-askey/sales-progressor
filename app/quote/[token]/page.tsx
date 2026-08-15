@@ -109,27 +109,6 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         {/* Header */}
         <header style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: A.coralGradient,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                boxShadow: "0 2px 8px rgba(255,107,74,0.28)",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 12l2 2 4-4" />
-                <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.91.37 4.15 1.01" />
-              </svg>
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: A.textPrimary }}>Sales Progressor</span>
-          </div>
           <p style={{ fontSize: 11, fontWeight: 600, color: A.coralDeep, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
             Get a survey quote
           </p>
