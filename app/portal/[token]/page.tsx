@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
-import { P } from "@/components/portal/portal-ui";
+import { P, PortalPill } from "@/components/portal/portal-ui";
 import { calculateProgress } from "@/lib/services/fees";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
@@ -433,7 +433,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const tips  = getStageTips(stage, side, token, doneCodes);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 portal-fade-in">
 
       {/* ── Completion banner ──────────────────────────────────── */}
       {hasCompleted && (
@@ -498,30 +498,38 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && (
         <Link
           href={`/quote/${token}`}
-          className="block rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
-          style={{ background: P.cardBg, boxShadow: P.shadowSm, textDecoration: "none" }}
+          className="pbtn pbtn-press block"
+          style={{
+            borderRadius: 16,
+            textDecoration: "none",
+            padding: 16,
+            background: "linear-gradient(160deg, rgba(10,132,255,0.10), rgba(10,132,255,0.03))",
+            border: "0.5px solid rgba(10,132,255,0.12)",
+            boxShadow: P.shadowSm,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
         >
-          <div className="flex items-center gap-3 p-5">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: P.accentBg, color: P.accent }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
-                Get a survey quote
-              </p>
-              <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
-                We'll match you with local firms that cover your area.
-              </p>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <polyline points="9 18 15 12 9 6"/>
+          <div
+            className="flex items-center justify-center flex-shrink-0"
+            style={{ width: 52, height: 52, borderRadius: 14, background: "#fff", color: "#0A84FF", boxShadow: "0 2px 8px rgba(10,132,255,0.20)" }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[15px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+              Get a survey quote
+            </p>
+            <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+              Local firms in your area, <b style={{ color: "#0060DF" }}>from &pound;400</b>.
+            </p>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </Link>
       )}
 
@@ -587,15 +595,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                 {i + 2}
               </div>
               <p className="flex-1 text-[13px]" style={{ color: P.textSecondary }}>{m.label}</p>
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                style={
-                  m.who === "you"
-                    ? { background: P.primaryBg, color: P.primaryText }
-                    : { background: P.accentBg, color: P.accent }
-                }
-              >
-                {m.who === "you" ? "You" : m.whoLabel}
+              <span className="flex-shrink-0">
+                <PortalPill tone={m.who === "you" ? "coral" : "blue"}>
+                  {m.who === "you" ? "You" : m.whoLabel}
+                </PortalPill>
               </span>
             </div>
           ))}

@@ -72,7 +72,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen portal-scope"
       style={{
         background: "transparent",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif",

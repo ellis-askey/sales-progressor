@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useOptimistic, useTransition } from "react";
-import { P } from "./portal-ui";
+import { P, PortalPill } from "./portal-ui";
+import { PortalButton } from "./PortalButton";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 import { getEventDateLabel } from "@/lib/portal-copy";
 
@@ -120,28 +121,14 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
             {milestone.label}
           </p>
           <div className="mb-4">
-            <span
-              className="text-[12px] font-semibold px-3 py-1 rounded-full"
-              style={
-                isYours
-                  ? { background: P.primaryBg, color: P.primaryText }
-                  : { background: P.accentBg, color: P.accent }
-              }
-            >
-              {isYours
-                ? "Action needed from you"
-                : `Waiting on your ${milestone.who}`}
-            </span>
+            <PortalPill tone={isYours ? "coral" : "blue"} size="md">
+              {isYours ? "Action needed from you" : `Waiting on your ${milestone.who}`}
+            </PortalPill>
           </div>
 
-          <button
-            onClick={openSheet}
-            disabled={loading}
-            className="w-full flex items-center justify-center py-3.5 rounded-xl text-[15px] font-bold text-white transition-opacity active:opacity-80 disabled:opacity-50"
-            style={{ background: P.primary, boxShadow: P.heroGlow, borderRadius: P.radiusMd }}
-          >
+          <PortalButton onClick={openSheet} loading={loading}>
             {loading ? "Saving…" : "Confirm this step"}
-          </button>
+          </PortalButton>
 
           {nextAfterDescription && (
             <div
@@ -221,16 +208,12 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
                 <p className="text-[13px] mb-3" style={{ color: "#EF4444" }}>{error}</p>
               )}
 
-              <button
-                onClick={confirm}
-                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white transition-opacity"
-                style={{ background: P.primary, borderRadius: P.radiusMd }}
-              >
+              <PortalButton onClick={confirm}>
                 {milestone.eventDateRequired ? "Confirm date" : "Yes, it's done"}
-              </button>
+              </PortalButton>
               <button
                 onClick={closeSheet}
-                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl transition-colors"
+                className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
                 style={{ color: P.textSecondary, background: "transparent" }}
               >
                 Cancel

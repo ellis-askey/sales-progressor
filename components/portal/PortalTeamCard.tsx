@@ -6,7 +6,7 @@
 // front of a nervous buyer or seller. Server component: the only interactive
 // bits are plain links (WhatsApp, mailto).
 
-import { P } from "@/components/portal/portal-ui";
+import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
 import { OpenAgentsButton } from "@/components/portal/OpenAgentsButton";
 
@@ -97,16 +97,18 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
                   href={managing.whatsappUrl}
                   target="_blank"
                   rel="noreferrer"
+                  className="pbtn pbtn-press"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 7,
                     fontSize: 12.5,
                     fontWeight: 700,
-                    padding: "8px 13px",
-                    borderRadius: 10,
+                    padding: "9px 14px",
+                    borderRadius: 11,
                     textDecoration: "none",
-                    background: "#25D366",
+                    background: PORTAL_BTN.waBg,
+                    boxShadow: PORTAL_BTN.waShadow,
                     color: "#fff",
                   }}
                 >
@@ -116,17 +118,19 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
               {managing.email && (
                 <a
                   href={`mailto:${managing.email}`}
+                  className="pbtn pbtn-press"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 7,
                     fontSize: 12.5,
                     fontWeight: 700,
-                    padding: "8px 13px",
-                    borderRadius: 10,
+                    padding: "9px 14px",
+                    borderRadius: 11,
                     textDecoration: "none",
-                    background: P.primaryBg,
-                    color: P.primaryText,
+                    background: PORTAL_BTN.emailBg,
+                    boxShadow: PORTAL_BTN.emailShadow,
+                    color: "#fff",
                   }}
                 >
                   <MailIcon /> Email

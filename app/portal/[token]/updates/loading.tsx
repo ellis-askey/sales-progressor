@@ -1,21 +1,6 @@
-import { P } from "@/components/portal/portal-ui";
+// Updates tab loading state (LOADING-L1, 2026-08-15). Edge pulse only, no
+// skeletons — see app/portal/[token]/loading.tsx for the rationale.
 
 export default function PortalUpdatesLoading() {
-  return (
-    <div className="pb-28 space-y-3 px-4 pt-4">
-      {/* Header */}
-      <div
-        className="rounded-2xl animate-pulse"
-        style={{ height: 72, background: P.cardBg, boxShadow: P.shadowSm }}
-      />
-      {/* Update cards */}
-      {[90, 100, 80, 95, 85].map((h, i) => (
-        <div
-          key={i}
-          className="rounded-2xl animate-pulse"
-          style={{ height: h, background: P.cardBg, boxShadow: P.shadowSm }}
-        />
-      ))}
-    </div>
-  );
+  return <div aria-hidden className="portal-edge-pulse" />;
 }

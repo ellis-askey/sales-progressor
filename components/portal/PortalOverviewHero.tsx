@@ -14,7 +14,7 @@
 
 import Link from "next/link";
 import { Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
-import { P } from "./portal-ui";
+import { P, PortalPill, type PortalPillTone } from "./portal-ui";
 
 export type OverviewTile = {
   key: string;
@@ -80,12 +80,12 @@ function formatPurchaseType(p: string | null): string | null {
   if (p === "cash_from_proceeds") return "Cash buyer";
   return null;
 }
-function formatStatus(s: string): { label: string; dotColor: string } {
-  if (s === "active") return { label: "Active", dotColor: P.success };
-  if (s === "on_hold") return { label: "On hold", dotColor: P.warning };
-  if (s === "completed") return { label: "Completed", dotColor: P.accent };
-  if (s === "withdrawn") return { label: "Withdrawn", dotColor: P.textMuted };
-  return { label: "Draft", dotColor: P.textMuted };
+function formatStatus(s: string): { label: string; tone: PortalPillTone } {
+  if (s === "active") return { label: "Active", tone: "green" };
+  if (s === "on_hold") return { label: "On hold", tone: "amber" };
+  if (s === "completed") return { label: "Completed", tone: "blue" };
+  if (s === "withdrawn") return { label: "Withdrawn", tone: "grey" };
+  return { label: "Draft", tone: "grey" };
 }
 
 // Small circular progress ring for the hero. SVG stroke-dasharray trick.
@@ -131,41 +131,6 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
         <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500 }}>of 6</span>
       </div>
     </div>
-  );
-}
-
-// Translucent glass pill — matches the bottom-nav treatment. Not solid
-// (that read wrong against the mock). Backdrop-blur gives it a real
-// glassy look so it reads on any part of the photo underneath.
-function Pill({ children, dotColor, tone = "neutral" }: {
-  children: React.ReactNode;
-  dotColor?: string;
-  tone?: "neutral" | "accent";
-}) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "5px 12px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        color: tone === "accent" ? P.primary : P.textPrimary,
-        background: "rgba(255, 255, 255, 0.55)",
-        border: "0.5px solid rgba(255, 255, 255, 0.7)",
-        backdropFilter: "blur(12px) saturate(1.5)",
-        WebkitBackdropFilter: "blur(12px) saturate(1.5)",
-        boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {dotColor && (
-        <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: dotColor }} />
-      )}
-      {children}
-    </span>
   );
 }
 
@@ -263,15 +228,9 @@ function TimelineRow({
   const iconColor  = isComplete ? P.success : isActive ? P.primary : P.textMuted;
   const labelColor = isActive ? P.primary : isComplete ? P.textPrimary : P.textSecondary;
 
-  // Pill palette per state. Active is coral; complete is green; locked
-  // ("TBC") is a plain grey; pending is a neutral grey pill with a
-  // clock hint.
-  const pill = (() => {
-    if (isComplete) return { bg: "rgba(16,185,129,0.12)", fg: "#047857", border: "rgba(16,185,129,0.35)" };
-    if (isActive)   return { bg: "rgba(255,107,74,0.12)", fg: P.primary,  border: "rgba(255,107,74,0.35)" };
-    if (tile.locked)return { bg: "rgba(15,23,42,0.06)",   fg: P.textMuted,border: "rgba(15,23,42,0.10)" };
-    return              { bg: "rgba(15,23,42,0.06)",   fg: P.textMuted,border: "rgba(15,23,42,0.10)" };
-  })();
+  // Pill tone per state. Active is coral; complete is green; locked / pending
+  // are grey. Rendered via the shared PortalPill (PILL-P3).
+  const pillTone: PortalPillTone = isComplete ? "green" : isActive ? "coral" : "grey";
 
   return (
     <div
@@ -409,23 +368,7 @@ function TimelineRow({
               {tile.completedDate}
             </span>
           )}
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 10px",
-              borderRadius: 999,
-              fontSize: 11,
-              fontWeight: 600,
-              background: pill.bg,
-              color: pill.fg,
-              border: `0.5px solid ${pill.border}`,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {tile.text}
-          </span>
+          <PortalPill tone={pillTone}>{tile.text}</PortalPill>
         </div>
       </div>
     </div>
@@ -563,9 +506,9 @@ export function PortalOverviewHero({
             )}
 
             <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
-              <Pill dotColor={statusMeta.dotColor}>{statusMeta.label}</Pill>
-              {tenureLabel && <Pill>{tenureLabel}</Pill>}
-              {purchaseTypeLabel && <Pill>{purchaseTypeLabel}</Pill>}
+              <PortalPill tone={statusMeta.tone} size="md">{statusMeta.label}</PortalPill>
+              {tenureLabel && <PortalPill size="md">{tenureLabel}</PortalPill>}
+              {purchaseTypeLabel && <PortalPill size="md">{purchaseTypeLabel}</PortalPill>}
             </div>
           </div>
 
@@ -651,6 +594,7 @@ export function PortalOverviewHero({
               just a contextual entry point from inside the summary. */}
           <Link
             href={progressHref}
+            className="portal-chev"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -666,7 +610,9 @@ export function PortalOverviewHero({
             }}
           >
             View full timeline
-            <CaretRight size={11} weight="bold" />
+            <span className="portal-chev-i" style={{ display: "inline-flex" }}>
+              <CaretRight size={11} weight="bold" />
+            </span>
           </Link>
         </div>
 

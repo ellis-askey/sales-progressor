@@ -1,5 +1,7 @@
 // Shared portal design tokens and primitive components
 
+import type { ReactNode } from "react";
+
 export const P = {
   pageBg:       "#F8F9FB",
   cardBg:       "#FFFFFF",
@@ -46,6 +48,64 @@ export const P = {
   successBorder:"rgba(16,185,129,0.25)",
   warningLight: "rgba(245,158,11,0.10)",
 } as const;
+
+// ── 2026-08-15 revamp — button + pill design values (chosen in /test/portal-lab) ──
+
+// PRIMARY-A3 (tactile coral) + COMMS-C2 (solid green / solid blue). Single
+// source so every button matches; the interaction states live in globals.css
+// (.pbtn / .pbtn-primary / .pbtn-press).
+export const PORTAL_BTN = {
+  primaryBg:     "linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%)",
+  primaryShadow: "0 2px 0 #C63E20, 0 6px 16px rgba(240,78,44,0.30), inset 0 1px 0 rgba(255,255,255,0.30)",
+  waBg:          "linear-gradient(180deg,#2ED974 0%,#1FAE53 100%)",
+  waShadow:      "0 1px 2px rgba(31,174,83,0.4), 0 6px 14px rgba(37,211,102,0.24), inset 0 1px 0 rgba(255,255,255,0.3)",
+  emailBg:       "linear-gradient(180deg,#2A93FF 0%,#0A6FE8 100%)",
+  emailShadow:   "0 1px 2px rgba(0,96,223,0.4), 0 6px 14px rgba(10,132,255,0.24), inset 0 1px 0 rgba(255,255,255,0.3)",
+} as const;
+
+// PILL-P3 (hairline glass): white fill, 0.5px coloured border, coloured dot +
+// text. Colour-named tones so the same pill reads consistently everywhere it
+// appears (Coming up, hero, timeline, next-action). `neutral` drops the dot for
+// plain attributes (Freehold / Mortgage).
+export type PortalPillTone = "coral" | "blue" | "green" | "amber" | "grey" | "neutral";
+
+const PORTAL_PILL_TONES: Record<PortalPillTone, { fg: string; accent: string; dot: boolean }> = {
+  coral:   { fg: "#CC4A2E", accent: "#FF6B4A", dot: true },
+  blue:    { fg: "#0060DF", accent: "#0A84FF", dot: true },
+  green:   { fg: "#047857", accent: "#10B981", dot: true },
+  amber:   { fg: "#B45309", accent: "#F59E0B", dot: true },
+  grey:    { fg: "#6B7280", accent: "#9CA3AF", dot: true },
+  neutral: { fg: "#4A5162", accent: "rgba(15,23,42,0.18)", dot: false },
+};
+
+export function PortalPill({ tone = "neutral", size = "sm", children }: {
+  tone?: PortalPillTone;
+  size?: "sm" | "md";
+  children: ReactNode;
+}) {
+  const t = PORTAL_PILL_TONES[tone];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: size === "md" ? "5px 12px" : "4px 11px",
+        borderRadius: 999,
+        fontSize: size === "md" ? 12 : 11,
+        fontWeight: 600,
+        color: t.fg,
+        background: "#fff",
+        border: `0.5px solid ${t.accent}`,
+        boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {t.dot && <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: t.accent }} />}
+      {children}
+    </span>
+  );
+}
 
 // Milestone groupings — defines how steps are visually bucketed on the progress page
 export const VENDOR_GROUPS = [

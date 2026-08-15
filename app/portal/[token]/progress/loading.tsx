@@ -1,21 +1,6 @@
-import { P } from "@/components/portal/portal-ui";
+// Progress tab loading state (LOADING-L1, 2026-08-15). Edge pulse only, no
+// skeletons — see app/portal/[token]/loading.tsx for the rationale.
 
 export default function PortalProgressLoading() {
-  return (
-    <div className="pb-28 space-y-3 px-4 pt-4">
-      {/* Progress header */}
-      <div
-        className="rounded-2xl animate-pulse"
-        style={{ height: 64, background: P.cardBg, boxShadow: P.shadowSm }}
-      />
-      {/* Milestone group cards */}
-      {[200, 160, 180, 140].map((h, i) => (
-        <div
-          key={i}
-          className="rounded-2xl animate-pulse"
-          style={{ height: h, background: P.cardBg, boxShadow: P.shadowSm }}
-        />
-      ))}
-    </div>
-  );
+  return <div aria-hidden className="portal-edge-pulse" />;
 }
