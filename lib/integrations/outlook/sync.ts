@@ -52,38 +52,6 @@ type ConnRow = {
   scope: string;
 };
 
-// ─── Folder inclusion ─────────────────────────────────────────────────────────
-
-// System folders we never scan. Everything else (Inbox + the user's own
-// property folders) is in scope.
-const SYSTEM_FOLDERS = new Set([
-  "deleted items",
-  "junk email",
-  "junk e-mail",
-  "junk",
-  "spam",
-  "drafts",
-  "outbox",
-  "sent items",
-  "sent",
-  "conversation history",
-  "sync issues",
-  "rss feeds",
-  "rss subscriptions",
-  "clutter",
-  "archive",
-  "notes",
-  "scheduled",
-  "snoozed",
-]);
-
-function isIncludedFolder(name: string): boolean {
-  const n = name.trim().toLowerCase();
-  if (!n) return false;
-  if (n === "inbox") return true;
-  return !SYSTEM_FOLDERS.has(n);
-}
-
 // ─── Access token (refresh if near expiry) ────────────────────────────────────
 
 async function getValidAccessToken(conn: ConnRow): Promise<string> {
@@ -309,11 +277,25 @@ async function logMessage(
 
 export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promise<SyncSummary> {
   const accessToken = await getValidAccessToken(conn);
+  const scope = getAccessScope(session);
 
-  // Inbox + the user's own folders (system folders skipped), last 90 days.
-  const folders = (await listMailFolders(accessToken)).filter((f) => isIncludedFolder(f.displayName));
+  // Decide which folders to read: the Inbox, plus any folder whose name maps to
+  // exactly one property file (your "118 Hadley Grange"-style folders). Every
+  // other folder — Dev To-Do, Marketing, Archive, Sent, Deleted, system folders —
+  // is skipped, because its name doesn't resolve to a file.
+  const allFolders = await listMailFolders(accessToken);
+  const folderHints = await buildFolderHints(
+    allFolders
+      .filter((f) => f.displayName.trim().toLowerCase() !== "inbox")
+      .map((f) => f.displayName),
+    scope
+  );
+  const folders = allFolders.filter((f) => {
+    const n = f.displayName.trim().toLowerCase();
+    return n === "inbox" || folderHints.has(n);
+  });
+
   const sinceIso = new Date(Date.now() - BACKFILL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
   const messages: OutlookMessage[] = [];
   for (const folder of folders) {
     if (messages.length >= GLOBAL_CAP) break;
@@ -337,13 +319,7 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
     }
   }
 
-  const scope = getAccessScope(session);
   const index = await buildIndex([...allEmails], scope);
-
-  const folderNames = [
-    ...new Set(messages.map((m) => m.folder).filter((n) => n && n.toLowerCase() !== "inbox")),
-  ];
-  const folderHints = await buildFolderHints(folderNames, scope);
 
   const summary: SyncSummary = {
     checked: messages.length,
