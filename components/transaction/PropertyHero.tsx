@@ -8,6 +8,7 @@ import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { HeroSaleFields } from "./HeroSaleFields";
 import { HeroExchangeCell } from "./HeroExchangeCell";
+import { HeroAddressEdit } from "./HeroAddressEdit";
 import { formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -434,32 +435,38 @@ export function PropertyHero({
             </div>
           </div>
 
-          {/* Address */}
-          <h1
-            data-sensitive="true"
-            style={{
-              fontSize: "clamp(26px, 3.2vw, 40px)",
-              fontWeight: 700,
-              color: "var(--agent-text-primary)",
-              margin: "14px 0 0",
-              letterSpacing: "-0.02em",
-              lineHeight: 1.12,
-            }}
-          >
-            {line1}
-          </h1>
-          {line2 && (
-            <p
-              data-sensitive="true"
-              style={{
-                margin: "6px 0 0",
-                fontSize: 15,
-                color: "var(--agent-text-muted)",
-                lineHeight: 1.35,
-              }}
-            >
-              {line2}
-            </p>
+          {/* Address — inline-editable when we have a transaction id */}
+          {transactionId ? (
+            <HeroAddressEdit transactionId={transactionId} address={address} />
+          ) : (
+            <>
+              <h1
+                data-sensitive="true"
+                style={{
+                  fontSize: "clamp(26px, 3.2vw, 40px)",
+                  fontWeight: 700,
+                  color: "var(--agent-text-primary)",
+                  margin: "14px 0 0",
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1.12,
+                }}
+              >
+                {line1}
+              </h1>
+              {line2 && (
+                <p
+                  data-sensitive="true"
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 15,
+                    color: "var(--agent-text-muted)",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {line2}
+                </p>
+              )}
+            </>
           )}
 
           {/* Stat row — absorbs the old Zone-2 stats strip.
