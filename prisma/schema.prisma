@@ -29,6 +29,12 @@ model Agency {
   // toggle via /agent/settings/automation.
   chaseEmailsEnabled Boolean @default(true)
 
+  // Verified sender address for outbound surveyor quote requests on this
+  // agency's files (e.g. ellis@akeman-residential.co.uk). Null → the quote is
+  // sent from the Sales Progressor fallback (ellis@thesalesprogressor.co.uk).
+  // Must be a verified SendGrid sender for the agency's domain.
+  quoteSenderEmail String?
+
   // Signup attribution
   signupSource      String?
   signupMedium      String?

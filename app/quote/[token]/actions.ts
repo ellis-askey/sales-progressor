@@ -51,7 +51,19 @@ export type QuoteSubmitResult =
   | { ok: true; count: number; firmNames: string[] }
   | { ok: false; error: string };
 
-const FALLBACK_CC = "ellis@thesalesprogressor.co.uk";
+// Where quotes send from when an agency has no verified sender on file, and
+// where the internal "a quote was requested" heads-up lands.
+const SP_FALLBACK_EMAIL = "ellis@thesalesprogressor.co.uk";
+const SP_NOTIFY_FROM = "updates@thesalesprogressor.co.uk";
+
+const LEGAL_SUFFIX = /\s+(Ltd|Limited|LLP|PLC|plc)\.?$/i;
+
+// Build a "Display Name <address>" From header, quoting the display name if it
+// contains characters that would break the header.
+function buildFrom(display: string, address: string): string {
+  const safe = /[,;@<>()[\]\\"]/.test(display) ? `"${display.replace(/"/g, '\\"')}"` : display;
+  return `${safe} <${address}>`;
+}
 
 export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<QuoteSubmitResult> {
   if (!input.token) return { ok: false, error: "Missing session." };
@@ -79,8 +91,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
           purchasePrice: true,
           tenure: true,
           isShareOfFreehold: true,
-          agentUser: { select: { email: true, name: true } },
-          assignedUser: { select: { email: true, name: true } },
+          agency: { select: { name: true, quoteSenderEmail: true } },
         },
       },
     },
@@ -128,10 +139,12 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   // 3. Create one QuoteRequest per valid firm.
   const propertyAddress = contact.transaction.propertyAddress;
   const propertyPostcode = extractPostcodeFromAddress(propertyAddress);
-  // CC the agency's own agent on the file (e.g. ellis@akeman-residential for an
-  // Akeman sale). No agent email on file → fall back to the Sales Progressor
-  // address so a copy always lands somewhere we can see.
-  const agencyAgentEmail = contact.transaction.agentUser?.email ?? null;
+  // Send the quote FROM the agency's own verified address (e.g.
+  // ellis@akeman-residential for an Akeman sale). No verified sender on file
+  // (e.g. EXP) → fall back to the Sales Progressor address.
+  const agencyName = (contact.transaction.agency?.name ?? "Sales Progressor").replace(LEGAL_SUFFIX, "").trim();
+  const senderAddress = contact.transaction.agency?.quoteSenderEmail ?? SP_FALLBACK_EMAIL;
+  const quoteFrom = buildFrom(agencyName, senderAddress);
   const pricePence = contact.transaction.purchasePrice ?? null;
   const tenure = contact.transaction.tenure ?? null;
   const tenureText = tenureLabel(tenure, contact.transaction.isShareOfFreehold);
@@ -179,9 +192,6 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     created.map(async (q, idx) => {
       try {
         const firm = validFirms[idx];
-        // Agency agent's email, or the Sales Progressor fallback when the file
-        // has no agent email. Deduped defensively.
-        const dedupedCc = [...new Set(agencyAgentEmail ? [agencyAgentEmail] : [FALLBACK_CC])];
 
         const subject = `Survey quote request: ${propertyAddress}`;
         const text = renderQuoteEmailText({
@@ -217,7 +227,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
         try {
           await sendEmail({
             to: firm.email,
-            cc: dedupedCc,
+            from: quoteFrom,
             replyTo: input.clientEmail.trim(),
             subject,
             text,
@@ -243,6 +253,35 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
       }
     }),
   );
+
+  // 5. Internal heads-up. One simple email per submission to Sales Progressor
+  //    so a quote request never goes unnoticed; the full detail lives in the
+  //    Command Centre quote inbox. Wrapped so it can never crash the submit.
+  try {
+    const base = process.env.NEXTAUTH_URL ?? "";
+    const firmList = validFirms.map((f) => f.name).join(", ");
+    const notifyText = [
+      `A survey quote has been requested.`,
+      ``,
+      `Agency:     ${agencyName}`,
+      `Property:   ${propertyAddress}`,
+      `Survey:     ${serviceType.label}`,
+      `Surveyor${validFirms.length === 1 ? "" : "s"}:  ${firmList}`,
+      `Client:     ${input.clientName.trim()}`,
+      ``,
+      `Full details are in the Command Centre:`,
+      `${base}/command/providers/quotes`,
+    ].join("\n");
+
+    await sendEmail({
+      to: SP_FALLBACK_EMAIL,
+      from: buildFrom(`Ellis @ ${agencyName}`, SP_NOTIFY_FROM),
+      subject: `Survey quote requested: ${serviceType.label}`,
+      text: notifyText,
+    });
+  } catch {
+    // Non-critical: the QuoteRequest rows + the Command Centre are the record.
+  }
 
   return {
     ok: true,
