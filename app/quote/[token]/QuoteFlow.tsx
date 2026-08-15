@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { submitQuoteRequest, type QuoteSubmitResult } from "./actions";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency } from "@prisma/client";
+import { A } from "./ui";
 
 type ServiceType = { id: string; label: string; description: string | null };
 type Firm = {
@@ -14,10 +15,16 @@ type Firm = {
   serviceTypeIds: string[];
 };
 
+// Contact methods that reach the client on a phone number — picking one makes
+// the phone field required.
+const PHONE_METHODS: QuoteContactMethod[] = ["phone", "text", "whatsapp"];
+
 export function QuoteFlow({
   token,
   propertyAddress,
   outwardCode,
+  priceLabel,
+  tenureLabel,
   serviceTypes,
   firms,
   contactName,
@@ -27,6 +34,8 @@ export function QuoteFlow({
   token: string;
   propertyAddress: string;
   outwardCode: string | null;
+  priceLabel: string | null;
+  tenureLabel: string | null;
   serviceTypes: ServiceType[];
   firms: Firm[];
   contactName: string;
@@ -45,6 +54,8 @@ export function QuoteFlow({
 
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<QuoteSubmitResult | null>(null);
+
+  const phoneRequired = PHONE_METHODS.includes(contactMethod);
 
   // Firms filtered by whether they offer the picked service type
   const eligibleFirms = useMemo(() => {
@@ -84,12 +95,14 @@ export function QuoteFlow({
     return (
       <div
         style={{
-          background: "white",
-          border: "1px solid #fde68a",
-          borderRadius: 16,
+          background: A.cardBg,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: `1px solid ${A.cardBorder}`,
+          borderRadius: 20,
           padding: 24,
           textAlign: "center",
-          boxShadow: "0 4px 20px -8px rgba(255, 107, 74, 0.15)",
+          boxShadow: A.cardShadow,
         }}
       >
         <div
@@ -97,29 +110,30 @@ export function QuoteFlow({
             width: 44,
             height: 44,
             borderRadius: 22,
-            background: "linear-gradient(135deg, #FF8A65, #FF6B4A)",
+            background: A.coralGradient,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             marginBottom: 12,
+            boxShadow: "0 4px 14px rgba(255,107,74,0.3)",
           }}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1c1917", margin: "0 0 8px" }}>Sent</h2>
-        <p style={{ fontSize: 14, color: "#57534e", margin: "0 0 16px", lineHeight: 1.5 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: A.textPrimary, margin: "0 0 8px" }}>Sent</h2>
+        <p style={{ fontSize: 14, color: A.textSecondary, margin: "0 0 16px", lineHeight: 1.5 }}>
           Your request has been sent to {result.count} firm{result.count === 1 ? "" : "s"}:
         </p>
-        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", fontSize: 14, color: "#1c1917", fontWeight: 600 }}>
+        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", fontSize: 14, color: A.textPrimary, fontWeight: 600 }}>
           {result.firmNames.map((n) => (
-            <li key={n} style={{ padding: "6px 0", borderBottom: "1px solid #f5f5f4" }}>
+            <li key={n} style={{ padding: "6px 0", borderBottom: `1px solid ${A.cardBorder}` }}>
               {n}
             </li>
           ))}
         </ul>
-        <p style={{ fontSize: 13, color: "#78716c", margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
           They'll be in touch directly with a quote. If you don't hear back within a couple of days, let your agent know.
         </p>
       </div>
@@ -131,19 +145,22 @@ export function QuoteFlow({
     return (
       <div
         style={{
-          background: "white",
-          border: "1px solid #fed7aa",
-          borderRadius: 16,
+          background: A.cardBg,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: `1px solid ${A.cardBorder}`,
+          borderRadius: 20,
           padding: 24,
           textAlign: "center",
+          boxShadow: A.cardShadow,
         }}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1c1917", margin: "0 0 8px" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: A.textPrimary, margin: "0 0 8px" }}>
           No surveyors in your area yet
         </h2>
-        <p style={{ fontSize: 14, color: "#78716c", margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
           We don't currently have any surveyors covering{" "}
-          <strong style={{ color: "#44403c", fontFamily: "monospace" }}>
+          <strong style={{ color: A.textSecondary, fontFamily: "monospace" }}>
             {outwardCode ?? "your postcode"}
           </strong>
           . We're expanding our network. In the meantime, please ask your agent for a recommendation.
@@ -153,10 +170,11 @@ export function QuoteFlow({
   }
 
   const canSubmit =
-    serviceTypeId &&
+    !!serviceTypeId &&
     selectedFirms.size > 0 &&
-    clientName.trim() &&
-    clientEmail.trim() &&
+    !!clientName.trim() &&
+    !!clientEmail.trim() &&
+    (!phoneRequired || !!clientPhone.trim()) &&
     !pending;
 
   return (
@@ -175,16 +193,16 @@ export function QuoteFlow({
               style={{
                 textAlign: "left",
                 padding: "12px 14px",
-                borderRadius: 10,
-                border: serviceTypeId === s.id ? "2px solid #FF6B4A" : "1px solid #e7e5e4",
-                background: serviceTypeId === s.id ? "#FFF5F1" : "white",
+                borderRadius: 12,
+                border: serviceTypeId === s.id ? `2px solid ${A.coralTintBorder}` : `1px solid ${A.inputBorder}`,
+                background: serviceTypeId === s.id ? A.coralTint : A.inputBg,
                 cursor: "pointer",
                 transition: "all 0.15s",
               }}
             >
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#1c1917", margin: "0 0 3px" }}>{s.label}</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: A.textPrimary, margin: "0 0 3px" }}>{s.label}</p>
               {s.description && (
-                <p style={{ fontSize: 12, color: "#78716c", margin: 0, lineHeight: 1.4 }}>{s.description}</p>
+                <p style={{ fontSize: 12, color: A.textMuted, margin: 0, lineHeight: 1.4 }}>{s.description}</p>
               )}
             </button>
           ))}
@@ -195,11 +213,11 @@ export function QuoteFlow({
       {serviceTypeId && (
         <StepCard
           number={2}
-          title={`Pick a surveyor (${eligibleFirms.length} in your area${eligibleFirms.length === 1 ? "" : ""})`}
+          title={`Pick a surveyor (${eligibleFirms.length} in your area)`}
           subtitle="You can select more than one. They'll each send you a quote."
         >
           {eligibleFirms.length === 0 ? (
-            <p style={{ fontSize: 13, color: "#78716c", padding: "12px 0", margin: 0 }}>
+            <p style={{ fontSize: 13, color: A.textMuted, padding: "12px 0", margin: 0 }}>
               None of the firms in your area offer this service. Try picking a different service type above.
             </p>
           ) : (
@@ -216,9 +234,9 @@ export function QuoteFlow({
                       alignItems: "flex-start",
                       textAlign: "left",
                       padding: "12px 14px",
-                      borderRadius: 10,
-                      border: isSelected ? "2px solid #FF6B4A" : "1px solid #e7e5e4",
-                      background: isSelected ? "#FFF5F1" : "white",
+                      borderRadius: 12,
+                      border: isSelected ? `2px solid ${A.coralTintBorder}` : `1px solid ${A.inputBorder}`,
+                      background: isSelected ? A.coralTint : A.inputBg,
                       cursor: "pointer",
                       transition: "all 0.15s",
                     }}
@@ -227,30 +245,30 @@ export function QuoteFlow({
                       <img
                         src={f.logoUrl}
                         alt=""
-                        style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#fafaf9" }}
+                        style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0, background: A.paper }}
                       />
                     ) : (
                       <div
                         style={{
                           width: 44,
                           height: 44,
-                          borderRadius: 8,
-                          background: "#f5f5f4",
+                          borderRadius: 10,
+                          background: A.bgMid,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
                         }}
                       >
-                        <span style={{ fontSize: 18, fontWeight: 700, color: "#a8a29e" }}>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: A.textFaint }}>
                           {f.name.slice(0, 1).toUpperCase()}
                         </span>
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#1c1917", margin: "0 0 3px" }}>{f.name}</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: A.textPrimary, margin: "0 0 3px" }}>{f.name}</p>
                       {f.notes && (
-                        <p style={{ fontSize: 12, color: "#78716c", margin: 0, lineHeight: 1.4 }}>{f.notes}</p>
+                        <p style={{ fontSize: 12, color: A.textMuted, margin: 0, lineHeight: 1.4 }}>{f.notes}</p>
                       )}
                     </div>
                     <div
@@ -258,8 +276,8 @@ export function QuoteFlow({
                         width: 22,
                         height: 22,
                         borderRadius: 11,
-                        border: isSelected ? "none" : "2px solid #d6d3d1",
-                        background: isSelected ? "#FF6B4A" : "transparent",
+                        border: isSelected ? "none" : `2px solid ${A.inputBorder}`,
+                        background: isSelected ? A.coralDeep : "transparent",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -292,6 +310,8 @@ export function QuoteFlow({
                 { value: "either", label: "Either phone or email" },
                 { value: "phone", label: "Phone" },
                 { value: "email", label: "Email" },
+                { value: "text", label: "Text message" },
+                { value: "whatsapp", label: "WhatsApp" },
               ]}
             />
             <RadioRow
@@ -356,16 +376,43 @@ export function QuoteFlow({
               />
             </div>
             <div>
-              <label style={labelStyle}>Phone (optional but recommended)</label>
+              <label style={labelStyle}>
+                Phone {phoneRequired ? "(required for the way you chose to be contacted)" : "(optional but recommended)"}
+              </label>
               <input
                 type="tel"
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  border: phoneRequired && !clientPhone.trim() ? `1.5px solid ${A.dangerBorder}` : inputStyle.border,
+                }}
               />
             </div>
           </div>
         </StepCard>
+      )}
+
+      {/* Read-only: what the surveyor will see about the property */}
+      {serviceTypeId && selectedFirms.size > 0 && (
+        <div
+          style={{
+            background: A.coralTint,
+            border: `1px solid ${A.cardBorder}`,
+            borderRadius: 16,
+            padding: "14px 16px",
+          }}
+        >
+          <p style={{ ...labelStyle, marginBottom: 10, color: A.coralDark }}>What the surveyor will see</p>
+          <ShareRow label="Property" value={propertyAddress} />
+          {priceLabel && <ShareRow label="Purchase price" value={priceLabel} />}
+          {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
+          {!priceLabel && !tenureLabel && (
+            <p style={{ fontSize: 12, color: A.textMuted, margin: "8px 0 0", lineHeight: 1.4 }}>
+              We'll pass on the property details we hold on your file.
+            </p>
+          )}
+        </div>
       )}
 
       {/* Submit */}
@@ -376,10 +423,10 @@ export function QuoteFlow({
               style={{
                 marginBottom: 12,
                 padding: "10px 12px",
-                borderRadius: 8,
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#991b1b",
+                borderRadius: 10,
+                background: A.dangerBg,
+                border: `1px solid ${A.dangerBorder}`,
+                color: A.danger,
                 fontSize: 13,
               }}
             >
@@ -392,17 +439,15 @@ export function QuoteFlow({
             style={{
               width: "100%",
               padding: "14px",
-              borderRadius: 12,
+              borderRadius: 14,
               border: "none",
-              background: canSubmit
-                ? "linear-gradient(135deg, #FF8A65, #FF6B4A)"
-                : "#e7e5e4",
-              color: "white",
+              background: canSubmit ? A.coralGradient : A.bgWarm,
+              color: canSubmit ? "white" : A.textFaint,
               fontSize: 15,
               fontWeight: 700,
               cursor: canSubmit ? "pointer" : "not-allowed",
               transition: "all 0.15s",
-              boxShadow: canSubmit ? "0 4px 20px -6px rgba(255, 107, 74, 0.4)" : "none",
+              boxShadow: canSubmit ? "0 6px 22px -6px rgba(255, 107, 74, 0.5)" : "none",
             }}
           >
             {pending
@@ -416,6 +461,15 @@ export function QuoteFlow({
 }
 
 // ── Building blocks ──────────────────────────────────────────────────────
+
+function ShareRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", gap: 12, padding: "5px 0", alignItems: "baseline" }}>
+      <span style={{ fontSize: 12, color: A.textMuted, width: 96, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 13, color: A.textPrimary, fontWeight: 600, lineHeight: 1.4 }}>{value}</span>
+    </div>
+  );
+}
 
 function StepCard({
   number,
@@ -431,11 +485,13 @@ function StepCard({
   return (
     <section
       style={{
-        background: "white",
-        border: "1px solid rgba(255,107,74,0.15)",
-        borderRadius: 16,
+        background: A.cardBg,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: `1px solid ${A.cardBorder}`,
+        borderRadius: 20,
         padding: 20,
-        boxShadow: "0 2px 12px -4px rgba(120, 53, 15, 0.08)",
+        boxShadow: A.cardShadow,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: subtitle ? 4 : 14 }}>
@@ -444,7 +500,7 @@ function StepCard({
             width: 24,
             height: 24,
             borderRadius: 12,
-            background: "#FF6B4A",
+            background: A.coralGradient,
             color: "white",
             fontSize: 12,
             fontWeight: 700,
@@ -456,10 +512,10 @@ function StepCard({
         >
           {number}
         </span>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1c1917", margin: 0 }}>{title}</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: A.textPrimary, margin: 0 }}>{title}</h2>
       </div>
       {subtitle && (
-        <p style={{ fontSize: 12, color: "#78716c", margin: "0 0 14px", paddingLeft: 34 }}>
+        <p style={{ fontSize: 12, color: A.textMuted, margin: "0 0 14px", paddingLeft: 34 }}>
           {subtitle}
         </p>
       )}
@@ -490,9 +546,9 @@ function RadioRow({
             style={{
               padding: "6px 12px",
               borderRadius: 999,
-              border: value === o.value ? "1.5px solid #FF6B4A" : "1px solid #e7e5e4",
-              background: value === o.value ? "#FFF5F1" : "white",
-              color: value === o.value ? "#c2410c" : "#57534e",
+              border: value === o.value ? `1.5px solid ${A.coralTintBorder}` : `1px solid ${A.inputBorder}`,
+              background: value === o.value ? A.coralTint : A.inputBg,
+              color: value === o.value ? A.coralDark : A.textSecondary,
               fontSize: 13,
               fontWeight: value === o.value ? 600 : 500,
               cursor: "pointer",
@@ -511,7 +567,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
   fontWeight: 600,
-  color: "#78716c",
+  color: A.textMuted,
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   marginBottom: 6,
@@ -520,11 +576,11 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #e7e5e4",
-  background: "white",
+  borderRadius: 10,
+  border: `1px solid ${A.inputBorder}`,
+  background: A.inputBg,
   fontSize: 14,
-  color: "#1c1917",
+  color: A.textPrimary,
   outline: "none",
   transition: "border-color 0.15s",
 };

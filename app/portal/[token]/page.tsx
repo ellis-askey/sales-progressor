@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
@@ -135,6 +135,16 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // Once the buyer's survey is booked (PM9) the quote prompt is redundant.
   // Reactive to milestone state, so undoing PM9 brings the card back.
   const surveyBooked = milestones.some((m) => m.code === "PM9" && m.isComplete);
+
+  // Has this buyer already requested survey quotes? Distinct firms + latest
+  // submit, so we can acknowledge it rather than showing "Get a survey quote"
+  // as if nothing happened. Own data (scoped by this contact's id).
+  const surveyQuotes = side === "purchaser"
+    ? await getPortalSurveyQuotes(contact.id)
+    : { firmNames: [], lastQuotedAt: null };
+  const quotedFirmNames = surveyQuotes.firmNames;
+  const lastQuotedAt = surveyQuotes.lastQuotedAt;
+  const hasRequestedQuote = quotedFirmNames.length > 0;
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
   const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered
   const pm13Done       = isMilestoneCompleteByCode("PM13"); // results back
@@ -483,7 +493,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       )}
 
       {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
-      {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && (
+      {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && (
         <Link
           href={`/quote/${token}`}
           className="block rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
@@ -511,6 +521,33 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </svg>
           </div>
         </Link>
+      )}
+
+      {/* ── Survey quote requested — acknowledgement (purchasers, pre-booked) ── */}
+      {side === "purchaser" && !surveyBooked && !hasExchanged && !hasCompleted && hasRequestedQuote && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+          <div className="flex items-center gap-3 p-5">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: P.accentBg, color: P.accent }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+                Survey quote requested
+              </p>
+              <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+                {quotedFirmNames.length === 1
+                  ? `${quotedFirmNames[0]} will be in touch with a quote.`
+                  : `${quotedFirmNames.length} firms will be in touch with a quote.`}
+                {lastQuotedAt ? ` Requested ${fmtDate(lastQuotedAt)}.` : ""} Not heard back? Let your agent know.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}

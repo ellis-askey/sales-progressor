@@ -900,6 +900,10 @@ model QuoteRequest {
   propertyAddress     String
   propertyPostcode    String
   propertyOutwardCode String
+  // Snapshotted property facts the surveyor needs to price the job. Nullable
+  // because a file may not have them recorded yet at request time.
+  pricePence          Int?
+  tenure              Tenure?
 
   status            QuoteRequestStatus @default(pending)
   statusReason      String?
@@ -952,6 +956,8 @@ enum QuoteContactMethod {
   phone
   email
   either
+  text
+  whatsapp
 }
 
 enum QuoteContactWindow {

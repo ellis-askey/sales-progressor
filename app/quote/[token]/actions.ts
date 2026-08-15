@@ -7,7 +7,23 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { outwardCode } from "@/lib/utils/address";
-import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency } from "@prisma/client";
+import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
+
+// Contact methods that reach the client on a phone number — server-side mirror
+// of the client's PHONE_METHODS gate.
+const PHONE_METHODS: QuoteContactMethod[] = ["phone", "text", "whatsapp"];
+
+function tenureLabel(tenure: Tenure | null, isShareOfFreehold: boolean): string | null {
+  if (isShareOfFreehold) return "Share of freehold";
+  if (tenure === "freehold") return "Freehold";
+  if (tenure === "leasehold") return "Leasehold";
+  return null;
+}
+
+function priceLabel(pence: number | null): string | null {
+  if (pence == null) return null;
+  return `£${Math.round(pence / 100).toLocaleString("en-GB")}`;
+}
 
 // UK postcode inside a free-form address string.
 const POSTCODE_IN_ADDRESS = /\b([A-Z]{1,2}[0-9][0-9A-Z]?)\s*([0-9][A-Z]{2})\b/i;
@@ -46,8 +62,13 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.clientEmail.trim())) {
     return { ok: false, error: "That email doesn't look valid." };
   }
+  if (PHONE_METHODS.includes(input.contactMethod) && !input.clientPhone.trim()) {
+    return { ok: false, error: "Add a phone number so they can reach you that way." };
+  }
 
-  // 1. Look up the contact + linked sale from the token.
+  // 1. Look up the contact + linked sale from the token. Pull the property
+  //    facts a surveyor needs to price the job (price + tenure) server-side so
+  //    they can't be tampered with.
   const contact = await prisma.contact.findFirst({
     where: { portalToken: input.token },
     include: {
@@ -55,6 +76,9 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
         select: {
           id: true,
           propertyAddress: true,
+          purchasePrice: true,
+          tenure: true,
+          isShareOfFreehold: true,
           assignedUser: { select: { email: true, name: true } },
         },
       },
@@ -104,6 +128,10 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   const propertyAddress = contact.transaction.propertyAddress;
   const propertyPostcode = extractPostcodeFromAddress(propertyAddress);
   const agentEmail = contact.transaction.assignedUser?.email ?? null;
+  const pricePence = contact.transaction.purchasePrice ?? null;
+  const tenure = contact.transaction.tenure ?? null;
+  const tenureText = tenureLabel(tenure, contact.transaction.isShareOfFreehold);
+  const priceText = priceLabel(pricePence);
 
   const created = await Promise.all(
     validFirms.map((f) =>
@@ -124,6 +152,8 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
           propertyAddress,
           propertyPostcode,
           propertyOutwardCode: outward,
+          pricePence,
+          tenure,
           submittedAt: new Date(),
         },
       }),
@@ -133,68 +163,81 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   // 4. Send one email per QuoteRequest. Log to OutboundEmailQueue for
   //    delivery-status tracking (SendGrid webhooks fill in
   //    deliveredAt/bouncedAt via queueId customArgs).
+  //
+  //    The ENTIRE per-firm block is wrapped so nothing here — not the queue
+  //    insert, not the send, not the status update — can ever throw out of the
+  //    action and crash the client's submission. The QuoteRequest rows are
+  //    already saved above; a mail failure is an admin-side concern, surfaced
+  //    via the queue row's error stamp, not a dead-end for the buyer.
+  //    (Fixes the 2026-08-14 crash: the queue insert used to sit outside the
+  //    try, so any failure there rejected the whole submit.)
   await Promise.all(
     created.map(async (q, idx) => {
-      const firm = validFirms[idx];
-      const cc: string[] = [];
-      if (agentEmail) cc.push(agentEmail);
-      cc.push(FALLBACK_CC);
-      // Dedupe in case the agent IS ellis
-      const dedupedCc = [...new Set(cc)];
-
-      const subject = `Survey quote request — ${propertyAddress}`;
-      const text = renderQuoteEmailText({
-        firmName: firm.name,
-        serviceLabel: serviceType.label,
-        propertyAddress,
-        propertyPostcode,
-        clientName: input.clientName.trim(),
-        clientEmail: input.clientEmail.trim(),
-        clientPhone: input.clientPhone.trim() || "(not provided)",
-        contactMethod: input.contactMethod,
-        contactWindow: input.contactWindow,
-        urgency: input.urgency,
-        notes: input.notes.trim() || "(none)",
-      });
-
-      // Create the OutboundEmailQueue row first (so we have a queueId for
-      // SendGrid customArgs). Marked sentAt immediately since we're sending
-      // inline rather than via the drain cron.
-      const queueRow = await prisma.outboundEmailQueue.create({
-        data: {
-          emailType: "PROVIDER_QUOTE",
-          sourceId: `quote:${q.id}`,
-          recipientEmail: firm.email,
-          payload: { subject, text },
-          scheduledFor: new Date(),
-          sentAt: new Date(),
-        },
-      });
-
       try {
-        await sendEmail({
-          to: firm.email,
-          cc: dedupedCc,
-          replyTo: input.clientEmail.trim(),
-          subject,
-          text,
-          queueId: queueRow.id,
+        const firm = validFirms[idx];
+        const cc: string[] = [];
+        if (agentEmail) cc.push(agentEmail);
+        cc.push(FALLBACK_CC);
+        // Dedupe in case the agent IS ellis
+        const dedupedCc = [...new Set(cc)];
+
+        const subject = `Survey quote request: ${propertyAddress}`;
+        const text = renderQuoteEmailText({
+          firmName: firm.name,
+          serviceLabel: serviceType.label,
+          propertyAddress,
+          propertyPostcode,
+          priceText: priceText ?? "(not recorded)",
+          tenureText: tenureText ?? "(not recorded)",
+          clientName: input.clientName.trim(),
+          clientEmail: input.clientEmail.trim(),
+          clientPhone: input.clientPhone.trim() || "(not provided)",
+          contactMethod: input.contactMethod,
+          contactWindow: input.contactWindow,
+          urgency: input.urgency,
+          notes: input.notes.trim() || "(none)",
         });
-        await prisma.quoteRequest.update({
-          where: { id: q.id },
-          data: { emailSentAt: new Date(), emailMessageId: queueRow.id },
-        });
-      } catch (err) {
-        // Stamp the error on the queue row so it surfaces in the CC detail view.
-        await prisma.outboundEmailQueue.update({
-          where: { id: queueRow.id },
+
+        // Create the OutboundEmailQueue row first (so we have a queueId for
+        // SendGrid customArgs). Marked sentAt immediately since we're sending
+        // inline rather than via the drain cron.
+        const queueRow = await prisma.outboundEmailQueue.create({
           data: {
-            errorAt: new Date(),
-            errorMessage: err instanceof Error ? err.message : String(err),
+            emailType: "PROVIDER_QUOTE",
+            sourceId: `quote:${q.id}`,
+            recipientEmail: firm.email,
+            payload: { subject, text },
+            scheduledFor: new Date(),
+            sentAt: new Date(),
           },
         });
-        // Don't fail the whole submission — the QuoteRequest row still exists
-        // and admin can see the delivery failure in the CC.
+
+        try {
+          await sendEmail({
+            to: firm.email,
+            cc: dedupedCc,
+            replyTo: input.clientEmail.trim(),
+            subject,
+            text,
+            queueId: queueRow.id,
+          });
+          await prisma.quoteRequest.update({
+            where: { id: q.id },
+            data: { emailSentAt: new Date(), emailMessageId: queueRow.id },
+          });
+        } catch (err) {
+          // Stamp the error on the queue row so it surfaces in the CC detail view.
+          await prisma.outboundEmailQueue.update({
+            where: { id: queueRow.id },
+            data: {
+              errorAt: new Date(),
+              errorMessage: err instanceof Error ? err.message : String(err),
+            },
+          });
+        }
+      } catch {
+        // Last-resort guard: even a queue-insert failure must not crash the
+        // submit. The QuoteRequest row persists; admin sees no emailSentAt.
       }
     }),
   );
@@ -211,6 +254,8 @@ function renderQuoteEmailText(v: {
   serviceLabel: string;
   propertyAddress: string;
   propertyPostcode: string;
+  priceText: string;
+  tenureText: string;
   clientName: string;
   clientEmail: string;
   clientPhone: string;
@@ -238,7 +283,11 @@ function renderQuoteEmailText(v: {
       ? "By phone"
       : v.contactMethod === "email"
         ? "By email"
-        : "Phone or email, whichever works";
+        : v.contactMethod === "text"
+          ? "By text message"
+          : v.contactMethod === "whatsapp"
+            ? "By WhatsApp"
+            : "Phone or email, whichever works";
 
   return `Hi ${v.firmName},
 
@@ -246,6 +295,8 @@ A client of ours has requested a quote for the following:
 
 Property:      ${v.propertyAddress}
 Postcode:      ${v.propertyPostcode}
+Price:         ${v.priceText}
+Tenure:        ${v.tenureText}
 Service:       ${v.serviceLabel}
 Urgency:       ${urgency}
 

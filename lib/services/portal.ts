@@ -2288,6 +2288,24 @@ const PORTAL_NOT_REQUIRED_WHITELIST: Record<string, string[]> = {
   PM9: ["PM10"],
 };
 
+// Survey quotes this buyer has already requested. Distinct firm names (a buyer
+// can request from several firms in one go) + the most recent submit, so the
+// portal can acknowledge the request instead of re-offering it. Scoped to the
+// contact's own id — token already resolved upstream.
+export async function getPortalSurveyQuotes(
+  contactId: string,
+): Promise<{ firmNames: string[]; lastQuotedAt: Date | null }> {
+  const rows = await prisma.quoteRequest.findMany({
+    where: { contactId },
+    select: { submittedAt: true, provider: { select: { name: true } } },
+    orderBy: { submittedAt: "desc" },
+  });
+  return {
+    firmNames: [...new Set(rows.map((r) => r.provider.name))],
+    lastQuotedAt: rows[0]?.submittedAt ?? null,
+  };
+}
+
 export async function portalMarkNotRequired(input: {
   token: string;
   milestoneDefinitionId: string;

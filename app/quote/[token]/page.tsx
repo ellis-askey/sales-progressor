@@ -4,6 +4,10 @@
 // in preferences, submits.
 //
 // Whitelisted in middleware.ts (matcher exclusion + authorized callback).
+//
+// Visual system: the app's light "sunset" tokens (see design/tokens.ts) so the
+// page reads as part of Sales Progressor, not a bolt-on. This page is the base
+// the wider portal re-skin will follow.
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -11,12 +15,25 @@ import { outwardCode } from "@/lib/utils/address";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { QuoteFlow } from "./QuoteFlow";
+import { A } from "./ui";
 
 export const metadata = {
   title: "Get a survey quote | Sales Progressor",
 };
 
 export const dynamic = "force-dynamic";
+
+function tenureLabel(tenure: string | null, isShareOfFreehold: boolean): string | null {
+  if (isShareOfFreehold) return "Share of freehold";
+  if (tenure === "freehold") return "Freehold";
+  if (tenure === "leasehold") return "Leasehold";
+  return null;
+}
+
+function priceLabel(pence: number | null): string | null {
+  if (pence == null) return null;
+  return `£${Math.round(pence / 100).toLocaleString("en-GB")}`;
+}
 
 export default async function QuotePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -28,6 +45,9 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
         select: {
           id: true,
           propertyAddress: true,
+          purchasePrice: true,
+          tenure: true,
+          isShareOfFreehold: true,
         },
       },
     },
@@ -70,7 +90,7 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
     <main
       style={{
         minHeight: "100svh",
-        background: "linear-gradient(160deg, #FEF7ED 0%, #FDF2E9 100%)",
+        background: `linear-gradient(165deg, ${A.bgBase} 0%, ${A.bgMid} 55%, ${A.bgWarm} 100%)`,
         padding: "24px 20px 64px",
       }}
     >
@@ -83,11 +103,12 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: "linear-gradient(135deg, #FF8A65, #FF6B4A)",
+                background: A.coralGradient,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
+                boxShadow: "0 2px 8px rgba(255,107,74,0.28)",
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -95,16 +116,16 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
                 <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.91.37 4.15 1.01" />
               </svg>
             </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#7c2d12" }}>Sales Progressor</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: A.textPrimary }}>Sales Progressor</span>
           </div>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "#FF6B4A", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: A.coralDeep, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
             Get a survey quote
           </p>
-          <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1c1917", letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
             {extractFirstName(contact.name)}, let's find you a surveyor
           </h1>
-          <p style={{ fontSize: 14, color: "#78716c", margin: 0, lineHeight: 1.5 }}>
-            For your purchase at <strong style={{ color: "#44403c" }}>{contact.transaction.propertyAddress}</strong>. We'll only send quotes to firms that cover your area.
+          <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
+            For your purchase at <strong style={{ color: A.textSecondary }}>{contact.transaction.propertyAddress}</strong>. We'll only send quotes to firms that cover your area.
           </p>
         </header>
 
@@ -112,6 +133,8 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
           token={token}
           propertyAddress={contact.transaction.propertyAddress}
           outwardCode={outward}
+          priceLabel={priceLabel(contact.transaction.purchasePrice)}
+          tenureLabel={tenureLabel(contact.transaction.tenure, contact.transaction.isShareOfFreehold)}
           serviceTypes={serviceTypes.map((s) => ({
             id: s.id,
             label: s.label,
@@ -124,9 +147,9 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
         />
 
         <footer style={{ marginTop: 32, textAlign: "center" }}>
-          <p style={{ fontSize: 11, color: "#a8a29e" }}>
+          <p style={{ fontSize: 11, color: A.textFaint }}>
             Your details are only shared with the firms you select. Read our{" "}
-            <a href="/privacy" style={{ color: "#FF6B4A", textDecoration: "underline" }}>
+            <a href="/privacy" style={{ color: A.coralDeep, textDecoration: "underline" }}>
               privacy policy
             </a>
             .
