@@ -27,6 +27,7 @@ import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
+import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
 import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench } from "@phosphor-icons/react";
@@ -477,7 +478,17 @@ export function AgentFileSidebar({
         </div>
 
         <SidebarRow label="Purchase price" value={formatPrice(transaction.purchasePrice) ?? "–"} />
-        <SidebarRow label="Agent fee" value={agentFeeValue} />
+        {hideCommercialFields ? (
+          <SidebarRow label="Agent fee" value={agentFeeValue} />
+        ) : (
+          <AgentFeeInline
+            transactionId={transaction.id}
+            agentFeeAmount={transaction.agentFeeAmount}
+            agentFeePercent={transaction.agentFeePercent}
+            agentFeeIsVatInclusive={transaction.agentFeeIsVatInclusive}
+            purchasePrice={transaction.purchasePrice}
+          />
+        )}
         {((recommendedFirms != null && recommendedFirms.length > 0) || transaction.referredFirmName) && (
           <SidebarRow
             label="Solicitor referral"
