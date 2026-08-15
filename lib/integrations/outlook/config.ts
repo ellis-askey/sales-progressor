@@ -174,34 +174,45 @@ export type OutlookMessage = {
   cc: string[];
   receivedDateTime: string;
   bodyPreview: string;
+  body: string; // full body as plain text
   webLink: string | null;
+  folder: string; // display name of the folder the message lives in
 };
 
-/** Reads the most recent Inbox messages for the connected mailbox. */
-export async function fetchInboxMessages(
-  accessToken: string,
-  top = 25
-): Promise<OutlookMessage[]> {
-  const url = new URL("https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages");
-  url.searchParams.set(
-    "$select",
-    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,webLink"
-  );
-  url.searchParams.set("$top", String(top));
-  url.searchParams.set("$orderby", "receivedDateTime desc");
+export type MailFolder = { id: string; displayName: string; totalItemCount: number };
 
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) {
-    throw new Error(`[outlook] Messages fetch failed (${res.status})`);
+/**
+ * Lists the mailbox's folders (top level plus one level of children — enough for
+ * per-property folders filed under a parent). Well-known system folders are
+ * included here; the caller decides which to scan.
+ */
+export async function listMailFolders(accessToken: string): Promise<MailFolder[]> {
+  const out: MailFolder[] = [];
+  let url: string | null =
+    "https://graph.microsoft.com/v1.0/me/mailFolders?$top=100&$select=id,displayName,totalItemCount&$expand=childFolders($select=id,displayName,totalItemCount)";
+  while (url) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) throw new Error(`[outlook] Folder list failed (${res.status})`);
+    const data = (await res.json()) as {
+      value?: (MailFolder & { childFolders?: MailFolder[] })[];
+      "@odata.nextLink"?: string;
+    };
+    for (const f of data.value ?? []) {
+      out.push({ id: f.id, displayName: f.displayName ?? "", totalItemCount: f.totalItemCount ?? 0 });
+      for (const c of f.childFolders ?? []) {
+        out.push({ id: c.id, displayName: c.displayName ?? "", totalItemCount: c.totalItemCount ?? 0 });
+      }
+    }
+    url = data["@odata.nextLink"] ?? null;
   }
+  return out;
+}
 
-  const data = (await res.json()) as { value?: GraphMessageRaw[] };
-  const addr = (r?: GraphRecipient | null): string | null =>
-    r?.emailAddress?.address ? String(r.emailAddress.address) : null;
+const addr = (r?: GraphRecipient | null): string | null =>
+  r?.emailAddress?.address ? String(r.emailAddress.address) : null;
 
-  return (data.value ?? []).map((m) => ({
+function mapGraphMessage(m: GraphMessageRaw, folder: string): OutlookMessage {
+  return {
     id: m.id,
     subject: m.subject ?? "",
     from: addr(m.from) ?? "",
@@ -210,8 +221,53 @@ export async function fetchInboxMessages(
     cc: (m.ccRecipients ?? []).map(addr).filter((x): x is string => Boolean(x)),
     receivedDateTime: m.receivedDateTime,
     bodyPreview: m.bodyPreview ?? "",
+    body: m.body?.content ?? "",
     webLink: m.webLink ?? null,
-  }));
+    folder,
+  };
+}
+
+/**
+ * Reads messages in one folder received on/after `sinceIso`, newest first,
+ * following paging up to `cap` messages.
+ */
+export async function fetchFolderMessagesSince(
+  accessToken: string,
+  folder: MailFolder,
+  sinceIso: string,
+  cap = 200
+): Promise<OutlookMessage[]> {
+  const first = new URL(
+    `https://graph.microsoft.com/v1.0/me/mailFolders/${folder.id}/messages`
+  );
+  first.searchParams.set(
+    "$select",
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink"
+  );
+  first.searchParams.set("$top", "50");
+  first.searchParams.set("$filter", `receivedDateTime ge ${sinceIso}`);
+  first.searchParams.set("$orderby", "receivedDateTime desc");
+
+  const out: OutlookMessage[] = [];
+  let next: string | null = first.toString();
+  while (next && out.length < cap) {
+    const res = await fetch(next, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        // Ask Graph for the body as plain text rather than HTML, so we store
+        // readable content, not markup.
+        Prefer: 'outlook.body-content-type="text"',
+      },
+    });
+    if (!res.ok) throw new Error(`[outlook] Messages fetch failed (${res.status})`);
+    const data = (await res.json()) as {
+      value?: GraphMessageRaw[];
+      "@odata.nextLink"?: string;
+    };
+    for (const m of data.value ?? []) out.push(mapGraphMessage(m, folder.displayName));
+    next = data["@odata.nextLink"] ?? null;
+  }
+  return out.slice(0, cap);
 }
 
 type GraphRecipient = { emailAddress?: { address?: string | null; name?: string | null } | null };
@@ -223,6 +279,7 @@ type GraphMessageRaw = {
   ccRecipients?: GraphRecipient[] | null;
   receivedDateTime: string;
   bodyPreview?: string | null;
+  body?: { contentType?: string; content?: string } | null;
   webLink?: string | null;
 };
 

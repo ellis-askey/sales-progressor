@@ -15,7 +15,15 @@ import { Mail, CheckCircle2, AlertTriangle, Loader2, Plus, RefreshCw } from "luc
 
 type Connection = { id: string; email: string; displayName: string | null };
 type RosterEntry = { label: string; email: string };
-type SyncSummary = { checked: number; logged: number; alreadyLogged: number; unmatched: number };
+type LoggedItem = { transactionId: string; address: string; subject: string };
+type SyncSummary = {
+  checked: number;
+  folders: number;
+  logged: number;
+  alreadyLogged: number;
+  unmatched: number;
+  items: LoggedItem[];
+};
 type SyncState = { loading: boolean; summary?: SyncSummary; error?: boolean };
 
 type Status = {
@@ -157,10 +165,27 @@ export function OutlookConnectionCard() {
     if (st.summary) {
       const s = st.summary;
       return (
-        <p className="mt-2 text-[12px] text-neutral-400">
-          Checked {s.checked} · logged {s.logged} new · {s.alreadyLogged} already logged ·{" "}
-          {s.unmatched} unmatched
-        </p>
+        <div className="mt-2">
+          <p className="text-[12px] text-neutral-400">
+            Checked {s.checked} across {s.folders} folder{s.folders === 1 ? "" : "s"} · logged{" "}
+            {s.logged} new · {s.alreadyLogged} already logged · {s.unmatched} unmatched
+          </p>
+          {s.items.length > 0 && (
+            <ul className="mt-1.5 space-y-1">
+              {s.items.map((it, i) => (
+                <li key={`${it.transactionId}-${i}`} className="text-[12px] leading-snug">
+                  <a
+                    href={`/agent/transactions/${it.transactionId}`}
+                    className="text-blue-400 hover:text-blue-300 hover:underline"
+                  >
+                    {it.address || "View file"}
+                  </a>
+                  <span className="text-neutral-500"> · {it.subject}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       );
     }
     return null;
