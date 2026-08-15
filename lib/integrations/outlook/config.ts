@@ -270,6 +270,24 @@ export async function fetchFolderMessagesSince(
   return out.slice(0, cap);
 }
 
+/** Reads a single message by id (used when logging an email on demand). */
+export async function fetchMessageById(accessToken: string, id: string): Promise<OutlookMessage> {
+  const url = new URL(`https://graph.microsoft.com/v1.0/me/messages/${id}`);
+  url.searchParams.set(
+    "$select",
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink"
+  );
+  const res = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: 'outlook.body-content-type="text"',
+    },
+  });
+  if (!res.ok) throw new Error(`[outlook] Message fetch failed (${res.status})`);
+  const m = (await res.json()) as GraphMessageRaw;
+  return mapGraphMessage(m, "");
+}
+
 type GraphRecipient = { emailAddress?: { address?: string | null; name?: string | null } | null };
 type GraphMessageRaw = {
   id: string;
