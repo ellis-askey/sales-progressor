@@ -65,8 +65,7 @@ export async function GET(req: Request) {
     }
 
     const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000);
-    const record = {
-      microsoftUserId: me.id,
+    const data = {
       email: me.email,
       displayName: me.displayName,
       accessToken: encryptSecret(tokens.access_token),
@@ -75,10 +74,13 @@ export async function GET(req: Request) {
       scope: tokens.scope || OUTLOOK_SCOPE_STRING,
     };
 
+    // Add a new mailbox, or refresh this same mailbox if it's already connected.
     await prisma.outlookConnection.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id, ...record },
-      update: record,
+      where: {
+        userId_microsoftUserId: { userId: session.user.id, microsoftUserId: me.id },
+      },
+      create: { userId: session.user.id, microsoftUserId: me.id, ...data },
+      update: data,
     });
 
     return finish({ outlook: "connected" });

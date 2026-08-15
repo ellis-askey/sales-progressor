@@ -10,16 +10,14 @@ import { isOutlookConfigured } from "@/lib/integrations/outlook/config";
 
 export async function GET() {
   const session = await requireSession();
-  const conn = await prisma.outlookConnection.findUnique({
+  const connections = await prisma.outlookConnection.findMany({
     where: { userId: session.user.id },
-    select: { email: true, displayName: true, createdAt: true },
+    select: { id: true, email: true, displayName: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
   });
 
   return NextResponse.json({
     configured: isOutlookConfigured(),
-    connected: Boolean(conn),
-    email: conn?.email ?? null,
-    displayName: conn?.displayName ?? null,
-    connectedAt: conn?.createdAt ?? null,
+    connections,
   });
 }

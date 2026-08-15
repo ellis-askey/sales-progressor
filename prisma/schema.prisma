@@ -196,7 +196,7 @@ model User {
   holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
   pricingAcknowledgements       PricingAcknowledgement[]
   quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
-  outlookConnection             OutlookConnection?
+  outlookConnections            OutlookConnection[]
 }
 
 model AgentPushSubscription {
@@ -1824,13 +1824,14 @@ model Session {
 
 // A user's connected Microsoft Outlook mailbox (Microsoft Graph, delegated).
 // Distinct from the NextAuth `Account` table (which is login-only, plaintext,
-// managed by the adapter): this is a first-class per-user integration with
-// mail scopes, and its access + refresh tokens are ENCRYPTED at rest via
-// lib/security/token-crypto.ts (AES-256-GCM). One mailbox per user for now.
-// Phase 1 = connection only; later phases add token refresh + Graph reads.
+// managed by the adapter): this is a first-class integration with mail scopes,
+// and its access + refresh tokens are ENCRYPTED at rest via
+// lib/security/token-crypto.ts (AES-256-GCM). A user may connect SEVERAL
+// mailboxes (e.g. one per agency domain), one row each, keyed by the Microsoft
+// account id. Phase 1 = connection only; later phases add token refresh + reads.
 model OutlookConnection {
   id              String   @id @default(cuid())
-  userId          String   @unique
+  userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Identity of the connected Microsoft account, from Graph /me.
@@ -1847,6 +1848,9 @@ model OutlookConnection {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // One row per (user, mailbox): reconnecting the same mailbox updates it,
+  // a different mailbox adds a new row.
+  @@unique([userId, microsoftUserId])
   @@index([microsoftUserId])
 }
 

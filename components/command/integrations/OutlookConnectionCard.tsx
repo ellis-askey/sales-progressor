@@ -2,20 +2,25 @@
 
 // components/command/integrations/OutlookConnectionCard.tsx
 //
-// Command Centre → Settings → Connections. Per-user Microsoft Outlook
-// connection card (dark register). Reads state from /api/integrations/outlook/status
-// on mount and reflects the ?outlook=connected|error flag the callback sets.
-// The Connect action is a full-page navigation into the OAuth redirect flow.
+// Command Centre → Settings → Connections. Microsoft Outlook mailboxes (dark
+// register). A user can connect several mailboxes (one per agency domain).
+// Reads the list from /api/integrations/outlook/status on mount and reflects
+// the ?outlook=connected|error flag the callback sets. Connect/Add is a
+// full-page navigation into the OAuth redirect flow.
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Mail, CheckCircle2, AlertTriangle, Loader2, Plus } from "lucide-react";
+
+type Connection = {
+  id: string;
+  email: string;
+  displayName: string | null;
+};
 
 type Status = {
   configured: boolean;
-  connected: boolean;
-  email: string | null;
-  displayName: string | null;
+  connections: Connection[];
 };
 
 const REASON_COPY: Record<string, string> = {
@@ -33,7 +38,7 @@ export function OutlookConnectionCard() {
   const params = useSearchParams();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const outcome = params.get("outlook"); // "connected" | "error" | null
   const reason = params.get("reason") ?? "";
@@ -52,23 +57,29 @@ export function OutlookConnectionCard() {
     load();
   }, [load]);
 
-  async function disconnect() {
-    setDisconnecting(true);
+  async function disconnect(id: string) {
+    setRemovingId(id);
     try {
-      await fetch("/api/integrations/outlook/disconnect", { method: "POST" });
-      // Clear any lingering ?outlook= flag from the URL and refresh state.
+      await fetch("/api/integrations/outlook/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
       router.replace("/command/settings/connections");
       await load();
     } finally {
-      setDisconnecting(false);
+      setRemovingId(null);
     }
   }
+
+  const connections = status?.connections ?? [];
+  const count = connections.length;
 
   const banner =
     outcome === "connected" ? (
       <div className="flex items-center gap-2 rounded-lg border border-emerald-900/60 bg-emerald-950/40 px-3 py-2 text-[13px] text-emerald-300">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
-        Outlook connected.
+        Mailbox connected.
       </div>
     ) : outcome === "error" ? (
       <div className="flex items-start gap-2 rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-[13px] text-red-300">
@@ -89,27 +100,26 @@ export function OutlookConnectionCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-neutral-100">Microsoft Outlook</p>
               <p className="mt-0.5 text-[12.5px] leading-relaxed text-neutral-500">
-                Connect your mailbox so emails can be linked to the right property file.
+                Connect a mailbox so its emails can be linked to the right property file. Add one
+                per agency address.
               </p>
             </div>
 
-            {/* Status pill */}
             {!loading && status && (
               <span
                 className={
-                  status.connected
+                  count > 0
                     ? "shrink-0 rounded-full border border-emerald-900/60 bg-emerald-950/40 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300"
                     : "shrink-0 rounded-full border border-neutral-700 bg-neutral-800 px-2.5 py-0.5 text-[11px] font-medium text-neutral-400"
                 }
               >
-                {status.connected ? "Connected" : "Not connected"}
+                {count > 0 ? `${count} connected` : "Not connected"}
               </span>
             )}
           </div>
 
           {banner && <div className="mt-3">{banner}</div>}
 
-          {/* Body */}
           <div className="mt-4">
             {loading ? (
               <div className="flex items-center gap-2 text-[13px] text-neutral-500">
@@ -121,23 +131,7 @@ export function OutlookConnectionCard() {
                 Not configured yet. Add the Microsoft environment variables in Vercel, then reload
                 this page.
               </p>
-            ) : status.connected ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-neutral-200">{status.email}</p>
-                  {status.displayName && (
-                    <p className="truncate text-[12px] text-neutral-500">{status.displayName}</p>
-                  )}
-                </div>
-                <button
-                  onClick={disconnect}
-                  disabled={disconnecting}
-                  className="shrink-0 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-[13px] font-medium text-neutral-200 transition-colors hover:border-neutral-600 hover:bg-neutral-700 disabled:opacity-50"
-                >
-                  {disconnecting ? "Removing…" : "Disconnect"}
-                </button>
-              </div>
-            ) : (
+            ) : count === 0 ? (
               <a
                 href="/api/integrations/outlook/connect"
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-500"
@@ -145,6 +139,38 @@ export function OutlookConnectionCard() {
                 <Mail className="h-4 w-4" />
                 Connect Outlook
               </a>
+            ) : (
+              <div className="space-y-2">
+                {/* Connected mailboxes */}
+                <ul className="divide-y divide-neutral-800 rounded-lg border border-neutral-800">
+                  {connections.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-neutral-200">{c.email}</p>
+                        {c.displayName && (
+                          <p className="truncate text-[12px] text-neutral-500">{c.displayName}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => disconnect(c.id)}
+                        disabled={removingId === c.id}
+                        className="shrink-0 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-[12.5px] font-medium text-neutral-200 transition-colors hover:border-neutral-600 hover:bg-neutral-700 disabled:opacity-50"
+                      >
+                        {removingId === c.id ? "Removing…" : "Disconnect"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Add another mailbox */}
+                <a
+                  href="/api/integrations/outlook/connect"
+                  className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-[13px] font-medium text-neutral-200 transition-colors hover:border-neutral-600 hover:bg-neutral-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add mailbox
+                </a>
+              </div>
             )}
           </div>
         </div>
