@@ -74,10 +74,33 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
     <div
       className="min-h-screen"
       style={{
-        background: P.pageBg,
+        background: "transparent",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif",
       }}
     >
+      {/* Ambient wash — the agent app's light fallback background (peach +
+          lavender + warm halo + cyan sheen over #f6f8fc, see
+          app/styles/elevra.css light theme). Rendered as a fixed layer behind
+          all content so cards + hero sit on the same subtle wash the agent app
+          uses, instead of flat #F8F9FB. Blooms are faint (0.16–0.30 alpha) and
+          pinned to the viewport. Added 2026-08-15 per founder request. */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: -1,
+          backgroundColor: "#f6f8fc",
+          backgroundImage: [
+            "radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%)",
+            "radial-gradient(75% 55% at 8% 6%, rgba(255,188,168,0.28), transparent 72%)",
+            "radial-gradient(70% 50% at 92% 12%, rgba(196,180,255,0.26), transparent 72%)",
+            "radial-gradient(85% 60% at 50% 96%, rgba(255,208,176,0.30), transparent 75%)",
+          ].join(","),
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+
       {/* Top header — solid white, real shadow */}
       <div
         className="sticky top-0 z-10"
