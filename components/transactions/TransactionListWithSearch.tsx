@@ -729,7 +729,13 @@ export function TransactionListWithSearch({
           )}
         </div>
       ) : (
-        <TransactionTable transactions={filtered} basePath={basePath} showAgencyColumn={showAgencyColumn} showAssignedToColumn={showAssignedToColumn} />
+        <TransactionTable
+          transactions={filtered}
+          basePath={basePath}
+          statusFilter={showStatusTabs ? status : "all"}
+          showAgencyColumn={showAgencyColumn}
+          showAssignedToColumn={showAssignedToColumn}
+        />
       )}
     </div>
   );

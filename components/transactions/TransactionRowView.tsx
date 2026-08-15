@@ -10,7 +10,38 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { formatDate } from "@/lib/utils";
 import type { TransactionStatus, UserRole } from "@prisma/client";
+
+// ── Tab-aware columns ────────────────────────────────────────────────────────
+// The visible columns adapt to the active status tab, because several columns
+// stop meaning anything once the outcome is known:
+//   - Status: redundant on any single-status tab (every row says the same).
+//   - Exchange target: a completed file has already exchanged (show its
+//     completion date instead); a withdrawn file isn't heading anywhere.
+//   - Risk: a "will it fall through?" score is moot once done or dead.
+// Header + row share this one model so their grids stay in lockstep.
+export type FilesTab = "all" | "active" | "on_hold" | "completed" | "withdrawn" | "draft";
+export type FilesColumn = "activity" | "target" | "status" | "assigned" | "agency" | "risk";
+
+export function filesColumns(tab: FilesTab, showAssigned: boolean, showAgency: boolean): FilesColumn[] {
+  const cols: FilesColumn[] = ["activity"];
+  if (tab !== "withdrawn") cols.push("target");
+  if (tab === "all") cols.push("status");
+  if (showAssigned) cols.push("assigned");
+  if (showAgency) cols.push("agency");
+  if (tab !== "completed" && tab !== "withdrawn") cols.push("risk");
+  return cols;
+}
+
+const COL_WIDTH: Record<FilesColumn, string> = {
+  activity: "220px", target: "160px", status: "110px", assigned: "160px", agency: "140px", risk: "120px",
+};
+
+// Grid = 4px risk stripe + flexible property column + one track per visible column.
+export function filesGridTemplate(cols: FilesColumn[]): string {
+  return `4px minmax(0,1fr) ${cols.map((c) => COL_WIDTH[c]).join(" ")}`;
+}
 
 export type HealthRaw = {
   pendingOverdueTasks: number;
@@ -38,6 +69,7 @@ export type TransactionRow = {
   photoUrl?: string | null;
   status: TransactionStatus;
   expectedExchangeDate: Date | null;
+  completionDate?: Date | null;
   createdAt: Date;
   assignedUser: { id: string; name: string } | null;
   health?: HealthRaw;
@@ -103,10 +135,12 @@ const ACTIVITY_TONE: Record<ActivityState, { bg: string; fg: string; dot: string
  * tied to activityStateFor(). Hover/focus shows a 3-entry log preview via
  * portal'd .agent-dropdown-in / .agent-dropdown-out. Falls back to generic
  * "Active Nd ago" when no derived verb (no signal). */
-function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?: boolean }) {
+function ActivityVerbChip({ tx, mobile = false, dimmed = false }: { tx: TransactionRow; mobile?: boolean; dimmed?: boolean }) {
   const lastAt = tx.health?.lastActivityAt ?? null;
   const verb = tx.health?.lastActivityLabel ?? null;
-  const state = activityStateFor(lastAt);
+  // Completed / withdrawn files are finished, not stalled — never colour their
+  // activity red for being "quiet". Force the neutral tone.
+  const state = dimmed ? null : activityStateFor(lastAt);
   const { theme } = usePortalTheme();
 
   const [open, setOpen] = useState(false);
@@ -126,7 +160,8 @@ function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?:
     );
   }
 
-  const tone = state ? ACTIVITY_TONE[state] : ACTIVITY_TONE.moving;
+  const NEUTRAL_TONE = { bg: "rgba(15,23,42,0.05)", fg: "var(--agent-text-muted)", dot: "rgba(15,23,42,0.30)" };
+  const tone = dimmed ? NEUTRAL_TONE : state ? ACTIVITY_TONE[state] : ACTIVITY_TONE.moving;
   const labelText = verb ? `${verb} · ${relTime(lastAt)}` : `Active ${relTime(lastAt)}`;
 
   function show() {
@@ -328,31 +363,38 @@ export function TransactionRowView({
   tx,
   basePath = "/agent/transactions",
   isLast = false,
+  cols: colsProp,
   showAgencyColumn = false,
   showAssignedToColumn = true,
 }: {
   tx: TransactionRow;
   basePath?: string;
   isLast?: boolean;
+  cols?: FilesColumn[];
   showAgencyColumn?: boolean;
   showAssignedToColumn?: boolean;
 }) {
-  // Column order: [stripe] Property | Last activity | Exchange target | Status | [Assigned-to] | [Agency] | Risk
-  // showAssignedToColumn=false for negotiator/sales_progressor (they only see their own files).
-  // showAgencyColumn=true for internal staff only.
-  const gridCols = (() => {
-    if (showAgencyColumn  && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px";
-    if (showAgencyColumn  && !showAssignedToColumn) return "4px minmax(0,1fr) 220px 160px 110px 140px 120px";
-    if (!showAgencyColumn && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
-    return                                                  "4px minmax(0,1fr) 220px 160px 110px 120px";
-  })();
+  // Column set is decided by the active tab (see filesColumns) so the row grid
+  // matches the header exactly. Cell CONTENT keys off this row's own status, so
+  // a completed row on the "All" tab still shows a completion date and no risk.
+  // Falls back to the full "all" column set for standalone consumers.
+  const cols = colsProp ?? filesColumns("all", showAssignedToColumn, showAgencyColumn);
+  const gridCols = filesGridTemplate(cols);
+  const isDone = tx.status === "completed";
+  const isDead = tx.status === "withdrawn";
+  const isPaused = tx.status === "on_hold";
 
   const { line, location } = splitAddress(tx.propertyAddress);
   const initials = tx.assignedUser?.name
     .split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   const health = tx.health ?? null;
 
-  const riskStripeColor = tx.health
+  // Left stripe: green for a finished sale, neutral for a withdrawn one, amber
+  // while paused, otherwise the live risk colour.
+  const riskStripeColor = isDone ? "var(--agent-success)"
+    : isDead ? "rgba(15,23,42,0.18)"
+    : isPaused ? "var(--agent-warning)"
+    : tx.health
     ? (() => {
         const r = calculateRiskScore({
           onTrack: tx.health.onTrack ?? "unknown",
@@ -366,6 +408,39 @@ export function TransactionRowView({
         return r.level === "high" ? "var(--agent-danger)" : r.level === "medium" ? "var(--agent-warning)" : "var(--agent-success)";
       })()
     : "var(--agent-success)";
+
+  // Per-status cell content, shared by the mobile card and the desktop grid.
+  const targetContent = isDone ? (
+    tx.completionDate
+      ? (
+        <div>
+          <p className="text-sm font-medium" style={{ color: "var(--agent-text-secondary)" }}>{formatDate(tx.completionDate)}</p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>Completed</p>
+        </div>
+      )
+      : <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>
+  ) : isDead ? (
+    <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>
+  ) : (
+    <ExchangeTargetCell
+      transactionId={tx.id}
+      expectedExchangeDate={tx.expectedExchangeDate}
+      createdAt={tx.createdAt}
+    />
+  );
+
+  const riskContent = isPaused ? (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 99, background: "rgba(15,23,42,0.05)", color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(15,23,42,0.30)" }} />
+      Paused
+    </span>
+  ) : isDone || isDead ? (
+    <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>
+  ) : tx.health ? (
+    <RiskBadgeWithPopover raw={tx.health} />
+  ) : (
+    <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>
+  );
 
   // SP: showAgencyColumn=true, showAssignedToColumn=false → hide tag (all rows are outsourced, tag is noise)
   // Admin: showAgencyColumn=true, showAssignedToColumn=true → neutral platform labels
@@ -417,21 +492,15 @@ export function TransactionRowView({
 
           {/* Verb chip — top of the badges row on mobile (Variant B mobile design) */}
           <div className="flex items-center gap-2 flex-wrap">
-            <ActivityVerbChip tx={tx} mobile />
+            <ActivityVerbChip tx={tx} mobile dimmed={isDone || isDead} />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={tx.status} />
-            {tx.health && <RiskBadgeWithPopover raw={tx.health} />}
+            {!isDone && !isDead && riskContent}
           </div>
 
-          <div>
-            <ExchangeTargetCell
-              transactionId={tx.id}
-              expectedExchangeDate={tx.expectedExchangeDate}
-              createdAt={tx.createdAt}
-            />
-          </div>
+          <div>{targetContent}</div>
           <div>
             <p style={{
               margin: 0, fontSize: 11,
@@ -476,25 +545,23 @@ export function TransactionRowView({
 
         {/* Last activity — verb chip */}
         <div className="px-4 py-3.5">
-          <ActivityVerbChip tx={tx} />
+          <ActivityVerbChip tx={tx} dimmed={isDone || isDead} />
         </div>
 
-        {/* Exchange target */}
-        <div className="px-4 py-3.5">
-          <ExchangeTargetCell
-            transactionId={tx.id}
-            expectedExchangeDate={tx.expectedExchangeDate}
-            createdAt={tx.createdAt}
-          />
-        </div>
+        {/* Exchange target / completion date — omitted on the Withdrawn tab */}
+        {cols.includes("target") && (
+          <div className="px-4 py-3.5">{targetContent}</div>
+        )}
 
-        {/* Status */}
-        <div className="px-4 py-3.5">
-          <StatusBadge status={tx.status} />
-        </div>
+        {/* Status — only on the All tab (redundant on a single-status tab) */}
+        {cols.includes("status") && (
+          <div className="px-4 py-3.5">
+            <StatusBadge status={tx.status} />
+          </div>
+        )}
 
         {/* Assigned-to — hidden for roles that only see their own files (negotiator, sales_progressor) */}
-        {showAssignedToColumn && (
+        {cols.includes("assigned") && (
           <div className="px-4 py-3.5">
             {tx.assignedUser ? (
               <div className="flex items-center gap-2">
@@ -515,7 +582,7 @@ export function TransactionRowView({
         )}
 
         {/* Agency — additive column for internal staff; not rendered for agents */}
-        {showAgencyColumn && (
+        {cols.includes("agency") && (
           <div className="px-4 py-3.5">
             <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
               {tx.agency?.name ?? "—"}
@@ -523,10 +590,10 @@ export function TransactionRowView({
           </div>
         )}
 
-        {/* Risk */}
-        <div className="px-4 py-3.5">
-          {tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>}
-        </div>
+        {/* Risk — only where the outcome is still open (all / active / on-hold) */}
+        {cols.includes("risk") && (
+          <div className="px-4 py-3.5">{riskContent}</div>
+        )}
       </Link>
     </div>
   );

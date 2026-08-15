@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { TransactionRowView } from "@/components/transactions/TransactionRowView";
-import type { TransactionRow, HealthRaw } from "@/components/transactions/TransactionRowView";
+import { TransactionRowView, filesColumns, filesGridTemplate } from "@/components/transactions/TransactionRowView";
+import type { TransactionRow, HealthRaw, FilesColumn, FilesTab } from "@/components/transactions/TransactionRowView";
 import type { TransactionStatus } from "@prisma/client";
 
 export type { TransactionRow, HealthRaw };
@@ -77,11 +77,13 @@ function SortChevron({ col, active, dir }: { col: SortKey; active: SortKey; dir:
 export function TransactionTable({
   transactions,
   basePath = "/transactions",
+  statusFilter = "all",
   showAgencyColumn = false,
   showAssignedToColumn = true,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
+  statusFilter?: FilesTab;
   showAgencyColumn?: boolean;
   showAssignedToColumn?: boolean;
 }) {
@@ -104,13 +106,20 @@ export function TransactionTable({
 
   const sorted = sortTransactions(transactions, sortKey, sortDir);
 
-  // Column widths mirror TransactionRowView — must stay in sync.
-  const gridCols = (() => {
-    if (showAgencyColumn  && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px";
-    if (showAgencyColumn  && !showAssignedToColumn) return "4px minmax(0,1fr) 220px 160px 110px 140px 120px";
-    if (!showAgencyColumn && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
-    return                                                  "4px minmax(0,1fr) 220px 160px 110px 120px";
-  })();
+  // Tab-aware columns — shared with TransactionRowView so header + rows match.
+  const cols = filesColumns(statusFilter, showAssignedToColumn, showAgencyColumn);
+  const gridCols = filesGridTemplate(cols);
+
+  // Header meta per column. The exchange/completion header re-labels on the
+  // Completed tab, where the date shown is the completion date.
+  const COL_HEADER: Record<FilesColumn, { label: string; key: SortKey | null }> = {
+    activity: { label: "Last activity", key: "lastActive" },
+    target:   { label: statusFilter === "completed" ? "Completion date" : "Exchange target", key: "exchange" },
+    status:   { label: "Status", key: "status" },
+    assigned: { label: "Assigned to", key: null },
+    agency:   { label: "Agency", key: null },
+    risk:     { label: "Risk", key: "risk" },
+  };
 
   return (
     // Design Lab: `myfiles-table`. Default v03 (2026-08-09 page pass).
@@ -134,15 +143,8 @@ export function TransactionTable({
         <div />
         {(
           [
-            { label: "Property",         key: "property"   as SortKey | null },
-            { label: "Last activity",    key: "lastActive" as SortKey | null },
-            { label: "Exchange target",  key: "exchange"   as SortKey | null },
-            { label: "Status",           key: "status"     as SortKey | null },
-            // Assigned-to — hidden for roles that only see their own files (negotiator, sales_progressor).
-            ...(showAssignedToColumn ? [{ label: "Assigned to", key: null as SortKey | null }] : []),
-            // Agency — additive for internal staff, omitted for agents.
-            ...(showAgencyColumn ? [{ label: "Agency", key: null as SortKey | null }] : []),
-            { label: "Risk",             key: "risk"       as SortKey | null },
+            { label: "Property", key: "property" as SortKey | null },
+            ...cols.map((c) => COL_HEADER[c]),
           ] as { label: string; key: SortKey | null }[]
         ).map(({ label, key }) =>
           key ? (
@@ -188,6 +190,7 @@ export function TransactionTable({
           tx={tx}
           basePath={basePath}
           isLast={i === sorted.length - 1}
+          cols={cols}
           showAgencyColumn={showAgencyColumn}
           showAssignedToColumn={showAssignedToColumn}
         />
