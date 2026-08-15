@@ -27,7 +27,10 @@ type Props = {
   children: React.ReactNode;
 };
 
-export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, photoUrl, children }: Props) {
+// NOTE: agencyName is still passed in (Props) but no longer rendered in the
+// header — it truncated the greeting. It needs a new home elsewhere in the
+// portal (founder, 2026-08-16). Re-add when that lands.
+export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, photoUrl, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
 
@@ -127,7 +130,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
           variant overrides the surface. Left: a time-of-day greeting. Right:
           the agency name + the menu. */}
       <div
-        className={`${isHome ? "absolute top-0 inset-x-0 z-30" : "sticky top-0 z-20"}${topNavPick ? ` ${classFor(topNavPick)}` : ""}`}
+        className={`${isHome ? "fixed top-0 inset-x-0 z-30" : "sticky top-0 z-20"}${topNavPick ? ` ${classFor(topNavPick)}` : ""}`}
         data-glass-id="portal-topnav"
         data-glass-label="Top nav bar"
         data-glass-variant={topNavPick ?? "v00"}
@@ -148,14 +151,9 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
             >
               {greetingLabel}
             </p>
-            {/* Agency + menu (right) */}
+            {/* Menu (right). Agency name removed for now — it truncated the
+                greeting; it needs a new home elsewhere in the portal. */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <p
-                className="text-[11px] font-bold uppercase tracking-[0.12em]"
-                style={{ color: P.primary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
-              >
-                {agencyName}
-              </p>
               {/* Founder-only Design Lab flask (renders null for clients) */}
               <PortalDesignLab />
               {/* Hamburger — opens the menu drawer. Borderless, same 34px tap. */}
