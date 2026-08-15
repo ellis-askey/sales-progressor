@@ -126,7 +126,7 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0">
             <Link
-              href={`/transactions/${task.transaction.id}`}
+              href={`/agent/transactions/${task.transaction.id}`}
               className="text-sm font-semibold text-slate-900/90 hover:text-blue-600 transition-colors leading-tight block truncate"
             >
               {addressLine1}
@@ -178,7 +178,7 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
           </button>
           <SnoozeButton taskId={task.id} onSnooze={(id, hours) => onAction(id, "snooze", hours)} disabled={loading} />
           <Link
-            href={`/transactions/${task.transaction.id}`}
+            href={`/agent/transactions/${task.transaction.id}`}
             className="ml-auto text-xs text-blue-500 hover:text-blue-600 transition-colors"
           >
             View file →

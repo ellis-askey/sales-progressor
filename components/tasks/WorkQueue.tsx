@@ -121,7 +121,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
                   <div className="px-5 py-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="min-w-0">
-                        <Link href={`/transactions/${item.transaction.id}`}
+                        <Link href={`/agent/transactions/${item.transaction.id}`}
                           className="text-sm font-semibold text-slate-900/90 hover:text-blue-600 transition-colors leading-tight block truncate">
                           {addressParts[0].trim()}
                         </Link>
@@ -139,7 +139,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
                         className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-purple-200/60 text-purple-600 hover:bg-purple-50/60 disabled:opacity-40">
                         {loadingId === item.id ? "…" : "Wake up now"}
                       </button>
-                      <Link href={`/transactions/${item.transaction.id}`} className="ml-auto text-xs text-blue-500 hover:text-blue-600 transition-colors">
+                      <Link href={`/agent/transactions/${item.transaction.id}`} className="ml-auto text-xs text-blue-500 hover:text-blue-600 transition-colors">
                         View file →
                       </Link>
                     </div>

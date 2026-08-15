@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { Info, CheckCircle, Warning, WarningOctagon } from "@phosphor-icons/react";
 
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
-import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { ReconciliationDrawer, type ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
@@ -96,14 +95,6 @@ const CHASE_PROPS = {
   chaseTaskId: "ct-dev-001", transactionId: MOCK_TX_ID, propertyAddress: MOCK_ADDR,
   milestoneName: "Searches requested", contacts: MOCK_CONTACTS, milestones: MOCK_MILESTONES,
 } as const;
-const EDIT_SHARED = {
-  transactionId: MOCK_TX_ID, propertyAddress: MOCK_ADDR, tenure: "freehold" as const,
-  purchaseType: "mortgage" as const, isShareOfFreehold: false, purchasePrice: 38500000, agentFeeAmount: null,
-  agentFeePercent: 1.5, agentFeeIsVatInclusive: false, referralFee: null,
-  referredFirmName: null, referredFirmId: null, overridePredictedDate: null,
-  predictedExchangeDate: new Date(Date.now() + 56 * 86400000), completionDate: null, exchangeConfirmed: false,
-};
-
 // ─── Local mock responses for the two data-fetching drawers ─────────────────
 // ChainDrawer GETs /api/chains?transactionId=…; ArchivedRoundDrawer GETs
 // /api/transactions/…/rounds/…. We shim window.fetch on THIS page only to
@@ -181,7 +172,7 @@ const MOCK_ARCHIVED_ROUNDS = [
 ];
 
 type OverlayKey =
-  | "chase" | "edit" | "recon" | "chain" | "node" | "archived" | "designLab"
+  | "chase" | "recon" | "chain" | "node" | "archived" | "designLab"
   | "welcome" | "undo" | "mortgage" | "surveyNr" | "addFirm" | "addBroker"
   | "automationStop" | "dupAddr" | "navAway" | "celebrate"
   | "billingNeg" | "claim" | "changeFile" | "switchService" | "relist"
@@ -267,7 +258,6 @@ export function OverlaysGallery() {
         {/* DRAWERS */}
         <Section n={1} title="Drawers" sub="Right-anchored side panels">
           <Item label="Chase drawer" where="ChaseButton · RemindersSection" onOpen={() => setOpen("chase")} />
-          <Item label="Edit sale details" where="File header · Overview" onOpen={() => setOpen("edit")} />
           <Item label="Reconciliation" where="Exchange / completion flow" onOpen={() => setOpen("recon")} />
           <Item label="Chain visualiser" where="ViewChainButton" onOpen={() => setOpen("chain")} />
           <Item label="Add chain node" where="Inside the chain drawer" onOpen={() => setOpen("node")} />
@@ -380,7 +370,6 @@ export function OverlaysGallery() {
 
       {/* ─── Overlay mounts (real components, mock data) ─── */}
       {open === "chase" && <ChaseDrawer {...CHASE_PROPS} chaseCount={2} onClose={close} onSent={close} />}
-      {open === "edit" && <EditSaleDetailsDrawer {...EDIT_SHARED} onClose={close} />}
       {open === "recon" && <ReconciliationDrawer isExchangeFlow outstanding={MOCK_RECON_ITEMS} initialEventDate={new Date().toISOString().split("T")[0]} onConfirm={close} onCancel={close} />}
       {open === "chain" && <ChainDrawer transactionId={MOCK_TX_ID} currentUserId={MOCK_USER_ID} onClose={close} onOpenAddNode={() => setOpen("node")} />}
       {open === "node" && <AddNodeDrawer direction={nodeDir} onClose={close} onSaved={close} />}
@@ -480,7 +469,7 @@ function ButtonsShowcase() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-primary" label="primary" where="AddFirmModal, MortgageModal" />
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-secondary" label="secondary" where="UndoMilestoneModal, NavAwayModal" />
-          <RawBtn cls="agent-btn agent-btn-sm agent-btn-ghost" label="ghost" where="ChaseDrawer, EditSaleDetailsDrawer" />
+          <RawBtn cls="agent-btn agent-btn-sm agent-btn-ghost" label="ghost" where="ChaseDrawer" />
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-danger" label="danger" where="AccountDangerZone, SurveyNrConfirmModal" />
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-ghost-bordered" label="ghost-bordered" where="SolicitorSection" />
           <RawBtn cls="agent-btn agent-btn-sm agent-btn-color-primary" label="color-primary" where="EmailPreviewModal, NewSaleFlow (!important escape hatch)" />

@@ -32,7 +32,6 @@ import { ArchivedRoundDrawer } from "@/components/transaction/ArchivedRoundDrawe
 // Phase 3 Surface 1 grandfathers (bespoke - kept for visual review)
 import { RelistFileModal } from "@/components/transaction/RelistFileModal";
 import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
-import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 
 import type { UndoImpact } from "@/lib/services/milestones";
 
@@ -91,8 +90,7 @@ type OpenName =
   | "survey-nr"
   | "archived-round"
   | "relist"
-  | "reconciliation"
-  | "edit-sale-details";
+  | "reconciliation";
 
 export default function DevSheetsPage() {
   if (process.env.NODE_ENV === "production") notFound();
@@ -230,12 +228,6 @@ export default function DevSheetsPage() {
               note="Per-milestone reconcile checkbox + commit-all rollback. Confirm wired to console.log."
               onOpen={() => setOpenName("reconciliation")}
             />
-            <Card
-              title="EditSaleDetailsDrawer"
-              path="components/transaction/EditSaleDetailsDrawer.tsx"
-              note="Per-section unsaved-state with three-option close prompt. Save calls will 4xx — review form chrome only."
-              onOpen={() => setOpenName("edit-sale-details")}
-            />
           </Grid>
         </Section>
       </div>
@@ -361,28 +353,6 @@ export default function DevSheetsPage() {
         />
       )}
 
-      {openName === "edit-sale-details" && (
-        <EditSaleDetailsDrawer
-          transactionId="demo-tx-5"
-          propertyAddress="14 Example Lane, London"
-          tenure="freehold"
-          purchaseType="mortgage"
-          isShareOfFreehold={false}
-          purchasePrice={47500000}
-          agentFeeAmount={null}
-          agentFeePercent={120}
-          agentFeeIsVatInclusive={false}
-          referralFee={30000}
-          referredFirmName="Carter & Wells Solicitors"
-          referredFirmId="firm-1"
-          recommendedFirms={MOCK_RECOMMENDED_FIRMS}
-          overridePredictedDate={null}
-          predictedExchangeDate={null}
-          completionDate={null}
-          exchangeConfirmed={false}
-          onClose={close}
-        />
-      )}
 
       {/* Acknowledge useSearchParams use so ESLint doesn't flag it. */}
       {params && null}

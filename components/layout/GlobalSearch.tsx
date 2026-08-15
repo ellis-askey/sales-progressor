@@ -81,12 +81,12 @@ export function GlobalSearch() {
     NAV_ITEMS.forEach((n) => flat.push({ href: n.href, label: n.label, sub: n.sub }));
   } else if (results) {
     results.transactions.forEach((t) => flat.push({
-      href: `/transactions/${t.id}`,
+      href: `/agent/transactions/${t.id}`,
       label: t.address,
       sub: STATUS_LABELS[t.status] ?? t.status,
     }));
     results.contacts.forEach((c) => flat.push({
-      href: `/transactions/${c.transactionId}`,
+      href: `/agent/transactions/${c.transactionId}`,
       label: c.name,
       sub: c.address,
     }));
@@ -202,7 +202,7 @@ export function GlobalSearch() {
                       }
                       icon={<FileIcon />}
                       selected={selected === idx}
-                      onClick={() => navigate(`/transactions/${t.id}`)}
+                      onClick={() => navigate(`/agent/transactions/${t.id}`)}
                     />
                   );
                 })}
@@ -221,7 +221,7 @@ export function GlobalSearch() {
                       sub={<span className="text-slate-500">{c.role} · {c.address}</span>}
                       icon={<PersonIcon />}
                       selected={selected === idx}
-                      onClick={() => navigate(`/transactions/${c.transactionId}`)}
+                      onClick={() => navigate(`/agent/transactions/${c.transactionId}`)}
                     />
                   );
                 })}

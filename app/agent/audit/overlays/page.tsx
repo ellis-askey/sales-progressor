@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext, fo
 import { createPortal } from "react-dom";
 
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
-import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { ReconciliationDrawer, type ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
@@ -866,19 +865,9 @@ function CategoryDrawers({ decision, onPick }: { decision: Decision; onPick: (d:
   const [nodeDir, setNodeDir] = useState<"above" | "below">("below");
   const [reconExchange, setReconExchange] = useState(true);
   const [chase, setChase] = useState(false);
-  const [edit, setEdit] = useState(false);
   const [recon, setRecon] = useState(false);
   const [chain, setChain] = useState(false);
   const [node, setNode] = useState(false);
-
-  const EDIT_SHARED = {
-    transactionId: MOCK_TX_ID, propertyAddress: MOCK_ADDR, tenure: "freehold" as const,
-    purchaseType: "mortgage" as const, isShareOfFreehold: false, purchasePrice: 38500000, agentFeeAmount: null,
-    agentFeePercent: 1.5, agentFeeIsVatInclusive: false, referralFee: null,
-    referredFirmName: null, referredFirmId: null, overridePredictedDate: null,
-    predictedExchangeDate: new Date(Date.now() + 56 * 86400000), completionDate: null,
-    exchangeConfirmed: false,
-  };
 
   return (
     <div className="oa-cat">
@@ -893,10 +882,6 @@ function CategoryDrawers({ decision, onPick }: { decision: Decision; onPick: (d:
           <span className="oa-label">ChaseDrawer (1a)</span>
           {[1, 3, 6].map(n => <StateBtn key={n} label={`chase ×${n}`} active={chaseCount === n} onClick={() => setChaseCount(n)} />)}
           <Trig label="Open" onClick={() => setChase(true)} />
-        </div>
-        <div className="oa-demo-row">
-          <span className="oa-label">EditSaleDetailsDrawer (1b)</span>
-          <Trig label="Open" onClick={() => setEdit(true)} />
         </div>
         <div className="oa-demo-row">
           <span className="oa-label">ReconciliationDrawer (1b)</span>
@@ -916,7 +901,6 @@ function CategoryDrawers({ decision, onPick }: { decision: Decision; onPick: (d:
           <Trig label="Open" onClick={() => setNode(true)} />
         </div>
         {chase && <ChaseDrawer {...CHASE_PROPS} chaseCount={chaseCount} onClose={() => setChase(false)} onSent={() => setChase(false)} />}
-        {edit && <EditSaleDetailsDrawer {...EDIT_SHARED} onClose={() => setEdit(false)} />}
         {recon && <ReconciliationDrawer isExchangeFlow={reconExchange} outstanding={MOCK_RECON_ITEMS} initialEventDate={new Date().toISOString().split("T")[0]} onConfirm={() => setRecon(false)} onCancel={() => setRecon(false)} />}
         {chain && <ChainDrawer transactionId={MOCK_TX_ID} currentUserId={MOCK_USER_ID} onClose={() => setChain(false)} onOpenAddNode={(dir) => { setNodeDir(dir); setNode(true); }} />}
         {node && <AddNodeDrawer direction={nodeDir} onClose={() => setNode(false)} onSaved={() => setNode(false)} />}
