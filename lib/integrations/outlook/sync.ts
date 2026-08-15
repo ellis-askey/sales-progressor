@@ -37,11 +37,35 @@ export type LoggedItem = { transactionId: string; address: string; subject: stri
 export type SyncSummary = {
   checked: number; // messages read across folders
   folders: number; // folders scanned
+  folderNames: string[]; // which folders were scanned (transparency)
   logged: number; // newly logged onto a file
   alreadyLogged: number; // matched but already stored (dedup)
   unmatched: number; // no confident single file
   items: LoggedItem[]; // the newly-logged emails, with the file they landed on
 };
+
+// Folders we never scan even if they somehow contain a digit.
+const SYSTEM_FOLDERS = new Set([
+  "deleted items",
+  "junk email",
+  "junk e-mail",
+  "drafts",
+  "outbox",
+  "sent items",
+  "conversation history",
+  "sync issues",
+  "rss feeds",
+  "rss subscriptions",
+]);
+
+// A "property folder" is one you've named after an address — which always has a
+// house number in it (e.g. "118 Hadley Grange", "8 Brambling Crescent"). Your
+// admin folders (Dev To-Do, Marketing, Contractors, New Business) have none.
+function looksLikePropertyFolder(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n || n === "inbox" || SYSTEM_FOLDERS.has(n)) return false;
+  return /\d/.test(n);
+}
 
 type ConnRow = {
   id: string;
@@ -292,7 +316,9 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
   );
   const folders = allFolders.filter((f) => {
     const n = f.displayName.trim().toLowerCase();
-    return n === "inbox" || folderHints.has(n);
+    if (n === "inbox") return true;
+    if (folderHints.has(n)) return true; // name maps to a file
+    return looksLikePropertyFolder(f.displayName); // address-style folder (has a house number)
   });
 
   const sinceIso = new Date(Date.now() - BACKFILL_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -324,6 +350,7 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
   const summary: SyncSummary = {
     checked: messages.length,
     folders: folders.length,
+    folderNames: folders.map((f) => f.displayName),
     logged: 0,
     alreadyLogged: 0,
     unmatched: 0,

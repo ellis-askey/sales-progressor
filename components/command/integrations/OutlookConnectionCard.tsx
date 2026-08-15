@@ -19,6 +19,7 @@ type LoggedItem = { transactionId: string; address: string; subject: string };
 type SyncSummary = {
   checked: number;
   folders: number;
+  folderNames: string[];
   logged: number;
   alreadyLogged: number;
   unmatched: number;
@@ -170,6 +171,11 @@ export function OutlookConnectionCard() {
             Checked {s.checked} across {s.folders} folder{s.folders === 1 ? "" : "s"} · logged{" "}
             {s.logged} new · {s.alreadyLogged} already logged · {s.unmatched} unmatched
           </p>
+          {s.folderNames.length > 0 && (
+            <p className="mt-0.5 text-[11px] text-neutral-600">
+              Folders: {s.folderNames.join(", ")}
+            </p>
+          )}
           {s.items.length > 0 && (
             <ul className="mt-1.5 space-y-1">
               {s.items.map((it, i) => (
