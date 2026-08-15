@@ -4,7 +4,23 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-08-09
+Last updated: 2026-08-15
+
+---
+
+## Microsoft Outlook integration — env vars + redirect URI (2026-08-15)
+
+Phase 1 (connect a mailbox only) is built and committed on `staging` (NOT pushed yet). It will not work until the four env vars are added. New third-party integration → recorded here per the hard rule.
+
+- [ ] **Add the four env vars in Vercel** (Project → Settings → Environment Variables), Production (and Preview if you want to test on a preview URL):
+  - `MICROSOFT_CLIENT_ID`
+  - `MICROSOFT_CLIENT_SECRET`
+  - `MICROSOFT_TENANT_ID`
+  - `MICROSOFT_REDIRECT_URI`
+- [ ] **Add the same four to `.env.local`** for local testing.
+- [ ] **CHECK THE REDIRECT URI DOMAIN.** You registered `https://thesalesprogressor.co.uk/api/integrations/outlook/callback` in Entra, but the app (Command Centre + API routes) serves from **`portal.thesalesprogressor.co.uk`**. The callback route only exists where the Next app runs. Unless the apex domain also routes to the same Vercel app, this will fail with a redirect-uri mismatch. Fix by either: (a) register `https://portal.thesalesprogressor.co.uk/api/integrations/outlook/callback` in Entra and set `MICROSOFT_REDIRECT_URI` to that, or (b) confirm the apex serves the app. The value in `MICROSOFT_REDIRECT_URI` must EXACTLY match the Entra registration.
+- [ ] No new secret needed for token encryption: it reuses `ADMIN_TOTP_ENCRYPTION_KEY` (already set).
+- [ ] **DPA / privacy (future phase, not now):** once we start reading mailbox contents, Microsoft Graph mailbox data needs a privacy-notice + DPA review. Phase 1 stores only the connection + tokens, no message content.
 
 ---
 
