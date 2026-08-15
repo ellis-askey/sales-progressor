@@ -20,6 +20,7 @@ import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -578,7 +579,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
       {/* ── Coming up (next 3 after next action) ─────────────────── */}
       {comingUp.length > 0 && !hasCompleted && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+        <PortalGlassCard glassId="coming-up" label="Coming up" className="overflow-hidden">
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Coming up</p>
           </div>
@@ -602,12 +603,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               </span>
             </div>
           ))}
-        </div>
+        </PortalGlassCard>
       )}
 
       {/* ── Key dates ────────────────────────────────────────────── */}
       {keyDates.length > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+        <PortalGlassCard glassId="important-dates" label="Important dates" className="overflow-hidden">
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Important dates</p>
           </div>
@@ -623,7 +624,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               </p>
             </div>
           ))}
-        </div>
+        </PortalGlassCard>
       )}
 
       {/* Target-exchange card removed 2026-08-12 — it duplicated the
@@ -677,7 +678,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       <FeedbackWidget portalToken={token} />
 
       {/* ── Latest updates ───────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+      <PortalGlassCard glassId="latest-updates" label="Latest updates" className="overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${P.border}` }}>
           <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
           {recentActivity.length > 0 && (
@@ -696,7 +697,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           recentActivity.map((entry: TimelineEntry, i) => (
             <div
               key={entry.id}
-              className="px-5 py-4 flex items-center gap-3"
+              className="px-5 py-4 flex items-start gap-3"
               style={{ borderBottom: i < recentActivity.length - 1 ? `1px solid ${P.border}` : undefined }}
             >
               {entry.type === "milestone" ? (
@@ -764,7 +765,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </div>
           ))
         )}
-      </div>
+      </PortalGlassCard>
 
     </div>
   );

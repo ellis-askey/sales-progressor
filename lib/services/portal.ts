@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
-import { sendEmail, resolveSenderForTransaction } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
@@ -328,9 +328,10 @@ export async function getPortalData(token: string): Promise<PortalDataResult> {
 // per-user WhatsApp numbers land this reads from the managing user instead.
 export type PortalTeam = {
   managing: {
+    // email is the AGENCY-assigned sender address, or null when unset (hidden).
     name: string;
     image: string | null;
-    email: string;
+    email: string | null;
     roleLabel: string;
     whatsappUrl: string | null;
   } | null;
@@ -422,6 +423,7 @@ export async function getPortalTeam(
         agentUser:    { select: { id: true, name: true, email: true, image: true, role: true } },
         vendorSolicitorFirm:    { select: { name: true } },
         purchaserSolicitorFirm: { select: { name: true } },
+        agency: { select: { quoteSenderEmail: true } },
       },
     });
     if (!tx) {
@@ -443,23 +445,16 @@ export async function getPortalTeam(
 
     let managing: PortalTeam["managing"] = null;
     if (person) {
-      let email = person.email ?? "";
-      try {
-        const resolved = await resolveSenderForTransaction(transactionId, {
-          id: person.id,
-          email: person.email,
-          name: person.name,
-          role: person.role,
-          agencyId: null,
-        });
-        email = resolved.replyTo;
-      } catch {
-        // Fall back to the raw user email if sender resolution can't run.
-      }
+      // The email shown to the client is the address ASSIGNED TO THE AGENCY
+      // (Agency.quoteSenderEmail). No generic fallback: if the agency has none
+      // set, email is null and the card hides the Email button + address rather
+      // than leaking the internal updates@ / progressor address. (Founder,
+      // 2026-08-15.)
+      const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
       managing = {
         name: person.name ?? "Your progressor",
         image: person.image ?? null,
-        email,
+        email: agencyEmail,
         roleLabel: isOutsourced ? "Your progressor" : "Your agent",
         whatsappUrl: isOutsourced ? "https://wa.me/447508862929" : null,
       };

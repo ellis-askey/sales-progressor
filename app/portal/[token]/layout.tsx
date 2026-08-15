@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata, Viewport } from "next";
+import { getServerSession } from "next-auth";
 import { getPortalData, logPortalView } from "@/lib/services/portal";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
@@ -8,6 +9,13 @@ import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { authOptions } from "@/lib/auth";
+import { isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
+import { getPortalGlassPicks } from "@/lib/glass/portal-picks";
+import { PortalGlassProvider } from "@/lib/glass/portal-context";
+// Glass variant classes for the founder-only portal Design Lab. Light-theme
+// glass tokens are re-declared on .portal-scope in globals.css.
+import "@/app/styles/glass.css";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -109,18 +117,30 @@ export default async function PortalLayout({
 
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
+  // Founder-only Design Lab: read the global glass picks (applied for every
+  // client) and decide if this viewer may edit them. Gate is the agent session
+  // on the same domain — clients have no session, so they only ever see the
+  // applied styles, never the flask button.
+  const [glassPicks, session] = await Promise.all([
+    getPortalGlassPicks(),
+    getServerSession(authOptions),
+  ]);
+  const canEditLab = !!session?.user?.email && isHybridSuperadminEmail(session.user.email);
+
   return (
-    <PortalShell
-      token={token}
-      contactName={contact.name}
-      roleType={contact.roleType}
-      propertyAddress={transaction.propertyAddress}
-      agencyName={transaction.agencyName}
-      vapidPublicKey={vapidPublicKey}
-      photoUrl={transaction.photoUrl ?? null}
-    >
-      <PortalAutoRefresh />
-      {children}
-    </PortalShell>
+    <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
+      <PortalShell
+        token={token}
+        contactName={contact.name}
+        roleType={contact.roleType}
+        propertyAddress={transaction.propertyAddress}
+        agencyName={transaction.agencyName}
+        vapidPublicKey={vapidPublicKey}
+        photoUrl={transaction.photoUrl ?? null}
+      >
+        <PortalAutoRefresh />
+        {children}
+      </PortalShell>
+    </PortalGlassProvider>
   );
 }

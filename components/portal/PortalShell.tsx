@@ -9,6 +9,9 @@ import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
+import { PortalDesignLab } from "./PortalDesignLab";
+import { usePortalPick } from "@/lib/glass/portal-context";
+import { classFor } from "@/lib/glass/variants";
 
 type Props = {
   token: string;
@@ -27,6 +30,11 @@ type Props = {
 export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, photoUrl, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
+
+  // Design Lab: the two nav bars are tagged surfaces too, so a founder pick
+  // restyles them live. No pick → the current chrome.
+  const topNavPick = usePortalPick("portal-topnav");
+  const bottomNavPick = usePortalPick("portal-bottomnav");
 
   // Measure real engaged time the client spends on their portal (audit
   // COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13). Mounts once for the whole portal
@@ -101,10 +109,13 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
         }}
       />
 
-      {/* Top header — solid white, real shadow */}
+      {/* Top header — solid white, real shadow (or a picked glass variant) */}
       <div
-        className="sticky top-0 z-10"
-        style={{ background: "#FFFFFF", boxShadow: P.shadowSm }}
+        className={`sticky top-0 z-10${topNavPick ? ` ${classFor(topNavPick)}` : ""}`}
+        data-glass-id="portal-topnav"
+        data-glass-label="Top nav bar"
+        data-glass-variant={topNavPick ?? "v00"}
+        style={topNavPick ? undefined : { background: "#FFFFFF", boxShadow: P.shadowSm }}
       >
         <div className="max-w-lg mx-auto px-5 py-4">
           <div className="flex items-center justify-between">
@@ -124,6 +135,8 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
               {/* Hamburger — opens the menu drawer (details / solicitor /
                   notifications). Added 2026-08-09; drawer content stubbed
                   in commit B, filled in commit C. */}
+              {/* Founder-only Design Lab flask (renders null for clients) */}
+              <PortalDesignLab />
               <button
                 type="button"
                 onClick={() => setMenuOpen(true)}
@@ -193,8 +206,11 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
           icon scales up gently. Same 3 tabs, same icons, same labels. */}
       <nav
         aria-label="Primary"
-        className="fixed bottom-0 inset-x-0 z-20"
-        style={{
+        className={`fixed bottom-0 inset-x-0 z-20${bottomNavPick ? ` ${classFor(bottomNavPick)}` : ""}`}
+        data-glass-id="portal-bottomnav"
+        data-glass-label="Bottom nav bar"
+        data-glass-variant={bottomNavPick ?? "v00"}
+        style={bottomNavPick ? undefined : {
           background: "rgba(255, 255, 255, 0.82)",
           borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
           backdropFilter: "blur(20px) saturate(1.8)",

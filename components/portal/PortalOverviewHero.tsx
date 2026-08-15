@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
 import { P, PortalPill, type PortalPillTone } from "./portal-ui";
+import { PortalGlassCard } from "./PortalGlassCard";
 
 export type OverviewTile = {
   key: string;
@@ -570,7 +571,7 @@ export function PortalOverviewHero({
                         it still looks broken. Vertical is the standard
                         mobile idiom for step-by-step progression
                         (DoorDash / GitHub / etc.). */}
-      <div className="rounded-2xl" style={{ background: P.cardBg, boxShadow: P.shadowSm, padding: "16px 14px" }}>
+      <PortalGlassCard glassId="progress-overview" label="Progress overview" style={{ padding: "16px 14px" }}>
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -645,14 +646,11 @@ export function PortalOverviewHero({
             />
           ))}
         </div>
-      </div>
+      </PortalGlassCard>
 
       {/* ── Expected exchange + You're in good hands ────────────────── */}
       {predictedExchangeDate && (
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
-        >
+        <PortalGlassCard glassId="expected-exchange" label="Expected exchange" style={{ overflow: "hidden" }}>
           <div style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
@@ -718,7 +716,7 @@ export function PortalOverviewHero({
                   and Ellis flagged it as misleading. */}
             </div>
           </div>
-        </div>
+        </PortalGlassCard>
       )}
     </div>
   );

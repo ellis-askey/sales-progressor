@@ -9,6 +9,7 @@
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
 import { OpenAgentsButton } from "@/components/portal/OpenAgentsButton";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -42,7 +43,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
   if (!managing && !solicitorFirmName && !showAgentRow) return null;
 
   return (
-    <div style={{ background: P.cardBg, borderRadius: P.radiusLg, boxShadow: P.shadowSm, overflow: "hidden" }}>
+    <PortalGlassCard glassId="your-team" label="Your team" radius={20} style={{ overflow: "hidden" }}>
       <p
         style={{
           margin: 0,
@@ -153,7 +154,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
             display: "flex",
             gap: 13,
             padding: "13px 18px",
-            alignItems: "center",
+            alignItems: "flex-start",
             borderTop: `1px solid ${P.borderSubtle}`,
           }}
         >
@@ -185,7 +186,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
       )}
 
       {showAgentRow && (
-        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "center", borderTop: `1px solid ${P.borderSubtle}` }}>
+        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: `1px solid ${P.borderSubtle}` }}>
           <div
             style={{
               width: 46, height: 46, borderRadius: 12, flexShrink: 0,
@@ -212,6 +213,6 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
           <OpenAgentsButton label={agentHas ? "Edit" : "Add"} />
         </div>
       )}
-    </div>
+    </PortalGlassCard>
   );
 }
