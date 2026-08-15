@@ -20,7 +20,10 @@ export async function GET(req: Request) {
   const viewerBlock = forbidViewer(session);
   if (viewerBlock) return viewerBlock;
 
-  const origin = new URL(req.url).origin;
+  const reqUrl = new URL(req.url);
+  const origin = reqUrl.origin;
+  // Optional: pre-target a specific mailbox (from a roster row's Connect button).
+  const loginHint = reqUrl.searchParams.get("email") ?? undefined;
 
   if (!isOutlookConfigured()) {
     const back = new URL(SETTINGS_PATH, origin);
@@ -30,7 +33,7 @@ export async function GET(req: Request) {
   }
 
   const { state, cookieValue } = createOutlookState(session.user.id);
-  const res = NextResponse.redirect(buildAuthorizeUrl(state));
+  const res = NextResponse.redirect(buildAuthorizeUrl(state, loginHint));
   res.cookies.set(OUTLOOK_STATE_COOKIE, cookieValue, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

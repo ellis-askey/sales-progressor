@@ -71,8 +71,12 @@ export function isOutlookConfigured(): boolean {
   );
 }
 
-/** Builds the Microsoft authorization-code-flow URL to redirect the user to. */
-export function buildAuthorizeUrl(state: string): string {
+/**
+ * Builds the Microsoft authorization-code-flow URL to redirect the user to.
+ * An optional loginHint pre-selects a specific mailbox at Microsoft's sign-in
+ * (the user can still switch accounts).
+ */
+export function buildAuthorizeUrl(state: string, loginHint?: string): string {
   const cfg = getOutlookConfig();
   const params = new URLSearchParams({
     client_id: cfg.clientId,
@@ -85,6 +89,7 @@ export function buildAuthorizeUrl(state: string): string {
     // Microsoft account in the browser can choose the right mailbox.
     prompt: "select_account",
   });
+  if (loginHint) params.set("login_hint", loginHint);
   return `${cfg.authorizeUrl}?${params.toString()}`;
 }
 
