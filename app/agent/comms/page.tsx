@@ -34,7 +34,7 @@ function toRow(e: UpdateFeedEntry, signed: Map<string, string>): UpdateRow {
   const base = { id: e.id, atIso: e.at.toISOString(), who: e.who, side: e.side };
   switch (e.kind) {
     case "milestone":
-      return { ...base, kind: "milestone", code: e.code, sentence: e.sentence, byName: e.byName, byImage: e.byImage };
+      return { ...base, kind: "milestone", code: e.code, stageKey: e.stageKey, sentence: e.sentence, byName: e.byName, byImage: e.byImage };
     case "price":
       return { ...base, kind: "price", oldPrice: e.oldPrice, newPrice: e.newPrice, reason: e.reason, byName: e.byName };
     case "note":

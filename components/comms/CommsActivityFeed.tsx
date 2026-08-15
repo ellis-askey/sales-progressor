@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import Link from "next/link";
-import { CaretDown, Scales, Tag, NotePencil, ChatCircle, Paperclip } from "@phosphor-icons/react";
+import { CaretDown, Scales, Tag, ChatCircle, Paperclip } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 function relativeDate(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -54,7 +55,7 @@ export type UpdateSide = "vendor" | "purchaser" | null;
 type RowBase = { id: string; atIso: string; who: UpdateWho; side: UpdateSide };
 
 export type UpdateRow =
-  | (RowBase & { kind: "milestone"; code: string; sentence: string; byName: string | null; byImage: string | null })
+  | (RowBase & { kind: "milestone"; code: string; stageKey: DisplayStageKey | null; sentence: string; byName: string | null; byImage: string | null })
   | (RowBase & { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null })
   | (RowBase & { kind: "note"; content: string; byName: string | null; byImage: string | null })
   | (RowBase & { kind: "reply"; content: string; method: string | null; byName: string | null })
@@ -78,7 +79,7 @@ export type DayBucket = {
 
 // Small tinted glyph used as the leading marker for the non-milestone update
 // kinds (milestones keep the confirmer's avatar, which carries more meaning).
-function KindBadge({ children }: { children: React.ReactNode }) {
+function KindBadge({ children }: { children: ReactNode }) {
   return (
     <span
       aria-hidden
@@ -122,7 +123,7 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
   const primary = "var(--agent-text-primary)";
 
   // Main + optional secondary text per kind.
-  let main: React.ReactNode;
+  let main: ReactNode;
   let secondary: string | null = null;
 
   if (u.kind === "milestone") {
@@ -231,6 +232,51 @@ function TxCard({ tx }: { tx: TxGroup }) {
   );
 }
 
+// ─── Filters ──────────────────────────────────────────────────────────────────
+
+const TYPE_OPTIONS: { key: UpdateKind; label: string }[] = [
+  { key: "milestone", label: "Steps" },
+  { key: "price", label: "Price" },
+  { key: "note", label: "Notes" },
+  { key: "reply", label: "Replies" },
+  { key: "document", label: "Docs" },
+];
+const WHO_OPTIONS: { key: UpdateWho; label: string }[] = [
+  { key: "agent", label: "Us" },
+  { key: "client", label: "Client" },
+  { key: "solicitor", label: "Solicitor" },
+];
+const SIDE_OPTIONS: { key: "vendor" | "purchaser"; label: string }[] = [
+  { key: "purchaser", label: "Buyer's" },
+  { key: "vendor", label: "Seller's" },
+];
+const STAGE_OPTIONS: { key: DisplayStageKey; label: string }[] = DISPLAY_STAGES.map((s) => ({ key: s.key, label: s.name }));
+
+function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      style={{ cursor: "pointer" }}
+      className={`agent-segment-pill agent-segment-pill-sm${on ? " on" : ""}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function FilterGroup<T extends string>({
+  heading, options, selected, toggle,
+}: { heading: string; options: { key: T; label: string }[]; selected: Set<T>; toggle: (k: T) => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>{heading}</span>
+      {options.map((o) => <Chip key={o.key} label={o.label} on={selected.has(o.key)} onClick={() => toggle(o.key)} />)}
+    </div>
+  );
+}
+
 export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   // openDays: true = open, false = closed.
   // "Today" and "Yesterday" default open; all other labels default closed.
@@ -238,15 +284,82 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
     Object.fromEntries(days.map((d) => [d.label, d.defaultOpen]))
   );
 
+  // Filters. Empty set in a group = "all" for that group. Groups combine with AND.
+  const [types, setTypes] = useState<Set<UpdateKind>>(new Set());
+  const [whos, setWhos] = useState<Set<UpdateWho>>(new Set());
+  const [sides, setSides] = useState<Set<"vendor" | "purchaser">>(new Set());
+  const [stages, setStages] = useState<Set<DisplayStageKey>>(new Set());
+
+  function toggleIn<T>(setter: Dispatch<SetStateAction<Set<T>>>) {
+    return (k: T) => setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  }
+  function clearAll() { setTypes(new Set()); setWhos(new Set()); setSides(new Set()); setStages(new Set()); }
+  const filterActive = types.size > 0 || whos.size > 0 || sides.size > 0 || stages.size > 0;
+
+  function passes(u: UpdateRow): boolean {
+    if (types.size && !types.has(u.kind)) return false;
+    if (whos.size && !whos.has(u.who)) return false;
+    // Side only narrows rows that have a side; not-side-specific rows (price,
+    // note, reply) always pass rather than vanish.
+    if (sides.size && u.side && !sides.has(u.side)) return false;
+    // Stage only narrows step confirmations; every other kind passes.
+    if (stages.size && u.kind === "milestone" && (!u.stageKey || !stages.has(u.stageKey))) return false;
+    return true;
+  }
+
+  const totalCount = days.reduce((n, d) => n + d.txGroups.reduce((m, t) => m + t.updates.length, 0), 0);
+
+  // Apply the filter, dropping empty cards and empty days.
+  const visibleDays: DayBucket[] = days
+    .map((d) => ({
+      ...d,
+      txGroups: d.txGroups
+        .map((tx) => ({ ...tx, updates: tx.updates.filter(passes) }))
+        .filter((tx) => tx.updates.length > 0),
+    }))
+    .filter((d) => d.txGroups.length > 0);
+  const visibleCount = visibleDays.reduce((n, d) => n + d.txGroups.reduce((m, t) => m + t.updates.length, 0), 0);
+
   function toggle(label: string) {
     setOpenDays((prev) => ({ ...prev, [label]: !prev[label] }));
   }
 
   return (
     <div className="space-y-4">
-      {days.map((d) => {
+      {/* Filter bar */}
+      <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-lg, 14px)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px" }}>
+          <FilterGroup heading="Type" options={TYPE_OPTIONS} selected={types} toggle={toggleIn(setTypes)} />
+          <FilterGroup heading="Who" options={WHO_OPTIONS} selected={whos} toggle={toggleIn(setWhos)} />
+          <FilterGroup heading="Side" options={SIDE_OPTIONS} selected={sides} toggle={toggleIn(setSides)} />
+          <FilterGroup heading="Stage" options={STAGE_OPTIONS} selected={stages} toggle={toggleIn(setStages)} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 18 }}>
+          <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>
+            {filterActive ? `Showing ${visibleCount} of ${totalCount}` : `${totalCount} update${totalCount !== 1 ? "s" : ""}`}
+          </span>
+          {filterActive && (
+            <button type="button" onClick={clearAll} className="agent-link agent-link-muted">Clear</button>
+          )}
+        </div>
+      </div>
+
+      {filterActive && visibleDays.length === 0 && (
+        <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 24px", textAlign: "center" }}>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--agent-text-muted)" }}>No updates match these filters.</p>
+          <button type="button" onClick={clearAll} className="agent-link agent-link-muted">Clear filters</button>
+        </div>
+      )}
+
+      {visibleDays.map((d) => {
         const { label, txGroups } = d;
-        const open = openDays[label] ?? d.defaultOpen;
+        // With a filter on, open every day that has matches so results show
+        // without a manual expand.
+        const open = filterActive ? true : (openDays[label] ?? d.defaultOpen);
         const updateCount = txGroups.reduce((n, t) => n + t.updates.length, 0);
         const countLabel = `${updateCount} update${updateCount !== 1 ? "s" : ""}`;
 

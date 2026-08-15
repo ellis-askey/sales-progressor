@@ -4,6 +4,7 @@ import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase } from "@/lib/services/fees";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { confirmationSentence } from "@/lib/updates-copy";
+import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
 const DRAFT = "draft" as TransactionStatus;
@@ -338,7 +339,7 @@ export type UpdateFeedEntry = {
   side: UpdateSide;
   transaction: UpdateFeedTx;
 } & (
-  | { kind: "milestone"; code: string; sentence: string; byName: string | null; byImage: string | null }
+  | { kind: "milestone"; code: string; stageKey: DisplayStageKey | null; sentence: string; byName: string | null; byImage: string | null }
   | { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null }
   | { kind: "note"; content: string; byName: string | null; byImage: string | null }
   | { kind: "reply"; content: string; method: string | null; byName: string | null }
@@ -352,12 +353,36 @@ const FEED_TX_SELECT = {
 const sideFromRole = (roleType: string | null | undefined): UpdateSide =>
   roleType === "vendor" ? "vendor" : roleType === "purchaser" ? "purchaser" : null;
 
+// Map every milestone code to one of the six journey stages shown on the file
+// Overview strip, so the Updates filter can group step confirmations by stage.
+// Partition by orderIndex: a code belongs to the latest stage whose entry code
+// starts at or before it. Built once from the definitions table (~48 rows).
+async function buildMilestoneStageMap(): Promise<Map<string, DisplayStageKey>> {
+  const defs = await prisma.milestoneDefinition.findMany({
+    select: { code: true, orderIndex: true },
+    orderBy: { orderIndex: "asc" },
+  });
+  const orderOf = new Map(defs.map((d) => [d.code, d.orderIndex]));
+  const starts = DISPLAY_STAGES
+    .map((s) => ({ key: s.key, start: Math.min(...s.entryCodes.map((c) => orderOf.get(c) ?? Infinity)) }))
+    .filter((s) => Number.isFinite(s.start))
+    .sort((a, b) => a.start - b.start);
+  const map = new Map<string, DisplayStageKey>();
+  for (const d of defs) {
+    let key: DisplayStageKey | null = starts[0]?.key ?? null;
+    for (const s of starts) if (d.orderIndex >= s.start) key = s.key;
+    if (key) map.set(d.code, key);
+  }
+  return map;
+}
+
 export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateFeedEntry[]> {
   const txFilter = { ...txWhere(vis), status: { not: DRAFT } };
   const activeRoundIds = await loadActiveRoundIds(txFilter);
   const roundOR = roundScopedOR(activeRoundIds);
 
-  const [completions, priceRows, noteRows, replyRows, docRows] = await Promise.all([
+  const [stageMap, completions, priceRows, noteRows, replyRows, docRows] = await Promise.all([
+    buildMilestoneStageMap(),
     prisma.milestoneCompletion.findMany({
       where: {
         transaction: txFilter,
@@ -446,6 +471,7 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       side,
       transaction: txCore,
       code: m.milestoneDefinition.code,
+      stageKey: stageMap.get(m.milestoneDefinition.code) ?? null,
       sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
       byName: confirmer.kind === "client" ? (clientContact?.name ?? null) : (m.completedBy?.name ?? null),
       byImage: confirmer.kind === "client" ? (clientContact?.image ?? null) : (m.completedBy?.image ?? null),
