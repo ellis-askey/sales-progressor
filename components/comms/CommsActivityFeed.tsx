@@ -44,8 +44,9 @@ function exchangeLabel(iso: string | null): string | null {
   const days = Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
   if (days < 0) return "Exchange overdue";
   if (days === 0) return "Exchange today";
-  if (days < 14) return `~${days}d to exchange`;
-  return `~${Math.round(days / 7)} wks to exchange`;
+  if (days < 14) return `about ${days} day${days === 1 ? "" : "s"} to exchange`;
+  const weeks = Math.round(days / 7);
+  return `about ${weeks} week${weeks === 1 ? "" : "s"} to exchange`;
 }
 
 export type UpdateKind = "milestone" | "price" | "note" | "reply" | "document";
@@ -170,8 +171,12 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
 function TxCard({ tx }: { tx: TxGroup }) {
   const { line1, line2 } = splitAddress(tx.transactionAddress);
   const status = STATUS_META[tx.status];
-  const exchange = exchangeLabel(tx.expectedExchangeIso);
   const snap = tx.snapshot;
+  // The exchange forecast is only meaningful before exchange. Once a file has
+  // exchanged (post-exchange stage) or is completed / withdrawn, drop it — a
+  // completed sale showing "Exchange overdue" reads as broken.
+  const exchanged = tx.status === "completed" || tx.status === "withdrawn" || snap?.stage === "Post-exchange";
+  const exchange = exchanged ? null : exchangeLabel(tx.expectedExchangeIso);
 
   return (
     <div className="agent-glass overflow-hidden rounded-[12px]" style={{ border: "0.5px solid var(--agent-border-subtle)" }}>
@@ -217,7 +222,7 @@ function TxCard({ tx }: { tx: TxGroup }) {
             {snap?.stage ?? ""}{snap?.stage && exchange ? " · " : ""}{exchange ?? ""}
           </span>
           {snap?.nextAction && (
-            <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right", maxWidth: 210, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right", maxWidth: 260, lineHeight: 1.35 }}>
               Next: {snap.nextAction.replace(/\.$/, "")}
             </span>
           )}
