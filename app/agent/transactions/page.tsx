@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getAccessScope } from "@/lib/security/access-scope";
-import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
+import { listTransactions, getExchangeForecast } from "@/lib/services/transactions";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getHubFilteredIds, getMonthExchangingIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
@@ -105,30 +105,32 @@ export default async function AllTransactionsPage({
     ? ((filter as TransactionStatus | "all") ?? "active")
     : "active";
 
-  const [allTransactions, counts, forecastMonths] = await Promise.all([
+  const [allTransactions, forecastMonths] = await Promise.all([
     listTransactions(session.user.agencyId, agentId, opts, txScope ?? undefined),
-    countTransactionsByStatus(session.user.agencyId, agentId, opts, txScope ?? undefined),
     getExchangeForecast(session.user.agencyId, agentId, opts, txScope ?? undefined).catch(() => []),
   ]);
 
-  // Fetch IDs from the same DB query as the Hub / month helper so counts match exactly
-  let filteredTransactions = allTransactions;
+  // Hub / month views narrow to a server-computed subset. The status tabs, by
+  // contrast, now filter CLIENT-side (instant) — so in status mode we hand the
+  // client every file and let it slice by tab with no server round-trip. This
+  // is what makes tab switching immediate; previously every tab click re-ran
+  // this whole page (re-list every file, recompute health, re-sign photos).
+  const inNarrowedMode = !!(hubFilter || monthFilter);
+  let narrowedSubset = allTransactions;
   if (hubFilter) {
-    const matchingIds = await getHubFilteredIds(vis, hubFilter);
-    const idSet = new Set(matchingIds);
-    filteredTransactions = allTransactions.filter((tx) => idSet.has(tx.id));
+    const idSet = new Set(await getHubFilteredIds(vis, hubFilter));
+    narrowedSubset = allTransactions.filter((tx) => idSet.has(tx.id));
   } else if (monthFilter) {
-    const matchingIds = await getMonthExchangingIds(vis, monthFilter.year, monthFilter.month);
-    const idSet = new Set(matchingIds);
-    filteredTransactions = allTransactions.filter((tx) => idSet.has(tx.id));
-  } else if (statusFilter !== "all") {
-    filteredTransactions = allTransactions.filter((tx) => tx.status === statusFilter);
+    const idSet = new Set(await getMonthExchangingIds(vis, monthFilter.year, monthFilter.month));
+    narrowedSubset = allTransactions.filter((tx) => idSet.has(tx.id));
   }
+
+  const clientTransactions = inNarrowedMode ? narrowedSubset : allTransactions;
 
   // Sign property photos in one round trip, then decorate rows with photoUrl
   // (null when absent → the row shows the neutral house thumbnail).
-  const photoMap = await getSignedUrlMap(filteredTransactions.map((t) => t.photoStoragePath));
-  const rowsWithPhotos = filteredTransactions.map((t) => ({
+  const photoMap = await getSignedUrlMap(clientTransactions.map((t) => t.photoStoragePath));
+  const rowsWithPhotos = clientTransactions.map((t) => ({
     ...t,
     photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
   }));
@@ -190,7 +192,7 @@ export default async function AllTransactionsPage({
                 {FILTER_LABELS[hubFilter]}
               </strong>
               <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
-                · {filteredTransactions.length} {filteredTransactions.length === 1 ? "file" : "files"}
+                · {narrowedSubset.length} {narrowedSubset.length === 1 ? "file" : "files"}
               </span>
             </span>
             <Link
@@ -224,7 +226,7 @@ export default async function AllTransactionsPage({
                 Exchanging in {monthLabel}
               </strong>
               <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
-                · {filteredTransactions.length} {filteredTransactions.length === 1 ? "file" : "files"}
+                · {narrowedSubset.length} {narrowedSubset.length === 1 ? "file" : "files"}
               </span>
             </span>
             <Link
@@ -300,7 +302,7 @@ export default async function AllTransactionsPage({
              * bar (2026-05-12) — status tabs (LEFT) + filter chips (RIGHT) now
              * share a single surface mirroring PropertyFileTabs visual pattern. */}
 
-            {filteredTransactions.length === 0 ? (
+            {inNarrowedMode && narrowedSubset.length === 0 ? (
               <div className="agent-glass-strong agent-empty-card" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
                 {hubFilter ? (
                   <EmptyState
@@ -316,12 +318,10 @@ export default async function AllTransactionsPage({
                       </Link>
                     }
                   />
-                ) : monthFilter ? (
-                  /* Third empty-state branch — fires on stale bookmarked URL or
-                   * manually constructed ?exchanging= param. Banner above still
-                   * carries the × Clear filter affordance; this empty state
-                   * matches the hub-filter pattern so the user sees their filter
-                   * is active and can clear it explicitly. */
+                ) : (
+                  /* Month-filter empty — fires on a stale bookmarked URL or a
+                   * manually constructed ?exchanging= param. Banner above carries
+                   * the × Clear filter affordance. */
                   <EmptyState
                     title={`No files exchanging in ${monthLabel}`}
                     description="Files appear here when their expected exchange date falls within this month."
@@ -335,38 +335,18 @@ export default async function AllTransactionsPage({
                       </Link>
                     }
                   />
-                ) : (
-                  <EmptyState
-                    /* statusFilter "on_hold" → "on-hold" (hyphen, not space) per
-                       Stage 3 voice review — sentence case + canonical hyphenation. */
-                    title={`No ${statusFilter.replace("_", "-")} files`}
-                    description="Try a different filter."
-                    action={
-                      <Link
-                        href="/agent/transactions"
-                        className="agent-link"
-                        style={{ fontSize: 13 }}
-                      >
-                        View all
-                      </Link>
-                    }
-                  />
                 )}
               </div>
             ) : (
+              /* Status mode hands the client EVERY file; it slices by tab
+               * client-side (instant) and renders its own per-status empty
+               * state. Narrowed mode passes the subset with tabs hidden. */
               <TransactionListWithSearch
                 transactions={rowsWithPhotos}
                 basePath="/agent/transactions"
                 isDirector={isDirector}
-                statusFilter={statusFilter}
-                statusCounts={{
-                  all: allTransactions.length,
-                  active: counts.active,
-                  on_hold: counts.on_hold,
-                  completed: counts.completed,
-                  withdrawn: counts.withdrawn,
-                }}
-                showStatusTabs={!hubFilter && !monthFilter}
+                initialStatus={inNarrowedMode ? "all" : statusFilter}
+                showStatusTabs={!inNarrowedMode}
                 showAgencyColumn={isInternalStaff}
                 showAssignedToColumn={showAssignedToColumn}
               />

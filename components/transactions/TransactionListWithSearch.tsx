@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Funnel } from "@phosphor-icons/react/dist/ssr";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -414,8 +413,7 @@ export function TransactionListWithSearch({
   transactions,
   basePath = "/transactions",
   isDirector = false,
-  statusFilter,
-  statusCounts,
+  initialStatus,
   showStatusTabs = true,
   showAgencyColumn = false,
   showAssignedToColumn = true,
@@ -423,12 +421,15 @@ export function TransactionListWithSearch({
   transactions: TransactionRow[];
   basePath?: string;
   isDirector?: boolean;
-  statusFilter?: StatusValue;
-  statusCounts?: { all: number; active: number; on_hold: number; completed: number; withdrawn: number };
+  initialStatus?: StatusValue;
   showStatusTabs?: boolean;
   showAgencyColumn?: boolean;
   showAssignedToColumn?: boolean;
 }) {
+  // Status tab is client state — switching filters the already-loaded set
+  // instantly, with no server round-trip. The URL is kept in sync via
+  // history.replaceState so a refresh / bookmark lands on the same tab.
+  const [status, setStatus] = useState<StatusValue>(initialStatus ?? "active");
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<Set<RiskLevel>>(new Set());
@@ -503,8 +504,33 @@ export function TransactionListWithSearch({
     setQuery("");
   }
 
+  // Counts for the tab badges — derived from the full set the client holds, so
+  // they're always in sync with what a tab would show. Only meaningful when the
+  // status tabs are visible (status mode, not a hub/month-narrowed view).
+  const statusCounts = useMemo(() => ({
+    all: transactions.length,
+    active: transactions.filter((t) => t.status === "active").length,
+    on_hold: transactions.filter((t) => t.status === "on_hold").length,
+    completed: transactions.filter((t) => t.status === "completed").length,
+    withdrawn: transactions.filter((t) => t.status === "withdrawn").length,
+  }), [transactions]);
+
+  function selectStatus(value: Exclude<StatusValue, "draft">) {
+    setStatus(value);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (value === "active") url.searchParams.delete("filter");
+      else url.searchParams.set("filter", value);
+      window.history.replaceState(null, "", url.toString());
+    }
+  }
+
   const filtered = useMemo(() => {
     let result = transactions;
+
+    if (showStatusTabs && status !== "all") {
+      result = result.filter((t) => t.status === status);
+    }
 
     if (selectedUserId) {
       result = result.filter((t) => t.agentUser?.id === selectedUserId);
@@ -542,7 +568,7 @@ export function TransactionListWithSearch({
     if (q) result = result.filter((t) => t.propertyAddress.toLowerCase().includes(q));
 
     return result;
-  }, [transactions, selectedUserId, selectedRiskLevels, activityFilter, managedByFilter, query]);
+  }, [transactions, status, showStatusTabs, selectedUserId, selectedRiskLevels, activityFilter, managedByFilter, query]);
 
   // Hanging-basket bar — single surface containing status tabs (LEFT) and
   // filter-chip triggers (RIGHT). Mirrors PropertyFileTabs visual pattern:
@@ -648,22 +674,21 @@ export function TransactionListWithSearch({
 
         {/* BOTTOM HALF — status tabs alone, full-width row (per Ellis override 1,
          * 2026-05-13). Tabs stay below the search/chips row on their own line. */}
-        {showStatusTabs && statusCounts && (
+        {showStatusTabs && (
           <div className="tl-card-tabs">
             <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
               <div className="tl-bar-tabs">
                 {STATUS_TABS.map(({ value, label }) => {
-                  const isActive = statusFilter === value;
+                  const isActive = status === value;
                   const count = statusCounts[value];
-                  const href = value === "active" ? basePath : `${basePath}?filter=${value}`;
                   return (
-                    <Link
+                    <button
                       key={value}
-                      href={href}
-                      scroll={false}
+                      type="button"
+                      onClick={() => selectStatus(value)}
                       className="agent-tab"
                       aria-selected={isActive || undefined}
-                      style={{ textDecoration: "none" }}
+                      style={{ background: "none", border: "none", cursor: "pointer" }}
                     >
                       {label}
                       <span style={{
@@ -672,7 +697,7 @@ export function TransactionListWithSearch({
                         background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
                         color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
                       }}>{count}</span>
-                    </Link>
+                    </button>
                   );
                 })}
               </div>
@@ -687,7 +712,11 @@ export function TransactionListWithSearch({
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--agent-text-muted)" }}>
             {query
               ? `No files match "${query}"`
-              : "No files match."}
+              : anyFilterActive
+                ? "No files match."
+                : showStatusTabs && status !== "all"
+                  ? `No ${status.replace("_", "-")} files`
+                  : "No files match."}
           </p>
           {anyFilterActive && (
             <button
