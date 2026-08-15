@@ -323,6 +323,7 @@ export async function SidebarPanel({
       keyDates={keyDates}
       exchangeConfirmed={exchangeConfirmed}
       fileTime={fileTime}
+      isInternal={isInternal}
       hideCommercialFields={isProgressor && !isAdminRole}
       agentSlot={agentSlot}
       riskInput={riskInput}
@@ -331,8 +332,7 @@ export async function SidebarPanel({
       lastActivityAt={transaction.lastActivityAt ?? null}
     />
   );
-  // isInternal + isAgentRole reserved for future variants; explicit
-  // reference here keeps TS from flagging as unused.
-  void isInternal;
+  // isAgentRole reserved for future variants; explicit reference here keeps
+  // TS from flagging as unused.
   void isAgentRole;
 }

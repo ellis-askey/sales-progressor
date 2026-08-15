@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
+import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { Card } from "@/components/ui/Card";
@@ -339,11 +340,11 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
                 </p>
                 {progress.isEarlyEstimate ? (
                   <p className="text-[10px] text-slate-900/30 mt-0.5">
-                    Too early to predict — using your 12-week target
+                    Too early to predict, using your 12-week target
                   </p>
                 ) : progress.predictedExchangeDate && !transaction.overridePredictedDate ? (
                   <p className="text-[10px] text-slate-900/30 mt-0.5">
-                    Based on similar files — could shift by a week or two
+                    Based on similar files, could shift by a week or two
                   </p>
                 ) : null}
               </div>
@@ -363,23 +364,19 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
             )}
           </div>
 
-          {progress.weeksRemaining !== null && (
-            <div className="flex justify-between items-center">
-              <p className="text-xs text-slate-900/40">Weeks to exchange</p>
-              <p className={`text-xs font-semibold ${
-                progress.weeksRemaining < 0 ? "text-red-600" :
-                progress.weeksRemaining <= 2 ? "text-amber-600" : "text-slate-900/90"
-              }`}>
-                {progress.weeksRemaining < 0
-                  ? `${Math.abs(progress.weeksRemaining)} weeks overdue`
-                  : `~${progress.weeksRemaining} weeks`}
-              </p>
-            </div>
-          )}
+          {progress.weeksRemaining !== null && !exchangeConfirmed && (() => {
+            const t = formatTimeToExchange(progress.predictedExchangeDate ?? null, progress.weeksRemaining);
+            return (
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-slate-900/40">Time to exchange</p>
+                <p className={`text-xs font-semibold ${t.amber ? "text-amber-600" : "text-slate-900/90"}`}>{t.text}</p>
+              </div>
+            );
+          })()}
 
           {transaction.chainLinkId && !exchangeConfirmed && (
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic", marginTop: 4 }}>
-              Chain not factored — prediction is for this sale alone.
+              Chain not factored. This prediction is for this sale alone.
             </p>
           )}
 
@@ -637,11 +634,11 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
                       </p>
                       {progress.isEarlyEstimate ? (
                         <p className="text-[10px] text-slate-900/30 mt-0.5">
-                          Too early to predict — using your 12-week target
+                          Too early to predict, using your 12-week target
                         </p>
                       ) : progress.predictedExchangeDate && !transaction.overridePredictedDate ? (
                         <p className="text-[10px] text-slate-900/30 mt-0.5">
-                          Based on similar files — could shift by a week or two
+                          Based on similar files, could shift by a week or two
                         </p>
                       ) : null}
                     </div>
@@ -659,22 +656,18 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
                     <p className="text-xs text-slate-900/30 italic">Awaiting exchange</p>
                   )}
                 </div>
-                {progress.weeksRemaining !== null && (
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs text-slate-900/40">Weeks to exchange</p>
-                    <p className={`text-xs font-semibold ${
-                      progress.weeksRemaining < 0 ? "text-red-600" :
-                      progress.weeksRemaining <= 2 ? "text-amber-600" : "text-slate-900/90"
-                    }`}>
-                      {progress.weeksRemaining < 0
-                        ? `${Math.abs(progress.weeksRemaining)} weeks overdue`
-                        : `~${progress.weeksRemaining} weeks`}
-                    </p>
-                  </div>
-                )}
+                {progress.weeksRemaining !== null && !exchangeConfirmed && (() => {
+                  const t = formatTimeToExchange(progress.predictedExchangeDate ?? null, progress.weeksRemaining);
+                  return (
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-slate-900/40">Time to exchange</p>
+                      <p className={`text-xs font-semibold ${t.amber ? "text-amber-600" : "text-slate-900/90"}`}>{t.text}</p>
+                    </div>
+                  );
+                })()}
                 {transaction.chainLinkId && !exchangeConfirmed && (
                   <p style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic", marginTop: 4 }}>
-                    Chain not factored — prediction is for this sale alone.
+                    Chain not factored. This prediction is for this sale alone.
                   </p>
                 )}
 

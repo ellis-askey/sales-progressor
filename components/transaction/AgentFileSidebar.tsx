@@ -24,6 +24,7 @@ import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { sendQuoteLinkToBuyerAction } from "@/app/actions/send-quote-link";
 import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
+import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { useTabContext } from "@/components/transaction/TabContext";
@@ -69,6 +70,8 @@ type Props = {
   exchangeConfirmed?: boolean;
   showOurFee?: boolean;
   fileTime?: { agentSeconds: number; teamSeconds: number; totalSeconds: number; lastActiveAt: Date | null; hasLiveSession: boolean };
+  // Internal staff (SP/admin/superadmin) see the agent vs our-team time split.
+  isInternal?: boolean;
   canEditSaleDetails?: boolean;
   hideCommercialFields?: boolean;
   agentSlot?: React.ReactNode;
@@ -155,6 +158,7 @@ export function AgentFileSidebar({
   showOurFee = true,
   recommendedFirms,
   fileTime,
+  isInternal = false,
   canEditSaleDetails = true,
   hideCommercialFields = false,
   agentSlot,
@@ -241,6 +245,12 @@ export function AgentFileSidebar({
             + stats strip). Card is now pill + rows + link. */}
         <div style={{ marginTop: 4 }}>
           <SidebarRow label="Time on file" value={fileTime && fileTime.totalSeconds > 0 ? fmtTime(fileTime.totalSeconds) : formatElapsedDays(progress.daysElapsed)} />
+          {isInternal && fileTime && fileTime.totalSeconds > 0 && (
+            <>
+              <SidebarRow label="Agent" labelStyle={{ paddingLeft: 12 }} value={fileTime.agentSeconds > 0 ? fmtTime(fileTime.agentSeconds) : "–"} />
+              <SidebarRow label="Our team" labelStyle={{ paddingLeft: 12 }} value={fileTime.teamSeconds > 0 ? fmtTime(fileTime.teamSeconds) : "–"} />
+            </>
+          )}
           {progress.fileLevelPhase && (
             <SidebarRow label="Stage" value={PHASE_LABELS[progress.fileLevelPhase] ?? progress.fileLevelPhase} />
           )}
@@ -352,23 +362,18 @@ export function AgentFileSidebar({
               : <span style={{ color: "var(--agent-text-muted)", fontStyle: "italic" }}>Awaiting exchange</span>
           }
         />
-        {progress.weeksRemaining !== null && (
-          <SidebarRow
-            label="Weeks to exchange"
-            value={<span style={{
-              color: progress.weeksRemaining < 0 ? "#b91c1c"
-                : progress.weeksRemaining <= 2 ? "#b45309"
-                : "var(--agent-text-primary)",
-            }}>
-              {progress.weeksRemaining < 0
-                ? `${Math.abs(progress.weeksRemaining)} weeks overdue`
-                : `~${progress.weeksRemaining} weeks`}
-            </span>}
-          />
-        )}
+        {progress.weeksRemaining !== null && !exchangeConfirmed && (() => {
+          const t = formatTimeToExchange(progress.predictedExchangeDate ?? null, progress.weeksRemaining);
+          return (
+            <SidebarRow
+              label="Time to exchange"
+              value={<span style={{ color: t.amber ? "#b45309" : "var(--agent-text-primary)" }}>{t.text}</span>}
+            />
+          );
+        })()}
         {transaction.chainLinkId && !exchangeConfirmed && (
           <p style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic", marginTop: 8 }}>
-            Chain not factored — prediction is for this sale alone.
+            Chain not factored. This prediction is for this sale alone.
           </p>
         )}
 
@@ -399,22 +404,6 @@ export function AgentFileSidebar({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("milestones")}
-          className="agent-link"
-          style={{
-            fontSize: 11,
-            marginTop: 10,
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          View full forecast →
-        </button>
       </GlassCard>
 
       {/* ─── 3. Agent ─────────────────────────────────────────────────── */}
