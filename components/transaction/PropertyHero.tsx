@@ -262,8 +262,12 @@ export function PropertyHero({
       const baseStyle: React.CSSProperties = {
         fontSize: 11,
         fontWeight: 600,
-        color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
-        background: isSelf ? "var(--agent-surface-overlay)" : "rgba(var(--agent-coral-rgb), 0.1)",
+        // "With progressor" was light coral on a faint coral tint — near-
+        // invisible on the light hero. Deeper coral + stronger tint + a
+        // hairline border give it real contrast.
+        color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral-deep)",
+        background: isSelf ? "var(--agent-surface-overlay)" : "rgba(var(--agent-coral-rgb), 0.16)",
+        border: isSelf ? "1px solid transparent" : "1px solid rgba(var(--agent-coral-rgb), 0.30)",
         borderRadius: 999,
         padding: "4px 10px",
         whiteSpace: "nowrap",
@@ -279,7 +283,6 @@ export function PropertyHero({
           className="v2-swap-btn"
           style={{
             ...baseStyle,
-            border: "none",
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
