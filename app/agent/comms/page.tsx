@@ -40,7 +40,7 @@ function toRow(e: UpdateFeedEntry, signed: Map<string, string>): UpdateRow {
     case "note":
       return { ...base, kind: "note", content: e.content, byName: e.byName, byImage: e.byImage };
     case "reply":
-      return { ...base, kind: "reply", content: e.content, method: e.method, byName: e.byName };
+      return { ...base, kind: "reply", content: e.content };
     case "document":
       return { ...base, kind: "document", filename: e.filename, mimeType: e.mimeType, docUrl: e.storagePath ? signed.get(e.storagePath) ?? null : null, byName: e.byName };
   }

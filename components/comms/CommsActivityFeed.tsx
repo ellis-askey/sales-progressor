@@ -59,7 +59,7 @@ export type UpdateRow =
   | (RowBase & { kind: "milestone"; code: string; stageKey: DisplayStageKey | null; sentence: string; byName: string | null; byImage: string | null })
   | (RowBase & { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null })
   | (RowBase & { kind: "note"; content: string; byName: string | null; byImage: string | null })
-  | (RowBase & { kind: "reply"; content: string; method: string | null; byName: string | null })
+  | (RowBase & { kind: "reply"; content: string })
   | (RowBase & { kind: "document"; filename: string; mimeType: string; docUrl: string | null; byName: string | null });
 
 export type TxGroup = {
@@ -137,7 +137,7 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
   } else if (u.kind === "note") {
     main = u.content;
   } else if (u.kind === "reply") {
-    main = `${u.byName ?? "Someone"} replied${u.method ? ` by ${u.method}` : ""}`;
+    main = "A solicitor replied to our chase";
     secondary = u.content?.trim() || null;
   } else {
     // document

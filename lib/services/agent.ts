@@ -342,7 +342,7 @@ export type UpdateFeedEntry = {
   | { kind: "milestone"; code: string; stageKey: DisplayStageKey | null; sentence: string; byName: string | null; byImage: string | null }
   | { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null }
   | { kind: "note"; content: string; byName: string | null; byImage: string | null }
-  | { kind: "reply"; content: string; method: string | null; byName: string | null }
+  | { kind: "reply"; content: string }
   | { kind: "document"; documentId: string; filename: string; mimeType: string; storagePath: string; byName: string | null }
 );
 
@@ -416,11 +416,17 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       take: 50,
       include: { transaction: { select: FEED_TX_SELECT }, createdBy: { select: { name: true, image: true } } },
     }),
-    prisma.outboundMessage.findMany({
-      where: { transaction: txFilter, type: "inbound", OR: roundOR },
-      orderBy: { createdAt: "desc" },
+    // Replies in: a solicitor responding to one of our automatic chases with an
+    // expected date or a free-text update. Both are recorded as an EnquiryMovement
+    // (source solicitor_reply) carrying the actual text. A confirm is NOT a reply
+    // — it completes the step and shows as a "Step confirmed" entry instead. We
+    // deliberately do NOT read inbound comms here (those are historical WhatsApp /
+    // email imports, unrelated to chases).
+    prisma.enquiryMovement.findMany({
+      where: { source: "solicitor_reply", tracker: { transaction: txFilter } },
+      orderBy: { occurredAt: "desc" },
       take: 50,
-      include: { transaction: { select: FEED_TX_SELECT } },
+      include: { tracker: { select: { transaction: { select: FEED_TX_SELECT } } } },
     }),
     prisma.transactionDocument.findMany({
       where: { transaction: txFilter, OR: roundOR },
@@ -436,14 +442,6 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
   if (changerIds.length) {
     const users = await prisma.user.findMany({ where: { id: { in: changerIds } }, select: { id: true, name: true } });
     for (const u of users) changerNames.set(u.id, u.name ?? "");
-  }
-
-  // Inbound replies carry the sender in contactIds — resolve name + role once.
-  const replyContactIds = [...new Set(replyRows.flatMap((r) => r.contactIds).filter(Boolean))];
-  const replyContacts = new Map<string, { name: string; roleType: string }>();
-  if (replyContactIds.length) {
-    const cs = await prisma.contact.findMany({ where: { id: { in: replyContactIds } }, select: { id: true, name: true, roleType: true } });
-    for (const c of cs) replyContacts.set(c.id, { name: c.name, roleType: c.roleType });
   }
 
   const entries: UpdateFeedEntry[] = [];
@@ -509,20 +507,17 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
     });
   }
 
-  for (const r of replyRows) {
-    if (!r.transaction) continue;
-    const sender = r.contactIds.map((id) => replyContacts.get(id)).find(Boolean) ?? null;
+  for (const mv of replyRows) {
+    const t = mv.tracker?.transaction;
+    if (!t) continue;
     entries.push({
       kind: "reply",
-      id: r.id,
-      at: r.sentAt ?? r.createdAt,
-      // Inbound is always external: a solicitor reply, otherwise treat as client.
-      who: sender?.roleType === "solicitor" ? "solicitor" : "client",
-      side: sideFromRole(sender?.roleType),
-      transaction: r.transaction,
-      content: r.content,
-      method: r.method,
-      byName: sender?.name ?? null,
+      id: mv.id,
+      at: mv.occurredAt,
+      who: "solicitor",
+      side: null,
+      transaction: t,
+      content: mv.note,
     });
   }
 
