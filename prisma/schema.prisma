@@ -196,6 +196,7 @@ model User {
   holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
   pricingAcknowledgements       PricingAcknowledgement[]
   quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
+  outlookConnection             OutlookConnection?
 }
 
 model AgentPushSubscription {
@@ -1819,6 +1820,34 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A user's connected Microsoft Outlook mailbox (Microsoft Graph, delegated).
+// Distinct from the NextAuth `Account` table (which is login-only, plaintext,
+// managed by the adapter): this is a first-class per-user integration with
+// mail scopes, and its access + refresh tokens are ENCRYPTED at rest via
+// lib/security/token-crypto.ts (AES-256-GCM). One mailbox per user for now.
+// Phase 1 = connection only; later phases add token refresh + Graph reads.
+model OutlookConnection {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Identity of the connected Microsoft account, from Graph /me.
+  microsoftUserId String // Graph "id" (immutable object id)
+  email           String // userPrincipalName / mail — shown in the UI
+  displayName     String?
+
+  // Encrypted credentials. Never logged, never sent to the client.
+  accessToken     String // encrypted (iv:tag:ciphertext hex)
+  refreshToken    String // encrypted
+  tokenExpiresAt  DateTime // when the access token expires (for later refresh)
+  scope           String // granted scopes, space-delimited
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([microsoftUserId])
 }
 
 model VerificationToken {

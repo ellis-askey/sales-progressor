@@ -38,6 +38,17 @@ export default function SettingsPage() {
       </section>
 
       <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Integrations</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Tile
+            href="/command/settings/connections"
+            title="Connections"
+            body="Connect your Microsoft Outlook mailbox so emails can be linked to the right property file."
+          />
+        </div>
+      </section>
+
+      <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Configuration</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Tile
