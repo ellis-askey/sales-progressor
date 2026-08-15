@@ -945,19 +945,21 @@ const copy: Record<string, PortalCopy> = {
     description: "Consider booking an independent structural survey. A RICS HomeBuyer Report (Level 2) costs around £400 to £700 and covers the condition of the property in detail, which is something the lender's valuation does not do. It's there for your peace of mind and protection.",
     emailCopy: {
       vendor: {
-        subject: "Buyer has booked their survey: {address}",
-        heroLabel: "Survey booked",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer has booked their property survey{eventDate}. A surveyor will visit the property. Access has been arranged, so nothing else for you to do right now. The visit itself usually takes a few hours; the written report typically follows within one to two weeks. We'll let you know once the buyer has their report.",
+        subject: "Buyer has arranged their survey, {address}",
+        heroLabel: "Buyer's survey arranged",
+        opening: "The buyer has arranged a property survey{surveyorClause}.",
+        whatHappened: "Once the surveyor has a date in mind, access to the property will be arranged in the usual way, normally through the estate agent. There's nothing you need to do at this stage. If the survey raises anything the buyer wishes to investigate further, this may be raised with your solicitor as an enquiry. If anything is needed from you, we'll be in touch.",
         whatNext: null,
         action: "View your portal",
       },
       purchaser: {
-        subject: "Survey booked: {address}",
-        heroLabel: "Survey booked",
-        opening: "Your survey is booked{eventDate}.",
-        whatHappened: "Your independent survey has been booked. The surveyor will inspect the property and produce a detailed report covering its condition and any issues they find.",
-        whatNext: "Most survey reports flag some issues. The report will highlight what your solicitor can formally request information on from the seller, though not all are legal requirements. If significant issues are found and you want to renegotiate, you'll need a specialist contractor to assess them and provide a quote. That quote is what any price reduction would be based on. Discuss your options with your solicitor when the report arrives.",
+        subject: "Your survey is arranged, {address}",
+        heroLabel: "Survey arranged",
+        opening: "Your property survey has been arranged{surveyorClause}.",
+        // {valuationNote} appends the mortgage-only "separate from the lender's
+        // valuation" sentences (empty for cash buyers, who have no valuation).
+        whatHappened: "The surveyor will inspect the property in person and produce a report directly for you. A Level 2 (HomeBuyer) survey typically takes 1 to 2 hours at the property, while a Level 3 (full structural) survey can take 2 to 3 hours.{valuationNote}",
+        whatNext: "You can usually expect to receive the report within a week or two of the survey. Once you have it, take some time to read through it carefully. If anything significant is highlighted, it's worth speaking with your surveyor before deciding what to do next. They'll be able to explain whether a finding is something that needs attention or is fairly routine for a property of this type and age.",
         action: "View your portal",
       },
       progressor: {
@@ -976,19 +978,19 @@ const copy: Record<string, PortalCopy> = {
     description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues; many are minor. If anything significant is raised, speak to your solicitor who can advise on the appropriate next steps.",
     emailCopy: {
       vendor: {
-        subject: "Buyer's survey report has been received: {address}",
-        heroLabel: "Survey report received",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer has received their survey report. Surveys commonly flag some issues. This doesn't necessarily mean there's a problem, but the buyer may come back with queries or requests.",
-        whatNext: "We'll let you know if the buyer raises anything from the report.",
+        subject: "Buyer's survey report is in, {address}",
+        heroLabel: "Buyer's survey report received",
+        opening: "The buyer has now received their survey report and will be taking some time to read through the findings.",
+        whatHappened: "There's nothing you need to do at this stage. No news is generally good news when it comes to survey reports, so unless the buyer raises anything, the sale will simply continue progressing as normal.",
+        whatNext: "If the buyer does need further information or documentation following the survey, this may be raised with your solicitor through the normal enquiry process. If there's anything that needs your input directly, we'll be in touch.",
         action: "View your portal",
       },
       purchaser: {
-        subject: "Your survey report has arrived: {address}",
+        subject: "Your survey report is in, {address}",
         heroLabel: "Survey report received",
-        opening: "Your survey report is ready.",
-        whatHappened: "Your surveyor has delivered their report on the property. Most surveys flag some issues. It's rare to get a completely clean report, so don't be alarmed if yours highlights a few things.",
-        whatNext: "Read the report carefully and note anything rated as a significant risk or requiring urgent attention. If you have concerns, speak to your solicitor. They can advise on whether to seek a specialist report or request further information from the seller.",
+        opening: "Your survey report is now available.",
+        whatHappened: "Take some time to read through it carefully. Surveyors generally use condition ratings to help highlight which areas need the most attention, so focus particularly on anything given a higher-risk rating or identified as requiring further investigation. If there's anything you don't understand or you're unsure how significant it is, speak with your surveyor before deciding what to do next. They'll usually be happy to talk through their findings and explain whether something is a genuine concern or a fairly routine observation for a property of this type and age.",
+        whatNext: "If the report highlights anything you feel needs to be raised with the seller, such as a significant defect, further information or documentation, speak with your solicitor. It's worth deciding what you'd actually like clarified or resolved first, and your solicitor can then raise the appropriate enquiries with the seller's side.",
         action: "View your portal",
       },
       progressor: {
