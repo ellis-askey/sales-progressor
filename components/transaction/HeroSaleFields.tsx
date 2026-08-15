@@ -24,7 +24,7 @@ import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phos
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction } from "@/app/actions/transactions";
+import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction } from "@/app/actions/transactions";
 import type { SaleDetailsDelta } from "@/app/actions/transactions";
 import { SaleDetailChangeModal } from "./SaleDetailChangeModal";
 
@@ -33,10 +33,24 @@ const PURCHASE_TYPE_OPTIONS: { value: PurchaseType; label: string }[] = [
   { value: "cash_buyer", label: "Cash buyer" },
   { value: "cash_from_proceeds", label: "Cash from proceeds" },
 ];
-const TENURE_OPTIONS: { value: Tenure; label: string }[] = [
+// Tenure picker carries a third option — "Share of freehold" maps to
+// (leasehold + isShareOfFreehold). Freehold/leasehold clear the share flag.
+type TenureChoice = "freehold" | "leasehold" | "share";
+const TENURE_CHOICE_OPTIONS: { value: TenureChoice; label: string }[] = [
   { value: "freehold", label: "Freehold" },
   { value: "leasehold", label: "Leasehold" },
+  { value: "share", label: "Share of freehold" },
 ];
+function tenureChoiceToState(c: TenureChoice): { tenure: Tenure; share: boolean } {
+  if (c === "freehold") return { tenure: "freehold", share: false };
+  if (c === "leasehold") return { tenure: "leasehold", share: false };
+  return { tenure: "leasehold", share: true };
+}
+function currentTenureChoice(t: Tenure | null, share: boolean): TenureChoice | null {
+  if (t === "freehold") return "freehold";
+  if (t === "leasehold") return share ? "share" : "leasehold";
+  return null;
+}
 
 function formatPrice(pence: number | null): string {
   if (!pence) return "–";
@@ -200,13 +214,14 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
   );
 }
 
-type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; title: string };
+type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; title: string };
 
-export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, exchanged }: {
+export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, isShareOfFreehold, exchanged }: {
   transactionId: string;
   purchasePrice: number | null;
   purchaseType: PurchaseType | null;
   tenure: Tenure | null;
+  isShareOfFreehold: boolean;
   exchanged: boolean;
 }) {
   const router = useRouter();
@@ -286,10 +301,28 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
   async function pickOption(field: "type" | "tenure", value: string) {
     setOpenField(null);
     if (purchaseType == null || tenure == null) return;
-    const next: PendingChange = field === "type"
-      ? { newPurchaseType: value as PurchaseType, newTenure: tenure, title: `Change purchase type to ${purchaseTypeLabel(value as PurchaseType)}?` }
-      : { newPurchaseType: purchaseType, newTenure: value as Tenure, title: `Change tenure to ${tenureLabel(value as Tenure)}?` };
-    if (next.newPurchaseType === purchaseType && next.newTenure === tenure) return; // picked current
+
+    let next: PendingChange;
+    if (field === "type") {
+      next = { newPurchaseType: value as PurchaseType, newTenure: tenure, newIsShareOfFreehold: isShareOfFreehold, title: `Change purchase type to ${purchaseTypeLabel(value as PurchaseType)}?` };
+      if (next.newPurchaseType === purchaseType) return; // picked current
+    } else {
+      const { tenure: newTenure, share: newShare } = tenureChoiceToState(value as TenureChoice);
+      if (newTenure === tenure && newShare === isShareOfFreehold) return; // picked current
+      // Leasehold ↔ Share of freehold is only the share flag — no milestone
+      // impact, so save it straight away without the delta-preview modal.
+      if (newTenure === tenure) {
+        try {
+          await saveIsShareOfFreeholdAction(transactionId, newShare);
+          toast.success(newShare ? "Marked share of freehold" : "Tenure updated");
+          router.refresh();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Couldn't save the change");
+        }
+        return;
+      }
+      next = { newPurchaseType: purchaseType, newTenure, newIsShareOfFreehold: newShare, title: `Change tenure to ${TENURE_CHOICE_OPTIONS.find((o) => o.value === value)?.label ?? tenureLabel(newTenure)}?` };
+    }
 
     setPending(next);
     setDelta(null);
@@ -311,6 +344,9 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setModalError(null);
     try {
       await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure });
+      if (pending.newIsShareOfFreehold !== isShareOfFreehold) {
+        await saveIsShareOfFreeholdAction(transactionId, pending.newIsShareOfFreehold);
+      }
       const label = pending.newTenure !== tenure ? "Tenure" : "Purchase type";
       closeModal();
       toast.success(`${label} updated`);
@@ -363,11 +399,14 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       {/* Tenure */}
       <CellFrame Icon={HouseSimple}>
         <div ref={tenureBtnRef}>
-          {typeTenureLocked ? (
-            <StaticValue value={tenureLabel(tenure)} label="Tenure" />
-          ) : (
-            <EditTrigger value={tenureLabel(tenure)} label="Tenure" ariaLabel="Change tenure" onClick={() => openPopover("tenure")} />
-          )}
+          {(() => {
+            const tenureText = tenure === "leasehold" && isShareOfFreehold ? "Share of freehold" : tenureLabel(tenure);
+            return typeTenureLocked ? (
+              <StaticValue value={tenureText} label="Tenure" />
+            ) : (
+              <EditTrigger value={tenureText} label="Tenure" ariaLabel="Change tenure" onClick={() => openPopover("tenure")} />
+            );
+          })()}
         </div>
       </CellFrame>
 
@@ -383,8 +422,8 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       {openField === "tenure" && anchorRect && (
         <OptionMenu
           anchor={anchorRect}
-          options={TENURE_OPTIONS}
-          current={tenure}
+          options={TENURE_CHOICE_OPTIONS}
+          current={currentTenureChoice(tenure, isShareOfFreehold)}
           onPick={(v) => pickOption("tenure", v)}
           onClose={() => setOpenField(null)}
         />

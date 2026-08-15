@@ -404,6 +404,7 @@ export default async function AgentTransactionDetailPage({
           overridePredictedDate={transaction.overridePredictedDate ?? null}
           topRightSlot={heroTopRightSlot}
           exchanged={transaction.exchangedAt !== null}
+          isShareOfFreehold={transaction.isShareOfFreehold}
           roundChipSlot={
             <RoundChip
               transactionId={transaction.id}

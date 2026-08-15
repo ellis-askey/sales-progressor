@@ -56,6 +56,8 @@ type Props = {
   // edits (the NR cascade could reverse completed post-exchange steps);
   // price stays editable.
   exchanged?: boolean;
+  // Share of freehold — surfaced as a third option in the hero's tenure picker.
+  isShareOfFreehold?: boolean;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -225,7 +227,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -487,6 +489,7 @@ export function PropertyHero({
                 purchasePrice={purchasePrice ?? null}
                 purchaseType={purchaseType ?? null}
                 tenure={tenure ?? null}
+                isShareOfFreehold={isShareOfFreehold}
                 exchanged={exchanged}
               />
             ) : (

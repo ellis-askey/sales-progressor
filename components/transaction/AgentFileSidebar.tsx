@@ -26,7 +26,6 @@ import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
-import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
@@ -161,7 +160,6 @@ export function AgentFileSidebar({
   recommendedFirms,
   fileTime,
   isInternal = false,
-  canEditSaleDetails = true,
   hideCommercialFields = false,
   agentSlot,
   riskInput,
@@ -169,7 +167,6 @@ export function AgentFileSidebar({
   primaryPortalHref,
   lastActivityAt,
 }: Props) {
-  const [showEditDrawer, setShowEditDrawer] = useState(false);
   const { setActiveTab } = useTabContext();
 
   const health = TRACK_HEALTH[progress.onTrack] ?? TRACK_HEALTH.unknown;
@@ -462,15 +459,6 @@ export function AgentFileSidebar({
             </span>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Fees</p>
           </div>
-          {canEditSaleDetails && (
-            <button
-              onClick={() => setShowEditDrawer(true)}
-              className="agent-link"
-              style={{ fontSize: 11, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              {hideCommercialFields ? "Edit price" : "Edit"}
-            </button>
-          )}
         </div>
 
         <SidebarRow label="Purchase price" value={formatPrice(transaction.purchasePrice) ?? "–"} />
@@ -548,29 +536,6 @@ export function AgentFileSidebar({
         </div>
       </GlassCard>
 
-      {showEditDrawer && (
-        <EditSaleDetailsDrawer
-          transactionId={transaction.id}
-          propertyAddress={transaction.propertyAddress}
-          tenure={transaction.tenure ?? null}
-          purchaseType={transaction.purchaseType ?? null}
-          isShareOfFreehold={transaction.isShareOfFreehold}
-          purchasePrice={transaction.purchasePrice ?? null}
-          agentFeeAmount={transaction.agentFeeAmount ?? null}
-          agentFeePercent={transaction.agentFeePercent ?? null}
-          agentFeeIsVatInclusive={transaction.agentFeeIsVatInclusive ?? null}
-          referralFee={transaction.referralFee ?? null}
-          referredFirmName={transaction.referredFirmName ?? null}
-          referredFirmId={transaction.referredFirmId ?? null}
-          recommendedFirms={recommendedFirms}
-          overridePredictedDate={transaction.overridePredictedDate ?? null}
-          predictedExchangeDate={progress.predictedExchangeDate ?? null}
-          completionDate={transaction.completionDate ?? null}
-          exchangeConfirmed={exchangeConfirmed}
-          hideCommercialFields={hideCommercialFields}
-          onClose={() => setShowEditDrawer(false)}
-        />
-      )}
     </div>
   );
 }
