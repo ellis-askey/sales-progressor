@@ -36,6 +36,18 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
   const topNavPick = usePortalPick("portal-topnav");
   const bottomNavPick = usePortalPick("portal-bottomnav");
 
+  // Time-of-day greeting for the header. Computed client-side (after mount) so
+  // it matches the viewer's local time without a hydration mismatch — until
+  // then, and if there's no name, it gracefully falls back to just the name /
+  // just the greeting.
+  const firstName = extractFirstName(contactName);
+  const [greeting, setGreeting] = useState("");
+  useEffect(() => {
+    const h = new Date().getHours();
+    setGreeting(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+  }, []);
+  const greetingLabel = greeting && firstName ? `${greeting}, ${firstName}` : greeting || firstName || "";
+
   // Measure real engaged time the client spends on their portal (audit
   // COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13). Mounts once for the whole portal
   // shell, so it spans every sub-page. No backfill — records from ship forward.
@@ -109,34 +121,44 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
         }}
       />
 
-      {/* Top header — solid white, real shadow (or a picked glass variant) */}
+      {/* Top header. On the overview it floats OVER the property photo
+          (transparent, with a soft top scrim for legibility) so the image runs
+          to the very top; elsewhere it's a solid sticky bar. A picked glass
+          variant overrides the surface. Left: a time-of-day greeting. Right:
+          the agency name + the menu. */}
       <div
-        className={`sticky top-0 z-10${topNavPick ? ` ${classFor(topNavPick)}` : ""}`}
+        className={`${isHome ? "absolute top-0 inset-x-0 z-30" : "sticky top-0 z-20"}${topNavPick ? ` ${classFor(topNavPick)}` : ""}`}
         data-glass-id="portal-topnav"
         data-glass-label="Top nav bar"
         data-glass-variant={topNavPick ?? "v00"}
-        style={topNavPick ? undefined : { background: "#FFFFFF", boxShadow: P.shadowSm }}
+        style={
+          topNavPick
+            ? undefined
+            : isHome
+              ? { background: "linear-gradient(180deg, rgba(248,249,251,0.72) 0%, rgba(248,249,251,0.28) 55%, rgba(248,249,251,0) 100%)" }
+              : { background: "#FFFFFF", boxShadow: P.shadowSm }
+        }
       >
-        <div className="max-w-lg mx-auto px-5 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-lg mx-auto px-5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            {/* Greeting (left) */}
             <p
-              className="text-[11px] font-bold uppercase tracking-[0.12em]"
-              style={{ color: P.primary }}
+              className="text-[15px] font-semibold truncate"
+              style={{ color: P.textPrimary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
             >
-              {agencyName}
+              {greetingLabel}
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div
-                className="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold"
-                style={{ background: P.primaryBg, color: P.primaryText }}
+            {/* Agency + menu (right) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+              <p
+                className="text-[11px] font-bold uppercase tracking-[0.12em]"
+                style={{ color: P.primary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
               >
-                {extractFirstName(contactName)}
-              </div>
-              {/* Hamburger — opens the menu drawer (details / solicitor /
-                  notifications). Added 2026-08-09; drawer content stubbed
-                  in commit B, filled in commit C. */}
+                {agencyName}
+              </p>
               {/* Founder-only Design Lab flask (renders null for clients) */}
               <PortalDesignLab />
+              {/* Hamburger — opens the menu drawer. Borderless, same 34px tap. */}
               <button
                 type="button"
                 onClick={() => setMenuOpen(true)}
@@ -149,11 +171,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
                   width: 34,
                   height: 34,
                   borderRadius: 10,
-                  border: `0.5px solid ${P.border}`,
-                  background: "#fff",
+                  border: "none",
+                  background: "transparent",
                   color: P.textPrimary,
                   cursor: "pointer",
-                  transition: "background 140ms ease",
                 }}
               >
                 <List size={18} weight="regular" />
