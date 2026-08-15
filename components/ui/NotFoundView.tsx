@@ -30,14 +30,11 @@ export function NotFoundView({
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.svg" alt="Sales Progressor" style={{ height: 26, marginBottom: 8, opacity: 0.9 }} />
-
       <div style={{ width: 320, height: 320, maxWidth: "80vw", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Player src="/animations/404.json" autoplay loop style={{ width: "100%", height: "100%" }} />
       </div>
 
-      <h1 className="text-[24px] font-bold" style={{ color: "#1A1D29", marginTop: -8, letterSpacing: "-0.01em" }}>
+      <h1 className="text-[24px] font-bold" style={{ color: "#1A1D29", marginTop: -48, letterSpacing: "-0.01em" }}>
         {title}
       </h1>
       <p className="text-[14px] leading-relaxed" style={{ color: "#4A5162", maxWidth: 380, marginTop: 8 }}>
