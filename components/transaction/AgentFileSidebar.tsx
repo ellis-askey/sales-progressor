@@ -28,6 +28,7 @@ import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
+import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
 import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench } from "@phosphor-icons/react";
@@ -353,15 +354,10 @@ export function AgentFileSidebar({
             </span>}
           />
         )}
-        <SidebarRow
-          label="Completion forecast"
-          value={
-            exchangeConfirmed
-              ? (transaction.completionDate
-                  ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                  : "Not set")
-              : <span style={{ color: "var(--agent-text-muted)", fontStyle: "italic" }}>Awaiting exchange</span>
-          }
+        <CompletionDateInline
+          transactionId={transaction.id}
+          completionDate={transaction.completionDate ?? null}
+          exchangeConfirmed={exchangeConfirmed}
         />
         {progress.weeksRemaining !== null && !exchangeConfirmed && (() => {
           const t = formatTimeToExchange(progress.predictedExchangeDate ?? null, progress.weeksRemaining);

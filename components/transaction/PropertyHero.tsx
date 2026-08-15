@@ -7,6 +7,7 @@ import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft }
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { HeroSaleFields } from "./HeroSaleFields";
+import { HeroExchangeCell } from "./HeroExchangeCell";
 import { formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -488,13 +489,21 @@ export function PropertyHero({
                 <HeroStatCell Icon={HouseSimple} label="Tenure" value={tenure ? formatTenure(tenure) : "–"} />
               </>
             )}
-            <HeroStatCell
-              Icon={CalendarBlank}
-              label="Expected exchange"
-              value={exchangeStat
-                ? new Date(exchangeStat).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                : "–"}
-            />
+            {transactionId ? (
+              <HeroExchangeCell
+                transactionId={transactionId}
+                predictedDate={exchangeDate ?? null}
+                overrideDate={overridePredictedDate ? new Date(overridePredictedDate) : null}
+              />
+            ) : (
+              <HeroStatCell
+                Icon={CalendarBlank}
+                label="Expected exchange"
+                value={exchangeStat
+                  ? new Date(exchangeStat).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                  : "–"}
+              />
+            )}
           </div>
 
           {/* Meta row — managing agent, file age, service pill, round
