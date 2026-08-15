@@ -10,10 +10,13 @@ export const A = {
   bgWarm: "#FFDABD",
   paper: "#FFFBF5",
 
-  // Card surface — translucent white for a soft glass read over the gradient.
-  cardBg: "rgba(255,255,255,0.78)",
-  cardBorder: "rgba(45,24,16,0.07)",
-  cardShadow: "0 4px 20px rgba(255,138,101,0.08), 0 1px 4px rgba(45,24,16,0.05)",
+  // Card surface — frosted glass floating over the app's iridescent backdrop
+  // (AppBackground). Translucent enough that the shimmer reads through; the
+  // blur + saturate are applied inline as `cardBlur`.
+  cardBg: "rgba(255,255,255,0.58)",
+  cardBorder: "rgba(255,255,255,0.60)",
+  cardBlur: "blur(24px) saturate(180%)",
+  cardShadow: "0 8px 32px rgba(90,58,40,0.10), 0 2px 8px rgba(45,24,16,0.05)",
 
   // Ink (warm brown, per the sunset theme).
   textPrimary: "#2D1810",

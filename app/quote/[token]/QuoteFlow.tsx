@@ -96,8 +96,8 @@ export function QuoteFlow({
       <div
         style={{
           background: A.cardBg,
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
+          backdropFilter: A.cardBlur,
+          WebkitBackdropFilter: A.cardBlur,
           border: `1px solid ${A.cardBorder}`,
           borderRadius: 20,
           padding: 24,
@@ -146,8 +146,8 @@ export function QuoteFlow({
       <div
         style={{
           background: A.cardBg,
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
+          backdropFilter: A.cardBlur,
+          WebkitBackdropFilter: A.cardBlur,
           border: `1px solid ${A.cardBorder}`,
           borderRadius: 20,
           padding: 24,
@@ -486,8 +486,8 @@ function StepCard({
     <section
       style={{
         background: A.cardBg,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
+        backdropFilter: A.cardBlur,
+        WebkitBackdropFilter: A.cardBlur,
         border: `1px solid ${A.cardBorder}`,
         borderRadius: 20,
         padding: 20,

@@ -15,7 +15,9 @@ import { outwardCode } from "@/lib/utils/address";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { QuoteFlow } from "./QuoteFlow";
+import { AppBackground } from "@/components/decor/AppBackground";
 import { A } from "./ui";
+import "@/app/styles/elevra.css";
 
 export const metadata = {
   title: "Get a survey quote | Sales Progressor",
@@ -90,10 +92,20 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
     <main
       style={{
         minHeight: "100svh",
-        background: `linear-gradient(165deg, ${A.bgBase} 0%, ${A.bgMid} 55%, ${A.bgWarm} 100%)`,
+        background: "transparent",
         padding: "24px 20px 64px",
       }}
     >
+      {/* Ultimate fallback base, behind the WebGL backdrop, for the pre-mount
+       * first frame or a no-WebGL browser. AppBackground paints its own white
+       * base + iridescence on top of this once mounted. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-20"
+        style={{ background: "linear-gradient(180deg, #FBFAFF 0%, #F2EFFA 100%)" }}
+      />
+      <AppBackground />
+
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         {/* Header */}
         <header style={{ marginBottom: 24 }}>
