@@ -6,6 +6,12 @@ import { sendEmail, resolveSenderForTransaction } from "@/lib/email";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+import {
+  getOverridesForCode,
+  applyOverridesToEmailCopy,
+  normalizeMethod,
+  normalizeTenure,
+} from "@/lib/services/milestone-copy-overrides";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 // ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
 //
@@ -1024,7 +1030,17 @@ export async function logPortalMilestoneConfirm(
   const confirmingContact = tx.contacts.find((c) => c.id === contactId);
   const confirmingRole = confirmingContact?.roleType;
 
-  const richCopy = milestoneCode ? getMilestoneCopy(milestoneCode).emailCopy : null;
+  const baseRichCopy = milestoneCode ? getMilestoneCopy(milestoneCode).emailCopy : null;
+  // Command Centre copy overrides — merge saved scenario-scoped edits over the
+  // code default, using the file's real tenure + purchase type.
+  const richCopy =
+    baseRichCopy && milestoneCode
+      ? applyOverridesToEmailCopy(
+          baseRichCopy,
+          { tenure: normalizeTenure(tx.tenure), method: normalizeMethod(tx.purchaseType) },
+          await getOverridesForCode(milestoneCode)
+        )
+      : baseRichCopy;
 
   if (richCopy) {
     // Compute event-date vars for portal-confirmed milestones (same logic as sendRichMilestoneEmails)
@@ -1685,6 +1701,16 @@ async function sendRichMilestoneEmails(
   });
   if (!tx) return false;
 
+  // Command Centre copy overrides — merge any saved, scenario-scoped edits over
+  // the code default before anything is interpolated/enqueued. Uses the file's
+  // real tenure + purchase type to pick the most-specific saved version.
+  const overrideRows = await getOverridesForCode(milestoneCode);
+  const effectiveEmailCopy = applyOverridesToEmailCopy(
+    emailCopy,
+    { tenure: normalizeTenure(tx.tenure), method: normalizeMethod(tx.purchaseType) },
+    overrideRows
+  );
+
   // Skeleton-mode FileShape — null when the flag is off OR when tenure/
   // purchaseType aren't both set on the tx. Null shape means
   // resolveRecipientCopy will fall through to legacy emailCopy for every
@@ -1795,7 +1821,7 @@ async function sendRichMilestoneEmails(
     const recipientKey = c.roleType as "vendor" | "purchaser";
     // Skip the first-actor side on inverse-direction bilateral completions.
     if (suppressedRecipient && recipientKey === suppressedRecipient) continue;
-    const copy = resolveRecipientCopy(milestoneCode, recipientKey, emailCopy, fileShape);
+    const copy = resolveRecipientCopy(milestoneCode, recipientKey, effectiveEmailCopy, fileShape);
     if (!copy) continue;
 
     const greeting = buildGreeting(c.name);
@@ -1878,7 +1904,7 @@ async function sendRichMilestoneEmails(
 
   // Agent notification — only on outsourced files; self-managed agents manage their own files
   const skipAgentEmail = serviceType === "self_managed";
-  const vendorAgentCopy = resolveRecipientCopy(milestoneCode, "vendorAgent", emailCopy, fileShape);
+  const vendorAgentCopy = resolveRecipientCopy(milestoneCode, "vendorAgent", effectiveEmailCopy, fileShape);
   if (tx.agentUser?.email && vendorAgentCopy && !skipAgentEmail) {
     const copy    = vendorAgentCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
@@ -1891,7 +1917,7 @@ async function sendRichMilestoneEmails(
 
   // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
   const skipProgressorEmail = serviceType === "outsourced" && tx.assignedUser?.id === confirmerId;
-  const progressorCopy = resolveRecipientCopy(milestoneCode, "progressor", emailCopy, fileShape);
+  const progressorCopy = resolveRecipientCopy(milestoneCode, "progressor", effectiveEmailCopy, fileShape);
   if (tx.assignedUser?.email && progressorCopy && !skipProgressorEmail) {
     const copy    = progressorCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };

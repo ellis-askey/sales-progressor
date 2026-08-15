@@ -1854,6 +1854,35 @@ model OutlookConnection {
   @@index([microsoftUserId])
 }
 
+// A saved, scenario-scoped override of a milestone email's copy. The code
+// default in lib/portal-copy.ts is the baseline; a row here replaces it for a
+// given (step code, recipient side) and scenario. `tenure` and `purchaseType`
+// are "any" to apply broadly, or a specific value to diverge only for that
+// scenario. At send time the most-specific matching row wins (exact scenario >
+// one axis specific > any/any > code default). Edited from Command Centre.
+model MilestoneEmailOverride {
+  id           String  @id @default(cuid())
+  code         String // milestone code, e.g. "PM9"
+  side         String // "vendor" | "purchaser" | "vendorAgent" | "progressor"
+  tenure       String  @default("any") // "any" | "freehold" | "leasehold"
+  purchaseType String  @default("any") // "any" | "mortgage" | "cash"
+
+  // The six editable fields of a RecipientEmailCopy.
+  subject      String
+  heroLabel    String
+  opening      String
+  whatHappened String
+  whatNext     String?
+  action       String?
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([code, side, tenure, purchaseType])
+  @@index([code, side])
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique
