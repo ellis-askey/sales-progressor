@@ -11,6 +11,7 @@ import { notifyPortalExpectedDateSet, notifyPortalChaseNote } from "@/lib/servic
 import { setUkChaseTime } from "@/lib/services/reminders";
 import { toUKDateStr } from "@/lib/utils";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { getSurveyBookingOptionsForTx, applySurveyBooking, type SurveyBookingOption, type SurveyBookingChoice } from "@/lib/services/survey-booking";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -52,6 +53,36 @@ export async function portalMarkNotRequiredAction(input: {
   revalidatePath(`/portal/${input.token}`, "page");
   revalidatePath(`/portal/${input.token}/progress`, "page");
   revalidatePath(`/portal/${input.token}/updates`, "page");
+}
+
+// Survey-booking picker for the buyer's own confirm flow. Token-scoped: the
+// contact is resolved from their portal token. Shares the status rules with the
+// agent path via lib/services/survey-booking.ts.
+export async function getPortalSurveyBookingOptions(token: string): Promise<SurveyBookingOption[]> {
+  const contact = await prisma.contact.findFirst({
+    where: { portalToken: token },
+    select: { propertyTransactionId: true },
+  });
+  if (!contact) return [];
+  return getSurveyBookingOptionsForTx(contact.propertyTransactionId);
+}
+
+export async function recordPortalSurveyBookingAction(input: {
+  token: string;
+  choice: SurveyBookingChoice;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const contact = await prisma.contact.findFirst({
+    where: { portalToken: input.token },
+    select: { propertyTransactionId: true },
+  });
+  if (!contact) return { ok: false, error: "That link isn't valid." };
+
+  const result = await applySurveyBooking(contact.propertyTransactionId, input.choice, null);
+  if (result.ok) {
+    revalidatePath(`/portal/${input.token}`, "page");
+    revalidatePath("/command/providers/quotes");
+  }
+  return result;
 }
 
 export async function portalSendMessageAction(input: {

@@ -2,7 +2,8 @@
 
 import { useState, useOptimistic, useTransition } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
-import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
+import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { SearchesUpload } from "./SearchesUpload";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
@@ -75,6 +76,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
+  // Survey-booking picker (buyer confirming PM9 on a file that requested quotes).
+  const [surveyOptions, setSurveyOptions]   = useState<SurveyBookingOption[] | null>(null);
+  const [surveyChoice, setSurveyChoice]     = useState<SurveyBookingChoice | null>(null);
 
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
@@ -101,6 +105,16 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setConfirming(id);
     setEventDate("");
     setError(null);
+    setSurveyOptions(null);
+    setSurveyChoice(null);
+    // If this is the survey-booked step and the buyer requested quotes through
+    // us, load the firms so they can say who they booked.
+    const m = milestones.find((mm) => mm.id === id);
+    if (m?.code === "PM9") {
+      getPortalSurveyBookingOptions(token)
+        .then((opts) => { if (opts.length > 0) setSurveyOptions(opts); })
+        .catch(() => {});
+    }
   }
 
   function closeSheet() {
@@ -108,6 +122,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setConfirming(null);
     setEventDate("");
     setError(null);
+    setSurveyOptions(null);
+    setSurveyChoice(null);
   }
 
   function confirmMilestone(milestoneId: string, isTimeSensitive: boolean) {
@@ -115,9 +131,16 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       setError("Please enter the date for this step.");
       return;
     }
+    if (surveyOptions && !surveyChoice) {
+      setError("Please choose the surveyor you booked.");
+      return;
+    }
     const ed = eventDate || null;
+    const choice = surveyChoice;
     setConfirming(null);
     setEventDate("");
+    setSurveyOptions(null);
+    setSurveyChoice(null);
     setLoading(true);
     setProcessingId(milestoneId);
     startTransition(async () => {
@@ -125,6 +148,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       try {
         const result = await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed });
         if (result.ok) {
+          if (choice) await recordPortalSurveyBookingAction({ token, choice }).catch(() => {});
           await fireConfetti();
         } else if (result.reason === "agent_only") {
           // B1 hard-block hit. Normally the UI strips the Confirm button for
@@ -534,6 +558,38 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                     className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
                     style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
                   />
+                </div>
+              )}
+
+              {surveyOptions && (
+                <div className="mb-4">
+                  <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
+                    Which surveyor did you book?
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    {surveyOptions.map((o) => {
+                      const active = surveyChoice?.kind === "our_firm" && surveyChoice.quoteRequestId === o.quoteRequestId;
+                      return (
+                        <button
+                          key={o.quoteRequestId}
+                          type="button"
+                          onClick={() => setSurveyChoice({ kind: "our_firm", quoteRequestId: o.quoteRequestId })}
+                          className="text-left px-4 py-3 rounded-xl text-[14px] font-semibold border transition-colors"
+                          style={{ borderColor: active ? P.primary : P.border, borderWidth: active ? 2 : 1, background: active ? P.primaryBg : "#FFFFFF", color: P.textPrimary }}
+                        >
+                          {o.firmName}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setSurveyChoice({ kind: "someone_else" })}
+                      className="text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
+                      style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : "#FFFFFF", color: P.textPrimary }}
+                    >
+                      I booked someone else
+                    </button>
+                  </div>
                 </div>
               )}
 
