@@ -27,6 +27,7 @@ export function SurveyBookingModal({
   const { theme } = usePortalTheme();
   const [surveyDate, setSurveyDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [otherFirmName, setOtherFirmName] = useState("");
 
   const canConfirm = !!surveyDate && selection !== null && !saving;
 
@@ -88,6 +89,19 @@ export function SurveyBookingModal({
                 <button type="button" onClick={() => setSelection({ kind: "someone_else" })} style={rowStyle(selection?.kind === "someone_else")}>
                   Booked someone else (not on our list)
                 </button>
+                {selection?.kind === "someone_else" && (
+                  <input
+                    type="text"
+                    value={otherFirmName}
+                    onChange={(e) => setOtherFirmName(e.target.value)}
+                    placeholder="Surveyor's name (optional)"
+                    style={{
+                      width: "100%", padding: "10px 12px", borderRadius: 10,
+                      border: "1px solid rgba(15,23,42,0.15)", fontSize: 14, color: "rgba(15,23,42,0.85)",
+                      background: "white", outline: "none",
+                    }}
+                  />
+                )}
                 <button type="button" onClick={() => setSelection({ kind: "unknown" })} style={rowStyle(selection?.kind === "unknown")}>
                   Not sure yet
                 </button>
@@ -118,7 +132,13 @@ export function SurveyBookingModal({
             Cancel
           </button>
           <button
-            onClick={() => selection && onConfirm(surveyDate, selection)}
+            onClick={() => {
+              if (!selection) return;
+              const choice: SurveyBookingChoice = selection.kind === "someone_else"
+                ? { kind: "someone_else", firmName: otherFirmName.trim() || undefined }
+                : selection;
+              onConfirm(surveyDate, choice);
+            }}
             disabled={!canConfirm}
             className="agent-btn-color-primary"
             style={{

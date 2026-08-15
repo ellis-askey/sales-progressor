@@ -17,7 +17,7 @@ export const PM9_SKELETON: MilestoneSkeleton = {
       { text: "Buyer's survey booked" },
     ],
     opening: [
-      { text: "The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection." },
+      { text: "The buyer has booked their property survey{surveyorClause}. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection." },
     ],
     whatHappened: [],
     whatNext: [
@@ -40,12 +40,12 @@ export const PM9_SKELETON: MilestoneSkeleton = {
     opening: [
       // Cash / cash-from-proceeds — no separate-from-valuation framing.
       {
-        text: "Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3.",
+        text: "Your property survey is booked{surveyorClause}. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3.",
         when: { purchaseType: { in: ["cash_buyer", "cash_from_proceeds"] } },
       },
       // Mortgage — adds "separate from the lender's valuation" sentence.
       {
-        text: "Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3. This is your own survey, separate from the lender's valuation, and it's the one that gives you the real picture of the property's condition.",
+        text: "Your property survey is booked{surveyorClause}. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3. This is your own survey, separate from the lender's valuation, and it's the one that gives you the real picture of the property's condition.",
         when: { purchaseType: "mortgage" },
       },
     ],

@@ -145,7 +145,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const quotedFirmNames = surveyQuotes.firmNames;
   const lastQuotedAt = surveyQuotes.lastQuotedAt;
   const hasRequestedQuote = quotedFirmNames.length > 0;
-  const bookedSurveyorName = surveyQuotes.bookedFirmName;
+  const bookedSurveyorName = surveyQuotes.bookedFirmName ?? transaction.bookedSurveyorName ?? null;
   const bookedSurveyorAt = surveyQuotes.bookedAt;
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
   const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered

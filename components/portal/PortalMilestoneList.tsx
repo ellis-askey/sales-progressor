@@ -79,6 +79,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   // Survey-booking picker (buyer confirming PM9 on a file that requested quotes).
   const [surveyOptions, setSurveyOptions]   = useState<SurveyBookingOption[] | null>(null);
   const [surveyChoice, setSurveyChoice]     = useState<SurveyBookingChoice | null>(null);
+  const [otherFirmName, setOtherFirmName]   = useState("");
 
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
@@ -136,11 +137,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       return;
     }
     const ed = eventDate || null;
-    const choice = surveyChoice;
+    const choice: SurveyBookingChoice | null = surveyChoice?.kind === "someone_else"
+      ? { kind: "someone_else", firmName: otherFirmName.trim() || undefined }
+      : surveyChoice;
     setConfirming(null);
     setEventDate("");
     setSurveyOptions(null);
     setSurveyChoice(null);
+    setOtherFirmName("");
     setLoading(true);
     setProcessingId(milestoneId);
     startTransition(async () => {
@@ -589,6 +593,16 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                     >
                       I booked someone else
                     </button>
+                    {surveyChoice?.kind === "someone_else" && (
+                      <input
+                        type="text"
+                        value={otherFirmName}
+                        onChange={(e) => setOtherFirmName(e.target.value)}
+                        placeholder="Surveyor's name (optional)"
+                        className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
+                        style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
+                      />
+                    )}
                   </div>
                 </div>
               )}

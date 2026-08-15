@@ -13,12 +13,39 @@ export type SurveyBookingOption = {
 
 export type SurveyBookingChoice =
   | { kind: "our_firm"; quoteRequestId: string }
-  | { kind: "someone_else" }
+  | { kind: "someone_else"; firmName?: string }
   | { kind: "unknown" };
 
 // Non-terminal statuses we're allowed to move. Never touch a `won` (fee settled)
 // or `expired` quote.
 const MOVABLE = new Set(["pending", "booked", "not_chosen", "lost"]);
+
+// "cameron   SURVEYORS ltd" → "Cameron Surveyors Ltd". Tidies a client's typed
+// firm name so it reads cleanly in the portal, the file and the email.
+export function titleCaseFirm(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+// The surveyor booked for a file: the chosen quote's firm (still booked or
+// already won), else the free-text name captured for an out-of-network booking.
+export async function getBookedSurveyorName(transactionId: string): Promise<string | null> {
+  const booked = await prisma.quoteRequest.findFirst({
+    where: { transactionId, status: { in: ["booked", "won"] } },
+    orderBy: { bookedAt: "desc" },
+    select: { provider: { select: { name: true } } },
+  });
+  if (booked?.provider.name) return booked.provider.name;
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { bookedSurveyorName: true },
+  });
+  return tx?.bookedSurveyorName ?? null;
+}
 
 export async function getSurveyBookingOptionsForTx(
   transactionId: string,
@@ -51,14 +78,19 @@ export async function applySurveyBooking(
   const now = new Date();
 
   if (choice.kind === "someone_else") {
-    await Promise.all(
-      movable.map((q) =>
+    const typed = choice.firmName?.trim() ? titleCaseFirm(choice.firmName) : null;
+    await Promise.all([
+      ...movable.map((q) =>
         prisma.quoteRequest.update({
           where: { id: q.id },
           data: { status: "lost", statusReason: "Booked outside our network", statusChangedAt: now, statusChangedById: actorUserId },
         }),
       ),
-    );
+      prisma.propertyTransaction.update({
+        where: { id: transactionId },
+        data: { bookedSurveyorName: typed },
+      }),
+    ]);
     return { ok: true };
   }
 
@@ -66,6 +98,12 @@ export async function applySurveyBooking(
   if (!movable.some((q) => q.id === chosenId)) {
     return { ok: false, error: "That quote is no longer available to book." };
   }
+
+  // Booked one of ours — clear any stale out-of-network name.
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { bookedSurveyorName: null },
+  });
 
   await Promise.all(
     movable.map((q) =>

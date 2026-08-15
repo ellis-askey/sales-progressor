@@ -618,6 +618,7 @@ export async function getMilestonesForTransaction(
     select: {
       id: true,
       activeBuyerRoundId: true,
+      bookedSurveyorName: true,
       contacts: { select: { id: true, name: true, roleType: true } },
     },
   });
@@ -693,7 +694,7 @@ export async function getMilestonesForTransaction(
     orderBy: { bookedAt: "desc" },
     select: { provider: { select: { name: true } } },
   });
-  const bookedSurveyorName = bookedSurveyor?.provider.name ?? null;
+  const bookedSurveyorName = bookedSurveyor?.provider.name ?? transaction.bookedSurveyorName ?? null;
 
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");

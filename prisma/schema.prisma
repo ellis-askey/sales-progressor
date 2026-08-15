@@ -256,6 +256,11 @@ model PropertyTransaction {
   tenure                      Tenure?
   purchaseType                PurchaseType?
   isShareOfFreehold           Boolean           @default(false)
+  // Free-text surveyor name when the buyer booked a firm OUTSIDE our network
+  // (captured on the survey-booked step). Title-cased on save. Null when they
+  // booked one of our quoted firms (that name comes from the QuoteRequest) or
+  // no surveyor is recorded.
+  bookedSurveyorName          String?
   twelveWeekTarget            DateTime?
   predictedExchangeDate       DateTime?
   overridePredictedDate       DateTime?
