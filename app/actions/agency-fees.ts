@@ -34,6 +34,6 @@ export async function saveAgencyFeeAction(input: {
     },
   });
 
-  revalidatePath("/agent/admin", "page");
+  revalidatePath("/command/agencies", "page");
   return { ok: true };
 }

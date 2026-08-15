@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck,
+  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -68,6 +68,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/health", label: "System status", Icon: HeartPulse },
       { href: "/command/activity", label: "Activity", Icon: Activity },
       { href: "/command/audit", label: "Audit log", Icon: Shield },
+      { href: "/command/rules", label: "Rules", Icon: ListChecks },
       { href: "/command/settings", label: "Settings", Icon: Settings },
       { href: "/command/admin/demo", label: "Reset demo", Icon: RotateCcw },
     ],
@@ -262,10 +263,10 @@ export function CommandSidebar({
       <div className="px-4 pt-5 pb-4 border-b border-[#1f1f1f]">
         {showBackToAdmin && (
           <Link
-            href="/agent/admin"
+            href="/agent/hub"
             className="inline-flex items-center gap-1 text-[10px] text-[#525252] hover:text-[#a3a3a3] transition-colors mb-2"
           >
-            ← Back to admin
+            ← Back to app
           </Link>
         )}
         <div className="flex items-center gap-2 mb-0.5">

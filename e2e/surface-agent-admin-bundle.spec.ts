@@ -73,7 +73,10 @@ test.describe("Surface 9 — agent admin bundle (happy path)", () => {
     await expect(heading).toBeVisible();
   });
 
-  test("/agent/admin returns 404 for non-founder OR founder heading", async ({ page }) => {
+  test("/agent/admin redirects without crashing", async ({ page }) => {
+    // Retired 2026-08-15: /agent/admin now redirects into the Command Centre.
+    // For a non-founder the redirect chain lands on an auth/hub destination.
+    // We only assert it doesn't crash to the error boundary.
     const auth = await attemptLogin(page);
     test.skip(!auth.ok, auth.ok ? "" : auth.reason);
 
@@ -81,9 +84,8 @@ test.describe("Surface 9 — agent admin bundle (happy path)", () => {
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1500);
 
-    await expect(page).not.toHaveURL(/\/login/);
-    // Either the founder heading renders, or the 404 renders. Both are valid.
-    // A crash to the error boundary is what we're asserting against.
+    await expect(page).not.toHaveURL(/\/agent\/admin$/);
     await expect(page.getByText("Application error")).not.toBeVisible();
+    await expect(page.getByText("Something went wrong")).not.toBeVisible();
   });
 });

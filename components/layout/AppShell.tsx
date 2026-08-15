@@ -10,7 +10,7 @@ import type { Session } from "next-auth";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
-  FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, GearSix, House,
+  FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, House,
   Gauge,
 } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
@@ -46,7 +46,6 @@ export function AppShell({
     { href: "/comms",            label: "Comms",            icon: CommsIcon,       badge: null },
     ...(session.user.role !== "sales_progressor" ? [{ href: "/not-our-files", label: "Not Our Files", icon: NotOurFilesIcon, badge: null }] : []),
     { href: "/transactions/new", label: "New Transaction",  icon: PlusIcon,        badge: null },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: AdminIcon, badge: null }] : []),
     ...(isSuperAdmin ? [{ href: "/command/overview", label: "Command", icon: CommandIcon, badge: null }] : []),
   ];
 
@@ -156,9 +155,6 @@ function SolicitorsIcon({ className }: { className?: string }) {
 }
 function CommsIcon({ className }: { className?: string }) {
   return <ChatTeardropDots className={className} weight="regular" />;
-}
-function AdminIcon({ className }: { className?: string }) {
-  return <GearSix className={className} weight="regular" />;
 }
 function NotOurFilesIcon({ className }: { className?: string }) {
   return <EyeSlash className={className} weight="regular" />;

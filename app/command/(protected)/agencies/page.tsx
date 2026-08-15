@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getUsageOverview, type AgentUsage, type AgencyUsage, type UsageStatus } from "@/lib/command/usage";
+import { commandDb } from "@/lib/command/prisma";
+import { AgencyFeeManager, type AgencyFeeRow } from "@/components/command/agencies/AgencyFeeManager";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "—";
@@ -79,6 +81,29 @@ export default async function AgenciesPage({
   const q = (sp.q ?? "").trim().toLowerCase();
 
   const { agents, agencies, summary } = await getUsageOverview();
+
+  // Agency fee settings (moved here from the retired /agent/admin page).
+  const feeAgencies = await commandDb.agency.findMany({
+    where: { isInternal: false },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      feeTier: true,
+      legacyOutsourcedFeePence: true,
+      stripeCustomerId: true,
+      _count: { select: { transactions: true } },
+    },
+  });
+  const feeRows: AgencyFeeRow[] = feeAgencies.map((a) => ({
+    id: a.id,
+    name: a.name,
+    feeTier: a.feeTier,
+    legacyOutsourcedFeePence: a.legacyOutsourcedFeePence,
+    hasActiveCard: a.stripeCustomerId != null,
+    transactionCount: a._count.transactions,
+  }));
+  const legacyFeeCount = feeRows.filter((a) => a.feeTier === "legacy").length;
 
   const agentRows: AgentUsage[] = q
     ? agents.filter((a) => a.name.toLowerCase().includes(q) || a.agencyName.toLowerCase().includes(q))
@@ -202,6 +227,11 @@ export default async function AgenciesPage({
       <p className="text-[11.5px] text-neutral-600">
         Active = a session in the last 7 days · Quiet = 7&ndash;14 days · Dormant = 14+ days. Hours and files come from the same engaged-time tracking as the Files tab; logins and last-active from the event log.
       </p>
+
+      {/* Agency fees (relocated from /agent/admin) */}
+      <div className="pt-2">
+        <AgencyFeeManager agencies={feeRows} legacyCount={legacyFeeCount} totalCount={feeRows.length} />
+      </div>
     </div>
   );
 }

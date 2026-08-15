@@ -19,13 +19,10 @@ test.describe.serial("Admin/dashboard smoke tests", () => {
     await expectPageOk(adminPage, "/dashboard")
   })
 
-  test("admin page loads", async () => {
-    await expectPageOk(adminPage, "/admin")
-  })
-
-  test("audit log loads", async () => {
-    await expectPageOk(adminPage, "/admin/audit")
-  })
+  // /admin and /admin/audit retired 2026-08-15 — they now redirect into the
+  // Command Centre (superadmin-only), so they're no longer part of this agent
+  // smoke suite. The engine reference + agency fees live on /command/rules and
+  // /command/agencies.
 
   test("analytics loads", async () => {
     await expectPageOk(adminPage, "/analytics")

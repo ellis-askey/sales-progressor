@@ -55,7 +55,7 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
-    ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/agent/admin", label: "Admin", Icon: GearSix }] : []),
+    ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];
   return {
     main,

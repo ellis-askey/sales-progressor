@@ -11,7 +11,7 @@ import { computeFee } from "@/lib/billing/fee";
  * Calculate our fee for an outsourced transaction.
  *
  * Priority order:
- *   1. Per-agency legacy override — set via /agent/admin, sticks to the customer
+ *   1. Per-agency legacy override — set via /command/agencies, sticks to the customer
  *      regardless of which SP handles the file. Highest precedence.
  *   2. Per-SP legacy fee — existing User-level model, retained for back-compat.
  *   3. Standard sliding scale based on purchase price — delegated to
