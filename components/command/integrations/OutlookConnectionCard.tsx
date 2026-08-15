@@ -11,10 +11,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, CheckCircle2, AlertTriangle, Loader2, Plus } from "lucide-react";
+import { Mail, CheckCircle2, AlertTriangle, Loader2, Plus, RefreshCw } from "lucide-react";
 
 type Connection = { id: string; email: string; displayName: string | null };
 type RosterEntry = { label: string; email: string };
+type SyncSummary = { checked: number; logged: number; alreadyLogged: number; unmatched: number };
+type SyncState = { loading: boolean; summary?: SyncSummary; error?: boolean };
 
 type Status = {
   configured: boolean;
@@ -43,6 +45,7 @@ export function OutlookConnectionCard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [sync, setSync] = useState<Record<string, SyncState>>({});
 
   const outcome = params.get("outlook");
   const reason = params.get("reason") ?? "";
@@ -73,6 +76,25 @@ export function OutlookConnectionCard() {
       await load();
     } finally {
       setRemovingId(null);
+    }
+  }
+
+  async function syncNow(connectionId: string) {
+    setSync((s) => ({ ...s, [connectionId]: { loading: true } }));
+    try {
+      const res = await fetch("/api/integrations/outlook/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId }),
+      });
+      if (!res.ok) {
+        setSync((s) => ({ ...s, [connectionId]: { loading: false, error: true } }));
+        return;
+      }
+      const data = (await res.json()) as { summary: SyncSummary };
+      setSync((s) => ({ ...s, [connectionId]: { loading: false, summary: data.summary } }));
+    } catch {
+      setSync((s) => ({ ...s, [connectionId]: { loading: false, error: true } }));
     }
   }
 
@@ -107,6 +129,42 @@ export function OutlookConnectionCard() {
       {removingId === id ? "Removing…" : "Disconnect"}
     </button>
   );
+
+  const syncBtn = (id: string) => {
+    const st = sync[id];
+    return (
+      <button
+        onClick={() => syncNow(id)}
+        disabled={st?.loading}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-[12.5px] font-medium text-neutral-200 transition-colors hover:border-neutral-600 hover:bg-neutral-700 disabled:opacity-50"
+      >
+        <RefreshCw className={`h-3.5 w-3.5 ${st?.loading ? "animate-spin" : ""}`} />
+        {st?.loading ? "Syncing…" : "Sync now"}
+      </button>
+    );
+  };
+
+  const syncResultLine = (id: string) => {
+    const st = sync[id];
+    if (!st || st.loading) return null;
+    if (st.error) {
+      return (
+        <p className="mt-2 text-[12px] text-red-300">
+          We couldn&apos;t sync that mailbox. Please try again.
+        </p>
+      );
+    }
+    if (st.summary) {
+      const s = st.summary;
+      return (
+        <p className="mt-2 text-[12px] text-neutral-400">
+          Checked {s.checked} · logged {s.logged} new · {s.alreadyLogged} already logged ·{" "}
+          {s.unmatched} unmatched
+        </p>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
@@ -159,30 +217,31 @@ export function OutlookConnectionCard() {
                     {roster.map((entry) => {
                       const conn = byEmail.get(entry.email.toLowerCase());
                       return (
-                        <li
-                          key={entry.email}
-                          className="flex items-center justify-between gap-3 px-3 py-2.5"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm text-neutral-200">{entry.label}</p>
-                            <p className="truncate text-[12px] text-neutral-500">{entry.email}</p>
-                          </div>
-                          {conn ? (
-                            <div className="flex shrink-0 items-center gap-2.5">
-                              <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-400">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Connected
-                              </span>
-                              {disconnectBtn(conn.id)}
+                        <li key={entry.email} className="px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm text-neutral-200">{entry.label}</p>
+                              <p className="truncate text-[12px] text-neutral-500">{entry.email}</p>
                             </div>
-                          ) : (
-                            <a
-                              href={connectHref(entry.email)}
-                              className="shrink-0 rounded-lg bg-blue-600 px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-blue-500"
-                            >
-                              Connect
-                            </a>
-                          )}
+                            {conn ? (
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-400">
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Connected
+                                </span>
+                                {syncBtn(conn.id)}
+                                {disconnectBtn(conn.id)}
+                              </div>
+                            ) : (
+                              <a
+                                href={connectHref(entry.email)}
+                                className="shrink-0 rounded-lg bg-blue-600 px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-blue-500"
+                              >
+                                Connect
+                              </a>
+                            )}
+                          </div>
+                          {conn && syncResultLine(conn.id)}
                         </li>
                       );
                     })}
@@ -197,17 +256,22 @@ export function OutlookConnectionCard() {
                     </p>
                     <ul className="divide-y divide-neutral-800 rounded-lg border border-neutral-800">
                       {extras.map((c) => (
-                        <li
-                          key={c.id}
-                          className="flex items-center justify-between gap-3 px-3 py-2.5"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm text-neutral-200">{c.email}</p>
-                            {c.displayName && (
-                              <p className="truncate text-[12px] text-neutral-500">{c.displayName}</p>
-                            )}
+                        <li key={c.id} className="px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm text-neutral-200">{c.email}</p>
+                              {c.displayName && (
+                                <p className="truncate text-[12px] text-neutral-500">
+                                  {c.displayName}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              {syncBtn(c.id)}
+                              {disconnectBtn(c.id)}
+                            </div>
                           </div>
-                          {disconnectBtn(c.id)}
+                          {syncResultLine(c.id)}
                         </li>
                       ))}
                     </ul>

@@ -20,7 +20,7 @@ Phase 1 (connect a mailbox only) is built and committed on `staging` (NOT pushed
 - [ ] **Add the same four to `.env.local`** for local testing.
 - [ ] **CHECK THE REDIRECT URI DOMAIN.** You registered `https://thesalesprogressor.co.uk/api/integrations/outlook/callback` in Entra, but the app (Command Centre + API routes) serves from **`portal.thesalesprogressor.co.uk`**. The callback route only exists where the Next app runs. Unless the apex domain also routes to the same Vercel app, this will fail with a redirect-uri mismatch. Fix by either: (a) register `https://portal.thesalesprogressor.co.uk/api/integrations/outlook/callback` in Entra and set `MICROSOFT_REDIRECT_URI` to that, or (b) confirm the apex serves the app. The value in `MICROSOFT_REDIRECT_URI` must EXACTLY match the Entra registration.
 - [ ] No new secret needed for token encryption: it reuses `ADMIN_TOTP_ENCRYPTION_KEY` (already set).
-- [ ] **DPA / privacy (future phase, not now):** once we start reading mailbox contents, Microsoft Graph mailbox data needs a privacy-notice + DPA review. Phase 1 stores only the connection + tokens, no message content.
+- [ ] **DPA / privacy — now live in phase 2:** the "Sync now" button reads recent Inbox messages and logs matched ones onto the property file (subject + a short body preview stored as an inbound message, visible to everyone with file access, not clients). This is customer mailbox content at rest, so it needs a privacy-notice + DPA review before wider rollout. Currently manual (button-triggered) and only on your own connected mailbox.
 
 ---
 

@@ -95,7 +95,7 @@ export function buildAuthorizeUrl(state: string, loginHint?: string): string {
 
 export type OutlookTokenResponse = {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string; // absent on some refreshes; present on initial code exchange
   expires_in: number; // seconds
   scope: string;
   token_type: string;
@@ -134,6 +134,97 @@ export async function exchangeCodeForTokens(code: string): Promise<OutlookTokenR
 
   return (await res.json()) as OutlookTokenResponse;
 }
+
+/** Exchanges a refresh token for a fresh access token. Never call from the client. */
+export async function refreshAccessToken(refreshToken: string): Promise<OutlookTokenResponse> {
+  const cfg = getOutlookConfig();
+  const body = new URLSearchParams({
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    scope: OUTLOOK_SCOPE_STRING,
+  });
+
+  const res = await fetch(cfg.tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    let code = "unknown_error";
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) code = data.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`[outlook] Token refresh failed (${res.status}): ${code}`);
+  }
+  return (await res.json()) as OutlookTokenResponse;
+}
+
+export type OutlookMessage = {
+  id: string;
+  subject: string;
+  from: string;
+  fromName: string | null;
+  to: string[];
+  cc: string[];
+  receivedDateTime: string;
+  bodyPreview: string;
+  webLink: string | null;
+};
+
+/** Reads the most recent Inbox messages for the connected mailbox. */
+export async function fetchInboxMessages(
+  accessToken: string,
+  top = 25
+): Promise<OutlookMessage[]> {
+  const url = new URL("https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages");
+  url.searchParams.set(
+    "$select",
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,webLink"
+  );
+  url.searchParams.set("$top", String(top));
+  url.searchParams.set("$orderby", "receivedDateTime desc");
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error(`[outlook] Messages fetch failed (${res.status})`);
+  }
+
+  const data = (await res.json()) as { value?: GraphMessageRaw[] };
+  const addr = (r?: GraphRecipient | null): string | null =>
+    r?.emailAddress?.address ? String(r.emailAddress.address) : null;
+
+  return (data.value ?? []).map((m) => ({
+    id: m.id,
+    subject: m.subject ?? "",
+    from: addr(m.from) ?? "",
+    fromName: m.from?.emailAddress?.name ?? null,
+    to: (m.toRecipients ?? []).map(addr).filter((x): x is string => Boolean(x)),
+    cc: (m.ccRecipients ?? []).map(addr).filter((x): x is string => Boolean(x)),
+    receivedDateTime: m.receivedDateTime,
+    bodyPreview: m.bodyPreview ?? "",
+    webLink: m.webLink ?? null,
+  }));
+}
+
+type GraphRecipient = { emailAddress?: { address?: string | null; name?: string | null } | null };
+type GraphMessageRaw = {
+  id: string;
+  subject?: string | null;
+  from?: GraphRecipient | null;
+  toRecipients?: GraphRecipient[] | null;
+  ccRecipients?: GraphRecipient[] | null;
+  receivedDateTime: string;
+  bodyPreview?: string | null;
+  webLink?: string | null;
+};
 
 export type GraphIdentity = {
   id: string;
