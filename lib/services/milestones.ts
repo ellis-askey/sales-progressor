@@ -138,6 +138,8 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   // Firm name when a step was confirmed by a solicitor (solicitor-confirm
   // feature), so the timeline can render "Confirmed by {firm}". Null otherwise.
   confirmedBySolicitorFirmName?: string | null;
+  // The surveyor the buyer booked (survey-booking loop). Only set on PM9.
+  bookedSurveyorName?: string | null;
   // Name of the agent/progressor who confirmed the step (completedById -> User),
   // so the completed-row disclosure can render "Confirmed by {name}". Null for
   // client/solicitor confirms (those carry their own attribution) or historical
@@ -684,6 +686,15 @@ export async function getMilestonesForTransaction(
     users.forEach((u) => { if (u.name) userNameById.set(u.id, u.name); });
   }
 
+  // The surveyor the buyer booked (survey-booking loop), so the PM9 row can
+  // render "Booked with {firm}". One value per file.
+  const bookedSurveyor = await prisma.quoteRequest.findFirst({
+    where: { transactionId, status: { in: ["booked", "won"] } },
+    orderBy: { bookedAt: "desc" },
+    select: { provider: { select: { name: true } } },
+  });
+  const bookedSurveyorName = bookedSurveyor?.provider.name ?? null;
+
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");
 
@@ -708,6 +719,7 @@ export async function getMilestonesForTransaction(
           ? ((completion.confirmedByContactId ? contactNameById.get(completion.confirmedByContactId) : null)
               ?? (def.side === "vendor" ? vendorClientName : purchaserClientName))
           : null,
+        bookedSurveyorName: def.code === "PM9" ? bookedSurveyorName : null,
       };
     });
   };

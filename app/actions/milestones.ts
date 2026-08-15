@@ -582,6 +582,29 @@ export async function executeUndoMilestoneAction(input: {
     completedByName: session.user.name ?? "",
   });
 
+  // Undoing the survey-booked step reopens any quotes we flipped when it was
+  // confirmed, so the "Get a survey quote" prompt reappears and the Command
+  // Centre no longer shows a stale "booked". Never touches a `won` quote (a
+  // settled referral fee). See recordSurveyBooking.
+  const undoneDef = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true },
+  });
+  if (undoneDef?.code === "PM9") {
+    await prisma.quoteRequest.updateMany({
+      where: {
+        transactionId: input.transactionId,
+        // Only the rows our booking flow set — never an independently-set loss
+        // or a settled (won) quote.
+        OR: [
+          { status: { in: ["booked", "not_chosen"] } },
+          { status: "lost", statusReason: "Booked outside our network" },
+        ],
+      },
+      data: { status: "pending", bookedAt: null, statusReason: null, statusChangedAt: new Date(), statusChangedById: session.user.id },
+    }).catch(() => {});
+  }
+
   // 2026-07-13 fix (Chunk 2b): sync re-eval after an undo. executeUndoMilestone
   // cancels any active logs whose target/anchor is one of the reversed
   // milestones, but it does NOT create new logs for rules whose target is

@@ -29,6 +29,7 @@ type Props = {
     isNotRequired: boolean;
     isAvailable: boolean;
     confirmedBySolicitorFirmName?: string | null;
+    bookedSurveyorName?: string | null;
     completedByName?: string | null;
     confirmedByClientName?: string | null;
   };
@@ -500,6 +501,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 ].filter(Boolean).join(" • ");
                 return <Pill glass dot tone={tone} size="md" className="ml-2" title={tooltip}>{text}</Pill>;
               })()}
+              {isDone && isPM9 && def.bookedSurveyorName && (
+                <Pill glass tone="info" size="md" className="ml-2">Booked with {def.bookedSurveyorName}</Pill>
+              )}
             </span>
           </p>
           {isDone && detailsOpen && def.completion && (
@@ -526,6 +530,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   <span>
                     <span style={{ color: "var(--agent-text-muted)" }}>Event date </span>
                     {formatDate(def.completion.eventDate)}
+                  </span>
+                )}
+                {def.bookedSurveyorName && (
+                  <span>
+                    <span style={{ color: "var(--agent-text-muted)" }}>Surveyor </span>
+                    {def.bookedSurveyorName}
                   </span>
                 )}
                 {def.completion.outOfOrderCompletion && (
