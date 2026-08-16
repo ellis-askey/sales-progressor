@@ -23,7 +23,7 @@ type Props = {
     code: string;
     eventDateRequired: boolean;
   };
-  nextAfterDescription?: string | null;
+  whatHappensNext?: string | null;
 };
 
 export function PortalHomeView({
@@ -35,7 +35,7 @@ export function PortalHomeView({
   purchasePrice,
   token,
   milestone,
-  nextAfterDescription,
+  whatHappensNext,
 }: Props) {
   return (
     <div style={{ background: P.pageBg, borderRadius: 20, overflow: "hidden", padding: "0 4px 4px" }}>
@@ -95,7 +95,7 @@ export function PortalHomeView({
         <PortalNextActionCard
           token={token}
           milestone={milestone}
-          nextAfterDescription={nextAfterDescription ?? null}
+          whatHappensNext={whatHappensNext ?? null}
         />
       </div>
     </div>

@@ -29,6 +29,10 @@ export type PortalCopy = {
   who: "you" | "solicitor" | "agent" | "lender";
   typicalDuration?: string;
   description?: string;
+  // Forward-looking line shown under the "Confirm this step" button on the
+  // overview: what happens once the client confirms THIS step. Only client-
+  // confirmable steps have one; agent-only steps omit it.
+  next?: string;
   emailCopy?: MilestoneEmailCopy;
 };
 
@@ -53,7 +57,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM1: {
     label: "Instruct your solicitor", labelOther: "Seller instructed their solicitor", who: "you",
-    description: "You need to formally appoint a solicitor to handle the legal side of your sale. Contact them directly to confirm you're instructing them. They'll then begin preparing the paperwork.",
+    description: "Formally appoint a solicitor to handle the legal side of your sale. Contact them to confirm your instruction and they'll begin the initial legal work.",
+    next: "We'll issue the memorandum of sale to formally start the legal process.",
     emailCopy: {
       vendor: {
         subject: "You've instructed your solicitor: {address}",
@@ -84,7 +89,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM2: {
     label: "Receive memorandum of sale", labelOther: "Seller received memorandum of sale", chaseLabel: "Confirm the memorandum of sale has arrived", who: "you",
-    description: "We send a memorandum of sale to all solicitors confirming the agreed price, buyer details, and any special conditions. This officially kicks off the legal process.",
+    description: "We'll issue a memorandum of sale to everyone involved, confirming the agreed price, buyer, seller and solicitors. This formally starts the legal process.",
+    next: "Your solicitor will send you a welcome pack to complete and return.",
     emailCopy: {
       vendor: {
         subject: "Memorandum of sale issued: {address}",
@@ -115,7 +121,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM3: {
     label: "Receive welcome pack from solicitor", labelOther: "Seller received welcome pack from solicitor", chaseLabel: "Confirm the welcome pack from your solicitor has arrived", who: "you",
-    description: "Your solicitor sends you a welcome pack containing their terms of business, a questionnaire, and ID requirements. Return it promptly. Delays here slow down the whole transaction.",
+    description: "Your solicitor will send you a welcome pack containing their terms of business, initial questionnaires and requirements. Complete and return everything promptly so they can begin acting for you.",
+    next: "Your solicitor will complete the identity and anti-money laundering checks required before they can act for you.",
     emailCopy: {
       purchaser: {
         subject: "Seller is engaging with their solicitor: {address}",
@@ -146,7 +153,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM4: {
     label: "Complete ID & AML checks", labelOther: "Seller completed ID & AML checks", who: "you",
-    description: "Anti-money laundering law requires your solicitor to verify your identity. You'll need a passport or driving licence, plus a recent utility bill or bank statement. This is a legal requirement.",
+    description: "Your solicitor will need to verify your identity before they can act for you. You'll usually need to provide photo ID and a recent proof of address.",
+    next: "Your solicitor will send you the property information forms to complete.",
     emailCopy: {
       purchaser: {
         subject: "Seller's ID checks complete: {address}",
@@ -177,7 +185,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM5: {
     label: "Receive property information forms", labelOther: "Seller received property information forms", chaseLabel: "Confirm the property information forms have arrived", who: "you",
-    description: "Your solicitor will send you property information forms (TA6 and TA10) asking about the property: fixtures included in the sale, disputes, planning consents, and more. Complete these carefully and honestly.",
+    description: "Your solicitor will send you forms about the property, including the TA6 Property Information Form and TA10 Fittings and Contents Form. These cover things such as boundaries, alterations, disputes and what's included in the sale.",
+    next: "Complete the forms carefully and return them to your solicitor.",
     emailCopy: {
       purchaser: {
         subject: "Seller is gathering property information: {address}",
@@ -208,7 +217,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM6: {
     label: "Return completed property forms", labelOther: "Seller returned completed property forms", who: "you",
-    description: "Once you've filled in the property information forms, return them to your solicitor. These are sent to the buyer's solicitor as part of the contract pack.",
+    description: "Complete and return the property information forms to your solicitor. They'll use these, along with the other legal documents, to prepare the contract pack for the buyer's solicitor.",
+    next: "Your solicitor will prepare and issue the draft contract pack to the buyer's solicitor.",
     emailCopy: {
       vendor: {
         subject: "Property forms returned to your solicitor: {address}",
@@ -239,7 +249,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM7: {
     label: "Draft contract pack issued", chaseLabel: "Draft contract pack going out to the buyer's side", who: "solicitor",
-    description: "Your solicitor sends the draft contract pack to the buyer's solicitor. This includes the contract, property information forms, title documents, and any relevant certificates.",
+    description: "Your solicitor will send the draft contract pack to the buyer's solicitor. This usually includes the draft contract, title documents, property information forms and any relevant supporting documents.",
+    next: "If the property is leasehold or managed, your solicitor will request the management pack.",
     emailCopy: {
       vendor: {
         subject: "Draft contract pack sent to the buyer's solicitor: {address}",
@@ -278,7 +289,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM8: {
     label: "Management pack requested", chaseLabel: "Management pack request going to the freeholder", who: "solicitor",
-    description: "If the property is leasehold or share of freehold, your solicitor requests a management pack from the freeholder or managing agent. This contains details about service charges, ground rent, and building insurance.",
+    description: "If the property is leasehold or managed, your solicitor will request a management pack from the freeholder, managing agent or management company. It contains important information about the management of the property and associated charges.",
+    next: "The freeholder, managing agent or management company will prepare and return the management pack.",
     emailCopy: {
       purchaser: {
         subject: "Leasehold information requested: {address}",
@@ -309,7 +321,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM9: {
     label: "Management pack received", chaseLabel: "Management pack coming back from the freeholder", who: "solicitor", typicalDuration: "can take 4–8 weeks",
-    description: "The management pack has arrived from the freeholder or managing agent. These often take weeks to arrive and are one of the most common causes of delays in leasehold transactions.",
+    description: "Your solicitor will receive the management pack containing information such as service charges, ground rent, building insurance and any planned major works. They'll review it before providing it to the buyer's solicitor.",
+    next: "The buyer's solicitor will review the legal documents and raise any enquiries they have about the property.",
     emailCopy: {
       vendor: {
         subject: "Management pack received: {address}",
@@ -340,7 +353,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM10: {
     label: "Initial enquiries received", chaseLabel: "Buyer's initial enquiries arriving", who: "solicitor",
-    description: "The buyer's solicitor has raised questions about the property. These might cover planning history, building works, boundaries, or anything in the documents that needs clarification.",
+    description: "The buyer's solicitor will raise questions about the property and the legal documents provided. These may relate to the title, alterations, boundaries, planning matters or anything else that requires clarification.",
+    next: "Your solicitor will work through the enquiries and may need information or documents from you to answer them.",
     emailCopy: {
       // E1 (enquiries rework): VM10 is vendor-only. The buyer hears about this
       // same event once, via PM14 (raised), so the purchaser block is dropped
@@ -521,7 +535,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM16: {
     label: "Contract documents issued to you", labelOther: "Contract documents issued to seller", chaseLabel: "Confirm the contract documents have arrived", who: "you",
-    description: "Your solicitor has sent you the final contract to review and sign. Read it carefully. Check the price, completion date, and what's included in the sale.",
+    description: "Your solicitor will send you the contract documents to review and sign. Check the sale price and other details carefully before signing.",
+    next: "Sign and return the contract documents to your solicitor so they can hold them ready for exchange.",
     emailCopy: {
       purchaser: {
         subject: "Seller has received their contract: {address}",
@@ -552,7 +567,8 @@ const copy: Record<string, PortalCopy> = {
 
   VM17: {
     label: "Sign and return contract documents", labelOther: "Seller signed and returned contract", who: "you",
-    description: "Sign the contract documents and return them to your solicitor. The contracts aren't exchanged yet. You're signing them ready for exchange, which is the legally binding moment.",
+    description: "Sign and return the contract documents to your solicitor. Signing does not make the sale legally binding; that happens when contracts are exchanged.",
+    next: "Once both sides and the rest of the chain are ready, we'll coordinate a completion date and work towards exchange.",
     emailCopy: {
       purchaser: {
         subject: "Seller has signed the contract: {address}",
@@ -591,7 +607,7 @@ const copy: Record<string, PortalCopy> = {
 
   VM18: {
     label: "Solicitor confirms ready to exchange", who: "solicitor", typicalDuration: "typically 1–5 days after signing",
-    description: "Your solicitor has confirmed they have everything in place to exchange contracts. Once both sides are ready, we'll coordinate the exchange.",
+    description: "Your solicitor will confirm once everything is in place for you to exchange contracts. We'll then coordinate with the buyer's side and the rest of the chain to get everyone ready to exchange.",
     emailCopy: {
       vendor: {
         subject: "Your solicitor is ready to exchange: {address}",
@@ -622,7 +638,7 @@ const copy: Record<string, PortalCopy> = {
 
   VM19: {
     label: "Contracts exchanged", who: "agent",
-    description: "Exchange is the legally binding moment of your sale. Both solicitors formally exchange signed contracts. Neither side can now withdraw without significant financial penalty. The completion date is now fixed.",
+    description: "Your solicitor will exchange contracts with the buyer's solicitor, making the sale legally binding and fixing the completion date. After exchange, neither you nor the buyer can withdraw without potentially significant financial consequences.",
     emailCopy: {
       vendor: {
         subject: "Contracts exchanged, your sale is legally committed: {address}",
@@ -659,7 +675,7 @@ const copy: Record<string, PortalCopy> = {
 
   VM20: {
     label: "Sale completed", who: "agent",
-    description: "The sale is complete. Your solicitor has received the purchase funds, redeemed your mortgage, and transferred ownership. Leave the keys and any agreed items at the property.",
+    description: "On completion day, the buyer's solicitor will transfer the purchase funds to your solicitor. Your solicitor will settle any mortgage secured against the property and deal with the remaining funds due to you. Once completion is confirmed, the keys can be released to the buyer.",
     emailCopy: {
       vendor: {
         subject: "Sale complete, congratulations: {address}",
@@ -697,7 +713,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM1: {
     label: "Instruct your solicitor", labelOther: "Buyer instructed their solicitor", who: "you",
-    description: "Formally appoint a solicitor to handle the conveyancing for your purchase. Contact them to confirm you're instructing them. They'll send you a welcome pack and start work.",
+    description: "Formally appoint a solicitor to handle the conveyancing for your purchase. Contact them to confirm your instruction. They'll send you a welcome pack and begin the legal work.",
+    next: "We'll issue the memorandum of sale to formally start the legal process.",
     emailCopy: {
       purchaser: {
         subject: "You've instructed your solicitor: {address}",
@@ -728,7 +745,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM2: {
     label: "Receive memorandum of sale", labelOther: "Buyer received memorandum of sale", chaseLabel: "Confirm the memorandum of sale has arrived", who: "you",
-    description: "We send a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
+    description: "We'll issue a memorandum of sale to everyone involved, confirming the agreed price, buyer, seller and solicitors. This formally starts the legal process.",
+    next: "Your solicitor will complete the identity and anti-money laundering checks required before they can act for you.",
     emailCopy: {
       purchaser: {
         subject: "Memorandum of sale issued: {address}",
@@ -751,7 +769,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM3: {
     label: "Complete ID & AML checks", labelOther: "Buyer completed ID & AML checks", who: "you",
-    description: "Anti-money laundering regulations require your solicitor to verify your identity before they can act for you. You'll need a photo ID and a recent proof of address.",
+    description: "Your solicitor will need to verify your identity and source of funds before they can act for you. You'll usually need to provide photo ID, proof of address and evidence of where your funds are coming from.",
+    next: "Your solicitor will ask for an initial payment to cover searches and other upfront costs.",
     emailCopy: {
       vendor: {
         subject: "Buyer's ID checks complete: {address}",
@@ -782,7 +801,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM4: {
     label: "Pay money on account to solicitor", labelOther: "Buyer paid money on account to solicitor", who: "you",
-    description: "Your solicitor will ask for an initial payment to cover the cost of searches and disbursements. This is separate from the deposit and is typically a few hundred pounds.",
+    description: "Your solicitor will ask for an initial payment to cover searches and other disbursements. This is separate from your purchase deposit and is typically a few hundred pounds.",
+    next: "If you're buying with a mortgage, the next step is to submit your full application to your lender.",
     emailCopy: {
       vendor: {
         subject: "Buyer has put funds with their solicitor: {address}",
@@ -813,7 +833,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM5: {
     label: "Submit mortgage application", labelOther: "Buyer submitted mortgage application", who: "you",
-    description: "If you're buying with a mortgage, submit your full mortgage application to your lender. Your broker can do this on your behalf. Your agreement in principle needs to be converted into a full application.",
+    description: "Submit your full mortgage application to your lender, usually through your mortgage broker. This turns your agreement in principle into a formal application for this property.",
+    next: "Your lender will arrange a valuation of the property as part of their assessment.",
     emailCopy: {
       vendor: {
         subject: "Buyer's mortgage application is in: {address}",
@@ -844,7 +865,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM6: {
     label: "Lender valuation booked", chaseLabel: "Valuation being booked", who: "lender", typicalDuration: "usually 1–2 weeks after application",
-    description: "Your mortgage lender has booked a valuation of the property to confirm it's worth what you're paying. This is not a structural survey. It's for the lender's benefit, not yours. Consider booking your own survey separately.",
+    description: "Your lender will arrange a valuation to check the property provides suitable security for the mortgage. This is for the lender's benefit and is not a survey of the property's condition.",
+    next: "Once the valuation is complete, your lender will review your application and, if approved, issue your formal mortgage offer.",
     emailCopy: {
       vendor: {
         subject: "Buyer's lender valuation: {address}",
@@ -880,7 +902,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM7: {
     label: "Draft contract pack received", chaseLabel: "Draft contract pack arriving from the seller's side", who: "solicitor",
-    description: "Your solicitor has received the contract pack from the seller's solicitor. This includes the draft contract, title documents, and property information forms. Your solicitor will review everything carefully.",
+    description: "The seller's solicitor will send your solicitor the draft contract pack. It usually includes the draft contract, title documents and property information forms for your solicitor to review.",
+    next: "Your solicitor will order the searches and begin identifying any questions they need to raise with the seller's solicitor.",
     emailCopy: {
       purchaser: {
         subject: "Contract pack received by your solicitor: {address}",
@@ -911,7 +934,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM8: {
     label: "Searches ordered", chaseLabel: "Searches being ordered", who: "solicitor", typicalDuration: "results in 2–4 weeks",
-    description: "Your solicitor has applied for searches: checks with the local council, water authority, and other bodies. These reveal planning permissions, flood risk, drainage, and other factors affecting the property.",
+    description: "Your solicitor will order property searches to obtain information from the local authority, water authority and other sources about matters that could affect the property.",
+    next: "Once the results are returned, your solicitor will review them alongside the other legal documents for the property.",
     emailCopy: {
       vendor: {
         subject: "Buyer's solicitor has ordered searches: {address}",
@@ -942,7 +966,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM9: {
     label: "Book your survey", labelOther: "Buyer booked their survey", who: "you",
-    description: "Consider booking an independent structural survey. A RICS HomeBuyer Report (Level 2) costs around £400 to £700 and covers the condition of the property in detail, which is something the lender's valuation does not do. It's there for your peace of mind and protection.",
+    description: "Arrange an independent survey to assess the condition of the property. It's for your benefit and can highlight defects, repairs or other issues that may need further investigation.",
+    next: "Your surveyor will inspect the property and prepare their report.",
     emailCopy: {
       vendor: {
         subject: "Buyer has arranged their survey, {address}",
@@ -975,7 +1000,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM10: {
     label: "Survey report received", chaseLabel: "Confirm the survey report has arrived", who: "you",
-    description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues; many are minor. If anything significant is raised, speak to your solicitor who can advise on the appropriate next steps.",
+    description: "Your surveyor will send you a report detailing the condition of the property and any issues they've identified. Read it carefully and speak to your solicitor if anything significant needs further investigation.",
+    next: "Your solicitor will continue reviewing the legal information provided by the seller's solicitor.",
     emailCopy: {
       vendor: {
         subject: "Buyer's survey report is in, {address}",
@@ -1006,7 +1032,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM11: {
     label: "Mortgage offer received", chaseLabel: "Mortgage offer coming through", who: "lender", typicalDuration: "typically 1–3 weeks after valuation",
-    description: "Your mortgage lender has formally offered you the loan. Check the amount, interest rate, term, and any conditions. Your solicitor will receive a copy. They'll need to check it against the property title.",
+    description: "If your application is approved, your lender will issue a formal mortgage offer setting out the loan amount, interest rate, term and any conditions. Your solicitor will also receive a copy and review any legal requirements attached to it.",
+    next: "If you're having your own survey, make sure it's booked so you can check the condition of the property.",
     emailCopy: {
       purchaser: {
         subject: "Your mortgage offer has arrived: {address}",
@@ -1045,7 +1072,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM12: {
     label: "Management pack received", chaseLabel: "Management pack arriving from the seller's side", who: "solicitor",
-    description: "If the property is leasehold, the management pack from the freeholder or managing agent has arrived. Your solicitor will review service charge accounts, ground rent, building insurance, and any planned major works.",
+    description: "If the property is leasehold or managed, your solicitor will receive a management pack from the freeholder, managing agent or management company. It contains information such as service charges, ground rent, insurance and planned works.",
+    next: "Your solicitor will review the management information alongside the other legal documents and raise any necessary enquiries.",
     emailCopy: {
       vendor: {
         subject: "Management pack received: {address}",
@@ -1076,7 +1104,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM13: {
     label: "Search results received", chaseLabel: "Search results coming back", who: "solicitor", typicalDuration: "usually 2–6 weeks",
-    description: "The search results have come back from the local authority and other bodies. Your solicitor will review them and flag anything that needs attention or further investigation.",
+    description: "Your solicitor will receive and review the search results for anything that could affect the property or your purchase. Any issues that need clarification can then be raised with the seller's solicitor.",
+    next: "Your solicitor will raise any outstanding enquiries with the seller's solicitor.",
     emailCopy: {
       vendor: {
         subject: "Buyer's search results are back: {address}",
@@ -1115,7 +1144,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM14: {
     label: "Initial enquiries raised", chaseLabel: "Initial enquiries going out to the seller's side", who: "solicitor",
-    description: "Your solicitor has sent questions to the seller's solicitor about the property. This is a normal part of the process. They're checking everything is in order before you exchange.",
+    description: "Your solicitor will raise questions with the seller's solicitor about the property, title and documents provided. This is a normal part of the legal process and helps ensure everything is in order before you exchange.",
+    next: "The seller's solicitor will respond to the enquiries. Your solicitor may raise further questions until they're satisfied with the replies.",
     emailCopy: {
       // E1 (enquiries rework): PM14 is purchaser-only. On a matched file the
       // seller hears about this same event once, via VM10 (received), so the
@@ -1295,7 +1325,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM20: {
     label: "All enquiries satisfied", chaseLabel: "Final sign-off on all enquiries", who: "solicitor",
-    description: "All legal questions about the property have been answered to your solicitor's satisfaction. This is a significant milestone. You're now in the final stretch before exchange.",
+    description: "Your solicitor will confirm once all enquiries have been answered to their satisfaction. At this point, the legal investigation of the property will be largely complete, bringing you a significant step closer to exchange.",
     emailCopy: {
       vendor: {
         subject: "All legal enquiries resolved: {address}",
@@ -1340,7 +1370,7 @@ const copy: Record<string, PortalCopy> = {
   // in the timeline; only the internal progressor log fires.
   VM21: {
     label: "All enquiries satisfied", chaseLabel: "Confirm all enquiries are satisfied", who: "solicitor",
-    description: "All of the buyer's solicitor's legal questions have been answered to their satisfaction. This is one of the final legal steps before exchange of contracts.",
+    description: "The buyer's solicitor will confirm once all of their enquiries have been answered to their satisfaction. This is a significant milestone and means the legal work is approaching the point where you can exchange contracts.",
     emailCopy: {
       progressor: {
         subject: "VM21 complete: All enquiries satisfied at {address}",
@@ -1355,7 +1385,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM21: {
     label: "Final report received from solicitor", chaseLabel: "Confirm the final report from your solicitor has arrived", who: "you",
-    description: "Your solicitor has sent you their final report summarising everything about the property, the title, the searches, and any conditions on your mortgage offer. Read it and raise any questions before signing.",
+    description: "Your solicitor will send you their final report on the property, summarising the title, searches, enquiries and any relevant mortgage conditions. Read it carefully and raise any questions before proceeding.",
+    next: "Your solicitor will send you the contract documents to review and sign.",
     emailCopy: {
       vendor: {
         subject: "Buyer is reviewing their solicitor's final report: {address}",
@@ -1386,7 +1417,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM22: {
     label: "Contract documents issued to you", labelOther: "Contract documents issued to buyer", chaseLabel: "Confirm the contract documents have arrived", who: "you",
-    description: "Your solicitor has sent you the contract to review and sign. Check the price, completion date, and included fixtures. Signing doesn't commit you yet. That happens at exchange.",
+    description: "Your solicitor will send you the contract documents to review and sign. Signing the contract does not make the purchase legally binding; that happens when contracts are exchanged.",
+    next: "Sign and return the documents to your solicitor so they can hold them ready for exchange.",
     emailCopy: {
       vendor: {
         subject: "Buyer has been issued their contract: {address}",
@@ -1417,7 +1449,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM23: {
     label: "Sign and return contract documents", labelOther: "Buyer signed and returned contract", who: "you",
-    description: "Sign the contract and return it to your solicitor. They'll hold it ready for exchange. Make sure you're happy with the completion date before signing.",
+    description: "Sign and return the contract documents to your solicitor. They'll hold them ready for exchange once all remaining requirements have been met.",
+    next: "You'll need to make sure your solicitor has the required deposit funds ready for exchange.",
     emailCopy: {
       vendor: {
         subject: "Buyer has signed and returned their contract: {address}",
@@ -1456,7 +1489,8 @@ const copy: Record<string, PortalCopy> = {
 
   PM24: {
     label: "Transfer the deposit", labelOther: "Buyer transferred the deposit", who: "you",
-    description: "Transfer your deposit (typically 10% of the purchase price) to your solicitor's client account. It must be cleared funds before exchange can happen. Allow a few days for bank transfers.",
+    description: "Transfer the required deposit to your solicitor's client account so the funds are cleared and ready for exchange. Your solicitor will confirm the amount you need to send.",
+    next: "Once everyone in the chain is ready, we'll work with the other side to agree the completion date and coordinate exchange.",
     emailCopy: {
       vendor: {
         subject: "Buyer's deposit is in place: {address}",
@@ -1487,7 +1521,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM25: {
     label: "Solicitor confirms ready to exchange", who: "solicitor", typicalDuration: "typically 1–5 days after signing",
-    description: "Your solicitor has confirmed they have everything they need to exchange. We're now coordinating with the seller's side to agree a date and time.",
+    description: "Your solicitor will confirm once everything is in place for you to exchange contracts. We'll then coordinate with the seller's side and the rest of the chain to get everyone ready to exchange.",
     emailCopy: {
       purchaser: {
         subject: "Your solicitor is ready to exchange: {address}",
@@ -1518,7 +1552,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM26: {
     label: "Contracts exchanged", who: "agent",
-    description: "Exchange is the legally binding moment of your purchase. Both solicitors exchange signed contracts and your deposit is transferred. The completion date is now fixed and neither side can withdraw without financial penalty.",
+    description: "Your solicitor will exchange contracts with the seller's solicitor, making your purchase legally binding and fixing the completion date. After exchange, neither you nor the seller can withdraw without potentially significant financial consequences.",
     emailCopy: {
       purchaser: {
         subject: "Contracts exchanged, your purchase is legally committed: {address}",
@@ -1544,7 +1578,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM27: {
     label: "Purchase completed", who: "agent",
-    description: "The purchase is complete. Your solicitor has received the title deeds and will register your ownership at HM Land Registry. The keys are yours. Welcome home.",
+    description: "On completion day, your solicitor will transfer the remaining purchase funds to the seller's solicitor. Once received, the purchase is complete and you can collect the keys. Your solicitor will then register your ownership with HM Land Registry.",
     emailCopy: {
       purchaser: {
         subject: "Purchase complete, welcome to your new home: {address}",

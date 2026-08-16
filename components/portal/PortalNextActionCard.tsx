@@ -16,7 +16,7 @@ type Props = {
     code: string;
     eventDateRequired: boolean;
   };
-  nextAfterDescription: string | null;
+  whatHappensNext: string | null;
 };
 
 async function fireConfetti() {
@@ -37,7 +37,7 @@ async function fireConfetti() {
   }, 260);
 }
 
-export function PortalNextActionCard({ token, milestone, nextAfterDescription }: Props) {
+export function PortalNextActionCard({ token, milestone, whatHappensNext }: Props) {
   const [, startTransition] = useTransition();
   const [optimisticConfirmed, addOptimistic] = useOptimistic(false, () => true);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -130,16 +130,16 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
             {loading ? "Saving…" : "Confirm this step"}
           </PortalButton>
 
-          {nextAfterDescription && (
+          {whatHappensNext && (
             <div
               className="mt-3 px-3.5 py-3 rounded-xl"
               style={{ background: P.pageBg }}
             >
               <p className="text-[11px] font-bold uppercase tracking-[0.06em] mb-1" style={{ color: P.textMuted }}>
-                After this
+                What happens next
               </p>
               <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>
-                {nextAfterDescription}
+                {whatHappensNext}
               </p>
             </div>
           )}

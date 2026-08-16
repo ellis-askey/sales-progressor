@@ -19,7 +19,7 @@ export function PortalHomeHelpExample(_props: Record<string, string>) {
         code: "PM5",
         eventDateRequired: false,
       }}
-      nextAfterDescription="Once your mortgage offer arrives, your solicitor will review the terms and send you the mortgage report."
+      whatHappensNext="Your lender will arrange a valuation of the property as part of their assessment."
     />
   );
 }

@@ -98,7 +98,6 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // client is never asked to confirm a solicitor's legal sign-off.
   const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !isPortalAgentOnly(m.code) && m.isAvailable);
   const nextAction = available[0] ?? null;
-  const nextAfter  = available[1] ?? null;
   const comingUp   = available.slice(2, 5);
 
   const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
@@ -491,7 +490,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             code:              nextAction.code,
             eventDateRequired: nextAction.eventDateRequired,
           }}
-          nextAfterDescription={nextAfter ? (getMilestoneCopy(nextAfter.code).description ?? null) : null}
+          whatHappensNext={getMilestoneCopy(nextAction.code).next ?? null}
         />
       )}
 

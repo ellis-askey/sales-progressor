@@ -347,7 +347,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                           </div>
 
                           <div className="flex items-center gap-2 flex-shrink-0 self-center">
-                            {m.description && (
+                            {m.description && !m.isComplete && (
                               <button
                                 onClick={() => setHelpMilestone(m)}
                                 className="w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"
