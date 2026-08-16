@@ -2,9 +2,11 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
-import { P } from "@/components/portal/portal-ui";
+import { P, PortalPill } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { UserAvatar } from "@/components/ui/Avatar";
+import { UserCircle } from "@phosphor-icons/react/dist/ssr";
 
 type MethodStyle = { label: string; bg: string; color: string };
 
@@ -107,12 +109,7 @@ export default async function PortalUpdatesPage({
                   const sideBadgeText = isOwnSide
                     ? (side === "vendor" ? "Sale" : "Purchase")
                     : (entry.side === "vendor" ? "Their sale" : "Their purchase");
-                  const sideBadgeBg = isOwnSide
-                    ? (side === "vendor" ? "rgba(255,107,74,0.12)" : "rgba(59,130,246,0.10)")
-                    : "rgba(139,145,163,0.12)";
-                  const sideBadgeColor = isOwnSide
-                    ? (side === "vendor" ? P.primary : P.accent)
-                    : P.textMuted;
+                  const sidePillTone = isOwnSide ? (side === "vendor" ? "coral" : "blue") : "grey";
                   return (
                     <PortalGlassCard
                       key={entry.id}
@@ -120,17 +117,24 @@ export default async function PortalUpdatesPage({
                       label="Update card"
                       className="flex items-start gap-3.5 px-5 py-4"
                     >
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                        style={{ background: P.successBg }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      </div>
+                      {/* Avatar — the person who confirmed it (photo), same logic
+                          as the overview; falls back to an initials/icon avatar. */}
+                      {entry.side !== side ? (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
+                          <UserCircle size={20} weight="fill" style={{ color: P.success }} />
+                        </div>
+                      ) : entry.confirmedByClient ? (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.primaryBg }}>
+                          <UserCircle size={20} weight="fill" style={{ color: P.primaryText }} />
+                        </div>
+                      ) : (
+                        <div className="flex-shrink-0 mt-0.5">
+                          <UserAvatar user={{ name: entry.completedByName ?? "Your team", image: entry.completedByImage }} size={32} />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+                        <div className="flex items-start gap-2 mb-1">
+                          <p className="flex-1 text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
                             {portalConfirmationSentence({
                               code: entry.code,
                               side: entry.side,
@@ -143,20 +147,20 @@ export default async function PortalUpdatesPage({
                               milestoneName: entry.label,
                             })}
                           </p>
-                          <span
-                            className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                            style={{ background: sideBadgeBg, color: sideBadgeColor }}
-                          >
-                            {sideBadgeText}
+                          <span className="flex-shrink-0">
+                            <PortalPill tone={sidePillTone}>{sideBadgeText}</PortalPill>
                           </span>
                         </div>
                         {entry.eventDate && (
-                          <p className="text-[13px] font-semibold mt-0.5" style={{ color: P.primary }}>
+                          <p className="text-[13px] font-semibold mt-0.5 flex items-center gap-1.5" style={{ color: P.primary }}>
                             {fmtDateFull(entry.eventDate)}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
                           </p>
                         )}
-                        <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
-                          {fmtDate(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
+                        <p className="text-[12px] mt-1 text-right" style={{ color: P.textMuted }}>
+                          {fmtTime(entry.createdAt ?? new Date())}
                         </p>
                       </div>
                     </PortalGlassCard>

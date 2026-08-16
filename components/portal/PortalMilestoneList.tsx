@@ -7,6 +7,8 @@ import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/su
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { SearchesUpload } from "./SearchesUpload";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
+import { PortalButton } from "./PortalButton";
+import { PortalPill } from "./portal-ui";
 
 
 type Milestone = {
@@ -268,9 +270,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {allDone ? (
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: P.successBg, color: P.success }}>Done ✓</span>
+                    <PortalPill tone="green">Done</PortalPill>
                   ) : (
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: P.primaryBg, color: P.primaryText }}>{doneCount}/{totalCount}</span>
+                    <PortalPill tone="coral">{doneCount}/{totalCount}</PortalPill>
                   )}
                   <ChevronIcon open={isOpen} />
                 </div>
@@ -308,7 +310,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                             <p className="text-[12px] mt-0.5" style={{ color: m.isComplete ? P.success : P.textMuted }}>
                               {m.isComplete
-                                ? `Confirmed${m.confirmedByPortal ? " by you" : ""}${m.completedAt ? ` · ${fmtDate(m.completedAt)}` : ""}${m.eventDate ? ` · ${fmtDate(m.eventDate)}` : ""}`
+                                ? `Confirmed${m.confirmedByPortal ? " by you" : ""}${(m.eventDate ?? m.completedAt) ? ` · ${fmtDate(m.eventDate ?? m.completedAt)}` : ""}`
                                 : m.whoLabel
                               }
                             </p>
@@ -330,13 +332,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             )}
                             {canConfirm && (
                               <div className="flex flex-col items-end gap-1.5">
-                                <button
-                                  onClick={() => openSheet(m.id)}
-                                  className="px-4 py-2 rounded-xl text-[13px] font-bold"
-                                  style={{ background: P.primaryBg, color: P.primaryText }}
-                                >
+                                <PortalButton size="sm" full={false} onClick={() => openSheet(m.id)}>
                                   Confirm
-                                </button>
+                                </PortalButton>
                                 {m.code === "PM9" && (
                                   <button
                                     onClick={() => setSkipSurveyId(m.id)}
@@ -398,9 +396,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                         <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: P.textMuted }}>
                           {group.icon} {group.label}
                         </p>
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: allDone ? P.successBg : P.primaryBg, color: allDone ? P.success : P.primaryText }}>
+                        <PortalPill tone={allDone ? "green" : "coral"}>
                           {doneCount}/{groupMilestones.length}
-                        </span>
+                        </PortalPill>
                       </div>
                       {groupMilestones.map((m, mIdx) => (
                         <div key={m.id} className="flex items-center gap-3.5 px-5 py-3" style={{ borderBottom: mIdx < groupMilestones.length - 1 ? `1px solid ${P.border}` : undefined }}>

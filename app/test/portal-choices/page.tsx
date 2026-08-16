@@ -9,7 +9,7 @@
 import { useState } from "react";
 import {
   House, HouseLine, ClockCounterClockwise, Path, ChatCircle, ChatText, ChatDots,
-  Question, Lifebuoy, Info,
+  Question, Lifebuoy, Info, CheckCircle, Circle, Lock, SealCheck,
 } from "@phosphor-icons/react/dist/ssr";
 import {
   Home, Activity, MessageSquare, MessageCircle, HelpCircle, LifeBuoy, Compass,
@@ -89,65 +89,87 @@ function HelpPill({ Icon, weight }: { Icon: React.ElementType; weight?: string }
   );
 }
 
-// ── Steps-done card mockups ──────────────────────────────────────────────────
-const STAGES = ["Instructed", "Draft pack", "Searches", "Enquiries", "Exchange", "Completion"];
-const DONE = 1; // index of active (Instructed done, Draft pack active)
-
-function StepsTiles() {
+// ── Progress-header-card mockups (the "X of Y steps done" card) ──────────────
+function HdrBar() {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-      {STAGES.map((s, i) => {
-        const done = i < DONE, active = i === DONE;
-        const color = done ? P.success : active ? P.primary : "rgba(15,23,42,0.20)";
-        return (
-          <div key={s} style={{ display: "contents" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: "1 0 0", minWidth: 0 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 999, border: `2px solid ${color}`, display: "flex", alignItems: "center", justifyContent: "center", color, fontWeight: 700, fontSize: 12 }}>
-                {done ? "✓" : i + 1}
-              </div>
-              <span style={{ fontSize: 9, color: active ? P.primary : P.textMuted, textAlign: "center", fontWeight: active ? 700 : 500 }}>{s}</span>
-            </div>
-            {i < STAGES.length - 1 && <div style={{ height: 2, width: 10, marginTop: 15, background: done ? P.success : "rgba(15,23,42,0.10)" }} />}
-          </div>
-        );
-      })}
+    <div style={{ height: 8, borderRadius: 999, background: "rgba(15,23,42,0.10)", overflow: "hidden", margin: "10px 0" }}>
+      <div style={{ width: "25%", height: "100%", borderRadius: 999, background: P.accent }} />
     </div>
   );
 }
-
-function StepsBar() {
+function HeaderCurrent() {
   return (
     <div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-        {STAGES.map((s, i) => {
-          const done = i < DONE, active = i === DONE;
-          return <div key={s} style={{ flex: 1, height: 8, borderRadius: 999, background: done ? P.success : active ? P.primary : "rgba(15,23,42,0.10)" }} />;
-        })}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: P.textPrimary }}>5 of 13 steps done</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: P.accent }}>25%</span>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-        <span style={{ color: P.textPrimary, fontWeight: 700 }}>Draft pack</span>
-        <span style={{ color: P.textMuted }}>Step 2 of 6</span>
+      <HdrBar />
+      <p style={{ margin: 0, fontSize: 12, color: P.textMuted }}>Next: <span style={{ color: P.textSecondary }}>Searches ordered</span></p>
+    </div>
+  );
+}
+function HeaderStage() {
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: P.textMuted }}>Current stage</p>
+          <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: P.textPrimary }}>Conveyancing</p>
+        </div>
+        <span style={{ fontSize: 15, fontWeight: 700, color: P.accent }}>25%</span>
+      </div>
+      <HdrBar />
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+        <span style={{ color: P.textMuted }}>5 of 13 done</span>
+        <span style={{ color: P.textSecondary }}>Next: Searches ordered</span>
       </div>
     </div>
   );
 }
-
-function StepsDots() {
+function HeaderTarget() {
   return (
-    <div style={{ position: "relative", padding: "6px 4px" }}>
-      <div style={{ position: "absolute", left: 12, right: 12, top: 12, height: 2, background: "rgba(15,23,42,0.10)" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
-        {STAGES.map((s, i) => {
-          const done = i < DONE, active = i === DONE;
-          const color = done ? P.success : active ? P.primary : "rgba(15,23,42,0.22)";
-          return (
-            <div key={s} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 44 }}>
-              <span style={{ width: active ? 14 : 10, height: active ? 14 : 10, borderRadius: 999, background: color, border: active ? `3px solid rgba(255,107,74,0.25)` : "none", marginTop: active ? 0 : 2 }} />
-              <span style={{ fontSize: 8.5, color: active ? P.primary : P.textMuted, textAlign: "center", fontWeight: active ? 700 : 500 }}>{s}</span>
-            </div>
-          );
-        })}
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: P.textPrimary }}>5 of 13 steps done</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: P.accent }}>25%</span>
       </div>
+      <HdrBar />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: "rgba(16,185,129,0.10)" }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#047857" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#047857" }}>On track for exchange by 5 Nov</span>
+      </div>
+      <p style={{ margin: "8px 0 0", fontSize: 12, color: P.textMuted }}>Next: Searches ordered</p>
+    </div>
+  );
+}
+
+// ── Step status icon mockups (done / your turn / locked) ─────────────────────
+function StepIconRow({ variant }: { variant: "current" | "phosphor" | "seal" }) {
+  function icon(state: "done" | "active" | "locked") {
+    if (variant === "current") {
+      if (state === "done") return <div style={{ width: 24, height: 24, borderRadius: 999, background: P.success, display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>;
+      if (state === "active") return <div style={{ width: 24, height: 24, borderRadius: 999, border: `2px solid ${P.primary}`, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 8, height: 8, borderRadius: 999, background: P.primary }} /></div>;
+      return <div style={{ width: 24, height: 24, borderRadius: 999, background: "rgba(15,23,42,0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}><Lock size={12} color={P.textMuted} /></div>;
+    }
+    if (variant === "phosphor") {
+      if (state === "done") return <CheckCircle size={26} weight="fill" color={P.success} />;
+      if (state === "active") return <Circle size={26} weight="bold" color={P.primary} />;
+      return <Lock size={24} weight="regular" color={P.textMuted} />;
+    }
+    if (state === "done") return <SealCheck size={26} weight="fill" color={P.success} />;
+    if (state === "active") return <Circle size={26} weight="duotone" color={P.primary} />;
+    return <Lock size={24} weight="duotone" color={P.textMuted} />;
+  }
+  const states: ["done" | "active" | "locked", string][] = [["done", "Done"], ["active", "Your turn"], ["locked", "Locked"]];
+  return (
+    <div style={{ display: "flex", gap: 22 }}>
+      {states.map(([s, lbl]) => (
+        <div key={s} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          {icon(s)}
+          <span style={{ fontSize: 10, color: P.textMuted }}>{lbl}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -202,15 +224,27 @@ export default function PortalChoicesPage() {
           </div>
         </Section>
 
-        <Section title="Steps card (top of overview)" blurb="How the 6 stages read at a glance. Same data, three treatments.">
-          <Selectable cat="stepsCard" id="STEPS-TILES" note="Current - numbered circles + connectors" picks={picks} onPick={onPick}>
-            <StepsTiles />
+        <Section title="Progress header card" blurb="The card above the steps on the Progress tab (X of Y steps done). Same info, three ways to bring a bit more to it.">
+          <Selectable cat="progressHeader" id="HEADER-CURRENT" note="Current - count, %, bar, next step" picks={picks} onPick={onPick}>
+            <HeaderCurrent />
           </Selectable>
-          <Selectable cat="stepsCard" id="STEPS-BAR" note="Segmented bar + current stage line" picks={picks} onPick={onPick}>
-            <StepsBar />
+          <Selectable cat="progressHeader" id="HEADER-STAGE" note="Leads with the current stage name" picks={picks} onPick={onPick}>
+            <HeaderStage />
           </Selectable>
-          <Selectable cat="stepsCard" id="STEPS-DOTS" note="Dot stepper on a track" picks={picks} onPick={onPick}>
-            <StepsDots />
+          <Selectable cat="progressHeader" id="HEADER-TARGET" note="Adds an on-track target-exchange line" picks={picks} onPick={onPick}>
+            <HeaderTarget />
+          </Selectable>
+        </Section>
+
+        <Section title="Step status icons" blurb="The little icons next to each step on the Progress tab: done / your turn / locked.">
+          <Selectable cat="stepIcons" id="STEPICONS-CURRENT" note="Current - filled circle, coral ring, lock" picks={picks} onPick={onPick}>
+            <StepIconRow variant="current" />
+          </Selectable>
+          <Selectable cat="stepIcons" id="STEPICONS-PHOSPHOR" note="Phosphor - CheckCircle / Circle / Lock" picks={picks} onPick={onPick}>
+            <StepIconRow variant="phosphor" />
+          </Selectable>
+          <Selectable cat="stepIcons" id="STEPICONS-SEAL" note="Phosphor SealCheck + duotone" picks={picks} onPick={onPick}>
+            <StepIconRow variant="seal" />
           </Selectable>
         </Section>
 
