@@ -94,7 +94,6 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);
-  const depositPaid  = milestones.some((m) => m.code === "PM24" && m.isComplete);
 
   // Exchange date (for the completion-countdown progress bar in the banner):
   // the real eventDate on the exchange milestone, else when we marked it complete.
@@ -576,7 +575,6 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       {side === "purchaser" && !hasCompleted && transaction.purchasePrice != null && (
         <PortalCostsCard
           priceGBP={transaction.purchasePrice / 100}
-          depositPaid={depositPaid}
           hasExchanged={hasExchanged}
           isCash={transaction.purchaseType === "cash_buyer" || transaction.purchaseType === "cash_from_proceeds"}
           savedDeposit={transaction.clientDepositGBP != null ? transaction.clientDepositGBP / 100 : null}

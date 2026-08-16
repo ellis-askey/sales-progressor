@@ -1,11 +1,14 @@
 "use client";
 
-// "Your costs" for buyers. Pre-exchange it's an overview (price, ~10% deposit,
-// stamp-duty estimate). After exchange it becomes interactive: the buyer confirms
-// the deposit they actually paid and their mortgage advance, and we show the
-// estimated funds still to send at completion (price − deposit − mortgage + SDLT).
-// Those two figures persist (portalSaveCostsAction). Fees still come from the
-// solicitor's completion statement, so it's an estimate, not a precise balance.
+// Buyer costs, switched on exchange (one or the other, never both):
+//  - Before exchange: the standalone stamp-duty estimate card. Tapping opens the
+//    calculator to refine it. Nothing else — the real deposit/mortgage figures
+//    aren't settled yet.
+//  - After exchange: "Your costs" — the buyer confirms the deposit they actually
+//    paid and their mortgage advance, and we show the estimated funds still to
+//    send at completion (price − deposit − mortgage + SDLT). Those two figures
+//    persist (portalSaveCostsAction). Fees still come from the solicitor's
+//    completion statement, so it's an estimate, not a precise balance.
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -29,7 +32,6 @@ function digits(s: string) {
 
 type Props = {
   priceGBP: number;
-  depositPaid: boolean;
   hasExchanged: boolean;
   isCash: boolean;
   savedDeposit: number | null;
@@ -37,7 +39,7 @@ type Props = {
   token: string;
 };
 
-export function PortalCostsCard({ priceGBP, depositPaid, hasExchanged, isCash, savedDeposit, savedMortgage, token }: Props) {
+export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, token }: Props) {
   const [open, setOpen] = useState(false);
   const [ftb, setFtb] = useState(false);
   const [additional, setAdditional] = useState(false);
@@ -48,6 +50,7 @@ export function PortalCostsCard({ priceGBP, depositPaid, hasExchanged, isCash, s
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const starting = calculateSdlt({ price: priceGBP, firstTimeBuyer: false, additionalProperty: false });
   const result = calculateSdlt({ price: priceGBP, firstTimeBuyer: ftb, additionalProperty: additional });
   const sdlt = result.total;
 
@@ -78,78 +81,100 @@ export function PortalCostsCard({ priceGBP, depositPaid, hasExchanged, isCash, s
 
   return (
     <>
-      <PortalGlassCard glassId="your-costs" label="Your costs" className="overflow-hidden">
-        <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
-          <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Your costs</p>
-        </div>
+      {hasExchanged ? (
+        <PortalGlassCard glassId="your-costs" label="Your costs" className="overflow-hidden">
+          <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+            <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Your costs</p>
+          </div>
 
-        <Row label="Purchase price" value={fmtGBP(priceGBP)} />
+          <Row label="Purchase price" value={fmtGBP(priceGBP)} />
+          <MoneyRow label="Deposit paid" value={depositStr} onChange={(v) => { setDepositStr(v); setSaved(false); }} />
+          {!isCash && (
+            <MoneyRow label="Mortgage amount" hint="From your mortgage offer" value={mortgageStr} onChange={(v) => { setMortgageStr(v); setSaved(false); }} />
+          )}
 
-        {hasExchanged ? (
-          <>
-            <MoneyRow label="Deposit paid" value={depositStr} onChange={(v) => { setDepositStr(v); setSaved(false); }} />
-            {!isCash && (
-              <MoneyRow label="Mortgage amount" hint="From your mortgage offer" value={mortgageStr} onChange={(v) => { setMortgageStr(v); setSaved(false); }} />
-            )}
-          </>
-        ) : (
-          <Row label={<>Deposit <span style={{ color: P.textMuted }}>(about 10%)</span></>} value={fmtGBP(Math.round(priceGBP * 0.1))} pill={depositPaid ? "Paid" : undefined} />
-        )}
+          {/* Stamp duty — tappable */}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="pbtn pbtn-press w-full flex items-center justify-between px-5 py-3.5 text-left"
+            style={{ borderBottom: `1px solid ${P.border}`, background: "transparent" }}
+          >
+            <div>
+              <p className="text-[14px]" style={{ color: P.textPrimary }}>Stamp duty</p>
+              <p className="text-[11px]" style={{ color: P.textMuted }}>Estimate. Tap to adjust</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[14px] font-semibold tabular-nums" style={{ color: "#1D4ED8" }}>~{fmtGBP(sdlt)}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
+          </button>
 
-        {/* Stamp duty — tappable */}
+          <div className="flex items-center justify-between px-5 py-4" style={{ background: P.primaryBg }}>
+            <div>
+              <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Funds still to send</p>
+              <p className="text-[11px]" style={{ color: P.textMuted }}>Estimated, before fees</p>
+            </div>
+            <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~{fmtGBP(fundsToSend)}</span>
+          </div>
+          <div className="px-5 py-3.5">
+            <p className="text-[12px] leading-relaxed mb-3" style={{ color: P.textMuted }}>
+              Plus your solicitor&apos;s fees and any other costs. They&apos;ll confirm the exact balance to transfer on your completion statement.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving || !dirty}
+                className="pbtn pbtn-press px-4 py-2 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
+                style={{ background: P.primary }}
+              >
+                {saving ? "Saving…" : "Save my figures"}
+              </button>
+              {saved && !dirty && <span className="text-[12px] font-semibold" style={{ color: P.success }}>Saved</span>}
+            </div>
+          </div>
+        </PortalGlassCard>
+      ) : (
+        /* Before exchange — standalone stamp-duty estimate card. */
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pbtn pbtn-press w-full flex items-center justify-between px-5 py-3.5 text-left"
-          style={{ borderBottom: `1px solid ${P.border}`, background: "transparent" }}
+          className="pbtn pbtn-press block w-full text-left"
+          style={{
+            borderRadius: 16,
+            padding: 16,
+            background: "linear-gradient(160deg, rgba(37,99,235,0.09), rgba(37,99,235,0.02))",
+            border: "0.5px solid rgba(37,99,235,0.14)",
+            boxShadow: P.shadowSm,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
         >
-          <div>
-            <p className="text-[14px]" style={{ color: P.textPrimary }}>Stamp duty</p>
-            <p className="text-[11px]" style={{ color: P.textMuted }}>Estimate. Tap to adjust</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-semibold tabular-nums" style={{ color: "#1D4ED8" }}>~{fmtGBP(sdlt)}</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <polyline points="9 18 15 12 9 6" />
+          <div
+            className="flex items-center justify-center flex-shrink-0"
+            style={{ width: 52, height: 52, borderRadius: 14, background: "#fff", color: "#2563EB", boxShadow: "0 2px 8px rgba(37,99,235,0.20)" }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <line x1="3" y1="22" x2="21" y2="22" /><line x1="6" y1="18" x2="6" y2="11" /><line x1="10" y1="18" x2="10" y2="11" /><line x1="14" y1="18" x2="14" y2="11" /><line x1="18" y1="18" x2="18" y2="11" /><polygon points="12 2 20 7 4 7" />
             </svg>
           </div>
-        </button>
-
-        {hasExchanged ? (
-          <>
-            <div className="flex items-center justify-between px-5 py-4" style={{ background: P.primaryBg }}>
-              <div>
-                <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Funds still to send</p>
-                <p className="text-[11px]" style={{ color: P.textMuted }}>Estimated, before fees</p>
-              </div>
-              <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~{fmtGBP(fundsToSend)}</span>
-            </div>
-            <div className="px-5 py-3.5">
-              <p className="text-[12px] leading-relaxed mb-3" style={{ color: P.textMuted }}>
-                Plus your solicitor's fees and any other costs. They'll confirm the exact balance to transfer on your completion statement.
-              </p>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={save}
-                  disabled={saving || !dirty}
-                  className="pbtn pbtn-press px-4 py-2 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
-                  style={{ background: P.primary }}
-                >
-                  {saving ? "Saving…" : "Save my figures"}
-                </button>
-                {saved && !dirty && <span className="text-[12px] font-semibold" style={{ color: P.success }}>Saved</span>}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="px-5 py-3.5">
-            <p className="text-[12px] leading-relaxed" style={{ color: P.textMuted }}>
-              Your solicitor will send a completion statement with the exact balance to transfer, including their fees and any other costs.
+          <div className="flex-1 min-w-0">
+            <p className="text-[15px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+              Stamp duty estimate
+            </p>
+            <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+              About <b style={{ color: "#1D4ED8" }}>{fmtGBP(starting.total)}</b> on {fmtGBP(priceGBP)}. Assumes standard rates. Tap to adjust.
             </p>
           </div>
-        )}
-      </PortalGlassCard>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      )}
 
       {/* Stamp-duty calculator sheet — portalled to <body> so it overlays the
           viewport, not the bottom of the (long) overview page. */}
