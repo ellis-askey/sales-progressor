@@ -161,7 +161,10 @@ export default async function PortalUpdatesPage({
                           })}
                         </p>
                         {(() => {
-                          const meaning = getMilestoneCopy(entry.code).description;
+                          // Own-side entries only: the description is written from the
+                          // owner's perspective ("your solicitor"), so it reads wrong
+                          // under the other side's confirmations.
+                          const meaning = entry.side === side ? getMilestoneCopy(entry.code).description : null;
                           return meaning ? (
                             <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{meaning}</p>
                           ) : null;
