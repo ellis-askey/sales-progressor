@@ -3,6 +3,7 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { P, PortalPill } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
+import { PortalGlassCard } from "./PortalGlassCard";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 import { getEventDateLabel } from "@/lib/portal-copy";
 
@@ -105,13 +106,12 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
 
   return (
     <>
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: P.cardBg,
-          boxShadow: isYours ? P.heroGlow : P.shadowMd,
-          borderLeft: isYours ? `4px solid ${P.primary}` : undefined,
-        }}
+      <PortalGlassCard
+        glassId="next-step"
+        label="Your next step"
+        defaultVariant="v26"
+        className="overflow-hidden"
+        style={{ borderLeft: isYours ? `4px solid ${P.primary}` : undefined }}
       >
         <div className="px-5 py-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-3" style={{ color: P.primary }}>
@@ -144,7 +144,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
             </div>
           )}
         </div>
-      </div>
+      </PortalGlassCard>
 
       {/* Bottom sheet */}
       {sheetOpen && (

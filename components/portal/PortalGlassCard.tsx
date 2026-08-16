@@ -8,7 +8,7 @@
 // Always emits data-glass-* so the lab drawer can discover it.
 
 import { usePortalPick } from "@/lib/glass/portal-context";
-import { classFor } from "@/lib/glass/variants";
+import { classFor, type GlassVariantId } from "@/lib/glass/variants";
 import { P } from "./portal-ui";
 
 type Props = React.HTMLAttributes<HTMLDivElement> & {
@@ -16,18 +16,22 @@ type Props = React.HTMLAttributes<HTMLDivElement> & {
   label: string;
   /** Portal corner radius kept regardless of variant (default 16). */
   radius?: number;
+  /** Baked-in variant when there's no lab pick (a chosen default). The lab
+   *  still overrides it. Omit to render the plain portal card surface. */
+  defaultVariant?: GlassVariantId;
 };
 
-export function PortalGlassCard({ glassId, label, radius = 16, className, style, children, ...rest }: Props) {
+export function PortalGlassCard({ glassId, label, radius = 16, defaultVariant, className, style, children, ...rest }: Props) {
   const pick = usePortalPick(glassId);
-  const cls = [pick ? classFor(pick) : "", className].filter(Boolean).join(" ") || undefined;
-  const surface: React.CSSProperties = pick ? {} : { background: P.cardBg, boxShadow: P.shadowSm };
+  const active = pick ?? defaultVariant;
+  const cls = [active ? classFor(active) : "", className].filter(Boolean).join(" ") || undefined;
+  const surface: React.CSSProperties = active ? {} : { background: P.cardBg, boxShadow: P.shadowSm };
   return (
     <div
       className={cls}
       data-glass-id={glassId}
       data-glass-label={label}
-      data-glass-variant={pick ?? "v00"}
+      data-glass-variant={active ?? "v00"}
       style={{ borderRadius: radius, ...surface, ...style }}
       {...rest}
     >
