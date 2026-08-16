@@ -24,6 +24,10 @@ Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) 
 | **Post-completion review request** | On the completion page ([`complete/page.tsx`](app/portal/[token]/complete/page.tsx)) — highest-intent moment. Ask for a Google/Trustpilot review. | 2026-08-16 |
 | **Refer a friend** | Also post-completion. Green-lit alongside the review request. | 2026-08-16 |
 | **Documents as a tab in the client menu** | Wanted, but **needs full planning first** (own spec before any build). Direction: add tabs to the client menu, documents is one tab. A central place to view/download the contract pack, searches, EPC, memorandum, completion statement, etc. Today documents only appear inline in the Updates timeline; clients can upload (searches) but not browse. | 2026-08-16 |
+| **First-visit welcome / orientation** | Required. One-time bottom sheet on a client's first portal open (localStorage-gated like the install/push toasts): a warm 3-point intro (what this is, what you can do, where your team is). | 2026-08-17 |
+| **"Your costs" overview card (buyers)** | The honest cost-*overview* version (not a precise balance — see Deferred): price, estimated deposit, the SDLT estimate folded in, and "your solicitor confirms the exact balance". Likely replaces the standalone SDLT card, shown until completion. | 2026-08-17 |
+
+**Covered already (not a new build):** a persistent "what we need from you" panel — the Overview "Your next step" + confirm already surfaces the client's next required action. Only gap: multiple concurrent asks / non-milestone document requests.
 
 ## ⏸ Deferred (wanted eventually — trigger noted)
 
@@ -35,6 +39,8 @@ Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) 
 | **Referral quote lines beyond surveys** | Removals, mortgage broker, conveyancing — and expanding to **tradespeople** too. Known roadmap, modelled on the working survey-quote flow ([`/quote/[token]`](app/quote/[token]/QuoteFlow.tsx)). "Not right this second." | 2026-08-16 |
 | **Weekly progress digest email** | Opt-in summary. Deferred. | 2026-08-16 |
 | **Share read-only with a partner** | Multi-viewer on one token (both buyers want access). Deferred. | 2026-08-16 |
+| **"On track" / progress-health signal** | On track vs running-behind against the 12-week target. Technically needs no per-step data, but Ellis places it in the same "wait for data confidence" bucket as typical-duration. | 2026-08-17 |
+| **"Your costs" precise balance (buyers)** | A *precise* money-to-complete figure needs the mortgage advance, solicitor fees and actual deposit — none stored today. The honest cost-*overview* version (price + est. deposit + SDLT + "solicitor confirms exact") is being built instead; the precise figure waits until we capture those inputs. | 2026-08-17 |
 
 ## ❌ Declined (do not re-raise)
 
