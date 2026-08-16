@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS, getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
+import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides";
 import { P, PortalPill } from "@/components/portal/portal-ui";
 import { calculateProgress } from "@/lib/services/fees";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
@@ -112,6 +113,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
   const recentActivity = timeline.slice(0, 3);
+  const updateOverrides = await getUpdateOverrideMap();
 
   const stage = detectStage(milestones, side);
 
@@ -747,12 +749,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                             ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
                             : { kind: "agent", name: entry.completedByName ?? "Your team" },
                         milestoneName: entry.label,
+                        coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                       })}
                     </p>
                     {(() => {
+                      const ov = updateOverrides.get(entry.code);
                       const sub = entry.side === side
-                        ? getMilestoneUpdateSubtext(entry.code)
-                        : getMilestoneUpdateSubtextOther(entry.code);
+                        ? (ov?.subtextOwn ?? getMilestoneUpdateSubtext(entry.code))
+                        : (ov?.subtextOther ?? getMilestoneUpdateSubtextOther(entry.code));
                       return sub ? (
                         <p className="text-[12.5px] leading-snug mt-1" style={{ color: P.textSecondary }}>{sub}</p>
                       ) : null;

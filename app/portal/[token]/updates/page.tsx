@@ -3,6 +3,7 @@ import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
 import { getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
+import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides";
 import { P, PortalPill } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
@@ -70,6 +71,7 @@ export default async function PortalUpdatesPage({
 
   const timeline = await getPortalTimeline(transaction.id, side, contact.id, { buyerRoundId: contact.buyerRoundId, activeBuyerRoundId: transaction.activeBuyerRoundId });
   const groups   = groupTimeline(timeline);
+  const updateOverrides = await getUpdateOverrideMap();
 
   return (
     <div className="space-y-5">
@@ -158,14 +160,17 @@ export default async function PortalUpdatesPage({
                                 ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
                                 : { kind: "agent", name: entry.completedByName ?? "Your team" },
                             milestoneName: entry.label,
+                            coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                           })}
                         </p>
                         {(() => {
                           // Own side: first-person "your solicitor" subtext. Other
-                          // side: third-person "the seller/buyer" subtext.
+                          // side: third-person "the seller/buyer" subtext. Command
+                          // Centre override wins over the hardcoded default.
+                          const ov = updateOverrides.get(entry.code);
                           const sub = entry.side === side
-                            ? getMilestoneUpdateSubtext(entry.code)
-                            : getMilestoneUpdateSubtextOther(entry.code);
+                            ? (ov?.subtextOwn ?? getMilestoneUpdateSubtext(entry.code))
+                            : (ov?.subtextOther ?? getMilestoneUpdateSubtextOther(entry.code));
                           return sub ? (
                             <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{sub}</p>
                           ) : null;

@@ -144,29 +144,43 @@ export function portalConfirmationSentence(opts: {
   viewerSide: "vendor" | "purchaser";
   confirmer: UpdateConfirmer;
   milestoneName: string;
+  // Command Centre override for the confirmation clause (client portal only).
+  coreOverride?: string | null;
 }): string {
-  const { code, side, viewerSide, confirmer, milestoneName } = opts;
-  const general = GENERAL[code];
-  const core = CORES[code];
+  const { code, side, viewerSide, confirmer, milestoneName, coreOverride } = opts;
+  const isGeneral = GENERAL[code] !== undefined;
+  const clause = coreOverride && coreOverride.trim()
+    ? coreOverride.trim()
+    : (GENERAL[code] ?? CORES[code] ?? null);
 
   // The other party's progress — generic, no name, no confirmer.
   if (side !== viewerSide) {
     const party = side === "vendor" ? "seller" : "buyer";
-    if (general) return capitalise(general);
-    if (!core) return milestoneName;
-    return capitalise(`the ${party}'s ${core}`);
+    if (!clause) return milestoneName;
+    if (isGeneral) return capitalise(clause);
+    return capitalise(`the ${party}'s ${clause}`);
   }
 
   // The viewer's own step.
   if (confirmer.kind === "client") {
-    if (general) return `You confirmed ${general}`;
-    if (!core) return `You confirmed: ${milestoneName}`;
-    return `You confirmed your ${core}`;
+    if (!clause) return `You confirmed: ${milestoneName}`;
+    if (isGeneral) return `You confirmed ${clause}`;
+    return `You confirmed your ${clause}`;
   }
   const who = confirmer.kind === "agent" ? confirmer.name : confirmer.firm;
-  if (general) return `${who} confirmed that ${general}`;
-  if (!core) return `${who} confirmed: ${milestoneName}`;
-  return `${who} confirmed your ${core}`;
+  if (!clause) return `${who} confirmed: ${milestoneName}`;
+  if (isGeneral) return `${who} confirmed that ${clause}`;
+  return `${who} confirmed your ${clause}`;
+}
+
+// The hardcoded default confirmation clause for a code (possessive core or the
+// non-possessive general clause). Command Centre editor default + resolver base.
+export function getDefaultUpdateCore(code: string): string | null {
+  return GENERAL[code] ?? CORES[code] ?? null;
+}
+// True for exchange codes (VM19/PM26) whose clause is non-possessive.
+export function isGeneralUpdateCode(code: string): boolean {
+  return GENERAL[code] !== undefined;
 }
 
 // ── Bell phrasing for non-confirmation client updates (audit #6 follow-on) ──

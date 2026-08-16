@@ -1883,6 +1883,21 @@ model MilestoneEmailOverride {
   @@index([code, side])
 }
 
+// Client-portal "Updates" copy overrides, edited from the Command Centre. One
+// row per milestone code. Separate from the agent-side wording (lib/updates-copy
+// CORES) and from the email overrides above. Any field null = fall back to the
+// hardcoded default. Applies to the next portal render immediately.
+model MilestoneUpdateOverride {
+  id           String   @id @default(cuid())
+  code         String   @unique // milestone code, e.g. "PM8"
+  core         String? // confirmation clause, e.g. "solicitor has ordered the searches"
+  subtextOwn   String? // subtext when it's the viewer's own step
+  subtextOther String? // subtext when it's the other party's step
+  updatedById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique
