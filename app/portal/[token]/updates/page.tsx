@@ -4,6 +4,7 @@ import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
 import { P } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
 type MethodStyle = { label: string; bg: string; color: string };
 
@@ -67,9 +68,10 @@ export default async function PortalUpdatesPage({
   return (
     <div className="space-y-5">
       {timeline.length === 0 ? (
-        <div
-          className="rounded-2xl px-5 py-10 text-center"
-          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
+        <PortalGlassCard
+          glassId="updates-empty"
+          label="Updates: empty state"
+          className="px-5 py-10 text-center"
         >
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
@@ -85,7 +87,7 @@ export default async function PortalUpdatesPage({
           <p className="text-[14px]" style={{ color: P.textSecondary }}>
             Key milestones and updates from your team will appear here.
           </p>
-        </div>
+        </PortalGlassCard>
       ) : (
         groups.map((group) => (
           <div key={group.label}>
@@ -112,10 +114,11 @@ export default async function PortalUpdatesPage({
                     ? (side === "vendor" ? P.primary : P.accent)
                     : P.textMuted;
                   return (
-                    <div
+                    <PortalGlassCard
                       key={entry.id}
-                      className="flex items-start gap-3.5 rounded-2xl px-5 py-4"
-                      style={{ background: P.cardBg, boxShadow: P.shadowSm }}
+                      glassId="updates-card"
+                      label="Update card"
+                      className="flex items-start gap-3.5 px-5 py-4"
                     >
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -156,7 +159,7 @@ export default async function PortalUpdatesPage({
                           {fmtDate(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
                         </p>
                       </div>
-                    </div>
+                    </PortalGlassCard>
                   );
                 }
 

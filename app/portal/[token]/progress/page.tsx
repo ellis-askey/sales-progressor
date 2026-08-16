@@ -4,6 +4,7 @@ import { calculateProgress } from "@/lib/services/fees";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { P } from "@/components/portal/portal-ui";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
 const POST_EXCHANGE_PORTAL = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const EXCHANGE_GATES_PORTAL = new Set(["VM18", "PM25"]);
@@ -73,7 +74,7 @@ export default async function PortalProgressPage({
   return (
     <div className="space-y-4">
       {/* ── Progress header ─────────────────────────────────── */}
-      <div className="rounded-2xl px-5 py-4" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+      <PortalGlassCard glassId="progress-header" label="Progress: steps-done header" className="px-5 py-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>
             {completed.length} of {preExchange.length} steps done
@@ -96,7 +97,7 @@ export default async function PortalProgressPage({
             Next: <span style={{ color: P.textSecondary }}>{nextUp.label}</span>
           </p>
         ) : null}
-      </div>
+      </PortalGlassCard>
 
       {/* ── Grouped milestone sections ───────────────────────── */}
       <PortalMilestoneList
