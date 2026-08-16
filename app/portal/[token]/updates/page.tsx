@@ -121,21 +121,31 @@ export default async function PortalUpdatesPage({
                       defaultVariant="v26"
                       className="flex items-start gap-3.5 px-5 py-4"
                     >
-                      {/* Avatar: the confirmer's photo if we have one; otherwise a
-                          coloured icon — your OWN side is coral, the OTHER side is
-                          green (friendly). Switches per viewer. */}
-                      {entry.completedByImage ? (
-                        <div className="flex-shrink-0 mt-0.5">
-                          <UserAvatar user={{ name: entry.completedByName ?? "Your team", image: entry.completedByImage }} size={32} />
-                        </div>
-                      ) : (
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                          style={{ background: entry.side === side ? P.primaryBg : P.successBg }}
-                        >
-                          <UserCircle size={20} weight="fill" style={{ color: entry.side === side ? P.primaryText : P.success }} />
-                        </div>
-                      )}
+                      {/* Avatar. Own side: the client's own photo on steps they
+                          confirmed, the team member's photo on steps we
+                          confirmed, else our bright orange icon. Other side:
+                          always a green icon, never a photo (we don't share the
+                          other side's pictures across the deal). */}
+                      {(() => {
+                        const isOtherSide = entry.side !== side;
+                        const photo = isOtherSide
+                          ? null
+                          : entry.confirmedByClient
+                            ? entry.confirmedByContactImage
+                            : entry.completedByImage;
+                        return photo ? (
+                          <div className="flex-shrink-0 mt-0.5">
+                            <UserAvatar user={{ name: entry.confirmedByClient ? "You" : (entry.completedByName ?? "Your team"), image: photo }} size={32} />
+                          </div>
+                        ) : (
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                            style={{ background: isOtherSide ? P.successBg : P.primaryBg }}
+                          >
+                            <UserCircle size={20} weight="fill" style={{ color: isOtherSide ? P.success : P.primaryText }} />
+                          </div>
+                        );
+                      })()}
                       <div className="flex-1 min-w-0">
                         {/* The update spans full width; the meta line carries the
                             orange EVENT date + the muted Confirmed stamp, with the

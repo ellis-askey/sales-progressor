@@ -712,15 +712,26 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             >
               {entry.type === "milestone" ? (
                 <>
-                  {/* Photo: the team member who confirmed it (or a neutral mark
-                      for the client's own step / the other party's step). */}
-                  {entry.completedByImage ? (
-                    <UserAvatar user={{ name: entry.completedByName ?? "Your team", image: entry.completedByImage }} size={28} />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: entry.side === side ? P.primaryBg : P.successBg }}>
-                      <UserCircle size={18} weight="fill" style={{ color: entry.side === side ? P.primaryText : P.success }} />
-                    </div>
-                  )}
+                  {/* Avatar. Own side: the client's own photo on steps they
+                      confirmed, the team member's photo on steps we confirmed,
+                      else our bright orange icon. Other side: always a green
+                      icon, never a photo (we don't share the other side's
+                      pictures across the deal). */}
+                  {(() => {
+                    const isOtherSide = entry.side !== side;
+                    const photo = isOtherSide
+                      ? null
+                      : entry.confirmedByClient
+                        ? entry.confirmedByContactImage
+                        : entry.completedByImage;
+                    return photo ? (
+                      <UserAvatar user={{ name: entry.confirmedByClient ? "You" : (entry.completedByName ?? "Your team"), image: photo }} size={28} />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: isOtherSide ? P.successBg : P.primaryBg }}>
+                        <UserCircle size={18} weight="fill" style={{ color: isOtherSide ? P.success : P.primaryText }} />
+                      </div>
+                    );
+                  })()}
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>
                       {portalConfirmationSentence({

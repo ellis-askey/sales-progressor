@@ -2185,6 +2185,7 @@ export type TimelineEntry =
       side: "vendor" | "purchaser";
       completedByName: string | null;
       completedByImage: string | null;
+      confirmedByContactImage: string | null;
       confirmedBySolicitorFirmName: string | null;
       confirmedByClient: boolean;
       eventDate: Date | null;
@@ -2283,6 +2284,25 @@ export async function getPortalTimeline(
       }),
     ]);
 
+    // Resolve the display picture of the CONTACT who confirmed each step via
+    // their own portal link (confirmedByContactId is a plain scalar — no
+    // relation — so we batch-resolve the images here). Lets a client see their
+    // own face on the steps they confirmed. completedBy.image only covers agent
+    // confirms; without this, client-confirmed steps never show the client's photo.
+    const confirmerContactIds = [
+      ...new Set(completions.map((c) => c.confirmedByContactId).filter((x): x is string => !!x)),
+    ];
+    const contactImageById = confirmerContactIds.length
+      ? new Map(
+          (
+            await prisma.contact.findMany({
+              where: { id: { in: confirmerContactIds } },
+              select: { id: true, image: true },
+            })
+          ).map((c) => [c.id, c.image] as const),
+        )
+      : new Map<string, string | null>();
+
     const milestoneEntries: TimelineEntry[] = completions
       .map((c) => {
         const copy = getMilestoneCopy(c.milestoneDefinition.code);
@@ -2296,6 +2316,7 @@ export async function getPortalTimeline(
           side: c.milestoneDefinition.side as "vendor" | "purchaser",
           completedByName: c.completedBy?.name ?? null,
           completedByImage: c.completedBy?.image ?? null,
+          confirmedByContactImage: c.confirmedByContactId ? (contactImageById.get(c.confirmedByContactId) ?? null) : null,
           confirmedBySolicitorFirmName: c.confirmedBySolicitorFirm?.name ?? null,
           confirmedByClient: c.confirmedByPortal,
           eventDate: c.eventDate ?? null,
