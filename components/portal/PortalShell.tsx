@@ -7,6 +7,7 @@ import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/
 import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
+import { PortalWelcomeSheet } from "./PortalWelcomeSheet";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
 import { usePortalPick } from "@/lib/glass/portal-context";
@@ -206,6 +207,15 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           logic. 2026-08-09.
           The original PortalInstallPrompt + PortalPushPrompt files
           are kept on disk for revert; unused as of this change. */}
+      {/* First-visit welcome (once per client, all viewports). */}
+      {!isRespond && (
+        <PortalWelcomeSheet
+          token={token}
+          firstName={firstName}
+          saleWord={roleType === "vendor" ? "sale" : "purchase"}
+        />
+      )}
+
       {!isRespond && (
         <div className="lg:hidden">
           <PortalOnboardingToasts token={token} vapidPublicKey={vapidPublicKey} />
