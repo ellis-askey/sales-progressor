@@ -839,7 +839,7 @@ function ServicesSection({
             <div>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>No survey on your file</p>
               <p style={{ margin: "2px 0 10px", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
-                Your enquiries have been answered, so to add a survey now please talk to your progressor{survey.progressorName ? ` (${survey.progressorName})` : ""}.
+                Your solicitor&apos;s enquiries have already been satisfied. If you&apos;d now like to add a survey, please speak to your progressor{survey.progressorName ? `, ${survey.progressorName}` : ""}.
               </p>
               {mailto && (
                 <a
@@ -854,13 +854,13 @@ function ServicesSection({
           ) : confirmingOff ? (
             /* Confirm turning the survey off. */
             <div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Mark no survey?</p>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Not getting a survey?</p>
               <p style={{ margin: "2px 0 12px", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
-                This marks the survey as not required. We and the other side will see you&apos;re not getting a survey. You can turn it back on here until your enquiries are answered.
+                This will confirm to us and the other side that you&apos;re not getting a survey. You can change this at any time until your solicitor&apos;s enquiries have been satisfied.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={() => setConfirmingOff(false)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
-                <button type="button" onClick={turnOff} disabled={busy} className="portal-menu-btn" style={btnPrimary}>{busy ? "Saving…" : "Yes, no survey"}</button>
+                <button type="button" onClick={turnOff} disabled={busy} className="portal-menu-btn" style={btnPrimary}>{busy ? "Saving…" : "Yes, I'm not getting a survey"}</button>
               </div>
             </div>
           ) : (
@@ -870,8 +870,8 @@ function ServicesSection({
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Getting a survey</p>
                 <p style={{ margin: "2px 0 0", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
                   {gettingSurvey
-                    ? "Turn off if you're not getting a survey."
-                    : "Turn back on to add the survey to your progress."}
+                    ? "Turn this off if you're not getting a survey."
+                    : "Turn this back on if you decide to get a survey."}
                 </p>
               </div>
               <label style={{ display: "inline-flex", alignItems: "center", cursor: busy ? "wait" : "pointer", flexShrink: 0 }}>
