@@ -100,22 +100,9 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
   const offset = circumference * (1 - clamped / 100);
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      {/* Heavy-frost disc behind the ring — the non-orange part of the ring
-          reads as frosted glass over the photo (founder pick, 2026-08-16). */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: stroke / 2,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.10)",
-          backdropFilter: "blur(40px) saturate(1.3)",
-          WebkitBackdropFilter: "blur(40px) saturate(1.3)",
-          border: "0.5px solid rgba(255,255,255,0.45)",
-          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.3)",
-        }}
-      />
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "relative", transform: "rotate(-90deg)" }}>
+      {/* Just the outer ring — the middle stays fully transparent so the
+          property photo shows through it (founder, 2026-08-16). */}
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -143,8 +130,8 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
         alignItems: "center", justifyContent: "center",
         color: P.textPrimary,
       }}>
-        <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary }}>{stepNumber}</span>
-        <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500 }}>of 6</span>
+        <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary, textShadow: "0 1px 4px rgba(255,255,255,0.75)" }}>{stepNumber}</span>
+        <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500, textShadow: "0 1px 3px rgba(255,255,255,0.75)" }}>of 6</span>
       </div>
     </div>
   );

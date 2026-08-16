@@ -117,19 +117,19 @@ export default async function PortalUpdatesPage({
                       label="Update card"
                       className="flex items-start gap-3.5 px-5 py-4"
                     >
-                      {/* Avatar — the person who confirmed it (photo), same logic
-                          as the overview; falls back to an initials/icon avatar. */}
-                      {entry.side !== side ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
-                          <UserCircle size={20} weight="fill" style={{ color: P.success }} />
-                        </div>
-                      ) : entry.confirmedByClient ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.primaryBg }}>
-                          <UserCircle size={20} weight="fill" style={{ color: P.primaryText }} />
-                        </div>
-                      ) : (
+                      {/* Avatar: the confirmer's photo if we have one; otherwise a
+                          coloured icon — your OWN side is coral, the OTHER side is
+                          green (friendly). Switches per viewer. */}
+                      {entry.completedByImage ? (
                         <div className="flex-shrink-0 mt-0.5">
                           <UserAvatar user={{ name: entry.completedByName ?? "Your team", image: entry.completedByImage }} size={32} />
+                        </div>
+                      ) : (
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ background: entry.side === side ? P.primaryBg : P.successBg }}
+                        >
+                          <UserCircle size={20} weight="fill" style={{ color: entry.side === side ? P.primaryText : P.success }} />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">

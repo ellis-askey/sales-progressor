@@ -57,11 +57,14 @@ html {
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { min-height: 100%; overflow-x: hidden; }
+/* overflow-x: clip (not hidden) stops horizontal scroll WITHOUT making <body>
+   the scroll container — so the document stays the scroller and mobile browsers
+   collapse the URL bar on scroll (founder, 2026-08-16). */
+html { min-height: 100%; overflow-x: clip; }
 
 body {
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100vw;
   background: transparent;
   color: #0d1117;

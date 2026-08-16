@@ -714,19 +714,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                 <>
                   {/* Photo: the team member who confirmed it (or a neutral mark
                       for the client's own step / the other party's step). */}
-                  {entry.side !== side ? (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.successBg }}>
-                      <UserCircle size={18} weight="fill" style={{ color: P.success }} />
-                    </div>
-                  ) : entry.confirmedByClient ? (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.primaryBg }}>
-                      <UserCircle size={18} weight="fill" style={{ color: P.primaryText }} />
-                    </div>
-                  ) : entry.completedByName ? (
-                    <UserAvatar user={{ name: entry.completedByName, image: entry.completedByImage }} size={28} />
+                  {entry.completedByImage ? (
+                    <UserAvatar user={{ name: entry.completedByName ?? "Your team", image: entry.completedByImage }} size={28} />
                   ) : (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: P.successBg }}>
-                      <UserCircle size={18} weight="fill" style={{ color: P.success }} />
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: entry.side === side ? P.primaryBg : P.successBg }}>
+                      <UserCircle size={18} weight="fill" style={{ color: entry.side === side ? P.primaryText : P.success }} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">

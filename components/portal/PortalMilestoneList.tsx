@@ -214,14 +214,24 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   return (
     <>
       {hasOtherSide && (
-        <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 999, background: "rgba(15,23,42,0.05)", marginBottom: 12 }}>
+        <div style={{ position: "relative", display: "flex", padding: 4, borderRadius: 999, background: "rgba(15,23,42,0.05)", marginBottom: 12 }}>
+          {/* Sliding indicator — slides across, overshoots a touch, settles. */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute", top: 4, bottom: 4, left: 4, width: "calc(50% - 4px)",
+              borderRadius: 999, background: "#fff", boxShadow: "0 1px 2px rgba(15,23,42,0.12)",
+              transform: activeSide === "other" ? "translateX(100%)" : "translateX(0)",
+              transition: "transform 440ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          />
           {([["own", ownLabel], ["other", otherLabel]] as const).map(([key, lbl]) => {
             const on = activeSide === key;
             return (
               <button
                 key={key}
                 onClick={() => scrollToSide(key)}
-                style={{ flex: 1, border: 0, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 10px", borderRadius: 999, background: on ? "#fff" : "transparent", color: on ? P.textPrimary : P.textMuted, boxShadow: on ? "0 1px 2px rgba(15,23,42,0.10)" : "none", transition: "background 140ms ease, color 140ms ease" }}
+                style={{ position: "relative", zIndex: 1, flex: 1, border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 10px", color: on ? P.textPrimary : P.textMuted, transition: "color 200ms ease" }}
               >
                 {lbl}
               </button>
@@ -229,11 +239,13 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           })}
         </div>
       )}
+      {/* Bleed to the screen edges + inner padding so the cards' side/top/bottom
+          shadows aren't clipped by the horizontal scroll container. */}
       <div
         ref={swipeRef}
         onScroll={onSwipeScroll}
         className="scrollbar-hide"
-        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingInline: 16, paddingBlock: 10, scrollPaddingInline: 16 }}
       >
         <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start" }}>
           <div className="space-y-3">
