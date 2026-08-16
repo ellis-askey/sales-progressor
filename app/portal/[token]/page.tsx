@@ -22,7 +22,7 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
-import { PortalStampDutyCard } from "@/components/portal/PortalStampDutyCard";
+import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -94,6 +94,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);
+  const depositPaid  = milestones.some((m) => m.code === "PM24" && m.isComplete);
 
   // Exchange date (for the completion-countdown progress bar in the banner):
   // the real eventDate on the exchange milestone, else when we marked it complete.
@@ -571,9 +572,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         </div>
       )}
 
-      {/* ── Stamp duty estimate (buyers, pre-completion) ─────────── */}
+      {/* ── Your costs (buyers, pre-completion) ──────────────────── */}
       {side === "purchaser" && !hasCompleted && transaction.purchasePrice != null && (
-        <PortalStampDutyCard priceGBP={transaction.purchasePrice / 100} />
+        <PortalCostsCard priceGBP={transaction.purchasePrice / 100} depositPaid={depositPaid} />
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}
