@@ -22,14 +22,26 @@ const VENDOR_CHECKLIST: ChecklistItem[] = [
 ];
 
 const PURCHASER_CHECKLIST: ChecklistItem[] = [
-  { text: "Confirm buildings insurance is active",  sub: "Legal responsibility transferred to you at exchange. Check your policy covers your completion date" },
-  { text: "Book your removal company",              sub: "The best firms fill up fast. If you haven't booked, do it today" },
-  { text: "Order broadband at your new address",    sub: "Most providers need 2+ weeks to get you connected. Order now to avoid living without internet" },
-  { text: "Arrange contents insurance",             sub: "Get contents insurance in place for your new home from completion day" },
-  { text: "Set up a Post Office mail redirect",     sub: "Covers you for anything that gets sent to your old address after you move" },
-  { text: "Start updating your address",            sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions: start the list now" },
-  { text: "Plan your moving day logistics",         sub: "Keys are usually available from midday: plan your arrival time accordingly" },
-  { text: "Consider getting the locks changed",     sub: "Previous owners may have spare keys. A locksmith costs £100–200 and is worth it for peace of mind" },
+  {
+    text: "Confirm your insurance is in place",
+    sub: "You're responsible for the property from exchange, so make sure your buildings insurance is active. You may also want contents insurance in place from the day you move in.",
+  },
+  {
+    text: "Get ready for moving day",
+    sub: "Confirm your removal company and plan your travel and timings. We'll let you know as soon as the keys are ready to collect.",
+  },
+  {
+    text: "Arrange broadband and redirect your post",
+    sub: "Broadband can take a few weeks to set up, so arrange it early. You can also set up a Post Office mail redirect to catch anything sent to your old address.",
+  },
+  {
+    text: "Start updating your address",
+    sub: "Make a list of everyone who needs your new address, such as your bank, DVLA, HMRC, GP, employer, pension provider and subscriptions.",
+  },
+  {
+    text: "Consider changing the locks",
+    sub: "You won't know who may still have a copy of the existing keys, so you may want to arrange for the locks to be changed once you move in.",
+  },
 ];
 
 const VENDOR_WHAT_TO_KNOW: InfoItem[] = [
@@ -53,24 +65,20 @@ const VENDOR_WHAT_TO_KNOW: InfoItem[] = [
 
 const PURCHASER_WHAT_TO_KNOW: InfoItem[] = [
   {
-    title: "Your deposit is now in your solicitor's client account",
-    body: "It will be transferred to the seller's solicitor on completion day. You'll need to transfer the remaining balance (purchase price minus deposit) shortly before completion.",
+    title: "Make sure your solicitor has the funds they need",
+    body: "Your solicitor will confirm any remaining balance you need to send and when they need it. Make sure the funds reach their client account in good time for completion.",
   },
   {
-    title: "On completion day, keep your phone on",
-    body: "Your solicitor will call you when they've received confirmation that funds have been transferred and completion has happened. Keys are usually available from midday.",
+    title: "Your purchase is now legally binding",
+    body: "Once contracts have been exchanged, you're legally committed to the purchase. Withdrawing can mean losing your deposit and potentially facing additional costs or claims.",
   },
   {
-    title: "You can't pull out without a financial penalty",
-    body: "From exchange, if you withdraw from the purchase you'll lose your deposit and may face a claim for damages. The completion date is fixed and binding.",
+    title: "Keep your phone nearby on completion day",
+    body: "We'll let you know as soon as completion has taken place and the keys are ready to collect. There's no guaranteed time, so keep your phone handy for updates.",
   },
   {
-    title: "Transfer the remaining balance in good time",
-    body: "Your solicitor will tell you exactly how much to send and when. Allow a few days for bank transfers. This must be cleared funds before completion day.",
-  },
-  {
-    title: "Mortgage offer validity",
-    body: "Check your mortgage offer has not expired. Most offers are valid for 6 months. If completion is close to expiry, contact your broker or lender immediately.",
+    title: "Check your mortgage offer",
+    body: "Make sure your mortgage offer will still be valid on your completion date. If it's due to expire around that time, speak to your mortgage broker or lender as soon as possible.",
   },
 ];
 
@@ -165,7 +173,7 @@ export default async function PortalExchangePage({
             Things to do before completion
           </p>
           <p className="text-[13px] mt-0.5" style={{ color: P.textMuted }}>
-            Do these as soon as possible, don't leave them to the last minute
+            Get these sorted as soon as you can so you're ready for moving day.
           </p>
         </div>
         {checklist.map((item, i) => (
@@ -201,7 +209,7 @@ export default async function PortalExchangePage({
         <div className="px-5 pt-5 pb-4" style={{ borderBottom: `1px solid ${P.border}` }}>
           <p className="text-[16px] font-bold" style={{ color: P.textPrimary }}>What to know</p>
           <p className="text-[13px] mt-0.5" style={{ color: P.textMuted }}>
-            Key things about the period between exchange and completion
+            A few important things to know between exchange and completion.
           </p>
         </div>
         {whatToKnow.map((item, i) => (
