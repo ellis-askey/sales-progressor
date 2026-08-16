@@ -40,6 +40,7 @@ import { totalHoldMs } from "@/lib/services/hold-duration";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
+import { DocumentsPanel } from "@/components/transaction/DocumentsPanel";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { EmailSettingsButton } from "@/components/transaction/EmailSettingsDrawer";
@@ -259,6 +260,7 @@ export default async function AgentTransactionDetailPage({
     { key: "milestones", label: "Steps", icon: "steps" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
+    { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
   ];
 
@@ -510,7 +512,12 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
 
-        {/* Tab 4: Activity */}
+        {/* Tab 4: Documents */}
+        <Suspense fallback={<TabPanelSkeleton rows={4} />}>
+          <DocumentsPanel transactionId={transaction.id} />
+        </Suspense>
+
+        {/* Tab 5: Activity */}
         <Suspense fallback={<TabPanelSkeleton rows={6} />}>
           <ActivityPanel
             transactionId={transaction.id}
