@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { List } from "@phosphor-icons/react/dist/ssr";
+import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
@@ -282,9 +282,9 @@ function TabItem({
           transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms ease, box-shadow 200ms ease",
         }}
       >
-        {icon === "home"     && <HomeIcon     active={active} />}
-        {icon === "progress" && <ProgressIcon active={active} />}
-        {icon === "updates"  && <UpdatesIcon  active={active} />}
+        {icon === "home"     && <House size={22} weight={active ? "fill" : "regular"} />}
+        {icon === "progress" && <ClockCounterClockwise size={22} weight={active ? "fill" : "regular"} />}
+        {icon === "updates"  && <ChatCircle size={22} weight={active ? "fill" : "regular"} />}
       </span>
       <span
         className="text-[10px] font-semibold"
@@ -299,39 +299,3 @@ function TabItem({
   );
 }
 
-function HomeIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-      <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  );
-}
-
-function ProgressIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {active ? (
-        <>
-          <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"/>
-          <polyline points="12 6 12 12 16 14"/>
-          <circle cx="12" cy="12" r="10"/>
-        </>
-      ) : (
-        <>
-          <polyline points="12 6 12 12 16 14"/>
-          <circle cx="12" cy="12" r="10"/>
-        </>
-      )}
-    </svg>
-  );
-}
-
-function UpdatesIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" fill={active ? "currentColor" : "none"} opacity={active ? "0.15" : "1"}/>
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-    </svg>
-  );
-}

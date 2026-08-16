@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { HelpCircle } from "lucide-react";
 
 type Category = "bug" | "suggestion" | "question";
 type Stage = "categories" | "form" | "success" | "error";
@@ -96,13 +97,6 @@ function IconWarning() {
   return (
     <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-    </svg>
-  );
-}
-function IconHelp() {
-  return (
-    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
     </svg>
   );
 }
@@ -421,11 +415,11 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             {category === "suggestion" && (
               <>
                 <Field label="What's the suggestion?" value={field1} onChange={setField1} rows={4} placeholder="Tell us what would make this better…" required />
-                <Field label="Why would this help?" value={field2} onChange={setField2} rows={3} placeholder="Optional — what problem does it solve?" />
+                <Field label="Why would this help?" value={field2} onChange={setField2} rows={3} placeholder="Optional. What problem does it solve?" />
               </>
             )}
             {category === "question" && (
-              <Field label="What's your question?" value={field1} onChange={setField1} rows={4} placeholder="Ask away — we'll get back to you soon…" required />
+              <Field label="What's your question?" value={field1} onChange={setField1} rows={4} placeholder="Ask away, we'll get back to you soon…" required />
             )}
             <ScreenshotUpload value={screenshot} onChange={setScreenshot} />
             <SubmitBtn label={meta.label} disabled={submitting || !field1.trim() || (category === "bug" && !field2.trim())} submitting={submitting} />
@@ -507,7 +501,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 12px 32px rgba(45,24,16,0.16), 0 1px 0 rgba(255,255,255,0.80) inset"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px rgba(45,24,16,0.10), 0 1px 0 rgba(255,255,255,0.80) inset"; (e.currentTarget as HTMLButtonElement).style.transform = ""; }}
         >
-          <IconHelp />
+          <HelpCircle size={18} strokeWidth={1.9} />
           <span style={{
             fontSize: 13,
             fontWeight: 500,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useOptimistic, useTransition } from "react";
+import { useState, useOptimistic, useTransition, useRef } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
@@ -72,7 +72,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [loading, setLoading]               = useState(false);
   const [processingId, setProcessingId]     = useState<string | null>(null);
   const [error, setError]                   = useState<string | null>(null);
-  const [showOtherSide, setShowOtherSide]   = useState(false);
+  const [activeSide, setActiveSide]         = useState<"own" | "other">("own");
+  const swipeRef                            = useRef<HTMLDivElement | null>(null);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
@@ -189,9 +190,51 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
 
   const confirmingMilestone = confirming ? optimisticMilestones.find((m) => m.id === confirming) ?? null : null;
 
+  // Swipe between your side and the other side (buyer / seller). Both are
+  // already shown today (the other side read-only at the foot of the list);
+  // this just presents them as two swipeable panels that always default to and
+  // start on your own side. No new information.
+  const hasOtherSide = otherSideMilestones.length > 0;
+  const ownLabel   = side === "vendor" ? "Your sale" : "Your purchase";
+  const otherLabel = side === "vendor" ? "The purchase" : "The sale";
+  function scrollToSide(s: "own" | "other") {
+    setActiveSide(s);
+    const el = swipeRef.current;
+    if (el) el.scrollTo({ left: s === "other" ? el.clientWidth : 0, behavior: "smooth" });
+  }
+  function onSwipeScroll() {
+    const el = swipeRef.current;
+    if (!el) return;
+    const next = el.scrollLeft > el.clientWidth / 2 ? "other" : "own";
+    setActiveSide((prev) => (prev === next ? prev : next));
+  }
+
   return (
     <>
-      <div className="space-y-3">
+      {hasOtherSide && (
+        <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 999, background: "rgba(15,23,42,0.05)", marginBottom: 12 }}>
+          {([["own", ownLabel], ["other", otherLabel]] as const).map(([key, lbl]) => {
+            const on = activeSide === key;
+            return (
+              <button
+                key={key}
+                onClick={() => scrollToSide(key)}
+                style={{ flex: 1, border: 0, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 10px", borderRadius: 999, background: on ? "#fff" : "transparent", color: on ? P.textPrimary : P.textMuted, boxShadow: on ? "0 1px 2px rgba(15,23,42,0.10)" : "none", transition: "background 140ms ease, color 140ms ease" }}
+              >
+                {lbl}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div
+        ref={swipeRef}
+        onScroll={onSwipeScroll}
+        className="scrollbar-hide"
+        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+      >
+        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start" }}>
+          <div className="space-y-3">
         {/* ── Your milestones ───────────────────────────────────── */}
         {groups.map((group, gIdx) => {
           const groupMilestones = group.codes.map((c) => byCode.get(c)).filter((m): m is Milestone => !!m && !m.isNotRequired);
@@ -328,35 +371,18 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             </div>
           );
         })}
-
-        {/* ── Other side progress (read-only) ─────────────────── */}
-        {otherSideMilestones.length > 0 && (
-          <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
-            <button
-              className="w-full flex items-center gap-3 px-5 py-4 text-left"
-              style={{ borderBottom: showOtherSide ? `1px solid ${P.border}` : undefined }}
-              onClick={() => setShowOtherSide((v) => !v)}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-[15px] font-semibold" style={{ color: P.textSecondary }}>
-                    {side === "vendor" ? "Purchase progress" : "Sale progress"}
+          </div>
+        </div>
+        {hasOtherSide && (
+          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start" }}>
+            <div className="space-y-3">
+              <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
+                <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${P.border}` }}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.border, color: P.textMuted }}>View only</span>
+                  <p className="text-[12px]" style={{ color: P.textMuted }}>
+                    {side === "vendor" ? "The purchase" : "The sale"} · {otherSideMilestones.filter((m) => m.isComplete).length} of {otherSideMilestones.filter((m) => !m.isNotRequired).length} steps done
                   </p>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.border, color: P.textMuted }}>
-                    View only
-                  </span>
                 </div>
-                <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
-                  {otherSideMilestones.filter((m) => m.isComplete).length} of {otherSideMilestones.filter((m) => !m.isNotRequired).length} steps done
-                </p>
-              </div>
-              <ChevronIcon open={showOtherSide} />
-            </button>
-
-            {showOtherSide && (
               <div>
                 {otherGroups.map((group) => {
                   const groupMilestones = group.codes.map((c) => otherByCode.get(c)).filter((m): m is Milestone => !!m && !m.isNotRequired);
@@ -391,7 +417,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                   );
                 })}
               </div>
-            )}
+              </div>
+            </div>
           </div>
         )}
       </div>
