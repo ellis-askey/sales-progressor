@@ -2303,7 +2303,13 @@ export async function getPortalTimeline(
         )
       : new Map<string, string | null>();
 
+    // Exchange + completion are simultaneous bilateral events (VM19/PM26 and
+    // VM20/PM27 auto-complete together). Each party only needs their OWN side's
+    // confirmation in the feed, not the mirror entry from the other side.
+    const BILATERAL_DUP_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
+
     const milestoneEntries: TimelineEntry[] = completions
+      .filter((c) => !(c.milestoneDefinition.side !== side && BILATERAL_DUP_CODES.has(c.milestoneDefinition.code)))
       .map((c) => {
         const copy = getMilestoneCopy(c.milestoneDefinition.code);
         const isOtherSide = c.milestoneDefinition.side !== side;
