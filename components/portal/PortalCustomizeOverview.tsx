@@ -7,9 +7,9 @@
 // it back with +. Fixed cards show greyed and can't be moved. Layout persists
 // per client (portalSaveOverviewLayout).
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { PencilSimple, X, Plus, List } from "@phosphor-icons/react/dist/ssr";
+import { PencilSimple, X, Plus, List, LockSimple, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
 import {
   DndContext,
   closestCenter,
@@ -170,6 +170,13 @@ function Panel({
     }
   }
 
+  // Escape also closes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   // Swipe right to dismiss (mobile drawer feel). A quick horizontal swipe won't
   // trip the drag handle (TouchSensor has a 150ms delay).
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -188,7 +195,16 @@ function Panel({
   return (
     <div
       className="portal-panel fixed inset-0 z-[60] overflow-hidden"
-      style={{ background: P.pageBg }}
+      style={{
+        backgroundColor: "#f6f8fc",
+        backgroundImage: [
+          "radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%)",
+          "radial-gradient(75% 55% at 8% 6%, rgba(255,188,168,0.28), transparent 72%)",
+          "radial-gradient(70% 50% at 92% 12%, rgba(196,180,255,0.26), transparent 72%)",
+          "radial-gradient(85% 60% at 50% 96%, rgba(255,208,176,0.30), transparent 75%)",
+        ].join(","),
+        backgroundRepeat: "no-repeat",
+      }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -196,9 +212,10 @@ function Panel({
         {/* Header: X top-left, centred title */}
         <div className="relative flex items-center justify-center px-5 pt-5 pb-3">
           <button
-            onClick={onClose}
+            type="button"
+            onClick={() => onClose()}
             aria-label="Close"
-            className="pbtn-press absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center"
+            className="pbtn-press absolute left-4 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full flex items-center justify-center"
             style={{ background: "rgba(15,23,42,0.06)", color: P.textPrimary }}
           >
             <X size={18} weight="bold" />
@@ -243,19 +260,24 @@ function Panel({
           </DndContext>
         </div>
 
-        {/* Footer: Reset + Save */}
-        <div className="px-5 py-4 flex items-center gap-3" style={{ borderTop: `1px solid ${P.border}` }}>
+        {/* Footer: a floating Reset above our Save button (per the mock). */}
+        <div className="px-5 pt-3 pb-4">
+          <div className="flex justify-center mb-3">
+            <button
+              type="button"
+              onClick={reset}
+              className="pbtn-press inline-flex items-center gap-1.5 text-[13px] font-bold"
+              style={{ color: P.accent }}
+            >
+              <ArrowClockwise size={15} weight="bold" />
+              Reset
+            </button>
+          </div>
           <button
-            onClick={reset}
-            className="pbtn-press text-[13px] font-bold px-4 py-3 rounded-xl"
-            style={{ color: P.textSecondary }}
-          >
-            Reset
-          </button>
-          <button
+            type="button"
             onClick={save}
             disabled={saving}
-            className="pbtn pbtn-press flex-1 py-3.5 rounded-xl text-[15px] font-bold text-white disabled:opacity-60"
+            className="pbtn pbtn-press w-full py-3.5 rounded-xl text-[15px] font-bold text-white disabled:opacity-60"
             style={{ background: P.heroGradient, boxShadow: "0 2px 8px rgba(255,107,74,0.35)" }}
           >
             {saving ? "Saving…" : "Save"}
@@ -306,7 +328,7 @@ function Row({
   };
   return (
     <div ref={setNodeRef} style={style} className="mb-2.5">
-      <PortalGlassCard glassId="customize-row" label="Customize row" defaultVariant="v05" radius={14} className="flex items-center gap-2 pl-4 pr-2.5 py-3.5">
+      <PortalGlassCard glassId="customize-row" label="Customize row" defaultVariant="v05" radius={14} className="flex items-center gap-2 pl-4 pr-2.5 py-3.5" style={{ boxShadow: "0 2px 6px rgba(15,23,42,0.05)" }}>
         <span className="flex-1 text-[15px] font-semibold truncate" style={{ color: P.textPrimary }}>{label}</span>
         {container === "hidden" ? (
           <button
@@ -346,9 +368,9 @@ function Row({
 function FixedRow({ label }: { label: string }) {
   return (
     <div className="mb-2.5">
-      <PortalGlassCard glassId="customize-fixed" label="Fixed row" defaultVariant="v05" radius={14} className="flex items-center gap-2 px-4 py-3.5" style={{ opacity: 0.55 }}>
+      <PortalGlassCard glassId="customize-fixed" label="Fixed row" defaultVariant="v05" radius={14} className="flex items-center gap-2 px-4 py-3.5" style={{ opacity: 0.55, boxShadow: "0 2px 6px rgba(15,23,42,0.05)" }}>
         <span className="flex-1 text-[15px] font-semibold truncate" style={{ color: P.textPrimary }}>{label}</span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: P.textMuted }}>Fixed</span>
+        <LockSimple size={15} weight="regular" color={P.textMuted} aria-label="Fixed" />
       </PortalGlassCard>
     </div>
   );
