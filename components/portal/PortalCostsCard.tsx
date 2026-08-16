@@ -8,6 +8,7 @@
 // standalone stamp-duty card.
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
 import { calculateSdlt } from "@/lib/sdlt";
@@ -87,8 +88,10 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
         </div>
       </PortalGlassCard>
 
-      {/* Stamp-duty calculator sheet */}
-      {open && (
+      {/* Stamp-duty calculator sheet — portalled to <body> so it escapes any
+          transformed / filtered ancestor and overlays the viewport, not the
+          bottom of the (long) overview page. */}
+      {open && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setOpen(false)}>
           <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
@@ -170,7 +173,8 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
               </p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
