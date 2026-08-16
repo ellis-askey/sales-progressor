@@ -460,6 +460,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           token={token}
           completionDate={transaction.completionDate ? new Date(transaction.completionDate).toISOString() : null}
           exchangeDate={exchangeDate}
+          photoUrl={transaction.photoUrl ?? null}
         />
       )}
 

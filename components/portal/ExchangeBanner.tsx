@@ -9,6 +9,8 @@ type Props = {
   completionDate: string | null;
   /** ISO date contracts exchanged — drives the countdown progress bar. */
   exchangeDate?: string | null;
+  /** Property photo shown behind the frosted card. Falls back to the hero image. */
+  photoUrl?: string | null;
 };
 
 function fmtDate(d: string) {
@@ -49,7 +51,7 @@ async function fireConfetti() {
   }, 300);
 }
 
-export function ExchangeBanner({ token, completionDate, exchangeDate }: Props) {
+export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }: Props) {
   useEffect(() => {
     const key = `exchange-celebrated-${token}`;
     if (!localStorage.getItem(key)) {
@@ -88,79 +90,105 @@ export function ExchangeBanner({ token, completionDate, exchangeDate }: Props) {
   }
 
   return (
-    <div
-      className="rounded-2xl px-5 py-5"
-      style={{ background: P.heroGradient, boxShadow: P.heroGlow }}
-    >
-      <p className="text-[11px] font-bold uppercase tracking-[0.10em] text-white/70 mb-1">
-        Contracts exchanged
-      </p>
-      <p className="text-[20px] font-semibold text-white leading-snug">
-        Your transaction is now legally committed
-      </p>
-
-      {completionDate && days !== null && (
-        <div className="mt-4 rounded-xl px-4 py-4" style={{ background: "rgba(255,255,255,0.18)" }}>
-          {isPast ? (
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">Completion</p>
-              <p className="text-[16px] font-semibold text-white mt-0.5">{fmtDate(completionDate)}</p>
-            </div>
-          ) : (
-            <>
-              {isToday || isTomorrow ? (
-                <p className="text-[22px] font-bold text-white leading-tight">
-                  {isToday ? "Completion day is here" : "Completion is tomorrow"}
-                </p>
-              ) : (
-                <div className="flex items-end gap-2">
-                  <span className={`text-[44px] font-black text-white leading-none tabular-nums ${isImminent ? "animate-pulse" : ""}`}>
-                    {days}
-                  </span>
-                  <span className="text-[13px] text-white/80 font-semibold pb-1.5">days until completion</span>
-                </div>
-              )}
-              <p className="text-[14px] text-white/85 font-medium mt-1.5">{fmtDate(completionDate)}</p>
-              {progress !== null && (
-                <div className="mt-3">
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${Math.round(progress * 100)}%`, background: "#fff", transition: "width 600ms ease" }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-white/60 font-semibold uppercase tracking-wide">Exchanged</span>
-                    <span className="text-[10px] text-white/60 font-semibold uppercase tracking-wide">Moving day</span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-col sm:flex-row gap-2">
-        {completionDate && !isPast && (
-          <a
-            href={`/api/portal/calendar-export/${token}`}
-            download="completion-date.ics"
-            className="flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
-            style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Add to calendar
-          </a>
+    <div>
+      {/* Property photo runs to the very top under the floating header (keeps the
+          image, and pushes the card down so the greeting no longer overlaps it). */}
+      <div className="-mx-4 -mt-5" style={{ position: "relative", height: 232, overflow: "hidden", background: "#f6f8fc" }}>
+        {photoUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={photoUrl} alt="" aria-hidden fetchPriority="high" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "url(/portal-hero-fallback.webp)", backgroundSize: "cover", backgroundPosition: "center 35%" }} />
         )}
-        <Link
-          href={`/portal/${token}/exchange`}
-          className="flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
-          style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
-        >
-          Exchange guide
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </Link>
+        {/* Gentle bottom fade so the card's frost dissolves into the image. */}
+        <div aria-hidden style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "55%", pointerEvents: "none", background: "linear-gradient(180deg, transparent 0%, rgba(246,248,252,0.55) 70%, #f6f8fc 100%)" }} />
+      </div>
+
+      {/* Heavy-frost card, pulled up over the photo. Holds everything: the
+          exchanged strings, the countdown, and the buttons. */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          marginTop: -76,
+          borderRadius: 22,
+          padding: 18,
+          background: "rgba(255,247,243,0.62)",
+          backdropFilter: "blur(32px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(32px) saturate(1.8)",
+          border: "0.5px solid rgba(255,255,255,0.65)",
+          boxShadow: "0 14px 44px rgba(255,107,74,0.20), 0 2px 10px rgba(15,23,42,0.08)",
+        }}
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[0.10em] mb-1" style={{ color: P.primary }}>
+          Contracts exchanged
+        </p>
+        <p className="text-[19px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+          Your transaction is now legally committed
+        </p>
+
+        {completionDate && days !== null && (
+          <div className="mt-3">
+            {isPast ? (
+              <p className="text-[16px] font-semibold" style={{ color: P.textPrimary }}>
+                Completion {fmtDate(completionDate)}
+              </p>
+            ) : (
+              <>
+                {isToday || isTomorrow ? (
+                  <p className="text-[24px] font-bold leading-tight" style={{ color: P.textPrimary }}>
+                    {isToday ? "Completion day is here" : "Completion is tomorrow"}
+                  </p>
+                ) : (
+                  <div className="flex items-end gap-2">
+                    <span className={`text-[46px] font-black leading-none tabular-nums ${isImminent ? "animate-pulse" : ""}`} style={{ color: P.primary }}>
+                      {days}
+                    </span>
+                    <span className="text-[13px] font-semibold pb-1.5" style={{ color: P.textSecondary }}>days until completion</span>
+                  </div>
+                )}
+                <p className="text-[14px] font-medium mt-1" style={{ color: P.textSecondary }}>{fmtDate(completionDate)}</p>
+                {progress !== null && (
+                  <div className="mt-3">
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,107,74,0.16)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${Math.round(progress * 100)}%`, background: P.primary, transition: "width 600ms ease" }} />
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: P.textMuted }}>Exchanged</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: P.textMuted }}>Moving day</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          {completionDate && !isPast && (
+            <a
+              href={`/api/portal/calendar-export/${token}`}
+              download="completion-date.ics"
+              className="pbtn pbtn-press flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
+              style={{ background: P.heroGradient, color: "#FFFFFF", boxShadow: "0 2px 8px rgba(255,107,74,0.35)" }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Add to calendar
+            </a>
+          )}
+          <Link
+            href={`/portal/${token}/exchange`}
+            className="pbtn pbtn-press flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
+            style={{ background: "rgba(255,255,255,0.55)", color: P.textPrimary, border: `0.5px solid ${P.border}` }}
+          >
+            Exchange guide
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </Link>
+        </div>
       </div>
     </div>
   );
