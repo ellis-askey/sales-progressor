@@ -15,8 +15,11 @@ function fmtGBP(n: number) {
 function fmtPct(r: number) {
   return (r * 100).toFixed(1) + "%";
 }
-function bandLabel(from: number, to: number | null) {
-  return to === null ? `${fmtGBP(from)}+` : `${fmtGBP(from)} to ${fmtGBP(to)}`;
+// Show the portion of each band actually used by the price. The upper figure is
+// capped at the purchase price (from + the taxed slice), so a £650k purchase in
+// the £250k–£925k band reads "£250,000 to £650,000", not "…to £925,000".
+function bandLabel(from: number, upper: number) {
+  return `${fmtGBP(from)} to ${fmtGBP(upper)}`;
 }
 
 export function PortalStampDutyCard({ priceGBP }: { priceGBP: number }) {
@@ -192,7 +195,7 @@ export function PortalStampDutyCard({ priceGBP }: { priceGBP: number }) {
                         className="flex items-center justify-between px-4 py-2.5 text-[13px]"
                         style={{ borderBottom: i < result.bands.length - 1 ? `1px solid ${P.border}` : undefined, color: P.textSecondary }}
                       >
-                        <span>{bandLabel(b.from, b.to)} at {(b.rate * 100).toFixed(0)}%</span>
+                        <span>{bandLabel(b.from, b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
                         <span className="font-semibold tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(b.tax)}</span>
                       </div>
                     ))
