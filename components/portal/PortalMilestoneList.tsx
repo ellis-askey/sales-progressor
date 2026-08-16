@@ -4,7 +4,7 @@ import { useState, useOptimistic, useTransition, useRef, useEffect } from "react
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
-import { getEventDateLabel } from "@/lib/portal-copy";
+import { getEventDateLabel, getMilestoneConfirmCopy } from "@/lib/portal-copy";
 import { SearchesUpload } from "./SearchesUpload";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { PortalButton } from "./PortalButton";
@@ -192,6 +192,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   }
 
   const confirmingMilestone = confirming ? optimisticMilestones.find((m) => m.id === confirming) ?? null : null;
+  const confirmCopy = confirmingMilestone ? getMilestoneConfirmCopy(confirmingMilestone.code) : null;
 
   // Swipe between your side and the other side (buyer / seller). Both are
   // already shown today (the other side read-only at the foot of the list);
@@ -591,16 +592,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             </button>
 
             <div className="px-6 pb-6 pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.primary }}>
-                Confirm step
+              <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
+                Are you sure?
               </p>
-              <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {confirmingMilestone.eventDateRequired
-                  ? "When is this happening?"
-                  : confirmingMilestone.who === "you"
-                    ? "Mark this step as done?"
-                    : "Has this happened?"}
-              </p>
+              {confirmCopy && (
+                <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
+                  {confirmCopy}
+                </p>
+              )}
 
               {confirmingMilestone.eventDateRequired && (
                 <div className="mb-4">
@@ -669,13 +668,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
-                {loading
-                  ? "Saving…"
-                  : confirmingMilestone.eventDateRequired
-                    ? "Confirm date"
-                    : confirmingMilestone.who === "you"
-                      ? "Yes, it's done"
-                      : "Yes, this has happened"}
+                {loading ? "Saving…" : "Confirm"}
               </button>
               <button
                 onClick={closeSheet}

@@ -1603,6 +1603,57 @@ const copy: Record<string, PortalCopy> = {
   },
 };
 
+// Double-confirmation subtext shown under "Are you sure?" in the confirm sheet.
+// A plain-English statement of exactly what the client is attesting to when they
+// mark a step done, so a confirm is a considered action, not a reflex tap. Keyed
+// by milestone code. Founder-authored 2026-08-16.
+const CONFIRM_COPY: Record<string, string> = {
+  // ── Buyer (purchaser) ──
+  PM1: "You have formally instructed your solicitor and confirmed that you would like them to act for you on this purchase.",
+  PM2: "You have received the memorandum of sale confirming the details of your purchase and the solicitors acting for both sides.",
+  PM3: "You have completed the identity, anti-money laundering and source of funds checks requested by your solicitor.",
+  PM4: "You have paid the money on account requested by your solicitor to cover searches and other initial costs.",
+  PM5: "Your full mortgage application has been submitted to your lender, either by you or your mortgage broker.",
+  PM6: "Your mortgage broker, lender or we have confirmed that the lender's valuation of the property has been booked.",
+  PM11: "Your mortgage broker or lender has formally confirmed your mortgage offer, and a copy has been sent to your solicitor.",
+  PM9: "Your survey has been booked with a surveyor and you have a confirmed appointment for the property.",
+  PM10: "You have received the completed survey report from your surveyor.",
+  PM7: "Your solicitor has confirmed that they have received the draft contract pack from the seller's solicitor.",
+  PM8: "Your solicitor has confirmed that all required property searches have been ordered.",
+  PM12: "Your solicitor has confirmed that they have received the management pack for the property.",
+  PM13: "Your solicitor has confirmed that all property search results have been received.",
+  PM14: "Your solicitor has confirmed that their initial enquiries have been sent to the seller's solicitor.",
+  PM20: "Your solicitor has confirmed that all enquiries have been answered to their satisfaction.",
+  PM21: "You have received your solicitor's final report on the property and are ready to proceed with the remaining steps towards exchange.",
+  PM22: "Your solicitor has sent you the contract, TR1 transfer deed and, if applicable, mortgage deed to review and sign.",
+  PM23: "You have signed and returned the contract, TR1 transfer deed and, if applicable, mortgage deed requested by your solicitor.",
+  PM24: "You have transferred the deposit required for exchange to your solicitor's client account.",
+  PM25: "Your solicitor has confirmed that everything is in place for you to exchange contracts.",
+  PM26: "Your solicitor has confirmed that contracts have been exchanged and your purchase is now legally binding.",
+  PM27: "Your solicitor has confirmed completion and the property is now legally yours.",
+  // ── Seller (vendor) ──
+  VM1: "You have formally instructed your solicitor and confirmed that you would like them to act for you on this sale.",
+  VM2: "You have received the memorandum of sale confirming the details of your sale and the solicitors acting for both sides.",
+  VM3: "You have received your solicitor's welcome pack with the documents and information they need from you.",
+  VM4: "You have completed the identity, anti-money laundering and source of funds checks requested by your solicitor.",
+  VM5: "You have received the TA6 Property Information Form and TA10 Fittings and Contents Form from your solicitor to complete.",
+  VM6: "You have completed and returned the TA6 Property Information Form and TA10 Fittings and Contents Form to your solicitor.",
+  VM7: "Your solicitor has confirmed that the draft contract pack has been sent to the buyer's solicitor.",
+  VM8: "Your solicitor has confirmed that the management pack has been requested from the freeholder, managing agent or management company.",
+  VM9: "Your solicitor has confirmed that they have received the management pack for the property.",
+  VM10: "Your solicitor has confirmed that the buyer's solicitor has raised their initial enquiries.",
+  VM21: "The buyer's solicitor has confirmed that all enquiries have been answered to their satisfaction.",
+  VM16: "Your solicitor has sent you the contract and TR1 transfer deed to review and sign.",
+  VM17: "You have signed and returned the contract and TR1 transfer deed requested by your solicitor.",
+  VM18: "Your solicitor has confirmed that everything is in place for you to exchange contracts.",
+  VM19: "Your solicitor has confirmed that contracts have been exchanged and your sale is now legally binding.",
+  VM20: "Your solicitor has confirmed completion and the sale of your property is complete.",
+};
+
+export function getMilestoneConfirmCopy(code: string): string | null {
+  return CONFIRM_COPY[code] ?? null;
+}
+
 export function getMilestoneCopy(code: string): PortalCopy {
   return copy[code] ?? { label: code, who: "solicitor" };
 }

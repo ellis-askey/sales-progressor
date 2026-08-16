@@ -5,7 +5,7 @@ import { P, PortalPill } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
 import { PortalGlassCard } from "./PortalGlassCard";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
-import { getEventDateLabel } from "@/lib/portal-copy";
+import { getEventDateLabel, getMilestoneConfirmCopy } from "@/lib/portal-copy";
 
 type Props = {
   token: string;
@@ -46,6 +46,7 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
   const [error, setError]         = useState<string | null>(null);
 
   const isYours = milestone.who === "you";
+  const confirmCopy = getMilestoneConfirmCopy(milestone.code);
 
   function openSheet() {
     setEventDate("");
@@ -178,12 +179,14 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
             </button>
 
             <div className="px-6 pb-6 pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.primary }}>
-                Confirm step
+              <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
+                Are you sure?
               </p>
-              <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {milestone.eventDateRequired ? "When is this happening?" : "Mark this step as done?"}
-              </p>
+              {confirmCopy && (
+                <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
+                  {confirmCopy}
+                </p>
+              )}
 
               {milestone.eventDateRequired && (
                 <div className="mb-4">
@@ -209,7 +212,7 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
               )}
 
               <PortalButton onClick={confirm}>
-                {milestone.eventDateRequired ? "Confirm date" : "Yes, it's done"}
+                Confirm
               </PortalButton>
               <button
                 onClick={closeSheet}
