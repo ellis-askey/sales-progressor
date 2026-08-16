@@ -1,17 +1,18 @@
 "use client";
 
-// "Your costs" overview for buyers. Consolidates the money picture: purchase
-// price, the ~10% deposit (marked Paid once PM24 confirms), and the stamp-duty
-// estimate (tap the row to open the calculator). It's an OVERVIEW, not a precise
-// balance — we don't store the mortgage advance or the solicitor's fees, so the
-// exact figure comes from the solicitor's completion statement. Replaces the old
-// standalone stamp-duty card.
+// "Your costs" for buyers. Pre-exchange it's an overview (price, ~10% deposit,
+// stamp-duty estimate). After exchange it becomes interactive: the buyer confirms
+// the deposit they actually paid and their mortgage advance, and we show the
+// estimated funds still to send at completion (price − deposit − mortgage + SDLT).
+// Those two figures persist (portalSaveCostsAction). Fees still come from the
+// solicitor's completion statement, so it's an estimate, not a precise balance.
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
 import { calculateSdlt } from "@/lib/sdlt";
+import { portalSaveCostsAction } from "@/app/actions/portal";
 
 function fmtGBP(n: number) {
   return "£" + Math.round(n).toLocaleString("en-GB");
@@ -22,23 +23,57 @@ function fmtPct(r: number) {
 function bandLabel(from: number, upper: number) {
   return `${fmtGBP(from)} to ${fmtGBP(upper)}`;
 }
+function digits(s: string) {
+  return s.replace(/[^\d]/g, "");
+}
 
-export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; depositPaid: boolean }) {
+type Props = {
+  priceGBP: number;
+  depositPaid: boolean;
+  hasExchanged: boolean;
+  isCash: boolean;
+  savedDeposit: number | null;
+  savedMortgage: number | null;
+  token: string;
+};
+
+export function PortalCostsCard({ priceGBP, depositPaid, hasExchanged, isCash, savedDeposit, savedMortgage, token }: Props) {
   const [open, setOpen] = useState(false);
-  const [priceStr, setPriceStr] = useState(String(Math.round(priceGBP)));
   const [ftb, setFtb] = useState(false);
   const [additional, setAdditional] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
-  const price = Number(priceStr) || 0;
-  const result = calculateSdlt({ price, firstTimeBuyer: ftb, additionalProperty: additional });
-  const deposit = Math.round(priceGBP * 0.1);
+  const [depositStr, setDepositStr] = useState(String(savedDeposit ?? Math.round(priceGBP * 0.1)));
+  const [mortgageStr, setMortgageStr] = useState(savedMortgage != null ? String(savedMortgage) : "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  function toggleFtb() {
-    setFtb((v) => { const n = !v; if (n) setAdditional(false); return n; });
-  }
-  function toggleAdditional() {
-    setAdditional((v) => { const n = !v; if (n) setFtb(false); return n; });
+  const result = calculateSdlt({ price: priceGBP, firstTimeBuyer: ftb, additionalProperty: additional });
+  const sdlt = result.total;
+
+  const depositNum = Number(depositStr) || 0;
+  const mortgageNum = isCash ? 0 : (Number(mortgageStr) || 0);
+  const fundsToSend = Math.max(0, priceGBP - depositNum - mortgageNum + sdlt);
+
+  const dirty =
+    depositNum !== (savedDeposit ?? Math.round(priceGBP * 0.1)) ||
+    (!isCash && mortgageNum !== (savedMortgage ?? 0));
+
+  function toggleFtb() { setFtb((v) => { const n = !v; if (n) setAdditional(false); return n; }); }
+  function toggleAdditional() { setAdditional((v) => { const n = !v; if (n) setFtb(false); return n; }); }
+
+  async function save() {
+    setSaving(true); setSaved(false);
+    try {
+      const res = await portalSaveCostsAction({
+        token,
+        depositGBP: depositNum,
+        mortgageGBP: isCash ? null : mortgageNum,
+      });
+      if (res.ok) setSaved(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -48,21 +83,20 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
           <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Your costs</p>
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${P.border}` }}>
-          <p className="text-[14px]" style={{ color: P.textPrimary }}>Purchase price</p>
-          <span className="text-[14px] font-semibold tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(priceGBP)}</span>
-        </div>
+        <Row label="Purchase price" value={fmtGBP(priceGBP)} />
 
-        <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${P.border}` }}>
-          <p className="text-[14px]" style={{ color: P.textPrimary }}>Deposit <span style={{ color: P.textMuted }}>(about 10%)</span></p>
-          <div className="flex items-center gap-2">
-            {depositPaid && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.successBg, color: P.success }}>Paid</span>
+        {hasExchanged ? (
+          <>
+            <MoneyRow label="Deposit paid" value={depositStr} onChange={(v) => { setDepositStr(v); setSaved(false); }} />
+            {!isCash && (
+              <MoneyRow label="Mortgage amount" hint="From your mortgage offer" value={mortgageStr} onChange={(v) => { setMortgageStr(v); setSaved(false); }} />
             )}
-            <span className="text-[14px] font-semibold tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(deposit)}</span>
-          </div>
-        </div>
+          </>
+        ) : (
+          <Row label={<>Deposit <span style={{ color: P.textMuted }}>(about 10%)</span></>} value={fmtGBP(Math.round(priceGBP * 0.1))} pill={depositPaid ? "Paid" : undefined} />
+        )}
 
+        {/* Stamp duty — tappable */}
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -74,23 +108,51 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
             <p className="text-[11px]" style={{ color: P.textMuted }}>Estimate. Tap to adjust</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-semibold tabular-nums" style={{ color: "#1D4ED8" }}>~{fmtGBP(result.total)}</span>
+            <span className="text-[14px] font-semibold tabular-nums" style={{ color: "#1D4ED8" }}>~{fmtGBP(sdlt)}</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </div>
         </button>
 
-        <div className="px-5 py-3.5">
-          <p className="text-[12px] leading-relaxed" style={{ color: P.textMuted }}>
-            Your solicitor will send a completion statement with the exact balance to transfer, including their fees and any other costs.
-          </p>
-        </div>
+        {hasExchanged ? (
+          <>
+            <div className="flex items-center justify-between px-5 py-4" style={{ background: P.primaryBg }}>
+              <div>
+                <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Funds still to send</p>
+                <p className="text-[11px]" style={{ color: P.textMuted }}>Estimated, before fees</p>
+              </div>
+              <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~{fmtGBP(fundsToSend)}</span>
+            </div>
+            <div className="px-5 py-3.5">
+              <p className="text-[12px] leading-relaxed mb-3" style={{ color: P.textMuted }}>
+                Plus your solicitor's fees and any other costs. They'll confirm the exact balance to transfer on your completion statement.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving || !dirty}
+                  className="pbtn pbtn-press px-4 py-2 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
+                  style={{ background: P.primary }}
+                >
+                  {saving ? "Saving…" : "Save my figures"}
+                </button>
+                {saved && !dirty && <span className="text-[12px] font-semibold" style={{ color: P.success }}>Saved</span>}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="px-5 py-3.5">
+            <p className="text-[12px] leading-relaxed" style={{ color: P.textMuted }}>
+              Your solicitor will send a completion statement with the exact balance to transfer, including their fees and any other costs.
+            </p>
+          </div>
+        )}
       </PortalGlassCard>
 
-      {/* Stamp-duty calculator sheet — portalled to <body> so it escapes any
-          transformed / filtered ancestor and overlays the viewport, not the
-          bottom of the (long) overview page. */}
+      {/* Stamp-duty calculator sheet — portalled to <body> so it overlays the
+          viewport, not the bottom of the (long) overview page. */}
       {open && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setOpen(false)}>
           <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
@@ -121,20 +183,8 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
             </button>
 
             <div className="px-6 pt-2 pb-6">
-              <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>Stamp duty estimate</p>
-
-              <label className="block text-[12px] font-semibold mb-1.5" style={{ color: P.textSecondary }}>Purchase price</label>
-              <div className="flex items-center rounded-xl px-4 mb-4" style={{ border: `1px solid ${P.border}`, background: P.pageBg }}>
-                <span className="text-[16px] font-semibold" style={{ color: P.textMuted }}>£</span>
-                <input
-                  inputMode="numeric"
-                  value={Number(priceStr || 0).toLocaleString("en-GB")}
-                  onChange={(e) => setPriceStr(e.target.value.replace(/[^\d]/g, ""))}
-                  className="w-full py-3 pl-1.5 text-[16px] font-semibold bg-transparent focus:outline-none"
-                  style={{ color: P.textPrimary }}
-                  aria-label="Purchase price"
-                />
-              </div>
+              <p className="text-[18px] font-semibold leading-snug mb-1" style={{ color: P.textPrimary }}>Stamp duty estimate</p>
+              <p className="text-[13px] mb-4" style={{ color: P.textMuted }}>On {fmtGBP(priceGBP)}</p>
 
               <div className="flex flex-col gap-2 mb-5">
                 <ToggleRow label="First-time buyer" sub="Never owned a home before, and this will be your only property" on={ftb} onClick={toggleFtb} />
@@ -143,7 +193,7 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
 
               <div className="rounded-2xl px-5 py-4 mb-4" style={{ background: "rgba(37,99,235,0.06)", border: "0.5px solid rgba(37,99,235,0.14)" }}>
                 <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: "#2563EB" }}>Estimated stamp duty</p>
-                <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(result.total)}</p>
+                <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(sdlt)}</p>
                 <p className="text-[12px] mt-1.5" style={{ color: P.textSecondary }}>Effective rate {fmtPct(result.effectiveRate)} of the purchase price</p>
               </div>
 
@@ -177,6 +227,41 @@ export function PortalCostsCard({ priceGBP, depositPaid }: { priceGBP: number; d
         document.body,
       )}
     </>
+  );
+}
+
+function Row({ label, value, pill }: { label: React.ReactNode; value: string; pill?: string }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${P.border}` }}>
+      <p className="text-[14px]" style={{ color: P.textPrimary }}>{label}</p>
+      <div className="flex items-center gap-2">
+        {pill && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.successBg, color: P.success }}>{pill}</span>}
+        <span className="text-[14px] font-semibold tabular-nums" style={{ color: P.textPrimary }}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function MoneyRow({ label, hint, value, onChange }: { label: string; hint?: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+      <div>
+        <p className="text-[14px]" style={{ color: P.textPrimary }}>{label}</p>
+        {hint && <p className="text-[11px]" style={{ color: P.textMuted }}>{hint}</p>}
+      </div>
+      <div className="flex items-center rounded-xl px-3" style={{ border: `1px solid ${P.border}`, background: P.pageBg, maxWidth: 150 }}>
+        <span className="text-[14px] font-semibold" style={{ color: P.textMuted }}>£</span>
+        <input
+          inputMode="numeric"
+          value={value ? Number(value).toLocaleString("en-GB") : ""}
+          onChange={(e) => onChange(digits(e.target.value))}
+          placeholder="0"
+          className="w-full py-2 pl-1 text-[14px] font-semibold bg-transparent text-right focus:outline-none"
+          style={{ color: P.textPrimary }}
+          aria-label={label}
+        />
+      </div>
+    </div>
   );
 }
 

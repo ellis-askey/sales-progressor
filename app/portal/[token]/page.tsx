@@ -574,7 +574,15 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
       {/* ── Your costs (buyers, pre-completion) ──────────────────── */}
       {side === "purchaser" && !hasCompleted && transaction.purchasePrice != null && (
-        <PortalCostsCard priceGBP={transaction.purchasePrice / 100} depositPaid={depositPaid} />
+        <PortalCostsCard
+          priceGBP={transaction.purchasePrice / 100}
+          depositPaid={depositPaid}
+          hasExchanged={hasExchanged}
+          isCash={transaction.purchaseType === "cash_buyer" || transaction.purchaseType === "cash_from_proceeds"}
+          savedDeposit={transaction.clientDepositGBP != null ? transaction.clientDepositGBP / 100 : null}
+          savedMortgage={transaction.clientMortgageGBP != null ? transaction.clientMortgageGBP / 100 : null}
+          token={token}
+        />
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}

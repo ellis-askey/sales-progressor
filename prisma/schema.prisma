@@ -254,6 +254,10 @@ model PropertyTransaction {
   serviceType                 ServiceType       @default(self_managed)
   expectedExchangeDate        DateTime?
   purchasePrice               Int?
+  // Buyer-entered figures from the portal "Your costs" card (in pence), used to
+  // estimate the completion balance still to fund. Purchaser-supplied.
+  clientDepositGBP            Int?
+  clientMortgageGBP           Int?
   tenure                      Tenure?
   purchaseType                PurchaseType?
   isShareOfFreehold           Boolean           @default(false)

@@ -409,3 +409,31 @@ export async function portalLeaveChaseNoteAction(input: {
 
   revalidatePath(`/portal/${input.token}/respond`, "page");
 }
+
+// Save the buyer's own cost figures from the portal "Your costs" card (deposit
+// paid + mortgage advance, in whole pounds). Token-authed, purchasers only.
+export async function portalSaveCostsAction(input: {
+  token: string;
+  depositGBP: number | null;
+  mortgageGBP: number | null;
+}): Promise<{ ok: boolean }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { propertyTransactionId: true, roleType: true },
+  });
+  if (!contact || contact.roleType !== "purchaser") return { ok: false };
+
+  const toPence = (v: number | null) =>
+    v != null && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) : null;
+
+  await prisma.propertyTransaction.update({
+    where: { id: contact.propertyTransactionId },
+    data: {
+      clientDepositGBP: toPence(input.depositGBP),
+      clientMortgageGBP: toPence(input.mortgageGBP),
+    },
+  });
+
+  revalidatePath(`/portal/${input.token}`, "page");
+  return { ok: true };
+}
