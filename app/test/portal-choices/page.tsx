@@ -174,6 +174,76 @@ function StepIconRow({ variant }: { variant: "current" | "phosphor" | "seal" }) 
   );
 }
 
+// ── Updates card layout mockups ──────────────────────────────────────────────
+// Two distinct dates per update:
+//   EVENT date (orange, prominent) = when the thing actually happened
+//   CONFIRMED date + time (muted)  = when it was logged / confirmed
+const U = { sentence: "Ellis Askey confirmed your solicitor has received the draft contract pack", event: "13 August 2026", confirmed: "13 Aug", time: "09:05" };
+function UAvatar() { return <div style={{ width: 32, height: 32, borderRadius: 999, background: P.primaryBg, color: P.primaryText, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 700, fontSize: 12 }}>EA</div>; }
+function UPill() { return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, padding: "4px 11px", borderRadius: 999, background: "#fff", color: "#CC4A2E", border: "0.5px solid #FF6B4A", boxShadow: "0 1px 2px rgba(15,23,42,0.05)", whiteSpace: "nowrap" }}><span style={{ width: 6, height: 6, borderRadius: 999, background: "#FF6B4A" }} />Purchase</span>; }
+function USentence() { return <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary, lineHeight: 1.35 }}>{U.sentence}</p>; }
+// Orange event date with a calendar glyph so it reads as "the date this is about".
+function UEvent() { return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, color: P.primary }}><svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={P.primary} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>{U.event}</span>; }
+// Muted audit line — clearly the "when it was confirmed" stamp.
+function UConfirmed() { return <span style={{ fontSize: 12, color: P.textMuted }}>Confirmed {U.confirmed} · {U.time}</span>; }
+
+function UpdatesLayout({ v }: { v: string }) {
+  if (v === "meta-top") return (
+    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}><UAvatar />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 5 }}><UPill /><UConfirmed /></div>
+        <USentence /><div style={{ marginTop: 6 }}><UEvent /></div>
+      </div>
+    </div>
+  );
+  if (v === "event-lead") return (
+    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}><UAvatar />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <USentence /><div style={{ marginTop: 6 }}><UEvent /></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 6 }}><UConfirmed /><UPill /></div>
+      </div>
+    </div>
+  );
+  if (v === "pill-top") return (
+    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}><UAvatar />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ marginBottom: 6 }}><UPill /></div><USentence />
+        <div style={{ marginTop: 6 }}><UEvent /></div>
+        <p style={{ margin: "3px 0 0" }}><UConfirmed /></p>
+      </div>
+    </div>
+  );
+  if (v === "split") return (
+    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}><UAvatar />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <USentence />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 6 }}><UEvent /><UPill /></div>
+        <p style={{ margin: "4px 0 0" }}><UConfirmed /></p>
+      </div>
+    </div>
+  );
+  if (v === "confirmed-corner") return (
+    <div style={{ position: "relative", display: "flex", gap: 14, alignItems: "flex-start" }}>
+      <span style={{ position: "absolute", top: 0, right: 0 }}><UConfirmed /></span>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}><UAvatar /><UPill /></div>
+      <div style={{ flex: 1, minWidth: 0, paddingTop: 20 }}>
+        <USentence /><div style={{ marginTop: 6 }}><UEvent /></div>
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}><UAvatar />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <USentence />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+          <UEvent /><span style={{ color: P.border }}>|</span><UConfirmed />
+        </div>
+        <div style={{ marginTop: 7 }}><UPill /></div>
+      </div>
+    </div>
+  );
+}
+
 export default function PortalChoicesPage() {
   const [picks, setPicks] = useState<Picks>({});
   const [copied, setCopied] = useState(false);
@@ -246,6 +316,15 @@ export default function PortalChoicesPage() {
           <Selectable cat="stepIcons" id="STEPICONS-SEAL" note="Phosphor SealCheck + duotone" picks={picks} onPick={onPick}>
             <StepIconRow variant="seal" />
           </Selectable>
+        </Section>
+
+        <Section title="Updates card layout" blurb="Six ways to lay out one update. Two distinct dates: the ORANGE event date (when it happened) and the muted 'Confirmed 13 Aug · 09:05' (when it was logged). The sentence spans full width; the pill says whose side it is.">
+          <Selectable cat="updatesLayout" id="UL-META-TOP" note="Pill + Confirmed stamp header, update, then the orange event date" picks={picks} onPick={onPick}><UpdatesLayout v="meta-top" /></Selectable>
+          <Selectable cat="updatesLayout" id="UL-EVENT-LEAD" note="Update, orange event date, then Confirmed stamp + pill row" picks={picks} onPick={onPick}><UpdatesLayout v="event-lead" /></Selectable>
+          <Selectable cat="updatesLayout" id="UL-PILL-TOP" note="Pill on top; event date then Confirmed stamp stacked" picks={picks} onPick={onPick}><UpdatesLayout v="pill-top" /></Selectable>
+          <Selectable cat="updatesLayout" id="UL-SPLIT" note="Event date left / pill right, Confirmed stamp beneath" picks={picks} onPick={onPick}><UpdatesLayout v="split" /></Selectable>
+          <Selectable cat="updatesLayout" id="UL-CONFIRMED-CORNER" note="Confirmed stamp tucked top-right, pill under the avatar" picks={picks} onPick={onPick}><UpdatesLayout v="confirmed-corner" /></Selectable>
+          <Selectable cat="updatesLayout" id="UL-INLINE" note="Event date | Confirmed stamp on one line, pill beneath" picks={picks} onPick={onPick}><UpdatesLayout v="inline" /></Selectable>
         </Section>
 
         <section>
