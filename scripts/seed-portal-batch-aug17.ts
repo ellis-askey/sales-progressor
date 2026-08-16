@@ -119,7 +119,9 @@ async function main() {
     completionDate: Date | null;
     purchaserDone: string[];
     vendorDone: string[];
+    purchaseType?: "mortgage" | "cash_buyer";
   }) {
+    const purchaseType = opts.purchaseType ?? "mortgage";
     const buyerToken = randomBytes(24).toString("base64url");
     const sellerToken = randomBytes(24).toString("base64url");
     const tx = await prisma.propertyTransaction.create({
@@ -131,7 +133,7 @@ async function main() {
         serviceType: "self_managed",
         status: "active",
         tenure: "freehold",
-        purchaseType: "mortgage",
+        purchaseType,
         purchasePrice: opts.priceGBP * 100,
         expectedExchangeDate: opts.expectedExchangeDate,
         completionDate: opts.completionDate,
@@ -154,7 +156,7 @@ async function main() {
       select: { id: true },
     });
 
-    await initMilestones(tx.id, "freehold", "mortgage", emily!.id);
+    await initMilestones(tx.id, "freehold", purchaseType, emily!.id);
 
     const markComplete = async (codes: string[]) => {
       for (const code of codes) {
@@ -215,13 +217,27 @@ async function main() {
     vendorDone: VENDOR_DONE_PRE,
   });
 
+  // 3. Cash-buyer exchanged file (costs card: no mortgage row, funds on deposit)
+  const cash = await makeFile({
+    address: "27 Sion Hill, Clifton, Bristol, BS8 4BA",
+    priceGBP: 540_000,
+    exchanged: true,
+    expectedExchangeDate: daysAgo(2),
+    completionDate: daysAhead(10),
+    purchaserDone: PURCHASER_DONE_EX,
+    vendorDone: VENDOR_DONE_EX,
+    purchaseType: "cash_buyer",
+  });
+
   const base = "https://salesprogressor-git-staging-ellis-askeys-projects.vercel.app";
   console.log(`\n✓ Exchanged file ${ex.txId} — ${EX_ADDRESS}`);
-  console.log(`  BUYER  (Save contact + new updates): ${base}/portal/${ex.buyerToken}`);
-  console.log(`  SELLER (Save contact):               ${base}/portal/${ex.sellerToken}`);
+  console.log(`  BUYER  (Save contact + new updates + costs): ${base}/portal/${ex.buyerToken}`);
+  console.log(`  SELLER (Save contact):                       ${base}/portal/${ex.sellerToken}`);
   console.log(`\n✓ Pre-exchange file ${pre.txId} — ${PRE_ADDRESS}`);
-  console.log(`  BUYER  (add expected exchange to calendar): ${base}/portal/${pre.buyerToken}`);
-  console.log(`  SELLER:                                      ${base}/portal/${pre.sellerToken}\n`);
+  console.log(`  BUYER  (add expected exchange to calendar):  ${base}/portal/${pre.buyerToken}`);
+  console.log(`  SELLER:                                      ${base}/portal/${pre.sellerToken}`);
+  console.log(`\n✓ Cash-buyer exchanged file ${cash.txId} — 27 Sion Hill`);
+  console.log(`  BUYER  (costs card, cash: no mortgage row):  ${base}/portal/${cash.buyerToken}\n`);
 }
 
 main().then(() => prisma.$disconnect()).catch(async (err) => { console.error(err); await prisma.$disconnect(); process.exit(1); });
