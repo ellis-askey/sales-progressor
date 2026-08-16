@@ -74,7 +74,7 @@ export default async function PortalProgressPage({
   return (
     <div className="space-y-4">
       {/* ── Progress header ─────────────────────────────────── */}
-      <PortalGlassCard glassId="progress-header" label="Progress: steps-done header" className="px-5 py-4">
+      <PortalGlassCard glassId="progress-header" label="Progress: steps-done header" defaultVariant="v25" className="px-5 py-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>
             {completed.length} of {preExchange.length} steps done

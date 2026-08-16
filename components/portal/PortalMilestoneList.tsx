@@ -239,15 +239,16 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           })}
         </div>
       )}
-      {/* Bleed to the screen edges + inner padding so the cards' side/top/bottom
-          shadows aren't clipped by the horizontal scroll container. */}
+      {/* Bleed to the screen edges so each panel fills the viewport exactly — no
+          peek of the other side, and card shadows only clip at the screen edge.
+          The 16px inset lives on the panels so cards line up with the other tabs. */}
       <div
         ref={swipeRef}
         onScroll={onSwipeScroll}
         className="scrollbar-hide"
-        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingInline: 16, paddingBlock: 10, scrollPaddingInline: 16 }}
+        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10 }}
       >
-        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start" }}>
+        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", paddingInline: 16 }}>
           <div className="space-y-3">
         {/* ── Your milestones ───────────────────────────────────── */}
         {groups.map((group, gIdx) => {
@@ -384,7 +385,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           </div>
         </div>
         {hasOtherSide && (
-          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start" }}>
+          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", paddingInline: 16 }}>
             <div className="space-y-3">
               <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
                 <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${P.border}` }}>

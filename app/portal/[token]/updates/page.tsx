@@ -115,6 +115,7 @@ export default async function PortalUpdatesPage({
                       key={entry.id}
                       glassId="updates-card"
                       label="Update card"
+                      defaultVariant="v26"
                       className="flex items-start gap-3.5 px-5 py-4"
                     >
                       {/* Avatar: the confirmer's photo if we have one; otherwise a
