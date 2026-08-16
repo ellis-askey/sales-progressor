@@ -14,7 +14,7 @@ function fmtICSDate(d: Date) {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
@@ -24,34 +24,61 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
   const data = result.data;
-
-  if (!data.transaction.completionDate) {
-    return new NextResponse("No completion date set", { status: 404 });
-  }
-
   const { transaction, contact } = data;
   const side = contact.roleType === "vendor" ? "sale" : "purchase";
-  const completionDate = new Date(transaction.completionDate!);
+  const address = transaction.propertyAddress;
+  const now = fmtICS(new Date());
+
+  // Which key date is being saved: the exchange target (pre-exchange) or the
+  // completion day (default). Completion still owns the plain no-arg URL so the
+  // existing banner link is unchanged.
+  const event = req.nextUrl.searchParams.get("event") === "exchange" ? "exchange" : "completion";
+
+  const targetDate =
+    event === "exchange" ? transaction.expectedExchangeDate : transaction.completionDate;
+  if (!targetDate) {
+    return new NextResponse("No date set", { status: 404 });
+  }
+  const date = new Date(targetDate);
 
   // Reminder 3 days before
-  const reminder3 = new Date(completionDate);
+  const reminder3 = new Date(date);
   reminder3.setDate(reminder3.getDate() - 3);
 
-  const address = transaction.propertyAddress;
-  const uid     = `completion-${token}@thesalesprogressor.co.uk`;
-  const now     = fmtICS(new Date());
-  const dateStr = fmtICSDate(completionDate);
+  const dateStr = fmtICSDate(date);
   const rem3Str = fmtICSDate(reminder3);
 
-  const summary     = side === "sale" ? `Sale completion — ${address}` : `Purchase completion — ${address}`;
-  const description = side === "sale"
-    ? `Completion day for the sale of ${address}.\\nLeave all keys, fobs, and appliance manuals at the property.\\nRead meters before you leave.\\nYour solicitor will handle the fund transfer.`
-    : `Completion day for the purchase of ${address}.\\nBe available by phone from 9am — your solicitor will call when funds transfer.\\nKeys are usually available from midday.\\nRead meters when you arrive.`;
+  let uid: string;
+  let summary: string;
+  let description: string;
+  let reminderText: string;
+  let dayText: string;
+  let filename: string;
+
+  if (event === "exchange") {
+    uid = `exchange-${token}@thesalesprogressor.co.uk`;
+    summary = `Exchange target: ${address}`;
+    description = side === "sale"
+      ? `Target exchange date for the sale of ${address}.\\nThis is an estimate and can move.\\nYour team will confirm the date once it is set.`
+      : `Target exchange date for the purchase of ${address}.\\nThis is an estimate and can move.\\nYour team will confirm the date once it is set.`;
+    reminderText = `Exchange target in 3 days: ${address}`;
+    dayText = `Exchange target: ${address}`;
+    filename = "exchange-target.ics";
+  } else {
+    uid = `completion-${token}@thesalesprogressor.co.uk`;
+    summary = side === "sale" ? `Sale completion: ${address}` : `Purchase completion: ${address}`;
+    description = side === "sale"
+      ? `Completion day for the sale of ${address}.\\nLeave all keys, fobs, and appliance manuals at the property.\\nRead meters before you leave.\\nYour solicitor will handle the fund transfer.`
+      : `Completion day for the purchase of ${address}.\\nBe available by phone from 9am. Your solicitor will call when funds transfer.\\nKeys are usually available from midday.\\nRead meters when you arrive.`;
+    reminderText = `Completion in 3 days: ${address}`;
+    dayText = `Completion day: ${address}`;
+    filename = "completion-date.ics";
+  }
 
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//The Sales Progressor//Completion Calendar//EN",
+    "PRODID:-//The Sales Progressor//Key Dates Calendar//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
@@ -63,12 +90,12 @@ export async function GET(
     `DESCRIPTION:${description}`,
     "BEGIN:VALARM",
     "ACTION:DISPLAY",
-    `DESCRIPTION:Completion in 3 days — ${address}`,
+    `DESCRIPTION:${reminderText}`,
     `TRIGGER;VALUE=DATE-TIME:${rem3Str}T080000`,
     "END:VALARM",
     "BEGIN:VALARM",
     "ACTION:DISPLAY",
-    `DESCRIPTION:Completion day — ${address}`,
+    `DESCRIPTION:${dayText}`,
     `TRIGGER;VALUE=DATE-TIME:${dateStr}T080000`,
     "END:VALARM",
     "END:VEVENT",
@@ -78,7 +105,7 @@ export async function GET(
   return new NextResponse(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="completion-date.ics"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
     },
   });

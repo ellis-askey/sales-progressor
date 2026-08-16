@@ -232,6 +232,10 @@ async function getPortalDataInner(token: string) {
       roleType: true,
       buyerRoundId: true,
       propertyTransactionId: true,
+      // Drives the "new since your last visit" markers on the timeline. Read
+      // before the layout's fire-and-forget visit-stamp updates it (5-min
+      // debounced), so it reflects the PREVIOUS visit in practice.
+      lastVisitedPortalAt: true,
     },
   });
   if (!contact) return null;
@@ -498,6 +502,66 @@ export async function getPortalTeam(
 
     return { managing, solicitorFirmName, solicitorMailto, chainAgent };
   });
+}
+
+// ── "Save contact" vCard data (2026-08-17) ──────────────────────────────────
+// Backs the download-to-phone buttons on the "Your team" card: the person
+// managing the file and the client's own-side conveyancer, in vCard shape.
+// Token-scoped (the client's own file); the route turns these into .vcf.
+export type PortalVCard = { fn: string; org: string | null; email: string | null; tel: string | null };
+
+export async function getPortalVCardData(
+  token: string,
+): Promise<{ progressor: PortalVCard | null; solicitor: PortalVCard | null }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: token },
+    select: { roleType: true, propertyTransactionId: true },
+  });
+  if (!contact) return { progressor: null, solicitor: null };
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: {
+      serviceType: true,
+      assignedUser: { select: { name: true, phone: true } },
+      agentUser:    { select: { name: true, phone: true } },
+      agency: { select: { name: true, quoteSenderEmail: true } },
+      vendorSolicitorFirm:    { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+      vendorSolicitorContact:    { select: { name: true, email: true, phone: true } },
+      purchaserSolicitorContact: { select: { name: true, email: true, phone: true } },
+    },
+  });
+  if (!tx) return { progressor: null, solicitor: null };
+
+  const isOutsourced = tx.serviceType !== "self_managed";
+  const person = isOutsourced ? tx.assignedUser : tx.agentUser;
+  const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
+
+  const progressor: PortalVCard | null = person
+    ? {
+        fn: person.name,
+        org: isOutsourced ? "The Sales Progressor" : (tx.agency?.name ?? null),
+        email: agencyEmail,
+        // The shared progressor WhatsApp line on outsourced files, else the
+        // agent's own number if they've entered one.
+        tel: isOutsourced ? "+447508862929" : (person.phone?.trim() || null),
+      }
+    : null;
+
+  const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name;
+  const solContact = side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+  const solicitor: PortalVCard | null = firmName
+    ? {
+        fn: solContact?.name?.trim() || firmName,
+        org: firmName,
+        email: solContact?.email?.trim() || null,
+        tel: solContact?.phone?.trim() || null,
+      }
+    : null;
+
+  return { progressor, solicitor };
 }
 
 // Phase 1 commit 5 — round-scoped read.

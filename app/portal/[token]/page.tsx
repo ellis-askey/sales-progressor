@@ -115,6 +115,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const recentActivity = timeline.slice(0, 3);
   const updateOverrides = await getUpdateOverrideMap();
 
+  // "New since your last visit" — mark timeline entries created after the
+  // client's previous visit. Null on a first visit, so nothing is flagged then.
+  const lastVisit = contact.lastVisitedPortalAt ?? null;
+  const isNew = (e: TimelineEntry) => !!lastVisit && !!e.createdAt && new Date(e.createdAt) > new Date(lastVisit);
+  const newCount = timeline.filter(isNew).length;
+
   const stage = detectStage(milestones, side);
 
   // ── 6-tile Progress Overview data (2026-08-09 hero rebuild) ──────────
@@ -492,6 +498,21 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         />
       )}
 
+      {/* ── Add the expected exchange date to your calendar (pre-exchange) ── */}
+      {!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && (
+        <a
+          href={`/api/portal/calendar-export/${token}?event=exchange`}
+          download="exchange-target.ics"
+          className="pbtn pbtn-press flex items-center justify-center gap-2 rounded-2xl py-3.5"
+          style={{ background: P.cardBg, boxShadow: P.shadowSm, color: P.accent, fontSize: 13.5, fontWeight: 700, textDecoration: "none" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Add expected exchange to your calendar
+        </a>
+      )}
+
       {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
       {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && (
         <Link
@@ -584,7 +605,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}
-      <PortalTeamCard team={team} />
+      <PortalTeamCard team={team} token={token} />
 
       {/* ── Coming up (next 3 after next action) ─────────────────── */}
       {comingUp.length > 0 && !hasCompleted && (
@@ -704,7 +725,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       {/* ── Latest updates ───────────────────────────────────────── */}
       <PortalGlassCard glassId="latest-updates" label="Latest updates" className="overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${P.border}` }}>
-          <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
+            {newCount > 0 && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.primaryBg, color: P.primary }}>
+                {newCount} new
+              </span>
+            )}
+          </div>
           {recentActivity.length > 0 && (
             <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
               See all
@@ -724,6 +752,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               className="px-5 py-4 flex items-start gap-3"
               style={{ borderBottom: i < recentActivity.length - 1 ? `1px solid ${P.border}` : undefined }}
             >
+              {isNew(entry) && (
+                <span className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{ background: P.primary }} aria-label="New" title="New" />
+              )}
               {entry.type === "milestone" ? (
                 <>
                   {/* Avatar. Own side: the client's own photo on steps they
