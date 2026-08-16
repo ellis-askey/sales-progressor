@@ -106,6 +106,22 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
 
   function toggle(i: number) { setExpanded((p) => ({ ...p, [i]: !p[i] })); }
 
+  // Other-side (View only) groups collapse independently, keyed by label. They
+  // all start collapsed except the earliest group that isn't fully done — the
+  // one currently in progress on the other side.
+  const otherActiveLabel = (() => {
+    for (const group of otherGroups) {
+      if (group.label === "After Exchange" && !hasExchanged) continue;
+      const gm = group.codes.map((c) => otherByCode.get(c)).filter((m): m is Milestone => !!m && !m.isNotRequired);
+      if (gm.length === 0) continue;
+      const done = gm.filter((m) => m.isComplete || m.isNotRequired).length;
+      if (done !== gm.length) return group.label;
+    }
+    return null;
+  })();
+  const [otherExpanded, setOtherExpanded] = useState<Record<string, boolean>>({});
+  function toggleOther(label: string) { setOtherExpanded((p) => ({ ...p, [label]: !(p[label] ?? false) })); }
+
   function openSheet(id: string) {
     setConfirming(id);
     setEventDate("");
@@ -417,18 +433,27 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
 
                   const doneCount = groupMilestones.filter((m) => m.isComplete || m.isNotRequired).length;
                   const allDone   = doneCount === groupMilestones.length;
+                  const isOpen    = otherExpanded[group.label] ?? (group.label === otherActiveLabel);
 
                   return (
                     <div key={group.label}>
-                      <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: P.pageBg, borderBottom: `1px solid ${P.border}` }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleOther(group.label)}
+                        className="w-full px-5 py-2.5 flex items-center justify-between text-left"
+                        style={{ background: P.pageBg, borderBottom: `1px solid ${P.border}` }}
+                      >
                         <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: P.textMuted }}>
                           {group.icon} {group.label}
                         </p>
-                        <PortalPill tone={allDone ? "green" : "coral"}>
-                          {doneCount}/{groupMilestones.length}
-                        </PortalPill>
-                      </div>
-                      {groupMilestones.map((m, mIdx) => (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <PortalPill tone={allDone ? "green" : "coral"}>
+                            {doneCount}/{groupMilestones.length}
+                          </PortalPill>
+                          <ChevronIcon open={isOpen} />
+                        </div>
+                      </button>
+                      {isOpen && groupMilestones.map((m, mIdx) => (
                         <div key={m.id} className="flex items-center gap-3.5 px-5 py-3" style={{ borderBottom: mIdx < groupMilestones.length - 1 ? `1px solid ${P.border}` : undefined }}>
                           <StatusDot isComplete={m.isComplete} isLocked={!m.isComplete && !m.isAvailable} canConfirm={false} />
                           <p className="text-[13px] flex-1" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
