@@ -52,3 +52,36 @@ export function PortalTeamManageRow({
     </button>
   );
 }
+
+// Standalone pencil for a row that carries its own controls (e.g. the solicitor
+// row's Email button), where the whole row can't be one big <button>. Deep-links
+// to the same menu-drawer section as PortalTeamManageRow.
+export function PortalManagePencil({
+  section,
+  label,
+}: {
+  section: "agents" | "solicitor";
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={() => window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section } }))}
+      className="pbtn pbtn-press"
+      style={{
+        flexShrink: 0,
+        alignSelf: "center",
+        padding: 7,
+        borderRadius: 9,
+        border: 0,
+        background: "transparent",
+        color: P.textMuted,
+        cursor: "pointer",
+        display: "inline-flex",
+      }}
+    >
+      <PencilSimple size={16} weight="regular" />
+    </button>
+  );
+}

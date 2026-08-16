@@ -340,6 +340,12 @@ export type PortalTeam = {
     whatsappUrl: string | null;
   } | null;
   solicitorFirmName: string | null;
+  // Pre-built mailto for the client to email their own-side conveyancer: To =
+  // the solicitor contact's email, CC = the agency's assigned address (falling
+  // back to ellis@thesalesprogressor.co.uk), subject = "Purchase/Sale of
+  // {address} - {client name(s)}". Null when no solicitor email is on file, so
+  // the card shows the firm name only. (Founder, 2026-08-16.)
+  solicitorMailto: string | null;
   // The client's neighbouring chain agent (phase 3) — drives the buyer's
   // "add your selling agent" row on the card.
   chainAgent: PortalChainAgent;
@@ -423,17 +429,22 @@ export async function getPortalTeam(
       where: { id: transactionId },
       select: {
         serviceType: true,
+        propertyAddress: true,
         assignedUser: { select: { id: true, name: true, email: true, image: true, role: true } },
         agentUser:    { select: { id: true, name: true, email: true, image: true, role: true } },
         vendorSolicitorFirm:    { select: { name: true } },
         purchaserSolicitorFirm: { select: { name: true } },
+        vendorSolicitorContact:    { select: { email: true } },
+        purchaserSolicitorContact: { select: { email: true } },
         agency: { select: { quoteSenderEmail: true } },
+        contacts: { where: { roleType: side }, select: { name: true } },
       },
     });
     if (!tx) {
       return {
         managing: null,
         solicitorFirmName: null,
+        solicitorMailto: null,
         chainAgent: {
           label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
           direction: side === "vendor" ? "above" : "below",
@@ -469,9 +480,23 @@ export async function getPortalTeam(
         ? tx.vendorSolicitorFirm?.name ?? null
         : tx.purchaserSolicitorFirm?.name ?? null;
 
+    // Email-your-conveyancer mailto. Only built when the solicitor's email is on
+    // file; otherwise the card shows the firm name alone.
+    const solicitorEmail = (
+      side === "vendor" ? tx.vendorSolicitorContact?.email : tx.purchaserSolicitorContact?.email
+    )?.trim() || null;
+    let solicitorMailto: string | null = null;
+    if (solicitorEmail) {
+      const cc = tx.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+      const dealWord = side === "purchaser" ? "Purchase" : "Sale";
+      const names = tx.contacts.map((c) => c.name.trim()).filter(Boolean).join(" & ");
+      const subject = `${dealWord} of ${tx.propertyAddress}${names ? ` - ${names}` : ""}`;
+      solicitorMailto = `mailto:${solicitorEmail}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}`;
+    }
+
     const chainAgent = await getPortalChainAgent(transactionId, side);
 
-    return { managing, solicitorFirmName, chainAgent };
+    return { managing, solicitorFirmName, solicitorMailto, chainAgent };
   });
 }
 

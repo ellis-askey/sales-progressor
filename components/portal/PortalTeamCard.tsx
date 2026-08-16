@@ -8,7 +8,7 @@
 
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
-import { PortalTeamManageRow } from "@/components/portal/PortalTeamManageRow";
+import { PortalTeamManageRow, PortalManagePencil } from "@/components/portal/PortalTeamManageRow";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
 function initials(name: string): string {
@@ -34,13 +34,19 @@ function MailIcon() {
 }
 
 export function PortalTeamCard({ team }: { team: PortalTeam }) {
-  const { managing, solicitorFirmName, chainAgent } = team;
+  const { managing, solicitorFirmName, solicitorMailto, chainAgent } = team;
   // Buyers only, per Ellis: show their "selling agent" row (the chain link
   // below them). Sellers' onward-purchase agent is left off the card for now,
   // though both can still add theirs from the drawer.
   const showAgentRow = chainAgent.direction === "below" && chainAgent.canManage;
   const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
   if (!managing && !solicitorFirmName && !showAgentRow) return null;
+
+  // Order (Founder, 2026-08-16): solicitor first, the person managing the file
+  // second, the client's chain agent last. Only the first shown row skips the
+  // hairline divider.
+  const firstRow = solicitorFirmName ? "sol" : managing ? "man" : "agent";
+  const divider = `1px solid ${P.borderSubtle}`;
 
   return (
     <PortalGlassCard glassId="your-team" label="Your team" radius={20} style={{ overflow: "hidden" }}>
@@ -58,8 +64,70 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
         Your team
       </p>
 
+      {solicitorFirmName && (
+        <div
+          style={{
+            display: "flex",
+            gap: 13,
+            padding: "13px 18px",
+            alignItems: "flex-start",
+            borderTop: firstRow === "sol" ? undefined : divider,
+          }}
+        >
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 12,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#fff",
+              background: "linear-gradient(135deg,#3f4a63,#243049)",
+              boxShadow: "0 2px 6px rgba(36,48,73,0.28)",
+            }}
+          >
+            {initials(solicitorFirmName)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+              {solicitorFirmName}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>Your conveyancer</p>
+
+            {solicitorMailto && (
+              <div style={{ marginTop: 10 }}>
+                <a
+                  href={solicitorMailto}
+                  className="pbtn pbtn-press"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    padding: "9px 14px",
+                    borderRadius: 11,
+                    textDecoration: "none",
+                    background: PORTAL_BTN.emailBg,
+                    boxShadow: PORTAL_BTN.emailShadow,
+                    color: "#fff",
+                  }}
+                >
+                  <MailIcon /> Email
+                </a>
+              </div>
+            )}
+          </div>
+          <PortalManagePencil section="solicitor" label="Update your conveyancer" />
+        </div>
+      )}
+
       {managing && (
-        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: firstRow === "man" ? undefined : divider }}>
           {/* Avatar: photo if uploaded, else initials on the coral gradient */}
           <div
             style={{
@@ -148,40 +216,12 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
         </div>
       )}
 
-      {solicitorFirmName && (
-        <PortalTeamManageRow section="solicitor" icon="edit" label="Update your conveyancer">
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#fff",
-              background: "linear-gradient(135deg,#3f4a63,#243049)",
-              boxShadow: "0 2px 6px rgba(36,48,73,0.28)",
-            }}
-          >
-            {initials(solicitorFirmName)}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
-              {solicitorFirmName}
-            </p>
-            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>Your conveyancer</p>
-          </div>
-        </PortalTeamManageRow>
-      )}
-
       {showAgentRow && (
         <PortalTeamManageRow
           section="agents"
           icon={agentHas ? "edit" : "add"}
           label={agentHas ? "Edit your selling agent" : "Add your selling agent"}
+          topBorder={firstRow !== "agent"}
         >
           <div
             style={{
