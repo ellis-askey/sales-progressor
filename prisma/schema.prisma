@@ -1384,6 +1384,12 @@ model TransactionDocument {
   fileSize      Int
   mimeType      String
   source        String   @default("portal")
+  // Client-portal document taxonomy (Batch 2): the specific-document key from
+  // lib/portal-documents.ts. Null on legacy / uncategorised uploads.
+  docType       String?
+  // Client opt-in to show this document to the OTHER side (buyer <-> seller).
+  // Own team always sees it; this only widens visibility across the deal.
+  sharedWithOtherSide Boolean @default(false)
   createdAt     DateTime @default(now())
 
   // Phase 0 shadow attribution. Stamped only for docs whose contactId

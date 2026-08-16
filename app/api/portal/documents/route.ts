@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { uploadToStorage } from "@/lib/supabase-storage";
+import { isKnownDocType } from "@/lib/portal-documents";
 
 const ALLOWED_MIME = new Set([
   "application/pdf",
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
   }
 
+  const rawType = formData.get("docType");
+  const docType = typeof rawType === "string" && isKnownDocType(rawType) ? rawType : null;
+
   const files = formData.getAll("files") as File[];
   if (!files.length) return NextResponse.json({ error: "No files provided" }, { status: 400 });
   if (files.length > MAX_FILES) {
@@ -79,6 +83,7 @@ export async function POST(req: NextRequest) {
         fileSize: file.size,
         mimeType: file.type,
         source: "portal",
+        docType,
         // Phase 1 commit 5 Pin 2 — purchaser uploads are attributable to
         // their round; vendor uploads stay file-level (NULL).
         buyerRoundId: contact.roleType === "purchaser" ? contact.buyerRoundId : null,

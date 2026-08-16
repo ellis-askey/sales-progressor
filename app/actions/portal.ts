@@ -438,6 +438,47 @@ export async function portalSaveCostsAction(input: {
   return { ok: true };
 }
 
+// ── Documents tab (Batch 2) ────────────────────────────────────────────────
+export async function getMyPortalDocumentsAction(token: string) {
+  const { getPortalDocuments } = await import("@/lib/services/portal-documents");
+  return getPortalDocuments(token);
+}
+
+// Remove a document the client uploaded themselves (their own only).
+export async function portalDeleteDocument(input: { token: string; docId: string }): Promise<{ ok: boolean }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false };
+  const res = await prisma.transactionDocument.deleteMany({
+    where: { id: input.docId, contactId: contact.id },
+  });
+  if (res.count === 0) return { ok: false };
+  revalidatePath(`/portal/${input.token}`, "page");
+  return { ok: true };
+}
+
+// Toggle whether a client's own document is shared with the other side.
+export async function portalToggleDocumentShare(input: {
+  token: string;
+  docId: string;
+  shared: boolean;
+}): Promise<{ ok: boolean }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false };
+  const res = await prisma.transactionDocument.updateMany({
+    where: { id: input.docId, contactId: contact.id },
+    data: { sharedWithOtherSide: input.shared },
+  });
+  if (res.count === 0) return { ok: false };
+  revalidatePath(`/portal/${input.token}`, "page");
+  return { ok: true };
+}
+
 // Persist the client's "Customize overview" layout: the order of moveable cards
 // and which are hidden. Keyed to the contact's own file via the portal token.
 export async function portalSaveOverviewLayout(input: {

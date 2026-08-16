@@ -26,6 +26,13 @@ import {
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
 import { portalMarkRequiredAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { PortalDocumentsTab } from "./PortalDocumentsTab";
+
+const MENU_TABS = [
+  { key: "documents", label: "Documents" },
+  { key: "settings", label: "Settings" },
+] as const;
 
 type Props = {
   open: boolean;
@@ -44,6 +51,8 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"documents" | "settings">("documents");
+  const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : 1);
   // Body-content fade-in: after the drawer slides up (260ms), the
   // inner content transitions from opacity 0 → 1 over 220ms so it
   // feels like it "settles" once the drawer has arrived. Reset on
@@ -180,6 +189,43 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           />
         </header>
 
+        {/* Tabs — Documents | Settings. The underline slides with a little
+            overshoot; a faint underline previews on hover (no icons). */}
+        <div style={{ padding: "10px 20px 0", borderBottom: `0.5px solid ${P.border}` }}>
+          <div style={{ position: "relative", display: "flex", gap: 26 }}>
+            {ind && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute", bottom: 0, left: ind.left, width: ind.width, height: 2,
+                  background: P.primary, borderRadius: "1px 1px 0 0", pointerEvents: "none",
+                  transition: "left 320ms cubic-bezier(0.34,1.5,0.6,1), width 320ms cubic-bezier(0.34,1.5,0.6,1)",
+                }}
+              />
+            )}
+            {MENU_TABS.map((t, i) => {
+              const isActive = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  ref={(el) => { btnRefs.current[i] = el; }}
+                  data-active={isActive ? "true" : undefined}
+                  onClick={() => setActiveTab(t.key)}
+                  className="portal-menu-tab"
+                  style={{
+                    background: "transparent", border: 0, cursor: "pointer",
+                    padding: "6px 2px 12px", fontSize: 14, fontWeight: 700,
+                    color: isActive ? P.textPrimary : P.textMuted,
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Body — fades in ~220ms after the drawer finishes sliding up. */}
         <div style={{
           flex: 1, overflow: "auto",
@@ -189,7 +235,9 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           transform: contentReady ? "translateY(0)" : "translateY(6px)",
           transition: "opacity 220ms ease-out, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}>
-          {loading && !details ? (
+          {activeTab === "documents" ? (
+            <PortalDocumentsTab token={token} />
+          ) : loading && !details ? (
             <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
           ) : loadError ? (
             <p style={{ textAlign: "center", padding: "40px 0", color: P.warning, fontSize: 13 }}>{loadError}</p>
