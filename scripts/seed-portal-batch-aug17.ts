@@ -241,7 +241,8 @@ async function main() {
   // example already shared to the other side.
   await seedDoc(ex.txId, { filename: "Memorandum of Sale", docType: "mos", contactId: null });
   await seedDoc(ex.txId, { filename: "Mortgage offer.pdf", docType: "mortgage-offer", contactId: ex.buyerId, shared: false });
-  await seedDoc(ex.txId, { filename: "Buildings insurance.pdf", docType: "buildings-insurance", contactId: ex.buyerId, shared: true });
+  // A seller property doc shared with the buyer (shareable type, share toggle on).
+  await seedDoc(ex.txId, { filename: "Property Information Form.pdf", docType: "ta6", contactId: ex.sellerId, shared: true });
 
   // 2. Pre-exchange file (add expected exchange to calendar)
   const pre = await makeFile({

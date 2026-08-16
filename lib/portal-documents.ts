@@ -135,6 +135,19 @@ export function isKnownDocType(key: string): boolean {
   return DOC_BY_KEY.has(key);
 }
 
+// Only documents the OTHER side legitimately needs may be shared: the seller's
+// property paperwork that a buyer wants sight of. A buyer's own finance, survey
+// and insurance stay private — no share toggle. (Founder, 2026-08-17.)
+const SHAREABLE = new Set<string>([
+  "ta6", "ta10", "ta7", "management-pack", "epc",
+  "fensa", "gas-safe", "eicr", "damp-guarantee", "nhbc",
+  "lease", "ground-rent-accounts", "share-of-freehold",
+]);
+
+export function isDocShareable(key: string | null | undefined): boolean {
+  return !!key && SHAREABLE.has(key);
+}
+
 // Role- + tenure-filtered category list for the "Add document" dropdowns.
 export function categoriesFor(role: DocRole, tenure: "freehold" | "leasehold"): DocCategory[] {
   return DOCUMENT_CATEGORIES

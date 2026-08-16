@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { DotsThree, DownloadSimple, Trash, Plus, FileText, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { getMyPortalDocumentsAction, portalDeleteDocument, portalToggleDocumentShare } from "@/app/actions/portal";
-import { categoriesFor } from "@/lib/portal-documents";
+import { categoriesFor, isDocShareable } from "@/lib/portal-documents";
 import type { PortalDocumentsData, PortalDoc } from "@/lib/services/portal-documents";
 
 function fmtDate(d: Date | string) {
@@ -122,15 +122,38 @@ function Eyebrow({ children, className }: { children: React.ReactNode; className
 
 function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: string; otherSide: string; onChanged: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [busy, setBusy] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDoc = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [menuOpen]);
+  const canShare = doc.mine && isDocShareable(doc.docType);
+  const actionCount = (doc.url ? 1 : 0) + (doc.mine ? 1 : 0);
+  const meta = [doc.category, fmtDate(doc.createdAt), doc.fromOtherSide ? `Shared by the ${otherSide}` : null].filter(Boolean).join(" · ");
+  const inner = (
+    <>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: P.accentBg, color: P.accent }}>
+        <FileText size={18} weight="fill" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[14px] font-semibold truncate" style={{ color: P.textPrimary }}>{doc.label}</p>
+        <p className="text-[11px]" style={{ color: P.textMuted }}>{meta}</p>
+      </div>
+    </>
+  );
+
+  function openMenu() {
+    setConfirmRemove(false);
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const width = 176;
+    const h = actionCount * 46 + 8;
+    // Flip up when there isn't room below (the drawer sits at the bottom).
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    setPos({ top, left: Math.max(8, r.right - width) });
+    setMenuOpen(true);
+  }
 
   async function toggleShare() {
     setBusy(true);
@@ -147,60 +170,91 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
   return (
     <div className="mb-2.5 rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
       <div className="flex items-center gap-3 px-4 py-3.5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: P.accentBg, color: P.accent }}>
-          <FileText size={18} weight="fill" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-semibold truncate" style={{ color: P.textPrimary }}>{doc.label}</p>
-          <p className="text-[11px]" style={{ color: P.textMuted }}>
-            {[doc.category, fmtDate(doc.createdAt), doc.fromOtherSide ? `Shared by the ${otherSide}` : null].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <div ref={menuRef} className="relative flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Document options"
-            className="pbtn-press w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{ color: P.textMuted }}
-          >
-            <DotsThree size={22} weight="bold" />
-          </button>
-          {menuOpen && (
-            <div
-              className="absolute right-0 top-10 z-10 rounded-xl overflow-hidden"
-              style={{ background: "#fff", boxShadow: P.shadowXl, border: `1px solid ${P.border}`, minWidth: 168 }}
+        {doc.url ? (
+          <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0" style={{ textDecoration: "none" }}>
+            {inner}
+          </a>
+        ) : (
+          <div className="flex items-center gap-3 flex-1 min-w-0">{inner}</div>
+        )}
+        {actionCount > 0 && (
+          <div className="flex-shrink-0">
+            <button
+              ref={btnRef}
+              type="button"
+              onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
+              aria-label="Document options"
+              className="pbtn-press w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ color: P.textMuted }}
             >
-              {doc.url && (
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={doc.filename}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-3 text-[14px] font-medium"
-                  style={{ color: P.textPrimary, textDecoration: "none" }}
-                >
-                  <DownloadSimple size={17} /> Download
-                </a>
-              )}
-              {doc.mine && (
-                <button
-                  type="button"
-                  onClick={remove}
-                  disabled={busy}
-                  className="w-full flex items-center gap-2.5 px-4 py-3 text-[14px] font-medium text-left disabled:opacity-50"
-                  style={{ color: "#DC2626", borderTop: doc.url ? `1px solid ${P.border}` : undefined }}
-                >
-                  <Trash size={17} /> Remove
-                </button>
+              <DotsThree size={22} weight="bold" />
+            </button>
+          </div>
+        )}
+        {menuOpen && pos && typeof document !== "undefined" && createPortal(
+          <>
+            <div className="fixed inset-0 z-[75]" onClick={() => setMenuOpen(false)} />
+            <div
+              className="fixed z-[76] rounded-xl overflow-hidden"
+              style={{ top: pos.top, left: pos.left, background: "#fff", boxShadow: P.shadowXl, border: `1px solid ${P.border}`, minWidth: 176 }}
+            >
+              {confirmRemove ? (
+                <div className="px-4 py-3.5" style={{ minWidth: 200 }}>
+                  <p className="text-[13px] font-semibold mb-2.5" style={{ color: P.textPrimary }}>Remove this document?</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemove(false)}
+                      className="pbtn-press flex-1 py-2 rounded-lg text-[13px] font-semibold"
+                      style={{ border: `1px solid ${P.border}`, color: P.textSecondary }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={remove}
+                      disabled={busy}
+                      className="pbtn-press flex-1 py-2 rounded-lg text-[13px] font-bold text-white disabled:opacity-50"
+                      style={{ background: "#DC2626" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {doc.url && (
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={doc.filename}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 text-[14px] font-medium"
+                      style={{ color: P.textPrimary, textDecoration: "none" }}
+                    >
+                      <DownloadSimple size={17} /> Download
+                    </a>
+                  )}
+                  {doc.mine && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemove(true)}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-[14px] font-medium text-left"
+                      style={{ color: "#DC2626", borderTop: doc.url ? `1px solid ${P.border}` : undefined }}
+                    >
+                      <Trash size={17} /> Remove
+                    </button>
+                  )}
+                </>
               )}
             </div>
-          )}
-        </div>
+          </>,
+          document.body,
+        )}
       </div>
 
-      {doc.mine && (
+      {canShare && (
         <button
           type="button"
           onClick={toggleShare}
