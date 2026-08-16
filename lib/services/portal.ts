@@ -2479,6 +2479,85 @@ export async function portalMarkNotRequired(input: {
   });
 }
 
+// Undo a portal "not required" (today: the survey, PM9 cascading PM10). Deletes
+// only the not_required completion rows so the steps return to their natural
+// available state — the client changed their mind. Mirrors the guards +
+// round-scoping of portalMarkNotRequired.
+export async function portalUnmarkNotRequired(input: {
+  token: string;
+  milestoneDefinitionId: string;
+}) {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true, roleType: true, buyerRoundId: true, propertyTransactionId: true },
+  });
+  if (!contact) throw new Error("Invalid token");
+
+  const txForGuard = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  if (!txForGuard) throw new Error("Invalid transaction");
+  if (
+    contact.roleType === "purchaser" &&
+    contact.buyerRoundId != null &&
+    contact.buyerRoundId !== txForGuard.activeBuyerRoundId
+  ) {
+    throw new Error("Invalid token");
+  }
+
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const def = await prisma.milestoneDefinition.findFirst({
+    where: { id: input.milestoneDefinitionId, side },
+    select: { id: true, code: true },
+  });
+  if (!def) throw new Error("Milestone not found");
+
+  const cascadeCodes = PORTAL_NOT_REQUIRED_WHITELIST[def.code];
+  if (!cascadeCodes) throw new Error("Cannot change this milestone from the portal");
+
+  const txId = contact.propertyTransactionId;
+  const roundScope = contact.roleType === "purchaser" ? forRound(contact.buyerRoundId, txId) : vendorOnly();
+
+  await prisma.$transaction(async (ptx) => {
+    await ptx.milestoneCompletion.deleteMany({
+      where: { transactionId: txId, milestoneDefinitionId: def.id, state: "not_required", ...milestoneScopeWhere(roundScope) },
+    });
+    if (cascadeCodes.length > 0) {
+      const cascadeDefs = await ptx.milestoneDefinition.findMany({
+        where: { code: { in: cascadeCodes }, side },
+        select: { id: true },
+      });
+      for (const cd of cascadeDefs) {
+        await ptx.milestoneCompletion.deleteMany({
+          where: { transactionId: txId, milestoneDefinitionId: cd.id, state: "not_required", ...milestoneScopeWhere(roundScope) },
+        });
+      }
+    }
+  });
+}
+
+// Survey skip state for the menu's "Getting a survey" toggle. Buyers only —
+// PM9 is the single client-skippable step. `skipped` is true when PM9 is
+// currently marked not_required for this buyer's round.
+export async function getPortalSurveyState(token: string): Promise<{ applicable: boolean; skipped: boolean; definitionId: string | null }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: token },
+    select: { roleType: true, buyerRoundId: true, propertyTransactionId: true },
+  });
+  if (!contact || contact.roleType !== "purchaser") return { applicable: false, skipped: false, definitionId: null };
+
+  const pm9 = await prisma.milestoneDefinition.findFirst({ where: { code: "PM9", side: "purchaser" }, select: { id: true } });
+  if (!pm9) return { applicable: false, skipped: false, definitionId: null };
+
+  const roundScope = forRound(contact.buyerRoundId, contact.propertyTransactionId);
+  const comp = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: pm9.id, ...milestoneScopeWhere(roundScope) },
+    select: { state: true },
+  });
+  return { applicable: true, skipped: comp?.state === "not_required", definitionId: pm9.id };
+}
+
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {
   const records = await prisma.outboundMessage.findMany({
     where: {

@@ -436,9 +436,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       {/* ── Bottom sheet: milestone help / glossary ───────────── */}
       {helpMilestone && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setHelpMilestone(null)}>
-          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
-            className="relative w-full max-w-lg mx-auto"
+            className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
               background: "#FFFFFF",
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
@@ -491,9 +491,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       {/* ── Bottom sheet: skip survey ────────────────────────── */}
       {skipSurveyId && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSkipSurveyId(null)}>
-          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
-            className="relative w-full max-w-lg mx-auto"
+            className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
               background: "#FFFFFF",
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
@@ -548,9 +548,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       {/* ── Bottom sheet confirm ──────────────────────────────── */}
       {confirmingMilestone && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
-          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
-            className="relative w-full max-w-lg mx-auto"
+            className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
               background: "#FFFFFF",
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,

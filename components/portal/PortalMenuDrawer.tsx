@@ -25,6 +25,7 @@ import {
   resumeMyChasesAction,
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
+import { portalMarkRequiredAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 
 type Props = {
   open: boolean;
@@ -193,7 +194,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
               <div ref={agentsRef}>
                 <YourAgentsSection details={details} token={token} onSaved={reload} />
               </div>
-              {contactRole === "purchaser" && <ServicesSection token={token} />}
+              {contactRole === "purchaser" && <ServicesSection token={token} survey={details.survey} onSaved={reload} />}
               <NotificationsSection details={details} token={token} onSaved={reload} />
               <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
                 Signed in as {contactName}.
@@ -785,32 +786,68 @@ function NotificationsSection({
 //  Section 4 — Services (buyers only, links to /quote/[token])
 // ═══════════════════════════════════════════════════════════════════════
 
-function ServicesSection({ token }: { token: string }) {
+function ServicesSection({
+  token, survey, onSaved,
+}: { token: string; survey: MyPortalDetails["survey"]; onSaved: () => void | Promise<void> }) {
+  const [busy, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const gettingSurvey = !survey.skipped;
+
+  function setGettingSurvey(next: boolean) {
+    if (!survey.definitionId || busy) return;
+    const defId = survey.definitionId;
+    startTransition(async () => {
+      if (next) await portalMarkRequiredAction({ token, milestoneDefinitionId: defId });
+      else await portalMarkNotRequiredAction({ token, milestoneDefinitionId: defId });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1600);
+      await onSaved();
+    });
+  }
+
   return (
     <SectionCard icon={<Wrench size={16} weight="regular" />} title="Services">
-      <p style={{ margin: "0 0 10px", fontSize: 13, color: P.textSecondary, lineHeight: 1.5 }}>
-        Getting a survey is worth it for most purchases. We'll match you with local firms that cover your area.
-      </p>
-      <a
-        href={`/quote/${token}`}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: `1px solid ${P.border}`,
-          background: P.primaryBg,
-          color: P.primary,
-          textDecoration: "none",
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        <span>Get a survey quote</span>
-        <ArrowRight size={14} weight="bold" />
-      </a>
+      {survey.applicable && (
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "4px 0 12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Getting a survey</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
+              Turn this off to remove the survey steps from your progress. You can turn it back on any time.
+            </p>
+          </div>
+          <label style={{ display: "inline-flex", alignItems: "center", cursor: busy ? "wait" : "pointer", flexShrink: 0 }}>
+            <input
+              type="checkbox"
+              checked={gettingSurvey}
+              disabled={busy}
+              onChange={(e) => setGettingSurvey(e.target.checked)}
+              style={{ appearance: "none", width: 44, height: 26, borderRadius: 999, background: gettingSurvey ? P.primary : "rgba(15,23,42,0.15)", position: "relative", cursor: "inherit", transition: "background 150ms ease", flexShrink: 0 }}
+            />
+            <span aria-hidden style={{ width: 20, height: 20, borderRadius: 999, background: "#fff", marginLeft: -42, marginRight: 22, transform: gettingSurvey ? "translateX(20px)" : "translateX(2px)", transition: "transform 180ms cubic-bezier(0.16, 1, 0.3, 1)", boxShadow: "0 1px 3px rgba(15,23,42,0.2)", pointerEvents: "none" }} />
+          </label>
+        </div>
+      )}
+
+      {gettingSurvey && (
+        <div style={{ borderTop: survey.applicable ? `0.5px solid ${P.borderSubtle}` : undefined, paddingTop: survey.applicable ? 12 : 0 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: P.textSecondary, lineHeight: 1.5 }}>
+            Getting a survey is worth it for most purchases. We&apos;ll match you with local firms that cover your area.
+          </p>
+          <a
+            href={`/quote/${token}`}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+              padding: "10px 12px", borderRadius: 10, border: `1px solid ${P.border}`,
+              background: P.primaryBg, color: P.primary, textDecoration: "none", fontSize: 13, fontWeight: 600,
+            }}
+          >
+            <span>Get a survey quote</span>
+            <ArrowRight size={14} weight="bold" />
+          </a>
+        </div>
+      )}
+
+      {saved && <div style={{ paddingTop: 10 }}><SavedFlash /></div>}
     </SectionCard>
   );
 }

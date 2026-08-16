@@ -18,7 +18,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { createChainV2, addChainLink, updateChainLinkStub, getChainForTransactionV2 } from "@/lib/services/chains";
 import { createNotification } from "@/lib/services/notifications";
-import { getPortalChainAgent, type PortalChainAgent } from "@/lib/services/portal";
+import { getPortalChainAgent, getPortalSurveyState, type PortalChainAgent } from "@/lib/services/portal";
 import { pauseContactChases, resumeContactChases } from "@/lib/services/chase-pause";
 
 // ── Token → Contact resolver (single source of truth) ────────────────
@@ -66,6 +66,7 @@ export type MyPortalDetails = {
     phone: string | null;
   } | null;
   chainAgent: PortalChainAgent;
+  survey: { applicable: boolean; skipped: boolean; definitionId: string | null };
 };
 
 export async function getMyPortalDetailsAction(token: string): Promise<MyPortalDetails> {
@@ -88,6 +89,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
   const firm    = side === "vendor" ? tx?.vendorSolicitorFirm    : tx?.purchaserSolicitorFirm;
   const solCtc  = side === "vendor" ? tx?.vendorSolicitorContact : tx?.purchaserSolicitorContact;
   const chainAgent = await getPortalChainAgent(contact.propertyTransactionId, side);
+  const survey = await getPortalSurveyState(token);
 
   return {
     contact: {
@@ -112,6 +114,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
         }
       : null,
     chainAgent,
+    survey,
   };
 }
 

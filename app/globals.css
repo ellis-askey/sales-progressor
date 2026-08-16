@@ -584,9 +584,19 @@ body {
 }
 @keyframes portal-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .portal-fade-in { animation: portal-fade-up 560ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Bottom sheets (Confirm / help / skip) slide up + the backdrop fades in,
+   instead of just appearing. */
+@keyframes portal-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes portal-sheet-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.portal-sheet { animation: portal-sheet-in 340ms cubic-bezier(0.16, 1, 0.3, 1); }
+.portal-sheet-backdrop { animation: portal-sheet-backdrop-in 260ms ease; }
+
 @media (prefers-reduced-motion: reduce) {
   .portal-edge-pulse,
-  .portal-fade-in { animation: none; }
+  .portal-fade-in,
+  .portal-sheet,
+  .portal-sheet-backdrop { animation: none; }
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */

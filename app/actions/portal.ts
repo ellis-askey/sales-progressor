@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-import { portalCompleteMilestone, portalMarkNotRequired, PORTAL_AGENT_ONLY_ERROR } from "@/lib/services/portal";
+import { portalCompleteMilestone, portalMarkNotRequired, portalUnmarkNotRequired, PORTAL_AGENT_ONLY_ERROR } from "@/lib/services/portal";
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
 import { getMilestoneCopy } from "@/lib/portal-copy";
@@ -49,6 +49,19 @@ export async function portalMarkNotRequiredAction(input: {
   milestoneDefinitionId: string;
 }) {
   await portalMarkNotRequired(input);
+
+  revalidatePath(`/portal/${input.token}`, "page");
+  revalidatePath(`/portal/${input.token}/progress`, "page");
+  revalidatePath(`/portal/${input.token}/updates`, "page");
+}
+
+// Undo a "not required" (e.g. the client changed their mind about skipping the
+// survey). Puts the steps back on their progress.
+export async function portalMarkRequiredAction(input: {
+  token: string;
+  milestoneDefinitionId: string;
+}) {
+  await portalUnmarkNotRequired(input);
 
   revalidatePath(`/portal/${input.token}`, "page");
   revalidatePath(`/portal/${input.token}/progress`, "page");
