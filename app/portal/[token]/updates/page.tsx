@@ -50,6 +50,9 @@ function fmtDate(d: Date) {
 function fmtDateFull(d: Date) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
+function fmtDayMonth(d: Date) {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 export default async function PortalUpdatesPage({
   params,
@@ -134,35 +137,42 @@ export default async function PortalUpdatesPage({
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 mb-1">
-                          <p className="flex-1 text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
-                            {portalConfirmationSentence({
-                              code: entry.code,
-                              side: entry.side,
-                              viewerSide: side,
-                              confirmer: entry.confirmedByClient
-                                ? { kind: "client" }
-                                : entry.confirmedBySolicitorFirmName
-                                  ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
-                                  : { kind: "agent", name: entry.completedByName ?? "Your team" },
-                              milestoneName: entry.label,
-                            })}
-                          </p>
-                          <span className="flex-shrink-0">
+                        {/* The update spans full width; the meta line carries the
+                            orange EVENT date + the muted Confirmed stamp, with the
+                            side pill pushed to the far right (it drops below once
+                            the line is too tight). */}
+                        <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+                          {portalConfirmationSentence({
+                            code: entry.code,
+                            side: entry.side,
+                            viewerSide: side,
+                            confirmer: entry.confirmedByClient
+                              ? { kind: "client" }
+                              : entry.confirmedBySolicitorFirmName
+                                ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
+                                : { kind: "agent", name: entry.completedByName ?? "Your team" },
+                            milestoneName: entry.label,
+                          })}
+                        </p>
+                        <div className="mt-1.5 flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-1.5">
+                          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 min-w-0">
+                            {entry.eventDate && (
+                              <span className="inline-flex items-center gap-1.5 text-[13px] font-bold" style={{ color: P.primary }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                                </svg>
+                                {fmtDateFull(entry.eventDate)}
+                              </span>
+                            )}
+                            {entry.eventDate && <span aria-hidden style={{ color: P.border }}>|</span>}
+                            <span className="text-[12px]" style={{ color: P.textMuted }}>
+                              Confirmed {fmtDayMonth(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
+                            </span>
+                          </div>
+                          <span className="sm:ml-auto flex-shrink-0">
                             <PortalPill tone={sidePillTone}>{sideBadgeText}</PortalPill>
                           </span>
                         </div>
-                        {entry.eventDate && (
-                          <p className="text-[13px] font-semibold mt-0.5 flex items-center gap-1.5" style={{ color: P.primary }}>
-                            {fmtDateFull(entry.eventDate)}
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                          </p>
-                        )}
-                        <p className="text-[12px] mt-1 text-right" style={{ color: P.textMuted }}>
-                          {fmtTime(entry.createdAt ?? new Date())}
-                        </p>
                       </div>
                     </PortalGlassCard>
                   );

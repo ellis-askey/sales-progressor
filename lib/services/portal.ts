@@ -2538,24 +2538,70 @@ export async function portalUnmarkNotRequired(input: {
 }
 
 // Survey skip state for the menu's "Getting a survey" toggle. Buyers only —
-// PM9 is the single client-skippable step. `skipped` is true when PM9 is
-// currently marked not_required for this buyer's round.
-export async function getPortalSurveyState(token: string): Promise<{ applicable: boolean; skipped: boolean; definitionId: string | null }> {
+// PM9 is the single client-skippable step.
+//   skipped     — PM9 is currently marked not_required for this buyer's round
+//   canReenable — enquiries NOT yet satisfied (PM20 incomplete); past that, a
+//                 buyer can't quietly re-add a survey and must email the
+//                 progressor instead
+//   progressor* — who to email for the late "add a survey" request
+export type PortalSurveyState = {
+  applicable: boolean;
+  skipped: boolean;
+  definitionId: string | null;
+  canReenable: boolean;
+  progressorName: string | null;
+  progressorEmail: string | null;
+};
+
+export async function getPortalSurveyState(token: string): Promise<PortalSurveyState> {
+  const empty: PortalSurveyState = { applicable: false, skipped: false, definitionId: null, canReenable: false, progressorName: null, progressorEmail: null };
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
     select: { roleType: true, buyerRoundId: true, propertyTransactionId: true },
   });
-  if (!contact || contact.roleType !== "purchaser") return { applicable: false, skipped: false, definitionId: null };
+  if (!contact || contact.roleType !== "purchaser") return empty;
 
   const pm9 = await prisma.milestoneDefinition.findFirst({ where: { code: "PM9", side: "purchaser" }, select: { id: true } });
-  if (!pm9) return { applicable: false, skipped: false, definitionId: null };
+  if (!pm9) return empty;
 
-  const roundScope = forRound(contact.buyerRoundId, contact.propertyTransactionId);
-  const comp = await prisma.milestoneCompletion.findFirst({
-    where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: pm9.id, ...milestoneScopeWhere(roundScope) },
-    select: { state: true },
-  });
-  return { applicable: true, skipped: comp?.state === "not_required", definitionId: pm9.id };
+  const txId = contact.propertyTransactionId;
+  const roundScope = forRound(contact.buyerRoundId, txId);
+
+  const [pm9comp, pm20def, tx] = await Promise.all([
+    prisma.milestoneCompletion.findFirst({ where: { transactionId: txId, milestoneDefinitionId: pm9.id, ...milestoneScopeWhere(roundScope) }, select: { state: true } }),
+    prisma.milestoneDefinition.findFirst({ where: { code: "PM20", side: "purchaser" }, select: { id: true } }),
+    prisma.propertyTransaction.findUnique({
+      where: { id: txId },
+      select: {
+        serviceType: true,
+        assignedUser: { select: { name: true, email: true } },
+        agentUser: { select: { name: true, email: true } },
+        agency: { select: { quoteSenderEmail: true } },
+      },
+    }),
+  ]);
+
+  // Enquiries satisfied = PM20 complete. Past that, no self re-enable.
+  let enquiriesSatisfied = false;
+  if (pm20def) {
+    const pm20comp = await prisma.milestoneCompletion.findFirst({
+      where: { transactionId: txId, milestoneDefinitionId: pm20def.id, ...milestoneScopeWhere(roundScope) },
+      select: { state: true },
+    });
+    enquiriesSatisfied = pm20comp?.state === "complete";
+  }
+
+  const managing = tx && tx.serviceType !== "self_managed" ? tx.assignedUser : tx?.agentUser;
+  const progressorEmail = tx?.agency?.quoteSenderEmail?.trim() || managing?.email || null;
+
+  return {
+    applicable: true,
+    skipped: pm9comp?.state === "not_required",
+    definitionId: pm9.id,
+    canReenable: !enquiriesSatisfied,
+    progressorName: managing?.name ?? null,
+    progressorEmail,
+  };
 }
 
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {

@@ -791,44 +791,97 @@ function ServicesSection({
 }: { token: string; survey: MyPortalDetails["survey"]; onSaved: () => void | Promise<void> }) {
   const [busy, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [confirmingOff, setConfirmingOff] = useState(false);
   const gettingSurvey = !survey.skipped;
+  // Skipped late (enquiries answered) — no self re-enable, must email progressor.
+  const lockedOff = survey.skipped && !survey.canReenable;
 
-  function setGettingSurvey(next: boolean) {
+  function flashSaved() { setSaved(true); window.setTimeout(() => setSaved(false), 1600); }
+
+  function turnOff() {
     if (!survey.definitionId || busy) return;
     const defId = survey.definitionId;
     startTransition(async () => {
-      if (next) await portalMarkRequiredAction({ token, milestoneDefinitionId: defId });
-      else await portalMarkNotRequiredAction({ token, milestoneDefinitionId: defId });
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 1600);
+      await portalMarkNotRequiredAction({ token, milestoneDefinitionId: defId });
+      setConfirmingOff(false);
+      flashSaved();
+      await onSaved();
+    });
+  }
+  function turnOn() {
+    if (!survey.definitionId || busy) return;
+    const defId = survey.definitionId;
+    startTransition(async () => {
+      await portalMarkRequiredAction({ token, milestoneDefinitionId: defId });
+      flashSaved();
       await onSaved();
     });
   }
 
+  const mailto = survey.progressorEmail
+    ? `mailto:${survey.progressorEmail}?subject=${encodeURIComponent("I'd like to add a survey")}`
+    : null;
+
   return (
     <SectionCard icon={<Wrench size={16} weight="regular" />} title="Services">
       {survey.applicable && (
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "4px 0 12px" }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Getting a survey</p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
-              Turn this off to remove the survey steps from your progress. You can turn it back on any time.
-            </p>
-          </div>
-          <label style={{ display: "inline-flex", alignItems: "center", cursor: busy ? "wait" : "pointer", flexShrink: 0 }}>
-            <input
-              type="checkbox"
-              checked={gettingSurvey}
-              disabled={busy}
-              onChange={(e) => setGettingSurvey(e.target.checked)}
-              style={{ appearance: "none", width: 44, height: 26, borderRadius: 999, background: gettingSurvey ? P.primary : "rgba(15,23,42,0.15)", position: "relative", cursor: "inherit", transition: "background 150ms ease", flexShrink: 0 }}
-            />
-            <span aria-hidden style={{ width: 20, height: 20, borderRadius: 999, background: "#fff", marginLeft: -42, marginRight: 22, transform: gettingSurvey ? "translateX(20px)" : "translateX(2px)", transition: "transform 180ms cubic-bezier(0.16, 1, 0.3, 1)", boxShadow: "0 1px 3px rgba(15,23,42,0.2)", pointerEvents: "none" }} />
-          </label>
+        <div style={{ paddingBottom: 12 }}>
+          {lockedOff ? (
+            /* Late: enquiries answered, can't quietly re-add — email the progressor. */
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>No survey on your file</p>
+              <p style={{ margin: "2px 0 10px", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
+                Your enquiries have been answered, so to add a survey now please talk to your progressor{survey.progressorName ? ` (${survey.progressorName})` : ""}.
+              </p>
+              {mailto && (
+                <a
+                  href={mailto}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", borderRadius: 10, border: `1px solid ${P.border}`, background: P.primaryBg, color: P.primary, textDecoration: "none", fontSize: 13, fontWeight: 600 }}
+                >
+                  <span>Email your progressor</span>
+                  <ArrowRight size={14} weight="bold" />
+                </a>
+              )}
+            </div>
+          ) : confirmingOff ? (
+            /* Confirm turning the survey off. */
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Mark no survey?</p>
+              <p style={{ margin: "2px 0 12px", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
+                This marks the survey as not required. We and the other side will see you&apos;re not getting a survey. You can turn it back on here until your enquiries are answered.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={() => setConfirmingOff(false)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
+                <button type="button" onClick={turnOff} disabled={busy} className="portal-menu-btn" style={btnPrimary}>{busy ? "Saving…" : "Yes, no survey"}</button>
+              </div>
+            </div>
+          ) : (
+            /* Toggle row. On → off asks to confirm; off → on re-enables directly. */
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: P.textPrimary }}>Getting a survey</p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: P.textMuted, lineHeight: 1.45 }}>
+                  {gettingSurvey
+                    ? "Turn off if you're not getting a survey."
+                    : "Turn back on to add the survey to your progress."}
+                </p>
+              </div>
+              <label style={{ display: "inline-flex", alignItems: "center", cursor: busy ? "wait" : "pointer", flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={gettingSurvey}
+                  disabled={busy}
+                  onChange={(e) => (e.target.checked ? turnOn() : setConfirmingOff(true))}
+                  style={{ appearance: "none", width: 44, height: 26, borderRadius: 999, background: gettingSurvey ? P.primary : "rgba(15,23,42,0.15)", position: "relative", cursor: "inherit", transition: "background 150ms ease", flexShrink: 0 }}
+                />
+                <span aria-hidden style={{ width: 20, height: 20, borderRadius: 999, background: "#fff", marginLeft: -42, marginRight: 22, transform: gettingSurvey ? "translateX(20px)" : "translateX(2px)", transition: "transform 180ms cubic-bezier(0.16, 1, 0.3, 1)", boxShadow: "0 1px 3px rgba(15,23,42,0.2)", pointerEvents: "none" }} />
+              </label>
+            </div>
+          )}
         </div>
       )}
 
-      {gettingSurvey && (
+      {gettingSurvey && !confirmingOff && (
         <div style={{ borderTop: survey.applicable ? `0.5px solid ${P.borderSubtle}` : undefined, paddingTop: survey.applicable ? 12 : 0 }}>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: P.textSecondary, lineHeight: 1.5 }}>
             Getting a survey is worth it for most purchases. We&apos;ll match you with local firms that cover your area.

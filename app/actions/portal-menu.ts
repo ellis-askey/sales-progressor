@@ -66,7 +66,14 @@ export type MyPortalDetails = {
     phone: string | null;
   } | null;
   chainAgent: PortalChainAgent;
-  survey: { applicable: boolean; skipped: boolean; definitionId: string | null };
+  survey: {
+    applicable: boolean;
+    skipped: boolean;
+    definitionId: string | null;
+    canReenable: boolean;
+    progressorName: string | null;
+    progressorEmail: string | null;
+  };
 };
 
 export async function getMyPortalDetailsAction(token: string): Promise<MyPortalDetails> {
