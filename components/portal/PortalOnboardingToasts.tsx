@@ -158,11 +158,11 @@ function IOSInstallSheet({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end"
-      style={{ background: "rgba(0,0,0,0.45)" }}
       onClick={onClose}
     >
+      <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
       <div
-        className="w-full rounded-t-3xl p-6"
+        className="portal-sheet relative w-full max-w-lg mx-auto rounded-t-3xl p-6"
         style={{ background: "#FFFFFF", boxShadow: P.shadowXl }}
         onClick={(e) => e.stopPropagation()}
       >

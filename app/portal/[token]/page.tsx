@@ -725,9 +725,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                     return photo ? (
                       <UserAvatar user={{ name: entry.confirmedByClient ? "You" : (entry.completedByName ?? "Your team"), image: photo }} size={28} />
                     ) : (
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: isOtherSide ? P.successBg : P.primaryBg }}>
-                        <UserCircle size={18} weight="fill" style={{ color: isOtherSide ? P.success : P.primaryText }} />
-                      </div>
+                      <UserCircle size={28} weight="fill" className="flex-shrink-0" style={{ color: isOtherSide ? P.success : P.primary }} />
                     );
                   })()}
                   <div className="flex-1 min-w-0">

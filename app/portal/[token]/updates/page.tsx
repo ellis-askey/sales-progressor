@@ -138,12 +138,7 @@ export default async function PortalUpdatesPage({
                             <UserAvatar user={{ name: entry.confirmedByClient ? "You" : (entry.completedByName ?? "Your team"), image: photo }} size={32} />
                           </div>
                         ) : (
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{ background: isOtherSide ? P.successBg : P.primaryBg }}
-                          >
-                            <UserCircle size={20} weight="fill" style={{ color: isOtherSide ? P.success : P.primaryText }} />
-                          </div>
+                          <UserCircle size={32} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: isOtherSide ? P.success : P.primary }} />
                         );
                       })()}
                       <div className="flex-1 min-w-0">
