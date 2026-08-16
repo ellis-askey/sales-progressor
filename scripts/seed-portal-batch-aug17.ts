@@ -26,6 +26,37 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "../lib/prisma";
 import { computeAutoNrCodes } from "../lib/milestone-auto-nr";
 import { DIRECT_PREREQUISITES } from "../lib/milestone-prerequisites";
+import { uploadToStorage } from "../lib/supabase-storage";
+
+// A tiny valid-ish PDF so seeded documents actually download.
+const MINIMAL_PDF = Buffer.from(
+  "%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 300]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n",
+);
+
+async function seedDoc(
+  txId: string,
+  opts: { filename: string; docType: string; contactId?: string | null; shared?: boolean },
+) {
+  const path = `${txId}/seed-${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+  try {
+    await uploadToStorage(path, MINIMAL_PDF, "application/pdf");
+  } catch (e) {
+    console.warn("  (storage upload failed, row will still be created)", e);
+  }
+  await prisma.transactionDocument.create({
+    data: {
+      transactionId: txId,
+      contactId: opts.contactId ?? null,
+      filename: opts.filename,
+      storagePath: path,
+      fileSize: MINIMAL_PDF.length,
+      mimeType: "application/pdf",
+      source: opts.contactId ? "portal" : "agent",
+      docType: opts.docType,
+      sharedWithOtherSide: opts.shared ?? false,
+    },
+  });
+}
 
 const EMILY_EMAIL = "emily@hartwellpartners.co.uk";
 const BURNER_EMAIL = "ellisaskey+portalbatch@googlemail.com";
@@ -205,6 +236,12 @@ async function main() {
       content: "Your lender has released the funds to your solicitor ready for completion. We'll confirm as soon as the money is on its way.",
     },
   });
+
+  // Documents tab: MOS from the agent (file-level) + a buyer upload with an
+  // example already shared to the other side.
+  await seedDoc(ex.txId, { filename: "Memorandum of Sale", docType: "mos", contactId: null });
+  await seedDoc(ex.txId, { filename: "Mortgage offer.pdf", docType: "mortgage-offer", contactId: ex.buyerId, shared: false });
+  await seedDoc(ex.txId, { filename: "Buildings insurance.pdf", docType: "buildings-insurance", contactId: ex.buyerId, shared: true });
 
   // 2. Pre-exchange file (add expected exchange to calendar)
   const pre = await makeFile({
