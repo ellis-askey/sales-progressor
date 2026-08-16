@@ -180,7 +180,7 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
 
             <div className="px-6 pb-6 pt-2">
               <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
-                Are you sure?
+                {milestone.eventDateRequired ? "When is this happening?" : "Are you sure?"}
               </p>
               {confirmCopy && (
                 <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
