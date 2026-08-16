@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { House, Check, ChatCircle } from "@phosphor-icons/react/dist/ssr";
+import { House, Check, ChatCircle, Package, Key } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 
 export function PortalWelcomeSheet({ token, side }: { token: string; side: "vendor" | "purchaser" }) {
@@ -56,14 +56,14 @@ export function PortalWelcomeSheet({ token, side }: { token: string; side: "vend
             what&apos;s happening along the way.
           </p>
 
-          <Stepper startNode={startNode} />
+          <Stepper startNode={startNode} side={side} />
 
           <div className="flex flex-col">
             <Point icon={<House size={18} weight="fill" />} title="Follow your progress">
               See what&apos;s been completed, what&apos;s happening now and what comes next.
             </Point>
             <div className="h-px my-4" style={{ background: P.border }} />
-            <Point solid icon={<Check size={16} weight="bold" />} title="Confirm your steps">
+            <Point icon={<Check size={18} weight="bold" />} title="Confirm your steps">
               When you complete something, confirm it here and we&apos;ll keep everyone updated with the latest progress.
             </Point>
             <div className="h-px my-4" style={{ background: P.border }} />
@@ -75,8 +75,8 @@ export function PortalWelcomeSheet({ token, side }: { token: string; side: "vend
 
           <button
             onClick={dismiss}
-            className="pbtn pbtn-press w-full mt-6 py-3.5 rounded-xl text-[15px] font-bold"
-            style={{ background: P.primaryBg, color: P.primary, border: "1px solid rgba(255,107,74,0.35)" }}
+            className="pbtn pbtn-press w-full mt-6 py-3.5 rounded-xl text-[15px] font-bold text-white"
+            style={{ background: P.heroGradient, boxShadow: "0 2px 8px rgba(255,107,74,0.35)" }}
           >
             Got it
           </button>
@@ -87,7 +87,10 @@ export function PortalWelcomeSheet({ token, side }: { token: string; side: "vend
   );
 }
 
-function Stepper({ startNode }: { startNode: string }) {
+function Stepper({ startNode, side }: { startNode: string; side: "vendor" | "purchaser" }) {
+  // Moving day gets a themed, still-upcoming glyph: a moving box for buyers,
+  // keys for sellers (handing over). Muted, inside the outline node.
+  const MovingIcon = side === "vendor" ? Key : Package;
   return (
     <div className="flex items-start mb-7 px-1">
       {/* Done */}
@@ -109,9 +112,11 @@ function Stepper({ startNode }: { startNode: string }) {
       </div>
       {/* Dashed connector */}
       <div className="flex-1 mx-1.5" style={{ marginTop: 13, borderTop: `2px dashed ${P.border}` }} />
-      {/* Moving day */}
+      {/* Moving day (upcoming) */}
       <div className="flex flex-col items-center flex-shrink-0">
-        <div className="w-7 h-7 rounded-full" style={{ border: `2px solid ${P.border}` }} />
+        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: `2px solid ${P.border}` }}>
+          <MovingIcon size={14} weight="regular" color={P.textMuted} />
+        </div>
         <span className="text-[12px] mt-2 whitespace-nowrap" style={{ color: P.textSecondary }}>Moving day</span>
       </div>
     </div>
@@ -122,18 +127,16 @@ function Point({
   icon,
   title,
   children,
-  solid,
 }: {
   icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
-  solid?: boolean;
 }) {
   return (
     <div className="flex items-start gap-3.5">
       <div
-        className={`w-9 h-9 flex items-center justify-center flex-shrink-0 ${solid ? "rounded-full" : "rounded-xl"}`}
-        style={solid ? { background: P.primary, color: "#FFFFFF" } : { background: P.primaryBg, color: P.primary }}
+        className="w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-xl"
+        style={{ background: P.primaryBg, color: P.primary }}
       >
         {icon}
       </div>
