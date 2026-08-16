@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useOptimistic, useTransition, useRef } from "react";
+import { useState, useOptimistic, useTransition, useRef, useEffect } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
@@ -76,6 +76,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [error, setError]                   = useState<string | null>(null);
   const [activeSide, setActiveSide]         = useState<"own" | "other">("own");
   const swipeRef                            = useRef<HTMLDivElement | null>(null);
+  const settleTimer                         = useRef<number | null>(null);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
@@ -209,7 +210,20 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     if (!el) return;
     const next = el.scrollLeft > el.clientWidth / 2 ? "other" : "own";
     setActiveSide((prev) => (prev === next ? prev : next));
+    // Settle: a slow drag or trackpad flick can leave mandatory scroll-snap
+    // resting between the two panels. When scrolling stops (~140ms of quiet),
+    // nudge it to the nearest side so it never sticks halfway.
+    if (settleTimer.current) window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => {
+      const e2 = swipeRef.current;
+      if (!e2) return;
+      const target = next === "other" ? e2.clientWidth : 0;
+      if (Math.abs(e2.scrollLeft - target) > 2) {
+        e2.scrollTo({ left: target, behavior: "smooth" });
+      }
+    }, 140);
   }
+  useEffect(() => () => { if (settleTimer.current) window.clearTimeout(settleTimer.current); }, []);
 
   return (
     <>
@@ -248,7 +262,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         className="scrollbar-hide"
         style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10 }}
       >
-        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", paddingInline: 16 }}>
+        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
           <div className="space-y-3">
         {/* ── Your milestones ───────────────────────────────────── */}
         {groups.map((group, gIdx) => {
@@ -385,7 +399,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           </div>
         </div>
         {hasOtherSide && (
-          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", paddingInline: 16 }}>
+          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
             <div className="space-y-3">
               <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
                 <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${P.border}` }}>
@@ -523,7 +537,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Not getting a survey?
               </p>
               <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
-                This marks both "Book your survey" and "Survey report received" as not required. We and the other side will see you&apos;re not getting a survey. You can turn it back on from your menu until your enquiries are answered.
+                This will mark &apos;Book your survey&apos; and &apos;Survey report received&apos; as not required. We&apos;ll also let the other side know that you&apos;re not getting a survey. You can change this from your menu at any time until your solicitor&apos;s enquiries have been satisfied.
               </p>
               <button
                 onClick={() => skipSurvey(skipSurveyId!)}
