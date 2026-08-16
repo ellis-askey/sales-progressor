@@ -109,21 +109,21 @@ function RowEditor({ row }: { row: UpdateRow }) {
         <div className="space-y-4 px-4 pb-4">
           {/* Live preview */}
           <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3">
-            <p className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Preview — the client's own feed</p>
+            <p className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Preview (client's own feed)</p>
             <p className="text-sm font-medium text-neutral-100">{ownHeader}</p>
             {own.trim() && <p className="mt-0.5 text-[13px] text-neutral-400">{own}</p>}
-            <p className="mb-1 mt-3 text-[10px] uppercase tracking-wider text-neutral-500">Preview — the other party's feed</p>
+            <p className="mb-1 mt-3 text-[10px] uppercase tracking-wider text-neutral-500">Preview (other party's feed)</p>
             <p className="text-sm font-medium text-neutral-100">{otherHeader}</p>
             {other.trim() && <p className="mt-0.5 text-[13px] text-neutral-400">{other}</p>}
           </div>
 
           <Field
             label="Confirmation clause"
-            help={'The part after "your" / "the seller’s". e.g. "solicitor has ordered the searches"'}
+            help={'The part after "your" / "the seller\'s". e.g. "solicitor has ordered the searches"'}
             value={core} onChange={setCore} base={row.coreBase}
           />
-          <Field label="Subtext — the client's own feed" value={own} onChange={setOwn} base={row.subtextOwnBase} textarea />
-          <Field label="Subtext — the other party's feed" value={other} onChange={setOther} base={row.subtextOtherBase} textarea />
+          <Field label="Subtext (client's own feed)" value={own} onChange={setOwn} base={row.subtextOwnBase} textarea />
+          <Field label="Subtext (other party's feed)" value={other} onChange={setOther} base={row.subtextOtherBase} textarea />
 
           <div className="flex items-center gap-3">
             <button type="button" onClick={save} disabled={busy}
