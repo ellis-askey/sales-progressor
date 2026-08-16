@@ -4,7 +4,7 @@
 
 Read this before proposing any portal feature. If an idea is already on the "Declined" list, don't raise it again. If it's "Deferred", note the trigger before suggesting we start. Add new decisions here as they're made — one line of rationale each, dated.
 
-Last updated: 2026-08-16 (SDLT + completion countdown shipped to prod).
+Last updated: 2026-08-17 (welcome sheet, exchange-switched costs card, and email-your-conveyancer shipped to prod).
 
 Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) · ❌ Declined (do not re-raise)
 
@@ -16,6 +16,9 @@ Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) 
 |---|---|---|
 | **Completion countdown** | Lives in the post-exchange banner: property photo runs to the top, one heavy-frost card holds the big live day count, an exchange → moving-day progress bar, and Add to calendar. Staging + prod. | 2026-08-16 |
 | **SDLT / stamp-duty calculator** | Buyer Overview card showing a standard-rate estimate; tap opens a sheet to edit the price and toggle first-time-buyer / additional-property, with a band breakdown capped at the purchase price. England & NI ([`lib/sdlt.ts`](lib/sdlt.ts)). Staging + prod. | 2026-08-16 |
+| **First-visit welcome sheet** | One-time bottom sheet on a client's first open (localStorage-gated): big "Your purchase/sale starts here", a sale-agreed → in-progress → moving-day stepper (gently pulsing in-progress node), and three points. Side-aware. Portalled for the clean slide-up. Staging + prod. | 2026-08-17 |
+| **"Your costs" card, exchange-switched (buyers)** | Before exchange: the standalone SDLT estimate card only. At exchange it is replaced by "Your costs" — the buyer confirms deposit paid + mortgage advance (both persisted, `clientDepositGBP`/`clientMortgageGBP`) and sees estimated funds still to send (price − deposit − mortgage + SDLT), with a fees caveat. One or the other, never both. Staging + prod. | 2026-08-17 |
+| **Email your conveyancer** | Email button on the solicitor row of the "Your team" card (both sides). Opens the client mail app: To = conveyancer, CC = agency address (fallback `ellis@thesalesprogressor.co.uk`), subject = "Purchase/Sale of {address} - {client names}". Only shows when the solicitor email is on file. Team card reordered: solicitor, then progressor/agent, then chain agent. Staging + prod. | 2026-08-17 |
 
 ## 🔜 Approved / queued to build
 
@@ -24,8 +27,6 @@ Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) 
 | **Post-completion review request** | On the completion page ([`complete/page.tsx`](app/portal/[token]/complete/page.tsx)) — highest-intent moment. Ask for a Google/Trustpilot review. | 2026-08-16 |
 | **Refer a friend** | Also post-completion. Green-lit alongside the review request. | 2026-08-16 |
 | **Documents as a tab in the client menu** | Wanted, but **needs full planning first** (own spec before any build). Direction: add tabs to the client menu, documents is one tab. A central place to view/download the contract pack, searches, EPC, memorandum, completion statement, etc. Today documents only appear inline in the Updates timeline; clients can upload (searches) but not browse. | 2026-08-16 |
-| **First-visit welcome / orientation** | Required. One-time bottom sheet on a client's first portal open (localStorage-gated like the install/push toasts): a warm 3-point intro (what this is, what you can do, where your team is). | 2026-08-17 |
-| **"Your costs" overview card (buyers)** | The honest cost-*overview* version (not a precise balance — see Deferred): price, estimated deposit, the SDLT estimate folded in, and "your solicitor confirms the exact balance". Likely replaces the standalone SDLT card, shown until completion. | 2026-08-17 |
 
 **Covered already (not a new build):** a persistent "what we need from you" panel — the Overview "Your next step" + confirm already surfaces the client's next required action. Only gap: multiple concurrent asks / non-milestone document requests.
 
