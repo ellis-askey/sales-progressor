@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
-import { getMilestoneUpdateSubtext } from "@/lib/portal-copy";
+import { getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
 import { P, PortalPill } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
@@ -161,10 +161,11 @@ export default async function PortalUpdatesPage({
                           })}
                         </p>
                         {(() => {
-                          // Own-side entries only: the subtext is written from the
-                          // owner's perspective ("your solicitor"), so it reads wrong
-                          // under the other side's confirmations.
-                          const sub = entry.side === side ? getMilestoneUpdateSubtext(entry.code) : null;
+                          // Own side: first-person "your solicitor" subtext. Other
+                          // side: third-person "the seller/buyer" subtext.
+                          const sub = entry.side === side
+                            ? getMilestoneUpdateSubtext(entry.code)
+                            : getMilestoneUpdateSubtextOther(entry.code);
                           return sub ? (
                             <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{sub}</p>
                           ) : null;

@@ -1705,6 +1705,58 @@ export function getMilestoneUpdateSubtext(code: string): string | null {
   return UPDATE_SUBTEXT[code] ?? null;
 }
 
+// The reverse: subtext shown when the OTHER party's step appears in your feed
+// (a buyer watching the seller's VM step, or a seller watching the buyer's PM
+// step). Third-person about the other side. Keyed by the other side's code, so
+// VM codes carry the "buyer sees" wording and PM codes the "seller sees" wording.
+// Founder-authored 2026-08-16.
+const UPDATE_SUBTEXT_OTHER: Record<string, string> = {
+  // ── Seller's steps, as a buyer sees them (VM codes) ──
+  VM1: "The seller's solicitor can now begin the legal work for the sale and prepare the initial paperwork.",
+  VM2: "The seller and their solicitor have received the agreed sale details and can begin progressing the transaction.",
+  VM3: "The seller has received their solicitor's initial paperwork to complete so the legal work can get underway.",
+  VM4: "The seller has completed the identity and anti-money laundering checks required by their solicitor.",
+  VM5: "The seller has received the property forms they need to complete, including details about the property and what's included in the sale.",
+  VM6: "The seller has returned their completed property forms, allowing their solicitor to prepare the draft contract pack.",
+  VM7: "The seller's solicitor has issued the draft contract pack to your solicitor for review.",
+  VM8: "The seller's solicitor has requested the management information required for the property.",
+  VM9: "The seller's solicitor has received the management information and can now provide it to your solicitor for review.",
+  VM10: "The seller's solicitor has received your solicitor's initial enquiries and can begin working through the replies.",
+  VM21: "Your solicitor is satisfied with the replies to all enquiries. This is a significant step towards being ready to exchange.",
+  VM16: "The seller has received their contract documents to review and sign ready for exchange.",
+  VM17: "The seller has signed and returned their contract documents, ready for their solicitor to proceed towards exchange.",
+  VM18: "The seller's solicitor has confirmed they have everything they need to exchange contracts.",
+  VM19: "Contracts have been exchanged, making the transaction legally binding and fixing the completion date.",
+  VM20: "Completion has taken place and the property is now legally yours. The keys can be released to you.",
+  // ── Buyer's steps, as a seller sees them (PM codes) ──
+  PM1: "The buyer's solicitor can now begin the legal work for the purchase.",
+  PM2: "The buyer and their solicitor have received the agreed sale details and can begin progressing the transaction.",
+  PM3: "The buyer has completed the identity, anti-money laundering and source of funds checks required by their solicitor.",
+  PM4: "The buyer's solicitor has received the initial funds needed to order searches and progress the legal work.",
+  PM5: "The buyer's full mortgage application has been submitted to their lender for assessment.",
+  PM6: "The buyer's lender has arranged its valuation of the property as part of the mortgage application.",
+  PM11: "The buyer's mortgage has been formally approved and their solicitor has received a copy of the offer.",
+  PM9: "The buyer has arranged their survey of the property.",
+  PM10: "The buyer has received their survey report and can review any points raised.",
+  PM7: "The buyer's solicitor has received the draft contract pack and can now review the legal documents.",
+  PM8: "The buyer's solicitor has ordered the property searches required for the purchase.",
+  PM12: "The buyer's solicitor has received the management information and can now review it as part of their legal work.",
+  PM13: "All of the buyer's property search results have been received and can now be reviewed by their solicitor.",
+  PM14: "The buyer's solicitor has raised their initial enquiries for the seller's solicitor to answer.",
+  PM20: "The buyer's solicitor is satisfied with the replies to all enquiries. This is a significant step towards being ready to exchange.",
+  PM21: "The buyer has received their solicitor's final report on the purchase to review before proceeding.",
+  PM22: "The buyer has received their contract documents to review and sign ready for exchange.",
+  PM23: "The buyer has signed and returned their contract documents, ready for their solicitor to proceed towards exchange.",
+  PM24: "The buyer's solicitor has received the deposit required for exchange.",
+  PM25: "The buyer's solicitor has confirmed they have everything they need to exchange contracts.",
+  PM26: "Contracts have been exchanged, making the transaction legally binding and fixing the completion date.",
+  PM27: "Completion has taken place and the sale of your property is complete. The keys can now be released to the buyer.",
+};
+
+export function getMilestoneUpdateSubtextOther(code: string): string | null {
+  return UPDATE_SUBTEXT_OTHER[code] ?? null;
+}
+
 export function getMilestoneCopy(code: string): PortalCopy {
   return copy[code] ?? { label: code, who: "solicitor" };
 }
