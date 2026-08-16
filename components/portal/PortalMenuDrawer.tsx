@@ -40,6 +40,7 @@ type Props = {
 
 export function PortalMenuDrawer({ open, onClose, token, contactName, contactRole, scrollToSection }: Props) {
   const agentsRef = useRef<HTMLDivElement>(null);
+  const solicitorRef = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -56,11 +57,16 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
     return () => window.clearTimeout(t);
   }, [open]);
 
-  // Deep-link: scroll the Your-agents section into view once content settles.
+  // Deep-link: scroll the requested section into view once content settles.
+  // The team card routes here — "agents" from the selling-agent row, "solicitor"
+  // from the conveyancer row.
   useEffect(() => {
     if (!open || !contentReady || !details) return;
     if (scrollToSection === "agents" && agentsRef.current) {
       agentsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (scrollToSection === "solicitor" && solicitorRef.current) {
+      solicitorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [open, contentReady, details, scrollToSection]);
 
@@ -190,7 +196,9 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           ) : details ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <YourDetailsSection details={details} token={token} onSaved={reload} />
-              <YourSolicitorSection details={details} token={token} onSaved={reload} />
+              <div ref={solicitorRef}>
+                <YourSolicitorSection details={details} token={token} onSaved={reload} />
+              </div>
               <div ref={agentsRef}>
                 <YourAgentsSection details={details} token={token} onSaved={reload} />
               </div>

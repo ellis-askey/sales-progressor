@@ -546,6 +546,13 @@ body {
 .portal-chev:hover .portal-chev-i,
 .portal-chev:focus-visible .portal-chev-i { transform: translateX(4px); }
 
+/* Tappable "Your team" rows (solicitor / selling agent) — whole row is the
+   control, a subtle wash confirms the tap target. */
+.portal-team-row { transition: background 150ms ease; }
+.portal-team-row:hover { background: rgba(15, 23, 42, 0.025); }
+.portal-team-row:active { background: rgba(15, 23, 42, 0.05); }
+.portal-team-row:focus-visible { outline: 2px solid rgba(255, 107, 74, 0.5); outline-offset: -2px; }
+
 /* Help pill clears the portal bottom nav (portal-scoped; agent app untouched). */
 .portal-scope .feedback-trigger-wrap { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 .portal-scope .feedback-panel-wrap  { bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }

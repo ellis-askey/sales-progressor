@@ -8,7 +8,7 @@
 
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
-import { OpenAgentsButton } from "@/components/portal/OpenAgentsButton";
+import { PortalTeamManageRow } from "@/components/portal/PortalTeamManageRow";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
 function initials(name: string): string {
@@ -149,15 +149,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
       )}
 
       {solicitorFirmName && (
-        <div
-          style={{
-            display: "flex",
-            gap: 13,
-            padding: "13px 18px",
-            alignItems: "flex-start",
-            borderTop: `1px solid ${P.borderSubtle}`,
-          }}
-        >
+        <PortalTeamManageRow section="solicitor" icon="edit" label="Update your conveyancer">
           <div
             style={{
               width: 46,
@@ -182,11 +174,15 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>Your conveyancer</p>
           </div>
-        </div>
+        </PortalTeamManageRow>
       )}
 
       {showAgentRow && (
-        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: `1px solid ${P.borderSubtle}` }}>
+        <PortalTeamManageRow
+          section="agents"
+          icon={agentHas ? "edit" : "add"}
+          label={agentHas ? "Edit your selling agent" : "Add your selling agent"}
+        >
           <div
             style={{
               width: 46, height: 46, borderRadius: 12, flexShrink: 0,
@@ -210,8 +206,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
                 : "Selling somewhere too? Add your agent to keep the chain moving."}
             </p>
           </div>
-          <OpenAgentsButton label={agentHas ? "Edit" : "Add"} />
-        </div>
+        </PortalTeamManageRow>
       )}
     </PortalGlassCard>
   );
