@@ -9,7 +9,6 @@ import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
-import { PortalDesignLab } from "./PortalDesignLab";
 import { usePortalPick } from "@/lib/glass/portal-context";
 import { classFor } from "@/lib/glass/variants";
 
@@ -154,8 +153,9 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
             {/* Menu (right). Agency name removed for now — it truncated the
                 greeting; it needs a new home elsewhere in the portal. */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              {/* Founder-only Design Lab flask (renders null for clients) */}
-              <PortalDesignLab />
+              {/* Design Lab flask hidden 2026-08-16 (founder) — glass picks
+                  stay live; re-add <PortalDesignLab /> here to reopen the picker
+                  before we bake the final JSON. */}
               {/* Hamburger — opens the menu drawer. Borderless, same 34px tap. */}
               <button
                 type="button"
