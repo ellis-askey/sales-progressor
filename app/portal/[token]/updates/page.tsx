@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
+import { getMilestoneCopy } from "@/lib/portal-copy";
 import { P, PortalPill } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
@@ -159,6 +160,12 @@ export default async function PortalUpdatesPage({
                             milestoneName: entry.label,
                           })}
                         </p>
+                        {(() => {
+                          const meaning = getMilestoneCopy(entry.code).description;
+                          return meaning ? (
+                            <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{meaning}</p>
+                          ) : null;
+                        })()}
                         <div className="mt-1.5 flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-1.5">
                           <div className="flex items-center flex-wrap gap-x-2 gap-y-1 min-w-0">
                             {entry.eventDate && (
