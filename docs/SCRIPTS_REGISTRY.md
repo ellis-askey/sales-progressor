@@ -238,3 +238,11 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author:** Claude, 2026-08-16
 - **Deletion criteria:** delete once the completion-countdown + SDLT features are signed off by Ellis.
 - **Justification:** demo data seeding, not a feature/test/npm-script. Additive and idempotent-safe (creates only), guarded to Emily's account.
+
+### scripts/seed-portal-batch-aug17.ts
+
+- **Purpose:** Additively creates two demo files on Emily's account (one exchanged, one pre-exchange) so Ellis can view the 2026-08-17 portal batch: Save-contact vCard, new-since-last-visit markers, and add-expected-exchange-to-calendar. Also sets the agency sender email + Emily's phone + an own-side conveyancer with email/phone so the buttons have data.
+- **Lifetime:** `one-shot`
+- **Author:** Claude, 2026-08-17
+- **Deletion criteria:** delete once the Aug-17 portal batch is signed off by Ellis.
+- **Justification:** demo data seeding, not a feature/test/npm-script. Staging-only (refuses prod) because it mutates shared rows (agency sender, Emily's phone); file creation is additive.
