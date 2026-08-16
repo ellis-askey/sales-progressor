@@ -209,11 +209,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           are kept on disk for revert; unused as of this change. */}
       {/* First-visit welcome (once per client, all viewports). */}
       {!isRespond && (
-        <PortalWelcomeSheet
-          token={token}
-          firstName={firstName}
-          saleWord={roleType === "vendor" ? "sale" : "purchase"}
-        />
+        <PortalWelcomeSheet token={token} side={roleType === "vendor" ? "vendor" : "purchaser"} />
       )}
 
       {!isRespond && (
