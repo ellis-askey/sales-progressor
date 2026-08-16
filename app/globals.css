@@ -599,6 +599,13 @@ body {
 .portal-sheet { animation: portal-sheet-in 340ms cubic-bezier(0.16, 1, 0.3, 1); }
 .portal-sheet-backdrop { animation: portal-sheet-backdrop-in 260ms ease; }
 
+/* Full-page "Customize overview" panel: slides in from the right. */
+@keyframes portal-panel-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.portal-panel { animation: portal-panel-in 300ms cubic-bezier(0.16, 1, 0.3, 1); will-change: transform; }
+
 /* Gentle "in progress" pulse for the welcome-sheet stepper node. Slow + subtle. */
 @keyframes portal-inprogress-pulse {
   0%, 100% { transform: scale(1);    opacity: 0.5; }
@@ -611,6 +618,7 @@ body {
   .portal-fade-in,
   .portal-sheet,
   .portal-sheet-backdrop,
+  .portal-panel,
   .portal-inprogress-pulse { animation: none; }
 }
 

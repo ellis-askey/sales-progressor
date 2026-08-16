@@ -236,6 +236,8 @@ async function getPortalDataInner(token: string) {
       // before the layout's fire-and-forget visit-stamp updates it (5-min
       // debounced), so it reflects the PREVIOUS visit in practice.
       lastVisitedPortalAt: true,
+      // Client-chosen overview card order + hidden set ("Customize overview").
+      overviewLayout: true,
     },
   });
   if (!contact) return null;

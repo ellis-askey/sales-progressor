@@ -437,3 +437,28 @@ export async function portalSaveCostsAction(input: {
   revalidatePath(`/portal/${input.token}`, "page");
   return { ok: true };
 }
+
+// Persist the client's "Customize overview" layout: the order of moveable cards
+// and which are hidden. Keyed to the contact's own file via the portal token.
+export async function portalSaveOverviewLayout(input: {
+  token: string;
+  order: string[];
+  hidden: string[];
+}): Promise<{ ok: boolean }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false };
+
+  const clean = (arr: unknown): string[] =>
+    Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string").slice(0, 40) : [];
+
+  await prisma.contact.update({
+    where: { id: contact.id },
+    data: { overviewLayout: { order: clean(input.order), hidden: clean(input.hidden) } },
+  });
+
+  revalidatePath(`/portal/${input.token}`, "page");
+  return { ok: true };
+}

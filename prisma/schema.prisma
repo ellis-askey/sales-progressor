@@ -668,6 +668,10 @@ model Contact {
   // back to the contact's initials, then the generic client silhouette. The
   // client sets this themselves from the portal menu.
   image                 String?
+  // Client-chosen overview layout (portal "Customize overview", 2026-08-17).
+  // Shape: { order: string[]; hidden: string[] } of moveable card keys. Fixed
+  // cards ignore it. Null = default order, nothing hidden.
+  overviewLayout        Json?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
