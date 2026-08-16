@@ -432,6 +432,8 @@ export function PortalOverviewHero({
             src={photoUrl}
             alt=""
             aria-hidden
+            fetchPriority="high"
+            decoding="async"
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
@@ -443,7 +445,7 @@ export function PortalOverviewHero({
             aria-hidden
             style={{
               position: "absolute", inset: 0,
-              backgroundImage: "url(/portal-hero-fallback.png)",
+              backgroundImage: "url(/portal-hero-fallback.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center 35%",
             }}
