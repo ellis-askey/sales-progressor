@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { P, PortalPill } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
 import { PortalGlassCard } from "./PortalGlassCard";
@@ -147,8 +148,8 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
         </div>
       </PortalGlassCard>
 
-      {/* Bottom sheet */}
-      {sheetOpen && (
+      {/* Bottom sheet — portalled to <body> so it overlays the viewport. */}
+      {sheetOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
           <div
             className="portal-sheet-backdrop absolute inset-0"
@@ -223,7 +224,8 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

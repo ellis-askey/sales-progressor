@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
@@ -474,8 +475,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         )}
       </div>
 
-      {/* ── Bottom sheet: milestone help / glossary ───────────── */}
-      {helpMilestone && (
+      {/* ── Bottom sheet: milestone help / glossary (portalled) ── */}
+      {helpMilestone && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setHelpMilestone(null)}>
           <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
@@ -526,11 +527,12 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* ── Bottom sheet: skip survey ────────────────────────── */}
-      {skipSurveyId && (
+      {/* ── Bottom sheet: skip survey (portalled) ─────────────── */}
+      {skipSurveyId && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSkipSurveyId(null)}>
           <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
@@ -583,11 +585,12 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* ── Bottom sheet confirm ──────────────────────────────── */}
-      {confirmingMilestone && (
+      {/* ── Bottom sheet confirm (portalled) ──────────────────── */}
+      {confirmingMilestone && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
           <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
@@ -705,7 +708,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
