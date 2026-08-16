@@ -21,6 +21,7 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { PortalStampDutyCard } from "@/components/portal/PortalStampDutyCard";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -92,6 +93,15 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);
+
+  // Exchange date (for the completion-countdown progress bar in the banner):
+  // the real eventDate on the exchange milestone, else when we marked it complete.
+  const exchangeMilestone = milestones.find((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
+  const exchangeDate = exchangeMilestone?.eventDate
+    ? new Date(exchangeMilestone.eventDate).toISOString()
+    : exchangeMilestone?.completedAt
+      ? new Date(exchangeMilestone.completedAt).toISOString()
+      : null;
 
   // Exclude agent/solicitor-only steps (exchange gates, exchange/completion, and
   // "all enquiries satisfied" PM20/VM21) from the client's next-action CTA — a
@@ -444,30 +454,13 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         />
       )}
 
-      {/* ── Exchange banner ─────────────────────────────────────── */}
+      {/* ── Exchange banner (now carries the completion countdown) ─── */}
       {hasExchanged && !hasCompleted && (
-        <>
-          <ExchangeBanner
-            token={token}
-            completionDate={transaction.completionDate ? new Date(transaction.completionDate).toISOString() : null}
-          />
-          {transaction.completionDate && (
-            <a
-              href={`/api/portal/calendar-export/${token}`}
-              download="completion-date.ics"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-[13px] font-semibold transition-colors"
-              style={{ background: P.cardBg, boxShadow: P.shadowSm, color: P.accent }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              Add completion date to calendar
-            </a>
-          )}
-        </>
+        <ExchangeBanner
+          token={token}
+          completionDate={transaction.completionDate ? new Date(transaction.completionDate).toISOString() : null}
+          exchangeDate={exchangeDate}
+        />
       )}
 
       {/* ── Photo hero + Progress Overview + Expected exchange ─────
@@ -571,6 +564,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Stamp duty estimate (buyers, pre-completion) ─────────── */}
+      {side === "purchaser" && !hasCompleted && transaction.purchasePrice != null && (
+        <PortalStampDutyCard priceGBP={transaction.purchasePrice / 100} />
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}

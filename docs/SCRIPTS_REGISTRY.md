@@ -230,3 +230,11 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 
 - Companion docs: [CLAUDE.md Law 15](../CLAUDE.md#law-15--scripts-must-justify), [BUILD_PLAN.md Phase 4](BUILD_PLAN.md#phase-4--scripts-cull-interleaved-from-week-8).
 - Last updated: 2026-08-08.
+
+### scripts/seed-emily-countdown-sdlt.ts
+
+- **Purpose:** Additively creates one exchanged-purchase demo file on Emily's account (£650k, completing in 14 days) so Ellis can view the completion countdown + stamp-duty estimate on one portal link.
+- **Lifetime:** `one-shot`
+- **Author:** Claude, 2026-08-16
+- **Deletion criteria:** delete once the completion-countdown + SDLT features are signed off by Ellis.
+- **Justification:** demo data seeding, not a feature/test/npm-script. Additive and idempotent-safe (creates only), guarded to Emily's account.

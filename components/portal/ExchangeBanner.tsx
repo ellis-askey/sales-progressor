@@ -1,16 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { P } from "./portal-ui";
 
 type Props = {
   token: string;
   completionDate: string | null;
+  /** ISO date contracts exchanged — drives the countdown progress bar. */
+  exchangeDate?: string | null;
 };
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
+// Whole calendar days from today to the target date (local), so "tomorrow" is
+// always 1 regardless of the current time of day.
+function wholeDaysUntil(target: Date): number {
+  const a = new Date(); a.setHours(0, 0, 0, 0);
+  const b = new Date(target); b.setHours(0, 0, 0, 0);
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
 }
 
 function daysUntil(d: string) {
@@ -39,7 +49,7 @@ async function fireConfetti() {
   }, 300);
 }
 
-export function ExchangeBanner({ token, completionDate }: Props) {
+export function ExchangeBanner({ token, completionDate, exchangeDate }: Props) {
   useEffect(() => {
     const key = `exchange-celebrated-${token}`;
     if (!localStorage.getItem(key)) {
@@ -48,13 +58,34 @@ export function ExchangeBanner({ token, completionDate }: Props) {
     }
   }, [token]);
 
-  const days = completionDate
-    ? Math.round((new Date(completionDate).getTime() - Date.now()) / 86400000)
-    : null;
+  // Recompute the day count when the local date rolls over, so a portal left
+  // open ticks the countdown down overnight.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!completionDate) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+      timer = setTimeout(() => { setTick((t) => t + 1); schedule(); }, nextMidnight.getTime() - now.getTime());
+    };
+    schedule();
+    return () => clearTimeout(timer);
+  }, [completionDate]);
 
-  const isToday    = days === 0;
+  const days       = completionDate ? wholeDaysUntil(new Date(completionDate)) : null;
   const isPast     = days !== null && days < 0;
-  const isImminant = days !== null && days > 0 && days <= 7;
+  const isToday    = days === 0;
+  const isTomorrow = days === 1;
+  const isImminent = days !== null && days >= 2 && days <= 7;
+
+  // Progress from exchange day → completion day (0..1).
+  let progress: number | null = null;
+  if (exchangeDate && completionDate) {
+    const ex = new Date(exchangeDate).getTime();
+    const co = new Date(completionDate).getTime();
+    if (co > ex) progress = Math.min(1, Math.max(0, (Date.now() - ex) / (co - ex)));
+  }
 
   return (
     <div
@@ -69,44 +100,68 @@ export function ExchangeBanner({ token, completionDate }: Props) {
       </p>
 
       {completionDate && days !== null && (
-        <div
-          className="mt-4 rounded-xl px-4 py-3 flex items-center justify-between"
-          style={{ background: "rgba(255,255,255,0.18)" }}
-        >
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">
-              {isPast ? "Completed" : "Completion"}
-            </p>
-            <p className="text-[16px] font-semibold text-white mt-0.5">{fmtDate(completionDate)}</p>
-          </div>
-          {!isPast && (
-            <div className="text-right">
-              {isToday ? (
-                <p className="text-[22px] font-bold text-white">Today!</p>
-              ) : (
-                <>
-                  <p className={`text-[36px] font-black text-white leading-none tabular-nums ${isImminant ? "animate-pulse" : ""}`}>
-                    {days}
-                  </p>
-                  <p className="text-[11px] text-white/70 font-semibold uppercase tracking-wide">
-                    {days === 1 ? "day to go" : "days to go"}
-                  </p>
-                </>
-              )}
+        <div className="mt-4 rounded-xl px-4 py-4" style={{ background: "rgba(255,255,255,0.18)" }}>
+          {isPast ? (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">Completion</p>
+              <p className="text-[16px] font-semibold text-white mt-0.5">{fmtDate(completionDate)}</p>
             </div>
+          ) : (
+            <>
+              {isToday || isTomorrow ? (
+                <p className="text-[22px] font-bold text-white leading-tight">
+                  {isToday ? "Completion day is here" : "Completion is tomorrow"}
+                </p>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <span className={`text-[44px] font-black text-white leading-none tabular-nums ${isImminent ? "animate-pulse" : ""}`}>
+                    {days}
+                  </span>
+                  <span className="text-[13px] text-white/80 font-semibold pb-1.5">days until completion</span>
+                </div>
+              )}
+              <p className="text-[14px] text-white/85 font-medium mt-1.5">{fmtDate(completionDate)}</p>
+              {progress !== null && (
+                <div className="mt-3">
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${Math.round(progress * 100)}%`, background: "#fff", transition: "width 600ms ease" }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-white/60 font-semibold uppercase tracking-wide">Exchanged</span>
+                    <span className="text-[10px] text-white/60 font-semibold uppercase tracking-wide">Moving day</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
-      <Link
-        href={`/portal/${token}/exchange`}
-        className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
-        style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
-      >
-        Your exchange guide: what to do now
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </Link>
+
+      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+        {completionDate && !isPast && (
+          <a
+            href={`/api/portal/calendar-export/${token}`}
+            download="completion-date.ics"
+            className="flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
+            style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Add to calendar
+          </a>
+        )}
+        <Link
+          href={`/portal/${token}/exchange`}
+          className="flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
+          style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+        >
+          Exchange guide
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
+      </div>
     </div>
   );
 }
