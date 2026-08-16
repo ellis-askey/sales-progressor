@@ -439,7 +439,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // already been ticked (e.g. "your lender will book a valuation" once
   // PM6 is complete). Without this, the stage gets us into the right
   // pool but individual tips can still talk about completed events.
-  const doneCodes = new Set(milestones.filter((m) => m.isComplete).map((m) => m.code));
+  // "Done" for tip gating = completed OR not_required, so a step the client
+  // opted out of (e.g. "not getting a survey") also hides its tips.
+  const doneCodes = new Set(milestones.filter((m) => m.isComplete || m.isNotRequired).map((m) => m.code));
   const tips  = getStageTips(stage, side, token, doneCodes);
 
   return (
@@ -634,7 +636,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>What happens next</p>
           </div>
-          {COMPLETED_NEXT[side].map((text, i) => (
+          {COMPLETED_NEXT[side].map((item, i) => (
             <div
               key={i}
               className="flex items-start gap-3.5 px-5 py-3.5"
@@ -645,7 +647,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </div>
-              <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>{text}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-semibold" style={{ color: P.textPrimary }}>{item.title}</p>
+                <p className="text-[13px] leading-relaxed mt-0.5" style={{ color: P.textSecondary }}>{item.body}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -658,7 +663,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             // Single tip spreads full-width instead of a narrow scroll card.
             <PortalGlassCard glassId="helpful-to-know" label="Helpful to know" className="p-4">
               <Lightbulb size={18} weight="fill" color={P.warning} style={{ marginBottom: 8 }} />
-              <p className="text-[13px] leading-relaxed" style={{ color: P.textPrimary }}>{tips[0].text}</p>
+              <p className="text-[13.5px] font-semibold mb-1" style={{ color: P.textPrimary }}>{tips[0].title}</p>
+              <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>{tips[0].text}</p>
             </PortalGlassCard>
           ) : (
             <div className="flex gap-3 overflow-x-auto snap-x pb-1" style={{ scrollbarWidth: "none" }}>
@@ -671,7 +677,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                   style={{ width: "220px" }}
                 >
                   <Lightbulb size={18} weight="fill" color={P.warning} style={{ marginBottom: 8 }} />
-                  <p className="text-[13px] leading-relaxed" style={{ color: P.textPrimary }}>{tip.text}</p>
+                  <p className="text-[13.5px] font-semibold mb-1" style={{ color: P.textPrimary }}>{tip.title}</p>
+                  <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>{tip.text}</p>
                 </PortalGlassCard>
               ))}
             </div>
