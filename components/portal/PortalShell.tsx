@@ -129,17 +129,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           variant overrides the surface. Left: a time-of-day greeting. Right:
           the agency name + the menu. */}
       <div
-        className={`${isHome ? "fixed top-0 inset-x-0 z-30" : "sticky top-0 z-20"}${topNavPick ? ` ${classFor(topNavPick)}` : ""}`}
+        className={`${isHome ? "fixed top-0 inset-x-0 z-30" : "sticky top-0 z-20"} ${classFor(topNavPick ?? "v04")}`}
         data-glass-id="portal-topnav"
         data-glass-label="Top nav bar"
-        data-glass-variant={topNavPick ?? "v00"}
-        style={
-          topNavPick
-            ? undefined
-            : isHome
-              ? { background: "linear-gradient(180deg, rgba(248,249,251,0.72) 0%, rgba(248,249,251,0.28) 55%, rgba(248,249,251,0) 100%)" }
-              : { background: "#FFFFFF", boxShadow: P.shadowSm }
-        }
+        data-glass-variant={topNavPick ?? "v04"}
       >
         <div className="max-w-lg mx-auto px-5 py-3">
           <div className="flex items-center justify-between gap-3">
@@ -225,16 +218,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           icon scales up gently. Same 3 tabs, same icons, same labels. */}
       <nav
         aria-label="Primary"
-        className={`fixed bottom-0 inset-x-0 z-20${bottomNavPick ? ` ${classFor(bottomNavPick)}` : ""}`}
+        className={`fixed bottom-0 inset-x-0 z-20 ${classFor(bottomNavPick ?? "v04")}`}
         data-glass-id="portal-bottomnav"
         data-glass-label="Bottom nav bar"
-        data-glass-variant={bottomNavPick ?? "v00"}
-        style={bottomNavPick ? undefined : {
-          background: "rgba(255, 255, 255, 0.82)",
-          borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-        }}
+        data-glass-variant={bottomNavPick ?? "v04"}
       >
         <div className="max-w-lg mx-auto">
           <ul className="grid grid-cols-3 px-2 py-1 m-0 list-none">
