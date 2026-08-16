@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
-import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
+import { getMilestoneCopy, WHO_LABELS, getMilestoneUpdateSubtext } from "@/lib/portal-copy";
 import { P, PortalPill } from "@/components/portal/portal-ui";
 import { calculateProgress } from "@/lib/services/fees";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
@@ -749,7 +749,13 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                         milestoneName: entry.label,
                       })}
                     </p>
-                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtDayMonth(entry.createdAt ?? new Date())}</p>
+                    {entry.side === side && (() => {
+                      const sub = getMilestoneUpdateSubtext(entry.code);
+                      return sub ? (
+                        <p className="text-[12.5px] leading-snug mt-1" style={{ color: P.textSecondary }}>{sub}</p>
+                      ) : null;
+                    })()}
+                    <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>{fmtDayMonth(entry.createdAt ?? new Date())}</p>
                   </div>
                   {/* Bare green tick — the step is done. */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>

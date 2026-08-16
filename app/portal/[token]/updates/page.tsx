@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
-import { getMilestoneCopy } from "@/lib/portal-copy";
+import { getMilestoneUpdateSubtext } from "@/lib/portal-copy";
 import { P, PortalPill } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
@@ -161,12 +161,12 @@ export default async function PortalUpdatesPage({
                           })}
                         </p>
                         {(() => {
-                          // Own-side entries only: the description is written from the
+                          // Own-side entries only: the subtext is written from the
                           // owner's perspective ("your solicitor"), so it reads wrong
                           // under the other side's confirmations.
-                          const meaning = entry.side === side ? getMilestoneCopy(entry.code).description : null;
-                          return meaning ? (
-                            <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{meaning}</p>
+                          const sub = entry.side === side ? getMilestoneUpdateSubtext(entry.code) : null;
+                          return sub ? (
+                            <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{sub}</p>
                           ) : null;
                         })()}
                         <div className="mt-1.5 flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-1.5">

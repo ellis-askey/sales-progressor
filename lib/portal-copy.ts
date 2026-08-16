@@ -1654,6 +1654,57 @@ export function getMilestoneConfirmCopy(code: string): string | null {
   return CONFIRM_COPY[code] ?? null;
 }
 
+// Subtext shown under a milestone confirmation in the activity feeds (Overview
+// "Latest updates" + the Updates tab). Written past-tense from the client's own
+// perspective, so it's only rendered on the viewer's own-side entries. Keyed by
+// milestone code. Founder-authored 2026-08-16.
+const UPDATE_SUBTEXT: Record<string, string> = {
+  // ── Buyer (purchaser) ──
+  PM1: "Your solicitor can now begin the legal work for your purchase. They'll send you their initial forms and requirements to complete.",
+  PM2: "The memorandum confirms the agreed sale details and gives both solicitors the information they need to begin progressing the transaction.",
+  PM3: "Your solicitor has completed the required identity, anti-money laundering and source of funds checks.",
+  PM4: "Your solicitor has received the initial funds needed to cover searches and other upfront costs. This is separate from your purchase deposit.",
+  PM5: "Your full mortgage application has been submitted to your lender for assessment. Your broker or lender will keep you updated as it progresses.",
+  PM6: "Your lender has arranged a valuation to check the property is suitable security for the mortgage. This isn't a survey of the property's condition.",
+  PM11: "Your lender has formally approved your mortgage and sent the offer to your solicitor. Your solicitor will review any conditions attached to it.",
+  PM9: "Your survey is booked. The surveyor will inspect the property and provide a report on its condition and any issues they identify.",
+  PM10: "Your survey report is ready to review. If anything significant has been raised, speak to your solicitor about any further investigation needed.",
+  PM7: "Your solicitor now has the draft contract, title documents and property information forms to review.",
+  PM8: "Your solicitor has ordered the property searches. They'll review the results once they've all been received.",
+  PM12: "Your solicitor has received the management information for the property and can now review it as part of the legal work.",
+  PM13: "All property search results have been received. Your solicitor will review them and raise any points that need further investigation.",
+  PM14: "Your solicitor has sent their initial questions to the seller's solicitor and will review the replies as they come back.",
+  PM20: "Your solicitor is satisfied with the replies to all enquiries. This is a significant step towards being ready to exchange contracts.",
+  PM21: "Your solicitor has sent you their final report on the property. Read it carefully and raise any questions before proceeding.",
+  PM22: "Your solicitor has sent you the contract, TR1 transfer deed and, if applicable, mortgage deed to review and sign.",
+  PM23: "Your signed contract documents have been returned to your solicitor and can now be held ready for exchange.",
+  PM24: "Your solicitor has received your exchange deposit and can hold the funds ready for exchange.",
+  PM25: "Your solicitor has everything they need to exchange. We'll coordinate with the seller's side and the rest of the chain from here.",
+  PM26: "Your purchase is now legally binding and the completion date is fixed. You're officially on the final stretch to moving day.",
+  PM27: "Your purchase is complete and the keys can be released. Your solicitor will now deal with registering your ownership with HM Land Registry.",
+  // ── Seller (vendor) ──
+  VM1: "Your solicitor can now begin the legal work for your sale. They'll send you their initial paperwork and requirements to complete.",
+  VM2: "The memorandum confirms the agreed sale details and gives both solicitors the information they need to begin progressing the transaction.",
+  VM3: "Your solicitor has sent their initial paperwork and requirements. Complete and return everything promptly so they can get started.",
+  VM4: "Your solicitor has completed the required identity and anti-money laundering checks.",
+  VM5: "You've received the TA6 Property Information Form and TA10 Fittings and Contents Form. Complete them carefully and return them to your solicitor.",
+  VM6: "Your completed property forms are back with your solicitor and can be included in the draft contract pack.",
+  VM7: "The buyer's solicitor now has the draft contract, title documents, property forms and other relevant documents to review.",
+  VM8: "Your solicitor has requested the management information needed for the sale. These packs can take some time to arrive.",
+  VM9: "Your solicitor has received the management information and can provide it to the buyer's solicitor for review.",
+  VM10: "The buyer's solicitor has raised their initial questions about the property and legal documents. Your solicitor will work through their replies.",
+  VM21: "The buyer's solicitor is satisfied with the replies to all enquiries. This is a significant step towards being ready to exchange contracts.",
+  VM16: "Your solicitor has sent you the contract and TR1 transfer deed to review and sign.",
+  VM17: "Your signed contract documents are back with your solicitor and can now be held ready for exchange.",
+  VM18: "Your solicitor has everything they need to exchange. We'll coordinate with the buyer's side and the rest of the chain from here.",
+  VM19: "Your sale is now legally binding and the completion date is fixed. You're officially on the final stretch to moving day.",
+  VM20: "Your sale is complete and the keys can be released. Your solicitor will repay any mortgage secured against the property and account to you for the remaining funds.",
+};
+
+export function getMilestoneUpdateSubtext(code: string): string | null {
+  return UPDATE_SUBTEXT[code] ?? null;
+}
+
 export function getMilestoneCopy(code: string): PortalCopy {
   return copy[code] ?? { label: code, who: "solicitor" };
 }
