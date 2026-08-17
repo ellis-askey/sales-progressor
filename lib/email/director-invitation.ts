@@ -1,11 +1,12 @@
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { agencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 
 interface DirectorInvitationEmailInput {
   directorName: string;
   directorEmail: string;
   invitedByName: string;
   agencyName: string;
+  agencyId: string;
   acceptUrl: string;
 }
 
@@ -70,12 +71,14 @@ This invitation expires in 7 days.`;
 </body>
 </html>`;
 
+  const { from, replyTo } = await resolveAgencySender(input.agencyId);
   return sendAgentEmail({
     to: input.directorEmail,
     subject,
     text,
     html,
-    from: agencyFrom(input.agencyName),
+    from,
+    replyTo,
     kind: "team_invite",
     meta: { agencyName: input.agencyName, invitedByName: input.invitedByName },
   });

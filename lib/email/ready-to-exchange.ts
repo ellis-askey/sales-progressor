@@ -15,7 +15,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { preheader } from "@/lib/email/preheader";
-import { resolveSenderForTransaction } from "@/lib/email";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 
 const GATE_CODES = ["VM18", "PM25"];
 
@@ -54,6 +54,7 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
       propertyAddress: true,
       activeBuyerRoundId: true,
       serviceType: true,
+      agencyId: true,
       agency: { select: { name: true } },
       assignedUser: { select: { id: true, name: true, email: true, role: true } },
       agentUser:    { select: { id: true, name: true, email: true, role: true } },
@@ -87,23 +88,15 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
 
   const agencyName = tx.agency?.name ?? "Sales Progressor";
 
-  // White-label the sender to the file's own agency address (same one the
-  // rest of the file's emails come from), so the client doesn't see a
-  // "Sales Progressor" sender. Falls back to the platform default.
+  // White-label the sender to the file's own agency authenticated address (the
+  // same one the rest of the file's emails come from), so the client doesn't
+  // see a "Sales Progressor" sender. Falls back to the platform default when
+  // the agency has no authenticated address.
   const person = tx.serviceType !== "self_managed" ? tx.assignedUser : tx.agentUser;
-  let from: string | undefined;
-  let replyTo: string | undefined;
-  if (person) {
-    try {
-      const resolved = await resolveSenderForTransaction(transactionId, {
-        id: person.id, email: person.email, name: person.name, role: person.role, agencyId: null,
-      });
-      from = resolved.from;
-      replyTo = resolved.replyTo;
-    } catch {
-      // Fall back to the chain-email defaults in the drain.
-    }
-  }
+  const { from, replyTo } = await resolveAgencySender(
+    tx.agencyId,
+    person?.name ? { personFirstName: person.name.trim().split(/\s+/)[0] } : undefined,
+  );
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;

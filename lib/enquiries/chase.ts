@@ -18,7 +18,8 @@
 // OFF by default. See docs/active/enquiries-stage-rework-SPEC.md.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, resolveSenderForTransaction } from "@/lib/email";
+import { sendChainEmail } from "@/lib/email";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
@@ -96,6 +97,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
         select: {
           id: true,
           propertyAddress: true,
+          agencyId: true,
           assignedUserId: true,
           agentUserId: true,
           agency: { select: { name: true } },
@@ -158,26 +160,18 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     const paused = seller ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
     if (!email || paused) continue; // no one to chase on this side yet
 
-    // Replyable per-agency / EXP sender + the signature identity.
-    let from: string | undefined;
-    let replyTo: string | undefined;
+    // Sending address = the file's agency authenticated address (Reply-To
+    // matching), SP fallback when the agency has none (e.g. EXP). The body
+    // signature identity (senderName / agencyName) is resolved separately below.
+    const { from, replyTo } = await resolveAgencySender(tx.agencyId);
     let senderName = tx.agency?.name ?? "The Sales Progressor";
     let agencyName = tx.agency?.name ?? "The Sales Progressor";
     if (ownerId) {
       const agent = await prisma.user.findUnique({
         where: { id: ownerId },
-        select: { id: true, email: true, name: true, role: true, agencyId: true, agency: { select: { name: true } } },
+        select: { id: true, name: true, agencyId: true, agency: { select: { name: true } } },
       });
       if (agent) {
-        const s = await resolveSenderForTransaction(tx.id, {
-          id: agent.id,
-          email: agent.email ?? undefined,
-          name: agent.name ?? undefined,
-          role: agent.role,
-          agencyId: agent.agencyId,
-        });
-        from = s.from;
-        replyTo = s.replyTo;
         senderName = agent.name ?? senderName;
         // Internal staff (agencyId null) = outsourced / EXP -> sign as SP.
         agencyName = agent.agencyId ? (agent.agency?.name ?? tx.agency?.name ?? agencyName) : "The Sales Progressor";

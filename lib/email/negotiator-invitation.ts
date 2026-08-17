@@ -1,11 +1,12 @@
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { agencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 
 interface SendNegotiatorInvitationEmailInput {
   to: string;
   negotiatorName: string;
   invitedByName: string;
   agencyName: string;
+  agencyId: string;
   acceptUrl: string;
 }
 
@@ -21,7 +22,7 @@ function escapeHtml(str: string): string {
 export async function sendNegotiatorInvitationEmail(
   input: SendNegotiatorInvitationEmailInput
 ): Promise<void> {
-  const { to, negotiatorName, invitedByName, agencyName, acceptUrl } = input;
+  const { to, negotiatorName, invitedByName, agencyName, agencyId, acceptUrl } = input;
 
   const subject = `${invitedByName} wants you to join ${agencyName} on Sales Progressor`;
 
@@ -85,5 +86,6 @@ export async function sendNegotiatorInvitationEmail(
 </body>
 </html>`;
 
-  await sendAgentEmail({ to, subject, text, html, from: agencyFrom(agencyName), kind: "team_invite", meta: { agencyName, invitedByName } });
+  const { from, replyTo } = await resolveAgencySender(agencyId);
+  await sendAgentEmail({ to, subject, text, html, from, replyTo, kind: "team_invite", meta: { agencyName, invitedByName } });
 }

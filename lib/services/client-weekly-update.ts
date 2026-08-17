@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
-import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
 import { greetingName } from "@/lib/utils";
 
@@ -62,9 +62,10 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       const personName = tx.serviceType === "self_managed"
         ? tx.agentUser?.name
         : tx.assignedUser?.name;
-      const fromAddr = personName
-        ? personAgencyFrom(greetingName(personName), tx.agency.name)
-        : agencyFrom(tx.agency.name);
+      const { from: fromAddr, replyTo } = await resolveAgencySender(
+        agencyId,
+        personName ? { personFirstName: greetingName(personName) } : undefined,
+      );
 
       const portalSection = contact.portalToken
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
@@ -80,7 +81,7 @@ ${portalSection}
 <p style="margin:0;font-size:12px;color:#8b91a3">${tx.agency.name}</p>
 </body></html>`;
 
-      await sendEmail({ to: contact.email, subject, text, html, from: fromAddr }).catch(() => {});
+      await sendEmail({ to: contact.email, subject, text, html, from: fromAddr, replyTo }).catch(() => {});
       sent++;
     }
   }

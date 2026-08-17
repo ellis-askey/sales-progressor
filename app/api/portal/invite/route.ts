@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { preheader } from "@/lib/email/preheader";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
 import { greetingName } from "@/lib/utils";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         select: {
           propertyAddress: true,
           serviceType: true,
+          agencyId: true,
           agentUser: { select: { name: true } },
           assignedUser: { select: { name: true } },
           agency: { select: { name: true } },
@@ -50,9 +51,10 @@ export async function POST(req: NextRequest) {
   const personName = contact.transaction.serviceType === "self_managed"
     ? contact.transaction.agentUser?.name
     : contact.transaction.assignedUser?.name;
-  const fromAddr = personName
-    ? personAgencyFrom(greetingName(personName), agencyName)
-    : agencyFrom(agencyName);
+  const { from: fromAddr, replyTo } = await resolveAgencySender(
+    contact.transaction.agencyId,
+    personName ? { personFirstName: greetingName(personName) } : undefined,
+  );
 
   const greeting = buildGreeting(contact.name);
 
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
     to: contact.email,
     subject: `Your ${saleWord} portal — ${address}`,
     from: fromAddr,
+    replyTo,
     text: [
       greeting,
       "",

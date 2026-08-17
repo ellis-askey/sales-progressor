@@ -98,6 +98,7 @@ export async function inviteNegotiator(
       negotiatorName:  rawName,
       invitedByName:   session.user.name,
       agencyName:      agency.name,
+      agencyId:        session.user.agencyId!,
       acceptUrl:       `${appUrl}/invite-negotiator/${token}`,
     });
   } catch (emailError) {
@@ -157,6 +158,7 @@ export async function resendNegotiatorInvitation(
       negotiatorName:  invitation.negotiatorName,
       invitedByName:   session.user.name,
       agencyName:      agency?.name ?? "your agency",
+      agencyId:        session.user.agencyId!,
       acceptUrl:       `${appUrl}/invite-negotiator/${invitation.token}`,
     });
   } catch (emailError) {

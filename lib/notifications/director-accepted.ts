@@ -27,6 +27,7 @@ export async function notifyNegotiatorOfAcceptance(invitationId: string): Promis
       negotiatorEmail: invitation.invitedBy.email,
       directorName: invitation.acceptedBy.name,
       agencyName: invitation.agency.name,
+      agencyId: invitation.agencyId,
     });
   } catch (err) {
     console.error("Failed to send director-accepted email:", err);
