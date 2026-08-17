@@ -109,7 +109,7 @@ export function PortalAppearanceSettings() {
         <Toggle label="Readable font" desc="Use OpenDyslexic, designed to be easier to read." checked={settings.dyslexicFont} onChange={(v) => update({ dyslexicFont: v })} />
         <Toggle
           label="Hide money on this device"
-          desc="Blurs every amount (prices, costs, fees) until you tap it — handy on a shared or public screen. Applies to this device only, not your other devices."
+          desc="Blurs every amount (prices, costs, fees) until you tap it. Handy on a shared or public screen. Applies to this device only, not your other devices."
           checked={moneyHidden}
           onChange={setMoneyHidden}
         />
