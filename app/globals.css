@@ -577,6 +577,121 @@ body {
   --c-glass-hairline: rgba(15, 26, 46, 0.08);
 }
 
+/* ─── Batch 4: client appearance + accessibility (2026-08-17) ────────────────
+   Portal colours resolve through var(--portal-*, <hex>) in portal-ui.tsx — the
+   hex fallback IS the light theme. Below we define the dark overrides, derive
+   the accent tints, and add text-size / high-contrast / reduced-motion / font
+   hooks. The data-portal-* attributes are set on <html> by
+   PortalSettingsProvider (+ a no-flash boot script in the portal layout). */
+
+/* Accent: the chosen swatch sets --portal-primary (inline on <html>); the tint
+   + on-tint text derive from it so they always match. */
+[data-portal-theme] {
+  --portal-primaryBg:   color-mix(in srgb, var(--portal-primary, #FF6B4A) 12%, transparent);
+  --portal-primaryText: color-mix(in srgb, var(--portal-primary, #FF6B4A) 82%, #1A1D29);
+}
+
+/* Brand-matched dark palette: deep navy-charcoal ground, dark glass, hairline
+   light borders, near-white text, coral brightened so it still pops. */
+[data-portal-theme="dark"] {
+  --portal-pageBg:       #0f1419;
+  --portal-cardBg:       #1a2029;
+  --portal-cardElevated: #1f2732;
+  --portal-border:       rgba(255,255,255,0.10);
+  --portal-borderSubtle: rgba(255,255,255,0.055);
+  --portal-primary:      #FF7A5C;
+  --portal-accent:       #6ea8ff;
+  --portal-accentBg:     rgba(110,168,255,0.14);
+  --portal-success:      #34d399;
+  --portal-successBg:    rgba(52,211,153,0.14);
+  --portal-successBorder:rgba(52,211,153,0.30);
+  --portal-warning:      #fbbf24;
+  --portal-warningBg:    rgba(251,191,36,0.14);
+  --portal-textPrimary:   #e8ebf0;
+  --portal-textSecondary: #aab2c0;
+  --portal-textMuted:     #7c8595;
+  --portal-primaryDark:  #6ea8ff;
+  --portal-primaryText:  color-mix(in srgb, var(--portal-primary, #FF7A5C) 68%, #ffffff);
+  /* Design-Lab glass tokens (.glass-vNN) for dark. */
+  --agent-surface-elevated: #1a2029;
+  --c-glass-panel-bg: rgba(255,255,255,0.05);
+  --c-glass-row-border: rgba(255,255,255,0.10);
+  --c-glass-hairline: rgba(255,255,255,0.10);
+  --c-glass-bg-elevated: #1f2732;
+  --c-glass-shadow-card: 0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  color-scheme: dark;
+}
+
+/* High contrast: firmer text + borders in both themes. */
+[data-portal-contrast="on"] {
+  --portal-textPrimary:   #000000;
+  --portal-textSecondary: #161922;
+  --portal-textMuted:     #3a4254;
+  --portal-border:        rgba(15,23,42,0.28);
+}
+[data-portal-theme="dark"][data-portal-contrast="on"] {
+  --portal-textPrimary:   #ffffff;
+  --portal-textSecondary: #dbe0ea;
+  --portal-textMuted:     #aab2c0;
+  --portal-border:        rgba(255,255,255,0.32);
+}
+
+/* Text size: zoom the whole portal (incl. portaled sheets). */
+[data-portal-textsize="large"]  { zoom: 1.10; }
+[data-portal-textsize="larger"] { zoom: 1.22; }
+
+/* Reduce motion (explicit toggle, mirrors the prefers-reduced-motion block). */
+[data-portal-motion="reduced"] .portal-edge-pulse,
+[data-portal-motion="reduced"] .portal-fade-in,
+[data-portal-motion="reduced"] .portal-sheet,
+[data-portal-motion="reduced"] .portal-sheet-backdrop,
+[data-portal-motion="reduced"] .portal-panel,
+[data-portal-motion="reduced"] .portal-inprogress-pulse { animation: none !important; }
+[data-portal-motion="reduced"] .portal-scope *,
+[data-portal-motion="reduced"] .portal-sheet * {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+}
+
+/* Readable font: self-hosted OpenDyslexic, overriding the inline stack. */
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("/fonts/OpenDyslexic-Regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("/fonts/OpenDyslexic-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+/* data-portal-font is only ever set on the portal route, so gating the whole
+   body on it is safe and also reaches portaled drawers/sheets. */
+[data-portal-font="dyslexic"] body,
+[data-portal-font="dyslexic"] body * {
+  font-family: "OpenDyslexic", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+/* Ambient background wash (was inline in PortalShell). Light = the warm
+   peach/lavender/cyan blooms; dark = a deep ground with muted blue/coral/violet. */
+.portal-ambient {
+  position: fixed; inset: 0; z-index: -1;
+  background-color: #f6f8fc;
+  background-image:
+    radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%),
+    radial-gradient(75% 55% at 8% 6%, rgba(255,188,168,0.28), transparent 72%),
+    radial-gradient(70% 50% at 92% 12%, rgba(196,180,255,0.26), transparent 72%),
+    radial-gradient(85% 60% at 50% 96%, rgba(255,208,176,0.30), transparent 75%);
+  background-repeat: no-repeat;
+}
+[data-portal-theme="dark"] .portal-ambient {
+  background-color: #0b0f14;
+  background-image:
+    radial-gradient(45% 30% at 50% -6%, rgba(56,140,255,0.20), transparent 70%),
+    radial-gradient(75% 55% at 8% 6%, rgba(255,122,92,0.13), transparent 72%),
+    radial-gradient(70% 50% at 92% 12%, rgba(150,120,255,0.17), transparent 72%),
+    radial-gradient(85% 60% at 50% 98%, rgba(70,55,110,0.22), transparent 78%);
+}
+
 /* Loading: subtle blue edge pulse while content settles, then a gentle fade up. */
 @keyframes portal-edge-pulse {
   0%, 100% { box-shadow: inset 0 0 0 0 rgba(59, 130, 246, 0), inset 0 0 26px 2px rgba(59, 130, 246, 0.10); }

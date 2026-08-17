@@ -13,6 +13,8 @@ import { authOptions } from "@/lib/auth";
 import { isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
 import { getPortalGlassPicks } from "@/lib/glass/portal-picks";
 import { PortalGlassProvider } from "@/lib/glass/portal-context";
+import { PortalSettingsProvider } from "@/components/portal/PortalSettingsProvider";
+import { parsePortalSettings, portalSettingsBootScript } from "@/lib/portal/settings";
 // Glass variant classes for the founder-only portal Design Lab. Light-theme
 // glass tokens are re-declared on .portal-scope in globals.css.
 import "@/app/styles/glass.css";
@@ -82,6 +84,10 @@ export default async function PortalLayout({
 
   const { contact, transaction } = result.data;
 
+  // Client appearance/accessibility settings (Batch 4). Applied to <html>
+  // pre-paint by the boot script (no flash), then managed live by the provider.
+  const portalSettings = parsePortalSettings((contact as { portalSettings?: unknown }).portalSettings);
+
   // Log portal view and update last-visited timestamp (fire-and-forget — never blocks render)
   // Both run from layout so they fire on every sub-page (progress, updates, etc.), not just root.
   logPortalView(token).catch(() => {});
@@ -128,19 +134,24 @@ export default async function PortalLayout({
   const canEditLab = !!session?.user?.email && isHybridSuperadminEmail(session.user.email);
 
   return (
-    <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
-      <PortalShell
-        token={token}
-        contactName={contact.name}
-        roleType={contact.roleType}
-        propertyAddress={transaction.propertyAddress}
-        agencyName={transaction.agencyName}
-        vapidPublicKey={vapidPublicKey}
-        photoUrl={transaction.photoUrl ?? null}
-      >
-        <PortalAutoRefresh />
-        {children}
-      </PortalShell>
-    </PortalGlassProvider>
+    <>
+      <script dangerouslySetInnerHTML={{ __html: portalSettingsBootScript(portalSettings) }} />
+      <PortalSettingsProvider token={token} initial={portalSettings}>
+        <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
+          <PortalShell
+            token={token}
+            contactName={contact.name}
+            roleType={contact.roleType}
+            propertyAddress={transaction.propertyAddress}
+            agencyName={transaction.agencyName}
+            vapidPublicKey={vapidPublicKey}
+            photoUrl={transaction.photoUrl ?? null}
+          >
+            <PortalAutoRefresh />
+            {children}
+          </PortalShell>
+        </PortalGlassProvider>
+      </PortalSettingsProvider>
+    </>
   );
 }
