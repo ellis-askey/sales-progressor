@@ -83,10 +83,12 @@ export function PortalCostsCard({
   const depositNum = Number(depositStr) || 0;
   const mortgageNum = isCash ? 0 : (Number(mortgageStr) || 0);
   const otherFundsNum = Number(otherFundsStr) || 0;
-  // Balance of the purchase price still owed, then stamp duty on top. Splitting
-  // it this way means the stamp-duty part is shown, not silently folded in.
-  const balanceOfPrice = Math.max(0, priceGBP - depositNum - mortgageNum - otherFundsNum);
-  const fundsToSend = balanceOfPrice + sdlt;
+  // The completion amount owed = balance of the price + stamp duty. Any funds
+  // already sent come off the WHOLE thing (so money put toward the stamp duty
+  // reduces the total, not just the price balance). Kept as parts for the
+  // breakdown so the stamp-duty share is shown, not silently folded in.
+  const balanceOfPrice = Math.max(0, priceGBP - depositNum - mortgageNum);
+  const fundsToSend = Math.max(0, balanceOfPrice + sdlt - otherFundsNum);
 
   const depositFilled = depositStr.trim() !== "" && depositNum > 0;
   const mortgageFilled = isCash || (mortgageStr.trim() !== "" && mortgageNum > 0);
@@ -232,6 +234,7 @@ export function PortalCostsCard({
                 <div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${P.border}`, background: P.cardBg }}>
                   <BreakdownRow label="Balance of the purchase price" value={fmtGBP(balanceOfPrice)} />
                   <BreakdownRow label="Stamp duty" value={fmtGBP(sdlt)} />
+                  {otherFundsNum > 0 && <BreakdownRow label="Less other funds already sent" value={"−" + fmtGBP(otherFundsNum)} />}
                   <div className="flex items-center justify-between px-4 py-2.5" style={{ background: P.pageBg }}>
                     <span className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Total to send</span>
                     <span className="text-[13px] font-bold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(fundsToSend)}</PortalMoney></span>
