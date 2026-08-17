@@ -246,3 +246,11 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author:** Claude, 2026-08-17
 - **Deletion criteria:** delete once the Aug-17 portal batch is signed off by Ellis.
 - **Justification:** demo data seeding, not a feature/test/npm-script. Staging-only (refuses prod) because it mutates shared rows (agency sender, Emily's phone); file creation is additive.
+
+### scripts/fix-chase-count-inflation.ts
+
+- **Purpose:** One-shot data correction for the multi-contact chase-count inflation bug (brief `docs/active/chase-count-fix-and-agent-email-log-brief.md`, Part A2). For every pending ChaseTask whose rule targets a code with ClientChaseState rows on the same tx, pulls `ChaseTask.chaseCount` down to the real number of rounds (MAX per-contact chaseCount) and pulls the over-advanced `ReminderLog.nextDueDate` back to `lastChasedAt + repeatEveryDays`. Never increases a count or pushes a due date out; leaves priority untouched.
+- **Lifetime:** `one-shot`
+- **Author:** Claude, 2026-08-17
+- **Deletion criteria:** delete once applied to production and Walnut Tree Barn is verified corrected (task `cmsry1eq30032t8grytbbodas`: 6 -> 2, nextDue ~19 Aug). The code guard (PR1) prevents recurrence.
+- **Justification:** one-off historical data fix, not a feature/test/npm-script. Dry-run by default (`--apply` to write); monotonic so re-running is safe. Run staging first, then prod, per Law 3.
