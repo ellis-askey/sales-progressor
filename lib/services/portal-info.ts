@@ -57,6 +57,24 @@ function isoDate(d: Date | null | undefined): string | null {
   return d ? d.toISOString().slice(0, 10) : null;
 }
 
+// Agent-side: the client-supplied mortgage-offer expiry dates on a file — the
+// buyer's (on this purchase) and, if the seller is buying onward, theirs. Used
+// on the property-file Overview so the progressor sees a lapsing offer coming.
+export async function getFileMoveDates(
+  transactionId: string,
+): Promise<{ buyerMortgageExpiry: string | null; sellerOnwardMortgageExpiry: string | null }> {
+  const rows = await prisma.clientMoveInfo.findMany({
+    where: { transactionId },
+    select: { side: true, mortgageOfferExpiry: true, onwardMortgageOfferExpiry: true },
+  });
+  const buyer = rows.find((r) => r.side === "purchaser");
+  const seller = rows.find((r) => r.side === "vendor");
+  return {
+    buyerMortgageExpiry: isoDate(buyer?.mortgageOfferExpiry ?? null),
+    sellerOnwardMortgageExpiry: isoDate(seller?.onwardMortgageOfferExpiry ?? null),
+  };
+}
+
 export async function getClientMoveInfo(
   token: string,
 ): Promise<{ context: MoveInfoContext; info: MoveInfo } | null> {

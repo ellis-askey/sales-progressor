@@ -41,6 +41,7 @@ import { totalHoldMs } from "@/lib/services/hold-duration";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { DocumentsPanel } from "@/components/transaction/DocumentsPanel";
+import { ClientMortgageExpiryCard } from "@/components/transaction/ClientMortgageExpiryCard";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { EmailSettingsButton } from "@/components/transaction/EmailSettingsDrawer";
@@ -474,6 +475,9 @@ export default async function AgentTransactionDetailPage({
             />
             <div className="mt-5">
               <EnquiryTrackerSection transactionId={transaction.id} />
+            </div>
+            <div className="mt-5">
+              <ClientMortgageExpiryCard transactionId={transaction.id} />
             </div>
             <RevealPing slotId="overview" />
           </Suspense>
