@@ -383,13 +383,13 @@ export function PortalCostsCard({
                     After you complete, will you own more than one property?
                   </p>
                   <OptionButton
-                    label="No — this will be my only home"
+                    label="No, this will be my only home"
                     sub="Standard rates"
                     selected={additional === false}
                     onClick={() => confirmAdditional(false)}
                   />
                   <OptionButton
-                    label="Yes — I'll own another property"
+                    label="Yes, I'll own another property"
                     sub="A second home or buy-to-let. Adds the 5% surcharge"
                     selected={additional === true}
                     onClick={() => confirmAdditional(true)}
