@@ -1,5 +1,6 @@
 import sgMail from "@sendgrid/mail";
 import { prisma } from "@/lib/prisma";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
@@ -208,26 +209,29 @@ export async function resolveSenderForTransaction(
     agencyId?: string | null;
   }
 ): Promise<{ from: string; replyTo: string }> {
-  const fallback = {
-    from: DEFAULT_FROM,
-    replyTo: sessionUser.email ?? "updates@thesalesprogressor.co.uk",
-  };
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: transactionId },
+    select: { agencyId: true },
+  });
+
+  // Fallback when the sender has no verified sending address of their own: the
+  // agency's authenticated address (Reply-To matching), or the SP default if the
+  // agency has none. This keeps manual sends on the agent's own address when
+  // they've set one, but agency-branded otherwise — never a bare SP send for a
+  // file that belongs to an agency with an approved address.
+  const fallback = () => resolveAgencySenderForTransaction(transactionId);
 
   const isInternalStaff =
     sessionUser.role === "sales_progressor" || sessionUser.role === "admin";
 
   if (isInternalStaff) {
-    const tx = await prisma.propertyTransaction.findFirst({
-      where: { id: transactionId },
-      select: { agencyId: true },
-    });
-    if (!tx?.agencyId) return fallback;
+    if (!tx?.agencyId) return fallback();
 
     const domain = await prisma.verifiedDomain.findFirst({
       where: { agencyId: tx.agencyId, status: "verified" },
       select: { id: true },
     });
-    if (!domain) return fallback;
+    if (!domain) return fallback();
 
     const userEmail = await prisma.userVerifiedEmail.findFirst({
       where: {
@@ -237,7 +241,7 @@ export async function resolveSenderForTransaction(
       },
       select: { email: true },
     });
-    if (!userEmail) return fallback;
+    if (!userEmail) return fallback();
 
     return {
       from: `${sessionUser.name ?? "Sales Progressor"} <${userEmail.email}>`,
@@ -258,7 +262,7 @@ export async function resolveSenderForTransaction(
     orderBy: { lastUsedAt: "desc" },
     select: { email: true },
   });
-  if (!userEmail) return fallback;
+  if (!userEmail) return fallback();
 
   return {
     from: `${sessionUser.name ?? "Agent"} <${userEmail.email}>`,

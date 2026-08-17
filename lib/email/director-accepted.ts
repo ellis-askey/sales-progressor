@@ -1,11 +1,12 @@
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { agencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 
 interface DirectorAcceptedEmailInput {
   negotiatorName: string;
   negotiatorEmail: string;
   directorName: string;
   agencyName: string;
+  agencyId: string;
 }
 
 export async function sendDirectorAcceptedEmail(input: DirectorAcceptedEmailInput) {
@@ -63,12 +64,14 @@ Sales Progressor`;
 </body>
 </html>`;
 
+  const { from, replyTo } = await resolveAgencySender(input.agencyId);
   return sendAgentEmail({
     to: input.negotiatorEmail,
     subject,
     text,
     html,
-    from: agencyFrom(input.agencyName),
+    from,
+    replyTo,
     kind: "team_accepted",
     meta: { agencyName: input.agencyName },
   });

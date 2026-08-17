@@ -3,6 +3,7 @@ import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
@@ -437,7 +438,7 @@ export async function getPortalChainAgent(
   }
   let correctionMailto: string | null = null;
   if (editState !== "editable") {
-    const to = tx?.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+    const to = tx?.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
     const dealWord = side === "vendor" ? "onward-purchase" : "selling";
     const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
     correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
@@ -526,7 +527,7 @@ export async function getPortalTeam(
     )?.trim() || null;
     let solicitorMailto: string | null = null;
     if (solicitorEmail) {
-      const cc = tx.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+      const cc = tx.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
       const names = tx.contacts.map((c) => c.name.trim()).filter(Boolean).join(" & ");
       const subject = `${dealWord} of ${tx.propertyAddress}${names ? ` - ${names}` : ""}`;
@@ -1007,6 +1008,7 @@ export async function logPortalMilestoneConfirm(
     select: {
       propertyAddress: true,
       serviceType: true,
+      agencyId: true,
       // Phase 1 commit 5 — required for round-scoping the bilateral
       // counterpart lookup so the wrong round's PM26/PM27 state can't
       // influence email direction picking.
@@ -1097,9 +1099,9 @@ export async function logPortalMilestoneConfirm(
   const serviceType     = tx.serviceType ?? undefined;
   const progressorName  = tx.assignedUser?.name  ?? "Your sales progressor";
   const progressorEmail = tx.assignedUser?.email ?? "";
-  const replyTo = serviceType === "self_managed"
-    ? (tx.agentUser?.email ?? undefined)
-    : (tx.assignedUser?.email ?? undefined);
+  // Send from the agency's authenticated address, Reply-To matching (founder
+  // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
   // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
@@ -1131,6 +1133,7 @@ export async function logPortalMilestoneConfirm(
     sendEmail({
       to: tx.assignedUser.email,
       subject: `Client confirmed: "${milestoneLabel}" at ${tx.propertyAddress}`,
+      from: agencyEmailFrom,
       replyTo,
       text: [
         `Hi ${extractFirstName(tx.assignedUser.name)},`,
@@ -1227,7 +1230,7 @@ export async function logPortalMilestoneConfirm(
       const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
-      sendEmail({ to: c.email, subject, html, text, replyTo }).catch(() => {});
+      sendEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }).catch(() => {});
       const existing = sideLog.get(recipientKey);
       if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text }); }
     }
@@ -1242,7 +1245,7 @@ export async function logPortalMilestoneConfirm(
       const subject  = interpolate(agentCopy.subject, portalVars);
       const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
       const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
-      sendEmail({ to: tx.agentUser.email, subject, html, text, replyTo }).catch(() => {});
+      sendEmail({ to: tx.agentUser.email, subject, html, text, from: agencyEmailFrom, replyTo }).catch(() => {});
     }
   } else {
     // Fallback for milestones without structured emailCopy: generic thank-you to confirming
@@ -1265,6 +1268,7 @@ export async function logPortalMilestoneConfirm(
         to: confirmingContact.email,
         subject: confirmSubject,
         text: confirmText,
+        from: agencyEmailFrom,
         replyTo,
         html: portalStepConfirmedHtml({
           firstName: extractFirstName(confirmingContact.name),
@@ -1309,6 +1313,7 @@ export async function logPortalMilestoneConfirm(
         to: other.email!,
         subject: `Progress update: ${address}`,
         text: otherText,
+        from: agencyEmailFrom,
         replyTo,
         html: portalEmailHtml({
           greeting: buildGreeting(other.name),
@@ -1418,6 +1423,10 @@ export async function sendAdminMilestoneNotificationToPortal(
     select: {
       propertyAddress: true,
       completionDate: true,
+      agencyId: true,
+      serviceType: true,
+      assignedUser: { select: { name: true } },
+      agentUser: { select: { name: true } },
       contacts: {
         where: { roleType: { in: ["vendor", "purchaser"] } },
         select: { id: true, name: true, email: true, roleType: true, portalToken: true },
@@ -1425,6 +1434,10 @@ export async function sendAdminMilestoneNotificationToPortal(
     },
   });
   if (!tx) return;
+
+  // Send from the agency's authenticated address, Reply-To matching (founder
+  // decision 2026-08-17).
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
 
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
@@ -1491,7 +1504,7 @@ export async function sendAdminMilestoneNotificationToPortal(
     if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? `: ${stepDate}` : ""}`, "");
     lines.push(`View your portal: ${portalUrl}`);
 
-    sendEmail({ to: c.email, subject, text: lines.join("\n"), html }).catch(() => {});
+    sendEmail({ to: c.email, subject, text: lines.join("\n"), html, from: agencyEmailFrom, replyTo }).catch(() => {});
 
     // Track per-role for activity log (first contact per role provides the representative body)
     const roleKey = c.roleType === "vendor" ? "vendor" : "purchaser";
@@ -1804,6 +1817,7 @@ async function sendRichMilestoneEmails(
     select: {
       propertyAddress: true,
       serviceType: true,
+      agencyId: true,
       // tenure + purchaseType added for the skeleton-mode FileShape build.
       // Nullable on the schema; resolveRecipientCopy guards against nulls
       // by returning legacy copy when shape can't be constructed.
@@ -1853,9 +1867,9 @@ async function sendRichMilestoneEmails(
   const serviceType      = tx.serviceType ?? undefined;
   const progressorName   = tx.assignedUser?.name  ?? "Your sales progressor";
   const progressorEmail  = tx.assignedUser?.email ?? "";
-  const replyTo          = serviceType === "self_managed"
-    ? (tx.agentUser?.email ?? undefined)
-    : (tx.assignedUser?.email ?? undefined);
+  // Send from the agency's authenticated address, Reply-To matching (founder
+  // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)
@@ -2035,7 +2049,7 @@ async function sendRichMilestoneEmails(
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars)].join("\n");
-    sendEmail({ to: tx.agentUser.email, subject, text, html, replyTo }).catch(() => {});
+    sendEmail({ to: tx.agentUser.email, subject, text, html, from: agencyEmailFrom, replyTo }).catch(() => {});
   }
 
   // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
@@ -2048,7 +2062,7 @@ async function sendRichMilestoneEmails(
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars), `View: ${dashUrl}`].join("\n");
-    sendEmail({ to: tx.assignedUser.email, subject, text, html, replyTo }).catch(() => {});
+    sendEmail({ to: tx.assignedUser.email, subject, text, html, from: agencyEmailFrom, replyTo }).catch(() => {});
   }
 
   return true;

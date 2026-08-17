@@ -105,6 +105,7 @@ export async function inviteDirector(formData: FormData): Promise<InviteDirector
       directorEmail,
       invitedByName: session.user.name,
       agencyName: agency.name,
+      agencyId: session.user.agencyId!,
       acceptUrl,
     });
   } catch (emailError) {
@@ -156,6 +157,7 @@ export async function resendInvitation(invitationId: string): Promise<InviteDire
       directorEmail: invitation.directorEmail,
       invitedByName: session.user.name,
       agencyName: invitation.agency.name,
+      agencyId: invitation.agencyId,
       acceptUrl,
     });
   } catch (emailError) {

@@ -19,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { isContactEmailSuppressed } from "@/lib/email";
 import { logAutomatedEmail } from "@/lib/services/portal";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import {
   assembleMilestoneDigest,
   renderEditedEmailHtml,
@@ -201,11 +202,15 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
 
     try {
       if (decision.mode === "single") {
+        const senderTxId = transactionIdFromSourceId(decision.row.sourceId);
+        const sender = senderTxId ? await resolveAgencySenderForTransaction(senderTxId) : null;
         await sendEmail({
           to: recipientEmail,
           subject: decision.payload.subject,
           text: decision.payload.text,
           html: decision.payload.html,
+          from: sender?.from,
+          replyTo: sender?.replyTo,
           queueId: decision.row.id,
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
@@ -231,11 +236,15 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
         // ids as a comma-joined customArg so the webhook can fan delivery
         // events out to every bundled row (bounce on the digest =
         // bounce on every row in the bundle).
+        const senderTxId = transactionIdFromSourceId(decision.rows[0].sourceId);
+        const sender = senderTxId ? await resolveAgencySenderForTransaction(senderTxId) : null;
         await sendEmail({
           to: recipientEmail,
           subject: decision.assembled.subject,
           text: decision.assembled.text,
           html: decision.assembled.html,
+          from: sender?.from,
+          replyTo: sender?.replyTo,
           queueId: decision.rows.map((r) => r.id).join(","),
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
@@ -353,11 +362,15 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
     const recipientEmail = rows[0].recipientEmail;
     try {
       if (decision.mode === "single") {
+        const senderTxId = transactionIdFromSourceId(decision.row.sourceId);
+        const sender = senderTxId ? await resolveAgencySenderForTransaction(senderTxId) : null;
         await sendEmail({
           to: recipientEmail,
           subject: decision.payload.subject,
           text: decision.payload.text,
           html: decision.payload.html,
+          from: sender?.from,
+          replyTo: sender?.replyTo,
           queueId: decision.row.id,
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
@@ -371,11 +384,15 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
         }
         handedOff += 1;
       } else {
+        const senderTxId = transactionIdFromSourceId(decision.rows[0].sourceId);
+        const sender = senderTxId ? await resolveAgencySenderForTransaction(senderTxId) : null;
         await sendEmail({
           to: recipientEmail,
           subject: decision.assembled.subject,
           text: decision.assembled.text,
           html: decision.assembled.html,
+          from: sender?.from,
+          replyTo: sender?.replyTo,
           queueId: decision.rows.map((r) => r.id).join(","),
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });

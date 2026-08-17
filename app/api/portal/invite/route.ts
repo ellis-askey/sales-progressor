@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { preheader } from "@/lib/email/preheader";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
-import { greetingName } from "@/lib/utils";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -28,8 +27,10 @@ export async function POST(req: NextRequest) {
       roleType: true,
       transaction: {
         select: {
+          id: true,
           propertyAddress: true,
           serviceType: true,
+          agencyId: true,
           agentUser: { select: { name: true } },
           assignedUser: { select: { name: true } },
           agency: { select: { name: true } },
@@ -47,12 +48,7 @@ export async function POST(req: NextRequest) {
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 
-  const personName = contact.transaction.serviceType === "self_managed"
-    ? contact.transaction.agentUser?.name
-    : contact.transaction.assignedUser?.name;
-  const fromAddr = personName
-    ? personAgencyFrom(greetingName(personName), agencyName)
-    : agencyFrom(agencyName);
+  const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(contact.transaction.id);
 
   const greeting = buildGreeting(contact.name);
 
@@ -60,6 +56,7 @@ export async function POST(req: NextRequest) {
     to: contact.email,
     subject: `Your ${saleWord} portal — ${address}`,
     from: fromAddr,
+    replyTo,
     text: [
       greeting,
       "",

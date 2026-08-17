@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     negotiatorName: user.name,
     invitedByName: session.user.name ?? "Your director",
     agencyName: agency?.name ?? "your agency",
+    agencyId: session.user.agencyId!,
     acceptUrl,
   });
 

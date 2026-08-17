@@ -4,7 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { agencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { normaliseAddressString } from "@/lib/utils/address";
 import crypto from "crypto";
@@ -76,7 +76,7 @@ async function sendInviteEmail(input: {
   const originator = link.chain.createdByUserId
     ? await prisma.user.findUnique({
         where: { id: link.chain.createdByUserId },
-        select: { name: true, firmName: true },
+        select: { name: true, firmName: true, agencyId: true },
       })
     : null;
 
@@ -140,7 +140,10 @@ async function sendInviteEmail(input: {
 
   // External agent (unclaimed stub): no recipient user id, so userId stays null
   // and we key the log off the email address only.
-  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: agencyFrom(originatorAgency), kind: "chain_invite", meta: { originatorAgency } });
+  // Send from the originator agency's authenticated address (Reply-To matching),
+  // SP fallback when they have none.
+  const { from: inviteFrom, replyTo: inviteReplyTo } = await resolveAgencySender(originator?.agencyId);
+  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: inviteFrom, replyTo: inviteReplyTo, kind: "chain_invite", meta: { originatorAgency } });
 }
 
 function buildInviteHtml(v: {
@@ -228,7 +231,7 @@ export async function handleBouncedInvite(email: string): Promise<void> {
       chain: {
         select: {
           createdByUserId: true,
-          createdBy: { select: { email: true, name: true, firmName: true } },
+          createdBy: { select: { email: true, name: true, firmName: true, agencyId: true } },
         },
       },
     },
@@ -247,6 +250,7 @@ export async function handleBouncedInvite(email: string): Promise<void> {
   const address = link.stubPropertyAddress ?? "a sale in your chain";
 
   if (originatorEmail) {
+    const bounceSender = await resolveAgencySender(link.chain.createdBy?.agencyId ?? null);
     await sendEmail({
       to: originatorEmail,
       subject: `Chain invite to ${email} couldn't be delivered`,
@@ -258,7 +262,8 @@ export async function handleBouncedInvite(email: string): Promise<void> {
 <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
 <p style="margin:0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`,
-      from: agencyFrom(link.chain.createdBy?.firmName ?? "Sales Progressor"),
+      from: bounceSender.from,
+      replyTo: bounceSender.replyTo,
     }).catch(console.error);
   }
 }

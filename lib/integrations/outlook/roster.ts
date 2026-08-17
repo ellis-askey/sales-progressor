@@ -13,10 +13,10 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 
 // The Sales Progressor mailbox — also the fallback quote sender. Mirrors
-// SP_FALLBACK_EMAIL in app/quote/[token]/actions.ts.
+// SP_FROM_FALLBACK in app/quote/[token]/actions.ts.
 const SP_MAILBOX: RosterEntry = {
   label: "Sales Progressor",
-  email: "ellis@thesalesprogressor.co.uk",
+  email: "updates@thesalesprogressor.co.uk",
 };
 
 export type RosterEntry = { label: string; email: string };

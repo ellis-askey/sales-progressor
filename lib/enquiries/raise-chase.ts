@@ -11,7 +11,8 @@
 // replyable per-agency / EXP sender. Gated OFF until the switch is flipped.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, resolveSenderForTransaction } from "@/lib/email";
+import { sendChainEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
@@ -48,6 +49,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           id: true,
           propertyAddress: true,
           clientEmailsPaused: true,
+          agencyId: true,
           assignedUserId: true,
           agentUserId: true,
           activeBuyerRoundId: true,
@@ -132,21 +134,18 @@ export async function runRaiseChaseCron(now: Date): Promise<{
 
     // Replyable per-agency / EXP sender + signature identity (same as the
     // reply-loop chase).
-    let from: string | undefined;
-    let replyTo: string | undefined;
+    // Sending address = the file's agency authenticated address (Reply-To
+    // matching), SP fallback when the agency has none. Body signature identity
+    // (senderName / agencyName) resolved separately below.
+    const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
     let senderName = tx.agency?.name ?? "The Sales Progressor";
     let agencyName = tx.agency?.name ?? "The Sales Progressor";
     if (ownerId) {
       const agent = await prisma.user.findUnique({
         where: { id: ownerId },
-        select: { id: true, email: true, name: true, role: true, agencyId: true, agency: { select: { name: true } } },
+        select: { id: true, name: true, agencyId: true, agency: { select: { name: true } } },
       });
       if (agent) {
-        const s = await resolveSenderForTransaction(tx.id, {
-          id: agent.id, email: agent.email ?? undefined, name: agent.name ?? undefined, role: agent.role, agencyId: agent.agencyId,
-        });
-        from = s.from;
-        replyTo = s.replyTo;
         senderName = agent.name ?? senderName;
         agencyName = agent.agencyId ? (agent.agency?.name ?? tx.agency?.name ?? agencyName) : "The Sales Progressor";
       }

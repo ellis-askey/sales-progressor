@@ -15,7 +15,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { preheader } from "@/lib/email/preheader";
-import { resolveSenderForTransaction } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 
 const GATE_CODES = ["VM18", "PM25"];
 
@@ -54,6 +54,7 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
       propertyAddress: true,
       activeBuyerRoundId: true,
       serviceType: true,
+      agencyId: true,
       agency: { select: { name: true } },
       assignedUser: { select: { id: true, name: true, email: true, role: true } },
       agentUser:    { select: { id: true, name: true, email: true, role: true } },
@@ -87,23 +88,10 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
 
   const agencyName = tx.agency?.name ?? "Sales Progressor";
 
-  // White-label the sender to the file's own agency address (same one the
-  // rest of the file's emails come from), so the client doesn't see a
-  // "Sales Progressor" sender. Falls back to the platform default.
-  const person = tx.serviceType !== "self_managed" ? tx.assignedUser : tx.agentUser;
-  let from: string | undefined;
-  let replyTo: string | undefined;
-  if (person) {
-    try {
-      const resolved = await resolveSenderForTransaction(transactionId, {
-        id: person.id, email: person.email, name: person.name, role: person.role, agencyId: null,
-      });
-      from = resolved.from;
-      replyTo = resolved.replyTo;
-    } catch {
-      // Fall back to the chain-email defaults in the drain.
-    }
-  }
+  // Send from the file's own agency authenticated address (branded with the
+  // progressor/agent), with the file-type-aware fallback when the agency has
+  // no address of its own.
+  const { from, replyTo } = await resolveAgencySenderForTransaction(transactionId);
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;

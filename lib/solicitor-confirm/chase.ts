@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, resolveSenderForTransaction } from "@/lib/email";
+import { sendChainEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from "./codes";
@@ -353,28 +354,11 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     stopUrl: `${base}/s/${token}/stop`,
   });
 
-  // Sender = the file's assigned agent's verified email (agency-branded),
-  // falling back to the SP default inside resolveSenderForTransaction.
+  // Sender = the agency's authenticated sending address (Agency.quoteSenderEmail),
+  // Reply-To matching, falling back to the SP default when the agency has no
+  // authenticated address. (agentId is still needed for the activity record below.)
   const agentId = tx.assignedUserId ?? tx.agentUserId;
-  let from: string | undefined;
-  let replyTo: string | undefined;
-  if (agentId) {
-    const agent = await prisma.user.findUnique({
-      where: { id: agentId },
-      select: { id: true, email: true, name: true, role: true, agencyId: true },
-    });
-    if (agent) {
-      const sender = await resolveSenderForTransaction(tx.id, {
-        id: agent.id,
-        email: agent.email ?? undefined,
-        name: agent.name ?? undefined,
-        role: agent.role,
-        agencyId: agent.agencyId,
-      });
-      from = sender.from;
-      replyTo = sender.replyTo;
-    }
-  }
+  const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
   await sendChainEmail({ to: email, subject, text, html, from, replyTo });
 

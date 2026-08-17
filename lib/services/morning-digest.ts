@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { agencyFrom } from "@/lib/email/from-name";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
 import { pushExchangeApproaching } from "@/lib/agent/push-events";
@@ -99,8 +99,7 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
 }
 
 export async function sendMorningDigests(agencyId: string): Promise<number> {
-  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
-  const fromAddr = agency ? agencyFrom(agency.name) : undefined;
+  const { from: fromAddr, replyTo } = await resolveAgencySender(agencyId);
 
   const digests = await buildMorningDigest(agencyId);
 
@@ -181,7 +180,7 @@ ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:2
 <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`;
 
-    await sendAgentEmail({ to: d.email, subject, text: lines.join("\n"), html, from: fromAddr, kind: "morning_digest", userId: d.userId, agencyId }).catch(() => {});
+    await sendAgentEmail({ to: d.email, subject, text: lines.join("\n"), html, from: fromAddr, replyTo, kind: "morning_digest", userId: d.userId, agencyId }).catch(() => {});
     sent++;
   }
 

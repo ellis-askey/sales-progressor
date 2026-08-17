@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
     negotiatorName: name.trim(),
     invitedByName: session!.user.name ?? "Your director",
     agencyName: agency?.name ?? "your agency",
+    agencyId: session!.user.agencyId!,
     acceptUrl,
   }).catch((err) => console.error("[negotiator-invite] Failed to send email:", err));
 
