@@ -244,9 +244,9 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
             <PortalInformationTab token={token} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Appearance renders immediately (settings come from context, not
-                  the details fetch). Everything else waits on the load. */}
-              <PortalAppearanceSettings />
+              {/* Your file + contacts load on the details fetch. Appearance &
+                  accessibility comes from context, so it always renders — pinned
+                  to the bottom, below the things a client reaches for more often. */}
               {loading && !details ? (
                 <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
               ) : loadError ? (
@@ -262,11 +262,12 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                   </div>
                   {contactRole === "purchaser" && <ServicesSection token={token} survey={details.survey} onSaved={reload} />}
                   <NotificationsSection details={details} token={token} onSaved={reload} />
-                  <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
-                    Signed in as {contactName}.
-                  </p>
                 </>
               ) : null}
+              <PortalAppearanceSettings />
+              <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
+                Signed in as {contactName}.
+              </p>
             </div>
           )}
         </div>

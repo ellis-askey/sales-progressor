@@ -553,9 +553,11 @@ body {
 .portal-team-row:active { background: rgba(15, 23, 42, 0.05); }
 .portal-team-row:focus-visible { outline: 2px solid rgba(255, 107, 74, 0.5); outline-offset: -2px; }
 
-/* Help pill clears the portal bottom nav (portal-scoped; agent app untouched). */
-.portal-scope .feedback-trigger-wrap { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
-.portal-scope .feedback-panel-wrap  { bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
+/* Help pill clears the portal bottom nav. Keyed off data-surface, not the
+   .portal-scope ancestor, because the widget now renders through a body-level
+   portal (escapes transformed ancestors) so it sits outside .portal-scope. */
+.feedback-trigger-wrap[data-surface="portal"] { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+.feedback-panel-wrap[data-surface="portal"]  { bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
 
 /* Design Lab on the portal (founder-only): the glass variants in
    app/styles/glass.css read agent theme tokens that the portal doesn't load.
@@ -629,6 +631,8 @@ body {
   --portal-glass-fill:   rgba(28,36,50,0.66);
   --portal-glass-border: rgba(255,255,255,0.10);
   --portal-glass-soft:   rgba(255,255,255,0.09);
+  /* Onboarding toast glass (install / notifications pop-ups). */
+  --portal-toast-bg:     rgba(26,32,41,0.94);
   /* Feedback "?" widget (shared component; these only bite inside the portal). */
   --fw-panel-bg:       #1a2029;
   --fw-border:         rgba(255,255,255,0.10);
@@ -639,6 +643,7 @@ body {
   --fw-text-faint:     #7c8595;
   --fw-card-bg:        #1f2732;
   --fw-card-hover:     rgba(255,122,92,0.14);
+  --fw-input-bg:       rgba(255,255,255,0.05);
   color-scheme: dark;
 }
 

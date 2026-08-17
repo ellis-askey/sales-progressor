@@ -663,6 +663,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           isCash={transaction.purchaseType === "cash_buyer" || transaction.purchaseType === "cash_from_proceeds"}
           savedDeposit={transaction.clientDepositGBP != null ? transaction.clientDepositGBP / 100 : null}
           savedMortgage={transaction.clientMortgageGBP != null ? transaction.clientMortgageGBP / 100 : null}
+          savedFtb={transaction.clientFirstTimeBuyer ?? false}
+          savedAdditional={transaction.clientAdditionalProperty ?? null}
+          savedOtherFunds={transaction.clientOtherFundsSentGBP != null ? transaction.clientOtherFundsSentGBP / 100 : null}
+          savedFundsSent={transaction.clientCompletionFundsSent ?? false}
           token={token}
         />
         </div>

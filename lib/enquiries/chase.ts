@@ -21,6 +21,7 @@ import { prisma } from "@/lib/prisma";
 import { sendChainEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
 import { logChaseSend } from "./chase-log";
@@ -101,10 +102,10 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           assignedUserId: true,
           agentUserId: true,
           agency: { select: { name: true } },
-          vendorSolicitorContact: { select: { email: true } },
+          vendorSolicitorContact: { select: { email: true, name: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
-          purchaserSolicitorContact: { select: { email: true } },
+          purchaserSolicitorContact: { select: { email: true, name: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           contacts: { select: { name: true, roleType: true } },
@@ -184,10 +185,12 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     const clientNames = tx.contacts
       .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
       .map((c) => c.name);
+    const handlerName = (seller ? tx.vendorSolicitorContact?.name : tx.purchaserSolicitorContact?.name) ?? undefined;
     const mail = buildEnquiryChaseEmail({
       court: seller ? "seller_solicitor" : "buyer_solicitor",
       address: tx.propertyAddress,
       clientNames,
+      recipientFirstName: handlerName ? extractFirstName(handlerName) : undefined,
       senderName,
       agencyName,
       provideUpdateUrl: `${baseUrl()}/s/${token}`,

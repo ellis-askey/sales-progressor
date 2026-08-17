@@ -117,7 +117,7 @@ export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }
           backdropFilter: "blur(32px) saturate(1.8)",
           WebkitBackdropFilter: "blur(32px) saturate(1.8)",
           border: `0.5px solid ${P.glassBorder}`,
-          boxShadow: "0 14px 44px rgba(255,107,74,0.20), 0 2px 10px rgba(15,23,42,0.08)",
+          boxShadow: "0 14px 44px color-mix(in srgb, var(--portal-primary, #FF6B4A) 20%, transparent), 0 2px 10px rgba(15,23,42,0.08)",
         }}
       >
         <p className="text-[11px] font-bold uppercase tracking-[0.10em] mb-1" style={{ color: P.primary }}>

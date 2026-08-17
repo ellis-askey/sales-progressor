@@ -7,6 +7,7 @@ import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/
 import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
+import { PortalPwaPing } from "./PortalPwaPing";
 import { PortalWelcomeSheet } from "./PortalWelcomeSheet";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
@@ -26,6 +27,45 @@ type Props = {
   photoUrl?: string | null;
   children: React.ReactNode;
 };
+
+// Greeting that writes on letter by letter, left to right, a beat after the
+// page settles. Each character fades + lifts with a staggered delay. Honours
+// reduced-motion (OS or the in-app toggle): the line just appears.
+function GreetingText({ text }: { text: string }) {
+  const [revealed, setRevealed] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const rm =
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      document.documentElement.getAttribute("data-portal-motion") === "reduced";
+    setReduced(rm);
+    // Let the cards land first, then start writing the greeting on.
+    const t = window.setTimeout(() => setRevealed(true), rm ? 0 : 320);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
+    <span aria-label={text}>
+      {[...text].map((ch, i) => (
+        <span
+          key={i}
+          aria-hidden
+          style={{
+            display: "inline-block",
+            whiteSpace: "pre",
+            opacity: revealed ? 1 : 0,
+            transform: revealed ? "translateY(0)" : "translateY(0.24em)",
+            transition: reduced
+              ? "none"
+              : "opacity 560ms cubic-bezier(0.22, 1, 0.36, 1), transform 560ms cubic-bezier(0.22, 1, 0.36, 1)",
+            transitionDelay: reduced ? "0ms" : `${i * 40}ms`,
+          }}
+        >
+          {ch}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 // NOTE: agencyName is still passed in (Props) but no longer rendered in the
 // header — it truncated the greeting. It needs a new home elsewhere in the
@@ -49,7 +89,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
     const h = new Date().getHours();
     setGreeting(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
   }, []);
-  const greetingLabel = greeting && firstName ? `${greeting}, ${firstName}` : greeting || firstName || "";
+  // Nothing until the greeting resolves after mount — we don't want the bare
+  // name flashing on first paint and then jumping to the full greeting. Once
+  // it's ready the whole line writes on, letter by letter (GreetingText).
+  const greetingLabel = greeting ? (firstName ? `${greeting}, ${firstName}` : greeting) : "";
 
   // Measure real engaged time the client spends on their portal (audit
   // COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13). Mounts once for the whole portal
@@ -106,6 +149,9 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           globals.css) so dark mode gets a deep-ground variant. Batch 4. */}
       <div aria-hidden className="portal-ambient" />
 
+      {/* Fire-and-forget PWA adoption signal (Command Centre → App adoption). */}
+      <PortalPwaPing token={token} />
+
       {/* Top header. On the overview it floats OVER the property photo
           (transparent, with a soft top scrim for legibility) so the image runs
           to the very top; elsewhere it's a solid sticky bar. A picked glass
@@ -124,7 +170,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
               className="text-[17px] font-semibold truncate"
               style={{ color: P.textPrimary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
             >
-              {greetingLabel}
+              {greetingLabel && <GreetingText key={greetingLabel} text={greetingLabel} />}
             </p>
             {/* Menu (right). Agency name removed for now — it truncated the
                 greeting; it needs a new home elsewhere in the portal. */}
@@ -248,10 +294,10 @@ function TabItem({
           width: 32,
           height: 32,
           color: active ? P.primary : P.textMuted,
-          // Elevra's "shadow-glowAccent" — accent-hued glow behind the
-          // icon when active. Coral for the portal (P.primary).
+          // Accent-hued glow behind the icon when active. Follows the
+          // client's chosen accent (--portal-primary) so it isn't stuck coral.
           boxShadow: active
-            ? "0 0 24px rgba(255, 107, 74, 0.35)"
+            ? "0 0 24px color-mix(in srgb, var(--portal-primary, #FF6B4A) 35%, transparent)"
             : "none",
           transform: active ? "scale(1.1)" : "scale(1)",
           transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms ease, box-shadow 200ms ease",

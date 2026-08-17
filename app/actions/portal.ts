@@ -416,6 +416,11 @@ export async function portalSaveCostsAction(input: {
   token: string;
   depositGBP: number | null;
   mortgageGBP: number | null;
+  otherFundsGBP?: number | null;
+  firstTimeBuyer?: boolean;
+  // null = the buyer hasn't confirmed their stamp-duty situation yet.
+  additionalProperty?: boolean | null;
+  completionFundsSent?: boolean;
 }): Promise<{ ok: boolean }> {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
@@ -423,7 +428,7 @@ export async function portalSaveCostsAction(input: {
   });
   if (!contact || contact.roleType !== "purchaser") return { ok: false };
 
-  const toPence = (v: number | null) =>
+  const toPence = (v: number | null | undefined) =>
     v != null && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) : null;
 
   await prisma.propertyTransaction.update({
@@ -431,6 +436,10 @@ export async function portalSaveCostsAction(input: {
     data: {
       clientDepositGBP: toPence(input.depositGBP),
       clientMortgageGBP: toPence(input.mortgageGBP),
+      clientOtherFundsSentGBP: toPence(input.otherFundsGBP),
+      clientFirstTimeBuyer: input.firstTimeBuyer ?? false,
+      clientAdditionalProperty: input.additionalProperty ?? null,
+      clientCompletionFundsSent: input.completionFundsSent ?? false,
     },
   });
 
