@@ -70,10 +70,10 @@ function SaveContactButton({ token, who }: { token: string; who: "progressor" | 
 
 export function PortalTeamCard({ team, token }: { team: PortalTeam; token: string }) {
   const { managing, solicitorFirmName, solicitorMailto, chainAgent } = team;
-  // Buyers only, per Ellis: show their "selling agent" row (the chain link
-  // below them). Sellers' onward-purchase agent is left off the card for now,
-  // though both can still add theirs from the drawer.
-  const showAgentRow = chainAgent.direction === "below" && chainAgent.canManage;
+  // Symmetric for both sides (2026-08-17): a buyer records their selling agent
+  // (chain link below them), a seller their onward-purchase agent (link above).
+  const showAgentRow = chainAgent.canManage;
+  const agentNoun = chainAgent.direction === "below" ? "selling agent" : "onward agent";
   const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
   if (!managing && !solicitorFirmName && !showAgentRow) return null;
 
@@ -257,7 +257,7 @@ export function PortalTeamCard({ team, token }: { team: PortalTeam; token: strin
         <PortalTeamManageRow
           section="agents"
           icon={agentHas ? "edit" : "add"}
-          label={agentHas ? "Edit your selling agent" : "Add your selling agent"}
+          label={agentHas ? `Edit your ${agentNoun}` : `Add your ${agentNoun}`}
           topBorder={firstRow !== "agent"}
         >
           <div
@@ -275,12 +275,14 @@ export function PortalTeamCard({ team, token }: { team: PortalTeam; token: strin
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
-              {agentHas ? (chainAgent.agentName || chainAgent.agencyName) : "Your selling agent"}
+              {agentHas ? (chainAgent.agentName || chainAgent.agencyName) : `Your ${agentNoun}`}
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
               {agentHas
-                ? (chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : "Your selling agent")
-                : "Selling somewhere too? Add your agent to keep the chain moving."}
+                ? (chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : `Your ${agentNoun}`)
+                : (chainAgent.direction === "below"
+                    ? "Selling somewhere too? Add your agent to keep the chain moving."
+                    : "Buying onward? Add your agent to keep the chain moving.")}
             </p>
           </div>
         </PortalTeamManageRow>

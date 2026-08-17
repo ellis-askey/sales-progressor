@@ -174,6 +174,7 @@ export async function updateMyChainAgentAction(input: {
     stubAgentPhone: agentPhone,
   };
 
+  let hadInvite = false;
   const chain = await getChainForTransactionV2(contact.propertyTransactionId).catch(() => null);
   if (!chain) {
     await createChainV2({
@@ -190,6 +191,17 @@ export async function updateMyChainAgentAction(input: {
       return { ok: false as const, error: "That agent has already joined, so their details can't be changed here." };
     }
     if (neighbour) {
+      // While an invite is live it's locked; once it expires / declines /
+      // bounces it's editable again, and we flag the change for re-invite.
+      const link = await prisma.chainLink.findUnique({
+        where: { id: neighbour.id },
+        select: { inviteStatus: true, inviteSentAt: true, inviteTokenExpiresAt: true },
+      });
+      const invitePending = link?.inviteStatus === "SENT" && link.inviteTokenExpiresAt != null && link.inviteTokenExpiresAt > new Date();
+      if (invitePending) {
+        return { ok: false as const, error: "We've sent them an invite, so their details are locked for now. If they're wrong, let us know and we'll sort it." };
+      }
+      hadInvite = link?.inviteSentAt != null;
       await updateChainLinkStub(neighbour.id, {
         stubPropertyAddress: propertyAddress || undefined,
         stubAgencyName: stub.stubAgencyName,
@@ -207,7 +219,9 @@ export async function updateMyChainAgentAction(input: {
   const sideWord = side === "vendor" ? "onward-purchase" : "selling";
   const who = agentName ?? agencyName ?? "their agent";
   const at = agentName && agencyName ? ` at ${agencyName}` : "";
-  const body = `${contact.name} added their ${sideWord} agent via the portal: ${who}${at}.`;
+  const body = hadInvite
+    ? `${contact.name} updated their ${sideWord} agent details via the portal after the previous invite lapsed: ${who}${at}. Review and re-invite or dismiss.`
+    : `${contact.name} added their ${sideWord} agent via the portal: ${who}${at}.`;
   await prisma.outboundMessage.create({
     data: { transactionId: contact.propertyTransactionId, type: "internal_note", contactIds: [], content: body },
   });
@@ -215,7 +229,7 @@ export async function updateMyChainAgentAction(input: {
     userId: managingUserId,
     type: "portal_chain_agent_updated",
     transactionId: contact.propertyTransactionId,
-    payload: { title: "Chain agent added", body, contactName: contact.name },
+    payload: { title: hadInvite ? "Chain agent details changed" : "Chain agent added", body, contactName: contact.name },
   });
 
   revalidatePath(`/portal/${input.token}`, "layout");

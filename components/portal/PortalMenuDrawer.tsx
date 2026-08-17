@@ -455,15 +455,30 @@ function YourAgentsSection({
     void onSaved();
   }
 
-  // The other agent has joined the platform — their details are theirs now.
+  // Read-only: either the agent has joined (claimed) or we've sent a live invite
+  // (invited). Claimed → theirs to keep current. Invited → locked while the
+  // invite is out, with an "email us to correct" fallback.
   if (ca.present && !ca.editable) {
     return (
       <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
         <ReadRow label="Agent"  value={ca.agentName ?? "—"} />
         <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
-        <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted }}>
-          They&apos;re on the platform now, so their details are kept up to date by them.
-        </p>
+        {ca.editState === "claimed" ? (
+          <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted }}>
+            They&apos;re on the platform now, so their details are kept up to date by them.
+          </p>
+        ) : (
+          <>
+            <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted, lineHeight: 1.5 }}>
+              We&apos;ve sent them an invite, so these are locked for now. If they&apos;re wrong, let us know and we&apos;ll sort it.
+            </p>
+            {ca.correctionMailto && (
+              <SectionFooter>
+                <a href={ca.correctionMailto} className="portal-menu-btn" style={btnGhost}>Email us to correct</a>
+              </SectionFooter>
+            )}
+          </>
+        )}
       </SectionCard>
     );
   }

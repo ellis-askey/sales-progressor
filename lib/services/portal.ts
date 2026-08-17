@@ -369,7 +369,14 @@ export type PortalChainAgent = {
   label: string;                 // client-facing label for this neighbour
   direction: "above" | "below";
   present: boolean;              // is there a neighbour link at all?
-  editable: boolean;             // stub → editable; claimed agent → read-only
+  editable: boolean;             // convenience: editState === "editable"
+  // Editability lifecycle (2026-08-17): a stub is editable until we send the
+  // agent an invite; while that invite is live it's read-only ("invited");
+  // once it expires / declines / bounces it's editable again; once the agent
+  // joins it's read-only ("claimed"). Same rule for buyers and sellers.
+  editState: "editable" | "invited" | "claimed";
+  // "Email us to correct" mailto for the read-only states (invited / claimed).
+  correctionMailto: string | null;
   linkId: string | null;
   agentName: string | null;
   agencyName: string | null;
@@ -389,15 +396,15 @@ export async function getPortalChainAgent(
   // A managing user is required to attribute any chain write (createdByUserId).
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { serviceType: true, assignedUserId: true, agentUserId: true },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } } },
   });
   const managingUserId = tx
     ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
     : null;
 
   const base: PortalChainAgent = {
-    label, direction, present: false, editable: true, linkId: null,
-    agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
+    label, direction, present: false, editable: true, editState: "editable", correctionMailto: null,
+    linkId: null, agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
     propertyAddress: null, canManage: !!managingUserId,
   };
 
@@ -411,10 +418,30 @@ export async function getPortalChainAgent(
   if (!neighbour) return base; // no neighbour link yet — client can add one
 
   const claimed = neighbour.transactionId !== null;
+  let editState: "editable" | "invited" | "claimed";
+  if (claimed) {
+    editState = "claimed";
+  } else {
+    const link = await prisma.chainLink.findUnique({
+      where: { id: neighbour.id },
+      select: { inviteStatus: true, inviteTokenExpiresAt: true },
+    });
+    const invitePending = link?.inviteStatus === "SENT" && link.inviteTokenExpiresAt != null && link.inviteTokenExpiresAt > new Date();
+    editState = invitePending ? "invited" : "editable";
+  }
+  let correctionMailto: string | null = null;
+  if (editState !== "editable") {
+    const to = tx?.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+    const dealWord = side === "vendor" ? "onward-purchase" : "selling";
+    const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
+    correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
+  }
   return {
     ...base,
     present: true,
-    editable: !claimed,
+    editable: editState === "editable",
+    editState,
+    correctionMailto,
     linkId: neighbour.id,
     agentName:   claimed ? (neighbour.claimedBy?.name ?? null)    : neighbour.stubAgentName,
     agencyName:  claimed ? (neighbour.claimedBy?.firmName ?? null) : neighbour.stubAgencyName,
@@ -454,7 +481,7 @@ export async function getPortalTeam(
         chainAgent: {
           label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
           direction: side === "vendor" ? "above" : "below",
-          present: false, editable: false, linkId: null,
+          present: false, editable: false, editState: "editable", correctionMailto: null, linkId: null,
           agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
           propertyAddress: null, canManage: false,
         },
