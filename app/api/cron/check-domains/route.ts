@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 
 // Called nightly by Vercel Cron. Protected by CRON_SECRET header.
 export async function GET(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     include: {
       userEmails: {
         where: { status: "verified" },
-        include: { user: { select: { email: true, name: true } } },
+        include: { user: { select: { id: true, email: true, name: true } } },
       },
     },
   });
@@ -45,8 +45,12 @@ export async function GET(req: NextRequest) {
         for (const userEmail of domain.userEmails) {
           if (notified.has(userEmail.user.email)) continue;
           notified.add(userEmail.user.email);
-          await sendEmail({
+          await sendAgentEmail({
             to: userEmail.user.email,
+            kind: "domain_auth",
+            userId: userEmail.user.id,
+            agencyId: domain.agencyId,
+            meta: { domain: domain.domain },
             subject: `Action needed: ${domain.domain} email authentication has broken`,
             text: [
               `Hi ${userEmail.user.name},`,

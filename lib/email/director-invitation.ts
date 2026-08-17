@@ -1,4 +1,4 @@
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { agencyFrom } from "@/lib/email/from-name";
 
 interface DirectorInvitationEmailInput {
@@ -70,12 +70,14 @@ This invitation expires in 7 days.`;
 </body>
 </html>`;
 
-  return sendEmail({
+  return sendAgentEmail({
     to: input.directorEmail,
     subject,
     text,
     html,
     from: agencyFrom(input.agencyName),
+    kind: "team_invite",
+    meta: { agencyName: input.agencyName, invitedByName: input.invitedByName },
   });
 }
 

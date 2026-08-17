@@ -15,7 +15,7 @@
 // See /test/claim-welcome for a rendered preview with sample data.
 
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildClaimWelcome } from "@/lib/emails/retention";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
@@ -56,11 +56,14 @@ export async function sendClaimWelcomeIfNotSent(args: ClaimWelcomeArgs): Promise
       ctaUrl,
     });
 
-    await sendEmail({
+    await sendAgentEmail({
       to: user.email,
       subject: built.subject,
       text: built.text,
       html: built.html,
+      kind: "claim_welcome",
+      userId,
+      transactionId,
     });
     console.log(`[sendClaimWelcome] sent to userId=${userId} txId=${transactionId}`);
   } catch (err) {

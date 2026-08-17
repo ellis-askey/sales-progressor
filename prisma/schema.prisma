@@ -82,6 +82,7 @@ model Agency {
   invoices                Invoice[]
   pricingAcknowledgements PricingAcknowledgement[]
   creditNotes             CreditNote[]
+  agentEmailLogs          AgentEmailLog[]
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -197,6 +198,7 @@ model User {
   pricingAcknowledgements       PricingAcknowledgement[]
   quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
   outlookConnections            OutlookConnection[]
+  agentEmailLogs                AgentEmailLog[]
 }
 
 model AgentPushSubscription {
@@ -433,6 +435,7 @@ model PropertyTransaction {
   enquiryTracker                   EnquiryTracker?
   enquiryRaiseChase                EnquiryRaiseChase?
   chaseSends                       ChaseSend[]
+  agentEmailLogs                   AgentEmailLog[]
 
   // Phase 0 of the relist feature — shadow only. No reads or writes
   // currently consume these fields; populated by backfill so the
@@ -2967,4 +2970,47 @@ model CreditNote {
 
   @@index([agencyId])
   @@index([appliedToInvoiceId])
+}
+
+// Record of an email sent TO an agency user (or an external agent) that does
+// NOT already leave a trail on a file. Client-facing sends are logged via
+// OutboundEmailQueue + file activity; agent-facing sends previously fired
+// straight through sendEmail with no record. Written best-effort by
+// sendAgentEmail (lib/email/agent-log.ts) — a logging failure never blocks the
+// send. Surfaced in the Command Centre at /command/agent-emails. Log starts at
+// ship date; no backfill (SendGrid activity retention is ~3 days).
+model AgentEmailLog {
+  id     String   @id @default(cuid())
+  sentAt DateTime @default(now())
+
+  toEmail String
+
+  // The agency user this went to, when known (null for external agents on
+  // chain invites). SetNull so deleting a user does not lose the audit row.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  agencyId String?
+  agency   Agency? @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+
+  // Kind taxonomy (string, not enum, so new senders can log without a
+  // migration): weekly_brief, morning_digest, retention, welcome,
+  // claim_welcome, team_invite, team_accepted, portal_message, domain_auth,
+  // verified_email, chain_invite, password_reset.
+  kind    String
+  subject String
+
+  // Rendered bodies. NULL for redacted kinds (password_reset carries a live
+  // reset link — we store kind + subject + recipient only).
+  text String?
+  html String?
+
+  transactionId String?
+  transaction   PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  meta Json?
+
+  @@index([sentAt])
+  @@index([kind])
+  @@index([agencyId])
 }

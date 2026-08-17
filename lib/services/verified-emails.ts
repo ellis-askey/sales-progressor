@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { createHash, createHmac, randomBytes } from "crypto";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 
 const PERSONAL_DOMAINS = new Set([
   "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk",
@@ -105,8 +105,10 @@ export async function startInboxVerification(
 
   const verifyLink = `${baseUrl}/api/agent/verified-emails/inbox/verify-link?token=${tokenRaw}&email=${encodeURIComponent(email)}&userId=${userId}`;
 
-  await sendEmail({
+  await sendAgentEmail({
     to: email,
+    kind: "verified_email",
+    userId,
     subject: "Verify your sending address — Sales Progressor",
     text: [
       `Your verification code is: ${code}`,

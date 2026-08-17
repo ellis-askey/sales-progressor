@@ -15,7 +15,7 @@
 
 import { createHmac } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   buildRetentionEmail,
@@ -80,13 +80,17 @@ async function sendRetentionEmail({
 
   const from = `${template.fromDisplayName} <${SYSTEM_FROM_DOMAIN}>`;
 
-  await sendEmail({
+  await sendAgentEmail({
     to: user.email,
     subject: template.subject,
     text: template.text,
     html: template.html,
     from,
     replyTo: REPLY_TO,
+    kind: "retention",
+    userId: user.id,
+    agencyId: user.agencyId,
+    meta: { emailKey },
   });
 
   // Write log row only after successful send

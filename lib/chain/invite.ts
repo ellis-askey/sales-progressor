@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { agencyFrom } from "@/lib/email/from-name";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { normaliseAddressString } from "@/lib/utils/address";
@@ -137,7 +138,9 @@ async function sendInviteEmail(input: {
     declineUrl,
   });
 
-  await sendEmail({ to: link.stubAgentEmail, subject, html, text, from: agencyFrom(originatorAgency) });
+  // External agent (unclaimed stub): no recipient user id, so userId stays null
+  // and we key the log off the email address only.
+  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: agencyFrom(originatorAgency), kind: "chain_invite", meta: { originatorAgency } });
 }
 
 function buildInviteHtml(v: {

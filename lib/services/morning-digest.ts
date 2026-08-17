@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { agencyFrom } from "@/lib/email/from-name";
 import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
@@ -181,7 +181,7 @@ ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:2
 <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`;
 
-    await sendEmail({ to: d.email, subject, text: lines.join("\n"), html, from: fromAddr }).catch(() => {});
+    await sendAgentEmail({ to: d.email, subject, text: lines.join("\n"), html, from: fromAddr, kind: "morning_digest", userId: d.userId, agencyId }).catch(() => {});
     sent++;
   }
 

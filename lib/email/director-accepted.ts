@@ -1,4 +1,4 @@
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { agencyFrom } from "@/lib/email/from-name";
 
 interface DirectorAcceptedEmailInput {
@@ -63,12 +63,14 @@ Sales Progressor`;
 </body>
 </html>`;
 
-  return sendEmail({
+  return sendAgentEmail({
     to: input.negotiatorEmail,
     subject,
     text,
     html,
     from: agencyFrom(input.agencyName),
+    kind: "team_accepted",
+    meta: { agencyName: input.agencyName },
   });
 }
 
