@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail } from "@/lib/email";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from "./codes";
@@ -358,7 +358,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   // Reply-To matching, falling back to the SP default when the agency has no
   // authenticated address. (agentId is still needed for the activity record below.)
   const agentId = tx.assignedUserId ?? tx.agentUserId;
-  const { from, replyTo } = await resolveAgencySender(tx.agencyId);
+  const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
   await sendChainEmail({ to: email, subject, text, html, from, replyTo });
 

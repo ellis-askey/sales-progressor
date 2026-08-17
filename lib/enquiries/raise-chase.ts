@@ -12,7 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail } from "@/lib/email";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
@@ -137,7 +137,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
     // Sending address = the file's agency authenticated address (Reply-To
     // matching), SP fallback when the agency has none. Body signature identity
     // (senderName / agencyName) resolved separately below.
-    const { from, replyTo } = await resolveAgencySender(tx.agencyId);
+    const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
     let senderName = tx.agency?.name ?? "The Sales Progressor";
     let agencyName = tx.agency?.name ?? "The Sales Progressor";
     if (ownerId) {

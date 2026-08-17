@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
-import { greetingName } from "@/lib/utils";
 
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
@@ -59,13 +58,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         `If anything needs your attention we'll be in touch right away. Otherwise, just reply to this email if you have questions.${portalLink}`,
       ].join("\n");
 
-      const personName = tx.serviceType === "self_managed"
-        ? tx.agentUser?.name
-        : tx.assignedUser?.name;
-      const { from: fromAddr, replyTo } = await resolveAgencySender(
-        agencyId,
-        personName ? { personFirstName: greetingName(personName) } : undefined,
-      );
+      const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
       const portalSection = contact.portalToken
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`

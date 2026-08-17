@@ -3,7 +3,7 @@ import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
@@ -1101,11 +1101,7 @@ export async function logPortalMilestoneConfirm(
   const progressorEmail = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const brandPerson = serviceType === "self_managed" ? tx.agentUser?.name : tx.assignedUser?.name;
-  const { from: agencyEmailFrom, replyTo } = await resolveAgencySender(
-    tx.agencyId,
-    brandPerson ? { personFirstName: brandPerson.trim().split(/\s+/)[0] } : undefined,
-  );
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
   // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
@@ -1441,11 +1437,7 @@ export async function sendAdminMilestoneNotificationToPortal(
 
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17).
-  const brandPerson = tx.serviceType === "self_managed" ? tx.agentUser?.name : tx.assignedUser?.name;
-  const { from: agencyEmailFrom, replyTo } = await resolveAgencySender(
-    tx.agencyId,
-    brandPerson ? { personFirstName: brandPerson.trim().split(/\s+/)[0] } : undefined,
-  );
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
 
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
@@ -1877,11 +1869,7 @@ async function sendRichMilestoneEmails(
   const progressorEmail  = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const brandPerson      = serviceType === "self_managed" ? tx.agentUser?.name : tx.assignedUser?.name;
-  const { from: agencyEmailFrom, replyTo } = await resolveAgencySender(
-    tx.agencyId,
-    brandPerson ? { personFirstName: brandPerson.trim().split(/\s+/)[0] } : undefined,
-  );
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)

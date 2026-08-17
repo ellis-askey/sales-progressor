@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { outwardCode } from "@/lib/utils/address";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
 
@@ -53,8 +54,6 @@ export type QuoteSubmitResult =
 
 // Where quotes send from when an agency has no verified sender on file, and
 // where the internal "a quote was requested" heads-up lands.
-// Sender fallback when the agency has no verified address of its own.
-const SP_FROM_FALLBACK = "updates@thesalesprogressor.co.uk";
 // Internal ops inbox for the "a quote was requested" heads-up (a recipient, not
 // a sender fallback).
 const SP_OPS_INBOX = "ellis@thesalesprogressor.co.uk";
@@ -145,9 +144,11 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   const propertyPostcode = extractPostcodeFromAddress(propertyAddress);
   // Send the quote FROM the agency's own verified address (e.g.
   // ellis@akeman-residential for an Akeman sale). No verified sender on file
-  // (e.g. EXP) → fall back to the Sales Progressor address.
+  // (e.g. EXP) → the file-type-aware fallback (outsourced = the progressor's
+  // @thesalesprogressor.co.uk address; in-house = updates@).
   const agencyName = (contact.transaction.agency?.name ?? "Sales Progressor").replace(LEGAL_SUFFIX, "").trim();
-  const senderAddress = contact.transaction.agency?.quoteSenderEmail ?? SP_FROM_FALLBACK;
+  const senderAddress = contact.transaction.agency?.quoteSenderEmail
+    ?? (await resolveAgencySenderForTransaction(contact.transaction.id)).replyTo;
   const quoteFrom = buildFrom(agencyName, senderAddress);
   const pricePence = contact.transaction.purchasePrice ?? null;
   const tenure = contact.transaction.tenure ?? null;

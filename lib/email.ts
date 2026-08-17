@@ -1,6 +1,6 @@
 import sgMail from "@sendgrid/mail";
 import { prisma } from "@/lib/prisma";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
@@ -219,7 +219,7 @@ export async function resolveSenderForTransaction(
   // agency has none. This keeps manual sends on the agent's own address when
   // they've set one, but agency-branded otherwise — never a bare SP send for a
   // file that belongs to an agency with an approved address.
-  const fallback = () => resolveAgencySender(tx?.agencyId);
+  const fallback = () => resolveAgencySenderForTransaction(transactionId);
 
   const isInternalStaff =
     sessionUser.role === "sales_progressor" || sessionUser.role === "admin";

@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { greetingName } from "@/lib/utils";
 
 export async function sendCompletionSurveys(transactionId: string): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
@@ -26,13 +25,7 @@ export async function sendCompletionSurveys(transactionId: string): Promise<void
   if (!tx) return;
 
   const base = process.env.NEXTAUTH_URL ?? "";
-  const personName = tx.serviceType === "self_managed"
-    ? tx.agentUser?.name
-    : tx.assignedUser?.name;
-  const { from: fromAddr, replyTo } = await resolveAgencySender(
-    tx.agencyId,
-    personName ? { personFirstName: greetingName(personName) } : undefined,
-  );
+  const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(transactionId);
 
   for (const contact of tx.contacts) {
     if (!contact.email || !contact.portalToken) continue;

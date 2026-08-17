@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { preheader } from "@/lib/email/preheader";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
-import { greetingName } from "@/lib/utils";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -28,6 +27,7 @@ export async function POST(req: NextRequest) {
       roleType: true,
       transaction: {
         select: {
+          id: true,
           propertyAddress: true,
           serviceType: true,
           agencyId: true,
@@ -48,13 +48,7 @@ export async function POST(req: NextRequest) {
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 
-  const personName = contact.transaction.serviceType === "self_managed"
-    ? contact.transaction.agentUser?.name
-    : contact.transaction.assignedUser?.name;
-  const { from: fromAddr, replyTo } = await resolveAgencySender(
-    contact.transaction.agencyId,
-    personName ? { personFirstName: greetingName(personName) } : undefined,
-  );
+  const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(contact.transaction.id);
 
   const greeting = buildGreeting(contact.name);
 

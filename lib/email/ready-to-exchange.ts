@@ -15,7 +15,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { preheader } from "@/lib/email/preheader";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 
 const GATE_CODES = ["VM18", "PM25"];
 
@@ -88,15 +88,10 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
 
   const agencyName = tx.agency?.name ?? "Sales Progressor";
 
-  // White-label the sender to the file's own agency authenticated address (the
-  // same one the rest of the file's emails come from), so the client doesn't
-  // see a "Sales Progressor" sender. Falls back to the platform default when
-  // the agency has no authenticated address.
-  const person = tx.serviceType !== "self_managed" ? tx.assignedUser : tx.agentUser;
-  const { from, replyTo } = await resolveAgencySender(
-    tx.agencyId,
-    person?.name ? { personFirstName: person.name.trim().split(/\s+/)[0] } : undefined,
-  );
+  // Send from the file's own agency authenticated address (branded with the
+  // progressor/agent), with the file-type-aware fallback when the agency has
+  // no address of its own.
+  const { from, replyTo } = await resolveAgencySenderForTransaction(transactionId);
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;
