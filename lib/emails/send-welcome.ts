@@ -15,7 +15,7 @@
 // fail the signup response. All errors are logged here and swallowed.
 
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildActivationDay1 } from "@/lib/emails/retention";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
@@ -48,11 +48,13 @@ export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
 
     const built = buildActivationDay1({ firstName, ctaUrl });
 
-    await sendEmail({
+    await sendAgentEmail({
       to: user.email,
       subject: built.subject,
       text: built.text,
       html: built.html,
+      kind: "welcome",
+      userId,
     });
     console.log(`[sendWelcomeEmail] sent to userId=${userId}`);
   } catch (err) {

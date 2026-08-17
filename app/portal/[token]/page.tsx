@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
@@ -23,6 +24,7 @@ import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
+import { PortalCustomizeOverview } from "@/components/portal/PortalCustomizeOverview";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -114,6 +116,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
   const recentActivity = timeline.slice(0, 3);
   const updateOverrides = await getUpdateOverrideMap();
+
+  // "New since your last visit" — mark timeline entries created after the
+  // client's previous visit. Null on a first visit, so nothing is flagged then.
+  const lastVisit = contact.lastVisitedPortalAt ?? null;
+  const isNew = (e: TimelineEntry) => !!lastVisit && !!e.createdAt && new Date(e.createdAt) > new Date(lastVisit);
+  const newCount = timeline.filter(isNew).length;
 
   const stage = detectStage(milestones, side);
 
@@ -446,6 +454,60 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const doneCodes = new Set(milestones.filter((m) => m.isComplete || m.isNotRequired).map((m) => m.code));
   const tips  = getStageTips(stage, side, token, doneCodes);
 
+  // ── Customize overview (Batch 1): which moveable cards are present + order ──
+  const showSurveyQuote    = side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName;
+  const showSurveyStatus   = side === "purchaser" && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
+  const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
+  const showComingUp       = comingUp.length > 0 && !hasCompleted;
+  const showImportantDates = keyDates.length > 0;
+  const showGuidance       = stage === "completed" ? true : tips.length > 0;
+  const showExplain        = !hasCompleted;
+
+  const MOVABLE_KEYS = ["survey-quote","survey-status","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
+  const MOVABLE_LABELS: Record<string, string> = {
+    "survey-quote": "Get a survey quote",
+    "survey-status": "Survey",
+    "costs": "Your costs",
+    "team": "Your team",
+    "coming-up": "Coming up",
+    "important-dates": "Important dates",
+    "guidance": stage === "completed" ? "What happens next" : "Helpful to know",
+    "explain-email": "Explain my email",
+    "feedback": "Feedback",
+    "latest-updates": "Latest updates",
+  };
+  const MOVABLE_PRESENT: Record<string, boolean> = {
+    "survey-quote": showSurveyQuote,
+    "survey-status": showSurveyStatus,
+    "costs": showCosts,
+    "team": true,
+    "coming-up": showComingUp,
+    "important-dates": showImportantDates,
+    "guidance": showGuidance,
+    "explain-email": showExplain,
+    "feedback": true,
+    "latest-updates": true,
+  };
+
+  const overviewLayoutSaved = (contact.overviewLayout ?? null) as { order?: string[]; hidden?: string[] } | null;
+  const layoutOrder = Array.isArray(overviewLayoutSaved?.order) ? overviewLayoutSaved!.order! : [];
+  const layoutHidden = new Set(Array.isArray(overviewLayoutSaved?.hidden) ? overviewLayoutSaved!.hidden! : []);
+  const orderedMovableKeys = [
+    ...layoutOrder.filter((k) => (MOVABLE_KEYS as readonly string[]).includes(k)),
+    ...MOVABLE_KEYS.filter((k) => !layoutOrder.includes(k)),
+  ];
+  const movableOrderIndex = new Map<string, number>();
+  orderedMovableKeys.forEach((k, i) => movableOrderIndex.set(k, i));
+  const slot = (key: string): CSSProperties => ({ order: movableOrderIndex.get(key) ?? 99, display: layoutHidden.has(key) ? "none" : undefined });
+
+  const customizeMovable = MOVABLE_KEYS.filter((k) => MOVABLE_PRESENT[k]).map((k) => ({ key: k, label: MOVABLE_LABELS[k] }));
+  const customizeFixed: string[] = [];
+  if (hasCompleted) customizeFixed.push(side === "vendor" ? "Sale complete" : "Purchase complete");
+  else if (hasExchanged) customizeFixed.push("Completion countdown");
+  else customizeFixed.push("Your progress");
+  if (nextAction && !hasCompleted) customizeFixed.push("Your next step");
+  if (!hasExchanged && !hasCompleted && transaction.expectedExchangeDate) customizeFixed.push("Add to calendar");
+
   return (
     <div className="space-y-4 portal-fade-in">
 
@@ -492,8 +554,26 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         />
       )}
 
+      {/* ── Add the expected exchange date to your calendar (pre-exchange) ── */}
+      {!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && (
+        <a
+          href={`/api/portal/calendar-export/${token}?event=exchange`}
+          download="exchange-target.ics"
+          className="pbtn pbtn-press flex items-center justify-center gap-2 rounded-2xl py-3.5"
+          style={{ background: P.cardBg, boxShadow: P.shadowSm, color: P.accent, fontSize: 13.5, fontWeight: 700, textDecoration: "none" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Add expected exchange to your calendar
+        </a>
+      )}
+
+      <div className="flex flex-col gap-4">
+
       {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
-      {side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && (
+      {showSurveyQuote && (
+        <div style={slot("survey-quote")}>
         <Link
           href={`/quote/${token}`}
           className="pbtn pbtn-press block"
@@ -529,10 +609,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </Link>
+        </div>
       )}
 
       {/* ── Survey status (purchasers): booked with a named firm, or quote requested ── */}
-      {side === "purchaser" && !hasExchanged && !hasCompleted && hasRequestedQuote && (bookedSurveyorName || !surveyBooked) && (
+      {showSurveyStatus && (
+        <div style={slot("survey-status")}>
         <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
           <div className="flex items-center gap-3 p-5">
             <div
@@ -569,25 +651,29 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* ── Your costs (buyers, pre-completion) ──────────────────── */}
-      {side === "purchaser" && !hasCompleted && transaction.purchasePrice != null && (
+      {showCosts && (
+        <div style={slot("costs")}>
         <PortalCostsCard
-          priceGBP={transaction.purchasePrice / 100}
+          priceGBP={transaction.purchasePrice! / 100}
           hasExchanged={hasExchanged}
           isCash={transaction.purchaseType === "cash_buyer" || transaction.purchaseType === "cash_from_proceeds"}
           savedDeposit={transaction.clientDepositGBP != null ? transaction.clientDepositGBP / 100 : null}
           savedMortgage={transaction.clientMortgageGBP != null ? transaction.clientMortgageGBP / 100 : null}
           token={token}
         />
+        </div>
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}
-      <PortalTeamCard team={team} />
+      <div style={slot("team")}><PortalTeamCard team={team} token={token} /></div>
 
       {/* ── Coming up (next 3 after next action) ─────────────────── */}
-      {comingUp.length > 0 && !hasCompleted && (
+      {showComingUp && (
+        <div style={slot("coming-up")}>
         <PortalGlassCard glassId="coming-up" label="Coming up" className="overflow-hidden">
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Coming up</p>
@@ -613,10 +699,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </div>
           ))}
         </PortalGlassCard>
+        </div>
       )}
 
       {/* ── Key dates ────────────────────────────────────────────── */}
-      {keyDates.length > 0 && (
+      {showImportantDates && (
+        <div style={slot("important-dates")}>
         <PortalGlassCard glassId="important-dates" label="Important dates" className="overflow-hidden">
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Important dates</p>
@@ -634,13 +722,16 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </div>
           ))}
         </PortalGlassCard>
+        </div>
       )}
 
       {/* Target-exchange card removed 2026-08-12 — it duplicated the
           "12-week target" already shown in the hero. */}
 
       {/* ── Tips / What's next ───────────────────────────────────── */}
-      {stage === "completed" ? (
+      {showGuidance ? (
+        <div style={slot("guidance")}>
+        {stage === "completed" ? (
         <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>What happens next</p>
@@ -694,17 +785,27 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           )}
         </div>
       ) : null}
+        </div>
+      ) : null}
 
       {/* ── Explain-my-email ─────────────────────────────────────── */}
-      {!hasCompleted && <ExplainEmailCard token={token} />}
+      {showExplain && (<div style={slot("explain-email")}><ExplainEmailCard token={token} /></div>)}
 
       {/* ── Feedback widget ──────────────────────────────────────── */}
-      <FeedbackWidget portalToken={token} />
+      <div style={slot("feedback")}><FeedbackWidget portalToken={token} /></div>
 
       {/* ── Latest updates ───────────────────────────────────────── */}
+      <div style={slot("latest-updates")}>
       <PortalGlassCard glassId="latest-updates" label="Latest updates" className="overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${P.border}` }}>
-          <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
+            {newCount > 0 && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.primaryBg, color: P.primary }}>
+                {newCount} new
+              </span>
+            )}
+          </div>
           {recentActivity.length > 0 && (
             <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
               See all
@@ -724,6 +825,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               className="px-5 py-4 flex items-start gap-3"
               style={{ borderBottom: i < recentActivity.length - 1 ? `1px solid ${P.border}` : undefined }}
             >
+              {isNew(entry) && (
+                <span className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{ background: P.primary }} aria-label="New" title="New" />
+              )}
               {entry.type === "milestone" ? (
                 <>
                   {/* Avatar. Own side: the client's own photo on steps they
@@ -801,6 +905,18 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           ))
         )}
       </PortalGlassCard>
+      </div>
+
+      </div>
+
+      {/* ── Customize overview (Edit + reorder) ──────────────────── */}
+      <PortalCustomizeOverview
+        token={token}
+        movable={customizeMovable}
+        order={orderedMovableKeys}
+        hidden={[...layoutHidden]}
+        fixed={customizeFixed}
+      />
 
     </div>
   );

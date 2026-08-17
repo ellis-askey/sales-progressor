@@ -29,6 +29,7 @@ export type LiveTransactionDocumentRow = {
   fileSize: number;
   mimeType: string;
   source: string;
+  docType: string | null;
   createdAt: Date;
   contact: { name: string; roleType: string } | null;
   signedUrl: string | null;
@@ -68,7 +69,7 @@ export async function listLiveTransactionDocuments(
     orderBy: { createdAt: "desc" },
     select: {
       id: true, filename: true, storagePath: true, fileSize: true,
-      mimeType: true, source: true, createdAt: true,
+      mimeType: true, source: true, docType: true, createdAt: true,
       contact: { select: { name: true, roleType: true } },
     },
   });

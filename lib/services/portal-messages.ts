@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -142,7 +143,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
   const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
   const first   = extractFirstName(tx.assignedUser.name);
 
-  await sendEmail({
+  await sendAgentEmail({
     to:      tx.assignedUser.email,
     subject: `Message from ${contact.name}: ${tx.propertyAddress}`,
     text: [
@@ -163,6 +164,9 @@ export async function sendClientPortalMessage(token: string, content: string): P
 <p><a href="${dashUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">Reply on their file</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b91a3">Sales Progressor</p>
 </body></html>`,
+    kind: "portal_message",
+    userId: tx.assignedUser.id,
+    transactionId: tx.id,
   }).catch(() => {});
 }
 

@@ -232,6 +232,12 @@ async function getPortalDataInner(token: string) {
       roleType: true,
       buyerRoundId: true,
       propertyTransactionId: true,
+      // Drives the "new since your last visit" markers on the timeline. Read
+      // before the layout's fire-and-forget visit-stamp updates it (5-min
+      // debounced), so it reflects the PREVIOUS visit in practice.
+      lastVisitedPortalAt: true,
+      // Client-chosen overview card order + hidden set ("Customize overview").
+      overviewLayout: true,
     },
   });
   if (!contact) return null;
@@ -363,7 +369,18 @@ export type PortalChainAgent = {
   label: string;                 // client-facing label for this neighbour
   direction: "above" | "below";
   present: boolean;              // is there a neighbour link at all?
-  editable: boolean;             // stub → editable; claimed agent → read-only
+  // Is this neighbour relevant at all? A pure cash buyer (cash_buyer) has no
+  // related sale, so no selling agent — the row is hidden. Sellers buying onward
+  // and cash-from-proceeds buyers (who ARE selling) keep it.
+  applicable: boolean;
+  editable: boolean;             // convenience: editState === "editable"
+  // Editability lifecycle (2026-08-17): a stub is editable until we send the
+  // agent an invite; while that invite is live it's read-only ("invited");
+  // once it expires / declines / bounces it's editable again; once the agent
+  // joins it's read-only ("claimed"). Same rule for buyers and sellers.
+  editState: "editable" | "invited" | "claimed";
+  // "Email us to correct" mailto for the read-only states (invited / claimed).
+  correctionMailto: string | null;
   linkId: string | null;
   agentName: string | null;
   agencyName: string | null;
@@ -383,15 +400,17 @@ export async function getPortalChainAgent(
   // A managing user is required to attribute any chain write (createdByUserId).
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { serviceType: true, assignedUserId: true, agentUserId: true },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true, purchaseType: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } } },
   });
   const managingUserId = tx
     ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
     : null;
+  // A pure cash buyer has no related sale, so their "selling agent" is n/a.
+  const applicable = !(side === "purchaser" && tx?.purchaseType === "cash_buyer");
 
   const base: PortalChainAgent = {
-    label, direction, present: false, editable: true, linkId: null,
-    agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
+    label, direction, present: false, applicable, editable: true, editState: "editable", correctionMailto: null,
+    linkId: null, agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
     propertyAddress: null, canManage: !!managingUserId,
   };
 
@@ -405,10 +424,30 @@ export async function getPortalChainAgent(
   if (!neighbour) return base; // no neighbour link yet — client can add one
 
   const claimed = neighbour.transactionId !== null;
+  let editState: "editable" | "invited" | "claimed";
+  if (claimed) {
+    editState = "claimed";
+  } else {
+    const link = await prisma.chainLink.findUnique({
+      where: { id: neighbour.id },
+      select: { inviteStatus: true, inviteTokenExpiresAt: true },
+    });
+    const invitePending = link?.inviteStatus === "SENT" && link.inviteTokenExpiresAt != null && link.inviteTokenExpiresAt > new Date();
+    editState = invitePending ? "invited" : "editable";
+  }
+  let correctionMailto: string | null = null;
+  if (editState !== "editable") {
+    const to = tx?.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+    const dealWord = side === "vendor" ? "onward-purchase" : "selling";
+    const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
+    correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
+  }
   return {
     ...base,
     present: true,
-    editable: !claimed,
+    editable: editState === "editable",
+    editState,
+    correctionMailto,
     linkId: neighbour.id,
     agentName:   claimed ? (neighbour.claimedBy?.name ?? null)    : neighbour.stubAgentName,
     agencyName:  claimed ? (neighbour.claimedBy?.firmName ?? null) : neighbour.stubAgencyName,
@@ -448,7 +487,7 @@ export async function getPortalTeam(
         chainAgent: {
           label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
           direction: side === "vendor" ? "above" : "below",
-          present: false, editable: false, linkId: null,
+          present: false, applicable: true, editable: false, editState: "editable", correctionMailto: null, linkId: null,
           agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
           propertyAddress: null, canManage: false,
         },
@@ -498,6 +537,66 @@ export async function getPortalTeam(
 
     return { managing, solicitorFirmName, solicitorMailto, chainAgent };
   });
+}
+
+// ── "Save contact" vCard data (2026-08-17) ──────────────────────────────────
+// Backs the download-to-phone buttons on the "Your team" card: the person
+// managing the file and the client's own-side conveyancer, in vCard shape.
+// Token-scoped (the client's own file); the route turns these into .vcf.
+export type PortalVCard = { fn: string; org: string | null; email: string | null; tel: string | null };
+
+export async function getPortalVCardData(
+  token: string,
+): Promise<{ progressor: PortalVCard | null; solicitor: PortalVCard | null }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: token },
+    select: { roleType: true, propertyTransactionId: true },
+  });
+  if (!contact) return { progressor: null, solicitor: null };
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: {
+      serviceType: true,
+      assignedUser: { select: { name: true, phone: true } },
+      agentUser:    { select: { name: true, phone: true } },
+      agency: { select: { name: true, quoteSenderEmail: true } },
+      vendorSolicitorFirm:    { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+      vendorSolicitorContact:    { select: { name: true, email: true, phone: true } },
+      purchaserSolicitorContact: { select: { name: true, email: true, phone: true } },
+    },
+  });
+  if (!tx) return { progressor: null, solicitor: null };
+
+  const isOutsourced = tx.serviceType !== "self_managed";
+  const person = isOutsourced ? tx.assignedUser : tx.agentUser;
+  const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
+
+  const progressor: PortalVCard | null = person
+    ? {
+        fn: person.name,
+        org: isOutsourced ? "The Sales Progressor" : (tx.agency?.name ?? null),
+        email: agencyEmail,
+        // The shared progressor WhatsApp line on outsourced files, else the
+        // agent's own number if they've entered one.
+        tel: isOutsourced ? "+447508862929" : (person.phone?.trim() || null),
+      }
+    : null;
+
+  const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name;
+  const solContact = side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+  const solicitor: PortalVCard | null = firmName
+    ? {
+        fn: solContact?.name?.trim() || firmName,
+        org: firmName,
+        email: solContact?.email?.trim() || null,
+        tel: solContact?.phone?.trim() || null,
+      }
+    : null;
+
+  return { progressor, solicitor };
 }
 
 // Phase 1 commit 5 — round-scoped read.

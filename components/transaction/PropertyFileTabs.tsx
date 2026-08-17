@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
-import { House, ListChecks, Bell, CheckSquare, Pulse } from "@phosphor-icons/react/dist/ssr";
+import { House, ListChecks, Bell, CheckSquare, Pulse, FileText } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
@@ -21,6 +21,7 @@ const TAB_ICONS: Record<string, Icon> = {
   bell: Bell,
   todo: CheckSquare,
   activity: Pulse,
+  documents: FileText,
 };
 
 type Tab = { key: string; label: string; badge?: number; icon?: string };

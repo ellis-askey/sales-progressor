@@ -26,6 +26,15 @@ import {
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
 import { portalMarkRequiredAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { PortalDocumentsTab } from "./PortalDocumentsTab";
+import { PortalInformationTab } from "./PortalInformationTab";
+
+const MENU_TABS = [
+  { key: "documents", label: "Documents" },
+  { key: "information", label: "Information" },
+  { key: "settings", label: "Settings" },
+] as const;
 
 type Props = {
   open: boolean;
@@ -44,6 +53,8 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"documents" | "information" | "settings">("documents");
+  const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : activeTab === "information" ? 1 : 2);
   // Body-content fade-in: after the drawer slides up (260ms), the
   // inner content transitions from opacity 0 → 1 over 220ms so it
   // feels like it "settles" once the drawer has arrived. Reset on
@@ -180,6 +191,43 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           />
         </header>
 
+        {/* Tabs — Documents | Settings. The underline slides with a little
+            overshoot; a faint underline previews on hover (no icons). */}
+        <div style={{ padding: "10px 20px 0", borderBottom: `0.5px solid ${P.border}` }}>
+          <div style={{ position: "relative", display: "flex", gap: 26 }}>
+            {ind && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute", bottom: 0, left: ind.left, width: ind.width, height: 2,
+                  background: P.primary, borderRadius: "1px 1px 0 0", pointerEvents: "none",
+                  transition: "left 320ms cubic-bezier(0.34,1.5,0.6,1), width 320ms cubic-bezier(0.34,1.5,0.6,1)",
+                }}
+              />
+            )}
+            {MENU_TABS.map((t, i) => {
+              const isActive = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  ref={(el) => { btnRefs.current[i] = el; }}
+                  data-active={isActive ? "true" : undefined}
+                  onClick={() => setActiveTab(t.key)}
+                  className="portal-menu-tab"
+                  style={{
+                    background: "transparent", border: 0, cursor: "pointer",
+                    padding: "6px 2px 12px", fontSize: 14, fontWeight: 700,
+                    color: isActive ? P.textPrimary : P.textMuted,
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Body — fades in ~220ms after the drawer finishes sliding up. */}
         <div style={{
           flex: 1, overflow: "auto",
@@ -189,7 +237,11 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           transform: contentReady ? "translateY(0)" : "translateY(6px)",
           transition: "opacity 220ms ease-out, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}>
-          {loading && !details ? (
+          {activeTab === "documents" ? (
+            <PortalDocumentsTab token={token} />
+          ) : activeTab === "information" ? (
+            <PortalInformationTab token={token} />
+          ) : loading && !details ? (
             <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
           ) : loadError ? (
             <p style={{ textAlign: "center", padding: "40px 0", color: P.warning, fontSize: 13 }}>{loadError}</p>
@@ -396,6 +448,9 @@ function YourAgentsSection({
   const [saved, setSaved] = useState(false);
   const has = ca.present && !!(ca.agentName || ca.agencyName);
 
+  // A pure cash buyer has no related sale, so no selling agent to record.
+  if (!ca.applicable) return null;
+
   function onSaveDone() {
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1600);
@@ -403,15 +458,30 @@ function YourAgentsSection({
     void onSaved();
   }
 
-  // The other agent has joined the platform — their details are theirs now.
+  // Read-only: either the agent has joined (claimed) or we've sent a live invite
+  // (invited). Claimed → theirs to keep current. Invited → locked while the
+  // invite is out, with an "email us to correct" fallback.
   if (ca.present && !ca.editable) {
     return (
       <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
         <ReadRow label="Agent"  value={ca.agentName ?? "—"} />
         <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
-        <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted }}>
-          They&apos;re on the platform now, so their details are kept up to date by them.
-        </p>
+        {ca.editState === "claimed" ? (
+          <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted }}>
+            They&apos;re on the platform now, so their details are kept up to date by them.
+          </p>
+        ) : (
+          <>
+            <p style={{ margin: "8px 4px 0", fontSize: 12, color: P.textMuted, lineHeight: 1.5 }}>
+              We&apos;ve sent them an invite, so these are locked for now. If they&apos;re wrong, let us know and we&apos;ll sort it.
+            </p>
+            {ca.correctionMailto && (
+              <SectionFooter>
+                <a href={ca.correctionMailto} className="portal-menu-btn" style={btnGhost}>Email us to correct</a>
+              </SectionFooter>
+            )}
+          </>
+        )}
       </SectionCard>
     );
   }

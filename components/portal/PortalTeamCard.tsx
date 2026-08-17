@@ -33,12 +33,47 @@ function MailIcon() {
   );
 }
 
-export function PortalTeamCard({ team }: { team: PortalTeam }) {
+function SaveContactIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+// Outlined "Save contact" download link (.vcf). Neutral, to sit apart from the
+// filled WhatsApp / Email actions.
+function SaveContactButton({ token, who }: { token: string; who: "progressor" | "solicitor" }) {
+  return (
+    <a
+      href={`/api/portal/${token}/contact-card?who=${who}`}
+      download={`${who}.vcf`}
+      className="pbtn pbtn-press"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        fontSize: 12.5,
+        fontWeight: 700,
+        padding: "9px 14px",
+        borderRadius: 11,
+        textDecoration: "none",
+        background: "transparent",
+        border: `1px solid ${P.border}`,
+        color: P.textSecondary,
+      }}
+    >
+      <SaveContactIcon /> Save contact
+    </a>
+  );
+}
+
+export function PortalTeamCard({ team, token }: { team: PortalTeam; token: string }) {
   const { managing, solicitorFirmName, solicitorMailto, chainAgent } = team;
-  // Buyers only, per Ellis: show their "selling agent" row (the chain link
-  // below them). Sellers' onward-purchase agent is left off the card for now,
-  // though both can still add theirs from the drawer.
-  const showAgentRow = chainAgent.direction === "below" && chainAgent.canManage;
+  // Symmetric for both sides (2026-08-17): a buyer records their selling agent
+  // (chain link below them), a seller their onward-purchase agent (link above).
+  const showAgentRow = chainAgent.canManage && chainAgent.applicable;
+  const agentNoun = chainAgent.direction === "below" ? "selling agent" : "onward agent";
   const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
   if (!managing && !solicitorFirmName && !showAgentRow) return null;
 
@@ -99,7 +134,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
             <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>Your conveyancer</p>
 
             {solicitorMailto && (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 <a
                   href={solicitorMailto}
                   className="pbtn pbtn-press"
@@ -119,6 +154,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
                 >
                   <MailIcon /> Email
                 </a>
+                <SaveContactButton token={token} who="solicitor" />
               </div>
             )}
           </div>
@@ -205,6 +241,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
                   <MailIcon /> Email
                 </a>
               )}
+              <SaveContactButton token={token} who="progressor" />
             </div>
 
             {managing.email && (
@@ -220,7 +257,7 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
         <PortalTeamManageRow
           section="agents"
           icon={agentHas ? "edit" : "add"}
-          label={agentHas ? "Edit your selling agent" : "Add your selling agent"}
+          label={agentHas ? `Edit your ${agentNoun}` : `Add your ${agentNoun}`}
           topBorder={firstRow !== "agent"}
         >
           <div
@@ -238,12 +275,14 @@ export function PortalTeamCard({ team }: { team: PortalTeam }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
-              {agentHas ? (chainAgent.agentName || chainAgent.agencyName) : "Your selling agent"}
+              {agentHas ? (chainAgent.agentName || chainAgent.agencyName) : `Your ${agentNoun}`}
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
               {agentHas
-                ? (chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : "Your selling agent")
-                : "Selling somewhere too? Add your agent to keep the chain moving."}
+                ? (chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : `Your ${agentNoun}`)
+                : (chainAgent.direction === "below"
+                    ? "Selling somewhere too? Add your agent to keep the chain moving."
+                    : "Buying onward? Add your agent to keep the chain moving.")}
             </p>
           </div>
         </PortalTeamManageRow>

@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { uploadToStorage } from "@/lib/supabase-storage";
+import { isKnownDocType } from "@/lib/portal-documents";
 
 const ALLOWED_MIME = new Set([
   "application/pdf",
@@ -51,6 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const formData = await req.formData();
+  const rawType = formData.get("docType");
+  const docType = typeof rawType === "string" && isKnownDocType(rawType) ? rawType : null;
   const files = formData.getAll("files") as File[];
   if (!files.length) return NextResponse.json({ error: "No files" }, { status: 400 });
   if (files.length > MAX_FILES) return NextResponse.json({ error: `Max ${MAX_FILES} files` }, { status: 400 });
@@ -78,6 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         fileSize: file.size,
         mimeType: file.type,
         source: "admin",
+        docType,
       },
     });
     // Command Centre event log.

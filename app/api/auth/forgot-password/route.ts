@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { agencyFrom } from "@/lib/email/from-name";
 import { checkAuthLimit, rateLimitJson } from "@/lib/ratelimit";
 import crypto from "crypto";
@@ -47,8 +47,13 @@ export async function POST(req: NextRequest) {
   const resetUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(normalised)}`;
 
   try {
-    await sendEmail({
+    // Redacted kind: the body carries a live reset link, so sendAgentEmail
+    // stores kind + subject + recipient only (text/html NULL).
+    await sendAgentEmail({
       to: normalised,
+      kind: "password_reset",
+      userId: user.id,
+      agencyId: user.agencyId,
       subject: "Reset your Sales Progressor password",
       text: `Someone requested a password reset for this account. Click the link below to choose a new one — the link expires in 1 hour.\n\n${resetUrl}\n\nIf this wasn't you, you can safely ignore this email.`,
       html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1A1D29">
@@ -61,7 +66,7 @@ export async function POST(req: NextRequest) {
       from: user.agency ? agencyFrom(user.agency.name) : undefined,
     });
   } catch (err) {
-    console.error("[ERROR] forgot-password: sendEmail failed", err);
+    console.error("[ERROR] forgot-password: sendAgentEmail failed", err);
     return NextResponse.json({ error: "Failed to send reset email" }, { status: 500 });
   }
 

@@ -1,4 +1,4 @@
-import { sendEmail } from "@/lib/email";
+import { sendAgentEmail } from "@/lib/email/agent-log";
 import { agencyFrom } from "@/lib/email/from-name";
 
 interface SendNegotiatorInvitationEmailInput {
@@ -85,5 +85,5 @@ export async function sendNegotiatorInvitationEmail(
 </body>
 </html>`;
 
-  await sendEmail({ to, subject, text, html, from: agencyFrom(agencyName) });
+  await sendAgentEmail({ to, subject, text, html, from: agencyFrom(agencyName), kind: "team_invite", meta: { agencyName, invitedByName } });
 }

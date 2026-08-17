@@ -73,8 +73,21 @@ export default async function PortalUpdatesPage({
   const groups   = groupTimeline(timeline);
   const updateOverrides = await getUpdateOverrideMap();
 
+  // "New since your last visit" markers (null on a first visit → nothing flagged).
+  const lastVisit = contact.lastVisitedPortalAt ?? null;
+  const isNew = (e: TimelineEntry) => !!lastVisit && !!e.createdAt && new Date(e.createdAt) > new Date(lastVisit);
+  const newCount = timeline.filter(isNew).length;
+
   return (
     <div className="space-y-5">
+      {newCount > 0 && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="w-2 h-2 rounded-full" style={{ background: P.primary }} />
+          <p className="text-[13px] font-semibold" style={{ color: P.textPrimary }}>
+            {newCount} new since your last visit
+          </p>
+        </div>
+      )}
       {timeline.length === 0 ? (
         <PortalGlassCard
           glassId="updates-empty"
@@ -108,6 +121,7 @@ export default async function PortalUpdatesPage({
 
             <div className="space-y-2">
               {group.items.map((entry) => {
+                const el = (() => {
 
                 /* ── Key milestone event ── */
                 if (entry.type === "milestone") {
@@ -259,6 +273,18 @@ export default async function PortalUpdatesPage({
                     </p>
                   </div>
                 );
+                })();
+                return isNew(entry) ? (
+                  <div key={entry.id} className="relative">
+                    {el}
+                    <span
+                      className="absolute top-2.5 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: P.primaryBg, color: P.primary }}
+                    >
+                      New
+                    </span>
+                  </div>
+                ) : el;
               })}
             </div>
           </div>

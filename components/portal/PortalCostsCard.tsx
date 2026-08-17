@@ -58,6 +58,14 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
   const mortgageNum = isCash ? 0 : (Number(mortgageStr) || 0);
   const fundsToSend = Math.max(0, priceGBP - depositNum - mortgageNum + sdlt);
 
+  // Only show the funds figure once every APPLICABLE input has a value. Cash
+  // buyers have no mortgage, so deposit alone is enough for them; mortgage
+  // buyers need both. Guessing with a blank input would mislead.
+  const depositFilled = depositStr.trim() !== "" && depositNum > 0;
+  const mortgageFilled = isCash || (mortgageStr.trim() !== "" && mortgageNum > 0);
+  const showFunds = depositFilled && mortgageFilled;
+  const missingLabel = !depositFilled ? "deposit" : "mortgage amount";
+
   const dirty =
     depositNum !== (savedDeposit ?? Math.round(priceGBP * 0.1)) ||
     (!isCash && mortgageNum !== (savedMortgage ?? 0));
@@ -112,18 +120,33 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
             </div>
           </button>
 
-          <div className="flex items-center justify-between px-5 py-4" style={{ background: P.primaryBg }}>
-            <div>
-              <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Funds still to send</p>
-              <p className="text-[11px]" style={{ color: P.textMuted }}>Estimated, before fees</p>
+          {showFunds ? (
+            <div className="flex items-center justify-between px-5 py-4" style={{ background: P.primaryBg }}>
+              <div>
+                <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Funds still to send</p>
+                <p className="text-[11px]" style={{ color: P.textMuted }}>Estimated, before fees</p>
+              </div>
+              <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~{fmtGBP(fundsToSend)}</span>
             </div>
-            <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~{fmtGBP(fundsToSend)}</span>
-          </div>
+          ) : (
+            <div className="px-5 py-4" style={{ background: P.pageBg }}>
+              <p className="text-[13px]" style={{ color: P.textMuted }}>
+                Add your {missingLabel} to see the funds still to send.
+              </p>
+            </div>
+          )}
           <div className="px-5 py-3.5">
             <p className="text-[12px] leading-relaxed mb-3" style={{ color: P.textMuted }}>
               Plus your solicitor&apos;s fees and any other costs. They&apos;ll confirm the exact balance to transfer on your completion statement.
             </p>
-            <div className="flex items-center gap-3">
+            {saved && !dirty ? (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: P.successBg }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span className="text-[13px] font-bold" style={{ color: P.success }}>Figures saved</span>
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={save}
@@ -133,8 +156,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
               >
                 {saving ? "Saving…" : "Save my figures"}
               </button>
-              {saved && !dirty && <span className="text-[12px] font-semibold" style={{ color: P.success }}>Saved</span>}
-            </div>
+            )}
           </div>
         </PortalGlassCard>
       ) : (
