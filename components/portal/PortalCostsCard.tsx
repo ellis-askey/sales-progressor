@@ -117,7 +117,11 @@ export function PortalCostsCard({
     setSaved(false);
     setFtb((v) => {
       const n = !v;
-      if (n) setAdditional(false);
+      // Only resolve the contradiction (they'd said they own another home). We
+      // do NOT set "single property" here: if they never answered the surcharge
+      // question, turning FTB on then off must return them to it, not silently
+      // assume standard rates and understate a second-property buyer.
+      if (n) setAdditional((a) => (a === true ? null : a));
       return n;
     });
   }
