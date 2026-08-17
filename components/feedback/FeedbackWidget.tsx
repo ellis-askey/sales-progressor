@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { HelpCircle } from "lucide-react";
 
 type Category = "bug" | "suggestion" | "question";
@@ -133,11 +134,11 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
     return (
       <div>
         <p style={{ fontSize: 11, fontWeight: 600, color: "var(--fw-text-faint, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#f9faf8", border: "0.5px solid #e5e7eb", borderRadius: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--fw-card-bg, #f9faf8)", border: "0.5px solid #e5e7eb", borderRadius: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value.preview} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 12, fontWeight: 500, color: "#374151", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value.filename}</p>
+            <p style={{ fontSize: 12, fontWeight: 500, color: "var(--fw-text, #374151)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value.filename}</p>
             <p style={{ fontSize: 11, color: "var(--fw-text-faint, #9ca3af)", margin: "2px 0 0" }}>{(value.size / 1024).toFixed(0)} KB</p>
           </div>
           <button type="button" onClick={() => onChange(null)} style={{ flexShrink: 0, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)", borderRadius: 4 }} aria-label="Remove screenshot">
@@ -181,7 +182,7 @@ function Field({ label, value, onChange, rows = 3, placeholder, required }: {
       </label>
       <textarea
         value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} required={required}
-        style={{ width: "100%", padding: "10px 12px", border: "0.5px solid #e5e7eb", borderRadius: 10, background: "rgba(255,255,255,0.7)", fontSize: 13, color: "var(--fw-text, #111827)", resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 150ms" }}
+        style={{ width: "100%", padding: "10px 12px", border: "0.5px solid #e5e7eb", borderRadius: 10, background: "var(--fw-input-bg, rgba(255,255,255,0.7))", fontSize: 13, color: "var(--fw-text, #111827)", resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 150ms" }}
         onFocus={(e) => { e.target.style.borderColor = "#f97316"; }}
         onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; }}
       />
@@ -202,7 +203,7 @@ function CategoryCard({ icon, title, description, onClick }: { icon: React.React
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>{title}</p>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--fw-text, #1f2937)" }}>{title}</p>
         <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--fw-text-faint, #9ca3af)" }}>{description}</p>
       </div>
       <span style={{ color: "#d1d5db", flexShrink: 0 }}><IconChevron /></span>
@@ -237,6 +238,11 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
   const [triggerPosition, setTriggerPosition] = useState<"left" | "right">("right");
   // Hidden while the onboarding checklist is active; starts hidden to avoid flash
   const [checklistActive, setChecklistActive] = useState(!!checklistAware);
+  // Render into <body> so the fixed trigger + panel escape any transformed or
+  // clipped ancestor — the portal mounts this widget deep inside the page's
+  // ordered layout, which was pinning it mid-content. Guards SSR (portals need a DOM).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const triggerRef    = useRef<HTMLButtonElement>(null);
   const triggerWrapRef = useRef<HTMLDivElement>(null);
@@ -431,7 +437,9 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
     return null;
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -449,6 +457,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
       {/* Panel */}
       <div
         className="feedback-panel-wrap"
+        data-surface={portalToken ? "portal" : undefined}
         role="dialog" aria-modal="true" aria-label="Support and Feedback"
         style={{
           ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
@@ -474,6 +483,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
       {!(checklistAware && checklistActive) && <div
         ref={triggerWrapRef}
         className="feedback-trigger-wrap"
+        data-surface={portalToken ? "portal" : undefined}
         style={{ zIndex: 40, ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}) }}
       >
         <button
@@ -515,6 +525,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           </span>
         </button>
       </div>}
-    </>
+    </>,
+    document.body,
   );
 }
