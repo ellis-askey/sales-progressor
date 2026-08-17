@@ -54,8 +54,9 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           agentUserId: true,
           activeBuyerRoundId: true,
           agency: { select: { name: true } },
-          purchaserSolicitorContact: { select: { email: true } },
+          purchaserSolicitorContact: { select: { email: true, name: true } },
           purchaserSolicitorFirm: { select: { name: true } },
+          vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           contacts: {
             select: {
@@ -188,6 +189,8 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           const mail = buildRaiseSolicitorEmail({
             address: tx.propertyAddress,
             clientNames,
+            sellerFirmName: tx.vendorSolicitorFirm?.name ?? undefined,
+            recipientFirstName: tx.purchaserSolicitorContact?.name ? firstNameOf(tx.purchaserSolicitorContact.name) : undefined,
             senderName,
             agencyName,
             provideUpdateUrl: `${baseUrl()}/s/${token}`,
