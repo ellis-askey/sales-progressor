@@ -14,6 +14,11 @@ export const P = {
   border:       "var(--portal-border, rgba(15,23,42,0.06))",
   borderSubtle: "var(--portal-borderSubtle, rgba(15,23,42,0.04))",
 
+  // Frosted-glass surfaces (hero card, buttons) — themed for dark.
+  glassFill:    "var(--portal-glass-fill, rgba(255,247,243,0.62))",
+  glassBorder:  "var(--portal-glass-border, rgba(255,255,255,0.65))",
+  glassSoft:    "var(--portal-glass-soft, rgba(255,255,255,0.55))",
+
   heroGradient: "linear-gradient(135deg, #FF8A65 0%, #FFB74D 100%)",
   heroGlow:     "0 8px 32px rgba(255,138,101,0.30)",
 
@@ -99,8 +104,10 @@ export function PortalPill({ tone = "neutral", size = "sm", children }: {
         borderRadius: 999,
         fontSize: size === "md" ? 12 : 11,
         fontWeight: 600,
-        color: t.fg,
-        background: "#fff",
+        // Mix the tone toward the themed text colour so it stays readable on
+        // both the white (light) and dark card fill.
+        color: `color-mix(in srgb, ${t.fg} 58%, var(--portal-textPrimary, #1A1D29))`,
+        background: "var(--portal-cardBg, #fff)",
         border: `0.5px solid ${t.accent}`,
         boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
         whiteSpace: "nowrap",

@@ -37,7 +37,7 @@ export function PortalWelcomeSheet({ token, side }: { token: string; side: "vend
       <div
         className="portal-sheet relative w-full max-w-lg mx-auto"
         style={{
-          background: "#FFFFFF",
+          background: P.cardBg,
           borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
           boxShadow: P.shadowXl,
           paddingBottom: "env(safe-area-inset-bottom, 16px)",

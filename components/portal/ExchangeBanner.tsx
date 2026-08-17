@@ -93,15 +93,15 @@ export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }
     <div>
       {/* Property photo runs to the very top under the floating header (keeps the
           image, and pushes the card down so the greeting no longer overlaps it). */}
-      <div className="-mx-4 -mt-5" style={{ position: "relative", height: 232, overflow: "hidden", background: "#f6f8fc" }}>
+      <div className="-mx-4 -mt-5" style={{ position: "relative", height: 232, overflow: "hidden", background: "var(--portal-pageBg, #f6f8fc)" }}>
         {photoUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={photoUrl} alt="" aria-hidden fetchPriority="high" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "url(/portal-hero-fallback.webp)", backgroundSize: "cover", backgroundPosition: "center 35%" }} />
+          <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "var(--portal-hero-fallback)", backgroundSize: "cover", backgroundPosition: "center 35%" }} />
         )}
         {/* Gentle bottom fade so the card's frost dissolves into the image. */}
-        <div aria-hidden style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "55%", pointerEvents: "none", background: "linear-gradient(180deg, transparent 0%, rgba(246,248,252,0.55) 70%, #f6f8fc 100%)" }} />
+        <div aria-hidden style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "55%", pointerEvents: "none", background: "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--portal-pageBg, #f6f8fc) 55%, transparent) 70%, var(--portal-pageBg, #f6f8fc) 100%)" }} />
       </div>
 
       {/* Heavy-frost card, pulled up over the photo. Holds everything: the
@@ -113,10 +113,10 @@ export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }
           marginTop: -76,
           borderRadius: 22,
           padding: 18,
-          background: "rgba(255,247,243,0.62)",
+          background: P.glassFill,
           backdropFilter: "blur(32px) saturate(1.8)",
           WebkitBackdropFilter: "blur(32px) saturate(1.8)",
-          border: "0.5px solid rgba(255,255,255,0.65)",
+          border: `0.5px solid ${P.glassBorder}`,
           boxShadow: "0 14px 44px rgba(255,107,74,0.20), 0 2px 10px rgba(15,23,42,0.08)",
         }}
       >
@@ -181,7 +181,7 @@ export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }
           <Link
             href={`/portal/${token}/exchange`}
             className="pbtn pbtn-press flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
-            style={{ background: "rgba(255,255,255,0.55)", color: P.textPrimary, border: `0.5px solid ${P.border}` }}
+            style={{ background: P.glassSoft, color: P.textPrimary, border: `0.5px solid ${P.border}` }}
           >
             Exchange guide
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

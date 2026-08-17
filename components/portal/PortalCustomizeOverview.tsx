@@ -196,7 +196,7 @@ function Panel({
     <div
       className="portal-panel fixed inset-0 z-[60] overflow-hidden"
       style={{
-        backgroundColor: "#f6f8fc",
+        backgroundColor: P.pageBg,
         backgroundImage: [
           "radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%)",
           "radial-gradient(75% 55% at 8% 6%, rgba(255,188,168,0.28), transparent 72%)",

@@ -179,7 +179,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
         >
           <div
             className="flex items-center justify-center flex-shrink-0"
-            style={{ width: 52, height: 52, borderRadius: 14, background: "#fff", color: "#2563EB", boxShadow: "0 2px 8px rgba(37,99,235,0.20)" }}
+            style={{ width: 52, height: 52, borderRadius: 14, background: P.cardBg, color: "#2563EB", boxShadow: "0 2px 8px rgba(37,99,235,0.20)" }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <line x1="3" y1="22" x2="21" y2="22" /><line x1="6" y1="18" x2="6" y2="11" /><line x1="10" y1="18" x2="10" y2="11" /><line x1="14" y1="18" x2="14" y2="11" /><line x1="18" y1="18" x2="18" y2="11" /><polygon points="12 2 20 7 4 7" />
@@ -207,7 +207,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
           <div
             className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
-              background: "#FFFFFF",
+              background: P.cardBg,
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
               boxShadow: P.shadowXl,
               paddingBottom: "env(safe-area-inset-bottom, 16px)",

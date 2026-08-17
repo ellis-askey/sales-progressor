@@ -196,7 +196,7 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
             <div className="fixed inset-0 z-[75]" onClick={() => setMenuOpen(false)} />
             <div
               className="fixed z-[76] rounded-xl overflow-hidden"
-              style={{ top: pos.top, left: pos.left, background: "#fff", boxShadow: P.shadowXl, border: `1px solid ${P.border}`, minWidth: 176 }}
+              style={{ top: pos.top, left: pos.left, background: P.cardBg, boxShadow: P.shadowXl, border: `1px solid ${P.border}`, minWidth: 176 }}
             >
               {confirmRemove ? (
                 <div className="px-4 py-3.5" style={{ minWidth: 200 }}>
@@ -333,7 +333,7 @@ function AddSheet({
       <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
       <div
         className="portal-sheet relative w-full max-w-lg mx-auto"
-        style={{ background: "#fff", borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`, boxShadow: P.shadowXl, paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
+        style={{ background: P.cardBg, borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`, boxShadow: P.shadowXl, paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-1">

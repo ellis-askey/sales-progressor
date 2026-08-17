@@ -419,10 +419,9 @@ export function PortalOverviewHero({
           position: "relative",
           height: 380,
           overflow: "hidden",
-          // Match the ambient-wash base (#f6f8fc) exactly so the photo's bottom
-          // fade dissolves into the page with no visible seam (was P.pageBg,
-          // #F8F9FB, which left a faint line where the hero ended).
-          background: "#f6f8fc",
+          // Themed page base so the photo's bottom fade dissolves into the page
+          // with no seam, in light or dark.
+          background: "var(--portal-pageBg, #f6f8fc)",
         }}
       >
         {/* Photo (or coral fallback if none) */}
@@ -445,7 +444,7 @@ export function PortalOverviewHero({
             aria-hidden
             style={{
               position: "absolute", inset: 0,
-              backgroundImage: "url(/portal-hero-fallback.webp)",
+              backgroundImage: "var(--portal-hero-fallback)",
               backgroundSize: "cover",
               backgroundPosition: "center 35%",
             }}
@@ -464,7 +463,7 @@ export function PortalOverviewHero({
             bottom: 0, left: 0, right: 0,
             height: "62%",
             pointerEvents: "none",
-            background: "linear-gradient(180deg, transparent 0%, #f6f8fcCC 52%, #f6f8fc 100%)",
+            background: "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--portal-pageBg, #f6f8fc) 80%, transparent) 52%, var(--portal-pageBg, #f6f8fc) 100%)",
           }}
         />
 

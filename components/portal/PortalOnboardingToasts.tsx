@@ -163,7 +163,7 @@ function IOSInstallSheet({ onClose }: { onClose: () => void }) {
       <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
       <div
         className="portal-sheet relative w-full max-w-lg mx-auto rounded-t-3xl p-6"
-        style={{ background: "#FFFFFF", boxShadow: P.shadowXl }}
+        style={{ background: P.cardBg, boxShadow: P.shadowXl }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "#E2E8F0" }} />
