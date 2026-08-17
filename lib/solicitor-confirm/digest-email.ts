@@ -73,17 +73,28 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
           .join("")}
       </table>`;
 
-  const cta = single
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td>
-         <a href="${confirmUrl}" style="display:block;background:${NAVY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;text-align:center;padding:13px 18px;border-radius:7px;">Confirm this is done</a>
-       </td></tr></table>
-       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:10px;"><tr>
-         <td style="padding-right:5px;"><a href="${confirmUrl}" style="display:block;background:#ffffff;color:${NAVY};text-decoration:none;font-size:13px;font-weight:600;text-align:center;padding:12px 10px;border-radius:7px;border:1px solid #cdd8e6;">Give an expected date</a></td>
-         <td style="padding-left:5px;"><a href="${confirmUrl}" style="display:block;background:#ffffff;color:${NAVY};text-decoration:none;font-size:13px;font-weight:600;text-align:center;padding:12px 10px;border-radius:7px;border:1px solid #cdd8e6;">Provide an update</a></td>
-       </tr></table>`
-    : `<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td>
-         <a href="${confirmUrl}" style="display:block;background:${NAVY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;text-align:center;padding:13px 18px;border-radius:7px;">Confirm or update these</a>
+  // Bulletproof buttons: the fill colour + padding sit on the <td> (bgcolor +
+  // style) because Outlook ignores display:block / padding / text-decoration on
+  // an <a>. The <a> is just the coloured, underline-free label. Renders as a
+  // solid button in Outlook, Gmail, Apple Mail alike.
+  const primaryBtn = (label: string) =>
+    `<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+       <td align="center" bgcolor="${NAVY}" style="border-radius:7px;padding:13px 18px;">
+         <a href="${confirmUrl}" style="font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a>
        </td></tr></table>`;
+  const secondaryBtn = (label: string) =>
+    `<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+       <td align="center" bgcolor="#ffffff" style="border:1px solid #cdd8e6;border-radius:7px;padding:12px 10px;">
+         <a href="${confirmUrl}" style="font-size:13px;font-weight:600;color:${NAVY};text-decoration:none;">${label}</a>
+       </td></tr></table>`;
+
+  const cta = single
+    ? `${primaryBtn("Confirm this is done")}
+       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:10px;"><tr>
+         <td width="50%" valign="top" style="padding-right:5px;">${secondaryBtn("Give an expected date")}</td>
+         <td width="50%" valign="top" style="padding-left:5px;">${secondaryBtn("Provide an update")}</td>
+       </tr></table>`
+    : primaryBtn("Confirm or update these");
 
   const intro = single
     ? "Could you please confirm the status of the following:"
