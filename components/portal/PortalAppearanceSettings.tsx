@@ -12,7 +12,7 @@ import { PORTAL_ACCENTS, type PortalTheme, type PortalTextSize } from "@/lib/por
 const DEFAULT_ACCENT = PORTAL_ACCENTS[0].hex; // coral
 
 export function PortalAppearanceSettings() {
-  const { settings, update, savedTick } = usePortalSettings();
+  const { settings, update, savedTick, moneyHidden, setMoneyHidden } = usePortalSettings();
   const [showSaved, setShowSaved] = useState(false);
   const first = useRef(true);
 
@@ -107,6 +107,12 @@ export function PortalAppearanceSettings() {
         <Toggle label="Reduce motion" desc="Turn off animations and transitions." checked={settings.reduceMotion} onChange={(v) => update({ reduceMotion: v })} />
         <Toggle label="High contrast" desc="Stronger text and borders." checked={settings.highContrast} onChange={(v) => update({ highContrast: v })} />
         <Toggle label="Readable font" desc="Use OpenDyslexic, designed to be easier to read." checked={settings.dyslexicFont} onChange={(v) => update({ dyslexicFont: v })} />
+        <Toggle
+          label="Hide money on this device"
+          desc="Blurs every amount (prices, costs, fees) until you tap it — handy on a shared or public screen. Applies to this device only, not your other devices."
+          checked={moneyHidden}
+          onChange={setMoneyHidden}
+        />
       </div>
     </section>
   );

@@ -12,7 +12,6 @@ export type PortalSettings = {
   reduceMotion: boolean;
   highContrast: boolean;
   dyslexicFont: boolean;
-  whatsappOptIn: boolean;
 };
 
 export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
@@ -22,7 +21,6 @@ export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
   reduceMotion: false,
   highContrast: false,
   dyslexicFont: false,
-  whatsappOptIn: false,
 };
 
 // Curated, brand-safe accent swatches. First = the default (coral).
@@ -33,6 +31,9 @@ export const PORTAL_ACCENTS: { id: string; label: string; hex: string }[] = [
   { id: "emerald", label: "Emerald", hex: "#10B981" },
   { id: "rose", label: "Rose", hex: "#F43F87" },
 ];
+
+// "Hide money" is per-device (localStorage), not part of the saved settings.
+export const HIDE_MONEY_KEY = "portal-hide-money";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -46,7 +47,6 @@ export function parsePortalSettings(raw: unknown): PortalSettings {
     reduceMotion: s.reduceMotion === true,
     highContrast: s.highContrast === true,
     dyslexicFont: s.dyslexicFont === true,
-    whatsappOptIn: s.whatsappOptIn === true,
   };
 }
 
@@ -64,6 +64,9 @@ export function portalSettingsBootScript(s: PortalSettings): string {
     (s.reduceMotion ? `d.setAttribute("data-portal-motion","reduced");` : ``) +
     (s.dyslexicFont ? `d.setAttribute("data-portal-font","dyslexic");` : ``) +
     (s.accent ? `d.style.setProperty("--portal-primary",${JSON.stringify(s.accent)});` : ``) +
+    // Per-device "hide money" (localStorage) — applied pre-paint so figures
+    // never flash visible on a shared screen.
+    `try{if(localStorage.getItem(${JSON.stringify(HIDE_MONEY_KEY)})==="1"){d.setAttribute("data-portal-hidemoney","on");}}catch(e){}` +
     `}catch(e){}})();`
   );
 }

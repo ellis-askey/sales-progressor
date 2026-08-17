@@ -54,6 +54,7 @@ Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) 
 | Idea | Why not | Date |
 |---|---|---|
 | **In-house / two-way client messaging** | We use **WhatsApp groups** for client comms. The "Your team" card already gives the two real channels: WhatsApp (opens our WhatsApp) and email (opens their mail client). Two-way in-portal messaging is **not required** (not parked — declined). NB: [`PortalMessageCompose.tsx`](components/portal/PortalMessageCompose.tsx) + `portalSendMessageAction` are built but rendered nowhere; leave unwired, candidate for removal. **Claude has raised this 2+ times — stop suggesting it.** | 2026-08-16 |
+| **Client WhatsApp opt-in toggle** (Batch 4) | Clients don't opt in to WhatsApp — **it's just how we work; Ellis creates the WhatsApp groups**. So there is no per-client WhatsApp preference to capture. Dropped from the Batch 4 settings group (the `whatsappOptIn` field was removed from `lib/portal/settings.ts`). Do not re-add a WhatsApp opt-in/preference control. | 2026-08-17 |
 
 ---
 

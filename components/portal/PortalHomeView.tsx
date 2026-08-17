@@ -1,6 +1,7 @@
 "use client";
 
 import { P } from "@/components/portal/portal-ui";
+import { PortalMoney } from "@/components/portal/PortalMoney";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
 
@@ -83,7 +84,7 @@ export function PortalHomeView({
           <>
             <div className="w-px h-8" style={{ background: P.border }} />
             <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[18px] font-bold tabular-nums" style={{ color: P.textPrimary }}>{fmtPrice(purchasePrice)}</span>
+              <span className="text-[18px] font-bold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtPrice(purchasePrice)}</PortalMoney></span>
               <span className="text-[11px]" style={{ color: P.textMuted }}>Price</span>
             </div>
           </>

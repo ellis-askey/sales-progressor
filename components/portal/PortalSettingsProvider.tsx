@@ -7,7 +7,7 @@
 // already correct.
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
-import type { PortalSettings } from "@/lib/portal/settings";
+import { HIDE_MONEY_KEY, type PortalSettings } from "@/lib/portal/settings";
 import { portalSaveSettingsAction } from "@/app/actions/portal";
 
 type Ctx = {
@@ -15,6 +15,9 @@ type Ctx = {
   update: (patch: Partial<PortalSettings>) => void;
   saving: boolean;
   savedTick: number; // increments after each successful save (drives the "Saved" tick)
+  // "Hide money on this device" — per-device (localStorage), NOT saved to the DB.
+  moneyHidden: boolean;
+  setMoneyHidden: (v: boolean) => void;
 };
 
 const PortalSettingsContext = createContext<Ctx | null>(null);
@@ -58,7 +61,31 @@ export function PortalSettingsProvider({
   const [settings, setSettings] = useState<PortalSettings>(initial);
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
+  const [moneyHidden, setMoneyHiddenState] = useState(false);
   const firstRun = useRef(true);
+
+  // Sync money-hidden from the per-device flag (the boot script already applied
+  // the attribute pre-paint; this just aligns the React state).
+  useEffect(() => {
+    try {
+      setMoneyHiddenState(localStorage.getItem(HIDE_MONEY_KEY) === "1");
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, []);
+
+  const setMoneyHidden = useCallback((v: boolean) => {
+    setMoneyHiddenState(v);
+    try {
+      if (v) localStorage.setItem(HIDE_MONEY_KEY, "1");
+      else localStorage.removeItem(HIDE_MONEY_KEY);
+    } catch {
+      /* ignore */
+    }
+    const d = document.documentElement;
+    if (v) d.setAttribute("data-portal-hidemoney", "on");
+    else d.removeAttribute("data-portal-hidemoney");
+  }, []);
 
   // Apply live whenever settings change.
   useEffect(() => {
@@ -98,7 +125,7 @@ export function PortalSettingsProvider({
   }, []);
 
   return (
-    <PortalSettingsContext.Provider value={{ settings, update, saving, savedTick }}>
+    <PortalSettingsContext.Provider value={{ settings, update, saving, savedTick, moneyHidden, setMoneyHidden }}>
       {children}
     </PortalSettingsContext.Provider>
   );

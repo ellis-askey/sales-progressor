@@ -14,6 +14,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
+import { PortalMoney } from "./PortalMoney";
 import { calculateSdlt } from "@/lib/sdlt";
 import { portalSaveCostsAction } from "@/app/actions/portal";
 
@@ -113,7 +114,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
               <p className="text-[11px]" style={{ color: P.textMuted }}>Estimate. Tap to adjust</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[14px] font-semibold tabular-nums" style={{ color: "#1D4ED8" }}>~{fmtGBP(sdlt)}</span>
+              <span className="text-[14px] font-semibold tabular-nums" style={{ color: "#1D4ED8" }}>~<PortalMoney>{fmtGBP(sdlt)}</PortalMoney></span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <polyline points="9 18 15 12 9 6" />
               </svg>
@@ -126,7 +127,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
                 <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Funds still to send</p>
                 <p className="text-[11px]" style={{ color: P.textMuted }}>Estimated, before fees</p>
               </div>
-              <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~{fmtGBP(fundsToSend)}</span>
+              <span className="text-[20px] font-black tabular-nums" style={{ color: P.primary }}>~<PortalMoney>{fmtGBP(fundsToSend)}</PortalMoney></span>
             </div>
           ) : (
             <div className="px-5 py-4" style={{ background: P.pageBg }}>
@@ -189,7 +190,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
               Stamp duty estimate
             </p>
             <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
-              About <b style={{ color: "#1D4ED8" }}>{fmtGBP(starting.total)}</b> on {fmtGBP(priceGBP)}. Assumes standard rates. Tap to adjust.
+              About <b style={{ color: "#1D4ED8" }}><PortalMoney>{fmtGBP(starting.total)}</PortalMoney></b> on <PortalMoney>{fmtGBP(priceGBP)}</PortalMoney>. Assumes standard rates. Tap to adjust.
             </p>
           </div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
@@ -231,7 +232,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
 
             <div className="px-6 pt-2 pb-6">
               <p className="text-[18px] font-semibold leading-snug mb-1" style={{ color: P.textPrimary }}>Stamp duty estimate</p>
-              <p className="text-[13px] mb-4" style={{ color: P.textMuted }}>On {fmtGBP(priceGBP)}</p>
+              <p className="text-[13px] mb-4" style={{ color: P.textMuted }}>On <PortalMoney>{fmtGBP(priceGBP)}</PortalMoney></p>
 
               <div className="flex flex-col gap-2 mb-5">
                 <ToggleRow label="First-time buyer" sub="Never owned a home before, and this will be your only property" on={ftb} onClick={toggleFtb} />
@@ -240,7 +241,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
 
               <div className="rounded-2xl px-5 py-4 mb-4" style={{ background: "rgba(37,99,235,0.06)", border: "0.5px solid rgba(37,99,235,0.14)" }}>
                 <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: "#2563EB" }}>Estimated stamp duty</p>
-                <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(sdlt)}</p>
+                <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(sdlt)}</PortalMoney></p>
                 <p className="text-[12px] mt-1.5" style={{ color: P.textSecondary }}>Effective rate {fmtPct(result.effectiveRate)} of the purchase price</p>
               </div>
 
@@ -258,7 +259,7 @@ export function PortalCostsCard({ priceGBP, hasExchanged, isCash, savedDeposit, 
                     result.bands.map((b, i) => (
                       <div key={i} className="flex items-center justify-between px-4 py-2.5 text-[13px]" style={{ borderBottom: i < result.bands.length - 1 ? `1px solid ${P.border}` : undefined, color: P.textSecondary }}>
                         <span>{bandLabel(b.from, b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
-                        <span className="font-semibold tabular-nums" style={{ color: P.textPrimary }}>{fmtGBP(b.tax)}</span>
+                        <span className="font-semibold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(b.tax)}</PortalMoney></span>
                       </div>
                     ))
                   )}
@@ -283,7 +284,7 @@ function Row({ label, value, pill }: { label: React.ReactNode; value: string; pi
       <p className="text-[14px]" style={{ color: P.textPrimary }}>{label}</p>
       <div className="flex items-center gap-2">
         {pill && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.successBg, color: P.success }}>{pill}</span>}
-        <span className="text-[14px] font-semibold tabular-nums" style={{ color: P.textPrimary }}>{value}</span>
+        <span className="text-[14px] font-semibold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{value}</PortalMoney></span>
       </div>
     </div>
   );
