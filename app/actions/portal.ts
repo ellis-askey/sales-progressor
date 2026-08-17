@@ -438,6 +438,56 @@ export async function portalSaveCostsAction(input: {
   return { ok: true };
 }
 
+// ── Information tab (Batch 3) ──────────────────────────────────────────────
+export async function getMyMoveInfoAction(token: string) {
+  const { getClientMoveInfo } = await import("@/lib/services/portal-info");
+  return getClientMoveInfo(token);
+}
+
+// Auto-save a patch of the client's own-side move information. Only provided
+// keys are written; date fields arrive as YYYY-MM-DD strings.
+export async function portalSaveMoveInfoAction(input: {
+  token: string;
+  patch: Partial<import("@/lib/services/portal-info").MoveInfo>;
+}): Promise<{ ok: boolean }> {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { propertyTransactionId: true, roleType: true },
+  });
+  if (!contact) return { ok: false };
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+
+  const p = input.patch;
+  const d = (v: string | null | undefined) => (v === undefined ? undefined : v ? new Date(v) : null);
+  const data: Record<string, unknown> = {};
+  if (p.preferredCompletionDate !== undefined) data.preferredCompletionDate = d(p.preferredCompletionDate);
+  if (p.noCompletionPreference !== undefined) data.noCompletionPreference = p.noCompletionPreference;
+  if (p.flexibility !== undefined) data.flexibility = p.flexibility;
+  if (p.mortgageOfferExpiry !== undefined) data.mortgageOfferExpiry = d(p.mortgageOfferExpiry);
+  if (p.fundsInPlace !== undefined) data.fundsInPlace = p.fundsInPlace;
+  if (p.fundsSource !== undefined) data.fundsSource = p.fundsSource;
+  if (p.needsNotice !== undefined) data.needsNotice = p.needsNotice;
+  if (p.noticePeriod !== undefined) data.noticePeriod = p.noticePeriod;
+  if (p.noticeGiven !== undefined) data.noticeGiven = p.noticeGiven;
+  if (p.noticeEndDate !== undefined) data.noticeEndDate = d(p.noticeEndDate);
+  if (p.buyingOnward !== undefined) data.buyingOnward = p.buyingOnward;
+  if (p.onwardReadyToExchange !== undefined) data.onwardReadyToExchange = p.onwardReadyToExchange;
+  if (p.onwardMortgageOfferExpiry !== undefined) data.onwardMortgageOfferExpiry = d(p.onwardMortgageOfferExpiry);
+  if (p.removalStatus !== undefined) data.removalStatus = p.removalStatus;
+  if (p.removalCompany !== undefined) data.removalCompany = p.removalCompany;
+  if (p.vacantBeforeCompletion !== undefined) data.vacantBeforeCompletion = p.vacantBeforeCompletion;
+  if (p.unavailableDates !== undefined) data.unavailableDates = p.unavailableDates;
+  if (p.progressorNote !== undefined) data.progressorNote = p.progressorNote;
+
+  await prisma.clientMoveInfo.upsert({
+    where: { transactionId_side: { transactionId: contact.propertyTransactionId, side } },
+    create: { transactionId: contact.propertyTransactionId, side, ...data } as never,
+    update: data as never,
+  });
+  revalidatePath(`/portal/${input.token}`, "page");
+  return { ok: true };
+}
+
 // ── Documents tab (Batch 2) ────────────────────────────────────────────────
 export async function getMyPortalDocumentsAction(token: string) {
   const { getPortalDocuments } = await import("@/lib/services/portal-documents");

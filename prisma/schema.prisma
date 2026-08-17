@@ -400,6 +400,7 @@ model PropertyTransaction {
   agentUser                        User?                             @relation("AgentFiles", fields: [agentUserId], references: [id])
   pausedBy                         User?                             @relation("PausedTransactions", fields: [pausedById], references: [id])
   contacts                         Contact[]
+  clientMoveInfos                  ClientMoveInfo[]
   vendorSolicitorFirm              SolicitorFirm?                    @relation("VendorSolicitorFirm", fields: [vendorSolicitorFirmId], references: [id])
   vendorSolicitorContact           SolicitorContact?                 @relation("VendorSolicitorContact", fields: [vendorSolicitorContactId], references: [id])
   purchaserSolicitorFirm           SolicitorFirm?                    @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
@@ -1404,6 +1405,59 @@ model TransactionDocument {
 
   @@index([transactionId, createdAt])
   @@index([buyerRoundId])
+}
+
+// Client-supplied "Information" (portal Information tab, Batch 3, 2026-08-17).
+// Their circumstances / availability / moving plans, FOR the sales progressor —
+// never shared with the other side. One row per (transaction, side) so joint
+// buyers/sellers share one record. All fields optional; the tab adapts by role,
+// purchaseType, tenure and milestone stage.
+model ClientMoveInfo {
+  id            String      @id @default(cuid())
+  transactionId String
+  side          ContactRole // vendor | purchaser
+
+  // Your move
+  preferredCompletionDate DateTime?
+  noCompletionPreference  Boolean   @default(false)
+  flexibility             String? // "very" | "somewhat" | "not"
+
+  // Situation — mortgage + funds (buyers)
+  mortgageOfferExpiry DateTime?
+  fundsInPlace        String? // "yes" | "not_yet" | "not_sure"
+  fundsSource         String? // "savings" | "lisa" | "gift" | "sale" | "other"
+
+  // Notice on current home (mortgaged buyers)
+  needsNotice   Boolean?
+  noticePeriod  String? // "1m" | "2m" | "other"
+  noticeGiven   Boolean?
+  noticeEndDate DateTime?
+
+  // Onward purchase (sellers, when not a managed transaction we can derive)
+  buyingOnward              Boolean?
+  onwardReadyToExchange     String? // "yes" | "no" | "not_sure"
+  onwardMortgageOfferExpiry DateTime?
+
+  // Moving plans
+  removalStatus  String? // "not_started" | "getting_quotes" | "provisional" | "confirmed"
+  removalCompany String?
+
+  // Handover (sellers, near/after exchange)
+  vacantBeforeCompletion String? // "yes" | "no" | "not_sure"
+
+  // Availability — list of { start, end? } ISO date ranges
+  unavailableDates Json?
+
+  // Anything else for the progressor
+  progressorNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, side])
+  @@index([transactionId])
 }
 
 // â”€â”€â”€ ManualTask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

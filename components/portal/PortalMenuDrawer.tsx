@@ -28,9 +28,11 @@ import {
 import { portalMarkRequiredAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { PortalDocumentsTab } from "./PortalDocumentsTab";
+import { PortalInformationTab } from "./PortalInformationTab";
 
 const MENU_TABS = [
   { key: "documents", label: "Documents" },
+  { key: "information", label: "Information" },
   { key: "settings", label: "Settings" },
 ] as const;
 
@@ -51,8 +53,8 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"documents" | "settings">("documents");
-  const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : 1);
+  const [activeTab, setActiveTab] = useState<"documents" | "information" | "settings">("documents");
+  const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : activeTab === "information" ? 1 : 2);
   // Body-content fade-in: after the drawer slides up (260ms), the
   // inner content transitions from opacity 0 → 1 over 220ms so it
   // feels like it "settles" once the drawer has arrived. Reset on
@@ -237,6 +239,8 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
         }}>
           {activeTab === "documents" ? (
             <PortalDocumentsTab token={token} />
+          ) : activeTab === "information" ? (
+            <PortalInformationTab token={token} />
           ) : loading && !details ? (
             <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
           ) : loadError ? (
