@@ -2,31 +2,41 @@
 
 import type { ReactNode } from "react";
 
+// Colour tokens resolve through `var(--portal-*, <hex>)`: the hex fallback IS
+// the light theme, so nothing changes unless a theme defines overrides. Dark
+// mode + the client's accent are applied by defining those variables on the
+// document root (see globals.css + PortalSettingsProvider, Batch 4). Shadows +
+// radii stay literal; dark cards get their definition from the themed border.
 export const P = {
-  pageBg:       "#F8F9FB",
-  cardBg:       "#FFFFFF",
-  cardElevated: "#FFFFFF",
-  border:       "rgba(15,23,42,0.06)",
-  borderSubtle: "rgba(15,23,42,0.04)",
+  pageBg:       "var(--portal-pageBg, #F8F9FB)",
+  cardBg:       "var(--portal-cardBg, #FFFFFF)",
+  cardElevated: "var(--portal-cardElevated, #FFFFFF)",
+  border:       "var(--portal-border, rgba(15,23,42,0.06))",
+  borderSubtle: "var(--portal-borderSubtle, rgba(15,23,42,0.04))",
+
+  // Frosted-glass surfaces (hero card, buttons) — themed for dark.
+  glassFill:    "var(--portal-glass-fill, rgba(255,247,243,0.62))",
+  glassBorder:  "var(--portal-glass-border, rgba(255,255,255,0.65))",
+  glassSoft:    "var(--portal-glass-soft, rgba(255,255,255,0.55))",
 
   heroGradient: "linear-gradient(135deg, #FF8A65 0%, #FFB74D 100%)",
   heroGlow:     "0 8px 32px rgba(255,138,101,0.30)",
 
-  primary:      "#FF6B4A",
-  primaryBg:    "rgba(255,107,74,0.10)",
-  primaryText:  "#CC4A2E",
+  primary:      "var(--portal-primary, #FF6B4A)",
+  primaryBg:    "var(--portal-primaryBg, rgba(255,107,74,0.10))",
+  primaryText:  "var(--portal-primaryText, #CC4A2E)",
 
-  accent:       "#3B82F6",
-  accentBg:     "rgba(59,130,246,0.08)",
+  accent:       "var(--portal-accent, #3B82F6)",
+  accentBg:     "var(--portal-accentBg, rgba(59,130,246,0.08))",
 
-  success:      "#10B981",
-  successBg:    "rgba(16,185,129,0.10)",
-  warning:      "#F59E0B",
-  warningBg:    "rgba(245,158,11,0.10)",
+  success:      "var(--portal-success, #10B981)",
+  successBg:    "var(--portal-successBg, rgba(16,185,129,0.10))",
+  warning:      "var(--portal-warning, #F59E0B)",
+  warningBg:    "var(--portal-warningBg, rgba(245,158,11,0.10))",
 
-  textPrimary:   "#1A1D29",
-  textSecondary: "#4A5162",
-  textMuted:     "#8B91A3",
+  textPrimary:   "var(--portal-textPrimary, #1A1D29)",
+  textSecondary: "var(--portal-textSecondary, #4A5162)",
+  textMuted:     "var(--portal-textMuted, #8B91A3)",
 
   shadowSm:  "0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06)",
   shadowMd:  "0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)",
@@ -39,14 +49,14 @@ export const P = {
   radiusXl:  "28px",
 
   // Compatibility aliases — removed after full rollout (Phase 6 gate)
-  card:         "#FFFFFF",
-  bg:           "#F8F9FB",
+  card:         "var(--portal-cardBg, #FFFFFF)",
+  bg:           "var(--portal-pageBg, #F8F9FB)",
   shadow:       "0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)",
-  primaryLight: "rgba(59,130,246,0.08)",
-  primaryDark:  "#2563eb",
-  successLight: "rgba(16,185,129,0.10)",
-  successBorder:"rgba(16,185,129,0.25)",
-  warningLight: "rgba(245,158,11,0.10)",
+  primaryLight: "var(--portal-accentBg, rgba(59,130,246,0.08))",
+  primaryDark:  "var(--portal-primaryDark, #2563eb)",
+  successLight: "var(--portal-successBg, rgba(16,185,129,0.10))",
+  successBorder:"var(--portal-successBorder, rgba(16,185,129,0.25))",
+  warningLight: "var(--portal-warningBg, rgba(245,158,11,0.10))",
 } as const;
 
 // ── 2026-08-15 revamp — button + pill design values (chosen in /test/portal-lab) ──
@@ -94,8 +104,10 @@ export function PortalPill({ tone = "neutral", size = "sm", children }: {
         borderRadius: 999,
         fontSize: size === "md" ? 12 : 11,
         fontWeight: 600,
-        color: t.fg,
-        background: "#fff",
+        // Mix the tone toward the themed text colour so it stays readable on
+        // both the white (light) and dark card fill.
+        color: `color-mix(in srgb, ${t.fg} 58%, var(--portal-textPrimary, #1A1D29))`,
+        background: "var(--portal-cardBg, #fff)",
         border: `0.5px solid ${t.accent}`,
         boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
         whiteSpace: "nowrap",

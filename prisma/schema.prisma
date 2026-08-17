@@ -676,6 +676,11 @@ model Contact {
   // Shape: { order: string[]; hidden: string[] } of moveable card keys. Fixed
   // cards ignore it. Null = default order, nothing hidden.
   overviewLayout        Json?
+  // Client-chosen portal appearance + accessibility settings (Batch 4,
+  // 2026-08-17). Shape: { theme, textSize, accent, reduceMotion, highContrast,
+  // dyslexicFont, whatsappOptIn }. Null = all defaults. "Hide money" is
+  // per-device (localStorage), deliberately NOT stored here.
+  portalSettings        Json?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 

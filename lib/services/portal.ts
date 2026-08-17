@@ -239,6 +239,8 @@ async function getPortalDataInner(token: string) {
       lastVisitedPortalAt: true,
       // Client-chosen overview card order + hidden set ("Customize overview").
       overviewLayout: true,
+      // Client-chosen appearance + accessibility settings (Batch 4).
+      portalSettings: true,
     },
   });
   if (!contact) return null;

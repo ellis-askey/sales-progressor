@@ -488,6 +488,26 @@ export async function portalSaveMoveInfoAction(input: {
   return { ok: true };
 }
 
+// ── Appearance & accessibility settings (Batch 4) ──────────────────────────
+export async function portalSaveSettingsAction(input: {
+  token: string;
+  settings: import("@/lib/portal/settings").PortalSettings;
+}): Promise<{ ok: boolean }> {
+  const { parsePortalSettings } = await import("@/lib/portal/settings");
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false };
+  // Coerce to the known shape so only valid settings are stored.
+  const clean = parsePortalSettings(input.settings);
+  await prisma.contact.update({
+    where: { id: contact.id },
+    data: { portalSettings: clean as unknown as import("@prisma/client").Prisma.InputJsonValue },
+  });
+  return { ok: true };
+}
+
 // ── Documents tab (Batch 2) ────────────────────────────────────────────────
 export async function getMyPortalDocumentsAction(token: string) {
   const { getPortalDocuments } = await import("@/lib/services/portal-documents");

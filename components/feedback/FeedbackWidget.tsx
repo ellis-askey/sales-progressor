@@ -132,15 +132,15 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
   if (value) {
     return (
       <div>
-        <p style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot</p>
+        <p style={{ fontSize: 11, fontWeight: 600, color: "var(--fw-text-faint, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot</p>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#f9faf8", border: "0.5px solid #e5e7eb", borderRadius: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value.preview} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 12, fontWeight: 500, color: "#374151", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value.filename}</p>
-            <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 0" }}>{(value.size / 1024).toFixed(0)} KB</p>
+            <p style={{ fontSize: 11, color: "var(--fw-text-faint, #9ca3af)", margin: "2px 0 0" }}>{(value.size / 1024).toFixed(0)} KB</p>
           </div>
-          <button type="button" onClick={() => onChange(null)} style={{ flexShrink: 0, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#9ca3af", borderRadius: 4 }} aria-label="Remove screenshot">
+          <button type="button" onClick={() => onChange(null)} style={{ flexShrink: 0, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)", borderRadius: 4 }} aria-label="Remove screenshot">
             <IconClose />
           </button>
         </div>
@@ -150,7 +150,7 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
 
   return (
     <div>
-      <p style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot (optional)</p>
+      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--fw-text-faint, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot (optional)</p>
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       <button type="button"
@@ -158,10 +158,10 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
         onClick={() => inputRef.current?.click()}
-        style={{ width: "100%", padding: "14px 12px", border: `1px dashed ${dragging ? "#f97316" : "#d1d5db"}`, borderRadius: 10, background: dragging ? "rgba(249,115,22,0.04)" : "#fafaf9", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, transition: "all 150ms ease" }}
+        style={{ width: "100%", padding: "14px 12px", border: `1px dashed ${dragging ? "#f97316" : "#d1d5db"}`, borderRadius: 10, background: dragging ? "rgba(249,115,22,0.04)" : "var(--fw-card-bg, #fafaf9)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, transition: "all 150ms ease" }}
       >
-        <span style={{ color: "#9ca3af" }}><IconCamera /></span>
-        <span style={{ fontSize: 12, color: "#6b7280" }}>Click or drag to upload screenshot</span>
+        <span style={{ color: "var(--fw-text-faint, #9ca3af)" }}><IconCamera /></span>
+        <span style={{ fontSize: 12, color: "var(--fw-text-muted, #6b7280)" }}>Click or drag to upload screenshot</span>
       </button>
       {err && <p style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>{err}</p>}
     </div>
@@ -176,12 +176,12 @@ function Field({ label, value, onChange, rows = 3, placeholder, required }: {
 }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 6 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fw-text-muted, #6b7280)", marginBottom: 6 }}>
         {label}{required && <span style={{ color: "#f97316", marginLeft: 2 }}>*</span>}
       </label>
       <textarea
         value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} required={required}
-        style={{ width: "100%", padding: "10px 12px", border: "0.5px solid #e5e7eb", borderRadius: 10, background: "rgba(255,255,255,0.7)", fontSize: 13, color: "#111827", resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 150ms" }}
+        style={{ width: "100%", padding: "10px 12px", border: "0.5px solid #e5e7eb", borderRadius: 10, background: "rgba(255,255,255,0.7)", fontSize: 13, color: "var(--fw-text, #111827)", resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 150ms" }}
         onFocus={(e) => { e.target.style.borderColor = "#f97316"; }}
         onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; }}
       />
@@ -196,14 +196,14 @@ function CategoryCard({ icon, title, description, onClick }: { icon: React.React
   return (
     <button type="button" onClick={onClick}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: hovered ? "#fff7ed" : "#fafaf9", border: `0.5px solid ${hovered ? "#fed7aa" : "#e5e7eb"}`, borderRadius: 10, cursor: "pointer", transition: "all 150ms ease", textAlign: "left" }}
+      style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: hovered ? "var(--fw-card-hover, #fff7ed)" : "var(--fw-card-bg, #fafaf9)", border: `0.5px solid ${hovered ? "#fed7aa" : "#e5e7eb"}`, borderRadius: 10, cursor: "pointer", transition: "all 150ms ease", textAlign: "left" }}
     >
       <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(249,115,22,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#f97316" }}>
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>{title}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>{description}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--fw-text-faint, #9ca3af)" }}>{description}</p>
       </div>
       <span style={{ color: "#d1d5db", flexShrink: 0 }}><IconChevron /></span>
     </button>
@@ -340,8 +340,8 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#16a34a" }}>
             <IconCheck />
           </div>
-          <p style={{ fontSize: 18, fontWeight: 600, color: "#111827", margin: "0 0 8px" }}>Thanks</p>
-          <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 24px" }}>We'll get back to you within 1 business day.</p>
+          <p style={{ fontSize: 18, fontWeight: 600, color: "var(--fw-text, #111827)", margin: "0 0 8px" }}>Thanks</p>
+          <p style={{ fontSize: 13, color: "var(--fw-text-muted, #6b7280)", margin: "0 0 24px" }}>We'll get back to you within 1 business day.</p>
           <button onClick={close} style={{ padding: "9px 28px", background: "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Done</button>
         </div>
       );
@@ -353,11 +353,11 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#d97706" }}>
             <IconWarning />
           </div>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#111827", margin: "0 0 8px" }}>Couldn't send your message</p>
-          <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 24px" }}>Check your connection and try again.</p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "var(--fw-text, #111827)", margin: "0 0 8px" }}>Couldn't send your message</p>
+          <p style={{ fontSize: 13, color: "var(--fw-text-muted, #6b7280)", margin: "0 0 24px" }}>Check your connection and try again.</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
             <button onClick={() => setStage("form")} style={{ padding: "9px 20px", background: "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Try again</button>
-            <button onClick={close} style={{ padding: "9px 20px", background: "none", color: "#6b7280", border: "0.5px solid #e5e7eb", borderRadius: 10, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            <button onClick={close} style={{ padding: "9px 20px", background: "none", color: "var(--fw-text-muted, #6b7280)", border: "0.5px solid #e5e7eb", borderRadius: 10, fontSize: 13, cursor: "pointer" }}>Cancel</button>
           </div>
         </div>
       );
@@ -368,11 +368,11 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         <>
           <div style={{ padding: "18px 20px 14px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#111827" }}>Support &amp; feedback</p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>How can we help today?</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--fw-text, #111827)" }}>Support &amp; feedback</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--fw-text-faint, #9ca3af)" }}>How can we help today?</p>
             </div>
             <button ref={closeRef} onClick={close} aria-label="Close feedback panel"
-              style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#9ca3af", borderRadius: 6 }}>
+              style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)", borderRadius: 6 }}>
               <IconClose />
             </button>
           </div>
@@ -392,15 +392,15 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
       return (
         <>
           <div style={{ padding: "18px 20px 14px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="button" onClick={() => setStage("categories")} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", background: "none", cursor: "pointer", color: "#6b7280", borderRadius: 6, flexShrink: 0 }} aria-label="Back to categories">
+            <button type="button" onClick={() => setStage("categories")} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-muted, #6b7280)", borderRadius: 6, flexShrink: 0 }} aria-label="Back to categories">
               <IconBack />
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#111827" }}>{meta.title}</p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>A few details help us understand</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--fw-text, #111827)" }}>{meta.title}</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--fw-text-faint, #9ca3af)" }}>A few details help us understand</p>
             </div>
             <button ref={closeRef} onClick={close} aria-label="Close feedback panel"
-              style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#9ca3af", borderRadius: 6, flexShrink: 0 }}>
+              style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)", borderRadius: 6, flexShrink: 0 }}>
               <IconClose />
             </button>
           </div>
@@ -454,8 +454,8 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
           width: "min(380px, calc(100vw - 32px))",
           maxHeight: "80vh",
-          background: "#fff",
-          border: "0.5px solid #e5e7eb",
+          background: "var(--fw-panel-bg, #fff)",
+          border: "0.5px solid var(--fw-border, #e5e7eb)",
           borderRadius: 16,
           boxShadow: "0 20px 60px rgba(45,24,16,0.15), 0 0 0 0.5px rgba(255,255,255,0.4) inset",
           overflow: "hidden",
@@ -486,10 +486,10 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             alignItems: "center",
             gap: isCompact ? 0 : 8,
             padding: isCompact ? "11px" : "10px 16px 10px 12px",
-            background: "rgba(255,255,255,0.82)",
+            background: "var(--fw-trigger-bg, rgba(255,255,255,0.82))",
             backdropFilter: "blur(24px) saturate(180%)",
             WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            border: "0.5px solid rgba(255,255,255,0.70)",
+            border: "0.5px solid var(--fw-trigger-border, rgba(255,255,255,0.70))",
             borderRadius: 999,
             boxShadow: "0 8px 24px rgba(45,24,16,0.10), 0 1px 0 rgba(255,255,255,0.80) inset",
             cursor: "pointer",
@@ -505,7 +505,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           <span style={{
             fontSize: 13,
             fontWeight: 500,
-            color: "#1f2937",
+            color: "var(--fw-text, #1f2937)",
             maxWidth: isCompact ? 0 : 60,
             opacity: isCompact ? 0 : 1,
             overflow: "hidden",

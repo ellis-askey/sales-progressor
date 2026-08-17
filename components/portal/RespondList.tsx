@@ -296,7 +296,7 @@ export function RespondList({
             <div
               key={item.milestoneCode}
               style={{
-                background: "white",
+                background: P.cardBg,
                 border: `0.5px solid ${P.border}`,
                 borderRadius: 12,
                 padding: "16px 18px",

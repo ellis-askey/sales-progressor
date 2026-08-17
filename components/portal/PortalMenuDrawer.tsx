@@ -29,6 +29,7 @@ import { portalMarkRequiredAction, portalMarkNotRequiredAction } from "@/app/act
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { PortalDocumentsTab } from "./PortalDocumentsTab";
 import { PortalInformationTab } from "./PortalInformationTab";
+import { PortalAppearanceSettings } from "./PortalAppearanceSettings";
 
 const MENU_TABS = [
   { key: "documents", label: "Documents" },
@@ -175,7 +176,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 width: 36, height: 36, borderRadius: 10,
                 border: `0.5px solid ${P.border}`,
-                background: "#fff", color: P.textSecondary, cursor: "pointer",
+                background: P.cardBg, color: P.textSecondary, cursor: "pointer",
               }}
             >
               <X size={16} weight="bold" />
@@ -241,26 +242,33 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
             <PortalDocumentsTab token={token} />
           ) : activeTab === "information" ? (
             <PortalInformationTab token={token} />
-          ) : loading && !details ? (
-            <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
-          ) : loadError ? (
-            <p style={{ textAlign: "center", padding: "40px 0", color: P.warning, fontSize: 13 }}>{loadError}</p>
-          ) : details ? (
+          ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <YourDetailsSection details={details} token={token} onSaved={reload} />
-              <div ref={solicitorRef}>
-                <YourSolicitorSection details={details} token={token} onSaved={reload} />
-              </div>
-              <div ref={agentsRef}>
-                <YourAgentsSection details={details} token={token} onSaved={reload} />
-              </div>
-              {contactRole === "purchaser" && <ServicesSection token={token} survey={details.survey} onSaved={reload} />}
-              <NotificationsSection details={details} token={token} onSaved={reload} />
-              <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
-                Signed in as {contactName}.
-              </p>
+              {/* Appearance renders immediately (settings come from context, not
+                  the details fetch). Everything else waits on the load. */}
+              <PortalAppearanceSettings />
+              {loading && !details ? (
+                <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
+              ) : loadError ? (
+                <p style={{ textAlign: "center", padding: "40px 0", color: P.warning, fontSize: 13 }}>{loadError}</p>
+              ) : details ? (
+                <>
+                  <YourDetailsSection details={details} token={token} onSaved={reload} />
+                  <div ref={solicitorRef}>
+                    <YourSolicitorSection details={details} token={token} onSaved={reload} />
+                  </div>
+                  <div ref={agentsRef}>
+                    <YourAgentsSection details={details} token={token} onSaved={reload} />
+                  </div>
+                  {contactRole === "purchaser" && <ServicesSection token={token} survey={details.survey} onSaved={reload} />}
+                  <NotificationsSection details={details} token={token} onSaved={reload} />
+                  <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
+                    Signed in as {contactName}.
+                  </p>
+                </>
+              ) : null}
             </div>
-          ) : null}
+          )}
         </div>
       </aside>
     </>
@@ -342,7 +350,7 @@ function ProfileHeader({
             position: "absolute", right: -2, bottom: -2,
             width: 26, height: 26, borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            background: "#fff", border: `1px solid ${P.border}`,
+            background: P.cardBg, border: `1px solid ${P.border}`,
             color: P.primaryText, cursor: busy ? "wait" : "pointer",
             boxShadow: P.shadowSm,
           }}
@@ -993,7 +1001,7 @@ function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: 
       borderRadius: 14,
       border: `0.5px solid ${P.border}`,
       padding: "14px 16px 16px",
-      background: "#fff",
+      background: P.cardBg,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={{
@@ -1033,7 +1041,7 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
           fontSize: 14,
           borderRadius: 10,
           border: `0.5px solid ${P.border}`,
-          background: "#fff",
+          background: P.cardBg,
           color: P.textPrimary,
           outline: "none",
         }}
@@ -1076,7 +1084,7 @@ const btnGhost: React.CSSProperties = {
   fontWeight: 500,
   borderRadius: 10,
   border: `0.5px solid ${P.border}`,
-  background: "#fff",
+  background: P.cardBg,
   color: P.textPrimary,
   cursor: "pointer",
 };

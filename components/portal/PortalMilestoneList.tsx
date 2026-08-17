@@ -246,13 +246,13 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   return (
     <>
       {hasOtherSide && (
-        <div style={{ position: "relative", display: "flex", padding: 4, borderRadius: 999, background: "rgba(15,23,42,0.05)", marginBottom: 12 }}>
+        <div style={{ position: "relative", display: "flex", padding: 4, borderRadius: 999, background: P.borderSubtle, marginBottom: 12 }}>
           {/* Sliding indicator — slides across, overshoots a touch, settles. */}
           <div
             aria-hidden
             style={{
               position: "absolute", top: 4, bottom: 4, left: 4, width: "calc(50% - 4px)",
-              borderRadius: 999, background: "#fff", boxShadow: "0 1px 2px rgba(15,23,42,0.12)",
+              borderRadius: 999, background: P.cardElevated, boxShadow: "0 1px 2px rgba(15,23,42,0.12)",
               transform: activeSide === "other" ? "translateX(100%)" : "translateX(0)",
               transition: "transform 440ms cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
@@ -482,7 +482,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           <div
             className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
-              background: "#FFFFFF",
+              background: P.cardBg,
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
               boxShadow: P.shadowXl,
               paddingBottom: "env(safe-area-inset-bottom, 16px)",
@@ -538,7 +538,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           <div
             className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
-              background: "#FFFFFF",
+              background: P.cardBg,
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
               boxShadow: P.shadowXl,
               paddingBottom: "env(safe-area-inset-bottom, 16px)",
@@ -596,7 +596,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           <div
             className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
-              background: "#FFFFFF",
+              background: P.cardBg,
               borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
               boxShadow: P.shadowXl,
               paddingBottom: "env(safe-area-inset-bottom, 16px)",
@@ -658,7 +658,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                           type="button"
                           onClick={() => setSurveyChoice({ kind: "our_firm", quoteRequestId: o.quoteRequestId })}
                           className="text-left px-4 py-3 rounded-xl text-[14px] font-semibold border transition-colors"
-                          style={{ borderColor: active ? P.primary : P.border, borderWidth: active ? 2 : 1, background: active ? P.primaryBg : "#FFFFFF", color: P.textPrimary }}
+                          style={{ borderColor: active ? P.primary : P.border, borderWidth: active ? 2 : 1, background: active ? P.primaryBg : P.cardBg, color: P.textPrimary }}
                         >
                           {o.firmName}
                         </button>
@@ -668,7 +668,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                       type="button"
                       onClick={() => setSurveyChoice({ kind: "someone_else" })}
                       className="text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
-                      style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : "#FFFFFF", color: P.textPrimary }}
+                      style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : P.cardBg, color: P.textPrimary }}
                     >
                       I booked someone else
                     </button>

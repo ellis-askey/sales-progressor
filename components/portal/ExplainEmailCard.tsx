@@ -212,7 +212,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
             padding: "10px 14px",
             borderRadius: P.radiusSm,
             border: `1px solid ${P.border}`,
-            background: "#F8F9FB",
+            background: P.pageBg,
             fontSize: 13,
             lineHeight: 1.55,
             color: P.textPrimary,
