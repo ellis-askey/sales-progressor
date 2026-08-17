@@ -4,22 +4,29 @@ import type { TimelineEntry } from "@/lib/services/portal";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
 import { getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
 import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides";
-import { P, PortalPill } from "@/components/portal/portal-ui";
+import { P, PortalPill, type PortalPillTone } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { UserAvatar } from "@/components/ui/Avatar";
-import { UserCircle } from "@phosphor-icons/react/dist/ssr";
+import { UserCircle, FileText } from "@phosphor-icons/react/dist/ssr";
 
-type MethodStyle = { label: string; bg: string; color: string };
-
-const METHOD_STYLES: Record<string, MethodStyle> = {
-  email:     { label: "Email",      bg: "rgba(59,130,246,0.10)",  color: "#2563EB" },
-  phone:     { label: "Phone call", bg: "rgba(16,185,129,0.10)",  color: "#059669" },
-  sms:       { label: "SMS",        bg: "rgba(245,158,11,0.10)",  color: "#D97706" },
-  voicemail: { label: "Voicemail",  bg: "rgba(139,92,246,0.10)",  color: "#7C3AED" },
-  whatsapp:  { label: "WhatsApp",   bg: "rgba(16,185,129,0.10)",  color: "#059669" },
-  post:      { label: "Post",       bg: "rgba(107,114,128,0.10)", color: "#4B5563" },
+// Method → the standard PortalPill tone + label (was a bespoke flat pill).
+const METHOD_META: Record<string, { label: string; tone: PortalPillTone }> = {
+  email:     { label: "Email",      tone: "blue" },
+  phone:     { label: "Phone call", tone: "green" },
+  sms:       { label: "SMS",        tone: "amber" },
+  voicemail: { label: "Voicemail",  tone: "grey" },
+  whatsapp:  { label: "WhatsApp",   tone: "green" },
+  post:      { label: "Post",       tone: "grey" },
 };
+
+// Split "Property Information Form.pdf" → base + "PDF" so the extension can sit
+// quietly next to the pill instead of trailing the link text.
+function splitFileName(name: string): { base: string; ext: string | null } {
+  const i = name.lastIndexOf(".");
+  if (i > 0 && i < name.length - 1) return { base: name.slice(0, i), ext: name.slice(i + 1).toUpperCase() };
+  return { base: name, ext: null };
+}
 
 function groupLabel(date: Date): string {
   const now = new Date();
@@ -215,63 +222,75 @@ export default async function PortalUpdatesPage({
 
                 /* ── Document you uploaded ── */
                 if (entry.type === "document") {
+                  const { base, ext } = splitFileName(entry.filename ?? "");
                   return (
-                    <div
+                    <PortalGlassCard
                       key={entry.id}
-                      className="rounded-2xl px-5 py-4"
-                      style={{ background: P.cardBg, boxShadow: P.shadowSm, borderLeft: `3px solid ${P.accent}` }}
+                      glassId="updates-card"
+                      label="Update card"
+                      defaultVariant="v26"
+                      className="flex items-start gap-3.5 px-5 py-4"
                     >
-                      <span
-                        className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
-                        style={{ background: P.accentBg, color: P.accent }}
-                      >
-                        Document
-                      </span>
-                      {entry.url ? (
-                        <a
-                          href={entry.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-[14px] font-semibold"
-                          style={{ color: P.accent, textDecoration: "underline", textUnderlineOffset: 2, wordBreak: "break-word" }}
-                        >
-                          {entry.filename}
-                        </a>
-                      ) : (
-                        <p className="text-[14px] font-semibold" style={{ color: P.textPrimary, wordBreak: "break-word" }}>
-                          {entry.filename}
-                        </p>
-                      )}
-                      <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
-                        {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
-                      </p>
-                    </div>
+                      <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: P.accentBg }}>
+                        <FileText size={17} weight="regular" style={{ color: P.accent }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {entry.url ? (
+                          <a
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-[14px] font-semibold"
+                            style={{ color: P.accent, textDecoration: "underline", textUnderlineOffset: 2, wordBreak: "break-word" }}
+                          >
+                            {base}
+                          </a>
+                        ) : (
+                          <p className="text-[14px] font-semibold" style={{ color: P.textPrimary, wordBreak: "break-word" }}>
+                            {base}
+                          </p>
+                        )}
+                        <div className="mt-1.5 flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-1.5">
+                          <span className="text-[12px]" style={{ color: P.textMuted }}>
+                            {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                          </span>
+                          <span className="sm:ml-auto flex-shrink-0 flex items-center gap-2">
+                            <PortalPill tone="blue">Document</PortalPill>
+                            {ext && <span className="text-[11px] font-semibold" style={{ color: P.textMuted }}>{ext}</span>}
+                          </span>
+                        </div>
+                      </div>
+                    </PortalGlassCard>
                   );
                 }
 
-                /* ── Agent update ── */
-                const method = entry.method ? METHOD_STYLES[entry.method] : null;
+                /* ── Agent update (email / phone / etc.) ── */
+                const method = entry.method ? METHOD_META[entry.method] : null;
                 return (
-                  <div
+                  <PortalGlassCard
                     key={entry.id}
-                    className="rounded-2xl px-5 py-4"
-                    style={{ background: P.cardBg, boxShadow: P.shadowSm, borderLeft: `3px solid ${P.accent}` }}
+                    glassId="updates-card"
+                    label="Update card"
+                    defaultVariant="v26"
+                    className="flex items-start gap-3.5 px-5 py-4"
                   >
-                    {method && (
-                      <span
-                        className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
-                        style={{ background: method.bg, color: method.color }}
-                      >
-                        {method.label}
-                      </span>
-                    )}
-                    <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>
-                      {stripCommsLinksSilent(entry.content)}
-                    </p>
-                    <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
-                      {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
-                    </p>
-                  </div>
+                    <UserCircle size={32} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: P.primary }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>
+                        {stripCommsLinksSilent(entry.content)}
+                      </p>
+                      <div className="mt-1.5 flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-1.5">
+                        <span className="text-[12px]" style={{ color: P.textMuted }}>
+                          {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                        </span>
+                        {method && (
+                          <span className="sm:ml-auto flex-shrink-0">
+                            <PortalPill tone={method.tone}>{method.label}</PortalPill>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </PortalGlassCard>
                 );
                 })();
                 return isNew(entry) ? (
