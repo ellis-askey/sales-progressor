@@ -11,6 +11,7 @@ type AgentFile = {
   expectedExchangeDate: Date | null;
   escalatedTasks: number;
   lastActivityDaysAgo: number | null;
+  serviceType: string;
 };
 
 function fmtDate(d: Date) {
@@ -57,6 +58,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
         id: true,
         propertyAddress: true,
         expectedExchangeDate: true,
+        serviceType: true,
         chaseTasks: {
           where: { status: "pending", priority: "escalated" },
           select: { id: true },
@@ -80,14 +82,23 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       lastActivityDaysAgo: tx.communications[0]?.createdAt
         ? Math.floor((Date.now() - new Date(tx.communications[0].createdAt).getTime()) / 86400000)
         : null,
+      serviceType: tx.serviceType,
     }));
 
-    const needsAttention = files.filter((f) => f.escalatedTasks > 0 || (f.lastActivityDaysAgo !== null && f.lastActivityDaysAgo > 14));
+    // On OUTSOURCED files our internal team runs the chase; escalations and the
+    // no-activity gap are internal chase-ops state, not something the agency
+    // acts on. So those two signals don't flag an outsourced file here — the
+    // agency sees client-visible progress only (approaching exchange / on
+    // track). Self-managed files are unchanged. (Brief Part B, 2026-08-17.)
+    const needsAttention = files.filter((f) => {
+      if (f.serviceType === "outsourced") return false;
+      return f.escalatedTasks > 0 || (f.lastActivityDaysAgo !== null && f.lastActivityDaysAgo > 14);
+    });
     const exchangeSoon = files.filter((f) => f.expectedExchangeDate && daysUntil(f.expectedExchangeDate) >= 0 && daysUntil(f.expectedExchangeDate) <= 14);
     const allGood = files.filter((f) => !needsAttention.includes(f) && !exchangeSoon.includes(f));
 
     const subject = needsAttention.length > 0
-      ? `${needsAttention.length} file${needsAttention.length !== 1 ? "s" : ""} need attention this week`
+      ? `${needsAttention.length} file${needsAttention.length !== 1 ? "s" : ""} ${needsAttention.length === 1 ? "needs" : "need"} attention this week`
       : `All your files are on track this week`;
 
     const lines: string[] = [
@@ -120,10 +131,15 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       lines.push(``, `All files are progressing normally. No issues to flag.`);
     }
 
-    // AI-detected flags for this agent's files
+    // AI-detected flags for this agent's files. Suppressed on OUTSOURCED files
+    // for the same reason as the chase-ops signals above: most flags (unanswered
+    // chase, no recent contact, stalled progress) describe our team's internal
+    // work state, and several are the AI-detected twins of the signals Part B
+    // hides. Agencies see client-visible progress only on outsourced files.
+    // (Brief Part B + founder decision, 2026-08-17.)
     const agentFlaggedFiles = files
       .map((f) => ({ file: f, flags: flagsByTx.get(f.id) ?? [] }))
-      .filter(({ flags }) => flags.length > 0);
+      .filter(({ file, flags }) => flags.length > 0 && file.serviceType !== "outsourced");
 
     if (agentFlaggedFiles.length > 0) {
       lines.push(``, `Proactive alerts (AI-detected):`);
