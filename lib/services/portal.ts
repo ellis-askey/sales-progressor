@@ -438,7 +438,7 @@ export async function getPortalChainAgent(
   }
   let correctionMailto: string | null = null;
   if (editState !== "editable") {
-    const to = tx?.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+    const to = tx?.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
     const dealWord = side === "vendor" ? "onward-purchase" : "selling";
     const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
     correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
@@ -527,7 +527,7 @@ export async function getPortalTeam(
     )?.trim() || null;
     let solicitorMailto: string | null = null;
     if (solicitorEmail) {
-      const cc = tx.agency?.quoteSenderEmail?.trim() || "ellis@thesalesprogressor.co.uk";
+      const cc = tx.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
       const names = tx.contacts.map((c) => c.name.trim()).filter(Boolean).join(" & ");
       const subject = `${dealWord} of ${tx.propertyAddress}${names ? ` - ${names}` : ""}`;

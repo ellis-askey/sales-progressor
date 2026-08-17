@@ -53,7 +53,11 @@ export type QuoteSubmitResult =
 
 // Where quotes send from when an agency has no verified sender on file, and
 // where the internal "a quote was requested" heads-up lands.
-const SP_FALLBACK_EMAIL = "ellis@thesalesprogressor.co.uk";
+// Sender fallback when the agency has no verified address of its own.
+const SP_FROM_FALLBACK = "updates@thesalesprogressor.co.uk";
+// Internal ops inbox for the "a quote was requested" heads-up (a recipient, not
+// a sender fallback).
+const SP_OPS_INBOX = "ellis@thesalesprogressor.co.uk";
 const SP_NOTIFY_FROM = "updates@thesalesprogressor.co.uk";
 
 const LEGAL_SUFFIX = /\s+(Ltd|Limited|LLP|PLC|plc)\.?$/i;
@@ -143,7 +147,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   // ellis@akeman-residential for an Akeman sale). No verified sender on file
   // (e.g. EXP) → fall back to the Sales Progressor address.
   const agencyName = (contact.transaction.agency?.name ?? "Sales Progressor").replace(LEGAL_SUFFIX, "").trim();
-  const senderAddress = contact.transaction.agency?.quoteSenderEmail ?? SP_FALLBACK_EMAIL;
+  const senderAddress = contact.transaction.agency?.quoteSenderEmail ?? SP_FROM_FALLBACK;
   const quoteFrom = buildFrom(agencyName, senderAddress);
   const pricePence = contact.transaction.purchasePrice ?? null;
   const tenure = contact.transaction.tenure ?? null;
@@ -274,7 +278,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     ].join("\n");
 
     await sendEmail({
-      to: SP_FALLBACK_EMAIL,
+      to: SP_OPS_INBOX,
       from: buildFrom(`Ellis @ ${agencyName}`, SP_NOTIFY_FROM),
       subject: `Survey quote requested: ${serviceType.label}`,
       text: notifyText,
