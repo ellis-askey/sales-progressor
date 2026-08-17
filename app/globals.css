@@ -632,8 +632,8 @@ body {
   /* Feedback "?" widget (shared component; these only bite inside the portal). */
   --fw-panel-bg:       #1a2029;
   --fw-border:         rgba(255,255,255,0.10);
-  --fw-trigger-bg:     rgba(31,39,50,0.90);
-  --fw-trigger-border: rgba(255,255,255,0.12);
+  --fw-trigger-bg:     rgba(54,66,86,0.94);
+  --fw-trigger-border: rgba(255,255,255,0.22);
   --fw-text:           #e8ebf0;
   --fw-text-muted:     #9aa2b1;
   --fw-text-faint:     #7c8595;
