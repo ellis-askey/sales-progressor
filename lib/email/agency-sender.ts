@@ -44,3 +44,28 @@ export async function resolveAgencySender(
   }
   return { from: SP_FROM, replyTo: SP_REPLY_TO };
 }
+
+/**
+ * Same as resolveAgencySender but keyed by transaction. Looks up the file's
+ * agency and brands the display name as "{progressor first name} at {Agency}"
+ * (the assigned progressor on outsourced files, the agent on self-managed) so
+ * queued/drained client emails match the synchronous ones. SP fallback when the
+ * tx or agency address is missing.
+ */
+export async function resolveAgencySenderForTransaction(transactionId: string): Promise<ResolvedSender> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      agencyId: true,
+      serviceType: true,
+      assignedUser: { select: { name: true } },
+      agentUser: { select: { name: true } },
+    },
+  });
+  if (!tx) return resolveAgencySender(null);
+  const personName = tx.serviceType === "self_managed" ? tx.agentUser?.name : tx.assignedUser?.name;
+  return resolveAgencySender(
+    tx.agencyId,
+    personName ? { personFirstName: personName.trim().split(/\s+/)[0] } : undefined,
+  );
+}
