@@ -15,7 +15,13 @@ import {
   type SurveyBookingChoice,
 } from "@/lib/services/survey-booking";
 
-export type { SurveyBookingOption, SurveyBookingChoice };
+// NB: do NOT re-export these types from this "use server" file. Next 16's
+// Turbopack mis-compiles a `export type { … }` in a server-actions module into
+// a runtime value reference, throwing `ReferenceError: SurveyBookingOption is
+// not defined` at module evaluation — which takes down EVERY server action on
+// any page that imports from here (e.g. the whole /agent/transactions/[id]
+// confirm flow). Import these types straight from @/lib/services/survey-booking.
+// (Prod incident 2026-08-17.)
 
 // The firms we sent quotes to for this file, so the confirm modal can list
 // them. Empty = no quote requested → the picker is skipped.

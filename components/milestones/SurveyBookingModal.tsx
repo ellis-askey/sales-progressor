@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
-import type { SurveyBookingOption, SurveyBookingChoice } from "@/app/actions/survey-booking";
+import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
 
 type Selection = { kind: "our_firm"; quoteRequestId: string } | { kind: "someone_else" } | { kind: "unknown" };
 
