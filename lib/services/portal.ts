@@ -369,6 +369,10 @@ export type PortalChainAgent = {
   label: string;                 // client-facing label for this neighbour
   direction: "above" | "below";
   present: boolean;              // is there a neighbour link at all?
+  // Is this neighbour relevant at all? A pure cash buyer (cash_buyer) has no
+  // related sale, so no selling agent — the row is hidden. Sellers buying onward
+  // and cash-from-proceeds buyers (who ARE selling) keep it.
+  applicable: boolean;
   editable: boolean;             // convenience: editState === "editable"
   // Editability lifecycle (2026-08-17): a stub is editable until we send the
   // agent an invite; while that invite is live it's read-only ("invited");
@@ -396,14 +400,16 @@ export async function getPortalChainAgent(
   // A managing user is required to attribute any chain write (createdByUserId).
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { serviceType: true, assignedUserId: true, agentUserId: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } } },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true, purchaseType: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } } },
   });
   const managingUserId = tx
     ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
     : null;
+  // A pure cash buyer has no related sale, so their "selling agent" is n/a.
+  const applicable = !(side === "purchaser" && tx?.purchaseType === "cash_buyer");
 
   const base: PortalChainAgent = {
-    label, direction, present: false, editable: true, editState: "editable", correctionMailto: null,
+    label, direction, present: false, applicable, editable: true, editState: "editable", correctionMailto: null,
     linkId: null, agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
     propertyAddress: null, canManage: !!managingUserId,
   };
@@ -481,7 +487,7 @@ export async function getPortalTeam(
         chainAgent: {
           label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
           direction: side === "vendor" ? "above" : "below",
-          present: false, editable: false, editState: "editable", correctionMailto: null, linkId: null,
+          present: false, applicable: true, editable: false, editState: "editable", correctionMailto: null, linkId: null,
           agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
           propertyAddress: null, canManage: false,
         },

@@ -72,7 +72,7 @@ export function PortalTeamCard({ team, token }: { team: PortalTeam; token: strin
   const { managing, solicitorFirmName, solicitorMailto, chainAgent } = team;
   // Symmetric for both sides (2026-08-17): a buyer records their selling agent
   // (chain link below them), a seller their onward-purchase agent (link above).
-  const showAgentRow = chainAgent.canManage;
+  const showAgentRow = chainAgent.canManage && chainAgent.applicable;
   const agentNoun = chainAgent.direction === "below" ? "selling agent" : "onward agent";
   const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
   if (!managing && !solicitorFirmName && !showAgentRow) return null;

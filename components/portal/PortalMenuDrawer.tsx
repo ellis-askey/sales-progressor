@@ -448,6 +448,9 @@ function YourAgentsSection({
   const [saved, setSaved] = useState(false);
   const has = ca.present && !!(ca.agentName || ca.agencyName);
 
+  // A pure cash buyer has no related sale, so no selling agent to record.
+  if (!ca.applicable) return null;
+
   function onSaveDone() {
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1600);
