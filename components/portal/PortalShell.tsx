@@ -7,6 +7,7 @@ import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/
 import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
+import { PortalPwaPing } from "./PortalPwaPing";
 import { PortalWelcomeSheet } from "./PortalWelcomeSheet";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
@@ -147,6 +148,9 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           halo + cyan over #f6f8fc). Now a themeable class (.portal-ambient in
           globals.css) so dark mode gets a deep-ground variant. Batch 4. */}
       <div aria-hidden className="portal-ambient" />
+
+      {/* Fire-and-forget PWA adoption signal (Command Centre → App adoption). */}
+      <PortalPwaPing token={token} />
 
       {/* Top header. On the overview it floats OVER the property photo
           (transparent, with a soft top scrim for legibility) so the image runs

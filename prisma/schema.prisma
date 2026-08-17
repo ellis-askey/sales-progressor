@@ -645,6 +645,13 @@ model Contact {
   roleType              ContactRole
   portalToken           String?     @unique
   lastVisitedPortalAt   DateTime?
+  // PWA adoption signal (Command Centre → App adoption). pwaInstalledAt: first
+  // time we saw them in standalone display-mode or caught the appinstalled
+  // event — the truest "added it to their home screen". pwaLastOpenedAt: most
+  // recent standalone open. iOS gives no install event, so a standalone open
+  // is the only reliable signal there.
+  pwaInstalledAt        DateTime?
+  pwaLastOpenedAt       DateTime?
   // Set when the contact clicks the unsubscribe link in any platform email
   // addressed to them. Mirrors User.emailUnsubscribedAt. Suppression check
   // via isContactEmailSuppressed in lib/email.ts. Foundation for the
