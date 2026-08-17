@@ -166,7 +166,7 @@ function IOSInstallSheet({ onClose }: { onClose: () => void }) {
         style={{ background: P.cardBg, boxShadow: P.shadowXl }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "#E2E8F0" }} />
+        <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: P.border }} />
         <h3 className="text-[17px] font-semibold mb-1" style={{ color: P.textPrimary }}>
           Add to Home Screen
         </h3>
@@ -263,6 +263,13 @@ export function PortalOnboardingToasts({
     const r = window.requestAnimationFrame(() => setVisible(true));
     return () => window.cancelAnimationFrame(r);
   }, [active]);
+
+  // Tell the floating help widget to get out of the way while a toast or the
+  // iOS sheet is up, and come back once it's gone.
+  useEffect(() => {
+    const shown = active !== null || showIOSSheet;
+    window.dispatchEvent(new CustomEvent("portal-overlay", { detail: { shown } }));
+  }, [active, showIOSSheet]);
 
   function afterInstallDismissed() {
     install.markDismissed();
@@ -394,7 +401,7 @@ function InstallToastBody({
         display: "flex",
         alignItems: "center",
         gap: 12,
-        background: "rgba(255, 255, 255, 0.94)",
+        background: "var(--portal-toast-bg, rgba(255, 255, 255, 0.94))",
         backdropFilter: "blur(20px) saturate(1.6)",
         WebkitBackdropFilter: "blur(20px) saturate(1.6)",
         border: `0.5px solid ${P.border}`,
@@ -500,7 +507,7 @@ function PushToastBody({
         display: "flex",
         alignItems: "center",
         gap: 12,
-        background: "rgba(255, 255, 255, 0.94)",
+        background: "var(--portal-toast-bg, rgba(255, 255, 255, 0.94))",
         backdropFilter: "blur(20px) saturate(1.6)",
         WebkitBackdropFilter: "blur(20px) saturate(1.6)",
         border: `0.5px solid ${P.border}`,

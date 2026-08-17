@@ -631,6 +631,8 @@ body {
   --portal-glass-fill:   rgba(28,36,50,0.66);
   --portal-glass-border: rgba(255,255,255,0.10);
   --portal-glass-soft:   rgba(255,255,255,0.09);
+  /* Onboarding toast glass (install / notifications pop-ups). */
+  --portal-toast-bg:     rgba(26,32,41,0.94);
   /* Feedback "?" widget (shared component; these only bite inside the portal). */
   --fw-panel-bg:       #1a2029;
   --fw-border:         rgba(255,255,255,0.10);
@@ -701,16 +703,16 @@ body {
   background-color: #f6f8fc;
   background-image:
     radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%),
-    radial-gradient(75% 55% at 8% 6%, rgba(255,188,168,0.28), transparent 72%),
+    radial-gradient(75% 55% at 8% 6%, color-mix(in srgb, var(--portal-primary, #FF6B4A) 22%, transparent), transparent 72%),
     radial-gradient(70% 50% at 92% 12%, rgba(196,180,255,0.26), transparent 72%),
-    radial-gradient(85% 60% at 50% 96%, rgba(255,208,176,0.30), transparent 75%);
+    radial-gradient(85% 60% at 50% 96%, color-mix(in srgb, var(--portal-primary, #FF6B4A) 22%, transparent), transparent 75%);
   background-repeat: no-repeat;
 }
 [data-portal-theme="dark"] .portal-ambient {
   background-color: #0b0f14;
   background-image:
     radial-gradient(45% 30% at 50% -6%, rgba(56,140,255,0.20), transparent 70%),
-    radial-gradient(75% 55% at 8% 6%, rgba(255,122,92,0.13), transparent 72%),
+    radial-gradient(75% 55% at 8% 6%, color-mix(in srgb, var(--portal-primary, #FF7A5C) 15%, transparent), transparent 72%),
     radial-gradient(70% 50% at 92% 12%, rgba(150,120,255,0.17), transparent 72%),
     radial-gradient(85% 60% at 50% 98%, rgba(70,55,110,0.22), transparent 78%);
 }

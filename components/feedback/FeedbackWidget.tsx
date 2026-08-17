@@ -243,6 +243,14 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
   // ordered layout, which was pinning it mid-content. Guards SSR (portals need a DOM).
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  // Step aside while a portal overlay (install / notifications toast, iOS sheet)
+  // is up — PortalOnboardingToasts dispatches this. We fade, not pop.
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  useEffect(() => {
+    const onOverlay = (e: Event) => setOverlayVisible(!!(e as CustomEvent).detail?.shown);
+    window.addEventListener("portal-overlay", onOverlay as EventListener);
+    return () => window.removeEventListener("portal-overlay", onOverlay as EventListener);
+  }, []);
 
   const triggerRef    = useRef<HTMLButtonElement>(null);
   const triggerWrapRef = useRef<HTMLDivElement>(null);
@@ -439,6 +447,9 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
 
   if (!mounted) return null;
 
+  // Fade the pill out for the onboarding checklist AND while a pop-up is up.
+  const triggerHidden = (checklistAware && checklistActive) || overlayVisible;
+
   return createPortal(
     <>
       {/* Backdrop */}
@@ -479,12 +490,21 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         {panelContent()}
       </div>
 
-      {/* Trigger button — hidden while onboarding checklist is active */}
-      {!(checklistAware && checklistActive) && <div
+      {/* Trigger button — fades out for the onboarding checklist and while a
+          portal pop-up (install / notifications toast) is on screen. */}
+      <div
         ref={triggerWrapRef}
         className="feedback-trigger-wrap"
         data-surface={portalToken ? "portal" : undefined}
-        style={{ zIndex: 40, ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}) }}
+        aria-hidden={triggerHidden}
+        style={{
+          zIndex: 40,
+          opacity: triggerHidden ? 0 : 1,
+          transform: triggerHidden ? "translateY(8px) scale(0.94)" : "translateY(0) scale(1)",
+          pointerEvents: triggerHidden ? "none" : "auto",
+          transition: "opacity 240ms ease, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
+          ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
+        }}
       >
         <button
           ref={triggerRef}
@@ -524,7 +544,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             Help
           </span>
         </button>
-      </div>}
+      </div>
     </>,
     document.body,
   );

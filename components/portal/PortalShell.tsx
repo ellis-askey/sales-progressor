@@ -248,10 +248,10 @@ function TabItem({
           width: 32,
           height: 32,
           color: active ? P.primary : P.textMuted,
-          // Elevra's "shadow-glowAccent" — accent-hued glow behind the
-          // icon when active. Coral for the portal (P.primary).
+          // Accent-hued glow behind the icon when active. Follows the
+          // client's chosen accent (--portal-primary) so it isn't stuck coral.
           boxShadow: active
-            ? "0 0 24px rgba(255, 107, 74, 0.35)"
+            ? "0 0 24px color-mix(in srgb, var(--portal-primary, #FF6B4A) 35%, transparent)"
             : "none",
           transform: active ? "scale(1.1)" : "scale(1)",
           transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms ease, box-shadow 200ms ease",
