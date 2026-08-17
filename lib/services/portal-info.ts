@@ -15,6 +15,10 @@ export type MoveInfoContext = {
   hasCompleted: boolean;
   completionDate: string | null;       // ISO date, once known
   expectedExchangeDate: string | null; // ISO date, pre-exchange target
+  // Sellers: whether we already know they're buying onward (a chain link
+  // exists), so we don't ask, and the onward address when it's a managed file.
+  onwardLinkKnown: boolean;
+  onwardManagedAddress: string | null;
 };
 
 export type UnavailableRange = { start: string; end?: string | null };
@@ -81,6 +85,18 @@ export async function getClientMoveInfo(
   const hasExchanged = codes.has("VM19") || codes.has("PM26");
   const hasCompleted = codes.has("VM20") || codes.has("PM27");
 
+  // Sellers: do we already know they're buying onward (a chain link above them)?
+  let onwardLinkKnown = false;
+  let onwardManagedAddress: string | null = null;
+  if (side === "vendor") {
+    const { getPortalChainAgent } = await import("@/lib/services/portal");
+    const ca = await getPortalChainAgent(contact.propertyTransactionId, "vendor").catch(() => null);
+    if (ca?.present) {
+      onwardLinkKnown = true;
+      onwardManagedAddress = ca.propertyAddress ?? null;
+    }
+  }
+
   const purchaseType = tx?.purchaseType ?? null;
   const context: MoveInfoContext = {
     role,
@@ -92,6 +108,8 @@ export async function getClientMoveInfo(
     hasCompleted,
     completionDate: isoDate(tx?.completionDate ?? null),
     expectedExchangeDate: isoDate(tx?.expectedExchangeDate ?? null),
+    onwardLinkKnown,
+    onwardManagedAddress,
   };
 
   const row = await prisma.clientMoveInfo.findUnique({

@@ -98,6 +98,79 @@ export function PortalInformationTab({ token }: { token: string }) {
         )}
       </Section>
 
+      {/* YOUR SITUATION (buyers) */}
+      {ctx.role === "buyer" && (ctx.isMortgaged || !ctx.hasExchanged) && (
+        <Section label="Your situation">
+          {ctx.isMortgaged && (
+            <Field label="Mortgage offer expiry">
+              <DateInput value={info.mortgageOfferExpiry} disabled={readOnly} onChange={(v) => patch({ mortgageOfferExpiry: v })} />
+            </Field>
+          )}
+          {!ctx.hasExchanged && (
+            <>
+              <Field label={ctx.isMortgaged ? "Are the funds for your deposit in place?" : "Are the funds for your purchase in place?"}>
+                <Segmented value={info.fundsInPlace} disabled={readOnly} options={[["yes", "Yes"], ["not_yet", "Not yet"], ["not_sure", "Not sure"]]} onChange={(v) => patch({ fundsInPlace: v })} />
+              </Field>
+              <Field label="Where are they coming from?">
+                <Segmented value={info.fundsSource} disabled={readOnly} options={[["savings", "Savings"], ["lisa", "Lifetime ISA"], ["gift", "Gift"], ["sale", "From a sale"], ["other", "Other"]]} onChange={(v) => patch({ fundsSource: v })} />
+                <p className="text-[12px] mt-2 leading-snug" style={{ color: P.textMuted }}>
+                  {info.fundsSource === "lisa"
+                    ? "A Lifetime ISA can take up to 30 days to release, so it helps us to know. You don't need to move the money now."
+                    : "Just so we can plan timing. You don't need to move any money now."}
+                </p>
+              </Field>
+            </>
+          )}
+          {ctx.isMortgaged && (
+            <>
+              <Field label="Do you need to give notice on your current home?">
+                <YesNo value={info.needsNotice} disabled={readOnly} onChange={(v) => patch({ needsNotice: v, ...(v ? {} : { noticePeriod: null, noticeGiven: null, noticeEndDate: null }) })} />
+              </Field>
+              {info.needsNotice === true && (
+                <>
+                  <Field label="Notice period">
+                    <Segmented value={info.noticePeriod} disabled={readOnly} options={[["1m", "1 month"], ["2m", "2 months"], ["other", "Other"]]} onChange={(v) => patch({ noticePeriod: v })} />
+                  </Field>
+                  <Field label="Have you given notice?">
+                    <YesNo value={info.noticeGiven} disabled={readOnly} onChange={(v) => patch({ noticeGiven: v, ...(v ? {} : { noticeEndDate: null }) })} />
+                  </Field>
+                  {info.noticeGiven === true && (
+                    <Field label="Notice ends">
+                      <DateInput value={info.noticeEndDate} disabled={readOnly} onChange={(v) => patch({ noticeEndDate: v })} />
+                    </Field>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </Section>
+      )}
+
+      {/* ONWARD PURCHASE (sellers) */}
+      {ctx.role === "seller" && (
+        <Section label="Onward purchase">
+          {ctx.onwardLinkKnown ? (
+            <Row label="Buying onward">
+              <span className="text-[14px] font-semibold text-right" style={{ color: P.textPrimary }}>{ctx.onwardManagedAddress ?? "Yes"}</span>
+            </Row>
+          ) : (
+            <Field label="Are you also buying another property?">
+              <YesNo value={info.buyingOnward} disabled={readOnly} onChange={(v) => patch({ buyingOnward: v })} />
+            </Field>
+          )}
+          {(ctx.onwardLinkKnown || info.buyingOnward === true) && (
+            <>
+              <Field label="Is your onward purchase ready to exchange?">
+                <Segmented value={info.onwardReadyToExchange} disabled={readOnly} options={[["yes", "Yes"], ["no", "No"], ["not_sure", "Not sure"]]} onChange={(v) => patch({ onwardReadyToExchange: v })} />
+              </Field>
+              <Field label="Onward mortgage offer expiry (if mortgaged)">
+                <DateInput value={info.onwardMortgageOfferExpiry} disabled={readOnly} onChange={(v) => patch({ onwardMortgageOfferExpiry: v })} />
+              </Field>
+            </>
+          )}
+        </Section>
+      )}
+
       {/* MOVING PLANS */}
       <Section label="Moving plans">
         <Field label="Removals">
@@ -114,6 +187,15 @@ export function PortalInformationTab({ token }: { token: string }) {
           </Field>
         )}
       </Section>
+
+      {/* HANDOVER (sellers, near/after exchange) */}
+      {ctx.role === "seller" && ctx.hasExchanged && (
+        <Section label="Handover">
+          <Field label="Will the property be vacant before completion?">
+            <Segmented value={info.vacantBeforeCompletion} disabled={readOnly} options={[["yes", "Yes"], ["no", "No"], ["not_sure", "Not sure"]]} onChange={(v) => patch({ vacantBeforeCompletion: v })} />
+          </Field>
+        </Section>
+      )}
 
       {/* AVAILABILITY */}
       <Section label="Dates you can't do">
@@ -204,6 +286,28 @@ function Segmented({ value, options, disabled, onChange }: { value: string | nul
               : { background: P.pageBg, color: P.textSecondary, border: `1px solid ${P.border}` }}
           >
             {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function YesNo({ value, disabled, onChange }: { value: boolean | null; disabled?: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex gap-2">
+      {[[true, "Yes"], [false, "No"]].map(([val, label]) => {
+        const active = value === val;
+        return (
+          <button
+            key={String(val)}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(val as boolean)}
+            className="pbtn-press text-[13px] font-semibold px-4 py-2 rounded-xl disabled:opacity-60"
+            style={active ? { background: P.primary, color: "#fff" } : { background: P.pageBg, color: P.textSecondary, border: `1px solid ${P.border}` }}
+          >
+            {label as string}
           </button>
         );
       })}
