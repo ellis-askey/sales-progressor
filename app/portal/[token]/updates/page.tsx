@@ -296,11 +296,8 @@ export default async function PortalUpdatesPage({
                 return isNew(entry) ? (
                   <div key={entry.id} className="relative">
                     {el}
-                    <span
-                      className="absolute top-2.5 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: P.primaryBg, color: P.primary }}
-                    >
-                      New
+                    <span className="absolute top-2.5 right-3">
+                      <PortalPill tone="coral">New</PortalPill>
                     </span>
                   </div>
                 ) : el;

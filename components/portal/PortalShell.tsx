@@ -27,6 +27,45 @@ type Props = {
   children: React.ReactNode;
 };
 
+// Greeting that writes on letter by letter, left to right, a beat after the
+// page settles. Each character fades + lifts with a staggered delay. Honours
+// reduced-motion (OS or the in-app toggle): the line just appears.
+function GreetingText({ text }: { text: string }) {
+  const [revealed, setRevealed] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const rm =
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      document.documentElement.getAttribute("data-portal-motion") === "reduced";
+    setReduced(rm);
+    // Let the cards land first, then start writing the greeting on.
+    const t = window.setTimeout(() => setRevealed(true), rm ? 0 : 320);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
+    <span aria-label={text}>
+      {[...text].map((ch, i) => (
+        <span
+          key={i}
+          aria-hidden
+          style={{
+            display: "inline-block",
+            whiteSpace: "pre",
+            opacity: revealed ? 1 : 0,
+            transform: revealed ? "translateY(0)" : "translateY(0.24em)",
+            transition: reduced
+              ? "none"
+              : "opacity 560ms cubic-bezier(0.22, 1, 0.36, 1), transform 560ms cubic-bezier(0.22, 1, 0.36, 1)",
+            transitionDelay: reduced ? "0ms" : `${i * 40}ms`,
+          }}
+        >
+          {ch}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 // NOTE: agencyName is still passed in (Props) but no longer rendered in the
 // header — it truncated the greeting. It needs a new home elsewhere in the
 // portal (founder, 2026-08-16). Re-add when that lands.
@@ -49,7 +88,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
     const h = new Date().getHours();
     setGreeting(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
   }, []);
-  const greetingLabel = greeting && firstName ? `${greeting}, ${firstName}` : greeting || firstName || "";
+  // Nothing until the greeting resolves after mount — we don't want the bare
+  // name flashing on first paint and then jumping to the full greeting. Once
+  // it's ready the whole line writes on, letter by letter (GreetingText).
+  const greetingLabel = greeting ? (firstName ? `${greeting}, ${firstName}` : greeting) : "";
 
   // Measure real engaged time the client spends on their portal (audit
   // COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13). Mounts once for the whole portal
@@ -124,7 +166,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
               className="text-[17px] font-semibold truncate"
               style={{ color: P.textPrimary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
             >
-              {greetingLabel}
+              {greetingLabel && <GreetingText key={greetingLabel} text={greetingLabel} />}
             </p>
             {/* Menu (right). Agency name removed for now — it truncated the
                 greeting; it needs a new home elsewhere in the portal. */}
