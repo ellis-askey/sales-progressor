@@ -38,6 +38,24 @@ import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/un
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
+import { toUKDateStr } from "@/lib/utils";
+
+// Guard for the multi-contact chase-inflation bug (2026-08-17).
+//
+// enqueueClientChaseDigest runs ONCE PER CONTACT. On a file with N seller or
+// buyer contacts, a single morning chase round would otherwise call
+// applyChaseToTask on the SAME ChaseTask N times — inflating chaseCount and
+// compounding ReminderLog.nextDueDate (each apply stacks repeatEveryDays on
+// the last). Fix: from the automated digest path, a task may be chased at most
+// once per UK day. Returns true when the task was already chased today (UK),
+// so the caller skips it. Manual paths (the Chased button, a logged comm) do
+// NOT route through here and keep counting per action.
+export function chaseAlreadyAppliedToday(
+  lastChasedAt: Date | null,
+  now: Date = new Date(),
+): boolean {
+  return lastChasedAt !== null && toUKDateStr(lastChasedAt) === toUKDateStr(now);
+}
 
 export type DigestMilestone = {
   code: string;
@@ -523,6 +541,7 @@ export async function enqueueClientChaseDigest(input: {
   // We resolve ChaseTask via ReminderLog → ReminderRule → targetMilestoneCode.
   // Only pending tasks advance; cancelled/done are left alone.
   if (milestoneCodes.length > 0) {
+    const now = new Date();
     const pendingTasks = await prisma.chaseTask.findMany({
       where: {
         transactionId,
@@ -531,9 +550,13 @@ export async function enqueueClientChaseDigest(input: {
           reminderRule: { targetMilestoneCode: { in: milestoneCodes } },
         },
       },
-      select: { id: true },
+      select: { id: true, lastChasedAt: true },
     });
     for (const task of pendingTasks) {
+      // One apply per task per UK day. This fn runs once per contact, so
+      // without this guard a multi-contact file inflates chaseCount and
+      // over-advances nextDueDate. See chaseAlreadyAppliedToday above.
+      if (chaseAlreadyAppliedToday(task.lastChasedAt, now)) continue;
       await applyChaseToTask(task.id);
     }
   }
