@@ -260,6 +260,11 @@ model PropertyTransaction {
   // estimate the completion balance still to fund. Purchaser-supplied.
   clientDepositGBP            Int?
   clientMortgageGBP           Int?
+  // Buyer-confirmed stamp-duty circumstances (drive the SDLT estimate) and a
+  // flag for when they've told us the completion funds are on their way.
+  clientFirstTimeBuyer        Boolean?
+  clientAdditionalProperty    Boolean?
+  clientCompletionFundsSent   Boolean?
   tenure                      Tenure?
   purchaseType                PurchaseType?
   isShareOfFreehold           Boolean           @default(false)

@@ -416,6 +416,9 @@ export async function portalSaveCostsAction(input: {
   token: string;
   depositGBP: number | null;
   mortgageGBP: number | null;
+  firstTimeBuyer?: boolean;
+  additionalProperty?: boolean;
+  completionFundsSent?: boolean;
 }): Promise<{ ok: boolean }> {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
@@ -431,6 +434,9 @@ export async function portalSaveCostsAction(input: {
     data: {
       clientDepositGBP: toPence(input.depositGBP),
       clientMortgageGBP: toPence(input.mortgageGBP),
+      clientFirstTimeBuyer: input.firstTimeBuyer ?? false,
+      clientAdditionalProperty: input.additionalProperty ?? false,
+      clientCompletionFundsSent: input.completionFundsSent ?? false,
     },
   });
 
