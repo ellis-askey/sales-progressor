@@ -664,7 +664,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           savedDeposit={transaction.clientDepositGBP != null ? transaction.clientDepositGBP / 100 : null}
           savedMortgage={transaction.clientMortgageGBP != null ? transaction.clientMortgageGBP / 100 : null}
           savedFtb={transaction.clientFirstTimeBuyer ?? false}
-          savedAdditional={transaction.clientAdditionalProperty ?? false}
+          savedAdditional={transaction.clientAdditionalProperty ?? null}
+          savedOtherFunds={transaction.clientOtherFundsSentGBP != null ? transaction.clientOtherFundsSentGBP / 100 : null}
           savedFundsSent={transaction.clientCompletionFundsSent ?? false}
           token={token}
         />

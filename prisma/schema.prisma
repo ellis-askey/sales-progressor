@@ -262,9 +262,14 @@ model PropertyTransaction {
   clientMortgageGBP           Int?
   // Buyer-confirmed stamp-duty circumstances (drive the SDLT estimate) and a
   // flag for when they've told us the completion funds are on their way.
+  // clientAdditionalProperty doubles as the "has confirmed their situation"
+  // signal: null = not answered yet (SDLT shown faded), true/false = answered.
   clientFirstTimeBuyer        Boolean?
   clientAdditionalProperty    Boolean?
   clientCompletionFundsSent   Boolean?
+  // Any funds the buyer has already sent beyond the exchange deposit (pence),
+  // so they don't have to inflate the deposit to make the balance match.
+  clientOtherFundsSentGBP     Int?
   tenure                      Tenure?
   purchaseType                PurchaseType?
   isShareOfFreehold           Boolean           @default(false)
