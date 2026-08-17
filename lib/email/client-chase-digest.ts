@@ -39,6 +39,7 @@ import { getMilestoneCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { toUKDateStr } from "@/lib/utils";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 
 // Guard for the multi-contact chase-inflation bug (2026-08-17).
 //
@@ -436,6 +437,9 @@ export async function enqueueClientChaseDigest(input: {
   const yyyymmdd = today.toISOString().slice(0, 10); // YYYY-MM-DD
   const sourceId = `${transactionId}:${contactId}:${yyyymmdd}`;
 
+  // Agency authenticated sender for this file (Reply-To matching, SP fallback).
+  const sender = await resolveAgencySenderForTransaction(transaction.id);
+
   // Enqueue. A5's enqueueEmail handles the dedup (P2002 swallowed). If a
   // digest already exists for this (transaction, contact, day) the second
   // call no-ops silently.
@@ -448,6 +452,10 @@ export async function enqueueClientChaseDigest(input: {
       subject: payload.subject,
       text: payload.text,
       html: payload.html,
+      // Send from the agency's authenticated address (Reply-To matching); the
+      // outbound drain reads payload.from / payload.replyTo.
+      from: sender.from,
+      replyTo: sender.replyTo,
       // Rides to SendGrid via the drain as the template version (audit #17),
       // so opens can be compared across the warm subject variants (audit #12).
       templateVersion: payload.subjectVariant,
