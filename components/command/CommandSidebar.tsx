@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail,
+  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, AtSign,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -72,6 +72,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/milestone-emails", label: "Milestone emails", Icon: Mails },
       { href: "/command/milestone-updates", label: "Milestone updates", Icon: MessageSquare },
       { href: "/command/agent-emails", label: "Agent emails", Icon: Mail },
+      { href: "/command/email-senders", label: "Email senders", Icon: AtSign },
       { href: "/command/settings", label: "Settings", Icon: Settings },
       { href: "/command/admin/demo", label: "Reset demo", Icon: RotateCcw },
     ],
