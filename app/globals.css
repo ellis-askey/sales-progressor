@@ -703,9 +703,9 @@ body {
   background-color: #f6f8fc;
   background-image:
     radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%),
-    radial-gradient(75% 55% at 8% 6%, color-mix(in srgb, var(--portal-primary, #FF6B4A) 22%, transparent), transparent 72%),
+    radial-gradient(75% 55% at 8% 6%, color-mix(in srgb, color-mix(in srgb, var(--portal-primary, #FF6B4A) 40%, white) 30%, transparent), transparent 72%),
     radial-gradient(70% 50% at 92% 12%, rgba(196,180,255,0.26), transparent 72%),
-    radial-gradient(85% 60% at 50% 96%, color-mix(in srgb, var(--portal-primary, #FF6B4A) 22%, transparent), transparent 75%);
+    radial-gradient(85% 60% at 50% 96%, color-mix(in srgb, color-mix(in srgb, var(--portal-primary, #FF6B4A) 40%, white) 32%, transparent), transparent 75%);
   background-repeat: no-repeat;
 }
 [data-portal-theme="dark"] .portal-ambient {
