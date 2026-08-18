@@ -99,6 +99,12 @@ export async function getFollowupNudge(args: {
   const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { email: true } });
   const { from: ccEmail } = await resolveAgencySenderForTransaction(transactionId).catch(() => ({ from: null as string | null }));
 
+  // "I" vs "we" by how many clients are on this side; the other side's solicitor
+  // from this client's perspective.
+  const clientCount = await prisma.contact.count({ where: { propertyTransactionId: transactionId, roleType: side } });
+  const multi = clientCount >= 2;
+  const otherSolicitor = side === "vendor" ? "the buyer's solicitor" : "the seller's solicitor";
+
   const mySolCourt = side === "vendor" ? "seller_solicitor" : "buyer_solicitor";
   const now = new Date();
 
@@ -153,6 +159,7 @@ export async function getFollowupNudge(args: {
       tone,
       lastSentDate,
       variant: tapCount,
+      multi,
     });
     return {
       state: opts.state,
@@ -175,7 +182,9 @@ export async function getFollowupNudge(args: {
         clientFirstName: firstName,
         solicitorFirstName: sol.name ? extractFirstName(sol.name) : "there",
         addressShort,
+        otherSolicitor,
         variant: tapCount,
+        multi,
       });
       return {
         state: "other_side",
