@@ -8,15 +8,18 @@
 //     copy actually exists, so we never claim an email that wasn't sent.
 //
 // Light rotation (2 variants per shape) so a repeat is never word-for-word the
-// same. Voice: plain, first-person, no em-dashes, no exclamations, no legal
-// statements, no invented dates or figures.
+// same. Voice: plain, first-person plural ("we"), no em-dashes, no exclamations,
+// no legal statements, no invented dates or figures. Greets the solicitor's
+// handler by first name; every `{thing}` is a bare noun so it reads cleanly as
+// "{thing} for {address}".
 
 export type FollowupTone = "calm" | "behind";
 
 export type FollowupDraftInput = {
-  firstName: string; // the client, who signs off
+  clientFirstName: string; // signs off
+  solicitorFirstName: string; // greeted
   addressShort: string; // first line of the property address
-  thing: string; // e.g. "the property searches"
+  thing: string; // bare noun, e.g. "the searches"
   subject: string; // subject stem, e.g. "Searches"
   tone: FollowupTone;
   // The date of their last actually-sent email to this solicitor, or null for a
@@ -32,52 +35,50 @@ function fmtDate(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 }
 
-function pick<T>(arr: T[], variant: number): T {
+function pick(arr: string[], variant: number): string {
   return arr[((variant % arr.length) + arr.length) % arr.length];
 }
 
 export function buildFollowupDraft(input: FollowupDraftInput): FollowupDraft {
-  const { firstName, addressShort, thing, subject, tone, lastSentDate, variant } = input;
-  const sign = `Thanks,\n${firstName}`;
+  const { clientFirstName, solicitorFirstName, addressShort, thing, subject, tone, lastSentDate, variant } = input;
+  const greet = solicitorFirstName || "there";
+  const sign = `Thanks,\n${clientFirstName}`;
   const following = lastSentDate !== null;
+  const d = following ? fmtDate(lastSentDate as Date) : "";
 
-  const subjectLine = following
-    ? `${subject} for ${addressShort} (following up)`
-    : `${subject} for ${addressShort}`;
+  const subjectLine = following ? `${subject} for ${addressShort} (following up)` : `${subject} for ${addressShort}`;
 
   let body: string;
 
   if (!following && tone === "calm") {
     body = pick(
       [
-        `Hi,\n\nJust checking in on ${thing} for ${addressShort}. Is there any update, and a rough idea of timing?\n\n${sign}`,
-        `Hi,\n\nHope you are well. Could you let me know where things stand with ${thing} for ${addressShort}, and roughly when to expect it?\n\n${sign}`,
+        `Hi ${greet},\n\nI hope you are well. We just wanted to check in on ${thing} for ${addressShort}. Do you know roughly when we are likely to have an update? We just want to make sure everything is moving along and there isn't anything you need from us.\n\n${sign}`,
+        `Hi ${greet},\n\nI hope you are well. We wanted to see where things are up to with ${thing} for ${addressShort}. Do you have a rough idea of timescales from here? If there is anything you need from us in the meantime, just let us know.\n\n${sign}`,
       ],
       variant,
     );
   } else if (!following && tone === "behind") {
     body = pick(
       [
-        `Hi,\n\nI am keen to keep things moving on ${thing} for ${addressShort}. Are you able to let me know where it is at, and when it is likely to be sorted?\n\n${sign}`,
-        `Hi,\n\nCould I get an update on ${thing} for ${addressShort}? I would really like to keep this moving, so anything you can tell me on timing would help.\n\n${sign}`,
+        `Hi ${greet},\n\nI hope you are well. We wanted to check in on ${thing} for ${addressShort}, as we are keen to keep things moving. Could you let us know where things currently stand and what the next step is from here? If you have a rough idea of timescales as well, that would be really helpful.\n\n${sign}`,
+        `Hi ${greet},\n\nWe just wanted to chase ${thing} for ${addressShort} and see where things are up to. Are you able to give us an idea of the current position and likely timescales from here? We are keen to keep things moving, so if there is anything you need from us, please let us know.\n\n${sign}`,
       ],
       variant,
     );
   } else if (following && tone === "calm") {
-    const d = fmtDate(lastSentDate as Date);
     body = pick(
       [
-        `Hi,\n\nFollowing up on my email from ${d} about ${thing} for ${addressShort}. Are you able to let me know where things stand, and when you would expect it to be sorted?\n\n${sign}`,
-        `Hi,\n\nJust circling back on ${thing} for ${addressShort} after my email on ${d}. Any update on progress or timing would be great.\n\n${sign}`,
+        `Hi ${greet},\n\nWe just wanted to follow up on our email from ${d} about ${thing} for ${addressShort}. Has there been any progress since then? It would be great if you could let us know where things currently stand and what sort of timescale we are looking at from here.\n\n${sign}`,
+        `Hi ${greet},\n\nWe just wanted to follow up on ${thing} for ${addressShort} after our email on ${d}. Has there been any progress since then, and do you have a rough idea of timescales from here? If there is anything you need from us in the meantime, please let us know.\n\n${sign}`,
       ],
       variant,
     );
   } else {
-    const d = fmtDate(lastSentDate as Date);
     body = pick(
       [
-        `Hi,\n\nFollowing up again on my email from ${d} about ${thing} for ${addressShort}. I am keen to keep things moving, so any update on where it is at and likely timing would be a big help.\n\n${sign}`,
-        `Hi,\n\nI wrote on ${d} about ${thing} for ${addressShort} and wanted to follow up, as I am keen not to let this slip. Could you let me know the current position and when it is likely to be done?\n\n${sign}`,
+        `Hi ${greet},\n\nWe just wanted to follow up again on our email from ${d} about ${thing} for ${addressShort}. Are you able to let us know where things currently stand and whether there has been any progress since then? An idea of the likely timescale from here would be really helpful.\n\n${sign}`,
+        `Hi ${greet},\n\nWe are just chasing again on ${thing} for ${addressShort} following our email on ${d}. Could you let us know the current position and what sort of timescale we are looking at from here? If there is anything holding things up that we can help with from our side, please let us know.\n\n${sign}`,
       ],
       variant,
     );

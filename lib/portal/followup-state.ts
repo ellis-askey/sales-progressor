@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { FOLLOWUP_STEPS, type FollowupSide } from "./step-responsibility";
 import { buildFollowupDraft, type FollowupTone } from "./followup-copy";
 
@@ -138,7 +139,8 @@ export async function getFollowupNudge(args: {
     const tapCount = await prisma.followupTap.count({ where: { transactionId, contactId, stepCode: opts.stepCode } });
     const tone: FollowupTone = opts.state === "behind" ? "behind" : "calm";
     const draft = buildFollowupDraft({
-      firstName,
+      clientFirstName: firstName,
+      solicitorFirstName: sol.name ? extractFirstName(sol.name) : "there",
       addressShort,
       thing: opts.thing,
       subject: opts.subjectStem,
@@ -177,8 +179,7 @@ export async function getFollowupNudge(args: {
       : now >= workingDaysBefore(nextChase, LEAD_WORKING_DAYS)
         ? "check_in"
         : "calm";
-    const thing = side === "vendor" ? "the enquiries on your sale" : "the enquiries on your purchase";
-    return draftFor({ state, stepCode: "enquiries", thing, subjectStem: "Enquiries" });
+    return draftFor({ state, stepCode: "enquiries", thing: "the enquiries", subjectStem: "Enquiries" });
   }
 
   // ── Milestone frontier: first "with your solicitor" step that's open ──────

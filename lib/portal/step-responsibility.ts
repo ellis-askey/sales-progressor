@@ -22,23 +22,25 @@ export type FollowupStep = {
 };
 
 // Ordered by where they sit in the journey (used to pick the current frontier).
+// `thing` is always a BARE NOUN so it reads cleanly inside "{thing} for {address}"
+// in every template (no trailing prepositions, no verb phrases).
 export const FOLLOWUP_STEPS: FollowupStep[] = [
   // Seller (emails their own conveyancer)
-  { code: "VM3", side: "vendor", thing: "the welcome pack from your solicitor", subject: "Welcome pack" },
-  { code: "VM5", side: "vendor", thing: "the property information (protocol) forms", subject: "Protocol forms" },
-  { code: "VM8", side: "vendor", thing: "the management pack request", subject: "Management pack", leasehold: true },
-  { code: "VM7", side: "vendor", thing: "the draft contract pack going to the buyer's side", subject: "Draft contract pack" },
-  { code: "VM9", side: "vendor", thing: "the management pack from the freeholder", subject: "Management pack", leasehold: true },
-  { code: "VM16", side: "vendor", thing: "the contract documents for signing", subject: "Contract documents" },
-  { code: "VM18", side: "vendor", thing: "confirming you are ready to exchange", subject: "Ready to exchange" },
+  { code: "VM3", side: "vendor", thing: "the welcome pack", subject: "Welcome pack" },
+  { code: "VM5", side: "vendor", thing: "the property information forms", subject: "Property information forms" },
+  { code: "VM8", side: "vendor", thing: "the management pack", subject: "Management pack", leasehold: true },
+  { code: "VM7", side: "vendor", thing: "the draft contract pack", subject: "Draft contract pack" },
+  { code: "VM9", side: "vendor", thing: "the management pack", subject: "Management pack", leasehold: true },
+  { code: "VM16", side: "vendor", thing: "the contract documents", subject: "Contract documents" },
+  { code: "VM18", side: "vendor", thing: "the exchange of contracts", subject: "Exchange" },
   // Buyer (emails their own conveyancer)
-  { code: "PM7", side: "purchaser", thing: "the draft contract pack coming over from the seller's side", subject: "Draft contract pack" },
-  { code: "PM8", side: "purchaser", thing: "the property searches", subject: "Searches" },
-  { code: "PM12", side: "purchaser", thing: "the management pack from the seller's side", subject: "Management pack", leasehold: true },
+  { code: "PM7", side: "purchaser", thing: "the draft contract pack", subject: "Draft contract pack" },
+  { code: "PM8", side: "purchaser", thing: "the searches", subject: "Searches" },
+  { code: "PM12", side: "purchaser", thing: "the management pack", subject: "Management pack", leasehold: true },
   { code: "PM13", side: "purchaser", thing: "the search results", subject: "Search results" },
-  { code: "PM21", side: "purchaser", thing: "the final report on your purchase", subject: "Final report" },
-  { code: "PM22", side: "purchaser", thing: "the contract documents for signing", subject: "Contract documents" },
-  { code: "PM25", side: "purchaser", thing: "confirming you are ready to exchange", subject: "Ready to exchange" },
+  { code: "PM21", side: "purchaser", thing: "the final report", subject: "Final report" },
+  { code: "PM22", side: "purchaser", thing: "the contract documents", subject: "Contract documents" },
+  { code: "PM25", side: "purchaser", thing: "the exchange of contracts", subject: "Exchange" },
 ];
 
 const BY_CODE = new Map(FOLLOWUP_STEPS.map((s) => [s.code, s]));
