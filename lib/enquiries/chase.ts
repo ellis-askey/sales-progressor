@@ -24,7 +24,7 @@ import { addWorkingDays } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
-import { logChaseSend } from "./chase-log";
+import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
 
 const CHASE_WORKING_DAYS = 9; // nudge cadence
 const ESCALATE_WORKING_DAYS = 15; // 3 weeks of silence -> hand to a human
@@ -208,6 +208,17 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
         kind: "reply_loop",
         recipient: seller ? "seller_solicitor" : "buyer_solicitor",
         recipientName: (seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? null,
+      }).catch(() => {});
+      // Record it on the file's internal activity timeline (never client-facing).
+      await logEnquiryChaseComm({
+        transactionId: tx.id,
+        agencyId: tx.agencyId,
+        subject: mail.subject,
+        body: mail.text,
+        recipientEmail: email,
+        recipientName: (seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? handlerName ?? null,
+        createdById: ownerId ?? null,
+        sentAt: now,
       }).catch(() => {});
       sent++;
     } catch (err) {

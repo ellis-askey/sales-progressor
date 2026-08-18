@@ -4,6 +4,12 @@
 // in, the chase status, the movement history and the outstanding note, and
 // drives the movement/outstanding/snooze actions. Only rendered when the
 // enquiries loop is open (the page passes null otherwise).
+//
+// The movement controls carry three plain-language intents (2026-08-18):
+//   - handover: a reply is in, the ball moves to the other side (resets the clock)
+//   - touch: they've been in touch but still hold the ball (resets the clock)
+//   - relabel: correct who has it without disturbing the chase clock
+// The hero slider is the one-tap handover; this panel is the full desk.
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -15,6 +21,7 @@ import {
 
 type Court = "seller_solicitor" | "buyer_solicitor";
 type Status = "closed" | "snoozed" | "stalled" | "chasing";
+type Mode = "handover" | "touch" | "relabel";
 
 export type EnquiryTrackerPanelData = {
   currentlyWith: Court;
@@ -28,6 +35,7 @@ export type EnquiryTrackerPanelData = {
 };
 
 const courtLabel = (c: Court) => (c === "seller_solicitor" ? "the seller's solicitor" : "the buyer's solicitor");
+const shortLabel = (c: Court) => (c === "seller_solicitor" ? "seller’s sol" : "buyer’s sol");
 const fmtDate = (d: Date | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
 
@@ -42,10 +50,10 @@ export function EnquiryTrackerPanel({
   const [pending, start] = useTransition();
 
   const [note, setNote] = useState("");
-  const [handTo, setHandTo] = useState<"" | Court>("");
   const [outstanding, setOutstanding] = useState(data.outstandingNote ?? "");
 
   const closed = data.status === "closed";
+  const other: Court = data.currentlyWith === "seller_solicitor" ? "buyer_solicitor" : "seller_solicitor";
 
   function run(fn: () => Promise<unknown>) {
     start(async () => {
@@ -54,17 +62,16 @@ export function EnquiryTrackerPanel({
     });
   }
 
-  function submitMovement() {
+  function move(mode: Mode, flip: Court | null) {
     const text = note.trim();
-    if (!text) return;
     run(async () => {
       await logEnquiryMovementAction({
         transactionId,
-        note: text,
-        flipsCourtTo: handTo || null,
+        note: text || undefined,
+        mode,
+        flipsCourtTo: flip,
       });
       setNote("");
-      setHandTo("");
     });
   }
 
@@ -102,44 +109,49 @@ export function EnquiryTrackerPanel({
 
       {!closed && (
         <>
-          {/* Log a movement */}
-          <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Log an update</label>
+          {/* Shared, optional note: applies to whichever movement you log */}
+          <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Add a note (optional)</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Solicitor replied, sent replies across"
+            placeholder="e.g. Solicitor replied, replies sent across"
             rows={2}
             className="w-full text-[13px] rounded-xl border border-slate-900/10 bg-white/50 px-3 py-2 outline-none focus:border-[#FF6B4A]/50 resize-none"
           />
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span className="text-xs text-slate-900/40">Now with:</span>
-            {([
-              ["", "no change"],
-              ["seller_solicitor", "seller's sol"],
-              ["buyer_solicitor", "buyer's sol"],
-            ] as const).map(([val, lbl]) => (
-              <button
-                key={lbl}
-                type="button"
-                onClick={() => setHandTo(val)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                  handTo === val
-                    ? "bg-slate-900/80 text-white border-slate-900/80"
-                    : "border-slate-900/15 text-slate-900/60 hover:bg-slate-900/5"
-                }`}
-              >
-                {lbl}
-              </button>
-            ))}
+
+          {/* The ball has moved */}
+          <p className="text-xs font-medium text-slate-900/40 mt-3 mb-1.5">The ball has moved</p>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={pending || !note.trim()}
-              onClick={submitMovement}
-              className="ml-auto text-xs font-semibold text-white bg-[#FF6B4A] hover:bg-[#f2593a] disabled:opacity-40 rounded-full px-3.5 py-1.5"
+              disabled={pending}
+              onClick={() => move("handover", other)}
+              title={`Flips the court to ${courtLabel(other)} and restarts the chase clock`}
+              className="text-xs font-semibold text-white bg-[#FF6B4A] hover:bg-[#f2593a] disabled:opacity-40 rounded-full px-3.5 py-1.5"
             >
-              {pending ? "Saving…" : "Log update"}
+              {pending ? "Saving…" : `Reply in, hand to ${shortLabel(other)}`}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => move("touch", null)}
+              title="Restarts the chase clock, but keeps the ball where it is"
+              className="text-xs font-semibold rounded-full px-3.5 py-1.5 border border-slate-900/15 text-slate-900/70 enabled:hover:bg-slate-900/5 disabled:opacity-40"
+            >
+              They’ve been in touch, ball stays
             </button>
           </div>
+
+          {/* Correction: flips the court without touching the clock */}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => move("relabel", other)}
+            title="Corrects who has the ball without resetting the chase clock"
+            className="mt-2.5 text-xs text-slate-900/45 underline underline-offset-2 hover:text-slate-900/70 disabled:opacity-40"
+          >
+            Wrong side? Correct it to {shortLabel(other)} (keeps the clock)
+          </button>
 
           {/* Outstanding note */}
           <label className="block text-xs font-medium text-slate-900/50 mt-4 mb-1.5">What&rsquo;s outstanding (optional)</label>
@@ -200,7 +212,7 @@ export function EnquiryTrackerPanel({
                   <span className="text-slate-900/35">
                     {" "}
                     · {fmtDate(m.occurredAt)}
-                    {m.flipsCourtTo ? ` · handed to ${m.flipsCourtTo === "seller_solicitor" ? "seller's sol" : "buyer's sol"}` : ""}
+                    {m.flipsCourtTo ? ` · handed to ${m.flipsCourtTo === "seller_solicitor" ? "seller’s sol" : "buyer’s sol"}` : ""}
                   </span>
                 </div>
               </li>

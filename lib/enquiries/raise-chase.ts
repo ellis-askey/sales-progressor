@@ -17,7 +17,7 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "./raise-chase-email";
-import { logChaseSend } from "./chase-log";
+import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
 
 function firstNameOf(full: string): string {
   return full.trim().split(/\s+/)[0] || "there";
@@ -178,6 +178,16 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             });
             await sendChainEmail({ to: b.email as string, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
             await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer", recipientName: b.name }).catch(() => {});
+            await logEnquiryChaseComm({
+              transactionId: tx.id,
+              agencyId: tx.agencyId,
+              subject: mail.subject,
+              body: mail.text,
+              recipientEmail: b.email as string,
+              recipientName: b.name,
+              createdById: ownerId ?? null,
+              sentAt: now,
+            }).catch(() => {});
             didSend = true;
           }
         }
@@ -198,6 +208,16 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           });
           await sendChainEmail({ to: email, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
           await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
+          await logEnquiryChaseComm({
+            transactionId: tx.id,
+            agencyId: tx.agencyId,
+            subject: mail.subject,
+            body: mail.text,
+            recipientEmail: email,
+            recipientName: tx.purchaserSolicitorFirm?.name ?? null,
+            createdById: ownerId ?? null,
+            sentAt: now,
+          }).catch(() => {});
           didSend = true;
         }
       }

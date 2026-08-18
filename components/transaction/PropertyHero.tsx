@@ -29,6 +29,10 @@ type Props = {
   // service-type badges in the hero's badge row). Rendered as-is so
   // PropertyHero stays unaware of round semantics.
   roundChipSlot?: React.ReactNode;
+  // Enquiries "whose court" chip (enquiries rework). Rendered as-is in the
+  // meta row so the hero stays unaware of enquiry semantics; the section
+  // returns null when there's no live enquiries activity.
+  enquiryChipSlot?: React.ReactNode;
   assignedUserName?: string | null;
   assignedUserImage?: string | null;
   createdAt?: Date | string | null;
@@ -227,7 +231,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, enquiryChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -613,6 +617,7 @@ export function PropertyHero({
               </span>
             )}
             <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {enquiryChipSlot}
               {servicePill}
               {roundChipSlot}
             </span>

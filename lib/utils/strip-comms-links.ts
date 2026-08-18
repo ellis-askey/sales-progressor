@@ -27,6 +27,13 @@ const UNSUBSCRIBE_BLOCK_RE =
  * plus the blank line before it. Preserves the sentence above. */
 const RESPOND_URL_LINE_RE = /\n+https?:\/\/\S+\/portal\/[^\s/]+\/\S+\n?/g;
 
+/** Solicitor response links (/s/<token>) — the enquiries chase and
+ * solicitor-confirm emails use these instead of /portal/ deep-links.
+ * Host must be immediately followed by /s/ so a mid-path "/s/" segment
+ * elsewhere can't false-match. Added 2026-08-18: these previously
+ * rendered as raw URLs in the activity feed instead of the button. */
+const SOLICITOR_URL_LINE_RE = /\n+https?:\/\/[^\s/]+\/s\/[^\s\n]+\n?/g;
+
 export type StripResult = {
   /** Content with URLs stripped, safe to render as-is. */
   text: string;
@@ -44,6 +51,7 @@ export function stripCommsLinksSilent(raw: string | null | undefined): string {
   let out = raw;
   out = out.replace(UNSUBSCRIBE_BLOCK_RE, "\n");
   out = out.replace(RESPOND_URL_LINE_RE, "\n");
+  out = out.replace(SOLICITOR_URL_LINE_RE, "\n");
   // Collapse any 3+ newlines left behind
   out = out.replace(/\n{3,}/g, "\n\n").trim();
   return out;
@@ -59,14 +67,16 @@ export function stripCommsLinksForAgent(raw: string | null | undefined): StripRe
   let out = raw;
   out = out.replace(UNSUBSCRIBE_BLOCK_RE, "\n");
   const portalLinks: string[] = [];
-  out = out.replace(RESPOND_URL_LINE_RE, (match) => {
+  const collect = (match: string) => {
     const url = match.match(/https?:\/\/\S+/)?.[0];
     if (url) portalLinks.push(url);
     return "\n";
-  });
+  };
+  out = out.replace(RESPOND_URL_LINE_RE, collect);
+  out = out.replace(SOLICITOR_URL_LINE_RE, collect);
   out = out.replace(/\n{3,}/g, "\n\n").trim();
   return { text: out, portalLinks };
 }
 
 // Also exported so tests can hit the raw regexes directly if needed.
-export const _internal = { PORTAL_URL_RE, UNSUBSCRIBE_URL_RE, UNSUBSCRIBE_BLOCK_RE, RESPOND_URL_LINE_RE };
+export const _internal = { PORTAL_URL_RE, UNSUBSCRIBE_URL_RE, UNSUBSCRIBE_BLOCK_RE, RESPOND_URL_LINE_RE, SOLICITOR_URL_LINE_RE };
