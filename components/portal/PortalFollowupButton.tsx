@@ -101,7 +101,7 @@ export function PortalFollowupButton({
 
   const meta = STATE_META[state];
   const isNudge = state === "check_in" || state === "behind";
-  const btnLabel = isNudge ? "Follow up" : "Email your conveyancer";
+  const btnLabel = state === "other_side" ? "Request an update" : isNudge ? "Follow up" : "Email your conveyancer";
 
   function openMail() {
     fetch(`/api/portal/${token}/followup-tap`, {

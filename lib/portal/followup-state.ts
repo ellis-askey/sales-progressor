@@ -12,7 +12,7 @@ import { addWorkingDays } from "@/lib/emails/working-hours";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { FOLLOWUP_STEPS, type FollowupSide } from "./step-responsibility";
-import { buildFollowupDraft, type FollowupTone } from "./followup-copy";
+import { buildFollowupDraft, buildRequestUpdateDraft, type FollowupTone } from "./followup-copy";
 
 export type FollowupNudgeState = "calm" | "check_in" | "behind" | "other_side";
 
@@ -168,11 +168,20 @@ export async function getFollowupNudge(args: {
 
   if (enquiry) {
     if (!enquiry.withMe) {
+      // With the other side: let them request a general update from their OWN
+      // solicitor (who can chase across), rather than a blank compose.
+      const tapCount = await prisma.followupTap.count({ where: { transactionId, contactId, stepCode: "enquiries" } });
+      const draft = buildRequestUpdateDraft({
+        clientFirstName: firstName,
+        solicitorFirstName: sol.name ? extractFirstName(sol.name) : "there",
+        addressShort,
+        variant: tapCount,
+      });
       return {
         state: "other_side",
         stepCode: "enquiries",
-        subject: `Update on ${addressShort}`,
-        body: "",
+        subject: draft.subject,
+        body: draft.body,
         solicitorEmail: sol.email,
         solicitorName: sol.name ?? null,
         ccEmail,

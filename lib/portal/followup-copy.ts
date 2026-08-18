@@ -86,3 +86,26 @@ export function buildFollowupDraft(input: FollowupDraftInput): FollowupDraft {
 
   return { subject: subjectLine, body };
 }
+
+// "Waiting on the other side" draft: a general status request to the client's
+// OWN solicitor (who can chase the other side), rather than a step-specific
+// chase. Two variations, rotated. No date reference (this isn't a follow-up to
+// a prior email).
+export function buildRequestUpdateDraft(input: {
+  clientFirstName: string;
+  solicitorFirstName: string;
+  addressShort: string;
+  variant: number;
+}): FollowupDraft {
+  const { clientFirstName, solicitorFirstName, addressShort, variant } = input;
+  const greet = solicitorFirstName || "there";
+  const sign = `Thanks,\n${clientFirstName}`;
+  const body = pick(
+    [
+      `Hi ${greet},\n\nI hope you are well. We just wanted to check in on where things are up to with ${addressShort}. We understand things may be with the other side at the moment. Have you had any update, and is there anything you are waiting on that we could help move along?\n\n${sign}`,
+      `Hi ${greet},\n\nI hope you are well. We wanted to see if there is any update on ${addressShort}. Do you know where things currently stand, and is there anything outstanding from the other side that you are able to chase?\n\n${sign}`,
+    ],
+    variant,
+  );
+  return { subject: `Update on ${addressShort}`, body };
+}
