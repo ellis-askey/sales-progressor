@@ -29,6 +29,7 @@ export type FollowupNudge = {
 
 const LEAD_WORKING_DAYS = 2;
 const ENQUIRY_CHASE_WD = 9;
+const ENQUIRY_ESCALATE_WD = 15;
 
 function addCalendarDays(d: Date, n: number): Date {
   const x = new Date(d);
@@ -113,19 +114,24 @@ export async function getFollowupNudge(args: {
     }),
   ]);
 
-  let enquiry: { withMe: boolean; anchor: Date; escalated: boolean } | null = null;
+  let enquiry: { withMe: boolean; anchor: Date; escalated: boolean; snoozed: boolean; raisePhase: boolean } | null = null;
   if (tracker && !tracker.closedAt) {
     enquiry = {
       withMe: tracker.currentlyWith === mySolCourt,
       anchor: tracker.lastMovementAt ?? tracker.openedAt,
       escalated: !!tracker.escalatedAt,
+      // Snoozed = the solicitor gave an expected date. Keep the context but hold
+      // the nudge at calm rather than dropping to a plain button.
+      snoozed: !!(tracker.snoozedUntil && tracker.snoozedUntil > now),
+      raisePhase: false,
     };
-    if (tracker.snoozedUntil && tracker.snoozedUntil > now) enquiry = null; // snoozed → no nudge
   } else if (raise && !raise.closedAt) {
     enquiry = {
       withMe: side === "purchaser", // buyer's solicitor must raise
       anchor: raise.lastNudgedAt ?? raise.openedAt,
       escalated: !!raise.escalatedAt,
+      snoozed: false,
+      raisePhase: true,
     };
   }
 
@@ -173,13 +179,17 @@ export async function getFollowupNudge(args: {
         lastSent: null,
       };
     }
-    const nextChase = addWorkingDays(enquiry.anchor, ENQUIRY_CHASE_WD);
-    const state: FollowupNudgeState = enquiry.escalated
-      ? "behind"
-      : now >= workingDaysBefore(nextChase, LEAD_WORKING_DAYS)
-        ? "check_in"
-        : "calm";
-    return draftFor({ state, stepCode: "enquiries", thing: "the enquiries", subjectStem: "Enquiries" });
+    // Time-based, so it never depends on the internal chase cron having run
+    // (matches how the milestone steps escalate).
+    const state: FollowupNudgeState = enquiry.snoozed
+      ? "calm"
+      : enquiry.escalated || now >= addWorkingDays(enquiry.anchor, ENQUIRY_ESCALATE_WD)
+        ? "behind"
+        : now >= workingDaysBefore(addWorkingDays(enquiry.anchor, ENQUIRY_CHASE_WD), LEAD_WORKING_DAYS)
+          ? "check_in"
+          : "calm";
+    const thing = enquiry.raisePhase ? "the enquiries being raised" : "the enquiries";
+    return draftFor({ state, stepCode: "enquiries", thing, subjectStem: "Enquiries" });
   }
 
   // ── Milestone frontier: first "with your solicitor" step that's open ──────
