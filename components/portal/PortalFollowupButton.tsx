@@ -6,7 +6,7 @@
 // mail app (mailto), agency CC'd — they hit send themselves. We log the tap for
 // the Command Centre usage view; the CC'd copy is the proof of an actual send.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { P, PORTAL_BTN, PortalPill, type PortalPillTone } from "@/components/portal/portal-ui";
 
@@ -88,7 +88,8 @@ export function PortalFollowupButton({
   solicitorEmail,
   solicitorName,
   ccEmail,
-}: FollowupNudgeProps) {
+  trailing,
+}: FollowupNudgeProps & { trailing?: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [draft, setDraft] = useState(body);
@@ -206,27 +207,29 @@ export function PortalFollowupButton({
         <PortalPill tone={meta.tone}>{meta.label}</PortalPill>
       </div>
       <span style={{ fontSize: 12, color: P.textSecondary, lineHeight: 1.45 }}>{meta.subtext}</span>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="pbtn pbtn-press"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          alignSelf: "flex-start",
-          gap: 7,
-          fontSize: 12.5,
-          fontWeight: 700,
-          padding: "9px 14px",
-          borderRadius: 11,
-          background: isNudge ? PORTAL_BTN.emailBg : "transparent",
-          border: isNudge ? "none" : `1px solid ${P.border}`,
-          boxShadow: isNudge ? PORTAL_BTN.emailShadow : undefined,
-          color: isNudge ? "#fff" : P.textSecondary,
-        }}
-      >
-        <MailIcon /> {btnLabel}
-      </button>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="pbtn pbtn-press"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: 12.5,
+            fontWeight: 700,
+            padding: "9px 14px",
+            borderRadius: 11,
+            background: isNudge ? PORTAL_BTN.emailBg : "transparent",
+            border: isNudge ? "none" : `1px solid ${P.border}`,
+            boxShadow: isNudge ? PORTAL_BTN.emailShadow : undefined,
+            color: isNudge ? "#fff" : P.textSecondary,
+          }}
+        >
+          <MailIcon /> {btnLabel}
+        </button>
+        {trailing}
+      </div>
       {mounted && sheet ? createPortal(sheet, document.body) : null}
     </div>
   );

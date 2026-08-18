@@ -87,19 +87,21 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
 
   return (
     <PortalGlassCard glassId="your-team" label="Your team" radius={20} style={{ overflow: "hidden" }}>
-      <p
-        style={{
-          margin: 0,
-          padding: "14px 18px 4px",
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: "0.09em",
-          textTransform: "uppercase",
-          color: P.textMuted,
-        }}
-      >
-        Your team
-      </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "14px 18px 4px" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: "0.09em",
+            textTransform: "uppercase",
+            color: P.textMuted,
+          }}
+        >
+          Your team
+        </p>
+        {solicitorFirmName && <PortalManagePencil section="solicitor" label="Update your conveyancer" />}
+      </div>
 
       {solicitorFirmName && (
         <div
@@ -137,13 +139,13 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
 
             {followup ? (
               // Smart follow-up: knows whose court the ball is in and pre-fills
-              // a situation-appropriate email in the client's voice.
-              <>
-                <PortalFollowupButton token={token} {...followup} />
-                <div style={{ marginTop: 8 }}>
-                  <SaveContactButton token={token} who="solicitor" />
-                </div>
-              </>
+              // a situation-appropriate email in the client's voice. Save-contact
+              // sits alongside the button (wraps under it on a tight width).
+              <PortalFollowupButton
+                token={token}
+                {...followup}
+                trailing={<SaveContactButton token={token} who="solicitor" />}
+              />
             ) : solicitorMailto ? (
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 <a
@@ -172,7 +174,6 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
               <PortalAddConveyancerEmail />
             )}
           </div>
-          <PortalManagePencil section="solicitor" label="Update your conveyancer" />
         </div>
       )}
 
