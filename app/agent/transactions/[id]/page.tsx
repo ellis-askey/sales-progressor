@@ -59,6 +59,7 @@ import { PerfOverlay } from "@/components/debug/PerfOverlay";
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
+import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
 import { ToDoPanel } from "@/components/transaction/ToDoPanel";
@@ -408,6 +409,7 @@ export default async function AgentTransactionDetailPage({
           topRightSlot={heroTopRightSlot}
           exchanged={transaction.exchangedAt !== null}
           isShareOfFreehold={transaction.isShareOfFreehold}
+          enquiryChipSlot={<EnquiryCourtChipSection transactionId={transaction.id} />}
           roundChipSlot={
             <RoundChip
               transactionId={transaction.id}

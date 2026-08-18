@@ -14,7 +14,11 @@ import {
   setEnquiryOutstandingNote,
   setEnquirySnooze,
   type EnquiryCourt,
+  type EnquiryMovementMode,
 } from "@/lib/enquiries/tracker";
+
+const courtLabel = (c: EnquiryCourt) =>
+  c === "seller_solicitor" ? "the seller's solicitor" : "the buyer's solicitor";
 
 async function assertInScope(transactionId: string): Promise<string> {
   const session = await getServerSession(authOptions);
@@ -30,15 +34,30 @@ async function assertInScope(transactionId: string): Promise<string> {
 
 export async function logEnquiryMovementAction(input: {
   transactionId: string;
-  note: string;
+  note?: string;
+  // "handover" (default) flips + resets the clock; "touch" resets without
+  // flipping; "relabel" flips without touching the clock. See logEnquiryMovement.
+  mode?: EnquiryMovementMode;
   flipsCourtTo?: EnquiryCourt | null;
 }): Promise<{ ok: boolean }> {
   const userId = await assertInScope(input.transactionId);
-  if (!input.note.trim()) return { ok: false };
+  const mode = input.mode ?? "handover";
+  const flip = input.flipsCourtTo ?? null;
+  // The note is optional (the hero slider is one tap). Synthesise a clear
+  // history line when none is given, so the movement log always reads sensibly.
+  const note =
+    (input.note ?? "").trim() ||
+    (mode === "touch"
+      ? "They've been in touch, ball stays"
+      : mode === "relabel"
+        ? `Corrected: ball is with ${flip ? courtLabel(flip) : "the other side"}`
+        : `Ball handed to ${flip ? courtLabel(flip) : "the other side"}`);
   const ok = await logEnquiryMovement({
     transactionId: input.transactionId,
-    note: input.note,
-    flipsCourtTo: input.flipsCourtTo ?? null,
+    note,
+    // "touch" never moves the ball, whatever the caller sends.
+    flipsCourtTo: mode === "touch" ? null : flip,
+    mode,
     createdByUserId: userId,
   });
   revalidatePath(`/transactions/${input.transactionId}`);

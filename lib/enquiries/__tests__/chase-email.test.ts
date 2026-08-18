@@ -29,7 +29,7 @@ describe("enquiries chase email", () => {
     expect(e.text).toContain("the outstanding enquiries for 12 Elm Road");
     expect(e.text).toContain("where things currently stand");
     expect(e.text).toContain("simply reply to this email");
-    expect(e.text).toContain("Kind regards,\nEllis Askey\nThe Sales Progressor");
+    expect(e.text).toContain("Best regards,\nEllis Askey\nThe Sales Progressor");
     expect(e.html).toContain("Provide an update");
   });
 
