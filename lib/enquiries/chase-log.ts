@@ -31,6 +31,50 @@ export async function logChaseSend(
   });
 }
 
+// Log a sent chase email to the file's INTERNAL activity timeline — the same
+// OutboundMessage feed the manual "log an email" writes to, so a chase shows on
+// the file exactly like an email we typed ourselves. Internal only:
+// visibleToClient stays false, so it never surfaces on the client portal. This
+// mirrors how the solicitor-confirm chase records its sends. Fire-and-forget:
+// callers wrap it in .catch() so it can never break a send.
+export async function logEnquiryChaseComm(
+  args: {
+    transactionId: string;
+    agencyId?: string | null;
+    subject: string;
+    body: string;
+    recipientEmail: string;
+    recipientName?: string | null;
+    createdById?: string | null;
+    sentAt?: Date;
+  },
+  db: Db = prisma,
+): Promise<void> {
+  const at = args.sentAt ?? new Date();
+  await db.outboundMessage.create({
+    data: {
+      transactionId: args.transactionId,
+      agencyId: args.agencyId ?? null,
+      type: "outbound",
+      method: "email",
+      channel: "email",
+      purpose: "chase",
+      status: "sent",
+      isAutomated: true,
+      visibleToClient: false, // internal record only — never on the client portal
+      recipientEmail: args.recipientEmail,
+      recipientName: args.recipientName ?? undefined,
+      subject: args.subject,
+      content: args.body,
+      contactIds: [],
+      createdById: args.createdById ?? undefined,
+      createdByRole: "system",
+      sentAt: at,
+      createdAt: at,
+    },
+  });
+}
+
 // Stamp the most recent still-unopened send to this recipient as opened.
 export async function markChaseOpened(transactionId: string, recipient: SolicitorRecipient): Promise<void> {
   const latest = await prisma.chaseSend.findFirst({
