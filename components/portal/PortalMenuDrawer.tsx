@@ -46,9 +46,12 @@ type Props = {
   // Deep-link target (audit #16 phase 3): when the team card's "Add" opens
   // the drawer with "agents", scroll the Your-agents section into view.
   scrollToSection?: string | null;
+  // When deep-linking to the solicitor, open its edit form straight away
+  // (the "add your conveyancer's email" prompt uses this).
+  editSolicitor?: boolean;
 };
 
-export function PortalMenuDrawer({ open, onClose, token, contactName, contactRole, scrollToSection }: Props) {
+export function PortalMenuDrawer({ open, onClose, token, contactName, contactRole, scrollToSection, editSolicitor }: Props) {
   const agentsRef = useRef<HTMLDivElement>(null);
   const solicitorRef = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
@@ -72,15 +75,21 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   // Deep-link: scroll the requested section into view once content settles.
   // The team card routes here — "agents" from the selling-agent row, "solicitor"
   // from the conveyancer row.
+  // The solicitor / agents sections live under the Settings tab, so a deep-link
+  // must switch there first (it used to land on Documents and show nothing).
   useEffect(() => {
-    if (!open || !contentReady || !details) return;
+    if (open && (scrollToSection === "solicitor" || scrollToSection === "agents")) setActiveTab("settings");
+  }, [open, scrollToSection]);
+
+  useEffect(() => {
+    if (!open || !contentReady || !details || activeTab !== "settings") return;
     if (scrollToSection === "agents" && agentsRef.current) {
       agentsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (scrollToSection === "solicitor" && solicitorRef.current) {
       solicitorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [open, contentReady, details, scrollToSection]);
+  }, [open, contentReady, details, scrollToSection, activeTab]);
 
   // Esc closes.
   useEffect(() => {
@@ -255,7 +264,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                 <>
                   <YourDetailsSection details={details} token={token} onSaved={reload} />
                   <div ref={solicitorRef}>
-                    <YourSolicitorSection details={details} token={token} onSaved={reload} />
+                    <YourSolicitorSection details={details} token={token} onSaved={reload} autoEdit={scrollToSection === "solicitor" && !!editSolicitor} />
                   </div>
                   <div ref={agentsRef}>
                     <YourAgentsSection details={details} token={token} onSaved={reload} />
@@ -605,10 +614,10 @@ function AgentEditForm({
 // ═══════════════════════════════════════════════════════════════════════
 
 function YourSolicitorSection({
-  details, token, onSaved,
-}: { details: MyPortalDetails; token: string; onSaved: () => void | Promise<void> }) {
+  details, token, onSaved, autoEdit,
+}: { details: MyPortalDetails; token: string; onSaved: () => void | Promise<void>; autoEdit?: boolean }) {
   type Mode = "read" | "update" | "switch";
-  const [mode, setMode] = useState<Mode>("read");
+  const [mode, setMode] = useState<Mode>(autoEdit && details.solicitor ? "update" : "read");
   const [saved, setSaved] = useState(false);
 
   const sol = details.solicitor;

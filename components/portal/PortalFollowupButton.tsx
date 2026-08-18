@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
+import { P, PORTAL_BTN, PortalPill, type PortalPillTone } from "@/components/portal/portal-ui";
 
 export type FollowupNudgeProps = {
   token: string;
@@ -21,11 +21,15 @@ export type FollowupNudgeProps = {
   ccEmail: string | null;
 };
 
-const PILL: Record<FollowupNudgeProps["state"], { label: string; bg: string; fg: string }> = {
-  calm: { label: "With your solicitor", bg: "rgba(100,116,139,0.14)", fg: "#475569" },
-  check_in: { label: "Worth a check-in", bg: "rgba(245,158,11,0.16)", fg: "#b45309" },
-  behind: { label: "Running behind", bg: "rgba(220,38,38,0.14)", fg: "#b91c1c" },
-  other_side: { label: "Waiting on the other side", bg: "rgba(100,116,139,0.14)", fg: "#475569" },
+// Tones use the standard PortalPill (white, coloured hairline + dot). The
+// "nudge" state is coral (our brand warm), NOT alarm-red: the chase timings are
+// the average for a smooth sale, not a set deadline, so this reads as "a nudge
+// could help", never "your solicitor is failing". Subtext explains it gently.
+const STATE_META: Record<FollowupNudgeProps["state"], { label: string; tone: PortalPillTone; subtext: string }> = {
+  calm: { label: "With your solicitor", tone: "grey", subtext: "Your solicitor is dealing with this." },
+  check_in: { label: "Worth a check-in", tone: "amber", subtext: "A good time to check in and keep things moving." },
+  behind: { label: "A nudge would help", tone: "coral", subtext: "It's been a little while, so a friendly nudge can help keep things moving." },
+  other_side: { label: "Waiting on the other side", tone: "grey", subtext: "Your solicitor is waiting on the other side to come back." },
 };
 
 // Shown on the solicitor row when we have a conveyancer but no email on file:
@@ -35,7 +39,7 @@ export function PortalAddConveyancerEmail() {
   return (
     <button
       type="button"
-      onClick={() => window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section: "solicitor" } }))}
+      onClick={() => window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section: "solicitor", edit: true } }))}
       className="pbtn pbtn-press"
       style={{
         display: "inline-flex",
@@ -94,7 +98,7 @@ export function PortalFollowupButton({
     if (open) setDraft(body);
   }, [open, body]);
 
-  const pill = PILL[state];
+  const meta = STATE_META[state];
   const isNudge = state === "check_in" || state === "behind";
   const btnLabel = isNudge ? "Follow up" : "Email your conveyancer";
 
@@ -197,24 +201,11 @@ export function PortalFollowupButton({
   ) : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          alignSelf: "flex-start",
-          fontSize: 11,
-          fontWeight: 700,
-          padding: "3px 9px",
-          borderRadius: 999,
-          background: pill.bg,
-          color: pill.fg,
-        }}
-      >
-        <span style={{ width: 5, height: 5, borderRadius: 999, background: pill.fg }} />
-        {pill.label}
-      </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 10 }}>
+      <div style={{ alignSelf: "flex-start" }}>
+        <PortalPill tone={meta.tone}>{meta.label}</PortalPill>
+      </div>
+      <span style={{ fontSize: 12, color: P.textSecondary, lineHeight: 1.45 }}>{meta.subtext}</span>
       <button
         type="button"
         onClick={() => setOpen(true)}
