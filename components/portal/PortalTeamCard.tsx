@@ -10,6 +10,8 @@ import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
 import { PortalTeamManageRow, PortalManagePencil } from "@/components/portal/PortalTeamManageRow";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { PortalFollowupButton, PortalAddConveyancerEmail } from "@/components/portal/PortalFollowupButton";
+import type { FollowupNudge } from "@/lib/portal/followup-state";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -68,7 +70,7 @@ function SaveContactButton({ token, who }: { token: string; who: "progressor" | 
   );
 }
 
-export function PortalTeamCard({ team, token }: { team: PortalTeam; token: string }) {
+export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; token: string; followup?: FollowupNudge | null }) {
   const { managing, solicitorFirmName, solicitorMailto, chainAgent } = team;
   // Symmetric for both sides (2026-08-17): a buyer records their selling agent
   // (chain link below them), a seller their onward-purchase agent (link above).
@@ -85,19 +87,21 @@ export function PortalTeamCard({ team, token }: { team: PortalTeam; token: strin
 
   return (
     <PortalGlassCard glassId="your-team" label="Your team" radius={20} style={{ overflow: "hidden" }}>
-      <p
-        style={{
-          margin: 0,
-          padding: "14px 18px 4px",
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: "0.09em",
-          textTransform: "uppercase",
-          color: P.textMuted,
-        }}
-      >
-        Your team
-      </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "14px 18px 4px" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: "0.09em",
+            textTransform: "uppercase",
+            color: P.textMuted,
+          }}
+        >
+          Your team
+        </p>
+        {solicitorFirmName && <PortalManagePencil section="solicitor" label="Update your conveyancer" />}
+      </div>
 
       {solicitorFirmName && (
         <div
@@ -133,7 +137,16 @@ export function PortalTeamCard({ team, token }: { team: PortalTeam; token: strin
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>Your conveyancer</p>
 
-            {solicitorMailto && (
+            {followup ? (
+              // Smart follow-up: knows whose court the ball is in and pre-fills
+              // a situation-appropriate email in the client's voice. Save-contact
+              // sits alongside the button (wraps under it on a tight width).
+              <PortalFollowupButton
+                token={token}
+                {...followup}
+                trailing={<SaveContactButton token={token} who="solicitor" />}
+              />
+            ) : solicitorMailto ? (
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 <a
                   href={solicitorMailto}
@@ -156,9 +169,11 @@ export function PortalTeamCard({ team, token }: { team: PortalTeam; token: strin
                 </a>
                 <SaveContactButton token={token} who="solicitor" />
               </div>
+            ) : (
+              // We have a conveyancer on file but no email — prompt to add it.
+              <PortalAddConveyancerEmail />
             )}
           </div>
-          <PortalManagePencil section="solicitor" label="Update your conveyancer" />
         </div>
       )}
 

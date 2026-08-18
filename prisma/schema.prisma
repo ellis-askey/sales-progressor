@@ -444,6 +444,8 @@ model PropertyTransaction {
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
   enquiryRaiseChase                EnquiryRaiseChase?
+  followupTaps                     FollowupTap[]
+  followupNudgesDisabled           Boolean                @default(false)
   chaseSends                       ChaseSend[]
   agentEmailLogs                   AgentEmailLog[]
 
@@ -2810,6 +2812,24 @@ model EnquiryRaiseChase {
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([closedAt])
+}
+
+// Records when a client opens a follow-up email to their conveyancer (taps
+// "Open in email"). Not proof of a send — the CC'd copy filed via the inbox
+// sync is that — but it powers the Command Centre opened-vs-sent usage view.
+model FollowupTap {
+  id            String   @id @default(cuid())
+  transactionId String
+  contactId     String?
+  side          String // "vendor" | "purchaser"
+  stepCode      String // milestone code, or "enquiries"
+  state         String // calm | check_in | behind
+  tappedAt      DateTime @default(now())
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([tappedAt])
 }
 
 // Which chaser sent it, and to whom. Used by the enquiries-chase experiment

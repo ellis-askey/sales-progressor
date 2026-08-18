@@ -104,10 +104,12 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   // Deep-link target inside the drawer (audit #16 phase 3): the team card's
   // "Add" dispatches `portal:open-menu` with a section to scroll to.
   const [menuSection, setMenuSection] = useState<string | null>(null);
+  const [menuEdit, setMenuEdit] = useState(false);
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const section = (e as CustomEvent<{ section?: string }>).detail?.section ?? null;
-      setMenuSection(section);
+      const detail = (e as CustomEvent<{ section?: string; edit?: boolean }>).detail;
+      setMenuSection(detail?.section ?? null);
+      setMenuEdit(!!detail?.edit);
       setMenuOpen(true);
     };
     window.addEventListener("portal:open-menu", onOpen);
@@ -207,11 +209,12 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
       {/* Menu drawer */}
       <PortalMenuDrawer
         open={menuOpen}
-        onClose={() => { setMenuOpen(false); setMenuSection(null); }}
+        onClose={() => { setMenuOpen(false); setMenuSection(null); setMenuEdit(false); }}
         token={token}
         contactName={contactName}
         contactRole={roleType}
         scrollToSection={menuSection}
+        editSolicitor={menuEdit}
       />
 
       {/* 2026-08-09 hero rebuild: the property photo is now rendered

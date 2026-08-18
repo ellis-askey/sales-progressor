@@ -11,6 +11,8 @@ import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
 import { PortalTeamCard } from "@/components/portal/PortalTeamCard";
+import { getFollowupNudge } from "@/lib/portal/followup-state";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
@@ -66,11 +68,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const ownScope   = portalOwnSideScope(contact, transaction);
   const otherScope = portalOtherSideScope(contact, transaction);
-  const [rawMilestones, rawOtherMilestones, timeline, team] = await Promise.all([
+  const [rawMilestones, rawOtherMilestones, timeline, team, followup] = await Promise.all([
     getPortalMilestones(transaction.id, side, ownScope),
     getPortalMilestones(transaction.id, otherSide, otherScope),
     getPortalTimeline(transaction.id, side, contact.id, { buyerRoundId: contact.buyerRoundId, activeBuyerRoundId: transaction.activeBuyerRoundId }),
     getPortalTeam(transaction.id, side),
+    getFollowupNudge({
+      transactionId: transaction.id,
+      side,
+      contactId: contact.id,
+      firstName: extractFirstName(contact.name || "there"),
+      addressShort: transaction.propertyAddress.split(",")[0].trim(),
+      activeBuyerRoundId: transaction.activeBuyerRoundId ?? null,
+    }).catch(() => null),
   ]);
 
   const milestones = rawMilestones.map((m) => ({
@@ -673,7 +683,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       )}
 
       {/* ── Your team (audit #16) ────────────────────────────────── */}
-      <div style={slot("team")}><PortalTeamCard team={team} token={token} /></div>
+      <div style={slot("team")}><PortalTeamCard team={team} token={token} followup={followup} /></div>
 
       {/* ── Coming up (next 3 after next action) ─────────────────── */}
       {showComingUp && (
