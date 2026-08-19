@@ -171,13 +171,15 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
   const scope = getAccessScope(session);
   const task = await prisma.chaseTask.findFirst({
     where: scopeChaseTaskWhere(scope, taskId),
-    select: { id: true, chaseCount: true, transactionId: true },
+    select: { id: true, chaseCount: true, manualChaseCount: true, transactionId: true },
   });
   if (!task) throw new Error("Task not found");
   await prisma.chaseTask.update({
     where: { id: taskId },
     data: {
       chaseCount: task.chaseCount + 1,
+      // Manual "I chased them" — a human chase, so it counts toward escalation.
+      manualChaseCount: task.manualChaseCount + 1,
       lastChasedAt: new Date(),
       priority: "normal",
     },

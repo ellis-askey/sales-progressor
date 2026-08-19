@@ -66,3 +66,15 @@ export function countActionable(logs: LogForClassify[], now: Date = new Date()):
 export function countOverdue(logs: LogForClassify[], now: Date = new Date()): number {
   return logs.filter((l) => classifyReminder(l, now) === "overdue").length;
 }
+
+// Badge text for "who chased this, and how often". `auto` = automated
+// client-chase digest sends; `manual` = chases a person made (the ↻ Chased
+// button, a drawer send, or the manual "I chased them" record). Kept
+// separate so an autopilot-only file never reads as though the agent chased
+// it. Returns null when nothing has been chased yet.
+export function chaseBadgeLabel(auto: number, manual: number): string | null {
+  if (auto <= 0 && manual <= 0) return null;
+  if (auto > 0 && manual > 0) return `Auto ${auto}× · you ${manual}×`;
+  if (auto > 0) return `Auto-chased ${auto}×`;
+  return `Chased ${manual}×`;
+}

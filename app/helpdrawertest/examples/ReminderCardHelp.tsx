@@ -24,6 +24,7 @@ const MOCK_LOG: CardLog = {
       status: "pending",
       priority: "normal",
       chaseCount: 2,
+      manualChaseCount: 1,
       dueDate: THREE_DAYS_AGO,
       communications: [{ createdAt: TWO_DAYS_AGO, method: "email" }],
     },

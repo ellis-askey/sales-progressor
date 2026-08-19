@@ -9,6 +9,7 @@ import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { chaseBadgeLabel } from "@/lib/reminders/classify";
 
 export type Contact = {
   id: string;
@@ -37,6 +38,7 @@ export type CardLog = {
     status: string;
     priority: string;
     chaseCount: number;
+    manualChaseCount: number;
     dueDate: Date;
     communications: { createdAt: Date; method: string | null }[];
   }[];
@@ -330,6 +332,10 @@ export function ReminderCard({
   const party = getPartyFromCode(log.reminderRule.targetMilestoneCode);
   const partyLabel = party === "vendor" ? "Seller" : party === "purchaser" ? "Buyer" : null;
   const partyTone: "warning" | "info" = party === "purchaser" ? "info" : "warning";
+  // Exchange is bilateral and solicitor/chain-driven, so neither client can
+  // force it. This step shows a neutral "Awaiting exchange" chip, not a
+  // "Waiting on Seller/Buyer" pill.
+  const isExchangeStep = log.reminderRule.targetMilestoneCode === "VM19" || log.reminderRule.targetMilestoneCode === "PM26";
 
   const chaseContacts = filterContactsForChase(contacts, log.reminderRule.targetMilestoneCode);
   const contactName = chaseContacts[0]?.name ?? null;
@@ -398,14 +404,18 @@ export function ReminderCard({
           )}
           {contactName && <p className="text-xs text-slate-900/40 mb-0.5">{contactName}</p>}
           <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
-          {partyLabel && party && (
+          {isExchangeStep ? (
+            <div className="flex items-center gap-2 mt-1.5">
+              <Pill glass tone="default" size="md">Awaiting exchange</Pill>
+            </div>
+          ) : partyLabel && party ? (
             <div className="flex items-center gap-2 mt-1.5">
               <Pill glass tone={partyTone} size="md">
                 <RoleIcon role={party} size={11} />
                 Waiting on {partyLabel}
               </Pill>
             </div>
-          )}
+          ) : null}
         </div>
       </>
     );
@@ -471,12 +481,14 @@ export function ReminderCard({
             {log.reminderRule.description && (
               <p className="text-xs text-slate-900/50">{log.reminderRule.description}</p>
             )}
-            {partyLabel && party && (
+            {isExchangeStep ? (
+              <Pill glass tone="default" size="md">Awaiting exchange</Pill>
+            ) : partyLabel && party ? (
               <Pill glass tone={partyTone} size="md">
                 <RoleIcon role={party} size={11} />
                 Waiting on {partyLabel}
               </Pill>
-            )}
+            ) : null}
           </div>
 
           {/* Bottom row: Show details (left) + action buttons (right) */}
@@ -534,13 +546,11 @@ export function ReminderCard({
           {expanded && (
             <div className="text-xs text-slate-900/50 space-y-1 pt-2 border-t border-slate-200/40 mt-2">
               <p>{lastContactText}</p>
-              {openTask && (
-                <p>
-                  {openTask.chaseCount === 0
-                    ? "Not yet chased"
-                    : `Chased ${openTask.chaseCount}× already`}
-                </p>
-              )}
+              {openTask && (() => {
+                const auto = Math.max(0, openTask.chaseCount - openTask.manualChaseCount);
+                const label = chaseBadgeLabel(auto, openTask.manualChaseCount);
+                return <p>{label ? `${label} already` : "Not yet chased"}</p>;
+              })()}
               {!grouped && totalActiveOnFile !== undefined && totalActiveOnFile > 1 && (
                 <p>{totalActiveOnFile - 1} other reminder{totalActiveOnFile - 1 > 1 ? "s" : ""} active on this file</p>
               )}

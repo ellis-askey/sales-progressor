@@ -510,7 +510,9 @@ export async function createCommunicationRecord(input: CreateCommInput) {
   // stays classified as overdue after the chase email lands, which is the
   // bug fixed on 2026-06.
   if (input.chaseTaskId && input.type === "outbound") {
-    await applyChaseToTask(input.chaseTaskId);
+    // An agent-composed outbound chase is a human chase; an automated one
+    // (isAutomated) is not — route so only human chases arm escalation.
+    await applyChaseToTask(input.chaseTaskId, { origin: input.isAutomated ? "auto" : "manual" });
   }
 
   touchLastActivity(input.transactionId).catch(() => {});

@@ -121,6 +121,7 @@ export type ReminderLogWithRule = {
     status: ChaseTaskStatus;
     priority: TaskPriority;
     chaseCount: number;
+    manualChaseCount: number;
     dueDate: Date;
     fallbackKind: string | null;
     // 2026-07-13 (Chunk 8): manual-escalation trio - null on engine-triggered
@@ -178,7 +179,7 @@ export async function getReminderLogsForTransaction(
         },
         chaseTasks: {
           select: {
-            id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
+            id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true, dueDate: true, fallbackKind: true,
             // 2026-07-13 (Chunk 8): mirror getAgentReminderLogs shape so
             // the reminders panel on file-detail can render the same
             // Escalated tooltip as the work queue.
@@ -317,7 +318,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       chaseTasks: {
         where: { status: "pending" },
         select: {
-          id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
+          id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true, dueDate: true, fallbackKind: true,
           // 2026-07-13 (Chunk 8): expose the manual-escalation trio so the
           // work-queue can tooltip "escalated by X on Y - reason: Z" on the
           // Escalated chip. All three null on engine-triggered escalations
@@ -564,6 +565,11 @@ export async function evaluateTransactionReminders(
     // Suppress until both gates are complete or not-required; the existing
     // grace clock then fires off the older anchor, which lands the chase
     // the next morning after both gates are in.
+    // The exchange reminder's clock starts from whichever readiness gate landed
+    // LAST, so "N days after both sides are ready" is honest. Otherwise a file
+    // whose seller was ready weeks ago pops the card the instant the buyer gate
+    // lands. See docs/active/exchange-reminder-retune-PLAN.md.
+    let exchangeReadyAnchor: Date | null = null;
     if (rule.targetMilestoneCode === "VM19" || rule.targetMilestoneCode === "PM26") {
       const vm18 = completionByCode.get("VM18");
       const pm25 = completionByCode.get("PM25");
@@ -573,6 +579,9 @@ export async function evaluateTransactionReminders(
         await deactivateLog(transactionId, rule.id, "Awaiting both exchange-ready gates (VM18 + PM25)", assignedUserId);
         continue;
       }
+      const vm18At = vm18!.eventDate ?? vm18!.completedAt ?? null;
+      const pm25At = pm25!.eventDate ?? pm25!.completedAt ?? null;
+      exchangeReadyAnchor = vm18At && pm25At ? (vm18At > pm25At ? vm18At : pm25At) : (vm18At ?? pm25At ?? null);
     }
 
     // Check if target milestone is already confirmed — if so, deactivate
@@ -686,6 +695,9 @@ export async function evaluateTransactionReminders(
     ) {
       anchorDate = transaction.activeBuyerRound.createdAt;
     }
+
+    // Exchange reminder: measure from the later readiness gate (computed above).
+    if (exchangeReadyAnchor) anchorDate = exchangeReadyAnchor;
 
     // Calculate first due date: anchor + graceDays, normalised to 06:00 UK
     // on the resulting calendar day (so chases fire before the working day
@@ -805,8 +817,9 @@ export async function evaluateTransactionReminders(
       // of times AND graceDays have elapsed since the last actual chase
       // (lastChasedAt + graceDays ago).
       //
-      // Worked example with escalateAfterChases=3, graceDays=3:
-      //   Day 0 — agent chases for the 3rd time. chaseCount hits cap,
+      // Worked example with escalateAfterChases=3, graceDays=3 (counting
+      // the agent's OWN chases via manualChaseCount):
+      //   Day 0 — agent chases for the 3rd time. manualChaseCount hits cap,
       //           nextDueDate advances by repeatEveryDays, row returns
       //           to Coming Up.
       //   Day 1–2 — quiet. graceDays haven't elapsed yet → still Coming
@@ -819,7 +832,12 @@ export async function evaluateTransactionReminders(
       // period before urgent" concept already used at chase setup time;
       // here it's the "grace period after final chase before urgent".
       const threshold = rule.escalateAfterChases;
-      const chasedEnough = openTask.chaseCount >= threshold;
+      // Escalation counts HUMAN chases only. Automated client-chase digest
+      // sends bump chaseCount (the total) but must not push a file toward
+      // the urgent flag on their own — the auto-pilot has its own handback
+      // when its two nudges go unanswered. So escalateAfterChases now means
+      // "N chases by a person", which is what agents always assumed it meant.
+      const chasedEnough = openTask.manualChaseCount >= threshold;
       const graceMs = rule.graceDays * 86400000;
       const graceElapsedSinceLastChase = openTask.lastChasedAt
         ? (today.getTime() - openTask.lastChasedAt.getTime()) >= graceMs
@@ -1033,12 +1051,22 @@ async function deactivateLog(
 //
 // No scope check here — callers are responsible for verifying the task
 // belongs to the actor's scope BEFORE calling this.
-export async function applyChaseToTask(chaseTaskId: string): Promise<void> {
+export async function applyChaseToTask(
+  chaseTaskId: string,
+  opts?: { origin?: "manual" | "auto" },
+): Promise<void> {
+  // Default "manual": the two direct human paths (↻ Chased button, drawer
+  // send) are the common callers. The one automated caller (client-chase
+  // digest) passes origin:"auto" explicitly. Defaulting to manual fails
+  // safe — a forgotten caller over-counts human chases (escalates sooner)
+  // rather than under-counting (could miss a stuck file).
+  const origin = opts?.origin ?? "manual";
   const task = await prisma.chaseTask.findUnique({
     where: { id: chaseTaskId },
     select: {
       id: true,
       chaseCount: true,
+      manualChaseCount: true,
       reminderLog: {
         select: {
           id: true,
@@ -1070,6 +1098,10 @@ export async function applyChaseToTask(chaseTaskId: string): Promise<void> {
       where: { id: chaseTaskId },
       data: {
         chaseCount: newChaseCount,
+        // Only a human chase bumps the escalation-facing counter. An
+        // automated digest send moves chaseCount + nextDueDate but leaves
+        // manualChaseCount untouched, so it can't arm escalation alone.
+        ...(origin === "manual" ? { manualChaseCount: task.manualChaseCount + 1 } : {}),
         priority: "normal",
         lastChasedAt: new Date(nowTs),
         // 2026-07-13 (Chunk 6d): chasing the row through clears the manual
@@ -1095,7 +1127,8 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
     select: { id: true },
   });
   if (!task) throw new Error("Task not found");
-  await applyChaseToTask(taskId);
+  // ↻ Chased button — a human chase.
+  await applyChaseToTask(taskId, { origin: "manual" });
 }
 
 export async function completeChaseTask(
