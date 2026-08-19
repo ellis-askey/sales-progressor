@@ -748,14 +748,12 @@ const copy: Record<string, PortalCopy> = {
     description: "We'll issue a memorandum of sale to everyone involved, confirming the agreed price, buyer, seller and solicitors. This formally starts the legal process.",
     next: "Your solicitor will complete the identity and anti-money laundering checks required before they can act for you.",
     emailCopy: {
-      purchaser: {
-        subject: "Memorandum of sale issued: {address}",
-        heroLabel: "Legal process underway",
-        opening: "The legal process has officially started.",
-        whatHappened: "The memorandum of sale has been sent to all solicitors, confirming the agreed purchase price and the details of both parties. Your solicitor now has formal confirmation to begin conveyancing.",
-        whatNext: "If you haven't already, return your solicitor's welcome pack and complete your ID checks. Your solicitor can't get fully started until these are done. If you're buying with a mortgage, also make sure your application is progressing.",
-        action: "View your portal",
-      },
+      // No purchaser copy on purpose. The memorandum of sale is one shared
+      // event issued to everyone at once — the buyer is already told it's out
+      // via VM2's purchaser copy. A second "MoS issued" email here meant the
+      // buyer got two and the seller got one. Removed 2026-08-19 so each party
+      // gets one clean MoS email (buyer via VM2); PM2 now tracks internally
+      // only. Do not re-add without also removing VM2's purchaser copy.
       progressor: {
         subject: "PM2 complete: MoS received at {address}",
         heroLabel: "PM2: MoS received",
