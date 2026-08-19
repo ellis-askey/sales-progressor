@@ -145,6 +145,7 @@ export default async function PortalLayout({
             propertyAddress={transaction.propertyAddress}
             agencyName={transaction.agencyName}
             vapidPublicKey={vapidPublicKey}
+            welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt}
             photoUrl={transaction.photoUrl ?? null}
           >
             <PortalAutoRefresh />
