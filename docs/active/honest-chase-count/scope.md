@@ -16,9 +16,15 @@ Escalation only kicks in when both:
 1. The file has been chased the required number of times for real
 2. Another full chase interval has passed since the last real chase, with no resolution
 
+## Amendment 2026-08-19 — auto-sends no longer arm escalation
+
+The original decision below (digest counts as an agent chase) is **partly reversed**. Founder call, 2026-08-19: automated digest sends were both inflating the visible "Chased N×" badge (reading as though the agent chased an untouched file) AND eating the escalation runway — the autopilot's two sends plus one human chase tripped the "escalate after 3" threshold, so a file went urgent after a single human chase.
+
+Change: `ChaseTask` gains `manualChaseCount` (human chases only — button, drawer send, manual record). `chaseCount` stays the total (human + auto). **Escalation now reads `manualChaseCount`.** Auto-sends still bump `chaseCount` and advance `nextDueDate` (so the file leaves the queue the morning the robot emails), but they no longer push a file toward urgent on their own — the autopilot has its own handback when its two nudges go unanswered. The badge now shows who: "Auto-chased 2×", "Auto 2× · you 1×", or "Chased 1×". Migration `20260819120000_manual_chase_count`. Existing rows default `manualChaseCount=0` (need fresh human chases before escalating — quieter, intended; already-escalated rows keep their flag).
+
 ## Decisions locked in
 
-- **Automated client-chase digest counts as a chase from the agent's POV.** When the digest cron sends a real email, it bumps the agent-side `ChaseTask.chaseCount` too.
+- **Automated client-chase digest counts as a chase from the agent's POV.** When the digest cron sends a real email, it bumps the agent-side `ChaseTask.chaseCount` too. *(Superseded 2026-08-19 for escalation — see amendment above. The digest still bumps `chaseCount`; it no longer bumps the escalation-facing `manualChaseCount`.)*
 - **Backfill on rollout.** We accept a brief window of inconsistency between deploy and backfill completing.
 - **No new persisted `overdueIntervals` field.** Derivable on the fly from `daysOverdue / repeatEveryDays`.
 

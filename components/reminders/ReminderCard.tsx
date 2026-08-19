@@ -9,6 +9,7 @@ import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { chaseBadgeLabel } from "@/lib/reminders/classify";
 
 export type Contact = {
   id: string;
@@ -37,6 +38,7 @@ export type CardLog = {
     status: string;
     priority: string;
     chaseCount: number;
+    manualChaseCount: number;
     dueDate: Date;
     communications: { createdAt: Date; method: string | null }[];
   }[];
@@ -544,13 +546,11 @@ export function ReminderCard({
           {expanded && (
             <div className="text-xs text-slate-900/50 space-y-1 pt-2 border-t border-slate-200/40 mt-2">
               <p>{lastContactText}</p>
-              {openTask && (
-                <p>
-                  {openTask.chaseCount === 0
-                    ? "Not yet chased"
-                    : `Chased ${openTask.chaseCount}× already`}
-                </p>
-              )}
+              {openTask && (() => {
+                const auto = Math.max(0, openTask.chaseCount - openTask.manualChaseCount);
+                const label = chaseBadgeLabel(auto, openTask.manualChaseCount);
+                return <p>{label ? `${label} already` : "Not yet chased"}</p>;
+              })()}
               {!grouped && totalActiveOnFile !== undefined && totalActiveOnFile > 1 && (
                 <p>{totalActiveOnFile - 1} other reminder{totalActiveOnFile - 1 > 1 ? "s" : ""} active on this file</p>
               )}

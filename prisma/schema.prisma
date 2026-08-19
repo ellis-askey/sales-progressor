@@ -1195,6 +1195,15 @@ model ChaseTask {
   status           ChaseTaskStatus @default(pending)
   priority         TaskPriority    @default(normal)
   chaseCount       Int             @default(0)
+  // Of chaseCount, how many were performed by a HUMAN (the ↻ Chased button,
+  // a drawer/outbound chase, or the manual "I chased them" record). The
+  // automated client-chase digest bumps chaseCount (the total) but NOT this.
+  // Escalation reads manualChaseCount, not chaseCount: automated sends inform
+  // the total but must never arm the urgent flag on their own. The auto count
+  // shown in the UI is (chaseCount - manualChaseCount). This reverses the
+  // earlier "digest counts as an agent chase for escalation" decision — see
+  // docs/active/honest-chase-count/scope.md.
+  manualChaseCount Int             @default(0)
   // Set on every real chase increment. NULL means "never chased yet".
   // Escalation requires chaseCount >= rule.escalateAfterChases AND
   // (now - lastChasedAt) >= rule.repeatEveryDays — i.e. another full

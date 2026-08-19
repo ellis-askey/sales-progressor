@@ -8,7 +8,7 @@ import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { toUKDateStr, formatDate } from "@/lib/utils";
-import { classifyReminder } from "@/lib/reminders/classify";
+import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -438,7 +438,12 @@ function SideColumn({
                   {name}
                 </p>
                 {(() => {
-                  const displayedChases = Math.max(optimisticChases[task.id] ?? 0, task.chaseCount);
+                  // Optimistic overlay tracks the human ("you") count — the
+                  // ↻ button is a manual chase. Auto count is derived from the
+                  // gap between the total and the human count.
+                  const manualChases = Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount);
+                  const autoChases = Math.max(0, task.chaseCount - task.manualChaseCount);
+                  const chaseBadge = chaseBadgeLabel(autoChases, manualChases);
                   // 2026-07-13 (Chunk 8): tooltip on the Escalated label. If
                   // a human flipped this (escalatedById set), show who + when
                   // + why. If the engine flipped it (all three null), fall
@@ -450,12 +455,12 @@ function SideColumn({
                       ? `Escalated${task.escalatedBy?.name ? ` by ${task.escalatedBy.name}` : ""}${task.escalatedAt ? ` on ${formatDate(task.escalatedAt)}` : ""}${task.escalationReason ? ` - ${task.escalationReason}` : ""}`
                       : "Auto-escalated - no response after repeated chases"
                     : undefined;
-                  return (urgencyLabel || displayedChases > 0) && (
+                  return (urgencyLabel || chaseBadge) && (
                     <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }} title={escalationTooltip}>
                       {urgencyLabel}
-                      {displayedChases > 0 && (
+                      {chaseBadge && (
                         <span style={{ display: "block", color: "var(--agent-text-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>
-                          Chased {displayedChases}×
+                          {chaseBadge}
                         </span>
                       )}
                     </p>
@@ -492,7 +497,7 @@ function SideColumn({
               </div>
               <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
               <button
-                onClick={() => optimisticChase(task.id, log.id, task.chaseCount)}
+                onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
                 disabled={isExiting}
                 title="Mark as chased. Advances the next chase date without sending an email"
                 className="agent-btn agent-btn-sm agent-btn-ghost-bordered"

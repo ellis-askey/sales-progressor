@@ -565,7 +565,10 @@ export async function enqueueClientChaseDigest(input: {
       // without this guard a multi-contact file inflates chaseCount and
       // over-advances nextDueDate. See chaseAlreadyAppliedToday above.
       if (chaseAlreadyAppliedToday(task.lastChasedAt, now)) continue;
-      await applyChaseToTask(task.id);
+      // origin:"auto" — this bumps the total chaseCount and advances the
+      // next-due date, but NOT manualChaseCount, so an autopilot send never
+      // arms escalation on its own. See docs/active/honest-chase-count.
+      await applyChaseToTask(task.id, { origin: "auto" });
     }
   }
 

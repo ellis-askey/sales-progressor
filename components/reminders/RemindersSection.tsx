@@ -6,7 +6,7 @@ import { Pill } from "@/components/ui/Pill";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
-import { classifyReminder } from "@/lib/reminders/classify";
+import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -60,6 +60,7 @@ type ChaseTask = {
   status: string;
   priority: string;
   chaseCount: number;
+  manualChaseCount: number;
   dueDate: Date;
   fallbackKind: string | null;
   communications: { createdAt: Date; method: string | null }[];
@@ -446,13 +447,18 @@ function ColumnSection({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="reminders-title" style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
                 {(() => {
-                  const displayedChases = task ? Math.max(optimisticChases[task.id] ?? 0, task.chaseCount) : 0;
-                  return (urgencyLabel || displayedChases > 0) && (
+                  // Optimistic overlay tracks the human ("you") count; auto is
+                  // the remainder of the total. Keeps the two visible so an
+                  // autopilot-only row never reads as agent-chased.
+                  const manualChases = task ? Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount) : 0;
+                  const autoChases = task ? Math.max(0, task.chaseCount - task.manualChaseCount) : 0;
+                  const chaseBadge = chaseBadgeLabel(autoChases, manualChases);
+                  return (urgencyLabel || chaseBadge) && (
                     <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
                       {urgencyLabel}
-                      {displayedChases > 0 && (
+                      {chaseBadge && (
                         <span style={{ display: "block", color: "var(--agent-text-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>
-                          Chased {displayedChases}×
+                          {chaseBadge}
                         </span>
                       )}
                     </p>
@@ -482,7 +488,7 @@ function ColumnSection({
                 <>
                   <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
                   <button
-                    onClick={() => optimisticChase(task.id, log.id, task.chaseCount)}
+                    onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
                     title="Mark as chased. Advances the next chase date without sending an email"
                     style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
