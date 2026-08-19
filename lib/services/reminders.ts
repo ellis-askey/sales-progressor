@@ -564,6 +564,11 @@ export async function evaluateTransactionReminders(
     // Suppress until both gates are complete or not-required; the existing
     // grace clock then fires off the older anchor, which lands the chase
     // the next morning after both gates are in.
+    // The exchange reminder's clock starts from whichever readiness gate landed
+    // LAST, so "N days after both sides are ready" is honest. Otherwise a file
+    // whose seller was ready weeks ago pops the card the instant the buyer gate
+    // lands. See docs/active/exchange-reminder-retune-PLAN.md.
+    let exchangeReadyAnchor: Date | null = null;
     if (rule.targetMilestoneCode === "VM19" || rule.targetMilestoneCode === "PM26") {
       const vm18 = completionByCode.get("VM18");
       const pm25 = completionByCode.get("PM25");
@@ -573,6 +578,9 @@ export async function evaluateTransactionReminders(
         await deactivateLog(transactionId, rule.id, "Awaiting both exchange-ready gates (VM18 + PM25)", assignedUserId);
         continue;
       }
+      const vm18At = vm18!.eventDate ?? vm18!.completedAt ?? null;
+      const pm25At = pm25!.eventDate ?? pm25!.completedAt ?? null;
+      exchangeReadyAnchor = vm18At && pm25At ? (vm18At > pm25At ? vm18At : pm25At) : (vm18At ?? pm25At ?? null);
     }
 
     // Check if target milestone is already confirmed — if so, deactivate
@@ -686,6 +694,9 @@ export async function evaluateTransactionReminders(
     ) {
       anchorDate = transaction.activeBuyerRound.createdAt;
     }
+
+    // Exchange reminder: measure from the later readiness gate (computed above).
+    if (exchangeReadyAnchor) anchorDate = exchangeReadyAnchor;
 
     // Calculate first due date: anchor + graceDays, normalised to 06:00 UK
     // on the resulting calendar day (so chases fire before the working day
