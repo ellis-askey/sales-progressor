@@ -84,6 +84,7 @@ export function ActivityTab(props: Props) {
         wasAiGenerated: false,
         isAutomated: false,
         tone: null,
+        subject: null,
       },
       ...prev,
     ]);
