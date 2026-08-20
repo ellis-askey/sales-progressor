@@ -1557,7 +1557,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Contracts exchanged",
         opening: "Contracts have exchanged on your purchase.",
         whatHappened: "Both solicitors have formally exchanged signed contracts, your deposit has been transferred, and your purchase is now legally binding. The completion date is fixed.",
-        whatNext: "Now is the time to confirm your removal firm and start planning your move in detail. Buildings insurance: risk in the property usually passes to you on exchange. Check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building. Your solicitor will manage the final transfer of funds on completion day.",
+        whatNext: "Completion day is now fixed, so you can make your plans for the property with certainty. Buildings insurance: risk in the property usually passes to you on exchange. Check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building. Your solicitor will manage the final transfer of funds on completion day.",
         action: "View your portal",
       },
       // PM26.vendor intentionally absent — the seller is notified via VM19
