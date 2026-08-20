@@ -194,7 +194,7 @@ export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }
   );
 }
 
-export function CompletionBanner({ token, saleWord, completionDate }: { token: string; saleWord: string; completionDate: string | null }) {
+export function CompletionBanner({ token, saleWord, completionDate, photoUrl }: { token: string; saleWord: string; completionDate: string | null; photoUrl?: string | null }) {
   useEffect(() => {
     const key = `completion-celebrated-${token}`;
     if (!localStorage.getItem(key)) {
@@ -203,35 +203,55 @@ export function CompletionBanner({ token, saleWord, completionDate }: { token: s
     }
   }, [token]);
 
+  // 2026-08-19: same photo-strip treatment as ExchangeBanner above. The
+  // bare green card used to sit at the very top of the page flow, tucked
+  // BEHIND the portal's floating header. Now the property photo runs
+  // under the header (like the exchange state) and the card pulls up
+  // over it, landing exactly where the exchange card sits.
   return (
-    <div
-      className="rounded-2xl px-5 py-5"
-      style={{
-        background: "linear-gradient(135deg, #10B981 0%, #34D399 100%)",
-        boxShadow: "0 8px 32px rgba(16,185,129,0.30)",
-      }}
-    >
-      <p className="text-[11px] font-bold uppercase tracking-[0.10em] text-white/70 mb-1">
-        All done
-      </p>
-      <p className="text-[22px] font-semibold text-white leading-snug">
-        {saleWord === "sale" ? "Sale complete!" : "Purchase complete!"}
-      </p>
-      {completionDate && (
-        <p className="text-[14px] text-white/80 mt-1">
-          Completed {fmtDate(completionDate)}
-        </p>
-      )}
-      <Link
-        href={`/portal/${token}/complete`}
-        className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
-        style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+    <div>
+      <div className="-mx-4 -mt-5" style={{ position: "relative", height: 232, overflow: "hidden", background: "var(--portal-pageBg, #f6f8fc)" }}>
+        {photoUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={photoUrl} alt="" aria-hidden fetchPriority="high" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "var(--portal-hero-fallback)", backgroundSize: "cover", backgroundPosition: "center 35%" }} />
+        )}
+        <div aria-hidden style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "55%", pointerEvents: "none", background: "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--portal-pageBg, #f6f8fc) 55%, transparent) 70%, var(--portal-pageBg, #f6f8fc) 100%)" }} />
+      </div>
+
+      <div
+        className="rounded-2xl px-5 py-5"
+        style={{
+          position: "relative",
+          zIndex: 1,
+          marginTop: -76,
+          background: "linear-gradient(135deg, #10B981 0%, #34D399 100%)",
+          boxShadow: "0 8px 32px rgba(16,185,129,0.30)",
+        }}
       >
-        View your completion guide
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </Link>
+        <p className="text-[11px] font-bold uppercase tracking-[0.10em] text-white/70 mb-1">
+          All done
+        </p>
+        <p className="text-[22px] font-semibold text-white leading-snug">
+          {saleWord === "sale" ? "Sale complete!" : "Purchase complete!"}
+        </p>
+        {completionDate && (
+          <p className="text-[14px] text-white/80 mt-1">
+            Completed {fmtDate(completionDate)}
+          </p>
+        )}
+        <Link
+          href={`/portal/${token}/complete`}
+          className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
+          style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+        >
+          View your completion guide
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
+      </div>
     </div>
   );
 }
