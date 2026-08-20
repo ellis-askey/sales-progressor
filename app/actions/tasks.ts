@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
-import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime } from "@/lib/services/reminders";
+import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime } from "@/lib/services/reminders";
 import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
@@ -164,6 +164,25 @@ export async function advanceChaseTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
   await advanceChaseTask(taskId, getAccessScope(session));
   revalidatePath(pathname, "page");
+}
+
+// One tap after the WhatsApp check-in copy: stamps a manual chase on every
+// copied step that has an open chase task. Returns how many actually got
+// stamped so the button can report honestly.
+export async function markStepsChasedAction(
+  transactionId: string,
+  milestoneCodes: string[],
+  pathname: string,
+): Promise<{ marked: number }> {
+  const session = await requireSession();
+  const marked = await advanceChasesForMilestones(
+    transactionId,
+    milestoneCodes,
+    getAccessScope(session),
+  );
+  if (marked > 0) touchLastActivity(transactionId).catch(() => {});
+  revalidatePath(pathname, "page");
+  return { marked };
 }
 
 export async function recordManualChaseAction(taskId: string, pathname: string) {

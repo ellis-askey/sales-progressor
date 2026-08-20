@@ -1131,6 +1131,39 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
   await applyChaseToTask(taskId, { origin: "manual" });
 }
 
+/**
+ * Bulk ↻ Chased for the WhatsApp check-in button: after the agent copies a
+ * check-in message, one tap stamps a manual chase on every copied step's
+ * open task. Steps without an open chase task (chase not started yet, or
+ * already done) are skipped silently — the returned count is what actually
+ * got stamped, and the UI reports that number.
+ */
+export async function advanceChasesForMilestones(
+  transactionId: string,
+  milestoneCodes: string[],
+  scope: AccessScope,
+): Promise<number> {
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  if (milestoneCodes.length === 0) return 0;
+
+  const tasks = await prisma.chaseTask.findMany({
+    where: {
+      transactionId,
+      status: "pending",
+      reminderLog: { reminderRule: { targetMilestoneCode: { in: milestoneCodes } } },
+    },
+    select: { id: true },
+  });
+  for (const task of tasks) {
+    await applyChaseToTask(task.id, { origin: "manual" });
+  }
+  return tasks.length;
+}
+
 export async function completeChaseTask(
   taskId: string,
   scope: AccessScope,
