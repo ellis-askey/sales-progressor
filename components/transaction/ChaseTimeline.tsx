@@ -111,7 +111,7 @@ function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selec
         <StateChip state={thread.state} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 14 }}>
-        <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{isVendor ? "Seller" : "Buyer"}</span>
+        <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{thread.trackLabel}</span>
         <ChaseCountBadge auto={thread.autoChases} you={thread.manualChases} />
         <span style={{ marginLeft: "auto", fontSize: 11, color: m.color, fontWeight: 600 }}>{nextLabel(thread)}</span>
       </div>

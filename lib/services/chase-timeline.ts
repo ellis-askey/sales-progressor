@@ -15,6 +15,9 @@ import { toUKDateStr } from "@/lib/utils";
 // file to the team. Mirrors CLIENT_CHASE_COUNT_CAP in client-chase-cron.ts;
 // duplicated as a plain constant so this read path pulls in no server-only deps.
 const CLIENT_CHASE_CAP = 2;
+// The solicitor auto-chase pipeline (softer cadence) also stops after 2, then
+// escalates to the team. Mirrors the solicitor-confirm cap.
+const SOLICITOR_CHASE_CAP = 2;
 
 export type ChaseThreadState =
   | "scheduled"
@@ -52,8 +55,10 @@ export type ChaseThread = {
   id: string; // reminderLogId
   title: string;
   side: "vendor" | "purchaser";
+  track: "client" | "solicitor"; // which auto-chase lane owns this thread
+  trackLabel: string; // "Buyer" / "Seller" / "Buyer's solicitor" / "Seller's solicitor"
   state: ChaseThreadState;
-  waitingOn: string; // who owes the action (the buyer/seller by side)
+  waitingOn: string; // who owes the action (the client, or the solicitor)
   autoChases: number;
   manualChases: number;
   totalChases: number;
@@ -111,7 +116,7 @@ export async function getChaseTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const [logs, contacts, clientStates, chaseMsgs] = await Promise.all([
+  const [logs, contacts, clientStates, chaseMsgs, solStates] = await Promise.all([
     prisma.reminderLog.findMany({
       where: { transactionId, status: { in: ["active", "completed", "cancelled"] } },
       select: {
@@ -148,6 +153,10 @@ export async function getChaseTimeline(
       select: { chaseTaskId: true, createdAt: true, recipientName: true, deliveredAt: true, openedAt: true, subject: true, createdByRole: true },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.solicitorChaseState.findMany({
+      where: { transactionId },
+      select: { milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, snoozeUntil: true, status: true, statusReason: true },
+    }),
   ]);
 
   const buyerName = contacts.find((c) => c.roleType === "purchaser")?.name ?? "the buyer";
@@ -158,6 +167,11 @@ export async function getChaseTimeline(
   for (const cs of clientStates) {
     const prev = clientByCode.get(cs.milestoneCode);
     if (!prev || cs.chaseCount > prev.chaseCount) clientByCode.set(cs.milestoneCode, cs);
+  }
+  const solByCode = new Map<string, (typeof solStates)[number]>();
+  for (const s of solStates) {
+    const prev = solByCode.get(s.milestoneCode);
+    if (!prev || s.chaseCount > prev.chaseCount) solByCode.set(s.milestoneCode, s);
   }
   const msgsByTask = new Map<string, typeof chaseMsgs>();
   for (const m of chaseMsgs) {
@@ -176,19 +190,32 @@ export async function getChaseTimeline(
     const side = sideForCode(code);
     const task = log.chaseTasks[0] ?? null; // most-recently-updated
     const cs = code ? clientByCode.get(code) : undefined;
+    const sol = code ? solByCode.get(code) : undefined;
+    // A milestone is chased on ONE auto lane: to the solicitor (confirmation
+    // steps) or to the client. Solicitor state, when present, owns the thread.
+    const track: "client" | "solicitor" = sol ? "solicitor" : "client";
+    const autoState = track === "solicitor" ? sol : cs;
+    const cap = track === "solicitor" ? SOLICITOR_CHASE_CAP : CLIENT_CHASE_CAP;
 
     const manualChases = task?.manualChaseCount ?? 0;
-    // Auto count reads from the client-chase track (same source as the auto
-    // events) so the badge always matches the events shown. Falls back to the
-    // honest total-minus-manual when a thread has no client-chase state.
-    const autoChases = cs ? cs.chaseCount : Math.max(0, (task?.chaseCount ?? 0) - manualChases);
+    // Auto count reads from whichever auto lane owns this thread (same source as
+    // the auto events shown), falling back to the honest total-minus-manual.
+    const autoChases = autoState ? autoState.chaseCount : Math.max(0, (task?.chaseCount ?? 0) - manualChases);
     const totalChases = autoChases + manualChases;
     const escalated = task?.priority === "escalated";
-    const snoozedActive = !!log.snoozedUntil && new Date(log.snoozedUntil).getTime() > nowMs;
 
-    // Autopilot sends next only while the client track is still active and under
-    // its cap; otherwise "next" is a reminder for the team to act.
-    const nextIsAutomated = !!cs && cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP;
+    // Snooze can come from the solicitor state (a date the firm gave) or the
+    // reminder log (client "set a date").
+    const solSnooze = sol?.snoozeUntil ?? null;
+    const snoozeAt = solSnooze && new Date(solSnooze).getTime() > nowMs ? solSnooze
+      : log.snoozedUntil && new Date(log.snoozedUntil).getTime() > nowMs ? log.snoozedUntil
+      : null;
+    const snoozedActive = !!snoozeAt;
+
+    // Autopilot sends next only while its lane is still active and under cap;
+    // otherwise "next" is a reminder for the team to act.
+    const nextIsAutomated = !!autoState && autoState.status === "active" && autoState.chaseCount < cap;
+    const autoHandedOff = !!autoState && autoState.status !== "active" && autoState.chaseCount >= cap;
 
     let state: ChaseThreadState;
     if (log.status === "completed") state = "completed";
@@ -196,11 +223,17 @@ export async function getChaseTimeline(
     else if (snoozedActive) state = "snoozed";
     else if (escalated) state = "escalated";
     else if (manualChases > 0) state = "manual_chasing";
-    else if (task?.fallbackKind || (cs && cs.status !== "active" && cs.chaseCount >= CLIENT_CHASE_CAP)) state = "handed_to_team";
+    else if (task?.fallbackKind || autoHandedOff) state = "handed_to_team";
     else if (autoChases > 0 || nextIsAutomated) state = "auto_chasing";
     else state = "scheduled";
 
-    const waitingOn = side === "vendor" ? sellerName : buyerName;
+    const clientName = side === "vendor" ? sellerName : buyerName;
+    const waitingOn = track === "solicitor"
+      ? (side === "vendor" ? "the seller's solicitor" : "the buyer's solicitor")
+      : clientName;
+    const trackLabel = track === "solicitor"
+      ? (side === "vendor" ? "Seller's solicitor" : "Buyer's solicitor")
+      : (side === "vendor" ? "Seller" : "Buyer");
 
     // ── Events (most-recent first) ──
     const events: ChaseThreadEvent[] = [];
@@ -212,10 +245,10 @@ export async function getChaseTimeline(
       actor: "System",
     });
 
-    // Client auto-chases (from ClientChaseState — capped at 2). Delivery detail
-    // on this track is deferred (opens not tracked on the client queue).
-    if (cs && cs.chaseCount > 0) {
-      const autoDates = [cs.firstChasedAt, cs.chaseCount >= 2 ? cs.lastChasedAt : null].filter(Boolean) as Date[];
+    // Auto-chases from the owning lane (client or solicitor state, capped at 2).
+    // Delivery detail on the auto lane is deferred (opens not tracked there).
+    if (autoState && autoState.chaseCount > 0) {
+      const autoDates = [autoState.firstChasedAt, autoState.chaseCount >= 2 ? autoState.lastChasedAt : null].filter(Boolean) as Date[];
       autoDates.forEach((d, i) => {
         events.push({
           at: d.toISOString(),
@@ -224,15 +257,15 @@ export async function getChaseTimeline(
           detail: "Reminder email sent automatically.",
           actor: "System",
           delivery: "sent",
-          ordinal: { n: i + 1, of: Math.min(cs.chaseCount, CLIENT_CHASE_CAP), by: "auto" },
+          ordinal: { n: i + 1, of: Math.min(autoState.chaseCount, cap), by: "auto" },
         });
       });
-      if (state !== "auto_chasing" && state !== "scheduled" && cs.chaseCount >= CLIENT_CHASE_CAP && cs.lastChasedAt) {
+      if (state !== "auto_chasing" && state !== "scheduled" && autoState.chaseCount >= cap && autoState.lastChasedAt) {
         events.push({
-          at: cs.lastChasedAt.toISOString(),
+          at: autoState.lastChasedAt.toISOString(),
           kind: "handed",
           title: "Autopilot done — handed to your team",
-          detail: `Client auto-chase reached its limit of ${CLIENT_CHASE_CAP}. Now in your work queue.`,
+          detail: `${track === "solicitor" ? "Solicitor" : "Client"} auto-chase reached its limit of ${cap}. Now in your work queue.`,
           actor: "System",
         });
       }
@@ -267,8 +300,8 @@ export async function getChaseTimeline(
     if (state === "cancelled") {
       events.push({ at: log.updatedAt.toISOString(), kind: "cancelled", title: "Stopped", detail: log.statusReason ?? "Chase no longer needed.", actor: "System" });
     }
-    if (snoozedActive && log.snoozedUntil) {
-      events.push({ at: log.snoozedUntil.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(log.snoozedUntil)}`, detail: log.statusReason ?? "A date was provided.", actor: "System" });
+    if (snoozedActive && snoozeAt) {
+      events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: (track === "solicitor" ? sol?.statusReason : log.statusReason) ?? "A date was provided.", actor: "System" });
     }
 
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
@@ -277,6 +310,8 @@ export async function getChaseTimeline(
       id: log.id,
       title: stripChase(rule.name),
       side,
+      track,
+      trackLabel,
       state,
       waitingOn,
       autoChases,
@@ -287,7 +322,7 @@ export async function getChaseTimeline(
       nextIsAutomated,
       escalatesAfter: rule.escalateAfterChases,
       escalated,
-      snoozedUntil: snoozedActive && log.snoozedUntil ? log.snoozedUntil.toISOString() : null,
+      snoozedUntil: snoozeAt ? snoozeAt.toISOString() : null,
       startedAt: log.createdAt.toISOString(),
       events,
     };
