@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { outwardCode } from "@/lib/utils/address";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
@@ -300,7 +301,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     ok: true,
     count: created.length,
     firmNames: validFirms.map((f) => f.name),
-    firms: validFirms.map((f) => ({ id: f.id, name: f.name, logoUrl: f.logoUrl ?? null, notes: f.notes ?? null })),
+    firms: validFirms.map((f) => ({ id: f.id, name: f.name, logoUrl: getProviderLogoUrl(f.logoPath), notes: f.notes ?? null })),
   };
 }
 
