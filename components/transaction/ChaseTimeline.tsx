@@ -242,8 +242,8 @@ function ThreadDetail({ thread }: { thread: ChaseThread }) {
           <div>
             <SectionLabel>Details</SectionLabel>
             <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
-            <DetailRow label="Last chased" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "—"} />
-            <DetailRow label={thread.nextIsAutomated ? "Next auto-chase" : "Next (reminder)"} value={thread.nextDueAt ? fmtDate(thread.nextDueAt) : "—"} />
+            <DetailRow label="Last chased" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
+            <DetailRow label={thread.nextIsAutomated ? "Next auto-chase" : "Next (reminder)"} value={thread.nextDueAt ? fmtDate(thread.nextDueAt) : "-"} />
             <DetailRow label="Escalates after" value={`${thread.escalatesAfter} of your chases`} />
           </div>
           <EscalationPath thread={thread} />

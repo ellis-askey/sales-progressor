@@ -264,7 +264,7 @@ export async function getChaseTimeline(
         events.push({
           at: autoState.lastChasedAt.toISOString(),
           kind: "handed",
-          title: "Autopilot done — handed to your team",
+          title: "Autopilot done, handed to your team",
           detail: `${track === "solicitor" ? "Solicitor" : "Client"} auto-chase reached its limit of ${cap}. Now in your work queue.`,
           actor: "System",
         });
