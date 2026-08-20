@@ -62,6 +62,7 @@ import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSe
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
+import { ChaseTimelinePanel } from "@/components/transaction/ChaseTimelinePanel";
 import { ToDoPanel } from "@/components/transaction/ToDoPanel";
 import { ActivityPanel } from "@/components/transaction/ActivityPanel";
 import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
@@ -261,6 +262,7 @@ export default async function AgentTransactionDetailPage({
     { key: "overview",   label: "Overview", icon: "house" },
     { key: "milestones", label: "Steps", icon: "steps" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
+    { key: "chase",      label: "Chase timeline", icon: "chase" },
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
@@ -505,7 +507,15 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
 
-        {/* Tab 3: To-Do */}
+        {/* Tab 3: Chase timeline */}
+        <Suspense fallback={<TabPanelSkeleton rows={5} />}>
+          <ChaseTimelinePanel
+            transactionId={transaction.id}
+            agencyId={session.user.agencyId}
+          />
+        </Suspense>
+
+        {/* Tab 4: To-Do */}
         <Suspense fallback={<TabPanelSkeleton rows={3} />}>
           <ToDoPanel
             transactionId={transaction.id}
