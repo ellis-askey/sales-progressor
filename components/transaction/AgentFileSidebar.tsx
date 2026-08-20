@@ -30,7 +30,7 @@ import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
-import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench } from "@phosphor-icons/react";
+import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench, CopySimple, Check } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
@@ -88,6 +88,10 @@ type Props = {
   // 2026-07-06 mock: Last activity timestamp on the file, shown as a
   // relative-time row in the Sale health card.
   lastActivityAt?: Date | null;
+  // 2026-08-19: WhatsApp check-in copy (quick links). Pre-built paragraph
+  // of standalone questions for each side's outstanding client-owned
+  // steps (lib/chase/step-questions.ts); null hides that side's row.
+  copyChaseTexts?: { seller: string | null; buyer: string | null };
 };
 
 const PHASE_LABELS: Record<string, string> = {
@@ -166,6 +170,7 @@ export function AgentFileSidebar({
   currentUserId,
   primaryPortalHref,
   lastActivityAt,
+  copyChaseTexts,
 }: Props) {
   const { setActiveTab } = useTabContext();
 
@@ -533,6 +538,12 @@ export function AgentFileSidebar({
             onClick={() => setActiveTab("activity")}
           />
           <SendQuoteLinkQuickAction transactionId={transaction.id} />
+          {copyChaseTexts?.seller && (
+            <CopyChaseQuickAction label="Copy seller check-in" text={copyChaseTexts.seller} />
+          )}
+          {copyChaseTexts?.buyer && (
+            <CopyChaseQuickAction label="Copy buyer check-in" text={copyChaseTexts.buyer} />
+          )}
         </div>
       </GlassCard>
 
@@ -641,6 +652,26 @@ function QuickLinkExternal({
       </span>
       <ArrowSquareOut size={13} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
     </Link>
+  );
+}
+
+// WhatsApp check-in copy (2026-08-19). Copies the side's outstanding-step
+// questions as one paragraph for pasting into WhatsApp; the row flips to
+// "Copied" for a couple of seconds as feedback.
+function CopyChaseQuickAction({ label, text }: { label: string; text: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  }
+  return (
+    <QuickLinkButton
+      onClick={copy}
+      label={copied ? "Copied. Paste into WhatsApp" : label}
+      Icon={copied ? Check : CopySimple}
+    />
   );
 }
 

@@ -11,6 +11,7 @@
 // underlying query runs per request.
 
 import { prisma } from "@/lib/prisma";
+import { buildDueStepCopyText } from "@/lib/chase/step-questions";
 import {
   getMilestonesCached,
   getReminderLogsCached,
@@ -315,6 +316,10 @@ export async function SidebarPanel({
         freeOnExchange: transaction.freeOnExchange ?? null,
       }}
       recommendedFirms={recommendedFirms}
+      copyChaseTexts={{
+        seller: buildDueStepCopyText(milestoneData?.vendor ?? []),
+        buyer: buildDueStepCopyText(milestoneData?.purchaser ?? []),
+      }}
       showOurFee={isDirectorRole || isAdminRole}
       assignedUser={assignedUser}
       agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
