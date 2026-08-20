@@ -163,19 +163,25 @@ function EventRow({ ev, last }: { ev: ChaseThreadEvent; last: boolean }) {
 function EscalationPath({ thread }: { thread: ChaseThread }) {
   const rungs: { label: string; sub: string; status: "done" | "current" | "pending" }[] = [];
   const autoDone = thread.autoChases >= 2 || ["handed_to_team", "manual_chasing", "escalated"].includes(thread.state);
+  const autoLabel = thread.track === "solicitor" ? "Solicitor auto-chase" : thread.track === "enquiry" ? "Automated nudges" : "Client auto-chase";
+
   rungs.push({
-    label: "Client auto-chase",
-    sub: `up to 2 emails`,
+    label: autoLabel,
+    sub: thread.track === "enquiry" ? "on a cadence" : "up to 2 emails",
     status: thread.state === "auto_chasing" ? "current" : autoDone ? "done" : "pending",
   });
-  rungs.push({
-    label: "Your team chases",
-    sub: `${thread.manualChases}/${thread.escalatesAfter}`,
-    status: thread.state === "escalated" ? "done" : thread.state === "manual_chasing" || thread.state === "handed_to_team" ? "current" : autoDone ? "pending" : "pending",
-  });
+  // Enquiries escalate straight to the file owner if they stall — no separate
+  // manual-chase rung.
+  if (thread.track !== "enquiry") {
+    rungs.push({
+      label: "Your team chases",
+      sub: `${thread.manualChases}/${thread.escalatesAfter}`,
+      status: thread.state === "escalated" ? "done" : thread.state === "manual_chasing" || thread.state === "handed_to_team" ? "current" : "pending",
+    });
+  }
   rungs.push({
     label: "Escalate to file owner",
-    sub: thread.escalated ? "notified" : "if no response",
+    sub: thread.escalated ? "notified" : "if it stalls",
     status: thread.escalated ? "current" : "pending",
   });
 
@@ -244,7 +250,7 @@ function ThreadDetail({ thread }: { thread: ChaseThread }) {
             <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
             <DetailRow label="Last chased" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
             <DetailRow label={thread.nextIsAutomated ? "Next auto-chase" : "Next (reminder)"} value={thread.nextDueAt ? fmtDate(thread.nextDueAt) : "-"} />
-            <DetailRow label="Escalates after" value={`${thread.escalatesAfter} of your chases`} />
+            <DetailRow label="Escalates after" value={thread.track === "enquiry" ? "if it stalls" : `${thread.escalatesAfter} of your chases`} />
           </div>
           <EscalationPath thread={thread} />
         </div>

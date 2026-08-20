@@ -55,7 +55,7 @@ export type ChaseThread = {
   id: string; // reminderLogId
   title: string;
   side: "vendor" | "purchaser";
-  track: "client" | "solicitor"; // which auto-chase lane owns this thread
+  track: "client" | "solicitor" | "enquiry"; // which auto-chase lane owns this thread
   trackLabel: string; // "Buyer" / "Seller" / "Buyer's solicitor" / "Seller's solicitor"
   state: ChaseThreadState;
   waitingOn: string; // who owes the action (the client, or the solicitor)
@@ -116,7 +116,7 @@ export async function getChaseTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const [logs, contacts, clientStates, chaseMsgs, solStates] = await Promise.all([
+  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker] = await Promise.all([
     prisma.reminderLog.findMany({
       where: { transactionId, status: { in: ["active", "completed", "cancelled"] } },
       select: {
@@ -156,6 +156,16 @@ export async function getChaseTimeline(
     prisma.solicitorChaseState.findMany({
       where: { transactionId },
       select: { milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, snoozeUntil: true, status: true, statusReason: true },
+    }),
+    // Enquiries run on their own trackers (not ReminderLogs): the raise-chase
+    // (get enquiries raised) then the reply-loop tracker (whose court is it in).
+    prisma.enquiryRaiseChase.findUnique({
+      where: { transactionId },
+      select: { openedAt: true, lastNudgedAt: true, lastTarget: true, nudgeCount: true, escalatedAt: true, closedAt: true },
+    }),
+    prisma.enquiryTracker.findUnique({
+      where: { transactionId },
+      select: { currentlyWith: true, openedAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, outstandingNote: true },
     }),
   ]);
 
@@ -327,6 +337,67 @@ export async function getChaseTimeline(
       events,
     };
   });
+
+  // ── Enquiry threads (their own trackers, not ReminderLogs) ──
+  const buyerSolLabel = "the buyer's solicitor";
+  const sellerSolLabel = "the seller's solicitor";
+
+  if (raiseChase) {
+    const closed = !!raiseChase.closedAt;
+    const esc = !!raiseChase.escalatedAt;
+    const n = raiseChase.nudgeCount;
+    const state: ChaseThreadState = closed ? "completed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
+    const events: ChaseThreadEvent[] = [{
+      at: raiseChase.openedAt.toISOString(), kind: "scheduled", title: "Chase opened",
+      detail: "Chasing to get enquiries raised, from when searches were ordered.", actor: "System",
+    }];
+    if (raiseChase.lastNudgedAt && n > 0) {
+      const tgt = raiseChase.lastTarget === "buyer" ? "the buyer" : buyerSolLabel;
+      events.push({ at: raiseChase.lastNudgedAt.toISOString(), kind: "auto_chase", title: `Nudged ${tgt} to get enquiries raised`, detail: `${n} nudge${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+    }
+    if (raiseChase.escalatedAt) events.push({ at: raiseChase.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries still not raised after repeated nudges.", actor: "System" });
+    if (raiseChase.closedAt) events.push({ at: raiseChase.closedAt.toISOString(), kind: "resolved", title: "Enquiries raised", detail: "The reply loop takes over from here.", actor: "System" });
+    events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    threads.push({
+      id: "enquiry-raise", title: "Getting enquiries raised", side: "purchaser", track: "enquiry",
+      trackLabel: "Buyer's solicitor", state, waitingOn: buyerSolLabel,
+      autoChases: n, manualChases: 0, totalChases: n,
+      lastChasedAt: raiseChase.lastNudgedAt?.toISOString() ?? null,
+      nextDueAt: null, nextIsAutomated: !closed && !esc,
+      escalatesAfter: 0, escalated: esc, snoozedUntil: null,
+      startedAt: raiseChase.openedAt.toISOString(), events,
+    });
+  }
+
+  if (enquiryTracker) {
+    const et = enquiryTracker;
+    const closed = !!et.closedAt;
+    const esc = !!et.escalatedAt;
+    const snoozeAt = et.snoozedUntil && new Date(et.snoozedUntil).getTime() > nowMs ? et.snoozedUntil : null;
+    const withSeller = et.currentlyWith === "seller_solicitor";
+    const side: "vendor" | "purchaser" = withSeller ? "vendor" : "purchaser";
+    const who = withSeller ? sellerSolLabel : buyerSolLabel;
+    const n = et.chaseCount;
+    const state: ChaseThreadState = closed ? "completed" : snoozeAt ? "snoozed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
+    const events: ChaseThreadEvent[] = [{
+      at: et.openedAt.toISOString(), kind: "scheduled", title: "Reply loop opened",
+      detail: et.outstandingNote ? `Waiting on: ${et.outstandingNote}` : "Enquiries raised, awaiting replies.", actor: "System",
+    }];
+    if (et.lastChasedAt && n > 0) events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", title: `Chased ${who}`, detail: `${n} chase${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+    if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries outstanding after repeated chases.", actor: "System" });
+    if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
+    if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Loop closed.", actor: "System" });
+    events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    threads.push({
+      id: "enquiry-tracker", title: "Outstanding enquiries", side, track: "enquiry",
+      trackLabel: withSeller ? "Seller's solicitor" : "Buyer's solicitor", state, waitingOn: who,
+      autoChases: n, manualChases: 0, totalChases: n,
+      lastChasedAt: et.lastChasedAt?.toISOString() ?? null,
+      nextDueAt: null, nextIsAutomated: !closed && !esc && !snoozeAt,
+      escalatesAfter: 0, escalated: esc, snoozedUntil: snoozeAt?.toISOString() ?? null,
+      startedAt: et.openedAt.toISOString(), events,
+    });
+  }
 
   // Sort: state precedence, then soonest next-due.
   threads.sort((a, b) => {
