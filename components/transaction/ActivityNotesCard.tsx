@@ -73,6 +73,13 @@ function isNote(e: ActivityEntry): boolean {
   return e.kind === "comm" && e.type === "internal_note";
 }
 
+// Setup notes come from the new-sale form's notes box (2026-08-19) and pin
+// to the top of the card so file context is never buried under newer
+// activity. Marked by subject at write time.
+function isSetupNote(e: ActivityEntry): boolean {
+  return isNote(e) && e.kind === "comm" && e.subject === "Setup note";
+}
+
 export function ActivityNotesCard({ transactionId, entries, currentUserName, currentUserImage = null }: Props) {
   const { setActiveTab } = useTabContext();
   const router = useRouter();
@@ -156,10 +163,25 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
         </button>
       </form>
 
+      {/* Pinned setup note(s) — always above the feed, in both filters,
+          and excluded from the lists below so they never render twice. */}
+      {entries.filter((e) => isSetupNote(e) && !removedIds.has(e.id)).map((e) => (
+        <NoteRow
+          key={e.id}
+          content={subtitleFor(e)}
+          author={e.kind === "comm" ? e.createdByName : null}
+          authorImage={e.kind === "comm" ? e.createdByImage : null}
+          time={fmtTime(e)}
+          tag="Setup note"
+          onDelete={deleting || isPending ? undefined : () => handleDelete(e.id)}
+          deleting={deleting === e.id}
+        />
+      ))}
+
       {filter === "notes" ? (
-        <NotesView optimistic={optimistic} entries={entries} removedIds={removedIds} deleting={deleting} isPending={isPending} onDelete={handleDelete} />
+        <NotesView optimistic={optimistic} entries={entries.filter((e) => !isSetupNote(e))} removedIds={removedIds} deleting={deleting} isPending={isPending} onDelete={handleDelete} />
       ) : (
-        <FeedView optimistic={optimistic} entries={entries} removedIds={removedIds} deleting={deleting} isPending={isPending} onDelete={handleDelete} />
+        <FeedView optimistic={optimistic} entries={entries.filter((e) => !isSetupNote(e))} removedIds={removedIds} deleting={deleting} isPending={isPending} onDelete={handleDelete} />
       )}
     </GlassCard>
   );
@@ -265,8 +287,11 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 
 // The leveled-up note row: the note text leads, author + time beneath, a quiet
 // delete that reveals on hover.
-function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting }: {
+function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting, tag }: {
   content: string; author: string | null; authorImage?: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
+  // Small pill rendered before the author line (e.g. "Setup note" on the
+  // pinned note from the new-sale form).
+  tag?: string;
 }) {
   return (
     <div className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`} style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative" }}>
@@ -279,8 +304,15 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap", paddingRight: onDelete ? 20 : 0 }}>{content}</p>
-        <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>
-          {author ? `${author} · ` : ""}{time}
+        <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+          {tag && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+              color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb), 0.10)",
+              padding: "1px 6px", borderRadius: 6, flexShrink: 0,
+            }}>{tag}</span>
+          )}
+          <span>{author ? `${author} · ` : ""}{time}</span>
         </p>
       </div>
       {onDelete && (

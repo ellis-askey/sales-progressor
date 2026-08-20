@@ -409,6 +409,8 @@ export async function createTransactionAction(input: {
         transactionId: tx.id,
         agencyId: effectiveAgencyId,
         type: "internal_note",
+        // "Setup note" is the marker the Notes card pins on.
+        subject: "Setup note",
         contactIds: [],
         content: input.notes.trim(),
         createdById: session.user.id,
@@ -1588,6 +1590,8 @@ export async function promoteDraftAction(
         transactionId: draftId,
         agencyId: draft.agencyId,
         type: "internal_note",
+        // "Setup note" is the marker the Notes card pins on.
+        subject: "Setup note",
         contactIds: [],
         content: draft.notes.trim(),
         createdById: session.user.id,

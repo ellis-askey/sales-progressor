@@ -50,6 +50,9 @@ export type ActivityEntry =
       wasAiGenerated: boolean;
       isAutomated: boolean;
       tone: string | null;
+      // "Setup note" marks internal notes written from the new-sale
+      // form's notes box (2026-08-19) — the Notes card pins these.
+      subject: string | null;
     };
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -182,6 +185,7 @@ export async function getActivityTimeline(
     wasAiGenerated: c.wasAiGenerated,
     isAutomated: c.isAutomated,
     tone: c.tone,
+    subject: c.subject ?? null,
   }));
 
   return [...milestoneEntries, ...commEntries].sort(
