@@ -396,6 +396,29 @@ export async function createTransactionAction(input: {
     }
   }
 
+  // Sale-setup notes → the file's Notes feed (2026-08-19). The new-sale
+  // form's notes box stored into PropertyTransaction.notes, a column no
+  // screen reads, so the agent's setup notes silently vanished (founder
+  // report). Writing them as a normal internal note puts them in the
+  // Overview Notes card for both the agency and the internal team, where
+  // they can be managed like any other note. The column keeps its value
+  // as the raw record.
+  if (input.notes?.trim()) {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: tx.id,
+        agencyId: effectiveAgencyId,
+        type: "internal_note",
+        // "Setup note" is the marker the Notes card pins on.
+        subject: "Setup note",
+        contactIds: [],
+        content: input.notes.trim(),
+        createdById: session.user.id,
+        createdByRole: session.user.role,
+      },
+    }).catch((err) => console.error("Sale-setup note write failed:", err));
+  }
+
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");
   revalidatePath("/dashboard");
@@ -1495,7 +1518,8 @@ export async function promoteDraftAction(
 
   const draft = await prisma.propertyTransaction.findFirst({
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
-    select: { id: true, activeBuyerRoundId: true },
+    // notes feeds the sale-setup note write-through below.
+    select: { id: true, activeBuyerRoundId: true, notes: true, agencyId: true },
   });
   if (!draft) throw new Error("Draft not found");
 
@@ -1556,6 +1580,25 @@ export async function promoteDraftAction(
       } : {}),
     },
   });
+
+  // Sale-setup notes → the file's Notes feed, same as the direct-create
+  // path (2026-08-19). Drafts carry the notes on the row; the note only
+  // becomes a feed entry once the file goes live here.
+  if (draft.notes?.trim()) {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: draftId,
+        agencyId: draft.agencyId,
+        type: "internal_note",
+        // "Setup note" is the marker the Notes card pins on.
+        subject: "Setup note",
+        contactIds: [],
+        content: draft.notes.trim(),
+        createdById: session.user.id,
+        createdByRole: session.user.role,
+      },
+    }).catch((err) => console.error("Sale-setup note write failed:", err));
+  }
 
   // A draft that was saved via saveDraftAction has no milestone
   // completions yet (initializeMilestoneCompletions is gated on

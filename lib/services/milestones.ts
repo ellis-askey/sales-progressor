@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
+import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
@@ -852,7 +853,8 @@ export async function completeMilestone(
 
   const def = await db.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
-    select: { code: true, summaryTemplate: true, side: true },
+    // name feeds the solicitor-confirm summary fallback below.
+    select: { code: true, name: true, summaryTemplate: true, side: true },
   });
   if (!def) throw new Error("Milestone definition not found");
 
@@ -900,11 +902,19 @@ export async function completeMilestone(
     }
   }
 
-  const confirmerName =
-    input.confirmer.kind === "solicitor" ? input.confirmer.firmName : input.confirmer.name;
-  const summaryText = def.summaryTemplate
-    ? await generateSummaryText(input.transactionId, def.summaryTemplate, confirmerName)
-    : null;
+  // Solicitor confirms get their own summary voice. The seeded
+  // summaryTemplates are written from the AGENT-confirm perspective
+  // ("{agent} received confirmation from {solicitor} that…", "{agent}
+  // confirmed that {purchasers}'s solicitor has…"), which reads as
+  // nonsense when the confirmer IS that solicitor — the firm appears to
+  // report its own action second-hand (founder report, 2026-08-19).
+  // The firm name + the solicitor-facing step label states it plainly.
+  const summaryText =
+    input.confirmer.kind === "solicitor"
+      ? `${input.confirmer.firmName} confirmed: ${solicitorStepLabel(def.code, def.name)}`
+      : def.summaryTemplate
+        ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
+        : null;
 
   // Derive provenance from the confirmer.
   // - completedById: User.id when an agent confirms; null when a contact

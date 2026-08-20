@@ -21,6 +21,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { renderEditedEmailHtml } from "@/lib/email/milestone-digest";
+import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
 
 type ActionResult<T = void> =
   | ({ ok: true } & (T extends void ? object : { data: T }))
@@ -625,7 +626,13 @@ export async function updateEmailPayload(
   // the original html in place meant the edit shipped invisibly (new
   // subject, stale body). Older rows without address/portalUrl metadata
   // keep their original html (pre-batching rows; none should be pending).
-  // CLIENT_CHASE html handling is unchanged.
+  //
+  // 2026-08-19: same treatment for CLIENT_CHASE rows. Chase edits shipped
+  // the stale original html too (founder report: edited line breaks, and
+  // in fact the whole edit, never reached the recipient). Rows enqueued
+  // from today carry the shell ingredients (agencyName / respondUrl /
+  // pauseUrl / unsubscribeUrl) so the branded chase shell rebuilds around
+  // the edited body; older pending rows keep their original html.
   const currentPayload = (email.payload ?? {}) as Record<string, unknown>;
   let rebuiltHtml: string | null = null;
   if (email.emailType === "MILESTONE_CONFIRMATION") {
@@ -637,6 +644,21 @@ export async function updateEmailPayload(
         heading: patch.subject.trim(),
         text: patch.text.trim(),
         portalUrl,
+      });
+    }
+  } else if (email.emailType === "CLIENT_CHASE") {
+    const agencyName = typeof currentPayload.agencyName === "string" ? currentPayload.agencyName : null;
+    const respondUrl = typeof currentPayload.respondUrl === "string" ? currentPayload.respondUrl : null;
+    const pauseUrl = typeof currentPayload.pauseUrl === "string" ? currentPayload.pauseUrl : null;
+    const unsubscribeUrl = typeof currentPayload.unsubscribeUrl === "string" ? currentPayload.unsubscribeUrl : null;
+    if (agencyName && respondUrl && pauseUrl && unsubscribeUrl) {
+      rebuiltHtml = renderEditedChaseEmailHtml({
+        agencyName,
+        subject: patch.subject.trim(),
+        text: patch.text.trim(),
+        respondUrl,
+        pauseUrl,
+        unsubscribeUrl,
       });
     }
   }

@@ -652,6 +652,12 @@ model Contact {
   roleType              ContactRole
   portalToken           String?     @unique
   lastVisitedPortalAt   DateTime?
+  // First-visit welcome sheet gate. Stamped once when the client dismisses the
+  // welcome drawer ("Got it"). Makes the sheet show once per PERSON, forever,
+  // across every device — localStorage alone was per-browser, so it re-appeared
+  // on each new device or after clearing storage. Set via
+  // /api/portal/[token]/welcome-seen; read by getPortalData -> PortalShell.
+  welcomeSeenAt         DateTime?
   // PWA adoption signal (Command Centre → App adoption). pwaInstalledAt: first
   // time we saw them in standalone display-mode or caught the appinstalled
   // event — the truest "added it to their home screen". pwaLastOpenedAt: most

@@ -527,6 +527,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           token={token}
           saleWord={saleWord}
           completionDate={transaction.completionDate ? new Date(transaction.completionDate).toISOString() : null}
+          photoUrl={transaction.photoUrl ?? null}
         />
       )}
 

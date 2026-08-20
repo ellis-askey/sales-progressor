@@ -1,27 +1,38 @@
 "use client";
 
-// One-time welcome sheet on a client's first portal visit. localStorage-gated
-// per token, slides up shortly after load (before the install/push toasts). A
-// warm orientation for a nervous first-time visitor: a big lead line, a small
-// progress stepper (with a gently pulsing "in progress" node), and three points.
+// One-time welcome sheet on a client's first portal visit. Slides up shortly
+// after load (before the install/push toasts). A warm orientation for a nervous
+// first-time visitor: a big lead line, a small progress stepper (with a gently
+// pulsing "in progress" node), and three points.
+//
+// Shown once per PERSON, forever, across every device. The Contact's
+// welcomeSeenAt timestamp (via `alreadySeen`) is the source of truth; once set
+// the sheet never re-appears anywhere. localStorage is a same-device fast-path
+// covering the gap between dismissing it and the next server read.
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { House, Check, ChatCircle, Package, Key } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 
-export function PortalWelcomeSheet({ token, side }: { token: string; side: "vendor" | "purchaser" }) {
+export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string; side: "vendor" | "purchaser"; alreadySeen: boolean }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // Server gate wins: dismissed on any device -> never shows again.
+    if (alreadySeen) return;
     const key = `portal-welcome-seen-${token}`;
     if (localStorage.getItem(key)) return;
     const t = window.setTimeout(() => setOpen(true), 600);
     return () => window.clearTimeout(t);
-  }, [token]);
+  }, [token, alreadySeen]);
 
   function dismiss() {
     localStorage.setItem(`portal-welcome-seen-${token}`, "1");
+    // Persist to the Contact so it never re-appears on their other devices.
+    // Fire-and-forget: if it fails, localStorage still gates this device and
+    // the stamp retries on the next dismiss.
+    fetch(`/api/portal/${token}/welcome-seen`, { method: "POST" }).catch(() => {});
     setOpen(false);
   }
 

@@ -459,6 +459,15 @@ export async function enqueueClientChaseDigest(input: {
       // Rides to SendGrid via the drain as the template version (audit #17),
       // so opens can be compared across the warm subject variants (audit #12).
       templateVersion: payload.subjectVariant,
+      // Shell ingredients for the review/edit path (2026-08-19). Editing
+      // a chase used to update only payload.text; the stale original html
+      // shipped, so the edit never reached the recipient. With these
+      // stored, updateEmailPayload can rebuild the branded chase shell
+      // around the edited body (renderEditedChaseEmailHtml).
+      agencyName: transaction.agency?.name ?? "Sales Progressor",
+      respondUrl: payload.respondUrl,
+      unsubscribeUrl: payload.unsubscribeUrl,
+      pauseUrl: buildContactPauseUrl(contact.id),
     },
   });
 
@@ -573,4 +582,71 @@ export async function enqueueClientChaseDigest(input: {
   }
 
   return { enqueued: true, rowId: row.id };
+}
+
+// ─── renderEditedChaseEmailHtml ─────────────────────────────────────────────
+// Rebuilds the branded chase shell around an agent-edited plain-text body,
+// so "what you saved is what sends" holds for chase edits the same way it
+// does for milestone-confirmation edits (renderEditedEmailHtml in
+// milestone-digest.ts). Called by updateEmailPayload when a CLIENT_CHASE
+// row is edited and the payload carries the shell ingredients (rows
+// enqueued from 2026-08-19 onward).
+//
+// Lines containing the respond / pause / unsubscribe URLs are dropped from
+// the rendered body: the CTA button and footer links carry them, and
+// rendering both reads twice. Blank lines split paragraphs; single
+// newlines become <br />.
+export function renderEditedChaseEmailHtml(args: {
+  agencyName: string;
+  subject: string;
+  text: string;
+  respondUrl: string;
+  pauseUrl: string;
+  unsubscribeUrl: string;
+}): string {
+  const { agencyName, subject, text, respondUrl, pauseUrl, unsubscribeUrl } = args;
+  const isLinkLine = (line: string) =>
+    (respondUrl && line.includes(respondUrl)) ||
+    (pauseUrl && line.includes(pauseUrl)) ||
+    (unsubscribeUrl && line.includes(unsubscribeUrl));
+  const pStyle = "margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;";
+  const paragraphs = text
+    .split(/\r?\n\r?\n/)
+    .map((block) =>
+      block
+        .split(/\r?\n/)
+        .filter((line) => !isLinkLine(line))
+        .map(escapeHtml)
+        .join("<br />"),
+    )
+    .filter((block) => block.trim().length > 0)
+    .map((block) => `<p style="${pStyle}">${block}</p>`)
+    .join("\n          ");
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">${preheader(subject)}
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>
+          ${paragraphs}
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+            <tr><td style="border-radius:8px;background:#FF6B4A;">
+              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="${pauseUrl}" style="color:#c0c4d0;text-decoration:none;">Pause reminders for a week</a> &nbsp;&middot;&nbsp;
+        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;&middot;&nbsp;
+        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+      </p>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 }

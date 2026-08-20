@@ -62,6 +62,7 @@ import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSe
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
+import { ChaseTimelinePanel } from "@/components/transaction/ChaseTimelinePanel";
 import { ToDoPanel } from "@/components/transaction/ToDoPanel";
 import { ActivityPanel } from "@/components/transaction/ActivityPanel";
 import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
@@ -99,6 +100,7 @@ export default async function AgentTransactionDetailPage({
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const isAdminRole  = hasAdminPowers(session);
+  const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
   // ── Critical-path fan-out ─────────────────────────────────────────────
@@ -261,6 +263,8 @@ export default async function AgentTransactionDetailPage({
     { key: "overview",   label: "Overview", icon: "house" },
     { key: "milestones", label: "Steps", icon: "steps" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
+    // Chase Timeline is founder-only while in review — gated to Ellis.
+    ...(isEllis ? [{ key: "chase", label: "Chase timeline", icon: "chase" }] : []),
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
@@ -473,7 +477,7 @@ export default async function AgentTransactionDetailPage({
               currentUserId={session.user.id}
               currentUserName={session.user.name ?? ""}
               recommendedFirms={null}
-              isEllis={session.user.email === "ellis@thesalesprogressor.co.uk"}
+              isEllis={isEllis}
             />
             <div className="mt-5">
               <EnquiryTrackerSection transactionId={transaction.id} />
@@ -505,7 +509,19 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
 
-        {/* Tab 3: To-Do */}
+        {/* Tab 3: Chase timeline — founder-only (gated to Ellis). The falsy
+            when hidden is stripped by PropertyFileTabs' Children.toArray so
+            the remaining tab panels stay index-aligned. */}
+        {isEllis && (
+          <Suspense fallback={<TabPanelSkeleton rows={5} />}>
+            <ChaseTimelinePanel
+              transactionId={transaction.id}
+              agencyId={session.user.agencyId}
+            />
+          </Suspense>
+        )}
+
+        {/* Tab 4: To-Do */}
         <Suspense fallback={<TabPanelSkeleton rows={3} />}>
           <ToDoPanel
             transactionId={transaction.id}

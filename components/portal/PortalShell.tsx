@@ -21,6 +21,9 @@ type Props = {
   propertyAddress: string;
   agencyName: string;
   vapidPublicKey: string;
+  // True once the client has dismissed the first-visit welcome sheet (stamped
+  // on their Contact). Gates the sheet once-per-person across all their devices.
+  welcomeSeen: boolean;
   // Optional signed URL for the property photo. When present renders as a
   // hero image below the header; when null the header sits on its own
   // (no dashed placeholder, no broken state).
@@ -70,7 +73,7 @@ function GreetingText({ text }: { text: string }) {
 // NOTE: agencyName is still passed in (Props) but no longer rendered in the
 // header — it truncated the greeting. It needs a new home elsewhere in the
 // portal (founder, 2026-08-16). Re-add when that lands.
-export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, photoUrl, children }: Props) {
+export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, welcomeSeen, photoUrl, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
 
@@ -240,7 +243,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           are kept on disk for revert; unused as of this change. */}
       {/* First-visit welcome (once per client, all viewports). */}
       {!isRespond && (
-        <PortalWelcomeSheet token={token} side={roleType === "vendor" ? "vendor" : "purchaser"} />
+        <PortalWelcomeSheet token={token} side={roleType === "vendor" ? "vendor" : "purchaser"} alreadySeen={welcomeSeen} />
       )}
 
       {!isRespond && (
