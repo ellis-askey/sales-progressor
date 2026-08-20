@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const link = await getLinkWithChain(linkId);
   if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (!canEditLink(link, session.user.id)) {
+  if (!canEditLink(link, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -57,7 +57,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const link = await getLinkWithChain(linkId);
   if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (!canDeleteLink(link, session.user.id)) {
+  if (!canDeleteLink(link, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

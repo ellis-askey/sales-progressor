@@ -92,6 +92,10 @@ type Props = {
   isInternalStaff: boolean;
   isDirectorRole: boolean;
   currentUserId: string;
+  // Session role string — passed to the chain drawer so internal staff can edit
+  // chains on outsourced files (the chain rule keys on the exact role, which
+  // isInternalStaff can't stand in for: it excludes superadmin, includes viewer).
+  currentUserRole?: string | null;
   currentUserName: string;
   currentUserImage?: string | null;
   recommendedFirms?: Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null;
@@ -141,6 +145,7 @@ export async function OverviewPanel({
   isInternalStaff,
   isDirectorRole,
   currentUserId,
+  currentUserRole,
   currentUserName,
   currentUserImage,
   recommendedFirms,
@@ -406,6 +411,7 @@ export async function OverviewPanel({
           <ViewChainButton
             transactionId={transaction.id}
             currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
             declineNotification={
               currentUserNotifications?.chainDeclineNotificationAddress &&
               currentUserNotifications?.chainDeclineNotificationAt

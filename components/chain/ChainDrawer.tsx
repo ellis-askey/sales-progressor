@@ -11,13 +11,16 @@ import { computeChainSummary, formatChainValueShort } from "@/lib/chain/summary"
 import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
-import { canAddAbove, canAddBelow } from "@/lib/chain/permissions";
+import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type ChainDrawerProps = {
   transactionId: string;
   currentUserId: string;
+  // Session role — lets internal staff (admin / superadmin / sales_progressor)
+  // edit chains on outsourced files they progress but didn't originate.
+  currentUserRole?: string | null;
   onClose: () => void;
   onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: EditingLinkData) => void;
   declineNotification?: { address: string; at: string } | null;
@@ -101,12 +104,16 @@ function ChainSummaryCard({ chain }: { chain: ChainV2 }) {
 export function ChainDrawer({
   transactionId,
   currentUserId,
+  currentUserRole,
   onClose,
   onOpenAddNode,
   declineNotification,
   refreshKey = 0,
 }: ChainDrawerProps) {
   const { theme } = usePortalTheme();
+  // Internal staff progress files they didn't originate — they get the same
+  // edit reach the server now grants (mirrors canViewChain).
+  const isInternal = isInternalStaff(currentUserRole);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -293,7 +300,7 @@ export function ChainDrawer({
       l.transactionId === null &&
       l.stubAgentEmail &&
       l.inviteStatus === "NOT_SENT" &&
-      l.createdByUserId === currentUserId,
+      (l.createdByUserId === currentUserId || isInternal),
   ) ?? [];
 
   const links = chain?.links ?? [];
@@ -304,17 +311,23 @@ export function ChainDrawer({
     (l) => l.claimedByUserId === currentUserId || l.createdByUserId === currentUserId,
   ) ?? null;
 
+  // Internal staff own no link on an outsourced file, so they can't anchor an
+  // add on "their" link — allow them to add at the chain's top/bottom directly.
   const showAddAbove =
     !!onOpenAddNode &&
-    !!userLink &&
-    canAddAbove(userLink, currentUserId) &&
-    (topLink === null || topLink.id === userLink.id || topLink.transactionId === null);
+    (isInternal
+      ? !!topLink
+      : !!userLink &&
+        canAddAbove(userLink, currentUserId, currentUserRole) &&
+        (topLink === null || topLink.id === userLink.id || topLink.transactionId === null));
 
   const showAddBelow =
     !!onOpenAddNode &&
-    !!userLink &&
-    canAddBelow(userLink, currentUserId) &&
-    (bottomLink === null || bottomLink.id === userLink.id || bottomLink.transactionId === null);
+    (isInternal
+      ? !!bottomLink
+      : !!userLink &&
+        canAddBelow(userLink, currentUserId, currentUserRole) &&
+        (bottomLink === null || bottomLink.id === userLink.id || bottomLink.transactionId === null));
 
   return createPortal(
     <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
@@ -689,17 +702,17 @@ export function ChainDrawer({
                         (link.transactionId !== null && link.createdByUserId === currentUserId)
                       }
                       onResendInvite={
-                        link.createdByUserId === currentUserId && link.transactionId === null
+                        canEditLink(link, currentUserId, currentUserRole) && !!link.stubAgentEmail
                           ? (id) => { void handleResendInvite(id); }
                           : undefined
                       }
                       onEditStub={
-                        link.createdByUserId === currentUserId && link.transactionId === null
+                        canEditLink(link, currentUserId, currentUserRole)
                           ? (l) => { onOpenAddNode?.("above", chain.id, l); }
                           : undefined
                       }
                       onDeleteStub={
-                        link.createdByUserId === currentUserId && link.transactionId === null
+                        canEditLink(link, currentUserId, currentUserRole)
                           ? (id) => setConfirmingDeleteId(id)
                           : undefined
                       }

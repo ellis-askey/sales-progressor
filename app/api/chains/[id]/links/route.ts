@@ -47,20 +47,26 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Find the user's own link to determine if they have add permission
+  // Anchor for the add-permission check: the user's own link when they have
+  // one. Internal staff progressing an OUTSOURCED file own no chain link, so
+  // fall back to any link — canAddAbove/canAddBelow return true for internal
+  // staff regardless of which link is passed (mirrors canViewChain). A normal
+  // non-participant still fails the check on that fallback link, so their
+  // "must own a link" gate is unchanged. addChainLink anchors on chainId +
+  // direction, not this link, so the fallback only affects the permission test.
   const usersOwnLink = chain.links.find(
     (l) => l.claimedByUserId === session.user.id || l.createdByUserId === session.user.id,
   );
-
-  if (!usersOwnLink) {
+  const anchorLink = usersOwnLink ?? chain.links[0] ?? null;
+  if (!anchorLink) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (body.direction === "above" && !canAddAbove(usersOwnLink, session.user.id)) {
+  if (body.direction === "above" && !canAddAbove(anchorLink, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (body.direction === "below" && !canAddBelow(usersOwnLink, session.user.id)) {
+  if (body.direction === "below" && !canAddBelow(anchorLink, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

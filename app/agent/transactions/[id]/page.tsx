@@ -475,6 +475,7 @@ export default async function AgentTransactionDetailPage({
               isInternalStaff={isInternalStaff}
               isDirectorRole={isDirectorRole}
               currentUserId={session.user.id}
+              currentUserRole={session.user.role}
               currentUserName={session.user.name ?? ""}
               recommendedFirms={null}
               isEllis={isEllis}
