@@ -1,7 +1,13 @@
 # Chase Timeline — feature spec
 
-**Status:** planned 2026-08-20, no code yet. Awaiting founder go on Phase 1.
+**Status:** v1 + v2 built + on staging (not pushed), 2026-08-20. Read-only timeline across all three auto lanes (client, solicitor, enquiries) + the manual/team lane. Pending: browser visual review, then v3 inline actions.
 **Owner:** Ellis. **Author:** planning session 2026-08-20.
+
+## Build log
+- `b4c931a9` v1: tab + service + stats + thread list + detail (client + manual lanes).
+- `0eedd5c0` v2 part 1: solicitor lane (SolicitorChaseState).
+- `a8934351` v2 part 2: enquiries lane (EnquiryRaiseChase + EnquiryTracker), track-aware escalation path.
+- Each verified against real staging files; tsc clean. Not pushed.
 
 ## North star
 
@@ -70,9 +76,9 @@ Active / Due today / Escalating / Completed — reuse the existing `lib/reminder
 
 ## Phasing
 
-- **v1 — read-only, client + manual tracks.** Threads, states, expand-to-history, delivery signals (delivered/bounced for client auto; delivered/opened for manual). No director rung, no New chase, actions deep-link to the existing drawer. Delivers the whole "live map" value, zero schema change.
-- **v2 — solicitor track + enquiries thread.** `SolicitorChaseState` (confirmed live) + enquiry-tracker source.
-- **v3 — inline actions** (snooze/chase reusing existing services); then decide whether ad-hoc "New chase" is worth building.
+- **v1 — read-only, client + manual tracks.** DONE. Threads, states, expand-to-history, delivery signals. No director rung, no New chase.
+- **v2 — solicitor lane + enquiries lanes.** DONE. `SolicitorChaseState`; `EnquiryRaiseChase` + `EnquiryTracker`. Track-aware escalation path. (Enquiry auto-chase is still switched off in prod, so those counts read 0 until it's turned on — the whose-court state still renders.)
+- **v3 — inline actions** (snooze/chase reusing the existing chase drawer); then decide whether ad-hoc "New chase" is worth building. NOT STARTED — benefits from a visual review + founder steer first.
 
 ## Cut from the mock for v1 (with reasons)
 
