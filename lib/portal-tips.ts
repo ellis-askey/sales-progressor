@@ -251,8 +251,8 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
         text: "Your solicitor will deal with the transfer of funds. Keep your phone nearby and we'll let you know as soon as completion has taken place and the keys are ready to collect.",
       },
       {
-        title: "Get ready for moving day",
-        text: "Make sure your removals, travel and anything else you need for moving day are arranged now that your completion date is fixed.",
+        title: "Get ready for completion day",
+        text: "Your completion date is now fixed, so it's a good time to get everything you need for completion day arranged.",
         hideOnceDone: ["PM27"],
       },
       {

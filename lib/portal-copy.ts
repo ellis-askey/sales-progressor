@@ -645,7 +645,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Contracts exchanged",
         opening: "Contracts have exchanged on your sale.",
         whatHappened: "Both solicitors have formally exchanged signed contracts, and the sale is now legally binding. Neither side can withdraw without significant financial penalty. The completion date is now fixed.",
-        whatNext: "Between now and completion, you should arrange to have everything ready to leave the property by the agreed time on completion day. Your solicitor will manage the legal transfer of funds. You'll hear from them on the day.",
+        whatNext: "Between now and completion, make sure the property will be ready to hand over by the agreed time on completion day. Your solicitor will manage the legal transfer of funds. You'll hear from them on the day.",
         action: "View your portal",
       },
       // VM19.purchaser intentionally absent — the buyer is notified via PM26
@@ -681,7 +681,7 @@ const copy: Record<string, PortalCopy> = {
         subject: "Sale complete, congratulations: {address}",
         heroLabel: "Sale complete",
         opening: "Congratulations. It's done.",
-        whatHappened: "Your sale has completed. The purchase funds have been transferred, your mortgage has been redeemed by your solicitor, and ownership of the property has transferred to the buyer. The sale is legally concluded.",
+        whatHappened: "Your sale has completed. The purchase funds have been transferred, any mortgage secured on the property has been repaid by your solicitor, and ownership of the property has transferred to the buyer. The sale is legally concluded.",
         whatNext: "Your solicitor will send you a completion statement showing the final figures. If you're also buying, the net proceeds will be passed to your purchase solicitor. Keep your completion statement safely for your records. You may need it for tax purposes.",
         action: "View your portal",
       },
