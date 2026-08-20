@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, createContext, useContext, useCallback } from "react";
+import { useState, useRef, useEffect, createContext, useContext, useCallback, Children } from "react";
 import { ChevronDown } from "lucide-react";
 import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -215,7 +215,9 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         {/* Tab content + desktop sidebar */}
         <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}pt-3 pb-5 lg:pb-7 flex flex-col lg:flex-row gap-4 lg:gap-5 lg:items-start`}>
           <div className="flex-1 min-w-0 relative">
-            {tabs.map((tab, i) => (
+            {/* toArray strips falsy children so a conditionally-omitted tab
+                (e.g. an email-gated one) keeps children index-aligned with tabs. */}
+            {(() => { const items = Children.toArray(children); return tabs.map((tab, i) => (
               <div
                 key={tab.key}
                 aria-hidden={active !== tab.key}
@@ -225,9 +227,9 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
                     : "opacity-0 absolute inset-0 pointer-events-none select-none overflow-hidden"
                 }`}
               >
-                {children[i]}
+                {items[i]}
               </div>
-            ))}
+            )); })()}
           </div>
 
           {/* Desktop sidebar — hidden on mobile/tablet */}
