@@ -124,6 +124,13 @@ export async function getActivityTimeline(
     prisma.outboundMessage.findMany({
       where: {
         transactionId,
+        // Hide chase-engine bookkeeping notes ("Automated chase scheduled /
+        // moved / closed"). That lifecycle now lives in the chase timeline
+        // (components/transaction/ChaseTimeline.tsx), so the activity feed
+        // stays human comms + milestones + notes. Signature: an automated
+        // internal_note with no chaseTaskId. The fallback "handed back to
+        // agent" notes carry a chaseTaskId and stay — they're actionable.
+        NOT: { type: "internal_note", isAutomated: true, chaseTaskId: null },
         ...(tx.activeBuyerRoundId
           ? {
               OR: [
