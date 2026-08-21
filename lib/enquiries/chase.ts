@@ -26,8 +26,8 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
 
-const CHASE_WORKING_DAYS = 9; // nudge cadence
-const ESCALATE_WORKING_DAYS = 15; // 3 weeks of silence -> hand to a human
+const CHASE_WORKING_DAYS = 7; // nudge cadence
+const ESCALATE_WORKING_DAYS = 13; // ~2.5 weeks of silence -> hand to a human
 
 // Pure decision: given a tracker's timestamps and "now", is a chase or an
 // escalation due? Extracted so the cadence logic is unit-testable without a

@@ -1204,7 +1204,16 @@ export async function saveReferralAction(
 
 export async function saveBrokerReferralAction(
   transactionId: string,
-  data: { brokerFirmId: string | null; brokerContactId: string | null; brokerReferralFee: number | null; brokerReferralFeeReceived: boolean }
+  data: {
+    brokerFirmId: string | null;
+    brokerContactId: string | null;
+    brokerReferralFee: number | null;
+    brokerReferralFeeReceived: boolean;
+    // Optional — set when attaching a broker on a live file (drives the
+    // confirmed-broker row on the buyer's portal team). Omitted by the fee
+    // editor, which leaves the existing value untouched.
+    purchaserBrokerReferral?: boolean;
+  }
 ) {
   const session = await requireSession();
   if (session.user.role === "sales_progressor") throw new Error("Forbidden: sales_progressor cannot edit commercial fee data");
@@ -1222,6 +1231,9 @@ export async function saveBrokerReferralAction(
       brokerContactId:           data.brokerContactId,
       brokerReferralFee:         data.brokerReferralFee,
       brokerReferralFeeReceived: data.brokerReferralFeeReceived,
+      ...(data.purchaserBrokerReferral !== undefined
+        ? { purchaserBrokerReferral: data.purchaserBrokerReferral }
+        : {}),
     },
   });
 

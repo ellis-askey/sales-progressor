@@ -4,7 +4,18 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-08-15
+Last updated: 2026-08-21
+
+---
+
+## Mortgage broker card — FCA check + go-live steps (2026-08-21)
+
+The buyer-portal mortgage broker card is built and committed on `staging` (NOT pushed). It shows mortgage buyers one broker (the agent's own, or the TSP default on outsourced files) and lets them request a call back. Spec: [docs/active/mortgage-broker-card-SPEC.md](mortgage-broker-card-SPEC.md).
+
+- [ ] **FCA / regulatory review before go-live (blocker for launch, not for build).** Recommending a mortgage broker and taking a referral fee is a regulated financial promotion in a way the surveyor referral is not. Confirm the arrangement is compliant (introducer/appointed-representative status of the TSP default broker), and agree the **disclosure wording** that must appear on the card and request drawer (e.g. any referral-fee disclosure). The code deliberately ships **no** regulatory copy and **no** "whole of market" claim until you've signed this off — add the agreed disclosure text then.
+- [ ] **Add your default broker as a provider.** Command Centre → Providers → Add firm → Kind = **Mortgage broker**, tick **TSP default broker**, fill in name + email (the address call-back requests are sent to). This is what the card resolves to on outsourced files with no agency broker.
+- [ ] **Confirm the call-back email sender is verified.** TSP-source requests email the broker **from `updates@thesalesprogressor.co.uk`**, reply-to the buyer, CC `updates@thesalesprogressor.co.uk`. That address is already the platform sender, so no new setup — just be aware you'll be CC'd on every TSP broker request.
+- [ ] **Marking business won.** For the broker to appear in a buyer's portal "team", a TSP broker request must be marked **won** in Command Centre → Providers → Quotes. An agent's own broker appears once "Referred the buyer to this broker" is ticked on the file.
 
 ---
 

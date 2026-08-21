@@ -427,16 +427,18 @@ export async function OverviewPanel({
 
       {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
 
-      {brokerRow?.brokerFirmId && (
+      {(brokerRow?.brokerFirmId || transaction.purchaseType === "mortgage") && (
         <BrokerSection
           transactionId={transaction.id}
-          brokerFirmId={brokerRow.brokerFirmId}
-          brokerContactId={brokerRow.brokerContactId}
-          brokerFirmName={brokerRow.brokerFirm?.name ?? null}
-          brokerContactName={brokerRow.brokerContact?.name ?? null}
-          brokerReferralFee={brokerRow.brokerReferralFee}
-          brokerReferralFeeReceived={brokerRow.brokerReferralFeeReceived}
-          purchaserBrokerReferral={brokerRow.purchaserBrokerReferral ?? false}
+          brokerFirmId={brokerRow?.brokerFirmId ?? null}
+          brokerContactId={brokerRow?.brokerContactId ?? null}
+          brokerFirmName={brokerRow?.brokerFirm?.name ?? null}
+          brokerContactName={brokerRow?.brokerContact?.name ?? null}
+          brokerReferralFee={brokerRow?.brokerReferralFee ?? null}
+          brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
+          purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
+          purchaseType={transaction.purchaseType}
+          canEdit={currentUserRole !== "sales_progressor"}
         />
       )}
 

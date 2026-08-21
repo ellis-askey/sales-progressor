@@ -29,13 +29,14 @@ export default async function CommandProvidersPage() {
   });
 
   const surveyorCount = firms.filter((f) => f.kind === "surveyor").length;
+  const brokerCount = firms.filter((f) => f.kind === "mortgage_broker").length;
   const activeCount = firms.filter((f) => f.active).length;
 
   return (
     <div>
       <div className="flex items-start justify-between mb-1">
         <h1 className="text-[20px] font-semibold text-[#fafafa] tracking-tight">
-          Surveyor firms
+          Provider firms
         </h1>
         <div className="flex items-center gap-3">
           <CopyOnboardingButton />
@@ -50,13 +51,14 @@ export default async function CommandProvidersPage() {
       <p className="text-[13px] text-[#737373] mb-6">
         Third-party firms clients can request quotes from via the public
         <code className="mx-1 px-1 py-0.5 bg-[#1a1a1a] border border-[#262626] rounded text-[#a3a3a3] font-mono text-[11px]">/quote/[token]</code>
-        page. Currently surveyors only; more kinds land later.
+        page, plus mortgage brokers surfaced on the buyer portal.
       </p>
 
       {/* Summary strip */}
       <div className="flex gap-3 mb-6">
         <SummaryTile label="Total firms" value={firms.length} />
         <SummaryTile label="Surveyors" value={surveyorCount} />
+        <SummaryTile label="Brokers" value={brokerCount} />
         <SummaryTile label="Active" value={activeCount} />
       </div>
 
@@ -127,8 +129,13 @@ export default async function CommandProvidersPage() {
                           </div>
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-[11px] text-[#a3a3a3] capitalize">
-                        {f.kind}
+                      <td className="px-3 py-2 text-[11px] text-[#a3a3a3]">
+                        <span className="capitalize">{f.kind.replace("_", " ")}</span>
+                        {f.tspDefault && (
+                          <span className="ml-1.5 text-[9px] font-bold text-[#93c5fd] bg-[#0c1a2e] px-1.5 py-0.5 rounded uppercase tracking-wide">
+                            TSP default
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-[12px] text-[#a3a3a3] text-right tabular-nums">
                         {f._count.coverage}

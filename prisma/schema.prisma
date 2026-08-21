@@ -721,6 +721,11 @@ model Contact {
   // Shape: { order: string[]; hidden: string[] } of moveable card keys. Fixed
   // cards ignore it. Null = default order, nothing hidden.
   overviewLayout        Json?
+  // Stamped when this buyer requests a mortgage-broker call-back from the
+  // portal card (2026-08-21). Drives the card's "requested" acknowledgment
+  // state; the card gates on ANY purchaser on the file having this set, so a
+  // joint co-buyer can't double-request. Null = not requested.
+  brokerCallbackRequestedAt DateTime?
   // Client-chosen portal appearance + accessibility settings (Batch 4,
   // 2026-08-17). Shape: { theme, textSize, accent, reduceMotion, highContrast,
   // dyslexicFont, whatsappOptIn }. Null = all defaults. "Hide money" is
@@ -897,6 +902,11 @@ model ProviderFirm {
   ricsRegulated   Boolean @default(false)
   establishedYear Int?
   turnaround      String? // e.g. "Quotes within 2 working days"
+  // Sales Progressor's own default provider of this kind — the one shown as
+  // the fallback on outsourced files where the agency hasn't set their own
+  // (mortgage broker card, 2026-08-21). Only meaningful per kind; there's one
+  // TSP-default broker today. Ticked from /command/providers.
+  tspDefault Boolean      @default(false)
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -1020,6 +1030,7 @@ model QuoteRequest {
 
 enum ProviderKind {
   surveyor
+  mortgage_broker
 }
 
 enum QuoteRequestStatus {

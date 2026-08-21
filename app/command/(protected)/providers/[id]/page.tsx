@@ -122,6 +122,7 @@ export default async function CommandProviderDetailPage({
                 ricsRegulated: firm.ricsRegulated,
                 establishedYear: firm.establishedYear,
                 turnaround: firm.turnaround,
+                tspDefault: firm.tspDefault,
               }}
             />
           </Section>

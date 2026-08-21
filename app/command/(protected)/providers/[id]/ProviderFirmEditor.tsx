@@ -15,6 +15,7 @@ type Initial = {
   ricsRegulated: boolean;
   establishedYear: number | null;
   turnaround: string | null;
+  tspDefault: boolean;
 };
 
 export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initial }) {
@@ -28,9 +29,11 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
   const [ricsRegulated, setRicsRegulated] = useState(initial.ricsRegulated);
   const [establishedYear, setEstablishedYear] = useState(initial.establishedYear != null ? String(initial.establishedYear) : "");
   const [turnaround, setTurnaround] = useState(initial.turnaround ?? "");
+  const [tspDefault, setTspDefault] = useState(initial.tspDefault);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isBroker = initial.kind === "mortgage_broker";
   const initialYear = initial.establishedYear != null ? String(initial.establishedYear) : "";
   const dirty =
     name !== initial.name ||
@@ -41,7 +44,8 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
     active !== initial.active ||
     ricsRegulated !== initial.ricsRegulated ||
     (establishedYear || "") !== initialYear ||
-    (turnaround || "") !== (initial.turnaround ?? "");
+    (turnaround || "") !== (initial.turnaround ?? "") ||
+    tspDefault !== initial.tspDefault;
 
   function save() {
     setError(null);
@@ -58,6 +62,7 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
         ricsRegulated,
         establishedYear: establishedYear.trim() ? Number(establishedYear.trim()) : null,
         turnaround: turnaround || null,
+        tspDefault,
       });
       if (r.ok) {
         setSaved(true);
@@ -115,6 +120,20 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
           <TextField label="Typical turnaround" value={turnaround} onChange={setTurnaround} placeholder="e.g. Quotes within 2 days" />
         </div>
       </div>
+
+      {isBroker && (
+        <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={tspDefault}
+            onChange={(e) => setTspDefault(e.target.checked)}
+            className="w-4 h-4 accent-[#2563eb]"
+          />
+          <span className="text-[13px] text-[#d4d4d4]">
+            TSP default broker <span className="text-[#737373]">(shown on outsourced files with no agency broker)</span>
+          </span>
+        </label>
+      )}
 
       {error && <p className="text-[11px] text-[#fca5a5]">{error}</p>}
 
