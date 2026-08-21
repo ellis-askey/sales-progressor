@@ -63,3 +63,81 @@ export function buildExchangeDaySolicitorEmail(
   const html = wrapHtml(paras, v.senderName, v.agencyName);
   return { subject, text, html };
 }
+
+/* ─── Client emails (Phase 6 — added alongside the portal card, not replacing
+   it). Two per exchange day: a 9am informational + authority ask (buyer/seller
+   variant, no button — Ellis's approved copy), and a short 11am authority
+   nudge with an "I've given authority" button that deep-links to the portal's
+   existing confirm. Sign-off is "Kind regards" (clients) vs "Best regards"
+   (solicitors above). Same clean single-column wrapper. ────────────────── */
+
+export type ExchangeDayClientVars = {
+  firstName: string;
+  address: string;        // full property address
+  addressShort: string;   // first line, for subjects
+  completionDate: string; // long-form
+  senderName: string;
+  agencyName: string;
+  saleWord: "sale" | "purchase"; // vendor -> "sale", purchaser -> "purchase"
+};
+
+function clientPara(p: string): string {
+  return `<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#1a1d29">${esc(p)}</p>`;
+}
+
+function clientSignOff(senderName: string, agencyName: string): string {
+  return `<p style="margin:22px 0 0;font-size:15px;line-height:1.5;color:#1a1d29">Kind regards,<br /><strong>${esc(senderName)}</strong><br /><span style="color:#5b6273">${esc(agencyName)}</span></p>`;
+}
+
+// Bulletproof (td bgcolor) button so it renders in Outlook etc.
+function clientButton(url: string, label: string): string {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 20px"><tr><td align="center" bgcolor="#FF6B4A" style="border-radius:12px"><a href="${esc(url)}" style="display:inline-block;padding:14px 30px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px">${esc(label)}</a></td></tr></table>`;
+}
+
+function clientShell(inner: string): string {
+  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:8px 4px;color:#1a1d29">
+${inner}
+</div>`;
+}
+
+// 9am — informational + authority ask. No button.
+export function buildExchangeDayClientMorningEmail(v: ExchangeDayClientVars): { subject: string; text: string; html: string } {
+  const subject = `Exchange today: ${v.addressShort}`;
+  const paras = [
+    `Hi ${v.firstName},`,
+    `I hope you are well.`,
+    `We're aiming to exchange contracts on your ${v.saleWord} of ${v.address} today, with completion agreed for ${v.completionDate}.`,
+    `We've already been in touch with the solicitors this morning and will check in again just before 1pm, and later this afternoon if needed. We'll keep you updated as the day progresses.`,
+    `Your solicitor will need your authority before they can exchange contracts. If you haven't already given this verbally, please give them a quick call or send them an email confirming you're happy to exchange with completion on ${v.completionDate}. If you're emailing, please feel free to copy us in so we have visibility too.`,
+    `If your solicitor tells you there's anything preventing them from exchanging today, please let us know as soon as you can so we can help chase anything needed.`,
+    `Likewise, if you hear anything before we do, please keep us posted.`,
+  ];
+  const text = `${paras.join("\n\n")}\n\nKind regards,\n${v.senderName}\n${v.agencyName}`;
+  const html = clientShell(paras.map(clientPara).join("\n") + "\n" + clientSignOff(v.senderName, v.agencyName));
+  return { subject, text, html };
+}
+
+// 11am — short authority nudge with a button to the portal confirm. Only sent
+// to contacts who haven't confirmed authority yet this activation.
+export function buildExchangeDayClientAuthorityEmail(
+  v: ExchangeDayClientVars & { authorityUrl: string },
+): { subject: string; text: string; html: string } {
+  const subject = `${v.addressShort}: have you given authority?`;
+  const intro = [
+    `Hi ${v.firstName},`,
+    `Just following up on your ${v.saleWord} of ${v.address}.`,
+    `If you've now given your solicitor authority to exchange, please tap below to let us know. It helps us keep track of everything as we work towards exchange today.`,
+  ];
+  const closing = `If you haven't yet, please give your solicitor a quick call or email confirming you're happy to exchange with completion on ${v.completionDate}.`;
+  const text = `${intro.join("\n\n")}\n\nI've given authority: ${v.authorityUrl}\n\n${closing}\n\nKind regards,\n${v.senderName}\n${v.agencyName}`;
+  const html = clientShell(
+    intro.map(clientPara).join("\n") +
+      "\n" +
+      clientButton(v.authorityUrl, "I've given authority") +
+      "\n" +
+      clientPara(closing) +
+      "\n" +
+      clientSignOff(v.senderName, v.agencyName),
+  );
+  return { subject, text, html };
+}

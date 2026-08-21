@@ -93,7 +93,16 @@ Note the `{completionDate}` token in email 1. Sign-off "Ellis Askey" styled (bol
 > Best regards,
 > **Ellis Askey** · {Agency}
 
-## Client portal state (no client emails)
+## Client emails (added 2026-08-21 — alongside the portal card, not replacing it)
+Founder reversed the original "no client emails" call: clients now also get emails on exchange day, in addition to the portal card below.
+- **9am — informational + authority ask** (buyer/seller variant, no button). "We're aiming to exchange today", what we're doing through the day, and asking them to give their solicitor authority (call/email, copy us in). Founder-written copy.
+- **11am — short authority nudge** (only to contacts who haven't confirmed authority this activation). Short copy + an "I've given authority" button that deep-links their portal at `?authority=1`, which centres the exchange-day card and shines the button every 8s so the confirm is obvious. It does NOT auto-confirm (a real tap keeps a legal authorisation from ever being triggered by an email scanner).
+- **Sender:** `resolveAgencySenderForTransaction` (same as the solicitor emails), signed by the progressor, "Kind regards" (vs solicitors' "Best regards").
+- **Pause rules honoured:** `Contact.unsubscribedAt`, `Contact.emailsPausedAt`, `Contact.chasesPausedUntil` (future), `PropertyTransaction.clientEmailsPaused`; each buyer/seller gets their own email.
+- **Timing:** two new slots (9am, 11am) on the existing exchange-day cron, guarded once-per-activation like the solicitor slots. Renderers live in `lib/exchange-day/emails.ts`.
+- **Build order:** email render + portal scroll/shine shipped + tested first; the automated cron passes + guard columns are the follow-up chunk.
+
+## Client portal state (portal card — always shown while active)
 While exchange day is active, the client's portal shows a new pre-exchange state (banner + next-action card, sitting in front of the existing post-exchange `ExchangeBanner`):
 - **"We're aiming to exchange today"** — plain, warm, and careful not to over-promise.
 - Ask them to **give their solicitor authority to exchange** and to **stay reachable** today (one message covers both email-authority-in-advance and verbal-authority-on-the-day, so we don't need per-solicitor variants).

@@ -5,7 +5,7 @@
 // and stay reachable, with an "I've given authority" confirm that logs back to
 // the team. Warm and careful not to over-promise. See docs/active/exchange-day-SPEC.md.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
@@ -23,6 +23,23 @@ export function PortalExchangeDayCard({
   const [given, setGiven] = useState(authorityState === "given");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [shine, setShine] = useState(false);
+
+  // Arriving from the 11am "I've given authority" email (?authority=1): centre
+  // the card in the viewport and shine the button every 8s so it's obvious what
+  // to tap. We deliberately do NOT auto-confirm on arrival — keeping the
+  // confirmation a real human tap means an email scanner that pre-fetches the
+  // link can never mark a client as having authorised exchange.
+  useEffect(() => {
+    if (given || typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("authority")) return;
+    setShine(true);
+    const t = setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [given]);
 
   async function confirm() {
     setLoading(true);
@@ -39,7 +56,13 @@ export function PortalExchangeDayCard({
 
   return (
     <div>
+      <style>{`@keyframes pxAuthShine {
+        0% { transform: translateX(-160%) skewX(-18deg); }
+        18% { transform: translateX(320%) skewX(-18deg); }
+        100% { transform: translateX(320%) skewX(-18deg); }
+      }`}</style>
       <div
+        ref={cardRef}
         style={{
           borderRadius: 22,
           padding: 20,
@@ -87,9 +110,25 @@ export function PortalExchangeDayCard({
             <button
               onClick={() => setSheetOpen(true)}
               className="pbtn pbtn-press w-full py-3.5 rounded-xl text-[15px] font-bold text-white"
-              style={{ background: P.heroGradient, boxShadow: "0 2px 8px rgba(255,107,74,0.35)" }}
+              style={{ position: "relative", overflow: "hidden", background: P.heroGradient, boxShadow: "0 2px 8px rgba(255,107,74,0.35)" }}
             >
-              I&apos;ve given authority
+              <span style={{ position: "relative", zIndex: 1 }}>I&apos;ve given authority</span>
+              {shine && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: "-20%",
+                    bottom: "-20%",
+                    left: 0,
+                    width: "45%",
+                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)",
+                    transform: "translateX(-160%) skewX(-18deg)",
+                    animation: "pxAuthShine 8s ease-in-out infinite",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
             </button>
           )}
         </div>
