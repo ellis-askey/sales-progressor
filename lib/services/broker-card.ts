@@ -12,6 +12,7 @@
 // lives on the portal page; this module owns the broker resolution + prefill.
 
 import { prisma } from "@/lib/prisma";
+import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import type { QuoteContactMethod, ProviderServiceType } from "@prisma/client";
 
 export type BrokerSource = "agent" | "tsp";
@@ -24,6 +25,9 @@ export type ResolvedBroker = {
   firmName: string;
   providerId: string | null;
   brokerEmail: string | null;
+  // Provider logo (TSP source only — agents' BrokerFirm has no logo). Null
+  // falls back to the firm's initials.
+  logoUrl: string | null;
 };
 
 // Shared resolver used by both the display card and the request action.
@@ -33,14 +37,14 @@ export async function resolveBroker(tx: {
   brokerFirm: { name: string } | null;
 }): Promise<ResolvedBroker | null> {
   if (tx.brokerFirmId && tx.brokerFirm) {
-    return { source: "agent", firmName: tx.brokerFirm.name, providerId: null, brokerEmail: null };
+    return { source: "agent", firmName: tx.brokerFirm.name, providerId: null, brokerEmail: null, logoUrl: null };
   }
   if (tx.serviceType !== "self_managed") {
     const tsp = await prisma.providerFirm.findFirst({
       where: { kind: "mortgage_broker", tspDefault: true, active: true },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, logoPath: true },
     });
-    if (tsp) return { source: "tsp", firmName: tsp.name, providerId: tsp.id, brokerEmail: tsp.email };
+    if (tsp) return { source: "tsp", firmName: tsp.name, providerId: tsp.id, brokerEmail: tsp.email, logoUrl: getProviderLogoUrl(tsp.logoPath) };
   }
   return null;
 }
@@ -48,6 +52,10 @@ export async function resolveBroker(tx: {
 export type BrokerCardData = {
   source: BrokerSource;
   firmName: string;
+  logoUrl: string | null;
+  // The agency the buyer sees us as — we present as the agent on every file,
+  // in-house or outsourced. Drives the "Recommended by {agency}" line.
+  agencyName: string;
   // True when ANY purchaser on the file has already requested a call-back, so
   // a joint co-buyer sees the acknowledgment rather than re-requesting.
   requested: boolean;
@@ -75,6 +83,7 @@ export async function getPortalBrokerCard(
       purchaseType: true,
       brokerFirmId: true,
       brokerFirm: { select: { name: true } },
+      agency: { select: { name: true } },
       contacts: {
         where: { roleType: "purchaser" },
         select: { brokerCallbackRequestedAt: true },
@@ -97,6 +106,8 @@ export async function getPortalBrokerCard(
   return {
     source: broker.source,
     firmName: broker.firmName,
+    logoUrl: broker.logoUrl,
+    agencyName: tx.agency?.name ?? "your agent",
     requested,
     prefill: {
       name: contact?.name ?? "",

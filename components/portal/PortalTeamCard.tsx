@@ -307,14 +307,20 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
         <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: divider }}>
           <div
             style={{
-              width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+              width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 700, fontSize: 13, color: "#fff",
-              background: P.heroGradient,
+              fontWeight: 700, fontSize: 15, color: "#fff",
+              background: broker.logoUrl ? "#0f1729" : P.heroGradient,
               boxShadow: "0 2px 6px rgba(255,107,74,0.28)",
+              overflow: "hidden",
             }}
           >
-            {initials(broker.firmName)}
+            {broker.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={broker.logoUrl} alt={broker.firmName} width={46} height={46} style={{ width: 46, height: 46, objectFit: "cover" }} />
+            ) : (
+              initials(broker.firmName)
+            )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
@@ -369,7 +370,7 @@ export type PortalTeam = {
   // for an agent's broker, when purchaserBrokerReferral is ticked on the file;
   // for the TSP broker, when a mortgage_broker QuoteRequest is marked "won" in
   // the Command Centre. Null otherwise (incl. all vendor-side views).
-  broker: { firmName: string; contactName: string | null } | null;
+  broker: { firmName: string; contactName: string | null; logoUrl: string | null } | null;
   // The client's neighbouring chain agent (phase 3) — drives the buyer's
   // "add your selling agent" row on the card.
   chainAgent: PortalChainAgent;
@@ -561,13 +562,13 @@ export async function getPortalTeam(
     let broker: PortalTeam["broker"] = null;
     if (side === "purchaser") {
       if (tx.purchaserBrokerReferral && tx.brokerFirm) {
-        broker = { firmName: tx.brokerFirm.name, contactName: tx.brokerContact?.name ?? null };
+        broker = { firmName: tx.brokerFirm.name, contactName: tx.brokerContact?.name ?? null, logoUrl: null };
       } else {
         const won = await prisma.quoteRequest.findFirst({
           where: { transactionId, kind: "mortgage_broker", status: "won" },
-          select: { provider: { select: { name: true } } },
+          select: { provider: { select: { name: true, logoPath: true } } },
         });
-        if (won?.provider) broker = { firmName: won.provider.name, contactName: null };
+        if (won?.provider) broker = { firmName: won.provider.name, contactName: null, logoUrl: getProviderLogoUrl(won.provider.logoPath) };
       }
     }
 
