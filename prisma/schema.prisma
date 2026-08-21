@@ -402,6 +402,12 @@ model PropertyTransaction {
   // stamps a fresh startedAt. See docs/active/exchange-day-SPEC.md.
   exchangeDayStartedAt   DateTime?
   exchangeDayCancelledAt DateTime?
+  // Per-slot send stamps for the exchange-day solicitor emails (08:45 / 12:30 /
+  // 15:30 UK). "Sent for THIS activation" is derived as stamp >= startedAt, so
+  // re-activating the next day naturally resets them with no cron/backfill.
+  exchangeDayMorningEmailAt   DateTime?
+  exchangeDayMiddayEmailAt     DateTime?
+  exchangeDayAfternoonEmailAt  DateTime?
 
   // Set on VM19/PM26 completion ONLY when the exchange generates a charge.
   // Trial files leave this null. Guard against bilateral double-billing — checked
