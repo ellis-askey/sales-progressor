@@ -282,7 +282,7 @@ export function PortalBrokerCard({
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
               Speak to a mortgage broker
             </p>
 
@@ -295,10 +295,8 @@ export function PortalBrokerCard({
               <span style={{ fontSize: 15, fontWeight: 600, color: P.accent }}>{recommendLine}</span>
             </div>
 
-            {/* Firm + tagline + CTA */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: P.textPrimary }}>{firmName}</span>
-              <span style={{ width: 4, height: 4, borderRadius: "50%", background: P.accent, flexShrink: 0 }} />
+            {/* Tagline + CTA */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 15, color: P.textMuted }}>Free, no-obligation advice</span>
               <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 15, fontWeight: 700, color: P.accent, whiteSpace: "nowrap" }}>
                 Get in touch
