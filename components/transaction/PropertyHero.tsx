@@ -9,6 +9,7 @@ import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { HeroSaleFields } from "./HeroSaleFields";
 import { HeroExchangeCell } from "./HeroExchangeCell";
 import { HeroAddressEdit } from "./HeroAddressEdit";
+import { HeroPhotoUpload } from "./HeroPhotoUpload";
 import { formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -306,87 +307,17 @@ export function PropertyHero({
       );
     })();
 
-    // Desktop photo COLUMN — flex child (was absolute-positioned before
-    // the 2026-08-08 refactor). `flex: 0 1 380px` means: ideal width 380px,
-    // shrinks as content demands more room, min-width: 240 stops it from
-    // disappearing on tight viewports (photo still reads as a real photo).
-    // The right-edge gradient fades the photo into the card surface —
-    // since the column is now a flex child, the gradient always sits at
-    // the column's own right edge and moves left/right with it as the
-    // content column grows or shrinks.
-    // Photo fades to TRANSPARENT (not to a fixed surface colour) so the
-    // card's own variant background shows through the fade zone. Before
-    // 2026-08-08 this faded to `var(--agent-surface-elevated)` — coral
-    // warm cream. That produced a visible seam once the card's variant
-    // changed (v22 iridescent, v03 glass, etc.) because the gradient's
-    // endpoint no longer matched the card. Fixing with a CSS mask on the
-    // img itself; the overlay div is gone.
-    const photoColumnDesktop = photoUrl ? (
-      <div aria-hidden className="hidden md:block" style={{
-        flex: "0 1 380px",
-        minWidth: 240,
-        position: "relative",
-        alignSelf: "stretch",
-        pointerEvents: "none",
-      }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photoUrl}
-          alt=""
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-            maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
-          }}
-        />
+    // Property photo — a large circular upload control (2026-08-21 redesign).
+    // Replaces the old full-bleed photo column + house glyph fallback. The
+    // whole circle is clickable to upload/replace; "Remove photo" sits
+    // beneath. Vertically centred beside the content on desktop, stacked on
+    // top on mobile. When there's no transaction id (dev/help preview only)
+    // we skip it rather than render an inert control.
+    const photoCircleColumn = transactionId ? (
+      <div className="flex justify-center pt-12 pb-2 md:py-6 md:self-center md:pl-4" style={{ flex: "0 0 auto" }}>
+        <HeroPhotoUpload transactionId={transactionId} initialUrl={photoUrl} />
       </div>
-    ) : (
-      // Fallback (no photo): coral wash fades to transparent so the card
-      // variant reads through the right edge, same principle as the
-      // photo case above.
-      <div aria-hidden className="hidden md:flex" style={{
-        flex: "0 1 380px",
-        minWidth: 240,
-        position: "relative",
-        alignSelf: "stretch",
-        pointerEvents: "none",
-        background: "linear-gradient(115deg, rgba(var(--agent-coral-rgb), 0.14) 0%, rgba(var(--agent-coral-rgb), 0.04) 60%, transparent 100%)",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "rgba(var(--agent-coral-rgb), 0.35)",
-      }}>
-        <HouseSimple size={96} weight="thin" />
-      </div>
-    );
-
-    const photoLayerMobile = photoUrl ? (
-      <div aria-hidden className="md:hidden" style={{ position: "relative", height: 148, pointerEvents: "none" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photoUrl}
-          alt=""
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            maskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
-          }}
-        />
-      </div>
-    ) : (
-      <div aria-hidden className="md:hidden" style={{
-        position: "relative", height: 84, pointerEvents: "none",
-        background: "linear-gradient(180deg, rgba(var(--agent-coral-rgb), 0.12) 0%, transparent 100%)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: "rgba(var(--agent-coral-rgb), 0.35)",
-      }}>
-        <HouseSimple size={44} weight="thin" />
-      </div>
-    );
+    ) : null;
 
     return (
       // Design Lab: `property-hero`. Default v27 (Classic frost bar,
@@ -397,19 +328,11 @@ export function PropertyHero({
         borderRadius: 18,
         overflow: "hidden",
       }}>
-        {/* Mobile photo strip — stacks above the content (unchanged). */}
-        {photoLayerMobile}
-
-        {/* Desktop card body: flex row so the content column can grow to
-            fit its stats and the photo column shrinks to whatever's left
-            (down to its 240px minimum). The old layout pinned the photo
-            at width: 46% absolute-positioned and gave the content column
-            a hard-coded margin-left: 42%, so long values like
-            "Cash from Proceeds" or "21 Oct 2026" hit the ellipsis
-            regardless of viewport. New layout is content-driven —
-            2026-08-08 second-pass fix. */}
-        <div className="md:flex" style={{ position: "relative" }}>
-          {photoColumnDesktop}
+        {/* Card body: flex row on desktop — circular photo control on the
+            left (vertically centred), content column takes the rest. On
+            mobile it stacks: circle on top, content below. */}
+        <div className="md:flex md:items-stretch" style={{ position: "relative" }}>
+          {photoCircleColumn}
 
           {/* Content column: takes all remaining space; minWidth: 0 lets
               its children (h1, stat labels) shrink honourably rather than
@@ -645,10 +568,8 @@ export function PropertyHero({
             textDecoration: "none",
             padding: "6px 12px",
             borderRadius: 999,
-            color: photoUrl ? "#fff" : "var(--agent-text-secondary)",
-            background: photoUrl ? "rgba(15,23,42,0.38)" : "var(--agent-surface-overlay)",
-            backdropFilter: photoUrl ? "blur(8px)" : undefined,
-            WebkitBackdropFilter: photoUrl ? "blur(8px)" : undefined,
+            color: "var(--agent-text-secondary)",
+            background: "var(--agent-surface-overlay)",
           }}
         >
           <ArrowLeft size={13} weight="bold" />

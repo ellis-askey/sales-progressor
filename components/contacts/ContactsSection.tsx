@@ -36,7 +36,6 @@ import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
-import { PropertyPhotoField } from "./PropertyPhotoField";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -585,8 +584,8 @@ export function ContactsSection({
           the link. */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
-          {/* Property photo (agent-only). Compact tile + upload/replace/remove. */}
-          <PropertyPhotoField transactionId={transactionId} initialUrl={photoUrl} />
+          {/* Property photo moved to the file hero (2026-08-21) — the large
+              circular upload lives there now. */}
           <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
