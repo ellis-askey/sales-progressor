@@ -119,6 +119,9 @@ There is no persistent "on" that lingers. Exchange day is active only for the da
 - **Authority styling** — happy to keep it as one simple "give authority + stay reachable" message + the button, rather than per-solicitor email-vs-verbal variants? (Recommended.)
 - **Copy deck v2** — the three rewritten solicitor emails (above) + the client copy. Redline anything.
 
+## Build status (2026-08-21) — all phases built on staging, NOT pushed
+Phase 1 state + backend · Phase 2 hero control · Phase 3 solicitor emails (cron) · Phase 4 client portal card + authority · Phase 5 authority tracker + chase suppression + gate removed. **Deferred:** subtle "Exchange day" marker in file lists/hub (a small follow-up on the row surface). Three additive migrations (exchange_day / exchange_day_emails / exchange_authority) applied to staging; prod gets them via migrate deploy on push, no data scripts needed.
+
 ## Build process (founder-directed)
 Build in chunks. **After each chunk, give a full explanation**: what was added, the UI/UX, the scenario(s) it covers, and any strings added. Founder may give feedback for on-the-spot changes before continuing to the next chunk. Nothing pushed until the whole feature is reviewed.
 
