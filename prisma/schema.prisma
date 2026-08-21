@@ -835,6 +835,11 @@ model SolicitorContact {
   name      String
   phone     String?
   email     String?
+  // Optional assistant/secretary address CC'd on every email we send this
+  // handler (automated chases, exchange-day, and the client's "email your
+  // conveyancer" buttons). Entered against the handler so it's reused across
+  // every file that handler is on.
+  secondaryEmail String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

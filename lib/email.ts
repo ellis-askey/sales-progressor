@@ -91,6 +91,7 @@ export async function sendEmail({
 // Set EMAIL_SANDBOX_MODE=true on staging to validate without delivering.
 export async function sendChainEmail({
   to,
+  cc,
   subject,
   text,
   html,
@@ -101,6 +102,9 @@ export async function sendChainEmail({
   templateVersion,
 }: {
   to: string;
+  // Optional CC — used to copy a solicitor handler's assistant/secretary on
+  // comms addressed to them. Empty/undefined sends with no CC as before.
+  cc?: string[];
   subject: string;
   text: string;
   html?: string;
@@ -133,6 +137,7 @@ export async function sendChainEmail({
 
   await sgMail.send({
     to,
+    ...(cc && cc.length ? { cc } : {}),
     from: from ?? DEFAULT_FROM,
     replyTo: replyTo ?? "support@thesalesprogressor.co.uk",
     ...(chainBcc ? { bcc: chainBcc } : {}),
@@ -176,6 +181,16 @@ export async function isInviteEmailSuppressed(chainLinkId: string): Promise<bool
     select: { inviteUnsubscribedAt: true },
   });
   return link?.inviteUnsubscribedAt != null;
+}
+
+// The assistant/secretary CC for a solicitor handler. Returns a one-element
+// array when the handler has an assistant email on file, else undefined — so
+// every solicitor send can uniformly pass `cc: solicitorCc(contact)`.
+export function solicitorCc(
+  contact: { secondaryEmail?: string | null } | null | undefined,
+): string[] | undefined {
+  const email = contact?.secondaryEmail?.trim();
+  return email ? [email] : undefined;
 }
 
 export function parseEmailMessage(raw: string): { subject: string; body: string } {

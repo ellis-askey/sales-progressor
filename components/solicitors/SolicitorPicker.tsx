@@ -6,7 +6,7 @@ import { AddFirmModal } from "./AddFirmModal";
 import { titleCase } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
-type Handler = { id: string; name: string; phone: string | null; email: string | null };
+type Handler = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
 
 export type SolicitorSelection = {
   firmId: string;
@@ -15,6 +15,7 @@ export type SolicitorSelection = {
   contactName: string | null;
   phone: string | null;
   email: string | null;
+  secondaryEmail?: string | null;
 };
 
 type Props = {
@@ -142,7 +143,50 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
 
   function selectHandler(h: Handler) {
     if (!value) return;
-    onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email });
+    onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null });
+  }
+
+  // Assistant/secretary email — edited inline for the selected handler and
+  // saved straight to that handler (reused across every file they're on).
+  const [assistantDraft, setAssistantDraft] = useState("");
+  const [assistantSaving, setAssistantSaving] = useState(false);
+  const [assistantSaved, setAssistantSaved] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  useEffect(() => {
+    setAssistantDraft(value?.secondaryEmail ?? "");
+    setAssistantSaved(false);
+    setAssistantError(null);
+  }, [value?.contactId]);
+  const assistantDirty = (value?.secondaryEmail ?? "") !== assistantDraft.trim().toLowerCase();
+
+  async function saveAssistant() {
+    if (!value?.contactId) return;
+    const trimmed = assistantDraft.trim().toLowerCase();
+    if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setAssistantError("That email address doesn't look right");
+      return;
+    }
+    setAssistantSaving(true);
+    setAssistantError(null);
+    try {
+      const res = await fetch(`/api/solicitor-handlers/${value.contactId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secondaryEmail: trimmed }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setAssistantError(j?.error ?? "Couldn't save. Try again.");
+        return;
+      }
+      const updated: Handler = await res.json();
+      onChange({ ...value, secondaryEmail: updated.secondaryEmail ?? null });
+      setHandlers((hs) => hs.map((h) => (h.id === updated.id ? { ...h, secondaryEmail: updated.secondaryEmail ?? null } : h)));
+      setAssistantSaved(true);
+      setTimeout(() => setAssistantSaved(false), 1600);
+    } finally {
+      setAssistantSaving(false);
+    }
   }
 
   function handleAddFirm() {
@@ -170,8 +214,8 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
     setSearchError(null);
     setInputBlurred(false);
     const sel: SolicitorSelection = handler
-      ? { firmId: firm.id, firmName: firm.name, contactId: handler.id, contactName: handler.name, phone: handler.phone, email: handler.email }
-      : { firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null };
+      ? { firmId: firm.id, firmName: firm.name, contactId: handler.id, contactName: handler.name, phone: handler.phone, email: handler.email, secondaryEmail: handler.secondaryEmail ?? null }
+      : { firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null, secondaryEmail: null };
     onChange(sel);
     setHandlers(handler ? [handler] : []);
     // Prime the firm list so it shows up immediately if user searches again
@@ -323,12 +367,44 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
             )}
 
             {value?.contactId && (
-              <div className="grid grid-cols-2 gap-2">
-                <input readOnly value={value.phone ?? ""} placeholder="Phone"
-                  className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
-                <input readOnly value={value.email ?? ""} placeholder="Email"
-                  className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <input readOnly value={value.phone ?? ""} placeholder="Phone"
+                    className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
+                  <input readOnly value={value.email ?? ""} placeholder="Email"
+                    className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
+                </div>
+                {/* Assistant / secretary — cc'd on every email to this handler */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-900/45">
+                    Assistant email <span className="font-normal text-slate-900/35">optional, cc&apos;d on all emails</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={assistantDraft}
+                      onChange={(e) => { setAssistantDraft(e.target.value); setAssistantError(null); setAssistantSaved(false); }}
+                      placeholder="assistant@firm.co.uk"
+                      className="glass-input agent-focus flex-1 px-3 py-2 text-sm"
+                    />
+                    {assistantDirty && (
+                      <button
+                        type="button"
+                        onClick={saveAssistant}
+                        disabled={assistantSaving}
+                        className="agent-btn agent-btn-xs agent-btn-primary disabled:opacity-50"
+                        style={{ flexShrink: 0 }}
+                      >
+                        {assistantSaving ? "Saving…" : "Save"}
+                      </button>
+                    )}
+                    {!assistantDirty && assistantSaved && (
+                      <span className="text-[11px] font-medium text-emerald-600" style={{ flexShrink: 0 }}>Saved</span>
+                    )}
+                  </div>
+                  {assistantError && <p className="agent-helper-error">{assistantError}</p>}
+                </div>
+              </>
             )}
           </div>
         )}

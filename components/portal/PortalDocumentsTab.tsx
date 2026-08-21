@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { DotsThree, DownloadSimple, Trash, Plus, FileText, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { getMyPortalDocumentsAction, portalDeleteDocument, portalToggleDocumentShare } from "@/app/actions/portal";
+import { uploadDocumentDirect } from "@/lib/upload/direct-upload";
 import { categoriesFor, isDocShareable } from "@/lib/portal-documents";
 import type { PortalDocumentsData, PortalDoc } from "@/lib/services/portal-documents";
 
@@ -313,13 +314,14 @@ function AddSheet({
     setUploading(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("files", file);
-      fd.append("docType", docKey);
-      const res = await fetch(`/api/portal/documents?token=${encodeURIComponent(token)}`, { method: "POST", body: fd });
-      if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        setError(j?.error ?? "Upload failed. Please try again.");
+      const result = await uploadDocumentDirect({
+        file,
+        mintUrl: `/api/portal/documents/upload-url?token=${encodeURIComponent(token)}`,
+        finalizeUrl: `/api/portal/documents?token=${encodeURIComponent(token)}`,
+        docType: docKey,
+      });
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
       onDone();
@@ -371,7 +373,7 @@ function AddSheet({
             className="w-full mb-2 text-[13px]"
             style={{ color: P.textSecondary }}
           />
-          <p className="text-[11px] mb-4" style={{ color: P.textMuted }}>PDF, image or Word document, up to 10 MB.</p>
+          <p className="text-[11px] mb-4" style={{ color: P.textMuted }}>PDF, image or Word document, up to 25 MB.</p>
 
           {error && <p className="text-[12.5px] mb-3" style={{ color: "#DC2626" }}>{error}</p>}
 

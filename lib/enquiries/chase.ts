@@ -18,7 +18,7 @@
 // OFF by default. See docs/active/enquiries-stage-rework-SPEC.md.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail } from "@/lib/email";
+import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -102,10 +102,10 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           assignedUserId: true,
           agentUserId: true,
           agency: { select: { name: true } },
-          vendorSolicitorContact: { select: { email: true, name: true } },
+          vendorSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
-          purchaserSolicitorContact: { select: { email: true, name: true } },
+          purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           contacts: { select: { name: true, roleType: true } },
@@ -157,7 +157,8 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
 
     if (!chaseDue) continue;
 
-    const email = seller ? tx.vendorSolicitorContact?.email : tx.purchaserSolicitorContact?.email;
+    const solicitorContact = seller ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+    const email = solicitorContact?.email;
     const paused = seller ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
     if (!email || paused) continue; // no one to chase on this side yet
 
@@ -185,7 +186,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     const clientNames = tx.contacts
       .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
       .map((c) => c.name);
-    const handlerName = (seller ? tx.vendorSolicitorContact?.name : tx.purchaserSolicitorContact?.name) ?? undefined;
+    const handlerName = solicitorContact?.name ?? undefined;
     const mail = buildEnquiryChaseEmail({
       court: seller ? "seller_solicitor" : "buyer_solicitor",
       address: tx.propertyAddress,
@@ -198,7 +199,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     });
 
     try {
-      await sendChainEmail({ to: email, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+      await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
       await prisma.enquiryTracker.update({
         where: { id: t.id },
         data: { lastChasedAt: now, chaseCount: { increment: 1 } },

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const handlers = await prisma.solicitorContact.findMany({
     where: { firmId: id },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, phone: true, email: true },
+    select: { id: true, name: true, phone: true, email: true, secondaryEmail: true },
   });
 
   return NextResponse.json(handlers);
@@ -31,14 +31,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
-  const { name, phone, email } = await req.json();
+  const { name, phone, email, secondaryEmail } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
 
   const firm = await prisma.solicitorFirm.findUnique({ where: { id } });
   if (!firm) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const handler = await prisma.solicitorContact.create({
-    data: { firmId: id, name: titleCase(name.trim()), phone: phone?.trim() || null, email: email?.trim().toLowerCase() || null },
+    data: {
+      firmId: id,
+      name: titleCase(name.trim()),
+      phone: phone?.trim() || null,
+      email: email?.trim().toLowerCase() || null,
+      secondaryEmail: secondaryEmail?.trim().toLowerCase() || null,
+    },
   });
 
   return NextResponse.json(handler, { status: 201 });

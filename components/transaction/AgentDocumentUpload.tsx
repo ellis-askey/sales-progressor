@@ -10,6 +10,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DOCUMENT_CATEGORIES } from "@/lib/portal-documents";
+import { uploadDocumentDirect } from "@/lib/upload/direct-upload";
 
 export function AgentDocumentUpload({ transactionId }: { transactionId: string }) {
   const router = useRouter();
@@ -34,13 +35,14 @@ export function AgentDocumentUpload({ transactionId }: { transactionId: string }
     setUploading(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("files", file);
-      fd.append("docType", docKey);
-      const res = await fetch(`/api/transactions/${transactionId}/documents`, { method: "POST", body: fd });
-      if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        setError(j?.error ?? "Upload failed. Please try again.");
+      const result = await uploadDocumentDirect({
+        file,
+        mintUrl: `/api/transactions/${transactionId}/documents/upload-url`,
+        finalizeUrl: `/api/transactions/${transactionId}/documents`,
+        docType: docKey,
+      });
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
       setOpen(false);
@@ -95,7 +97,7 @@ export function AgentDocumentUpload({ transactionId }: { transactionId: string }
               className="w-full text-[13px] mb-1"
               style={{ color: "rgba(15,23,42,0.7)" }}
             />
-            <p className="text-[11px] mb-4" style={{ color: "rgba(15,23,42,0.45)" }}>PDF, image or Word document, up to 10 MB.</p>
+            <p className="text-[11px] mb-4" style={{ color: "rgba(15,23,42,0.45)" }}>PDF, image or Word document, up to 25 MB.</p>
 
             {error && <p className="text-[12.5px] mb-3" style={{ color: "#DC2626" }}>{error}</p>}
 

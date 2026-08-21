@@ -8,6 +8,14 @@ Last updated: 2026-08-21
 
 ---
 
+## Bigger document uploads — prod storage cap (2026-08-21, optional)
+
+Document uploads (portal + agent) now go **straight to Supabase storage** instead of through our server, so large PDFs (surveys, TA6/TA10/TA13, searches) no longer fail at the old ~4.5 MB limit. The new ceiling is **25 MB**. On staging I set an explicit 25 MB cap on the `transaction-documents` bucket. Prod works already (the bucket has no explicit cap, so it falls back to Supabase's 50 MB default) — this step is **optional hardening** so oversized uploads get rejected cleanly at exactly 25 MB, matching staging.
+
+- [ ] **(Optional) Set the prod bucket cap.** Supabase (prod project `gmkfustgwipgihpmpjpr`) → Storage → `transaction-documents` bucket → settings → set the file size limit to **25 MB**. Without this, uploads up to 50 MB are accepted on prod; with it, the limit matches what the app advertises.
+
+---
+
 ## Mortgage broker card — FCA check + go-live steps (2026-08-21)
 
 The buyer-portal mortgage broker card is built and committed on `staging` (NOT pushed). It shows mortgage buyers one broker (the agent's own, or the TSP default on outsourced files) and lets them request a call back. Spec: [docs/active/mortgage-broker-card-SPEC.md](mortgage-broker-card-SPEC.md).

@@ -14,7 +14,7 @@
 //     are excluded, and marking exchange auto-drops them from the active set.
 
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { buildExchangeDaySolicitorEmail, type ExchangeDaySlot } from "@/lib/exchange-day/emails";
@@ -78,8 +78,8 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
       agentUserId: true, assignedUserId: true,
       agency: { select: { name: true } },
       assignedUser: { select: { name: true } },
-      vendorSolicitorContact: { select: { name: true, email: true } },
-      purchaserSolicitorContact: { select: { name: true, email: true } },
+      vendorSolicitorContact: { select: { name: true, email: true, secondaryEmail: true } },
+      purchaserSolicitorContact: { select: { name: true, email: true, secondaryEmail: true } },
     },
   });
 
@@ -103,7 +103,7 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
     const createdById = tx.assignedUserId ?? tx.agentUserId ?? null;
 
     const recipients = [tx.vendorSolicitorContact, tx.purchaserSolicitorContact]
-      .filter((c): c is { name: string; email: string } => !!c && !!c.email);
+      .filter((c): c is { name: string; email: string; secondaryEmail: string | null } => !!c && !!c.email);
 
     let touchedFile = false;
     for (const s of due) {
@@ -112,7 +112,7 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
           firstName: firstName(sol.name), address: tx.propertyAddress, addressShort, completionDate, senderName, agencyName,
         });
         try {
-          await sendEmail({ to: sol.email, from, replyTo, subject, text, html, emailType: "EXCHANGE_DAY" });
+          await sendEmail({ to: sol.email, cc: solicitorCc(sol), from, replyTo, subject, text, html, emailType: "EXCHANGE_DAY" });
           emails++;
           await prisma.outboundMessage.create({
             data: {

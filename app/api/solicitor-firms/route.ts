@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
               name: handler.name.trim(),
               phone: handler.phone?.trim() || null,
               email: handler.email?.trim() || null,
+              secondaryEmail: handler.secondaryEmail?.trim().toLowerCase() || null,
             },
           });
           return NextResponse.json({ ...existing, handlers: [...existing.handlers, newHandler] });
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
                   name: handler.name.trim(),
                   phone: handler.phone?.trim() || null,
                   email: handler.email?.trim() || null,
+                  secondaryEmail: handler.secondaryEmail?.trim().toLowerCase() || null,
                 },
               },
             }

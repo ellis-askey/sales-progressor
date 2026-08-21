@@ -27,6 +27,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
   const [handlerName, setHandlerName] = useState("");
   const [handlerPhone, setHandlerPhone] = useState("");
   const [handlerEmail, setHandlerEmail] = useState("");
+  const [handlerSecondaryEmail, setHandlerSecondaryEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,6 +99,10 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim())) {
       e.handlerEmail = "That email address doesn't look right";
     }
+    // Assistant email is optional — only validate the format when one's given.
+    if (handlerSecondaryEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerSecondaryEmail.trim())) {
+      e.handlerSecondaryEmail = "That email address doesn't look right";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -118,6 +123,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
             name: titleCase(handlerName),
             phone: normalizePhone(handlerPhone),
             email: handlerEmail.trim().toLowerCase(),
+            secondaryEmail: handlerSecondaryEmail.trim().toLowerCase(),
           },
         }),
       });
@@ -251,6 +257,21 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
                       className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerEmail ? " agent-input-error" : ""}`}
                     />
                     {errors.handlerEmail && <p className="agent-helper-error">{errors.handlerEmail}</p>}
+                  </div>
+                  {/* Assistant / secretary — optional CC on every email to this handler */}
+                  <div>
+                    <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                      Assistant email <span className="font-normal text-slate-900/40" style={{ marginLeft: 4 }}>optional, cc&apos;d on all emails</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={handlerSecondaryEmail}
+                      onChange={(e) => { setHandlerSecondaryEmail(e.target.value); clearFieldError("handlerSecondaryEmail"); }}
+                      onBlur={() => setHandlerSecondaryEmail((v) => v.trim().toLowerCase())}
+                      placeholder="assistant@firm.co.uk"
+                      className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerSecondaryEmail ? " agent-input-error" : ""}`}
+                    />
+                    {errors.handlerSecondaryEmail && <p className="agent-helper-error">{errors.handlerSecondaryEmail}</p>}
                   </div>
                 </div>
               </div>

@@ -31,6 +31,31 @@ export async function uploadToStorage(
   return path;
 }
 
+// Mint a one-time signed upload URL so the browser can PUT a file straight to
+// storage, bypassing the serverless request-body cap. See lib/upload/document
+// -upload.ts. The returned uploadUrl is token-authorised — the browser needs no
+// Supabase key. Paired with storageObjectExists() at finalize time.
+export async function createDocumentUploadUrl(
+  path: string,
+): Promise<{ uploadUrl: string; path: string }> {
+  const client = getClient();
+  const { data, error } = await client.storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error || !data) throw new Error(`Failed to create upload URL: ${error?.message}`);
+  return { uploadUrl: data.signedUrl, path: data.path };
+}
+
+// Confirms an object actually landed in the bucket before we record a DB row
+// for it — guards against a finalize call for a PUT that never completed.
+export async function storageObjectExists(path: string): Promise<boolean> {
+  const client = getClient();
+  const slash = path.lastIndexOf("/");
+  const folder = slash === -1 ? "" : path.slice(0, slash);
+  const name = slash === -1 ? path : path.slice(slash + 1);
+  const { data, error } = await client.storage.from(BUCKET).list(folder, { search: name, limit: 100 });
+  if (error || !data) return false;
+  return data.some((o) => o.name === name);
+}
+
 export function getStorageUrl(path: string): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return `${url}/storage/v1/object/sign/${BUCKET}/${path}`;

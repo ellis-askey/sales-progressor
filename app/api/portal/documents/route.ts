@@ -1,110 +1,83 @@
 // POST /api/portal/documents
-// Portal-side document upload — authenticated by portal token (no admin session)
+// Portal-side document FINALIZE — records a document the browser has already
+// uploaded straight to storage via POST /api/portal/documents/upload-url.
+// Authorised by portal token. The bytes never pass through this function, so
+// large PDFs (surveys, TA forms, searches) are no longer capped at ~4.5 MB.
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
-import { uploadToStorage } from "@/lib/supabase-storage";
+import { storageObjectExists } from "@/lib/supabase-storage";
 import { isKnownDocType } from "@/lib/portal-documents";
-
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-]);
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
-const MAX_FILES = 3;
+import { resolvePortalUploadContact } from "@/lib/portal/upload-auth";
+import { ALLOWED_UPLOAD_MIME, MAX_DOCUMENT_BYTES } from "@/lib/upload/document-upload";
 
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  if (!token) return NextResponse.json({ error: "Token required" }, { status: 401 });
-
-  const contact = await prisma.contact.findUnique({
-    where: { portalToken: token },
-    select: { id: true, propertyTransactionId: true, roleType: true, buyerRoundId: true },
-  });
+  const contact = await resolvePortalUploadContact(token);
   if (!contact) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
-  // Phase 1 commit 5 — dead-round guard for portal writes. A purchaser
-  // whose round no longer matches the file's active round cannot upload.
-  const txForGuard = await prisma.propertyTransaction.findUnique({
-    where: { id: contact.propertyTransactionId },
-    select: { activeBuyerRoundId: true },
-  });
-  if (!txForGuard) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-  if (
-    contact.roleType === "purchaser" &&
-    contact.buyerRoundId != null &&
-    contact.buyerRoundId !== txForGuard.activeBuyerRoundId
-  ) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-  }
-
-  let formData: FormData;
+  let body: {
+    storagePath?: string;
+    filename?: string;
+    fileSize?: number;
+    mimeType?: string;
+    docType?: string;
+  };
   try {
-    formData = await req.formData();
+    body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const rawType = formData.get("docType");
-  const docType = typeof rawType === "string" && isKnownDocType(rawType) ? rawType : null;
-
-  const files = formData.getAll("files") as File[];
-  if (!files.length) return NextResponse.json({ error: "No files provided" }, { status: 400 });
-  if (files.length > MAX_FILES) {
-    return NextResponse.json({ error: `Maximum ${MAX_FILES} files per upload` }, { status: 400 });
+  const { storagePath, filename, fileSize, mimeType } = body;
+  if (!storagePath || !filename || !mimeType || typeof fileSize !== "number") {
+    return NextResponse.json({ error: "Missing upload details" }, { status: 400 });
+  }
+  // The path must live under this file's own prefix — a caller can't record a
+  // document that points at another transaction's storage.
+  if (!storagePath.startsWith(`${contact.transactionId}/`)) {
+    return NextResponse.json({ error: "Invalid upload" }, { status: 400 });
+  }
+  if (!ALLOWED_UPLOAD_MIME.has(mimeType)) {
+    return NextResponse.json({ error: "That file type isn't supported." }, { status: 400 });
+  }
+  if (fileSize <= 0 || fileSize > MAX_DOCUMENT_BYTES) {
+    return NextResponse.json({ error: "That file is over 25 MB." }, { status: 400 });
+  }
+  if (!(await storageObjectExists(storagePath))) {
+    return NextResponse.json({ error: "Upload didn't complete. Please try again." }, { status: 400 });
   }
 
-  const results = [];
+  const docType = typeof body.docType === "string" && isKnownDocType(body.docType) ? body.docType : null;
 
-  for (const file of files) {
-    if (!ALLOWED_MIME.has(file.type)) {
-      return NextResponse.json({ error: `File type not allowed: ${file.type}` }, { status: 400 });
-    }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: `File too large: ${file.name} exceeds 10 MB` }, { status: 400 });
-    }
+  const doc = await prisma.transactionDocument.create({
+    data: {
+      transactionId: contact.transactionId,
+      contactId: contact.contactId,
+      filename,
+      storagePath,
+      fileSize,
+      mimeType,
+      source: "portal",
+      docType,
+      // Purchaser uploads are attributable to their round; vendor uploads stay
+      // file-level (NULL).
+      buyerRoundId: contact.roleType === "purchaser" ? contact.buyerRoundId : null,
+    },
+  });
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = file.name.split(".").pop() ?? "bin";
-    const storagePath = `${contact.propertyTransactionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  await recordEvent({
+    type: "file_uploaded",
+    entityType: "TransactionDocument",
+    entityId: doc.id,
+    metadata: {
+      transactionId: contact.transactionId,
+      contactId: contact.contactId,
+      source: "portal",
+      mimeType,
+    },
+  });
 
-    await uploadToStorage(storagePath, buffer, file.type);
-
-    const doc = await prisma.transactionDocument.create({
-      data: {
-        transactionId: contact.propertyTransactionId,
-        contactId: contact.id,
-        filename: file.name,
-        storagePath,
-        fileSize: file.size,
-        mimeType: file.type,
-        source: "portal",
-        docType,
-        // Phase 1 commit 5 Pin 2 — purchaser uploads are attributable to
-        // their round; vendor uploads stay file-level (NULL).
-        buyerRoundId: contact.roleType === "purchaser" ? contact.buyerRoundId : null,
-      },
-    });
-
-    // Command Centre event log — portal upload, no admin userId in scope.
-    await recordEvent({
-      type: "file_uploaded",
-      entityType: "TransactionDocument",
-      entityId: doc.id,
-      metadata: {
-        transactionId: contact.propertyTransactionId,
-        contactId: contact.id,
-        source: "portal",
-        mimeType: file.type,
-      },
-    });
-
-    results.push(doc);
-  }
-
-  return NextResponse.json({ documents: results }, { status: 201 });
+  return NextResponse.json({ document: doc }, { status: 201 });
 }

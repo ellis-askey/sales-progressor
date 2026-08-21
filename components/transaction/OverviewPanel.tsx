@@ -58,7 +58,7 @@ type Contact = {
   unsubscribedAt?: Date | null;
 };
 
-type SolicitorContact = { id: string; name: string; phone: string | null; email: string | null };
+type SolicitorContact = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
 type SolicitorFirm = { id: string; name: string };
 
 type Props = {
