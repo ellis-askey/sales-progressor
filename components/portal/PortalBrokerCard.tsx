@@ -286,14 +286,17 @@ export function PortalBrokerCard({
               Speak to a mortgage broker
             </p>
 
-            {/* Recommended-by line */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="1.6" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="9.2" />
-                <path transform="translate(12 12) scale(0.4) translate(-12 -12)" fill={P.accent} stroke="none" d="M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z" />
-              </svg>
-              <span style={{ fontSize: 15, fontWeight: 600, color: P.accent }}>{recommendLine}</span>
-            </div>
+            {/* Recommended-by line — only when the AGENCY chose the broker. For
+                the TSP default we can't say the agency recommends it. */}
+            {source === "agent" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="1.6" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9.2" />
+                  <path transform="translate(12 12) scale(0.4) translate(-12 -12)" fill={P.accent} stroke="none" d="M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z" />
+                </svg>
+                <span style={{ fontSize: 15, fontWeight: 600, color: P.accent }}>{recommendLine}</span>
+              </div>
+            )}
 
             {/* Tagline + CTA */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
