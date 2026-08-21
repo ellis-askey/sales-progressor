@@ -60,6 +60,7 @@ import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
+import { ExchangeDaySection } from "@/components/transaction/ExchangeDaySection";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
 import { ChaseTimelinePanel } from "@/components/transaction/ChaseTimelinePanel";
@@ -414,6 +415,7 @@ export default async function AgentTransactionDetailPage({
           exchanged={transaction.exchangedAt !== null}
           isShareOfFreehold={transaction.isShareOfFreehold}
           enquiryChipSlot={<EnquiryCourtChipSection transactionId={transaction.id} />}
+          exchangeDaySlot={<ExchangeDaySection transactionId={transaction.id} />}
           roundChipSlot={
             <RoundChip
               transactionId={transaction.id}

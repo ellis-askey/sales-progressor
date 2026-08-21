@@ -34,6 +34,7 @@ export function isExchangeDayActive(tx: ExchangeDayFields, now: Date = new Date(
 
 export async function getExchangeDayState(transactionId: string): Promise<{
   active: boolean;
+  exchanged: boolean;
   startedAt: Date | null;
   completionDate: Date | null;
 }> {
@@ -42,7 +43,7 @@ export async function getExchangeDayState(transactionId: string): Promise<{
     select: { exchangeDayStartedAt: true, exchangeDayCancelledAt: true, exchangedAt: true, completionDate: true },
   });
   if (!tx) throw new Error("Transaction not found");
-  return { active: isExchangeDayActive(tx), startedAt: tx.exchangeDayStartedAt, completionDate: tx.completionDate };
+  return { active: isExchangeDayActive(tx), exchanged: !!tx.exchangedAt, startedAt: tx.exchangeDayStartedAt, completionDate: tx.completionDate };
 }
 
 function longDate(d: Date): string {
