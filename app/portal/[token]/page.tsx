@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
+import { getPortalBrokerCard } from "@/lib/services/broker-card";
+import { PortalBrokerCard } from "@/components/portal/PortalBrokerCard";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS, getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
 import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides";
@@ -176,6 +178,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const quotedFirmNames = surveyQuotes.firmNames;
   const lastQuotedAt = surveyQuotes.lastQuotedAt;
   const hasRequestedQuote = quotedFirmNames.length > 0;
+
+  // Mortgage broker card (purchasers only). Resolves the file's broker — the
+  // agent's own, or the TSP default on outsourced files — or null. Only
+  // returns non-null for mortgage buyers; page-side gating below adds the
+  // milestone window.
+  const brokerCard = side === "purchaser"
+    ? await getPortalBrokerCard(transaction.id, contact.id)
+    : null;
   const bookedSurveyorName = surveyQuotes.bookedFirmName ?? transaction.bookedSurveyorName ?? null;
   const bookedSurveyorAt = surveyQuotes.bookedAt;
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
@@ -468,6 +478,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   // ── Customize overview (Batch 1): which moveable cards are present + order ──
   const showSurveyQuote    = side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName;
+  // Mortgage broker card: useful before the mortgage application is in, so we
+  // show it once instructed and hide it once PM5 (application submitted) is
+  // done, or after exchange/completion. Reactive to milestone state.
+  const pm5Done            = isMilestoneCompleteByCode("PM5");
+  const showBrokerCard     = side === "purchaser" && brokerCard !== null && instructedDone && !pm5Done && !hasExchanged && !hasCompleted;
   const showSurveyStatus   = side === "purchaser" && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
   const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
@@ -475,10 +490,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const showGuidance       = stage === "completed" ? true : tips.length > 0;
   const showExplain        = !hasCompleted;
 
-  const MOVABLE_KEYS = ["survey-quote","survey-status","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
+  const MOVABLE_KEYS = ["survey-quote","survey-status","mortgage-broker","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
   const MOVABLE_LABELS: Record<string, string> = {
     "survey-quote": "Get a survey quote",
     "survey-status": "Survey",
+    "mortgage-broker": "Mortgage broker",
     "costs": "Your costs",
     "team": "Your team",
     "coming-up": "Coming up",
@@ -491,6 +507,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const MOVABLE_PRESENT: Record<string, boolean> = {
     "survey-quote": showSurveyQuote,
     "survey-status": showSurveyStatus,
+    "mortgage-broker": showBrokerCard,
     "costs": showCosts,
     "team": true,
     "coming-up": showComingUp,
@@ -622,6 +639,27 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </Link>
+        </div>
+      )}
+
+      {/* ── Mortgage broker prompt (mortgage purchasers, pre-application) ── */}
+      {showBrokerCard && brokerCard && (
+        <div style={slot("mortgage-broker")}>
+          <PortalBrokerCard
+            token={token}
+            source={brokerCard.source}
+            firmName={brokerCard.firmName}
+            requested={brokerCard.requested}
+            prefill={{
+              name: brokerCard.prefill.name,
+              email: brokerCard.prefill.email,
+              phone: brokerCard.prefill.phone,
+              contactMethodLabel: brokerCard.prefill.contactMethod === "whatsapp" ? "WhatsApp" : "Phone or email",
+            }}
+            cardKey="mortgage-broker"
+            order={orderedMovableKeys}
+            hidden={Array.from(layoutHidden)}
+          />
         </div>
       )}
 
