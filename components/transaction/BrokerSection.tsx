@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { saveBrokerReferralAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 
 type Props = {
   transactionId: string;
@@ -14,6 +15,11 @@ type Props = {
   brokerReferralFee: number | null;
   brokerReferralFeeReceived: boolean;
   purchaserBrokerReferral: boolean;
+  // 2026-08-21: when no broker is set, agents can attach one on the live file
+  // so it lights up the buyer's portal card. Gated to mortgage buyers, and
+  // hidden from sales_progressor (blocked from commercial data by the action).
+  purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
+  canEdit?: boolean;
 };
 
 export function BrokerSection({
@@ -25,6 +31,8 @@ export function BrokerSection({
   brokerReferralFee,
   brokerReferralFeeReceived,
   purchaserBrokerReferral,
+  purchaseType,
+  canEdit = true,
 }: Props) {
   const [, startTransition] = useTransition();
   const [feePence, setFeePence] = useState<number | null>(brokerReferralFee);
@@ -49,7 +57,12 @@ export function BrokerSection({
     });
   }
 
-  if (!brokerFirmId) return null;
+  if (!brokerFirmId) {
+    if (canEdit && purchaseType === "mortgage") {
+      return <AddBrokerControl transactionId={transactionId} />;
+    }
+    return null;
+  }
 
   return (
     <section>
@@ -137,6 +150,64 @@ export function BrokerSection({
             </span>
           </div>
         )}
+      </GlassCard>
+    </section>
+  );
+}
+
+// Attach a mortgage broker to a live file (fills the gap where a broker could
+// only be set at new-sale time). Setting one lights up the buyer's portal
+// broker card; ticking "referred" adds them to the portal team once confirmed.
+function AddBrokerControl({ transactionId }: { transactionId: string }) {
+  const [sel, setSel] = useState<BrokerSelection | null>(null);
+  const [referred, setReferred] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [, startTransition] = useTransition();
+
+  function save() {
+    if (!sel) return;
+    setSaving(true);
+    startTransition(async () => {
+      try {
+        await saveBrokerReferralAction(transactionId, {
+          brokerFirmId: sel.firmId,
+          brokerContactId: sel.contactId,
+          brokerReferralFee: null,
+          brokerReferralFeeReceived: false,
+          purchaserBrokerReferral: referred,
+        });
+      } finally {
+        setSaving(false);
+      }
+    });
+  }
+
+  return (
+    <section>
+      <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
+        Mortgage Broker
+      </h2>
+      <GlassCard glassId="overview-broker" label="Overview · Broker" defaultVariant="v22" className="px-5 py-4 space-y-3">
+        <p className="text-xs text-slate-900/50">
+          Add your recommended broker so your buyer can request a call back from their portal.
+        </p>
+        <BrokerPicker label="Broker" value={sel} onChange={setSel} />
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={referred}
+            onChange={(e) => setReferred(e.target.checked)}
+            className="w-4 h-4 accent-emerald-500"
+          />
+          <span className="text-sm text-slate-900/70">Referred the buyer to this broker</span>
+        </label>
+        <button
+          onClick={save}
+          disabled={!sel || saving}
+          className="text-xs agent-link-primary font-medium disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save broker"}
+        </button>
       </GlassCard>
     </section>
   );
