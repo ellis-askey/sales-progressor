@@ -381,13 +381,16 @@ async function main() {
     { name: "Chase: Mortgage offer received",                                  targetMilestoneCode: "PM11", anchorCode: "PM6",   graceDays: 14, repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
     { name: "Chase: Management pack received (buyer)",                         targetMilestoneCode: "PM12", anchorCode: "VM8",   graceDays: 14, repeatEveryDays: 10, escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Search results received",                                  targetMilestoneCode: "PM13", anchorCode: "PM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    // Enquiries rework: PM14 (enquiries raised) and PM20 (all enquiries
-    // satisfied) survive but are chased by the enquiries tracker — seed them
-    // inactive to match migration 20260815260000. PM15–PM19 (the granular buyer
-    // enquiries loop) are retired (RETIRED_ENQUIRY_CODES); PM20 re-anchors to
-    // PM14 now that its old PM19 predecessor is gone.
+    // Enquiries rework: PM14 (enquiries raised) is chased by the enquiries
+    // tracker, so its milestone-engine rule stays inactive. PM15-PM19 (the
+    // granular buyer enquiries loop) are retired (RETIRED_ENQUIRY_CODES); PM20
+    // re-anchors to PM14 now that its old PM19 predecessor is gone.
+    // PM20 ("all enquiries satisfied") is ACTIVE as an internal reminder: the
+    // side-to-side solicitor chase can volley indefinitely, so once enquiries
+    // have been open ~4 weeks (28 calendar days) without reaching satisfied we
+    // put a repeating (weekly) ChaseTask on the file owner's queue to push it.
     { name: "Chase: Initial enquiries raised by buyer's solicitor",            targetMilestoneCode: "PM14", anchorCode: "PM7",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
-    { name: "Chase: All enquiries satisfied",                                  targetMilestoneCode: "PM20", anchorCode: "PM14",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
+    { name: "Chase: All enquiries satisfied",                                  targetMilestoneCode: "PM20", anchorCode: "PM14",  graceDays: 28, repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, isActive: true  },
     { name: "Chase: Final report received by buyer",                           targetMilestoneCode: "PM21", anchorCode: "PM20",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Contract documents received by buyer",                     targetMilestoneCode: "PM22", anchorCode: "PM21",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Signed contracts returned by buyer",                       targetMilestoneCode: "PM23", anchorCode: "PM22",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
