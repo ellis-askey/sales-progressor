@@ -673,6 +673,11 @@ model Contact {
   // on each new device or after clearing storage. Set via
   // /api/portal/[token]/welcome-seen; read by getPortalData -> PortalShell.
   welcomeSeenAt         DateTime?
+  // Exchange-day: stamped when the client confirms via their portal that they've
+  // given their solicitor authority to exchange. Counts for the CURRENT exchange
+  // day only (valid when >= the file's exchangeDayStartedAt), so a re-activated
+  // day re-asks. See docs/active/exchange-day-SPEC.md.
+  exchangeAuthorityGivenAt DateTime?
   // PWA adoption signal (Command Centre → App adoption). pwaInstalledAt: first
   // time we saw them in standalone display-mode or caught the appinstalled
   // event — the truest "added it to their home screen". pwaLastOpenedAt: most

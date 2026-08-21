@@ -46,6 +46,32 @@ export async function getExchangeDayState(transactionId: string): Promise<{
   return { active: isExchangeDayActive(tx), exchanged: !!tx.exchangedAt, startedAt: tx.exchangeDayStartedAt, completionDate: tx.completionDate };
 }
 
+// Portal read: exchange-day state for one contact (by portal token). Drives the
+// client-facing "aiming to exchange today" card + the authority CTA. Authority
+// is "given" only for the CURRENT activation; a client who gave it on an earlier
+// day sees "reask" so we ask again for today.
+export async function getContactExchangeDayState(token: string): Promise<{
+  active: boolean;
+  authorityState: "given" | "reask" | "first";
+  saleWord: "sale" | "purchase";
+} | null> {
+  const contact = await prisma.contact.findFirst({
+    where: { portalToken: token },
+    select: {
+      exchangeAuthorityGivenAt: true,
+      roleType: true,
+      transaction: { select: { exchangeDayStartedAt: true, exchangeDayCancelledAt: true, exchangedAt: true } },
+    },
+  });
+  if (!contact?.transaction) return null;
+  const tx = contact.transaction;
+  const saleWord: "sale" | "purchase" = contact.roleType === "vendor" ? "sale" : "purchase";
+  if (!isExchangeDayActive(tx)) return { active: false, authorityState: "first", saleWord };
+  const given = contact.exchangeAuthorityGivenAt;
+  const authorityState = given && given >= tx.exchangeDayStartedAt! ? "given" : given ? "reask" : "first";
+  return { active: true, authorityState, saleWord };
+}
+
 function longDate(d: Date): string {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
