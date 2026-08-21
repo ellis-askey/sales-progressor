@@ -2,16 +2,12 @@
 
 import { useRef, useState } from "react";
 import { P } from "./portal-ui";
+import { uploadDocumentDirect } from "@/lib/upload/direct-upload";
+import { MAX_UPLOAD_FILES } from "@/lib/upload/document-upload";
 
 type Props = { token: string };
 
 type UploadState = "idle" | "uploading" | "done" | "error";
-
-function fmt(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function SearchesUpload({ token }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,26 +18,28 @@ export function SearchesUpload({ token }: Props) {
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
 
-    const list = Array.from(files).slice(0, 3);
+    const list = Array.from(files).slice(0, MAX_UPLOAD_FILES);
     setState("uploading");
     setError(null);
 
-    const body = new FormData();
-    list.forEach((f) => body.append("files", f));
-
-    const res = await fetch(`/api/portal/documents?token=${token}`, {
-      method: "POST",
-      body,
-    });
-
-    if (res.ok) {
-      setState("done");
-      setUploaded(list.map((f) => f.name));
-    } else {
-      const json = await res.json().catch(() => ({}));
-      setState("error");
-      setError(json.error ?? "Upload failed. Please try again.");
+    const done: string[] = [];
+    for (const file of list) {
+      const result = await uploadDocumentDirect({
+        file,
+        mintUrl: `/api/portal/documents/upload-url?token=${encodeURIComponent(token)}`,
+        finalizeUrl: `/api/portal/documents?token=${encodeURIComponent(token)}`,
+        docType: null,
+      });
+      if (!result.ok) {
+        setState("error");
+        setError(result.error);
+        return;
+      }
+      done.push(file.name);
     }
+
+    setState("done");
+    setUploaded(done);
   }
 
   if (state === "done") {
@@ -107,7 +105,7 @@ export function SearchesUpload({ token }: Props) {
       </button>
 
       <p className="text-[11px]" style={{ color: P.textMuted }}>
-        PDF, JPG, PNG or Word. Up to 3 files, 10 MB each
+        PDF, JPG, PNG or Word. Up to 3 files, 25 MB each
       </p>
 
       {error && (
