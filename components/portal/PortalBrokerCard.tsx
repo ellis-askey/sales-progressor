@@ -53,6 +53,7 @@ export function PortalBrokerCard({
   const [requested, setRequested] = useState(initialRequested);
   const [dismissed, setDismissed] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [consented, setConsented] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => setMounted(true), []);
@@ -69,8 +70,9 @@ export function PortalBrokerCard({
   const recommendLine = `Recommended by ${agencyName}`;
 
   function submit() {
+    if (!consented) return;
     startTransition(async () => {
-      const r = await requestBrokerCallbackAction(token);
+      const r = await requestBrokerCallbackAction(token, true);
       if (r.ok) {
         setRequested(true);
         setOpen(false);
@@ -159,7 +161,7 @@ export function PortalBrokerCard({
         <div style={{ width: 38, height: 4, borderRadius: 999, background: P.border, margin: "0 auto 14px" }} />
         <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: P.textPrimary }}>Request a call back</p>
         <p style={{ margin: "3px 0 16px", fontSize: 13, color: P.textSecondary, lineHeight: 1.45 }}>
-          {firmName} will call you about your mortgage. We&rsquo;ll pass on the details below, nothing else.
+          {firmName} will call you about your mortgage. Here&rsquo;s what we&rsquo;ll send them.
         </p>
 
         <ReadRow label="Name" value={prefill.name || "Your name"} />
@@ -178,10 +180,58 @@ export function PortalBrokerCard({
           </button>
         </p>
 
+        {/* Consent tick (Ellis, 2026-08-21): names exactly what leaves the
+            platform — contact details, address, price, tenure — and gates
+            the CTA. The action re-checks it server-side. */}
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 9,
+            margin: "0 2px 14px",
+            cursor: "pointer",
+          }}
+        >
+          <span
+            role="checkbox"
+            aria-checked={consented}
+            style={{
+              width: 17,
+              height: 17,
+              borderRadius: 5,
+              flexShrink: 0,
+              marginTop: 1,
+              border: `1.5px solid ${consented ? P.accent : P.border}`,
+              background: consented ? P.accent : "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 120ms ease",
+            }}
+          >
+            {consented && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </span>
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={(e) => setConsented(e.target.checked)}
+            style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
+          />
+          <span style={{ fontSize: 12, color: P.textMuted, lineHeight: 1.5 }}>
+            I&rsquo;m happy for {firmName} to receive my contact details, the
+            property address, price and tenure so they can call me about my
+            mortgage.
+          </span>
+        </label>
+
         <button
           type="button"
           onClick={submit}
-          disabled={pending}
+          disabled={pending || !consented}
           className="pbtn pbtn-press"
           style={{
             width: "100%",
@@ -192,7 +242,8 @@ export function PortalBrokerCard({
             background: PORTAL_BTN.primaryBg,
             boxShadow: PORTAL_BTN.primaryShadow,
             color: "#fff",
-            opacity: pending ? 0.7 : 1,
+            opacity: pending || !consented ? 0.55 : 1,
+            transition: "opacity 140ms ease",
           }}
         >
           {pending ? "Sending…" : "Request a call back"}

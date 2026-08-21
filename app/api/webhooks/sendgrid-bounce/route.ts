@@ -100,6 +100,15 @@ export async function POST(req: NextRequest) {
         } catch (err) {
           console.error("[sendgrid-webhook] update failed", err);
         }
+        // Broker call-back bounce bell (Ellis, 2026-08-21): a buyer who
+        // requested a call is now waiting on an email that died. Tell the
+        // file's owner so they can pass the request on by hand instead of
+        // the client silently hearing nothing.
+        if (update.kind === "bounced" || update.kind === "blocked") {
+          await notifyBrokerCallbackFailure(queueIds).catch((err) =>
+            console.error("[sendgrid-webhook] broker-callback bell failed", err),
+          );
+        }
       }
     }
 
@@ -188,4 +197,42 @@ async function suppressUserByEmail(email: string): Promise<void> {
     where: { email, emailUnsubscribedAt: null },
     data: { emailUnsubscribedAt: new Date() },
   });
+}
+
+// A bounced/blocked BROKER_CALLBACK send means a buyer is waiting for a call
+// that will never come. Bell the file's assigned progressor (falling back to
+// the agent) so a human passes the request on. sourceId format from
+// app/actions/broker-callback.ts is `{transactionId}:broker-callback`.
+async function notifyBrokerCallbackFailure(queueIds: string[]): Promise<void> {
+  const rows = await prisma.outboundEmailQueue.findMany({
+    where: { id: { in: queueIds }, emailType: "BROKER_CALLBACK" },
+    select: { id: true, sourceId: true, recipientEmail: true },
+  });
+  for (const row of rows) {
+    const transactionId = row.sourceId.split(":")[0];
+    if (!transactionId) continue;
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        propertyAddress: true,
+        assignedUserId: true,
+        agentUserId: true,
+      },
+    });
+    const userId = tx?.assignedUserId ?? tx?.agentUserId;
+    if (!tx || !userId) continue;
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: "broker_callback_bounced",
+        transactionId,
+        payload: {
+          recipientEmail: row.recipientEmail,
+          propertyAddress: tx.propertyAddress,
+          title: "Broker call-back email didn't arrive",
+          body: `The call-back request for ${tx.propertyAddress} couldn't be delivered to ${row.recipientEmail}. The buyer is expecting a call, so please pass it on another way.`,
+        },
+      },
+    });
+  }
 }
