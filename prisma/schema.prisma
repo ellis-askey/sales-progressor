@@ -394,6 +394,15 @@ model PropertyTransaction {
   // "Did this file exchange?" — answer.
   exchangedAt DateTime?
 
+  // Exchange-day overlay — the agent flags "we're aiming to exchange TODAY".
+  // Single-day and self-clearing: "active" is DERIVED, not stored — the UK
+  // date of exchangeDayStartedAt must equal today, the file must not have
+  // exchanged, and it must not have been cancelled since the last start. No
+  // midnight cron; it simply stops being "today". Re-activating the next day
+  // stamps a fresh startedAt. See docs/active/exchange-day-SPEC.md.
+  exchangeDayStartedAt   DateTime?
+  exchangeDayCancelledAt DateTime?
+
   // Set on VM19/PM26 completion ONLY when the exchange generates a charge.
   // Trial files leave this null. Guard against bilateral double-billing — checked
   // before write so the bilateral partner's auto-complete is a no-op.
