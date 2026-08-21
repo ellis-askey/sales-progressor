@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { sendDueExchangeDayEmails } from "@/lib/exchange-day/send";
+import { sendDueExchangeDayClientEmails } from "@/lib/exchange-day/client-send";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -19,6 +20,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await sendDueExchangeDayEmails(new Date());
-  return NextResponse.json({ ok: true, ...result });
+  const now = new Date();
+  // Solicitor emails (08:45 / 12:30 / 15:30) and client emails (09:00 info +
+  // 11:00 authority) both run off the same active-state pass. Client failure
+  // must not sink the solicitor result and vice versa.
+  const solicitor = await sendDueExchangeDayEmails(now);
+  const client = await sendDueExchangeDayClientEmails(now).catch((err) => {
+    console.error("[exchange-day-emails] client pass failed:", err);
+    return { files: 0, emails: 0 };
+  });
+  return NextResponse.json({ ok: true, solicitor, client });
 }

@@ -408,6 +408,11 @@ model PropertyTransaction {
   exchangeDayMorningEmailAt   DateTime?
   exchangeDayMiddayEmailAt     DateTime?
   exchangeDayAfternoonEmailAt  DateTime?
+  // Per-slot send stamps for the exchange-day CLIENT emails (09:00 info + 11:00
+  // authority nudge). Same "sent this activation" derivation (stamp >=
+  // exchangeDayStartedAt) so re-activation resets them with no backfill.
+  exchangeDayClientMorningEmailAt   DateTime?
+  exchangeDayClientAuthorityEmailAt DateTime?
 
   // Set on VM19/PM26 completion ONLY when the exchange generates a charge.
   // Trial files leave this null. Guard against bilateral double-billing — checked
