@@ -244,9 +244,9 @@ export async function getTransaction(id: string, agencyId: string) {
       assignedUser: { select: { id: true, name: true, image: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
-      vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
-      purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       referredFirm: { select: { id: true, name: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
       // Phase 1 commit 8 — round-aware UI surfaces. activeBuyerRound
@@ -277,9 +277,9 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       assignedUser: { select: { id: true, name: true, image: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
-      vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
-      purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       referredFirm: { select: { id: true, name: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
       // Phase 1 commit 8 — round-aware UI surfaces. activeBuyerRound

@@ -87,8 +87,8 @@ export async function getFollowupNudge(args: {
     select: {
       status: true,
       followupNudgesDisabled: true,
-      vendorSolicitorContact: { select: { email: true, name: true } },
-      purchaserSolicitorContact: { select: { email: true, name: true } },
+      vendorSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
+      purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
     },
   });
   if (!tx || tx.followupNudgesDisabled || tx.status !== "active") return null;
@@ -97,7 +97,11 @@ export async function getFollowupNudge(args: {
   if (!sol?.email) return null; // no conveyancer email → team card shows the "add" prompt
 
   const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { email: true } });
-  const { from: ccEmail } = await resolveAgencySenderForTransaction(transactionId).catch(() => ({ from: null as string | null }));
+  const { from: agencyCc } = await resolveAgencySenderForTransaction(transactionId).catch(() => ({ from: null as string | null }));
+  // CC the agency (so replies land back on the file) plus the solicitor's
+  // assistant/secretary when one's on file.
+  const assistantCc = sol.secondaryEmail?.trim() || null;
+  const ccEmail = [agencyCc, assistantCc].filter(Boolean).join(",") || null;
 
   // "I" vs "we" by how many clients are on this side; the other side's solicitor
   // from this client's perspective.

@@ -21,7 +21,7 @@ type SolicitorIntel = {
 
 type SolicitorInfo = {
   firm: { id: string; name: string } | null;
-  contact: { id: string; name: string; phone: string | null; email: string | null } | null;
+  contact: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null } | null;
 };
 
 type RecommendedFirm = {
@@ -55,6 +55,7 @@ function toSelection(info: SolicitorInfo): SolicitorSelection | null {
     contactName: info.contact?.name ?? null,
     phone: info.contact?.phone ?? null,
     email: info.contact?.email ?? null,
+    secondaryEmail: info.contact?.secondaryEmail ?? null,
   };
 }
 
@@ -218,11 +219,15 @@ function SolicitorTile({
   const roleTone: "brand" | "info" = side === "vendor" ? "brand" : "info";
   const roleLabel = side === "vendor" ? "Vendor" : "Purchaser";
 
+  // CC the handler's assistant/secretary on the agent's own email too.
+  const ccParam = info.contact?.secondaryEmail
+    ? `cc=${encodeURIComponent(info.contact.secondaryEmail)}&`
+    : "";
   const emailHref =
     info.contact?.email && address
-      ? `mailto:${info.contact.email}?subject=${encodeURIComponent(solicitorEmailSubject(address, clientNames ?? []))}`
+      ? `mailto:${info.contact.email}?${ccParam}subject=${encodeURIComponent(solicitorEmailSubject(address, clientNames ?? []))}`
       : info.contact?.email
-      ? `mailto:${info.contact.email}`
+      ? `mailto:${info.contact.email}${ccParam ? `?${ccParam.replace(/&$/, "")}` : ""}`
       : null;
 
   const tileWrapperStyle: React.CSSProperties = {
@@ -303,6 +308,14 @@ function SolicitorTile({
                   <a href={emailHref ?? `mailto:${info.contact.email}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {info.contact.email}
                   </a>
+                </div>
+              )}
+              {info.contact?.secondaryEmail && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }} title="Assistant, cc'd on every email">
+                  <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", opacity: 0.6, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    cc {info.contact.secondaryEmail}
+                  </span>
                 </div>
               )}
             </div>
@@ -437,7 +450,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
     return {
       firm: { id: sel.firmId, name: sel.firmName },
       contact: sel.contactId
-        ? { id: sel.contactId, name: sel.contactName ?? "", phone: sel.phone, email: sel.email }
+        ? { id: sel.contactId, name: sel.contactName ?? "", phone: sel.phone, email: sel.email, secondaryEmail: sel.secondaryEmail ?? null }
         : null,
     };
   }

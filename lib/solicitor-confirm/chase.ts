@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
-import { sendChainEmail } from "@/lib/email";
+import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -327,17 +327,18 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       agency: { select: { name: true } },
       vendorSolicitorFirmId: true,
       vendorSolicitorFirm: { select: { name: true } },
-      vendorSolicitorContact: { select: { id: true, email: true } },
+      vendorSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirmId: true,
       purchaserSolicitorFirm: { select: { name: true } },
-      purchaserSolicitorContact: { select: { id: true, email: true } },
+      purchaserSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
       contacts: { select: { name: true, roleType: true } },
     },
   });
   if (!tx) return false;
 
   const side = group.side;
-  const email = side === "vendor" ? tx.vendorSolicitorContact?.email : tx.purchaserSolicitorContact?.email;
+  const solicitorContact = side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+  const email = solicitorContact?.email;
   if (!email) return false;
 
   const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
@@ -368,7 +369,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const agentId = tx.assignedUserId ?? tx.agentUserId;
   const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
-  await sendChainEmail({ to: email, subject, text, html, from, replyTo });
+  await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject, text, html, from, replyTo });
 
   // Bookkeeping: bump SolicitorChaseState per step + mirror an activity record.
   for (const step of group.steps) {

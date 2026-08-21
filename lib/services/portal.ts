@@ -492,8 +492,8 @@ export async function getPortalTeam(
         agentUser:    { select: { id: true, name: true, email: true, image: true, role: true } },
         vendorSolicitorFirm:    { select: { name: true } },
         purchaserSolicitorFirm: { select: { name: true } },
-        vendorSolicitorContact:    { select: { email: true } },
-        purchaserSolicitorContact: { select: { email: true } },
+        vendorSolicitorContact:    { select: { email: true, secondaryEmail: true } },
+        purchaserSolicitorContact: { select: { email: true, secondaryEmail: true } },
         agency: { select: { quoteSenderEmail: true } },
         contacts: { where: { roleType: side }, select: { name: true } },
         purchaserBrokerReferral: true,
@@ -544,12 +544,15 @@ export async function getPortalTeam(
 
     // Email-your-conveyancer mailto. Only built when the solicitor's email is on
     // file; otherwise the card shows the firm name alone.
-    const solicitorEmail = (
-      side === "vendor" ? tx.vendorSolicitorContact?.email : tx.purchaserSolicitorContact?.email
-    )?.trim() || null;
+    const solicitorContact = side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+    const solicitorEmail = solicitorContact?.email?.trim() || null;
     let solicitorMailto: string | null = null;
     if (solicitorEmail) {
-      const cc = tx.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+      // CC the agency (so replies land back on the file) and the solicitor's
+      // assistant/secretary when one's on file.
+      const agencyCc = tx.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+      const assistant = solicitorContact?.secondaryEmail?.trim();
+      const cc = [agencyCc, ...(assistant ? [assistant] : [])].join(",");
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
       const names = tx.contacts.map((c) => c.name.trim()).filter(Boolean).join(" & ");
       const subject = `${dealWord} of ${tx.propertyAddress}${names ? ` - ${names}` : ""}`;

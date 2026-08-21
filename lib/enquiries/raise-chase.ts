@@ -11,7 +11,7 @@
 // replyable per-agency / EXP sender. Gated OFF until the switch is flipped.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail } from "@/lib/email";
+import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
@@ -54,7 +54,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           agentUserId: true,
           activeBuyerRoundId: true,
           agency: { select: { name: true } },
-          purchaserSolicitorContact: { select: { email: true, name: true } },
+          purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
@@ -206,7 +206,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             provideUpdateUrl: `${baseUrl()}/s/${token}`,
             now,
           });
-          await sendChainEmail({ to: email, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+          await sendChainEmail({ to: email, cc: solicitorCc(tx.purchaserSolicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
           await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
           await logEnquiryChaseComm({
             transactionId: tx.id,
