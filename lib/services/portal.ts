@@ -365,6 +365,11 @@ export type PortalTeam = {
   // {address} - {client name(s)}". Null when no solicitor email is on file, so
   // the card shows the firm name only. (Founder, 2026-08-16.)
   solicitorMailto: string | null;
+  // The mortgage broker, shown only once the business is CONFIRMED (2026-08-21):
+  // for an agent's broker, when purchaserBrokerReferral is ticked on the file;
+  // for the TSP broker, when a mortgage_broker QuoteRequest is marked "won" in
+  // the Command Centre. Null otherwise (incl. all vendor-side views).
+  broker: { firmName: string; contactName: string | null } | null;
   // The client's neighbouring chain agent (phase 3) — drives the buyer's
   // "add your selling agent" row on the card.
   chainAgent: PortalChainAgent;
@@ -490,6 +495,9 @@ export async function getPortalTeam(
         purchaserSolicitorContact: { select: { email: true } },
         agency: { select: { quoteSenderEmail: true } },
         contacts: { where: { roleType: side }, select: { name: true } },
+        purchaserBrokerReferral: true,
+        brokerFirm: { select: { name: true } },
+        brokerContact: { select: { name: true } },
       },
     });
     if (!tx) {
@@ -497,6 +505,7 @@ export async function getPortalTeam(
         managing: null,
         solicitorFirmName: null,
         solicitorMailto: null,
+        broker: null,
         chainAgent: {
           label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
           direction: side === "vendor" ? "above" : "below",
@@ -546,9 +555,25 @@ export async function getPortalTeam(
       solicitorMailto = `mailto:${solicitorEmail}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}`;
     }
 
+    // Confirmed mortgage broker (purchaser side only). Two confirmation paths:
+    // the agent's own broker once the referral is ticked on the file; the TSP
+    // broker once a mortgage_broker QuoteRequest is marked "won".
+    let broker: PortalTeam["broker"] = null;
+    if (side === "purchaser") {
+      if (tx.purchaserBrokerReferral && tx.brokerFirm) {
+        broker = { firmName: tx.brokerFirm.name, contactName: tx.brokerContact?.name ?? null };
+      } else {
+        const won = await prisma.quoteRequest.findFirst({
+          where: { transactionId, kind: "mortgage_broker", status: "won" },
+          select: { provider: { select: { name: true } } },
+        });
+        if (won?.provider) broker = { firmName: won.provider.name, contactName: null };
+      }
+    }
+
     const chainAgent = await getPortalChainAgent(transactionId, side);
 
-    return { managing, solicitorFirmName, solicitorMailto, chainAgent };
+    return { managing, solicitorFirmName, solicitorMailto, broker, chainAgent };
   });
 }
 

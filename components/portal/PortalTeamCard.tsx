@@ -71,13 +71,13 @@ function SaveContactButton({ token, who }: { token: string; who: "progressor" | 
 }
 
 export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; token: string; followup?: FollowupNudge | null }) {
-  const { managing, solicitorFirmName, solicitorMailto, chainAgent } = team;
+  const { managing, solicitorFirmName, solicitorMailto, broker, chainAgent } = team;
   // Symmetric for both sides (2026-08-17): a buyer records their selling agent
   // (chain link below them), a seller their onward-purchase agent (link above).
   const showAgentRow = chainAgent.canManage && chainAgent.applicable;
   const agentNoun = chainAgent.direction === "below" ? "selling agent" : "onward agent";
   const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
-  if (!managing && !solicitorFirmName && !showAgentRow) return null;
+  if (!managing && !solicitorFirmName && !showAgentRow && !broker) return null;
 
   // Order (Founder, 2026-08-16): solicitor first, the person managing the file
   // second, the client's chain agent last. Only the first shown row skips the
@@ -301,6 +301,30 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
             </p>
           </div>
         </PortalTeamManageRow>
+      )}
+
+      {broker && (
+        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: divider }}>
+          <div
+            style={{
+              width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontWeight: 700, fontSize: 13, color: "#fff",
+              background: P.heroGradient,
+              boxShadow: "0 2px 6px rgba(255,107,74,0.28)",
+            }}
+          >
+            {initials(broker.firmName)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+              {broker.firmName}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>
+              {broker.contactName ? `${broker.contactName}, your mortgage broker` : "Your mortgage broker"}
+            </p>
+          </div>
+        </div>
       )}
     </PortalGlassCard>
   );
