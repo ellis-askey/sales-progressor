@@ -16,6 +16,7 @@
 import { useRef, useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setPropertyPhotoAction, removePropertyPhotoAction } from "@/app/actions/property-extras";
+import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
 import { Camera, X } from "@phosphor-icons/react";
 
 export function PropertyPhotoField({
@@ -38,18 +39,32 @@ export function PropertyPhotoField({
     if (!file) return;
     setUploading(true);
     try {
+      // Shrink big phone photos in the browser before uploading, so they
+      // never trip the platform's request-size limit. Anything we can't
+      // decode (e.g. HEIC in some browsers) comes back untouched.
+      const { file: prepared, reencoded } = await prepareImageForUpload(file);
+      if (!reencoded && prepared.size > SAFE_UPLOAD_BYTES) {
+        toast.error("That image is too large to upload. Please use one under 4 MB, or a JPG or PNG.");
+        return;
+      }
+
       const form = new FormData();
       form.append("transactionId", transactionId);
-      form.append("file", file);
+      form.append("file", prepared);
       const res = await fetch("/api/agent/upload-property-photo", { method: "POST", body: form });
+      if (!res.ok) {
+        // describeUploadError always returns a clean, human message —
+        // never the raw response body.
+        toast.error(await describeUploadError(res));
+        return;
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
       // Persist the reference on the row.
       await setPropertyPhotoAction(transactionId, json.storagePath);
       setPreviewUrl(json.url);
       toast.success("Photo uploaded");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } catch {
+      toast.error("We couldn't upload that photo. Please try again.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
