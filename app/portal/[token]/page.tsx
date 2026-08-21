@@ -453,6 +453,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       predictedExchangeDate={heroExchangeDate}
       daysUntilPredicted={daysUntilPredicted}
       progressHref={`/portal/${token}/progress`}
+      beforeProgress={!hasExchanged && !hasCompleted ? <PortalExchangeDaySection token={token} /> : null}
     />
   );
   // Per-tip refinement: pass the customer's actual completed-milestone
@@ -548,7 +549,6 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
              Exchange banners above, which have their own celebratory
              design). The new hero shows the property photo, address,
              status pills, ring, and the 6-tile progress row below. */}
-      {!hasExchanged && !hasCompleted && <PortalExchangeDaySection token={token} />}
       {!hasExchanged && !hasCompleted && overviewHero}
 
 

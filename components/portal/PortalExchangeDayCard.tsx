@@ -14,7 +14,6 @@ type AuthorityState = "given" | "reask" | "first";
 
 export function PortalExchangeDayCard({
   token,
-  saleWord,
   authorityState,
 }: {
   token: string;
@@ -39,7 +38,7 @@ export function PortalExchangeDayCard({
   }
 
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div>
       <div
         style={{
           borderRadius: 22,
@@ -58,23 +57,31 @@ export function PortalExchangeDayCard({
           We&apos;re aiming to exchange today
         </p>
         <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
-          Today could be the day your {saleWord} exchanges. Your solicitor will need your authority to exchange, and
-          may need to reach you. Please make sure you&apos;ve given them authority, and try to stay reachable today.
+          Your solicitor will need your authority before they can exchange contracts, so please make sure
+          you&apos;ve given this to them and try to stay reachable today in case they need to speak with you.
         </p>
-
-        {authorityState === "reask" && !given && (
-          <p className="text-[13px] leading-relaxed mt-3" style={{ color: P.textMuted }}>
-            Exchange has moved to today, so we just need to confirm your authority again.
-          </p>
-        )}
+        <p className="text-[14px] leading-relaxed mt-3" style={{ color: P.textSecondary }}>
+          We&apos;ll keep you updated as things progress.
+        </p>
 
         <div className="mt-4">
           {given ? (
             <span
               className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-[14px] font-bold"
-              style={{ background: "rgba(16,185,129,0.14)", color: "#0f9d6b" }}
+              style={{
+                background: "linear-gradient(180deg, rgba(16,185,129,0.16), rgba(16,185,129,0.10))",
+                color: "#0f9d6b",
+                border: "0.5px solid rgba(16,185,129,0.38)",
+                boxShadow: "0 1px 2px rgba(16,185,129,0.18), inset 0 1px 0 rgba(255,255,255,0.35)",
+              }}
             >
-              <Check size={16} weight="bold" /> Authority given
+              <span
+                className="inline-flex items-center justify-center rounded-full"
+                style={{ width: 18, height: 18, background: "#10b981", color: "#fff", flexShrink: 0 }}
+              >
+                <Check size={12} weight="bold" />
+              </span>
+              Authority given
             </span>
           ) : (
             <button

@@ -60,7 +60,8 @@ import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
-import { ExchangeDaySection } from "@/components/transaction/ExchangeDaySection";
+import { ExchangeDayControl } from "@/components/transaction/ExchangeDayControl";
+import { getExchangeDayState, getExchangeDayAuthority } from "@/lib/services/exchange-day";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
 import { ChaseTimelinePanel } from "@/components/transaction/ChaseTimelinePanel";
@@ -357,6 +358,23 @@ export default async function AgentTransactionDetailPage({
     </RevealSlot>
   );
 
+  // Exchange-day control — lives under the "View timeline" button in the
+  // milestone strip. Fetched once here so the strip knows whether to hide
+  // "View timeline" (it does while exchange day is active).
+  const exchangeDay = await getExchangeDayState(transaction.id).catch(() => null);
+  const exchangeDayActive = !!exchangeDay && exchangeDay.active && !exchangeDay.exchanged;
+  const exchangeAuthority = exchangeDayActive
+    ? await getExchangeDayAuthority(transaction.id).catch(() => ({ seller: null, buyer: null }))
+    : null;
+  const exchangeDayControl = exchangeDay && !exchangeDay.exchanged ? (
+    <ExchangeDayControl
+      transactionId={transaction.id}
+      active={exchangeDay.active}
+      completionDate={exchangeDay.completionDate ? exchangeDay.completionDate.toISOString() : null}
+      authority={exchangeAuthority}
+    />
+  ) : null;
+
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
       {perfEnabled && (
@@ -415,7 +433,6 @@ export default async function AgentTransactionDetailPage({
           exchanged={transaction.exchangedAt !== null}
           isShareOfFreehold={transaction.isShareOfFreehold}
           enquiryChipSlot={<EnquiryCourtChipSection transactionId={transaction.id} />}
-          exchangeDaySlot={<ExchangeDaySection transactionId={transaction.id} />}
           roundChipSlot={
             <RoundChip
               transactionId={transaction.id}
@@ -464,6 +481,8 @@ export default async function AgentTransactionDetailPage({
                   targetCompletionDate: transaction.completionDate ?? null,
                 },
               ) as MilestoneStage[]}
+              exchangeDaySlot={exchangeDayControl}
+              exchangeDayActive={exchangeDayActive}
             />
           </GlassCard>
         }

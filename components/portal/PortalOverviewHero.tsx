@@ -12,6 +12,7 @@
 // Completion is locked until exchange) lives on the page side and lands
 // here as pre-computed `text` values on each tile.
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
 import { P, PortalPill, type PortalPillTone } from "./portal-ui";
@@ -62,6 +63,9 @@ type Props = {
   /** Where the "View full timeline" button (top-right of the Progress
    *  overview card) links to. Usually `/portal/${token}/progress`. */
   progressHref: string;
+  /** Rendered between the photo hero and the progress-overview card.
+   *  Used by the exchange-day card so it sits just above the timeline. */
+  beforeProgress?: ReactNode;
 };
 
 function fmtDateShort(d: Date | string): string {
@@ -393,6 +397,7 @@ export function PortalOverviewHero({
   predictedExchangeDate,
   daysUntilPredicted,
   progressHref,
+  beforeProgress,
 }: Props) {
   const statusMeta = formatStatus(status);
   const tenureLabel = formatTenure(tenure);
@@ -577,6 +582,8 @@ export function PortalOverviewHero({
                         it still looks broken. Vertical is the standard
                         mobile idiom for step-by-step progression
                         (DoorDash / GitHub / etc.). */}
+      {beforeProgress}
+
       <PortalGlassCard glassId="progress-overview" label="Progress overview" style={{ padding: "16px 14px" }}>
         <div style={{
           display: "flex",

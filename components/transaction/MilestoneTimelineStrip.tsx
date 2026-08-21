@@ -92,7 +92,18 @@ function formatStageDate(stage: MilestoneStage): string {
   return "Pending";
 }
 
-export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] }) {
+export function MilestoneTimelineStrip({
+  stages,
+  exchangeDaySlot,
+  exchangeDayActive = false,
+}: {
+  stages: MilestoneStage[];
+  // Exchange-day control, rendered under the "View timeline" button. When
+  // exchange day is active we hide "View timeline" and let the control take
+  // its place, with the buyer/seller authority read beneath it.
+  exchangeDaySlot?: ReactNode;
+  exchangeDayActive?: boolean;
+}) {
   const { setActiveTab } = useTabContext();
   if (stages.length === 0) return null;
 
@@ -139,15 +150,20 @@ export function MilestoneTimelineStrip({ stages }: { stages: MilestoneStage[] })
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => setActiveTab("milestones")}
-        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-        style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, alignSelf: "center" }}
-      >
-        View timeline
-        <CaretRight size={12} weight="bold" />
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, alignSelf: "center", alignItems: "stretch" }}>
+        {!exchangeDayActive && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("milestones")}
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+          >
+            View timeline
+            <CaretRight size={12} weight="bold" />
+          </button>
+        )}
+        {exchangeDaySlot}
+      </div>
     </div>
   );
 }
