@@ -44,6 +44,10 @@ export type FirmInput = {
   ricsRegulated?: boolean;
   establishedYear?: number | null;
   turnaround?: string | null;
+  // Sales Progressor's default provider of this kind — the fallback shown on
+  // outsourced files where the agency hasn't set their own. At most one per
+  // kind; setting it here unsets any other of the same kind.
+  tspDefault?: boolean;
 };
 
 function validateFirmInput(input: FirmInput): string | null {
@@ -78,17 +82,27 @@ export async function createProviderFirm(input: FirmInput): Promise<ActionResult
   const err = validateFirmInput(input);
   if (err) return { ok: false, error: err };
 
-  const firm = await commandDb.providerFirm.create({
-    data: {
-      kind: input.kind,
-      name: input.name.trim(),
-      email: input.email.trim().toLowerCase(),
-      phone: input.phone?.trim() || null,
-      website: input.website?.trim() || null,
-      notes: input.notes?.trim() || null,
-      active: input.active,
-      ...firmTrustData(input),
-    },
+  const firm = await commandDb.$transaction(async (tx) => {
+    if (input.tspDefault) {
+      // Only one TSP-default provider per kind — clear any existing one first.
+      await tx.providerFirm.updateMany({
+        where: { kind: input.kind, tspDefault: true },
+        data: { tspDefault: false },
+      });
+    }
+    return tx.providerFirm.create({
+      data: {
+        kind: input.kind,
+        name: input.name.trim(),
+        email: input.email.trim().toLowerCase(),
+        phone: input.phone?.trim() || null,
+        website: input.website?.trim() || null,
+        notes: input.notes?.trim() || null,
+        active: input.active,
+        tspDefault: input.tspDefault ?? false,
+        ...firmTrustData(input),
+      },
+    });
   });
 
   await recordAdminAction({
@@ -111,18 +125,27 @@ export async function updateProviderFirm(id: string, input: FirmInput): Promise<
   const before = await commandDb.providerFirm.findUnique({ where: { id } });
   if (!before) return { ok: false, error: "Firm not found." };
 
-  await commandDb.providerFirm.update({
-    where: { id },
-    data: {
-      kind: input.kind,
-      name: input.name.trim(),
-      email: input.email.trim().toLowerCase(),
-      phone: input.phone?.trim() || null,
-      website: input.website?.trim() || null,
-      notes: input.notes?.trim() || null,
-      active: input.active,
-      ...firmTrustData(input),
-    },
+  await commandDb.$transaction(async (tx) => {
+    if (input.tspDefault) {
+      await tx.providerFirm.updateMany({
+        where: { kind: input.kind, tspDefault: true, id: { not: id } },
+        data: { tspDefault: false },
+      });
+    }
+    await tx.providerFirm.update({
+      where: { id },
+      data: {
+        kind: input.kind,
+        name: input.name.trim(),
+        email: input.email.trim().toLowerCase(),
+        phone: input.phone?.trim() || null,
+        website: input.website?.trim() || null,
+        notes: input.notes?.trim() || null,
+        active: input.active,
+        tspDefault: input.tspDefault ?? false,
+        ...firmTrustData(input),
+      },
+    });
   });
 
   await recordAdminAction({
