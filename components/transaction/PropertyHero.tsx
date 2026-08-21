@@ -33,9 +33,6 @@ type Props = {
   // meta row so the hero stays unaware of enquiry semantics; the section
   // returns null when there's no live enquiries activity.
   enquiryChipSlot?: React.ReactNode;
-  // Exchange-day control (server section → client control). Sits in the status
-  // chip row. Returns null when not applicable / not permitted.
-  exchangeDaySlot?: React.ReactNode;
   assignedUserName?: string | null;
   assignedUserImage?: string | null;
   createdAt?: Date | string | null;
@@ -234,7 +231,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, enquiryChipSlot, exchangeDaySlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, enquiryChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -433,13 +430,10 @@ export function PropertyHero({
             gap: 16,
             flexWrap: "wrap",
           }}>
-            <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              {transactionId
-                ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
-                : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
-              }
-              {exchangeDaySlot}
-            </div>
+            {transactionId
+              ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
+              : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+            }
             <div style={{ flex: "1 1 180px", maxWidth: 280, minWidth: 150 }}>
               <HeroProgressBar percent={percent} />
             </div>

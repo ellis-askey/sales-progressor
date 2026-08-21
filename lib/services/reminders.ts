@@ -998,7 +998,13 @@ function formatEngineDate(date: Date): string {
 async function writeEngineAudit(transactionId: string, content: string, createdById: string) {
   if (!createdById) return;
   await prisma.outboundMessage.create({
-    data: { transactionId, type: "internal_note", contactIds: [], content, createdById },
+    // isAutomated marks these as chase-engine bookkeeping ("Automated chase
+    // scheduled / moved / closed"). The agent activity feed hides them —
+    // that lifecycle now lives in the chase timeline
+    // (components/transaction/ChaseTimeline.tsx). Unlike the fallback
+    // "handed back to agent" notes, these carry no chaseTaskId, which is
+    // how getActivityTimeline tells the two apart.
+    data: { transactionId, type: "internal_note", contactIds: [], content, createdById, isAutomated: true },
   });
 }
 
