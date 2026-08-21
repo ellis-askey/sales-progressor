@@ -1,11 +1,15 @@
 "use client";
 
-// Large circular property-photo control for the file hero (2026-08-21).
-// Replaces the old full-bleed photo square + house glyph. A hollow circle
-// with a camera icon when empty; the photo (cover) inside a white ring when
-// set. The whole circle is clickable to upload/replace; "Remove photo" sits
-// beneath. Same upload/remove flow as the old contacts-card field (which this
-// supersedes) — browser-side downscale + clean errors.
+// Property-photo controller + add-circle for the file hero (2026-08-21).
+//
+// The hero's photo has an animated empty <-> photo transition: uploading
+// widens the left zone (content slides right), the photo fades in left-to
+// -right as the zone reveals it, the add circle fades out, and the Remove pill
+// fades in bottom-left; removing runs the exact reverse. Because that motion
+// spans three separate spots in the hero (desktop zone, mobile layer, remove
+// pill) the shared state lives in `usePropertyPhoto` and each spot renders off
+// `hasPhoto` with CSS transitions. The upload/remove is the proven flow:
+// browser-side downscale, clean errors, server action revalidates to persist.
 
 import { useRef, useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -13,25 +17,33 @@ import { setPropertyPhotoAction, removePropertyPhotoAction } from "@/app/actions
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
 import { Camera } from "@phosphor-icons/react";
 
-export function HeroPhotoUpload({
-  transactionId,
-  initialUrl,
-  size = 120,
-}: {
-  transactionId: string;
-  initialUrl: string | null;
-  size?: number;
-}) {
+// Must exceed the out-animation duration so the photo finishes wiping out
+// before its <img> is unmounted.
+const CLEAR_AFTER_MS = 640;
+
+export type PropertyPhotoController = {
+  inputRef: React.RefObject<HTMLInputElement>;
+  onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  triggerUpload: () => void;
+  remove: () => void;
+  displayUrl: string | null;
+  hasPhoto: boolean;
+  busy: boolean;
+};
+
+export function usePropertyPhoto(transactionId: string, initialUrl: string | null): PropertyPhotoController {
   const { toast } = useAgentToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(initialUrl);
-  const [uploading, setUploading] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  const [displayUrl, setDisplayUrl] = useState<string | null>(initialUrl);
+  const [hasPhoto, setHasPhoto] = useState<boolean>(!!initialUrl);
+  const [busy, setBusy] = useState(false);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
+    if (clearTimer.current) { clearTimeout(clearTimer.current); clearTimer.current = null; }
+    setBusy(true);
     try {
       const { file: prepared, reencoded } = await prepareImageForUpload(file);
       if (!reencoded && prepared.size > SAFE_UPLOAD_BYTES) {
@@ -47,95 +59,83 @@ export function HeroPhotoUpload({
         return;
       }
       const json = await res.json();
+      // Paint the photo at opacity 0 (zone still narrow) first, then flip
+      // hasPhoto on a later frame so the browser animates the transition in
+      // rather than jumping straight to the end state.
+      setDisplayUrl(json.url);
+      requestAnimationFrame(() => requestAnimationFrame(() => setHasPhoto(true)));
       await setPropertyPhotoAction(transactionId, json.storagePath);
-      setPreviewUrl(json.url);
       toast.success("Photo uploaded");
     } catch {
       toast.error("We couldn't upload that photo. Please try again.");
     } finally {
-      setUploading(false);
+      setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
 
-  async function handleRemove() {
-    setRemoving(true);
-    try {
-      await removePropertyPhotoAction(transactionId);
-      setPreviewUrl(null);
-      toast.success("Photo removed");
-    } catch {
-      toast.error("We couldn't remove that photo. Please try again.");
-    } finally {
-      setRemoving(false);
-    }
+  function triggerUpload() {
+    if (!busy) inputRef.current?.click();
   }
 
+  function remove() {
+    if (busy) return;
+    const previous = displayUrl;
+    setBusy(true);
+    setHasPhoto(false); // runs the out-animation
+    clearTimer.current = setTimeout(() => setDisplayUrl(null), CLEAR_AFTER_MS);
+    removePropertyPhotoAction(transactionId)
+      .then(() => toast.success("Photo removed"))
+      .catch(() => {
+        if (clearTimer.current) { clearTimeout(clearTimer.current); clearTimer.current = null; }
+        setDisplayUrl(previous);
+        setHasPhoto(true);
+        toast.error("We couldn't remove that photo. Please try again.");
+      })
+      .finally(() => setBusy(false));
+  }
+
+  return { inputRef, onFile, triggerUpload, remove, displayUrl, hasPhoto, busy };
+}
+
+// The hollow add-photo circle shown in the empty state.
+export function AddPhotoCircle({
+  onClick,
+  busy,
+  size = 120,
+}: {
+  onClick: () => void;
+  busy: boolean;
+  size?: number;
+}) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-        onChange={handleFile}
-        style={{ display: "none" }}
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-        aria-label={previewUrl ? "Replace property photo" : "Add a property photo"}
-        title={previewUrl ? "Replace photo" : "Add a photo"}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: uploading ? "wait" : "pointer",
-          overflow: "hidden",
-          padding: 0,
-          fontFamily: "inherit",
-          // Photo: white ring + soft shadow (matches the broker/progressor
-          // avatars). Empty: hollow dashed circle inviting an upload.
-          background: previewUrl ? "#fff" : "var(--agent-surface-elevated)",
-          border: previewUrl ? "4px solid #fff" : "2px dashed var(--agent-border-strong, rgba(15,23,42,0.18))",
-          boxShadow: previewUrl ? "0 2px 10px rgba(15,23,42,0.14)" : "none",
-          color: "var(--agent-text-muted)",
-        }}
-        className="agent-hover-row"
-      >
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt="Property" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <Camera size={size * 0.26} weight="regular" />
-            <span style={{ fontSize: 11, fontWeight: 600 }}>{uploading ? "Uploading…" : "Add photo"}</span>
-          </span>
-        )}
-      </button>
-      {previewUrl && (
-        <button
-          type="button"
-          onClick={handleRemove}
-          disabled={removing}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            fontSize: 12,
-            fontWeight: 600,
-            color: "var(--agent-text-muted)",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          {removing ? "Removing…" : "Remove photo"}
-        </button>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      aria-label="Add a property photo"
+      title="Add a photo"
+      className="agent-hover-row"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: busy ? "wait" : "pointer",
+        padding: 0,
+        fontFamily: "inherit",
+        background: "var(--agent-surface-elevated)",
+        border: "2px dashed var(--agent-border-strong, rgba(15,23,42,0.18))",
+        color: "var(--agent-text-muted)",
+      }}
+    >
+      <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <Camera size={size * 0.26} weight="regular" />
+        <span style={{ fontSize: 11, fontWeight: 600 }}>{busy ? "Uploading…" : "Add photo"}</span>
+      </span>
+    </button>
   );
 }
