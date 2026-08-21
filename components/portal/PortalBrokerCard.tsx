@@ -11,6 +11,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { requestBrokerCallbackAction } from "@/app/actions/broker-callback";
 import { portalSaveOverviewLayout } from "@/app/actions/portal";
 
@@ -18,6 +19,8 @@ export type PortalBrokerCardProps = {
   token: string;
   source: "agent" | "tsp";
   firmName: string;
+  logoUrl: string | null;
+  agencyName: string;
   requested: boolean;
   prefill: { name: string; email: string | null; phone: string | null; contactMethodLabel: string };
   // Current overview layout so the dismiss X can append this card's key.
@@ -26,10 +29,19 @@ export type PortalBrokerCardProps = {
   hidden: string[];
 };
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function PortalBrokerCard({
   token,
   source,
   firmName,
+  logoUrl,
+  agencyName,
   requested: initialRequested,
   prefill,
   cardKey,
@@ -52,10 +64,9 @@ export function PortalBrokerCard({
 
   if (dismissed) return null;
 
-  const subtitle =
-    source === "agent"
-      ? `${firmName}, recommended by your agent. A free, no obligation chat about your mortgage.`
-      : "Free, no obligation mortgage advice. We'll connect you with a trusted broker.";
+  // We present as the agent on every file (in-house and outsourced), so the
+  // recommendation is branded as the agency, not the generic "your agent".
+  const recommendLine = `Recommended by ${agencyName}`;
 
   function submit() {
     startTransition(async () => {
@@ -223,60 +234,83 @@ export function PortalBrokerCard({
 
   return (
     <>
-      <div
+      <PortalGlassCard
+        glassId="portal-broker"
+        label="Portal · Broker"
+        defaultVariant="v05"
+        radius={24}
         role="button"
         tabIndex={0}
         onClick={() => setOpen(true)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }}
         className="pbtn pbtn-press"
-        style={{
-          position: "relative",
-          borderRadius: 16,
-          padding: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          cursor: "pointer",
-          textAlign: "left",
-          background: "linear-gradient(160deg, rgba(255,107,74,0.11), rgba(255,107,74,0.035))",
-          border: "0.5px solid rgba(255,107,74,0.16)",
-          boxShadow: P.shadowSm,
-        }}
+        style={{ position: "relative", padding: "22px 24px", cursor: "pointer", textAlign: "left" }}
       >
+        {/* Dismiss */}
         <button
           type="button"
           aria-label="Dismiss"
           onClick={(e) => { e.stopPropagation(); dismiss(); }}
           style={{
-            position: "absolute",
-            top: 9,
-            right: 10,
-            width: 22,
-            height: 22,
-            borderRadius: 8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: P.textMuted,
-            background: "rgba(15,23,42,0.04)",
-            border: "none",
-            cursor: "pointer",
+            position: "absolute", top: 16, right: 16,
+            width: 34, height: 34, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: P.textMuted, background: "rgba(15,23,42,0.05)", border: "none", cursor: "pointer",
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
-        <div style={{ flex: 1, minWidth: 0, paddingRight: 18 }}>
-          <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.01em" }}>
-            Speak to a mortgage broker
-          </p>
-          <p style={{ margin: 0, fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>{subtitle}</p>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          {/* Avatar: provider logo, or the firm's initials on a dark disc, with a light ring. */}
+          <div
+            style={{
+              width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
+              background: "#0f1729", border: "4px solid #ffffff",
+              boxShadow: "0 2px 8px rgba(15,23,42,0.12)",
+              display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
+            }}
+          >
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt={firmName} width={72} height={72} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span style={{ fontSize: 24, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }}>{initials(firmName)}</span>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+              Speak to a mortgage broker
+            </p>
+
+            {/* Recommended-by line — only when the AGENCY chose the broker. For
+                the TSP default we can't say the agency recommends it. */}
+            {source === "agent" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="1.6" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9.2" />
+                  <path transform="translate(12 12) scale(0.4) translate(-12 -12)" fill={P.accent} stroke="none" d="M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z" />
+                </svg>
+                <span style={{ fontSize: 15, fontWeight: 600, color: P.accent }}>{recommendLine}</span>
+              </div>
+            )}
+
+            {/* Tagline + CTA */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 15, color: P.textMuted }}>Free, no-obligation advice</span>
+              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 15, fontWeight: 700, color: P.accent, whiteSpace: "nowrap" }}>
+                Get in touch
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </span>
+            </div>
+          </div>
         </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </div>
+      </PortalGlassCard>
       {mounted && sheet ? createPortal(sheet, document.body) : null}
       {mounted && toast ? createPortal(toast, document.body) : null}
     </>

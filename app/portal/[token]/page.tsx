@@ -649,6 +649,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             token={token}
             source={brokerCard.source}
             firmName={brokerCard.firmName}
+            logoUrl={brokerCard.logoUrl}
+            agencyName={brokerCard.agencyName}
             requested={brokerCard.requested}
             prefill={{
               name: brokerCard.prefill.name,
