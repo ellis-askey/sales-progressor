@@ -72,6 +72,29 @@ export async function getContactExchangeDayState(token: string): Promise<{
   return { active: true, authorityState, saleWord };
 }
 
+// Agent view: has each side given authority THIS activation? "given" only when
+// every contact on that side has confirmed; "waiting" if any hasn't; null when
+// there's no contact on that side. Lets the file show "Buyer given / Seller
+// waiting" so the team knows when everyone's ready.
+export type SideAuthority = "given" | "waiting" | null;
+export async function getExchangeDayAuthority(transactionId: string): Promise<{ seller: SideAuthority; buyer: SideAuthority }> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      exchangeDayStartedAt: true,
+      contacts: { select: { roleType: true, exchangeAuthorityGivenAt: true } },
+    },
+  });
+  const startedAt = tx?.exchangeDayStartedAt ?? null;
+  const forSide = (role: "vendor" | "purchaser"): SideAuthority => {
+    const cs = (tx?.contacts ?? []).filter((c) => c.roleType === role);
+    if (cs.length === 0) return null;
+    const allGiven = !!startedAt && cs.every((c) => c.exchangeAuthorityGivenAt && c.exchangeAuthorityGivenAt >= startedAt);
+    return allGiven ? "given" : "waiting";
+  };
+  return { seller: forSide("vendor"), buyer: forSide("purchaser") };
+}
+
 function longDate(d: Date): string {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }

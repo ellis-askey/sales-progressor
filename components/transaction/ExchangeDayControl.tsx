@@ -24,14 +24,18 @@ const btnGhost: React.CSSProperties = {
   background: "transparent", color: "var(--agent-text-secondary)", border: "0.5px solid var(--agent-border-default)",
 };
 
+type SideAuthority = "given" | "waiting" | null;
+
 export function ExchangeDayControl({
   transactionId,
   active,
   completionDate,
+  authority,
 }: {
   transactionId: string;
   active: boolean;
   completionDate: string | null;
+  authority?: { seller: SideAuthority; buyer: SideAuthority } | null;
 }) {
   const { toast } = useAgentToast();
   const router = useRouter();
@@ -78,6 +82,13 @@ export function ExchangeDayControl({
           >
             Not today
           </button>
+          {authority && (authority.buyer || authority.seller) && (
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }} title="Client authority to exchange">
+              {authority.buyer && (<>Buyer {authority.buyer === "given" ? "✓" : "waiting"}</>)}
+              {authority.buyer && authority.seller && " · "}
+              {authority.seller && (<>Seller {authority.seller === "given" ? "✓" : "waiting"}</>)}
+            </span>
+          )}
         </span>
       ) : (
         <button

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { sendChainEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { addWorkingDays } from "@/lib/emails/working-hours";
@@ -205,6 +206,10 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       activeBuyerRoundId: true,
       lastActivityAt: true,
       createdAt: true,
+      // Exchange-day suppression (see docs/active/exchange-day-SPEC.md).
+      exchangeDayStartedAt: true,
+      exchangeDayCancelledAt: true,
+      exchangedAt: true,
       vendorSolicitorContactId: true,
       vendorSolicitorEmailsPaused: true,
       vendorSolicitorContact: { select: { email: true } },
@@ -230,6 +235,9 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
   const out: DueGroup[] = [];
 
   for (const tx of txs) {
+    // Exchange-day: don't chase solicitors on a file that's aiming to exchange
+    // today — the exchange-day sequence handles them instead.
+    if (isExchangeDayActive(tx)) continue;
     // Flatten all completions for anchor lookup — cross-side anchors need
     // to see the other side's completions too.
     const allCompletionsFlat = tx.milestoneCompletions.map((c) => ({
