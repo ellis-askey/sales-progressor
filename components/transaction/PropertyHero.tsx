@@ -9,7 +9,8 @@ import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { HeroSaleFields } from "./HeroSaleFields";
 import { HeroExchangeCell } from "./HeroExchangeCell";
 import { HeroAddressEdit } from "./HeroAddressEdit";
-import { HeroPhotoUpload } from "./HeroPhotoUpload";
+import { usePropertyPhoto, AddPhotoCircle } from "./HeroPhotoUpload";
+import { Trash } from "@phosphor-icons/react/dist/ssr";
 import { formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -240,6 +241,10 @@ export function PropertyHero({
   const days = exchangeDate ? daysUntil(new Date(exchangeDate)) : null;
   const price = formatPrice(purchasePrice);
   const [switchModalOpen, setSwitchModalOpen] = useState(false);
+  // Property-photo controller — called unconditionally (rules of hooks). Only
+  // the agent hero below renders its controls; the dark progressor hero and
+  // the no-transaction help preview ignore it.
+  const photo = usePropertyPhoto(transactionId ?? "", photoUrl);
   const canSwitchService = isAdminViewer && !!transactionId && !!serviceType && !hideServiceTypeBadge;
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
@@ -307,15 +312,76 @@ export function PropertyHero({
       );
     })();
 
-    // Property photo — a large circular upload control (2026-08-21 redesign).
-    // Replaces the old full-bleed photo column + house glyph fallback. The
-    // whole circle is clickable to upload/replace; "Remove photo" sits
-    // beneath. Vertically centred beside the content on desktop, stacked on
-    // top on mobile. When there's no transaction id (dev/help preview only)
-    // we skip it rather than render an inert control.
-    const photoCircleColumn = transactionId ? (
-      <div className="flex justify-center pt-12 pb-2 md:py-6 md:self-center md:pl-4" style={{ flex: "0 0 auto" }}>
-        <HeroPhotoUpload transactionId={transactionId} initialUrl={photoUrl} />
+    // Property photo (2026-08-21, animated). Empty state: a narrow left zone
+    // holding the hollow add-circle, so the content sits further left. Adding a
+    // photo widens the zone 168px -> 380px (flex-basis transition) — the
+    // content column reflows rightward as one motion — while the photo, pinned
+    // at its full 380px width and left-anchored inside an overflow-hidden zone,
+    // is revealed left-to-right by the widening AND fades in; the circle fades
+    // out. Removing runs the exact reverse. displayUrl lags hasPhoto so the
+    // photo can wipe out before its <img> unmounts.
+    const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+    const photoColumnDesktop = transactionId ? (
+      <div className="hidden md:block" style={{
+        position: "relative",
+        flexGrow: 0,
+        flexShrink: 1,
+        flexBasis: photo.hasPhoto ? 380 : 168,
+        minWidth: photo.hasPhoto ? 240 : 168,
+        alignSelf: "stretch",
+        overflow: "hidden",
+        transition: `flex-basis 560ms ${EASE}, min-width 560ms ${EASE}`,
+      }}>
+        {photo.displayUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo.displayUrl} alt="" style={{
+            position: "absolute", left: 0, top: 0, height: "100%", width: 380, maxWidth: "none",
+            objectFit: "cover",
+            opacity: photo.hasPhoto ? 1 : 0,
+            maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+            transition: `opacity 560ms ${EASE}`,
+            pointerEvents: "none",
+          }} />
+        )}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          opacity: photo.hasPhoto ? 0 : 1,
+          pointerEvents: photo.hasPhoto ? "none" : "auto",
+          transition: "opacity 300ms ease",
+        }}>
+          <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={120} />
+        </div>
+      </div>
+    ) : null;
+
+    const photoLayerMobile = transactionId ? (
+      <div className="md:hidden" style={{
+        position: "relative", overflow: "hidden",
+        height: photo.hasPhoto ? 148 : 132,
+        transition: `height 460ms ${EASE}`,
+      }}>
+        {photo.displayUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo.displayUrl} alt="" style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+            opacity: photo.hasPhoto ? 1 : 0,
+            maskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
+            transition: `opacity 460ms ${EASE}`,
+            pointerEvents: "none",
+          }} />
+        )}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          opacity: photo.hasPhoto ? 0 : 1,
+          pointerEvents: photo.hasPhoto ? "none" : "auto",
+          transition: "opacity 300ms ease",
+        }}>
+          <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={100} />
+        </div>
       </div>
     ) : null;
 
@@ -328,11 +394,14 @@ export function PropertyHero({
         borderRadius: 18,
         overflow: "hidden",
       }}>
-        {/* Card body: flex row on desktop — circular photo control on the
-            left (vertically centred), content column takes the rest. On
-            mobile it stacks: circle on top, content below. */}
-        <div className="md:flex md:items-stretch" style={{ position: "relative" }}>
-          {photoCircleColumn}
+        {/* Mobile photo strip (or the add-photo circle when empty) — stacks
+            above the content. */}
+        {photoLayerMobile}
+
+        {/* Desktop card body: flex row — photo column (full-bleed photo or
+            the add circle) on the left, content column takes the rest. */}
+        <div className="md:flex" style={{ position: "relative" }}>
+          {photoColumnDesktop}
 
           {/* Content column: takes all remaining space; minWidth: 0 lets
               its children (h1, stat labels) shrink honourably rather than
@@ -568,13 +637,65 @@ export function PropertyHero({
             textDecoration: "none",
             padding: "6px 12px",
             borderRadius: 999,
-            color: "var(--agent-text-secondary)",
-            background: "var(--agent-surface-overlay)",
+            color: photo.hasPhoto ? "#fff" : "var(--agent-text-secondary)",
+            background: photo.hasPhoto ? "rgba(15,23,42,0.38)" : "var(--agent-surface-overlay)",
+            backdropFilter: photo.hasPhoto ? "blur(8px)" : undefined,
+            WebkitBackdropFilter: photo.hasPhoto ? "blur(8px)" : undefined,
+            transition: "color 400ms ease, background 400ms ease",
           }}
         >
           <ArrowLeft size={13} weight="bold" />
           Back to files
         </Link>
+
+        {/* Hidden file input — shared by the desktop + mobile add circles. */}
+        {transactionId && (
+          <input
+            ref={photo.inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            onChange={photo.onFile}
+            style={{ display: "none" }}
+          />
+        )}
+
+        {/* Remove-photo pill — bottom-left of the card, over the photo. Fades
+            in (delayed, after the zone widens) when a photo is set; fades out
+            quickly when removing. */}
+        {transactionId && (
+          <button
+            type="button"
+            onClick={photo.remove}
+            disabled={photo.busy || !photo.hasPhoto}
+            aria-hidden={!photo.hasPhoto}
+            style={{
+              position: "absolute",
+              bottom: 14,
+              left: 14,
+              zIndex: 2,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "6px 12px",
+              borderRadius: 999,
+              border: "none",
+              cursor: photo.busy ? "wait" : "pointer",
+              color: "#fff",
+              background: "rgba(15,23,42,0.42)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              fontFamily: "inherit",
+              opacity: photo.hasPhoto ? 1 : 0,
+              pointerEvents: photo.hasPhoto ? "auto" : "none",
+              transition: photo.hasPhoto ? "opacity 360ms ease 240ms" : "opacity 220ms ease",
+            }}
+          >
+            <Trash size={13} weight="regular" />
+            Remove photo
+          </button>
+        )}
 
         {/* Role-gated header controls (AI summary + portal emails) —
             top-right, on a soft glass strip so they read over photo or
