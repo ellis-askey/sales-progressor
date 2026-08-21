@@ -32,6 +32,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
+import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { enqueueClientChaseDigest } from "@/lib/email/client-chase-digest";
 import { createAgentChaseTaskForMilestone } from "@/lib/services/reminders";
 import type { ContactRole } from "@prisma/client";
@@ -174,12 +175,18 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
   //     escalation pass is unaffected — the file must still flag to the team)
   //   - chaseRuleSnapshot: per-transaction grace/repeat values at creation time
   //   - agencyId: needed for the agency-wide master toggle lookup
-  const transactions = await prisma.propertyTransaction.findMany({
+  const allActive = await prisma.propertyTransaction.findMany({
     where: { status: "active" },
     select: {
       id: true,
       createdAt: true,
       agencyId: true,
+      // Exchange-day suppression: a file aiming to exchange today is dropped
+      // from the whole chase pass, so no automated client chase goes out on
+      // exchange morning. See docs/active/exchange-day-SPEC.md.
+      exchangeDayStartedAt: true,
+      exchangeDayCancelledAt: true,
+      exchangedAt: true,
       // Whole-file pause (AutomationStopModal "pause" choice + legacy
       // sync). Per-PERSON pausing moved to Contact.emailsPausedAt
       // (2026-08-11 email-settings drawer) — the per-side
@@ -197,6 +204,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       activeBuyerRoundId: true,
     },
   });
+  const transactions = allActive.filter((t) => !isExchangeDayActive(t));
   if (transactions.length === 0) return [];
   const txIds = transactions.map((t) => t.id);
   const activeRoundByTx = new Map(transactions.map((t) => [t.id, t.activeBuyerRoundId]));

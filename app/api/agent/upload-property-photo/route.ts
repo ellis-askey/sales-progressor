@@ -12,7 +12,11 @@
 //   - session required
 //   - transaction must exist within caller's access scope
 //   - file must be an image (image/* mime)
-//   - file must be under 8 MB (agents shoot on phones — this is generous)
+//   - file must be under 4 MB. Agents shoot on phones, so the client
+//     downscales big photos before upload (lib/images/prepare-upload.ts);
+//     this ceiling is a backstop that also sits under the platform's
+//     ~4.5 MB request-body limit, so oversized posts get a clean JSON 400
+//     from us rather than a plain-text 413 from the platform.
 
 import { type NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
@@ -20,7 +24,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { prisma } from "@/lib/prisma";
 import { uploadToStorage, getSignedUrl } from "@/lib/supabase-storage";
 
-const MAX_BYTES = 8 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 function extFor(mime: string): string {
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "file required" }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "File is too large. Max 8 MB." }, { status: 400 });
+    return NextResponse.json({ error: "That image is too large to upload. Please use one under 4 MB." }, { status: 400 });
   }
   if (!ALLOWED_MIME.includes(file.type)) {
     return NextResponse.json({ error: "File must be an image (JPG, PNG, WEBP, HEIC)." }, { status: 400 });

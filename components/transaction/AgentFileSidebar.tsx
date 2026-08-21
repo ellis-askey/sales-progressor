@@ -20,6 +20,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { buildCheckInMessage, type DueStep } from "@/lib/chase/step-questions";
+import { markStepsChasedAction } from "@/app/actions/tasks";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { sendQuoteLinkToBuyerAction } from "@/app/actions/send-quote-link";
 import { formatElapsedDays } from "@/lib/utils";
@@ -30,7 +33,7 @@ import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
-import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench } from "@phosphor-icons/react";
+import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
@@ -88,7 +91,20 @@ type Props = {
   // 2026-07-06 mock: Last activity timestamp on the file, shown as a
   // relative-time row in the Sale health card.
   lastActivityAt?: Date | null;
+  // 2026-08-19: WhatsApp check-in copy (quick links). Each side carries
+  // its outstanding-step questions (firm name pre-interpolated) plus the
+  // client headcount for the group greeting; the message itself is built
+  // at click time so the greeting matches the agent's clock. A side with
+  // no due steps hides its row. transactionId feeds the one-tap
+  // mark-as-chased follow-up.
+  checkIn?: {
+    transactionId: string;
+    seller: CheckInSide;
+    buyer: CheckInSide;
+  };
 };
+
+type CheckInSide = { steps: DueStep[]; clientCount: number };
 
 const PHASE_LABELS: Record<string, string> = {
   onboarding:   "Onboarding",
@@ -166,6 +182,7 @@ export function AgentFileSidebar({
   currentUserId,
   primaryPortalHref,
   lastActivityAt,
+  checkIn,
 }: Props) {
   const { setActiveTab } = useTabContext();
 
@@ -533,6 +550,12 @@ export function AgentFileSidebar({
             onClick={() => setActiveTab("activity")}
           />
           <SendQuoteLinkQuickAction transactionId={transaction.id} />
+          {checkIn && checkIn.seller.steps.length > 0 && (
+            <CheckInQuickAction label="Copy seller check-in" side={checkIn.seller} transactionId={checkIn.transactionId} />
+          )}
+          {checkIn && checkIn.buyer.steps.length > 0 && (
+            <CheckInQuickAction label="Copy buyer check-in" side={checkIn.buyer} transactionId={checkIn.transactionId} />
+          )}
         </div>
       </GlassCard>
 
@@ -641,6 +664,65 @@ function QuickLinkExternal({
       </span>
       <ArrowSquareOut size={13} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
     </Link>
+  );
+}
+
+// WhatsApp check-in copy (2026-08-19, upgraded 2026-08-21). Builds the full
+// message at click time (greeting matches the agent's clock), copies it, then
+// offers a one-tap "mark as chased" follow-up that stamps a manual chase on
+// every copied step's open task — same effect as the ↻ Chased button per row.
+function CheckInQuickAction({
+  label, side, transactionId,
+}: {
+  label: string;
+  side: CheckInSide;
+  transactionId: string;
+}) {
+  const pathname = usePathname();
+  const [copied, setCopied] = useState(false);
+  const [offerMark, setOfferMark] = useState(false);
+  const [markState, setMarkState] = useState<"idle" | "working" | { marked: number }>("idle");
+
+  function copy() {
+    const text = buildCheckInMessage({ steps: side.steps, clientCount: side.clientCount });
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setOfferMark(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  }
+
+  function markChased() {
+    if (markState !== "idle") return;
+    setMarkState("working");
+    markStepsChasedAction(transactionId, side.steps.map((s) => s.code), pathname)
+      .then((result) => setMarkState({ marked: result.marked }))
+      .catch(() => setMarkState("idle"));
+  }
+
+  const stepWord = side.steps.length === 1 ? "step" : "steps";
+  const markLabel =
+    markState === "idle" ? `Mark ${side.steps.length} ${stepWord} as chased`
+    : markState === "working" ? "Marking as chased..."
+    : markState.marked > 0 ? `${markState.marked} marked as chased`
+    : "No open chases to mark";
+
+  return (
+    <>
+      <QuickLinkButton
+        onClick={copy}
+        label={copied ? "Copied. Paste into WhatsApp" : label}
+        Icon={copied ? Check : CopySimple}
+      />
+      {offerMark && (
+        <QuickLinkButton
+          onClick={markChased}
+          label={markLabel}
+          Icon={typeof markState === "object" ? Check : ArrowClockwise}
+        />
+      )}
+    </>
   );
 }
 

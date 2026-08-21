@@ -90,51 +90,146 @@ export function QuoteFlow({
     });
   }
 
-  // ── Success screen ──────────────────────────────────────────────────────
+  // ── Success screen — full receipt of what was sent (2026-08-19) ─────────
   if (result?.ok) {
+    const serviceLabel = serviceTypes.find((s) => s.id === serviceTypeId)?.label ?? "Survey";
+    const methodLabel: Record<QuoteContactMethod, string> = {
+      either: "Phone or email", phone: "Phone", email: "Email", text: "Text message", whatsapp: "WhatsApp",
+    };
+    const windowLabel: Record<QuoteContactWindow, string> = {
+      anytime: "Anytime", morning: "Mornings", afternoon: "Afternoons", evening: "Evenings",
+    };
+    const urgencyLabel: Record<QuoteUrgency, string> = {
+      asap: "As soon as possible", within_week: "Within a week", flexible: "Flexible",
+    };
+    const sentFirms = result.firms ?? [];
+
     return (
-      <div
-        style={{
-          background: A.cardBg,
-          backdropFilter: A.cardBlur,
-          WebkitBackdropFilter: A.cardBlur,
-          border: `1px solid ${A.cardBorder}`,
-          borderRadius: 20,
-          padding: 24,
-          textAlign: "center",
-          boxShadow: A.cardShadow,
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Hero: tick + who it went to, surveyors shown like the picker rows */}
         <div
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            background: A.coralGradient,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 12,
-            boxShadow: "0 4px 14px rgba(255,107,74,0.3)",
+            background: A.cardBg,
+            backdropFilter: A.cardBlur,
+            WebkitBackdropFilter: A.cardBlur,
+            border: `1px solid ${A.cardBorder}`,
+            borderRadius: 20,
+            padding: 24,
+            boxShadow: A.cardShadow,
           }}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                background: A.coralGradient,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+                boxShadow: "0 4px 14px rgba(255,107,74,0.3)",
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: A.textPrimary, margin: "0 0 6px" }}>Request sent</h2>
+            <p style={{ fontSize: 14, color: A.textSecondary, margin: 0, lineHeight: 1.5 }}>
+              Your {serviceLabel.toLowerCase()} request has gone to {result.count} firm{result.count === 1 ? "" : "s"}. They'll contact you directly with a quote.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {sentFirms.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${A.inputBorder}`,
+                  background: A.inputBg,
+                }}
+              >
+                {f.logoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={f.logoUrl} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0, background: A.paper }} />
+                ) : (
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: A.bgMid, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: A.textFaint }}>{f.name.slice(0, 1).toUpperCase()}</span>
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: A.textPrimary, margin: 0 }}>{f.name}</p>
+                  {f.notes && (
+                    <p style={{ fontSize: 12, color: A.textMuted, margin: "3px 0 0", lineHeight: 1.4 }}>{f.notes}</p>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: A.coralDark,
+                    background: A.coralTint,
+                    borderRadius: 999,
+                    padding: "3px 10px",
+                    flexShrink: 0,
+                  }}
+                >
+                  Sent
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: A.textPrimary, margin: "0 0 8px" }}>Sent</h2>
-        <p style={{ fontSize: 14, color: A.textSecondary, margin: "0 0 16px", lineHeight: 1.5 }}>
-          Your request has been sent to {result.count} firm{result.count === 1 ? "" : "s"}:
-        </p>
-        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", fontSize: 14, color: A.textPrimary, fontWeight: 600 }}>
-          {result.firmNames.map((n) => (
-            <li key={n} style={{ padding: "6px 0", borderBottom: `1px solid ${A.cardBorder}` }}>
-              {n}
-            </li>
-          ))}
-        </ul>
-        <p style={{ fontSize: 13, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
-          They'll be in touch directly with a quote. If you don't hear back within a couple of days, let your agent know.
+
+        {/* Receipt: everything that was sent, neatly grouped */}
+        <div
+          style={{
+            background: A.cardBg,
+            backdropFilter: A.cardBlur,
+            WebkitBackdropFilter: A.cardBlur,
+            border: `1px solid ${A.cardBorder}`,
+            borderRadius: 20,
+            padding: "18px 20px",
+            boxShadow: A.cardShadow,
+          }}
+        >
+          <p style={{ ...labelStyle, marginBottom: 10 }}>What we sent</p>
+
+          <ShareRow label="Survey type" value={serviceLabel} />
+          <ShareRow label="Contact by" value={methodLabel[contactMethod]} />
+          <ShareRow label="Best time" value={windowLabel[contactWindow]} />
+          <ShareRow label="Timeframe" value={urgencyLabel[urgency]} />
+
+          <div style={{ borderTop: `1px solid ${A.cardBorder}`, margin: "10px 0" }} />
+          <p style={{ ...labelStyle, marginBottom: 6 }}>Your details</p>
+          <ShareRow label="Name" value={clientName} />
+          <ShareRow label="Email" value={clientEmail} />
+          {clientPhone.trim() && <ShareRow label="Phone" value={clientPhone} />}
+
+          <div style={{ borderTop: `1px solid ${A.cardBorder}`, margin: "10px 0" }} />
+          <p style={{ ...labelStyle, marginBottom: 6 }}>Property</p>
+          <ShareRow label="Address" value={propertyAddress} />
+          {priceLabel && <ShareRow label="Price" value={priceLabel} />}
+          {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
+
+          {notes.trim() && (
+            <>
+              <div style={{ borderTop: `1px solid ${A.cardBorder}`, margin: "10px 0" }} />
+              <p style={{ ...labelStyle, marginBottom: 6 }}>Your note to the surveyor{result.count === 1 ? "" : "s"}</p>
+              <p style={{ fontSize: 13, color: A.textPrimary, margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{notes.trim()}</p>
+            </>
+          )}
+        </div>
+
+        <p style={{ fontSize: 13, color: A.textMuted, margin: 0, lineHeight: 1.5, textAlign: "center", padding: "0 8px" }}>
+          If you don't hear back within a couple of days, let your agent know.
         </p>
       </div>
     );

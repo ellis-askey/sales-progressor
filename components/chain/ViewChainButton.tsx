@@ -9,10 +9,11 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 type Props = {
   transactionId: string;
   currentUserId: string;
+  currentUserRole?: string | null;
   declineNotification?: { address: string; at: string } | null;
 };
 
-export function ViewChainButton({ transactionId, currentUserId, declineNotification }: Props) {
+export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [addNode, setAddNode] = useState<{
@@ -55,6 +56,7 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
         <ChainDrawer
           transactionId={transactionId}
           currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
           onClose={() => setDrawerOpen(false)}
           onOpenAddNode={handleOpenAddNode}
           declineNotification={declineNotification}

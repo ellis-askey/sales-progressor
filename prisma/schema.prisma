@@ -394,6 +394,21 @@ model PropertyTransaction {
   // "Did this file exchange?" — answer.
   exchangedAt DateTime?
 
+  // Exchange-day overlay — the agent flags "we're aiming to exchange TODAY".
+  // Single-day and self-clearing: "active" is DERIVED, not stored — the UK
+  // date of exchangeDayStartedAt must equal today, the file must not have
+  // exchanged, and it must not have been cancelled since the last start. No
+  // midnight cron; it simply stops being "today". Re-activating the next day
+  // stamps a fresh startedAt. See docs/active/exchange-day-SPEC.md.
+  exchangeDayStartedAt   DateTime?
+  exchangeDayCancelledAt DateTime?
+  // Per-slot send stamps for the exchange-day solicitor emails (08:45 / 12:30 /
+  // 15:30 UK). "Sent for THIS activation" is derived as stamp >= startedAt, so
+  // re-activating the next day naturally resets them with no cron/backfill.
+  exchangeDayMorningEmailAt   DateTime?
+  exchangeDayMiddayEmailAt     DateTime?
+  exchangeDayAfternoonEmailAt  DateTime?
+
   // Set on VM19/PM26 completion ONLY when the exchange generates a charge.
   // Trial files leave this null. Guard against bilateral double-billing — checked
   // before write so the bilateral partner's auto-complete is a no-op.
@@ -658,6 +673,11 @@ model Contact {
   // on each new device or after clearing storage. Set via
   // /api/portal/[token]/welcome-seen; read by getPortalData -> PortalShell.
   welcomeSeenAt         DateTime?
+  // Exchange-day: stamped when the client confirms via their portal that they've
+  // given their solicitor authority to exchange. Counts for the CURRENT exchange
+  // day only (valid when >= the file's exchangeDayStartedAt), so a re-activated
+  // day re-asks. See docs/active/exchange-day-SPEC.md.
+  exchangeAuthorityGivenAt DateTime?
   // PWA adoption signal (Command Centre → App adoption). pwaInstalledAt: first
   // time we saw them in standalone display-mode or caught the appinstalled
   // event — the truest "added it to their home screen". pwaLastOpenedAt: most

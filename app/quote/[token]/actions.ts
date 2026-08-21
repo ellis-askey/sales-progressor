@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { outwardCode } from "@/lib/utils/address";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
@@ -49,7 +50,15 @@ export type QuoteSubmitInput = {
 };
 
 export type QuoteSubmitResult =
-  | { ok: true; count: number; firmNames: string[] }
+  | {
+      ok: true;
+      count: number;
+      firmNames: string[];
+      // Full firm details for the success receipt (2026-08-19 card
+      // rebuild) — the card shows surveyors with logos + blurbs, not
+      // bare names. firmNames retained for back-compat.
+      firms: Array<{ id: string; name: string; logoUrl: string | null; notes: string | null }>;
+    }
   | { ok: false; error: string };
 
 // Where quotes send from when an agency has no verified sender on file, and
@@ -292,6 +301,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     ok: true,
     count: created.length,
     firmNames: validFirms.map((f) => f.name),
+    firms: validFirms.map((f) => ({ id: f.id, name: f.name, logoUrl: getProviderLogoUrl(f.logoPath), notes: f.notes ?? null })),
   };
 }
 

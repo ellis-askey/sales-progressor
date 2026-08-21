@@ -15,6 +15,7 @@ import { getFollowupNudge } from "@/lib/portal/followup-state";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
+import { PortalExchangeDaySection } from "@/components/portal/PortalExchangeDaySection";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
@@ -547,6 +548,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
              Exchange banners above, which have their own celebratory
              design). The new hero shows the property photo, address,
              status pills, ring, and the 6-tile progress row below. */}
+      {!hasExchanged && !hasCompleted && <PortalExchangeDaySection token={token} />}
       {!hasExchanged && !hasCompleted && overviewHero}
 
 

@@ -46,7 +46,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
   });
 
   if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (!canSendInvite(link, session.user.id)) {
+  if (!canSendInvite(link, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

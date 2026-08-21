@@ -66,7 +66,13 @@ type Props = {
 };
 
 // Codes that can be manually marked N/R regardless of purchaseType.
-const NR_ALLOWED_BASE = new Set(["PM9"]);
+// PM24 (deposit): a buyer whose funds are locked in the equity of a related
+// sale transfers no separate deposit, so the progressor skips it once they
+// learn that. The step still unlocks in its normal place (after signed
+// contracts); marking it N/R hides it from the client, drops its weight from
+// the % and unlocks ready-to-exchange. (The auto-skip for cash_from_proceeds
+// is separate, in milestone-auto-nr.ts.)
+const NR_ALLOWED_BASE = new Set(["PM9", "PM24"]);
 // Codes that become manually N/R-able when purchaseType is cash.
 const NR_ALLOWED_CASH = new Set(["PM8"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);

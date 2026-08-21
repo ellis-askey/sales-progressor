@@ -11,6 +11,7 @@
 // underlying query runs per request.
 
 import { prisma } from "@/lib/prisma";
+import { buildDueSteps } from "@/lib/chase/step-questions";
 import {
   getMilestonesCached,
   getReminderLogsCached,
@@ -104,6 +105,7 @@ export async function SidebarPanel({
     reminderLogs,
     activityEntries,
     contactPortal,
+    checkInRow,
   ] = await Promise.all([
     prisma.propertyTransaction
       .findUnique({
@@ -182,6 +184,23 @@ export async function SidebarPanel({
       select: { portalToken: true },
       orderBy: { createdAt: "asc" },
     }).catch(() => null),
+
+    // WhatsApp check-in ingredients: each side's solicitor firm name (for
+    // "{firm}" in the questions) and client headcount (for "Good morning
+    // both/all" in the greeting).
+    prisma.propertyTransaction
+      .findUnique({
+        where: { id: transaction.id },
+        select: {
+          vendorSolicitorFirm: { select: { name: true } },
+          purchaserSolicitorFirm: { select: { name: true } },
+          contacts: {
+            where: { roleType: { in: ["vendor", "purchaser"] } },
+            select: { roleType: true },
+          },
+        },
+      })
+      .catch(() => null),
   ]);
 
   const activeRoundCreatedAt = activeRound?.createdAt ?? null;
@@ -315,6 +334,17 @@ export async function SidebarPanel({
         freeOnExchange: transaction.freeOnExchange ?? null,
       }}
       recommendedFirms={recommendedFirms}
+      checkIn={{
+        transactionId: transaction.id,
+        seller: {
+          steps: buildDueSteps(milestoneData?.vendor ?? [], checkInRow?.vendorSolicitorFirm?.name ?? null),
+          clientCount: checkInRow?.contacts.filter((c) => c.roleType === "vendor").length ?? 1,
+        },
+        buyer: {
+          steps: buildDueSteps(milestoneData?.purchaser ?? [], checkInRow?.purchaserSolicitorFirm?.name ?? null),
+          clientCount: checkInRow?.contacts.filter((c) => c.roleType === "purchaser").length ?? 1,
+        },
+      }}
       showOurFee={isDirectorRole || isAdminRole}
       assignedUser={assignedUser}
       agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}

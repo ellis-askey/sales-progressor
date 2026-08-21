@@ -27,36 +27,51 @@ function isUnclaimed(link: LinkPermissionData): boolean {
   return link.transactionId === null;
 }
 
-// Edit stub data (address, agency, email, notes) — originator only while unclaimed
-export function canEditLink(link: LinkPermissionData, userId: string): boolean {
-  return isOriginator(link, userId) && isUnclaimed(link);
+// Internal staff (admin / superadmin / sales_progressor) progress files they
+// don't originate — on an OUTSOURCED sale the agency agent creates the file and
+// its chain on submission, so they're the chain originator and internal staff
+// would otherwise be locked out of editing it. This mirrors the same exception
+// canViewChain already grants (added 2026-07-14). Customer-agency roles
+// (director / negotiator) fall through to the originator/claimer checks, so
+// their edit logic is unchanged. Uses INTERNAL_ROLES_SEE_ALL_CHAINS (declared
+// below — referenced at call time, so ordering is fine).
+export function isInternalStaff(role?: string | null): boolean {
+  return !!role && INTERNAL_ROLES_SEE_ALL_CHAINS.has(role);
 }
 
-// Send or resend an invite — originator only, unclaimed, must have email
-export function canSendInvite(link: LinkPermissionData, userId: string): boolean {
+// Edit stub data (address, agency, email, notes) — originator (or internal
+// staff) only while unclaimed
+export function canEditLink(link: LinkPermissionData, userId: string, role?: string | null): boolean {
+  return (isInternalStaff(role) || isOriginator(link, userId)) && isUnclaimed(link);
+}
+
+// Send or resend an invite — originator/internal staff, unclaimed, must have email
+export function canSendInvite(link: LinkPermissionData, userId: string, role?: string | null): boolean {
   return (
-    isOriginator(link, userId) &&
+    (isInternalStaff(role) || isOriginator(link, userId)) &&
     isUnclaimed(link) &&
     !!link.stubAgentEmail
   );
 }
 
-// Delete (cancel) a link — originator only while unclaimed
-export function canDeleteLink(link: LinkPermissionData, userId: string): boolean {
-  return isOriginator(link, userId) && isUnclaimed(link);
+// Delete (cancel) a link — originator/internal staff while unclaimed
+export function canDeleteLink(link: LinkPermissionData, userId: string, role?: string | null): boolean {
+  return (isInternalStaff(role) || isOriginator(link, userId)) && isUnclaimed(link);
 }
 
 // Add a node above this link:
 //   - originator can add above if this link is at the top (checked by caller)
 //   - claimed agent can add above their own claimed link
-export function canAddAbove(link: LinkPermissionData, userId: string): boolean {
-  return isOriginator(link, userId) || isClaimer(link, userId);
+//   - internal staff progressing the file can add above (checked by caller)
+export function canAddAbove(link: LinkPermissionData, userId: string, role?: string | null): boolean {
+  return isInternalStaff(role) || isOriginator(link, userId) || isClaimer(link, userId);
 }
 
 // Add a node below this link:
 //   - originator or claimer can add below if their link is at the bottom (checked by caller)
-export function canAddBelow(link: LinkPermissionData, userId: string): boolean {
-  return isOriginator(link, userId) || isClaimer(link, userId);
+//   - internal staff progressing the file can add below (checked by caller)
+export function canAddBelow(link: LinkPermissionData, userId: string, role?: string | null): boolean {
+  return isInternalStaff(role) || isOriginator(link, userId) || isClaimer(link, userId);
 }
 
 // Internal staff roles that see every chain on every file they can access.
@@ -91,7 +106,7 @@ export function canViewChain(
   );
 }
 
-// View stub private details (email, phone, notes) — originator only while unclaimed
-export function canViewStubDetails(link: LinkPermissionData, userId: string): boolean {
-  return isOriginator(link, userId) && isUnclaimed(link);
+// View stub private details (email, phone, notes) — originator/internal staff while unclaimed
+export function canViewStubDetails(link: LinkPermissionData, userId: string, role?: string | null): boolean {
+  return (isInternalStaff(role) || isOriginator(link, userId)) && isUnclaimed(link);
 }
