@@ -44,6 +44,39 @@ function isPortalView(entry: { kind: string; content?: string }) {
   return entry.kind === "comm" && typeof entry.content === "string" && entry.content.includes("viewed their client portal");
 }
 
+// Renders a WhatsApp attachment inline. url is a short-lived signed URL.
+function MediaAttachment({ url, type }: { url: string; type: string | null }) {
+  const t = (type ?? "").toLowerCase();
+  if (t === "image" || t === "sticker") {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt="WhatsApp attachment" style={{ maxWidth: 220, maxHeight: 220, borderRadius: 8, border: "0.5px solid var(--agent-border-default)" }} />
+      </a>
+    );
+  }
+  if (t === "video") {
+    return <video src={url} controls style={{ maxWidth: 260, marginTop: 6, borderRadius: 8, display: "block" }} />;
+  }
+  if (t === "voice" || t === "audio") {
+    return <audio src={url} controls style={{ marginTop: 6, maxWidth: 260, display: "block" }} />;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600,
+        color: "var(--agent-coral-deep)", padding: "3px 8px", borderRadius: 6,
+        border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", textDecoration: "none",
+      }}
+    >
+      📎 Open attachment
+    </a>
+  );
+}
+
 function dotColor(entry: ActivityEntry): string {
   if (entry.kind === "milestone") {
     return entry.isNotRequired ? "rgba(30,45,74,0.22)" : "#10b981";
@@ -497,6 +530,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               </>
                             );
                           })()}
+
+                          {/* WhatsApp media attachment (image / video / voice / doc) */}
+                          {entry.kind === "comm" && entry.mediaUrl && (
+                            <MediaAttachment url={entry.mediaUrl} type={entry.mediaType} />
+                          )}
 
                           {/* Footer: author pill + timestamp + edited indicator */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>

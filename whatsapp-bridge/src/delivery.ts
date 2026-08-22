@@ -34,6 +34,22 @@ export class Delivery {
     }
   }
 
+  // Best-effort media upload (after the message itself is delivered). Not
+  // queued: if it fails the message still shows with its text/placeholder.
+  async sendMedia(waMessageId: string, buffer: Buffer, mimetype?: string, filename?: string) {
+    try {
+      const res = await fetch(this.cfg.pwaMediaUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${this.cfg.bridgeSecret}` },
+        body: JSON.stringify({ waMessageId, mimetype, filename, dataBase64: buffer.toString("base64") }),
+      });
+      if (!res.ok) log.warn("media ingest non-2xx", { status: res.status, waMessageId });
+      else log.info("media delivered", { waMessageId, bytes: buffer.length });
+    } catch (err) {
+      log.warn("media post threw", { error: (err as Error).message, waMessageId });
+    }
+  }
+
   private async post(messages: BridgeMessage[]): Promise<boolean> {
     try {
       const res = await fetch(this.cfg.pwaIngestUrl, {

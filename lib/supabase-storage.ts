@@ -164,3 +164,48 @@ export async function deleteAvatar(path: string): Promise<void> {
   const client = getClient();
   await client.storage.from(AVATARS_BUCKET).remove([path]);
 }
+
+// ── WhatsApp media (private bucket) ──────────────────────────────────────────
+// Client WhatsApp attachments (images / PDFs / voice notes / video). PRIVATE
+// like transaction-documents (can contain sensitive survey/enquiry content), so
+// we store the object path on OutboundMessage.mediaUrl and sign per render.
+// Bucket created in Supabase; see docs/active/ELLIS_MANUAL_TODO.md.
+export const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
+
+export async function uploadWhatsAppMedia(
+  path: string,
+  buffer: Buffer,
+  mimeType: string,
+): Promise<string> {
+  const client = getClient();
+  const { error } = await client.storage
+    .from(WHATSAPP_MEDIA_BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+  if (error) throw new Error(`WhatsApp media upload failed: ${error.message}`);
+  return path;
+}
+
+// Batch-sign WhatsApp media paths in one round trip (path → signed URL). Absent
+// entries fall back to no-media rendering. Mirrors getSignedUrlMap but for the
+// whatsapp-media bucket.
+export async function getWhatsAppMediaSignedUrlMap(
+  paths: Array<string | null | undefined>,
+  expiresInSeconds = 3600,
+): Promise<Map<string, string>> {
+  const unique = [...new Set(paths.filter((p): p is string => !!p))];
+  if (unique.length === 0) return new Map();
+  try {
+    const client = getClient();
+    const { data, error } = await client.storage
+      .from(WHATSAPP_MEDIA_BUCKET)
+      .createSignedUrls(unique, expiresInSeconds);
+    if (error || !data) return new Map();
+    const map = new Map<string, string>();
+    for (const row of data) {
+      if (row.signedUrl && row.path) map.set(row.path, row.signedUrl);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}

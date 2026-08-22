@@ -6,6 +6,7 @@
 
 import makeWASocket, {
   DisconnectReason,
+  downloadMediaMessage,
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
   type WASocket,
@@ -129,6 +130,21 @@ async function connect() {
         if (msg.timestamp < BOOT_TIME - 60_000) continue; // history / pre-boot — skip
         state.lastMessageAt = new Date().toISOString();
         await delivery.send(msg);
+        // If it carries media, download it and upload after the message row
+        // exists (delivery above is awaited, so the PWA can attach it).
+        if (msg.media) {
+          try {
+            const buffer = (await downloadMediaMessage(
+              wa,
+              "buffer",
+              {},
+              { logger: waLogger, reuploadRequest: sock.updateMediaMessage },
+            )) as Buffer;
+            await delivery.sendMedia(msg.waMessageId, buffer, msg.media.mimetype, msg.media.filename);
+          } catch (err) {
+            log.warn("media download failed", { error: (err as Error).message, waMessageId: msg.waMessageId });
+          }
+        }
       } catch (err) {
         log.error("message handling failed", { error: (err as Error).message });
       }

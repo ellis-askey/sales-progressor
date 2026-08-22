@@ -2073,6 +2073,7 @@ model WhatsAppPendingMessage {
   fromMe                  Boolean  @default(false)
   body                    String?
   mediaMeta               Json? // { type, mimetype?, caption?, filename? } when a media message
+  mediaUrl                String? // stored media object path once the bridge uploads it
   timestamp               DateTime // original WhatsApp message time
   candidateTransactionIds String[] // possible files for an ambiguous DM
   reason                  String // no_match | ambiguous

@@ -2,6 +2,7 @@
 
 export type BridgeConfig = {
   pwaIngestUrl: string;
+  pwaMediaUrl: string; // derived from the ingest URL (.../ingest -> .../media)
   bridgeSecret: string;
   controlSecret: string;
   authDir: string;
@@ -22,6 +23,7 @@ export function loadConfig(): BridgeConfig {
 
   return {
     pwaIngestUrl,
+    pwaMediaUrl: pwaIngestUrl.replace(/\/ingest\/?$/, "/media"),
     bridgeSecret,
     // Guards /status + /qr; falls back to the ingest secret if not set separately.
     controlSecret: (process.env.BRIDGE_CONTROL_SECRET ?? "").trim() || bridgeSecret,

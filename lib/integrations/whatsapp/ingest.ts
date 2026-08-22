@@ -204,7 +204,7 @@ async function matchDirect(m: BridgeMessage): Promise<MatchResult> {
 
 // ── Writers ──────────────────────────────────────────────────────────────────
 
-async function writeMessage(m: BridgeMessage, txId: string, side: Side | null) {
+async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, mediaUrl?: string | null) {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: txId },
     select: { agencyId: true, activeBuyerRoundId: true, assignedUserId: true, agentUserId: true },
@@ -234,6 +234,7 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null) {
       status: m.fromMe ? "sent" : "delivered",
       contactIds: sender.contactId ? [sender.contactId] : [],
       content,
+      mediaUrl: mediaUrl ?? null,
       senderLabel: sender.label,
       recipientName: m.fromMe ? null : sender.label,
       recipientHandle: m.senderPhone ?? null,
@@ -324,7 +325,7 @@ export async function flushPendingForChat(waChatId: string, txId: string, side: 
         where: { method: "whatsapp", providerMessageId: bm.waMessageId },
         select: { id: true },
       });
-      if (!already) await writeMessage(bm, txId, side);
+      if (!already) await writeMessage(bm, txId, side, p.mediaUrl);
       await prisma.whatsAppPendingMessage.delete({ where: { id: p.id } });
     } catch (err) {
       console.error("[whatsapp] flush pending failed", p.waMessageId, err);

@@ -17,6 +17,11 @@ Building automatic capture of your WhatsApp Business group/DM messages onto the 
 - [ ] **DPA / privacy note (blocker for go-live, not for build).** This ingests clients' WhatsApp messages into the platform — new personal-data processing. Confirm your privacy policy / DPA covers WhatsApp message capture before real client data flows in, same as the PostHog DPA step.
 - [ ] **Ban-risk awareness (accepted).** Unofficial linked-device bridge on your live number; small but real risk of a WhatsApp ban. Kept minimal by staying passive (no automated sending). Recorded here so the decision is on the record.
 
+**V2 build (sender names / needs-assigning / media) — manual steps for when it's pushed:**
+- [ ] **Set `WHATSAPP_BRIDGE_URL`** in Vercel (prod + staging) to the Railway URL (`https://sales-progressor-production.up.railway.app`). Without it the Command Centre WhatsApp page can't show connection status / QR.
+- [ ] **Create the `whatsapp-media` Supabase storage bucket** (both prod project `gmkfustgwipgihpmpjpr` and staging `etidawkbqctarmsdjoxp`), **private** (not public), file size limit ~25 MB. This is where WhatsApp images/PDFs/voice notes/videos are stored; the app serves them via short-lived signed URLs. Without it, media messages still show (as `[image]` etc.) but the file itself won't attach.
+- [ ] **Agent mobiles:** John Desimone (Via Properties) still needed; add via the agent's account when you have it. Gemma, Jack, Danny already set.
+
 ---
 
 ## Bigger document uploads — prod storage cap (2026-08-21, optional)

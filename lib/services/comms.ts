@@ -12,6 +12,7 @@ import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
+import { getWhatsAppMediaSignedUrlMap } from "@/lib/supabase-storage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,10 +54,12 @@ export type ActivityEntry =
       // "Setup note" marks internal notes written from the new-sale
       // form's notes box (2026-08-19) — the Notes card pins these.
       subject: string | null;
-      // WhatsApp: resolved sender display name + stored media URL (null for
-      // other channels). senderLabel is shown as the row's author.
+      // WhatsApp: resolved sender display name + stored media (null for other
+      // channels). senderLabel is shown as the row's author. mediaUrl is a
+      // ready-to-use signed URL (or null); mediaType drives how it renders.
       senderLabel: string | null;
       mediaUrl: string | null;
+      mediaType: string | null;
     };
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -198,8 +201,21 @@ export async function getActivityTimeline(
     tone: c.tone,
     subject: c.subject ?? null,
     senderLabel: c.senderLabel ?? null,
-    mediaUrl: c.mediaUrl ?? null,
+    mediaUrl: c.mediaUrl ?? null, // object path here; signed below
+    mediaType:
+      (c.providerWebhookData as { media?: { type?: string } } | null)?.media?.type ?? null,
   }));
+
+  // Sign WhatsApp media object paths into short-lived URLs for rendering.
+  const mediaPaths = commEntries
+    .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> => e.kind === "comm")
+    .map((e) => e.mediaUrl);
+  if (mediaPaths.some(Boolean)) {
+    const signed = await getWhatsAppMediaSignedUrlMap(mediaPaths);
+    for (const e of commEntries) {
+      if (e.kind === "comm" && e.mediaUrl) e.mediaUrl = signed.get(e.mediaUrl) ?? null;
+    }
+  }
 
   return [...milestoneEntries, ...commEntries].sort(
     (a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0)

@@ -87,6 +87,7 @@ export function ActivityTab(props: Props) {
         subject: null,
         senderLabel: null,
         mediaUrl: null,
+        mediaType: null,
       },
       ...prev,
     ]);
