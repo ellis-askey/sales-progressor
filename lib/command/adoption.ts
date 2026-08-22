@@ -28,6 +28,9 @@ export type CommsStatus = {
   kind: CommsStatusKind;
   // Set only for client_paused — when the timed pause auto-resumes.
   pausedUntil: Date | null;
+  // The date behind the status where there is one: opt-out date (opted_out) or
+  // the date an agent paused (agent_paused). Null for the other kinds.
+  since: Date | null;
 };
 
 // The three states where the client hears nothing from us at all.
@@ -35,7 +38,43 @@ export function isUnreachable(kind: CommsStatusKind): boolean {
   return kind === "no_email" || kind === "opted_out" || kind === "bouncing";
 }
 
+// The outcome of the most recent email we queued to a client — what actually
+// happened after we handed it to SendGrid, per the delivery webhook.
+export type LastEmailStatus =
+  | "delivered"
+  | "bounced"
+  | "blocked"
+  | "deferred"
+  | "sent"
+  | "pending";
+
+export type LastEmail = {
+  type: string;
+  at: Date;
+  status: LastEmailStatus;
+  reason: string | null;
+};
+
+// Everything shown when a row is expanded. Kept off the base row so the list
+// stays light; computed once here so the client component is pure render.
+export type AdoptionClientDetail = {
+  email: string | null;
+  phone: string | null;
+  saleStatus: string;
+  lastEmail: LastEmail | null;
+  visits: number;
+  firstVisitAt: Date | null;
+  installedAt: Date | null;
+  // Deeper engagement / activation signals — each a simple has-it-or-not.
+  welcomeSeen: boolean;
+  hasPhoto: boolean;
+  customisedOverview: boolean;
+  requestedBrokerCallback: boolean;
+  gaveExchangeAuthority: boolean;
+};
+
 export type AdoptionClient = {
+  id: string;
   name: string;
   agencyName: string;
   address: string;
@@ -46,6 +85,7 @@ export type AdoptionClient = {
   lastVisited: Date | null;
   engagedMinutes: number;
   comms: CommsStatus;
+  detail: AdoptionClientDetail;
 };
 
 export type PortalAdoption = {
@@ -68,6 +108,7 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
       id: true,
       name: true,
       email: true,
+      phone: true,
       roleType: true,
       lastVisitedPortalAt: true,
       pwaInstalledAt: true,
@@ -75,18 +116,31 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
       unsubscribedAt: true,
       emailsPausedAt: true,
       chasesPausedUntil: true,
-      transaction: { select: { propertyAddress: true, agency: { select: { name: true } } } },
+      welcomeSeenAt: true,
+      image: true,
+      overviewLayout: true,
+      brokerCallbackRequestedAt: true,
+      exchangeAuthorityGivenAt: true,
+      transaction: {
+        select: { status: true, propertyAddress: true, agency: { select: { name: true } } },
+      },
       pushSubscriptions: { select: { id: true }, take: 1 },
-      portalTimeSessions: { select: { totalEngagedSeconds: true } },
+      portalTimeSessions: { select: { totalEngagedSeconds: true, startedAt: true } },
     },
   });
 
-  const bouncingContactIds = await getBouncingContactIds(contacts.map((c) => c.id));
+  const emailStatus = await getEmailStatusByContact(contacts.map((c) => c.id));
   const now = new Date();
 
   const clients: AdoptionClient[] = contacts.map((c) => {
     const engagedSeconds = c.portalTimeSessions.reduce((s, t) => s + (t.totalEngagedSeconds ?? 0), 0);
+    const status = emailStatus.get(c.id);
+    const firstVisitAt = c.portalTimeSessions.reduce<Date | null>((min, s) => {
+      if (!s.startedAt) return min;
+      return min == null || s.startedAt < min ? s.startedAt : min;
+    }, null);
     return {
+      id: c.id,
       name: c.name,
       agencyName: c.transaction.agency?.name ?? "—",
       address: c.transaction.propertyAddress ?? "—",
@@ -101,9 +155,23 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
         unsubscribedAt: c.unsubscribedAt,
         emailsPausedAt: c.emailsPausedAt,
         chasesPausedUntil: c.chasesPausedUntil,
-        bouncing: bouncingContactIds.has(c.id),
+        bouncing: status?.bouncing ?? false,
         now,
       }),
+      detail: {
+        email: c.email,
+        phone: c.phone,
+        saleStatus: c.transaction.status,
+        lastEmail: status?.lastEmail ?? null,
+        visits: c.portalTimeSessions.length,
+        firstVisitAt,
+        installedAt: c.pwaInstalledAt,
+        welcomeSeen: c.welcomeSeenAt != null,
+        hasPhoto: c.image != null,
+        customisedOverview: c.overviewLayout != null,
+        requestedBrokerCallback: c.brokerCallbackRequestedAt != null,
+        gaveExchangeAuthority: c.exchangeAuthorityGivenAt != null,
+      },
     };
   });
 
@@ -135,35 +203,67 @@ function resolveCommsStatus(args: {
   bouncing: boolean;
   now: Date;
 }): CommsStatus {
-  if (!args.email || args.email.trim() === "") return { kind: "no_email", pausedUntil: null };
-  if (args.unsubscribedAt != null) return { kind: "opted_out", pausedUntil: null };
-  if (args.bouncing) return { kind: "bouncing", pausedUntil: null };
-  if (args.emailsPausedAt != null) return { kind: "agent_paused", pausedUntil: null };
+  if (!args.email || args.email.trim() === "") return { kind: "no_email", pausedUntil: null, since: null };
+  if (args.unsubscribedAt != null) return { kind: "opted_out", pausedUntil: null, since: args.unsubscribedAt };
+  if (args.bouncing) return { kind: "bouncing", pausedUntil: null, since: null };
+  if (args.emailsPausedAt != null) return { kind: "agent_paused", pausedUntil: null, since: args.emailsPausedAt };
   if (args.chasesPausedUntil != null && args.chasesPausedUntil > args.now) {
-    return { kind: "client_paused", pausedUntil: args.chasesPausedUntil };
+    return { kind: "client_paused", pausedUntil: args.chasesPausedUntil, since: null };
   }
-  return { kind: "reachable", pausedUntil: null };
+  return { kind: "reachable", pausedUntil: null, since: null };
 }
 
-// A contact is "bouncing" when the most recent email we queued to them bounced
-// or was blocked and no later send has been delivered — i.e. mail to that
-// address is currently dying. We look at each contact's latest queue row (by
-// createdAt): if it carries bouncedAt/blockedAt, they're bouncing. Contacts
-// with no queued mail (or a clean latest row) are absent from the set.
-async function getBouncingContactIds(contactIds: string[]): Promise<Set<string>> {
-  if (contactIds.length === 0) return new Set();
+type ContactEmailStatus = { bouncing: boolean; lastEmail: LastEmail | null };
+
+// The most recent email we queued to each contact, and what happened to it. A
+// contact is "bouncing" when that latest send bounced or was blocked and no
+// later send has been delivered — mail to that address is currently dying. We
+// read each contact's latest queue row (by createdAt) and classify it. Contacts
+// with no queued mail are absent from the map.
+async function getEmailStatusByContact(contactIds: string[]): Promise<Map<string, ContactEmailStatus>> {
+  const out = new Map<string, ContactEmailStatus>();
+  if (contactIds.length === 0) return out;
   const rows = await commandDb.outboundEmailQueue.findMany({
     where: { recipientContactId: { in: contactIds } },
-    select: { recipientContactId: true, createdAt: true, bouncedAt: true, blockedAt: true },
+    select: {
+      recipientContactId: true,
+      emailType: true,
+      createdAt: true,
+      sentAt: true,
+      deliveredAt: true,
+      deferredAt: true,
+      bouncedAt: true,
+      bouncedReason: true,
+      blockedAt: true,
+      blockedReason: true,
+    },
     orderBy: { createdAt: "desc" },
   });
-  const bouncing = new Set<string>();
-  const seen = new Set<string>();
   for (const row of rows) {
     const id = row.recipientContactId;
-    if (!id || seen.has(id)) continue; // only the latest row per contact
-    seen.add(id);
-    if (row.bouncedAt != null || row.blockedAt != null) bouncing.add(id);
+    if (!id || out.has(id)) continue; // only the latest row per contact
+    const { status, reason } = classifyQueueRow(row);
+    out.set(id, {
+      bouncing: status === "bounced" || status === "blocked",
+      lastEmail: { type: row.emailType, at: row.sentAt ?? row.createdAt, status, reason },
+    });
   }
-  return bouncing;
+  return out;
+}
+
+function classifyQueueRow(row: {
+  sentAt: Date | null;
+  deliveredAt: Date | null;
+  deferredAt: Date | null;
+  bouncedAt: Date | null;
+  bouncedReason: string | null;
+  blockedAt: Date | null;
+  blockedReason: string | null;
+}): { status: LastEmailStatus; reason: string | null } {
+  if (row.bouncedAt != null) return { status: "bounced", reason: row.bouncedReason };
+  if (row.blockedAt != null) return { status: "blocked", reason: row.blockedReason };
+  if (row.deliveredAt != null) return { status: "delivered", reason: null };
+  if (row.deferredAt != null) return { status: "deferred", reason: null };
+  if (row.sentAt != null) return { status: "sent", reason: null };
+  return { status: "pending", reason: null };
 }
