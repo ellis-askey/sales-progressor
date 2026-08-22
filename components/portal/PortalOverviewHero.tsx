@@ -424,12 +424,17 @@ export function PortalOverviewHero({
           position: "relative",
           height: 380,
           overflow: "hidden",
-          // Themed page base so the photo's bottom fade dissolves into the page
-          // with no seam, in light or dark.
-          background: "var(--portal-pageBg, #f6f8fc)",
+          // Transparent — the photo dissolves into the page's fixed ambient
+          // background (.portal-ambient), NOT into a flat colour. A flat fill
+          // only matches the fixed, bloomed ambient at scroll-position 0; as
+          // you scroll the seam at the photo's foot appears. Letting the same
+          // fixed layer show through keeps the blend perfect at any scroll.
+          background: "transparent",
         }}
       >
-        {/* Photo (or coral fallback if none) */}
+        {/* Photo (or coral fallback if none). The mask fades the image itself
+            to transparent toward the foot, so the fixed ambient shows through
+            exactly as it does under the content below — no colour to mismatch. */}
         {photoUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -438,13 +443,15 @@ export function PortalOverviewHero({
             aria-hidden
             fetchPriority="high"
             decoding="async"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+              WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+              maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+            }}
           />
         ) : (
           /* No property photo: a soft line-art streetscape on the coral
-             gradient that already dissolves to white at the foot, so it
-             fades beautifully into the page (reinforced by the bottom-fade
-             overlay below). */
+             gradient. Same foot mask so it dissolves into the fixed ambient. */
           <div
             aria-hidden
             style={{
@@ -452,15 +459,16 @@ export function PortalOverviewHero({
               backgroundImage: "var(--portal-hero-fallback)",
               backgroundSize: "cover",
               backgroundPosition: "center 35%",
+              WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+              maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
             }}
           />
         )}
 
-        {/* Bottom fade — the ONLY overlay on the photo. Fades transparent
-            at the top of the content zone to the page background at the
-            very bottom, so the photo dissolves into the page and the
-            text below sits on a near-white area. Blur intentionally
-            omitted (Ellis's 2026-08-09 note: too heavy + wrong shape). */}
+        {/* Soft light wash behind the text zone — fades to transparent at BOTH
+            ends so it never paints an opaque edge at the foot (which is what
+            created the on-scroll seam). The photo mask above does the
+            dissolving; this only lifts contrast for the address/pills. */}
         <div
           aria-hidden
           style={{
@@ -468,7 +476,7 @@ export function PortalOverviewHero({
             bottom: 0, left: 0, right: 0,
             height: "62%",
             pointerEvents: "none",
-            background: "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--portal-pageBg, #f6f8fc) 80%, transparent) 52%, var(--portal-pageBg, #f6f8fc) 100%)",
+            background: "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--portal-pageBg, #f6f8fc) 68%, transparent) 62%, transparent 100%)",
           }}
         />
 
