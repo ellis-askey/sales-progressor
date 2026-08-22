@@ -345,6 +345,71 @@ export async function undoOnwardStep(transactionId: string, milestoneCode: strin
   return { ok: true };
 }
 
+// ── Stage 3: inheritance on claim ────────────────────────────────────────────
+//
+// When the agent handling a seller's onward purchase claims the chain link
+// ABOVE that seller, the seller's reported onward tracker becomes the head-start
+// for the claiming agent's reconciliation-on-claim wizard. The seller-below a
+// claimed link at position X sits at position X+1 (higher position = down the
+// chain); their file's onwardTracker describes the very property being claimed.
+// The tracker holds PURCHASER-side steps (the seller acting as buyer), which map
+// onto the claiming agent's PURCHASER side (their buyer IS our seller).
+
+export type OnwardInheritance = {
+  tenure: Tenure | null;
+  purchaseType: PurchaseType | null;
+  isShareOfFreehold: boolean;
+  stepCodes: string[]; // purchaser-side MilestoneDefinition codes reported complete
+};
+
+async function sellerBelowTransactionId(claimedLinkId: string): Promise<string | null> {
+  const link = await prisma.chainLink.findUnique({
+    where: { id: claimedLinkId },
+    select: { position: true, chainId: true },
+  });
+  if (!link) return null;
+  const below = await prisma.chainLink.findFirst({
+    where: { chainId: link.chainId, position: link.position + 1 },
+    select: { transactionId: true },
+  });
+  return below?.transactionId ?? null;
+}
+
+/**
+ * Pre-fill data for the reconciliation wizard when claiming `claimedLinkId`:
+ * the seller-below's reported onward progress. Null when there's no seller
+ * below, no tracker, or the tracker is already retired.
+ */
+export async function getOnwardInheritanceForLink(claimedLinkId: string): Promise<OnwardInheritance | null> {
+  const txId = await sellerBelowTransactionId(claimedLinkId);
+  if (!txId) return null;
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId: txId },
+    include: { steps: true },
+  });
+  if (!tracker) return null;
+  if (tracker.status === "superseded" || tracker.status === "abandoned") return null;
+  return {
+    tenure: tracker.tenure,
+    purchaseType: tracker.purchaseType,
+    isShareOfFreehold: tracker.isShareOfFreehold,
+    stepCodes: tracker.steps.map((s) => s.milestoneCode),
+  };
+}
+
+/**
+ * Retire the seller-below's onward tracker once the agent above has claimed:
+ * their real file now owns the truth, so the reported stand-in is superseded.
+ */
+export async function supersedeOnwardTrackerForLink(claimedLinkId: string): Promise<void> {
+  const txId = await sellerBelowTransactionId(claimedLinkId);
+  if (!txId) return;
+  await prisma.onwardTracker.updateMany({
+    where: { transactionId: txId, status: { notIn: ["superseded", "abandoned"] } },
+    data: { status: "superseded" },
+  });
+}
+
 /**
  * Cascade (3a): our own sale exchanging (VM19) means the whole chain exchanged
  * on the same day, so the seller's onward purchase has exchanged too. If a

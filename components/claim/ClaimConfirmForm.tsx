@@ -14,33 +14,53 @@ type DuplicateEntry = {
   createdAt: string; // ISO string
 };
 
+type Tenure = "freehold" | "leasehold";
+type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
+
+// Stage 3: seller-below's reported onward progress, offered as a pre-filled
+// head-start for the reconciliation wizard.
+type OnwardInheritance = {
+  tenure: Tenure | null;
+  purchaseType: PurchaseType | null;
+  isShareOfFreehold: boolean;
+  stepDefIds: string[]; // purchaser-side milestone definition ids to pre-tick
+};
+
 type Props = {
   token: string;
   stubAddress: string;
   duplicates: DuplicateEntry[];
   milestoneDefinitions: MilestoneDefinitionLite[];
+  inheritance?: OnwardInheritance | null;
 };
-
-type Tenure = "freehold" | "leasehold";
-type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
 
 type ReconciliationMode = "fresh" | "in_progress" | "later";
 
-export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefinitions }: Props) {
+export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefinitions, inheritance }: Props) {
   const router = useRouter();
+  const hasInheritance = !!(inheritance && inheritance.stepDefIds.length > 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dupChoice, setDupChoice] = useState<"create" | "link">(
     duplicates.length > 0 ? "link" : "create"
   );
-  const [tenure, setTenure] = useState<Tenure | null>(null);
-  const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(null);
-  const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
+  const [tenure, setTenure] = useState<Tenure | null>(inheritance?.tenure ?? null);
+  const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(inheritance?.purchaseType ?? null);
+  const [isShareOfFreehold, setIsShareOfFreehold] = useState(inheritance?.isShareOfFreehold ?? false);
 
-  // Reconciliation state — only used when creating a new transaction (link path skips this)
-  const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
+  // Reconciliation state — only used when creating a new transaction (link path skips this).
+  // When the seller below reported onward progress, default to "already in progress"
+  // and pre-tick their reported steps for the claiming agent to review.
+  const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(
+    hasInheritance ? "in_progress" : null,
+  );
   // Keyed by milestone DEFINITION ID. eventDate is YYYY-MM-DD string or null.
-  const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
+  const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>(() => {
+    if (!hasInheritance) return {};
+    const init: ReconciliationState = {};
+    for (const id of inheritance!.stepDefIds) init[id] = { ticked: true, eventDate: "" };
+    return init;
+  });
   // Two-step wizard when reconciliationMode === "in_progress": vendor then purchaser.
   const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
@@ -198,6 +218,12 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
   const reconciliationSection = needsSaleDetails && tenure && purchaseType && (
     <div className="claim-reconcile">
       <p className="claim-field-label">Where is this sale up to?</p>
+
+      {hasInheritance && (
+        <div style={{ background: "rgba(255,107,74,0.08)", border: "1px solid rgba(255,107,74,0.25)", borderRadius: 10, padding: "10px 12px", fontSize: 13, lineHeight: 1.4, color: "#8a3a24", marginBottom: 12 }}>
+          The buyer reported this progress on their side already. We&apos;ve pre-ticked it below, review and adjust before you claim.
+        </div>
+      )}
 
       <button
         type="button"
