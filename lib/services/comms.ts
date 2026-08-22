@@ -53,6 +53,10 @@ export type ActivityEntry =
       // "Setup note" marks internal notes written from the new-sale
       // form's notes box (2026-08-19) — the Notes card pins these.
       subject: string | null;
+      // WhatsApp: resolved sender display name + stored media URL (null for
+      // other channels). senderLabel is shown as the row's author.
+      senderLabel: string | null;
+      mediaUrl: string | null;
     };
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -193,6 +197,8 @@ export async function getActivityTimeline(
     isAutomated: c.isAutomated,
     tone: c.tone,
     subject: c.subject ?? null,
+    senderLabel: c.senderLabel ?? null,
+    mediaUrl: c.mediaUrl ?? null,
   }));
 
   return [...milestoneEntries, ...commEntries].sort(

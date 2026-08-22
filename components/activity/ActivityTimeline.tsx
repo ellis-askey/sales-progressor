@@ -500,7 +500,9 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
 
                           {/* Footer: author pill + timestamp + edited indicator */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                            <AuthorPill name={entry.createdByName} role={entry.createdByRole} />
+                            {/* WhatsApp rows carry a resolved senderLabel (contact / agent / number);
+                                other rows use the logging user's name. */}
+                            <AuthorPill name={entry.senderLabel ?? entry.createdByName} role={entry.createdByRole} />
                             <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
                               {formatTimestamp(entry.at)}
                             </span>

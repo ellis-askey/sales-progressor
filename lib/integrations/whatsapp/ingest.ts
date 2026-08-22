@@ -86,7 +86,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
   const match = m.isGroup ? await matchGroup(m) : await matchDirect(m);
 
   if (match.txId) {
-    await writeMessage(m, match.txId, match.side, match.contactId ?? null);
+    await writeMessage(m, match.txId, match.side);
     return { waMessageId: m.waMessageId, status: "logged", transactionId: match.txId };
   }
 
@@ -141,6 +141,9 @@ async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
       matchMethod: "name_auto",
     },
   });
+  // Self-heal: pull any earlier messages from this chat that pended before the
+  // group was known (e.g. a brand-new group's first message) onto the file.
+  await flushPendingForChat(m.waChatId, chosenId, parsed.side);
   return { txId: chosenId, side: parsed.side };
 }
 
@@ -196,12 +199,13 @@ async function matchDirect(m: BridgeMessage): Promise<MatchResult> {
 
 // ── Writers ──────────────────────────────────────────────────────────────────
 
-async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, contactId: string | null) {
+async function writeMessage(m: BridgeMessage, txId: string, side: Side | null) {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: txId },
-    select: { agencyId: true, activeBuyerRoundId: true },
+    select: { agencyId: true, activeBuyerRoundId: true, assignedUserId: true, agentUserId: true },
   });
 
+  const sender = await resolveSender(m, txId, tx?.assignedUserId ?? tx?.agentUserId ?? null);
   const content = (m.body && m.body.trim()) || mediaPlaceholder(m.media) || "[no content]";
 
   const webhookData: Prisma.InputJsonValue = {
@@ -223,11 +227,13 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, c
       channel: "other", // no WhatsApp value in OutboundChannel yet — timeline keys off `method`
       purpose: "other",
       status: m.fromMe ? "sent" : "delivered",
-      contactIds: contactId ? [contactId] : [],
+      contactIds: sender.contactId ? [sender.contactId] : [],
       content,
-      recipientName: m.fromMe ? null : m.senderName ?? null,
+      senderLabel: sender.label,
+      recipientName: m.fromMe ? null : sender.label,
       recipientHandle: m.senderPhone ?? null,
       sentAt: toDate(m.timestamp),
+      createdById: sender.createdById,
       createdByRole: "system",
       providerMessageId: m.waMessageId,
       providerWebhookData: webhookData,
@@ -236,6 +242,77 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, c
       buyerRoundId: side === "BUYER" ? tx?.activeBuyerRoundId ?? null : null,
     },
   });
+}
+
+// Resolve who sent a message into a display label (+ contact/agent link):
+//   outbound (fromMe) → the file's managing agent (the linked account operator)
+//   inbound → a contact on the sale, else an agent by mobile, else the number.
+async function resolveSender(
+  m: BridgeMessage,
+  txId: string,
+  managingAgentId: string | null,
+): Promise<{ label: string | null; contactId: string | null; createdById: string | null }> {
+  if (m.fromMe) {
+    if (managingAgentId) {
+      const u = await prisma.user.findUnique({ where: { id: managingAgentId }, select: { name: true } });
+      return { label: u?.name ?? null, contactId: null, createdById: managingAgentId };
+    }
+    return { label: null, contactId: null, createdById: null };
+  }
+
+  const phone = m.senderPhone ? normalizePhone(m.senderPhone) : "";
+  if (phone) {
+    const last9 = phone.replace(/\D/g, "").slice(-9);
+    // 1. A contact on this sale.
+    const contacts = await prisma.contact.findMany({
+      where: { propertyTransactionId: txId, phone: { contains: last9 } },
+      select: { id: true, name: true, phone: true },
+    });
+    const contact = contacts.find((c) => c.phone && normalizePhone(c.phone) === phone);
+    if (contact) return { label: contact.name, contactId: contact.id, createdById: null };
+
+    // 2. An agent, by their mobile.
+    const agents = await prisma.user.findMany({
+      where: { phone: { contains: last9 } },
+      select: { id: true, name: true, phone: true },
+    });
+    const agent = agents.find((a) => a.phone && normalizePhone(a.phone) === phone);
+    if (agent) return { label: agent.name, contactId: null, createdById: agent.id };
+  }
+
+  // 3. Fallback — the number (or the WhatsApp display name if we have no number).
+  return { label: m.senderPhone ?? m.senderName ?? null, contactId: null, createdById: null };
+}
+
+// Replay every pending message for a chat onto a now-known file, then clear the
+// pending rows. Used when a chat first gets mapped (auto or, later, manually) so
+// messages that arrived before the mapping existed still land on the file.
+async function flushPendingForChat(waChatId: string, txId: string, side: Side | null) {
+  const rows = await prisma.whatsAppPendingMessage.findMany({ where: { waChatId } });
+  for (const p of rows) {
+    const bm: BridgeMessage = {
+      waMessageId: p.waMessageId,
+      waChatId: p.waChatId,
+      isGroup: p.isGroup,
+      groupName: p.groupName,
+      fromMe: p.fromMe,
+      senderPhone: p.senderPhone,
+      senderName: p.senderName,
+      body: p.body,
+      timestamp: p.timestamp.getTime(),
+      media: (p.mediaMeta as BridgeMedia | null) ?? null,
+    };
+    try {
+      const already = await prisma.outboundMessage.findFirst({
+        where: { method: "whatsapp", providerMessageId: bm.waMessageId },
+        select: { id: true },
+      });
+      if (!already) await writeMessage(bm, txId, side);
+      await prisma.whatsAppPendingMessage.delete({ where: { id: p.id } });
+    } catch (err) {
+      console.error("[whatsapp] flush pending failed", p.waMessageId, err);
+    }
+  }
 }
 
 async function writePending(m: BridgeMessage, reason: string, candidates: string[]) {

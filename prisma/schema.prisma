@@ -1375,6 +1375,15 @@ model OutboundMessage {
   providerMessageId   String?
   providerWebhookData Json?
 
+  // WhatsApp sender display name, resolved at ingest (contact name, else agent
+  // name, else the formatted number). Rendered on the timeline so the row shows
+  // who sent it rather than "System". Null for non-WhatsApp rows.
+  senderLabel String?
+  // Stored media for a WhatsApp attachment (image/pdf/voice/video). Full public
+  // Supabase Storage URL; null when the message has no media. providerWebhookData
+  // carries the type/mimetype/filename metadata.
+  mediaUrl String?
+
   // Bulk-import provenance: groups rows inserted together by WhatsApp chat import.
   // Null for normal single-comm rows. Enables undo by deleteMany on this batch.
   importBatchId String?
