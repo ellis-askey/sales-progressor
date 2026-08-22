@@ -13,6 +13,7 @@ import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-sco
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
 import { getWhatsAppMediaSignedUrlMap } from "@/lib/supabase-storage";
+import type { ActorRole } from "@/components/ui/Avatar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,10 @@ export type ActivityEntry =
       isNotRequired: boolean;
       confirmedByClient: boolean;
       confirmerName: string | null;
+      // Avatar/colour for the person who completed the step.
+      actorRole: ActorRole;
+      actorName: string;
+      actorImage: string | null;
     }
   | {
       kind: "comm";
@@ -60,7 +65,33 @@ export type ActivityEntry =
       senderLabel: string | null;
       mediaUrl: string | null;
       mediaType: string | null;
+      // Who the row represents — avatar photo/colour + name + optional sublabel
+      // ("Seller" / "Buyer" / "Solicitor"). See resolveActor.
+      actorRole: ActorRole;
+      actorName: string;
+      actorImage: string | null;
+      actorSubLabel: string | null;
     };
+
+// ─── Actor role helpers (activity avatars) ─────────────────────────────────────
+
+// Internal-staff role → progressor (SP team) vs agent (customer agency).
+function userRoleToActor(role: string | null | undefined): ActorRole {
+  if (role === "sales_progressor" || role === "admin" || role === "superadmin") return "progressor";
+  return "agent"; // director / negotiator / viewer / anything else
+}
+// Contact role → seller / buyer / solicitor(grey). Broker + other → grey too.
+function contactRoleToActor(roleType: string | null | undefined): ActorRole {
+  if (roleType === "vendor") return "seller";
+  if (roleType === "purchaser") return "buyer";
+  return "solicitor";
+}
+function actorSubLabel(role: ActorRole): string | null {
+  if (role === "seller") return "Seller";
+  if (role === "buyer") return "Buyer";
+  if (role === "solicitor") return "Solicitor";
+  return null; // progressor / agent / system carry no sublabel
+}
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -84,7 +115,7 @@ export async function getActivityTimeline(
       // round's createdAt are old-sale residue. Filter them out so the live
       // timeline reads as just-this-sale, matching the buyer-attributed scope.
       activeBuyerRound: { select: { createdAt: true } },
-      contacts: { select: { id: true, name: true } },
+      contacts: { select: { id: true, name: true, roleType: true, image: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
       // toggle either row when logging the comm). They must be in the
@@ -98,9 +129,15 @@ export async function getActivityTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const contactMap = new Map<string, string>(tx.contacts.map((c) => [c.id, c.name]));
-  if (tx.vendorSolicitorContact)    contactMap.set(tx.vendorSolicitorContact.id,    tx.vendorSolicitorContact.name);
-  if (tx.purchaserSolicitorContact) contactMap.set(tx.purchaserSolicitorContact.id, tx.purchaserSolicitorContact.name);
+  type ContactInfo = { name: string; roleType: string | null; image: string | null };
+  const contactInfo = new Map<string, ContactInfo>(
+    tx.contacts.map((c) => [c.id, { name: c.name, roleType: c.roleType ?? null, image: c.image ?? null }]),
+  );
+  // Solicitor contacts are a separate model (no roleType/image) — grey avatar.
+  if (tx.vendorSolicitorContact)
+    contactInfo.set(tx.vendorSolicitorContact.id, { name: tx.vendorSolicitorContact.name, roleType: "solicitor", image: null });
+  if (tx.purchaserSolicitorContact)
+    contactInfo.set(tx.purchaserSolicitorContact.id, { name: tx.purchaserSolicitorContact.name, roleType: "solicitor", image: null });
 
   const scope = milestoneScope ?? forRound(tx.activeBuyerRoundId, transactionId);
 
@@ -114,7 +151,7 @@ export async function getActivityTimeline(
       orderBy: { completedAt: "desc" },
       include: {
         milestoneDefinition: { select: { name: true, code: true } },
-        completedBy: { select: { name: true } },
+        completedBy: { select: { name: true, image: true, role: true } },
       },
     }),
     // Phase-2 PR 3 (OutboundMessage scoping): scope buyer-attributed
@@ -138,6 +175,9 @@ export async function getActivityTimeline(
         // internal_note with no chaseTaskId. The fallback "handed back to
         // agent" notes carry a chaseTaskId and stay — they're actionable.
         NOT: { type: "internal_note", isAutomated: true, chaseTaskId: null },
+        // WhatsApp is surfaced on its own surface, not the activity timeline
+        // (founder decision 2026-08-22) — keep this tab uncluttered.
+        method: { not: "whatsapp" },
         ...(tx.activeBuyerRoundId
           ? {
               OR: [
@@ -173,10 +213,36 @@ export async function getActivityTimeline(
       isNotRequired: c.state === "not_required",
       confirmedByClient,
       confirmerName,
+      actorRole: c.completedBy ? userRoleToActor(c.completedBy.role) : "system",
+      actorName: c.completedBy?.name ?? "System",
+      actorImage: c.completedBy?.image ?? null,
     };
   });
 
-  const commEntries: ActivityEntry[] = comms.map((c) => ({
+  // Who a comm row represents: automated → system; a real logging user →
+  // progressor/agent; otherwise (e.g. a synced inbound email) → the linked
+  // contact (seller/buyer/solicitor).
+  const resolveCommActor = (c: (typeof comms)[number]) => {
+    if (c.isAutomated) return { role: "system" as ActorRole, name: "System", image: null, sub: null };
+    if (c.createdById) {
+      return {
+        role: userRoleToActor(c.createdByRole),
+        name: c.createdBy?.name ?? "Team",
+        image: c.createdBy?.image ?? null,
+        sub: null,
+      };
+    }
+    const info = c.contactIds.map((id) => contactInfo.get(id)).find(Boolean);
+    if (info) {
+      const role = contactRoleToActor(info.roleType);
+      return { role, name: info.name, image: info.image, sub: actorSubLabel(role) };
+    }
+    return { role: "system" as ActorRole, name: "System", image: null, sub: null };
+  };
+
+  const commEntries: ActivityEntry[] = comms.map((c) => {
+    const actor = resolveCommActor(c);
+    return {
     kind: "comm",
     id: c.id,
     // sentAt = actual message time (set on backdated WhatsApp imports);
@@ -190,8 +256,12 @@ export async function getActivityTimeline(
     createdByName: c.createdBy?.name ?? null,
     createdByImage: c.createdBy?.image ?? null,
     createdByRole: c.createdByRole ?? null,
+    actorRole: actor.role,
+    actorName: actor.name,
+    actorImage: actor.image,
+    actorSubLabel: actor.sub,
     contactNames: c.contactIds
-      .map((id) => contactMap.get(id))
+      .map((id) => contactInfo.get(id)?.name)
       .filter(Boolean) as string[],
     contactIds: c.contactIds,
     visibleToClient: c.visibleToClient,
@@ -204,7 +274,8 @@ export async function getActivityTimeline(
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below
     mediaType:
       (c.providerWebhookData as { media?: { type?: string } } | null)?.media?.type ?? null,
-  }));
+    };
+  });
 
   // Sign WhatsApp media object paths into short-lived URLs for rendering.
   const mediaPaths = commEntries

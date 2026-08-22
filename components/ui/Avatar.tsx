@@ -20,6 +20,12 @@ const SIDE_STYLES = {
     bg: "linear-gradient(135deg, var(--agent-avatar-user-start, #FAEEDA) 0%, var(--agent-avatar-user-end, #FAC775) 100%)",
     color: "var(--agent-avatar-user-text, #633806)",
   },
+  // Customer-agency agents — brand coral, to sit apart from the internal
+  // progressor amber on the activity timeline.
+  agent: {
+    bg: "linear-gradient(135deg, #FFE3DB 0%, #FF9E86 100%)",
+    color: "#7A2E15",
+  },
   fallback: {
     bg: "linear-gradient(135deg, #F1EFE8 0%, #D3D1C7 100%)",
     color: "#444441",
@@ -122,6 +128,37 @@ export function UserAvatar({ user, size = 32, className }: UserAvatarProps) {
       image={user.image ?? null}
       focusX={user.imageFocusX ?? 50}
       focusY={user.imageFocusY ?? 50}
+    />
+  );
+}
+
+// ─── ActorAvatar (activity timeline) ─────────────────────────────────────────
+// One avatar for whoever a timeline row represents — an internal progressor, a
+// customer-agency agent, or a client contact (seller/buyer/solicitor). Photo
+// fills the circle; initials on a role-coloured gradient are the fallback.
+
+export type ActorRole = "progressor" | "agent" | "seller" | "buyer" | "solicitor" | "system" | "other";
+
+function actorRoleToSide(role: ActorRole): Side {
+  switch (role) {
+    case "seller": return "vendor";
+    case "buyer": return "purchaser";
+    case "progressor": return "internal";
+    case "agent": return "agent";
+    default: return "fallback"; // solicitor / system / other → grey
+  }
+}
+
+export function ActorAvatar({
+  name, role, image, size = 24, className,
+}: { name: string; role: ActorRole; image?: string | null; size?: number; className?: string }) {
+  return (
+    <AvatarBase
+      initials={getInitials({ name: name || "?" })}
+      side={actorRoleToSide(role)}
+      size={size}
+      className={className}
+      image={image ?? null}
     />
   );
 }

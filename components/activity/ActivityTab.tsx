@@ -88,6 +88,10 @@ export function ActivityTab(props: Props) {
         senderLabel: null,
         mediaUrl: null,
         mediaType: null,
+        actorRole: "progressor",
+        actorName: "You",
+        actorImage: null,
+        actorSubLabel: null,
       },
       ...prev,
     ]);

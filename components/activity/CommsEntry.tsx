@@ -38,7 +38,8 @@ const PRIMARY_CHANNELS: { value: CommChannel; label: string; icon: string }[] = 
   { value: "email",     label: "Email",     icon: "✉" },
   { value: "phone",     label: "Phone",     icon: "☎" },
   { value: "sms",       label: "SMS",       icon: "💬" },
-  { value: "whatsapp",  label: "WhatsApp",  icon: "💚" },
+  // WhatsApp removed from the composer — WhatsApp lives on its own surface,
+  // captured automatically by the bridge (2026-08-22).
 ];
 
 const OVERFLOW_CHANNELS: { value: CommChannel; label: string; icon: string }[] = [
