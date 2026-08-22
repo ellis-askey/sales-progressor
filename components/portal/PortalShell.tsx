@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
+import { PortalAddAgentDrawer } from "./PortalAddAgentDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { PortalPwaPing } from "./PortalPwaPing";
 import { PortalWelcomeSheet } from "./PortalWelcomeSheet";
@@ -108,6 +109,11 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   // "Add" dispatches `portal:open-menu` with a section to scroll to.
   const [menuSection, setMenuSection] = useState<string | null>(null);
   const [menuEdit, setMenuEdit] = useState(false);
+  // Add-agent drawer. When open it stacks ABOVE the settings drawer: settings
+  // slides down (pushedDown) but stays logically open so it restores to exactly
+  // where it was when this closes. Opened from the Overview team card or the
+  // Settings "Add agent" button via the `portal:add-agent` event.
+  const [addAgentOpen, setAddAgentOpen] = useState(false);
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ section?: string; edit?: boolean }>).detail;
@@ -115,9 +121,16 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
       setMenuEdit(!!detail?.edit);
       setMenuOpen(true);
     };
+    const onAddAgent = () => setAddAgentOpen(true);
     window.addEventListener("portal:open-menu", onOpen);
-    return () => window.removeEventListener("portal:open-menu", onOpen);
+    window.addEventListener("portal:add-agent", onAddAgent);
+    return () => {
+      window.removeEventListener("portal:open-menu", onOpen);
+      window.removeEventListener("portal:add-agent", onAddAgent);
+    };
   }, []);
+  // Close both on navigation.
+  useEffect(() => { setAddAgentOpen(false); }, [pathname]);
   // Close the drawer on navigation — if the user taps a link inside it,
   // the underlying page changes but the drawer would linger without this.
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -212,6 +225,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
       {/* Menu drawer */}
       <PortalMenuDrawer
         open={menuOpen}
+        pushedDown={addAgentOpen}
         onClose={() => { setMenuOpen(false); setMenuSection(null); setMenuEdit(false); }}
         token={token}
         contactName={contactName}
@@ -219,6 +233,9 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
         scrollToSection={menuSection}
         editSolicitor={menuEdit}
       />
+
+      {/* Add / edit chain agent — stacks above the settings drawer. */}
+      <PortalAddAgentDrawer open={addAgentOpen} onClose={() => setAddAgentOpen(false)} token={token} />
 
       {/* 2026-08-09 hero rebuild: the property photo is now rendered
           INSIDE the Overview page (components/portal/PortalOverviewHero)

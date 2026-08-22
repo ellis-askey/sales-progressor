@@ -31,7 +31,13 @@ export function PortalTeamManageRow({
       type="button"
       className="portal-team-row"
       aria-label={label}
-      onClick={() => window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section } }))}
+      onClick={() =>
+        window.dispatchEvent(
+          section === "agents"
+            ? new CustomEvent("portal:add-agent")
+            : new CustomEvent("portal:open-menu", { detail: { section } }),
+        )
+      }
       style={{
         display: "flex",
         gap: 13,
@@ -67,7 +73,13 @@ export function PortalManagePencil({
     <button
       type="button"
       aria-label={label}
-      onClick={() => window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section } }))}
+      onClick={() =>
+        window.dispatchEvent(
+          section === "agents"
+            ? new CustomEvent("portal:add-agent")
+            : new CustomEvent("portal:open-menu", { detail: { section } }),
+        )
+      }
       className="pbtn pbtn-press"
       style={{
         flexShrink: 0,
