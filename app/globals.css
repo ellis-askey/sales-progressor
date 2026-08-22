@@ -546,6 +546,25 @@ body {
 .portal-chev:hover .portal-chev-i,
 .portal-chev:focus-visible .portal-chev-i { transform: translateX(4px); }
 
+/* Quiet loading placeholder — a soft sweep rather than the word "Loading". */
+.portal-shimmer {
+  background: var(--nv2-skeleton, rgba(15,23,42,0.08));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.45) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: portal-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes portal-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+[data-portal-motion="reduced"] .portal-shimmer { animation: none; }
+
 /* Tappable "Your team" rows (solicitor / selling agent) — whole row is the
    control, a subtle wash confirms the tap target. */
 .portal-team-row { transition: background 150ms ease; }

@@ -170,9 +170,13 @@ export function PortalInformationTab({
       {ctx.role === "seller" && !ctx.hasExchanged && (
         <Section id="onward" label="Onward purchase" saved={savedSection}>
           {ctx.onwardLinkKnown ? (
-            <Row label="Buying onward">
-              <span className="text-[14px] font-semibold text-right" style={{ color: P.textPrimary }}>{ctx.onwardManagedAddress ?? "Yes"}</span>
-            </Row>
+            // The eyebrow ("Onward purchase") already names this section, so the
+            // address stands on its own, full width, with no repeated label.
+            <div className="px-4 py-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+              <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+                {ctx.onwardManagedAddress ?? "Yes"}
+              </p>
+            </div>
           ) : (
             <Field label="Are you also buying another property?">
               <YesNo value={info.buyingOnward} disabled={readOnly} onChange={(v) => patch("onward", { buyingOnward: v })} />
@@ -186,7 +190,7 @@ export function PortalInformationTab({
               <Field label="Onward mortgage offer expiry (if mortgaged)">
                 <DateInput value={info.onwardMortgageOfferExpiry} disabled={readOnly} onChange={onwardExpiryChange} />
               </Field>
-              <p className="text-[11px] px-4 pb-3 -mt-1" style={{ color: P.textMuted }}>
+              <p className="text-[11px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted }}>
                 Track the steps on your onward under Progress. You can add your onward agent under Your agents in Settings.
               </p>
             </>

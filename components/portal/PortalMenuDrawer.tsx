@@ -39,8 +39,9 @@ import {
   resumeMyChasesAction,
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
-import { portalMarkRequiredAction, portalMarkNotRequiredAction, getMyMoveInfoAction } from "@/app/actions/portal";
+import { portalMarkRequiredAction, portalMarkNotRequiredAction, getMyMoveInfoAction, getMyPortalDocumentsAction } from "@/app/actions/portal";
 import type { MoveInfo, MoveInfoContext } from "@/lib/services/portal-info";
+import type { PortalDocumentsData } from "@/lib/services/portal-documents";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { PortalDocumentsTab } from "./PortalDocumentsTab";
 import { PortalInformationTab } from "./PortalInformationTab";
@@ -80,6 +81,9 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : activeTab === "information" ? 1 : activeTab === "settings" ? 2 : 3);
   // Move-info prefetched on open so the Information tab shows instantly.
   const [moveInfo, setMoveInfo] = useState<{ context: MoveInfoContext; info: MoveInfo } | null | undefined>(undefined);
+  // Documents prefetched on open too — Documents is the default tab, so this
+  // removes its first-open "Loading…" flash.
+  const [docs, setDocs] = useState<PortalDocumentsData | null | undefined>(undefined);
   // Dynamic left/right fade on the (now-scrolling) tab row.
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const [tabFade, setTabFade] = useState({ left: false, right: false });
@@ -153,6 +157,12 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
     if (!open || moveInfo !== undefined) return;
     getMyMoveInfoAction(token).then((d) => setMoveInfo(d)).catch(() => setMoveInfo(null));
   }, [open, moveInfo, token]);
+
+  // Prefetch the Documents tab (the default) on open so it's there immediately.
+  useEffect(() => {
+    if (!open || docs !== undefined) return;
+    getMyPortalDocumentsAction(token).then((d) => setDocs(d)).catch(() => setDocs(null));
+  }, [open, docs, token]);
 
   // Measure the tab-row overflow (for the edge fade) after open + on resize.
   useEffect(() => {
@@ -323,7 +333,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           transition: "opacity 220ms ease-out, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}>
           {activeTab === "documents" ? (
-            <PortalDocumentsTab token={token} />
+            <PortalDocumentsTab token={token} initialData={docs} />
           ) : activeTab === "information" ? (
             <PortalInformationTab token={token} initialData={moveInfo} />
           ) : activeTab === "customisation" ? (
@@ -333,7 +343,14 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {loading && !details ? (
-                <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
+                <div aria-hidden style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="portal-shimmer" style={{ height: 11, width: "38%", borderRadius: 6 }} />
+                      <div className="portal-shimmer" style={{ height: 44, width: "100%", borderRadius: 12 }} />
+                    </div>
+                  ))}
+                </div>
               ) : loadError ? (
                 <p style={{ textAlign: "center", padding: "40px 0", color: P.warning, fontSize: 13 }}>{loadError}</p>
               ) : details ? (

@@ -20,9 +20,30 @@ function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function PortalDocumentsTab({ token }: { token: string }) {
-  const [data, setData] = useState<PortalDocumentsData | null>(null);
-  const [loading, setLoading] = useState(true);
+// Quiet placeholder while documents load on a cold open — a couple of soft
+// rows rather than the word "Loading". Only ever shows on a slow first fetch;
+// the menu drawer prefetches so the common path is instant.
+function DocumentsSkeleton() {
+  return (
+    <div className="pb-4" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center gap-3 py-3">
+          <div className="portal-shimmer" style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0 }} />
+          <div className="flex-1 min-w-0">
+            <div className="portal-shimmer" style={{ height: 12, width: "55%", borderRadius: 6, marginBottom: 7 }} />
+            <div className="portal-shimmer" style={{ height: 10, width: "35%", borderRadius: 6 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function PortalDocumentsTab({ token, initialData }: { token: string; initialData?: PortalDocumentsData | null }) {
+  // When the menu drawer has already prefetched the documents, render against
+  // them immediately — no "Loading…" flash on tab switch.
+  const [data, setData] = useState<PortalDocumentsData | null>(initialData ?? null);
+  const [loading, setLoading] = useState(initialData === undefined);
   const [addOpen, setAddOpen] = useState(false);
   const [preselect, setPreselect] = useState<string | null>(null);
 
@@ -31,12 +52,16 @@ export function PortalDocumentsTab({ token }: { token: string }) {
     setData(d);
     setLoading(false);
   }
-  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+  useEffect(() => {
+    if (initialData !== undefined) return; // prefetched — skip the mount fetch
+    reload();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [token]);
 
   const otherSide = data?.role === "seller" ? "buyer" : "seller";
 
-  if (loading) {
-    return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>Loading your documents…</p>;
+  if (loading && !data) {
+    return <DocumentsSkeleton />;
   }
   if (!data) {
     return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>We couldn&apos;t load your documents.</p>;
