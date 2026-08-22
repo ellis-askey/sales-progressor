@@ -185,6 +185,8 @@ export default withAuth(
         if (pathname.startsWith("/api/cron/")) return true;
         if (pathname.startsWith("/api/reminders/")) return true;
         if (pathname.startsWith("/api/webhooks/")) return true;
+        // WhatsApp bridge ingest — bearer-secret auth inside the handler.
+        if (pathname.startsWith("/api/integrations/whatsapp/")) return true;
         if (pathname.startsWith("/api/claim")) return true;
         if (pathname === "/api/healthz") return true;
         return !!token;

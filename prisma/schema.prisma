@@ -199,6 +199,7 @@ model User {
   quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
   outlookConnections            OutlookConnection[]
   agentEmailLogs                AgentEmailLog[]
+  whatsAppConnections           WhatsAppConnection[]
 }
 
 model AgentPushSubscription {
@@ -479,6 +480,7 @@ model PropertyTransaction {
   activeBuyerRound   BuyerRound?  @relation("ActiveBuyerRound", fields: [activeBuyerRoundId], references: [id], onDelete: SetNull)
 
   quoteRequests QuoteRequest[]
+  whatsAppGroupMappings WhatsAppGroupMapping[]
 
   @@index([serviceType, createdAt])
 }
@@ -2004,6 +2006,76 @@ model OutlookConnection {
   // a different mailbox adds a new row.
   @@unique([userId, microsoftUserId])
   @@index([microsoftUserId])
+}
+
+// ── WhatsApp integration ─────────────────────────────────────────────────────
+// Unofficial linked-device (Baileys) bridge, passive listener only. Full design
+// in docs/WHATSAPP_INTEGRATION.md. The bridge runs off-platform (Railway) and
+// POSTs normalised messages into /api/integrations/whatsapp/ingest.
+
+// One row per connected WhatsApp number. Mirrors OutlookConnection, but the
+// Baileys session credentials live on the bridge host, NOT here — this row is
+// pairing/status only, so nothing sensitive is stored in the app DB.
+model WhatsAppConnection {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneNumber   String // E.164 of the linked account, once known
+  displayName   String?
+  status        String    @default("pending_qr") // pending_qr | connected | disconnected
+  lastSeenAt    DateTime? // last time the bridge reported the socket alive
+  lastMessageAt DateTime? // last message ingested through this connection
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, phoneNumber])
+}
+
+// Permanent WhatsApp group/chat -> transaction mapping. Once set, the group can
+// be renamed freely; waChatId is the source of truth. matchMethod records how
+// the link was first made (auto from the group name, or manual assignment).
+model WhatsAppGroupMapping {
+  id               String              @id @default(cuid())
+  waChatId         String              @unique // permanent WhatsApp group/chat id
+  transactionId    String
+  transaction      PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  side             WhatsAppSide
+  groupNameAtMatch String?
+  matchMethod      String              @default("name_auto") // name_auto | manual
+  createdAt        DateTime            @default(now())
+
+  @@index([transactionId])
+}
+
+// Holding area for WhatsApp messages we could not confidently route (unmatched
+// group, or an ambiguous direct message that could belong to several files).
+// Kept OUT of OutboundMessage so null-transaction rows never pollute the comms
+// timeline or the admin outbound log. On manual assignment we create the
+// OutboundMessage, persist a WhatsAppGroupMapping (for groups), then delete the
+// pending row. waMessageId is unique so replays never double-insert.
+model WhatsAppPendingMessage {
+  id                      String   @id @default(cuid())
+  waMessageId             String   @unique // WhatsApp message id (idempotency key)
+  waChatId                String
+  isGroup                 Boolean
+  groupName               String?
+  senderPhone             String?
+  senderName              String?
+  fromMe                  Boolean  @default(false)
+  body                    String?
+  mediaMeta               Json? // { type, mimetype?, caption?, filename? } when a media message
+  timestamp               DateTime // original WhatsApp message time
+  candidateTransactionIds String[] // possible files for an ambiguous DM
+  reason                  String // no_match | ambiguous
+  createdAt               DateTime @default(now())
+
+  @@index([waChatId])
+  @@index([createdAt])
+}
+
+enum WhatsAppSide {
+  BUYER
+  SELLER
 }
 
 // A saved, scenario-scoped override of a milestone email's copy. The code

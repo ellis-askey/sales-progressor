@@ -4,7 +4,18 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-08-21
+Last updated: 2026-08-22
+
+---
+
+## WhatsApp integration — new service, secret, DPA (2026-08-22, phased build in progress)
+
+Building automatic capture of your WhatsApp Business group/DM messages onto the right property file, via an **unofficial linked-device bridge** (Baileys). You accepted the ban-risk (passive listener only, V1) and chose **Railway** to host the bridge. Full plan: [docs/WHATSAPP_INTEGRATION.md](../WHATSAPP_INTEGRATION.md). Phase 2 (schema + ingest endpoint) is committed on `staging` (NOT pushed). Nothing connects to WhatsApp yet.
+
+- [ ] **Set `WHATSAPP_BRIDGE_SECRET`** in Vercel (staging + prod) once the bridge exists. Generate with `openssl rand -hex 32`; the SAME value goes on the Railway bridge. Until it's set the ingest endpoint returns 503 (safe default).
+- [ ] **Create the Railway account + service** (Phase 3) — ~$5/mo, always-on, persistent volume for the WhatsApp session. I'll provide the bridge code + deploy steps.
+- [ ] **DPA / privacy note (blocker for go-live, not for build).** This ingests clients' WhatsApp messages into the platform — new personal-data processing. Confirm your privacy policy / DPA covers WhatsApp message capture before real client data flows in, same as the PostHog DPA step.
+- [ ] **Ban-risk awareness (accepted).** Unofficial linked-device bridge on your live number; small but real risk of a WhatsApp ban. Kept minimal by staying passive (no automated sending). Recorded here so the decision is on the record.
 
 ---
 

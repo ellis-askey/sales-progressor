@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { P } from "./portal-ui";
 import { getMyMoveInfoAction, portalSaveMoveInfoAction } from "@/app/actions/portal";
+import { portalOnwardMortgageStatusAction, portalConfirmOnwardMortgageOfferAction } from "@/app/actions/portal-onward";
 import type { MoveInfo, MoveInfoContext, UnavailableRange } from "@/lib/services/portal-info";
 
 function fmtDate(iso: string) {
@@ -30,11 +31,24 @@ export function PortalInformationTab({ token }: { token: string }) {
     });
   }, [token]);
 
+  const [mortgageModal, setMortgageModal] = useState(false);
+  const [mortgageBusy, setMortgageBusy] = useState(false);
+
   async function patch(section: string, p: Partial<MoveInfo>) {
     setInfo((prev) => (prev ? { ...prev, ...p } : prev));
     await portalSaveMoveInfoAction({ token, patch: p });
     setSavedSection(section);
     window.setTimeout(() => setSavedSection((s) => (s === section ? null : s)), 1600);
+  }
+
+  // Entering an onward mortgage-offer expiry implies the offer exists. If the
+  // onward tracker still hasn't recorded the mortgage steps, offer to tick them.
+  async function onwardExpiryChange(v: string | null) {
+    await patch("onward", { onwardMortgageOfferExpiry: v });
+    if (v) {
+      const r = await portalOnwardMortgageStatusAction(token);
+      if (r?.needsConfirm) setMortgageModal(true);
+    }
   }
 
   if (loading) return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>Loading…</p>;
@@ -150,18 +164,51 @@ export function PortalInformationTab({ token }: { token: string }) {
           )}
           {(ctx.onwardLinkKnown || info.buyingOnward === true) && (
             <>
-              <Field label="Is your onward purchase ready to exchange?">
-                <Segmented value={info.onwardReadyToExchange} disabled={readOnly} options={[["yes", "Yes"], ["no", "No"], ["not_sure", "Not sure"]]} onChange={(v) => patch("onward", { onwardReadyToExchange: v })} />
-              </Field>
+              {/* The onward STEP tracker moved to the Progress tab (swipe to
+                  "Your onward"). Here we keep the mortgage-offer expiry, which
+                  offers to confirm the offer and fill in the mortgage steps. */}
               <Field label="Onward mortgage offer expiry (if mortgaged)">
-                <DateInput value={info.onwardMortgageOfferExpiry} disabled={readOnly} onChange={(v) => patch("onward", { onwardMortgageOfferExpiry: v })} />
+                <DateInput value={info.onwardMortgageOfferExpiry} disabled={readOnly} onChange={onwardExpiryChange} />
               </Field>
               <p className="text-[11px] px-4 pb-3 -mt-1" style={{ color: P.textMuted }}>
-                You can add your onward agent&apos;s details under Your agents in Settings.
+                Track the steps on your onward under Progress. You can add your onward agent under Your agents in Settings.
               </p>
             </>
           )}
         </Section>
+      )}
+
+      {/* Mortgage-offer shortcut modal */}
+      {mortgageModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => { if (!mortgageBusy) setMortgageModal(false); }}>
+          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div
+            className="relative w-full max-w-md mx-auto p-6"
+            style={{ background: P.cardBg, borderRadius: P.radiusXl, boxShadow: P.shadowXl, marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[18px] font-semibold mb-2" style={{ color: P.textPrimary }}>Is your mortgage offer in place?</p>
+            <p className="text-[14px] leading-relaxed mb-5" style={{ color: P.textSecondary }}>
+              You&apos;ve added your offer expiry, so it sounds like your mortgage is sorted. If your offer is in place, we&apos;ll tick off the mortgage steps on your onward: applied, valuation and offer received.
+            </p>
+            <button
+              onClick={async () => { setMortgageBusy(true); try { await portalConfirmOnwardMortgageOfferAction(token); } finally { setMortgageBusy(false); setMortgageModal(false); } }}
+              disabled={mortgageBusy}
+              className="w-full py-3.5 rounded-xl text-[15px] font-bold text-white mb-2"
+              style={{ background: P.primary, borderRadius: P.radiusMd, opacity: mortgageBusy ? 0.6 : 1 }}
+            >
+              {mortgageBusy ? "Saving…" : "Yes, my offer is in place"}
+            </button>
+            <button
+              onClick={() => setMortgageModal(false)}
+              disabled={mortgageBusy}
+              className="w-full py-3 text-[15px] font-medium rounded-xl"
+              style={{ color: P.textSecondary }}
+            >
+              Not yet
+            </button>
+          </div>
+        </div>
       )}
 
       {/* MOVING PLANS */}

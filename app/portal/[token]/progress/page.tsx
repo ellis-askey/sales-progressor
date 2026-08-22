@@ -1,8 +1,12 @@
+import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { getPortalData, getPortalMilestones, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, portalOwnSideScope, portalOtherSideScope, getPortalChainAgent } from "@/lib/services/portal";
 import { calculateProgress } from "@/lib/services/fees";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
+import { PortalOnwardPanel } from "@/components/portal/PortalOnwardPanel";
+import { getOnwardTrackerView } from "@/lib/services/onward";
+import { prisma } from "@/lib/prisma";
 import { P } from "@/components/portal/portal-ui";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 
@@ -69,6 +73,25 @@ export default async function PortalProgressPage({
   const portalMilestones      = toPortalShape(milestones);
   const otherPortalMilestones = toPortalShape(otherSideMilestones);
 
+  // Onward panel (sellers only): show as a third swipe panel when the seller has
+  // started their onward tracker, said they're buying onward, or a chain link
+  // already exists above them.
+  let onwardPanel: ReactNode = undefined;
+  if (side === "vendor") {
+    const [onwardView, moveInfo, chainAgent] = await Promise.all([
+      getOnwardTrackerView(transaction.id),
+      prisma.clientMoveInfo.findUnique({
+        where: { transactionId_side: { transactionId: transaction.id, side: "vendor" } },
+        select: { buyingOnward: true },
+      }),
+      getPortalChainAgent(transaction.id, "vendor").catch(() => null),
+    ]);
+    const onwardLinkKnown = !!(chainAgent && (chainAgent as { present?: boolean }).present);
+    if (onwardView.exists || moveInfo?.buyingOnward === true || onwardLinkKnown) {
+      onwardPanel = <PortalOnwardPanel token={token} initialView={onwardView} />;
+    }
+  }
+
   const nextUp = portalMilestones.find((m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && (m.isAvailable ?? false));
 
   return (
@@ -106,6 +129,8 @@ export default async function PortalProgressPage({
         otherSideMilestones={otherPortalMilestones}
         hasExchanged={hasExchanged}
         side={side}
+        onwardPanel={onwardPanel}
+        onwardLabel="Your onward"
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summa
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
+import { cascadeOnwardExchange } from "@/lib/services/onward";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { maybeStampExchange } from "@/lib/services/billing-trigger";
 import { handleExchangeReversal } from "@/lib/services/billing-reversal";
@@ -1219,6 +1220,11 @@ export async function completeMilestone(
   // Chain milestone notifications (fire-and-forget; deduped via OutboundEmailQueue)
   if (def.code === "VM19" || def.code === "PM26") {
     enqueueChainMilestoneNotifications(input.transactionId, "EXCHANGE").catch(console.error);
+    // Onward-visibility (3a): our exchange means the seller's onward purchase
+    // exchanged too. Mark it on their reported onward tracker if one exists.
+    if (def.code === "VM19") {
+      cascadeOnwardExchange(input.transactionId).catch(console.error);
+    }
   } else if (def.code === "VM20" || def.code === "PM27") {
     enqueueChainMilestoneNotifications(input.transactionId, "COMPLETION").catch(console.error);
     maybeEnqueueCelebration(input.transactionId).catch(console.error);
