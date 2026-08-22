@@ -201,6 +201,46 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
   };
 }
 
+// ── Stage 4: lifecycle (manual) ──────────────────────────────────────────────
+
+/**
+ * "I'm no longer buying onward." Retire the tracker but keep its data, so an
+ * accidental tap can be undone with reactivate. Never touches a superseded
+ * tracker (the agent above already claimed).
+ */
+export async function abandonOnwardTracker(transactionId: string): Promise<void> {
+  await prisma.onwardTracker.updateMany({
+    where: { transactionId, status: { notIn: ["superseded"] } },
+    data: { status: "abandoned" },
+  });
+}
+
+/** Undo an abandon — back to where they were, data intact. */
+export async function reactivateOnwardTracker(transactionId: string): Promise<void> {
+  await prisma.onwardTracker.updateMany({
+    where: { transactionId, status: "abandoned" },
+    data: { status: "active" },
+  });
+}
+
+/**
+ * "My onward has changed to a different place." Wipe the reported steps AND the
+ * two type facts, so the seller re-confirms from scratch against the new
+ * property. Keeps the tracker (active) so the panel drops back to setup.
+ */
+export async function resetOnwardTracker(transactionId: string): Promise<void> {
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId },
+    select: { id: true, status: true },
+  });
+  if (!tracker || tracker.status === "superseded") return;
+  await prisma.onwardStepConfirmation.deleteMany({ where: { trackerId: tracker.id } });
+  await prisma.onwardTracker.update({
+    where: { id: tracker.id },
+    data: { tenure: null, purchaseType: null, isShareOfFreehold: false, status: "active" },
+  });
+}
+
 /** Create an empty tracker (status active) if one doesn't already exist. */
 export async function openOnwardTracker(transactionId: string): Promise<void> {
   await prisma.onwardTracker.upsert({

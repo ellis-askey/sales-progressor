@@ -86,9 +86,13 @@ export default async function PortalProgressPage({
       }),
       getPortalChainAgent(transaction.id, "vendor").catch(() => null),
     ]);
-    const onwardLinkKnown = !!(chainAgent && (chainAgent as { present?: boolean }).present);
+    const ca = chainAgent as { present?: boolean; propertyAddress?: string | null } | null;
+    const onwardLinkKnown = !!ca?.present;
+    // The onward property address is already known from the chain (the link
+    // above), so the seller doesn't re-enter it — they only set tenure + method.
+    const onwardAddress = ca?.propertyAddress ?? null;
     if (onwardView.exists || moveInfo?.buyingOnward === true || onwardLinkKnown) {
-      onwardPanel = <PortalOnwardPanel token={token} initialView={onwardView} />;
+      onwardPanel = <PortalOnwardPanel token={token} initialView={onwardView} onwardAddress={onwardAddress} />;
     }
   }
 

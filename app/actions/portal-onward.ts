@@ -21,6 +21,9 @@ import {
   undoOnwardStep,
   onwardMortgageNeedsConfirm,
   backfillOnwardMortgageOffer,
+  abandonOnwardTracker,
+  reactivateOnwardTracker,
+  resetOnwardTracker,
   type OnwardTrackerView,
   type ConfirmOnwardResult,
   type UndoOnwardResult,
@@ -115,6 +118,32 @@ export async function portalConfirmOnwardMortgageOfferAction(token: string): Pro
   const v = await resolveVendor(token);
   if (!v) return null;
   await backfillOnwardMortgageOffer(v.transactionId, { source: "seller", contactId: v.contactId });
+  revalidatePortal(token);
+  return getOnwardTrackerView(v.transactionId);
+}
+
+// ── Lifecycle (manual) ───────────────────────────────────────────────────────
+
+export async function portalAbandonOnwardAction(token: string): Promise<OnwardTrackerView | null> {
+  const v = await resolveVendor(token);
+  if (!v) return null;
+  await abandonOnwardTracker(v.transactionId);
+  revalidatePortal(token);
+  return getOnwardTrackerView(v.transactionId);
+}
+
+export async function portalReactivateOnwardAction(token: string): Promise<OnwardTrackerView | null> {
+  const v = await resolveVendor(token);
+  if (!v) return null;
+  await reactivateOnwardTracker(v.transactionId);
+  revalidatePortal(token);
+  return getOnwardTrackerView(v.transactionId);
+}
+
+export async function portalResetOnwardAction(token: string): Promise<OnwardTrackerView | null> {
+  const v = await resolveVendor(token);
+  if (!v) return null;
+  await resetOnwardTracker(v.transactionId);
   revalidatePortal(token);
   return getOnwardTrackerView(v.transactionId);
 }

@@ -10,6 +10,7 @@
 // Spec: docs/active/onward-visibility/00-discovery.md.
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { P, PortalPill, PURCHASER_GROUPS } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -18,6 +19,9 @@ import {
   portalSetOnwardTypeFactsAction,
   portalConfirmOnwardStepAction,
   portalUndoOnwardStepAction,
+  portalAbandonOnwardAction,
+  portalReactivateOnwardAction,
+  portalResetOnwardAction,
 } from "@/app/actions/portal-onward";
 import type { OnwardTrackerView, OnwardStepView } from "@/lib/services/onward";
 
@@ -39,7 +43,15 @@ function blockingLabel(step: OnwardStepView, byCode: Map<string, OnwardStepView>
   return "an earlier step";
 }
 
-export function PortalOnwardPanel({ token, initialView }: { token: string; initialView: OnwardTrackerView }) {
+export function PortalOnwardPanel({
+  token,
+  initialView,
+  onwardAddress,
+}: {
+  token: string;
+  initialView: OnwardTrackerView;
+  onwardAddress?: string | null;
+}) {
   const [view, setView] = useState<OnwardTrackerView>(initialView);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +63,7 @@ export function PortalOnwardPanel({ token, initialView }: { token: string; initi
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
+  const [manageAction, setManageAction] = useState<"reset" | "abandon" | null>(null);
 
   function run(fn: () => Promise<OnwardTrackerView | null>) {
     setError(null);
@@ -65,15 +78,58 @@ export function PortalOnwardPanel({ token, initialView }: { token: string; initi
     });
   }
 
+  const confirmingStep = confirmingCode ? view.steps.find((s) => s.code === confirmingCode) ?? null : null;
+  function closeSheet() { if (!pending) setConfirmingCode(null); }
+
+  function doConfirm(code: string) {
+    run(async () => {
+      const r = await portalConfirmOnwardStepAction({ token, milestoneCode: code, eventDate: confirmDate || null });
+      if (r && r.result.ok === false) {
+        setError(
+          r.result.reason === "locked"
+            ? "Confirm the earlier step first."
+            : r.result.reason === "awaiting_our_completion"
+              ? "Your onward can't complete until this sale completes."
+              : "We couldn't confirm this step.",
+        );
+      } else {
+        setConfirmingCode(null);
+      }
+      return r?.view ?? null;
+    });
+  }
+
+  // ── Abandoned: they said they're no longer buying onward ────────────────────
+  if (view.status === "abandoned") {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl px-5 py-5" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+          <p className="text-[15px] font-semibold mb-1" style={{ color: P.textPrimary }}>You&apos;re no longer buying onward</p>
+          <p className="text-[13px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
+            You told us your onward purchase isn&apos;t going ahead. If that changes, you can pick it back up.
+          </p>
+          <PortalButton size="sm" full={false} loading={pending} onClick={() => run(() => portalReactivateOnwardAction(token))}>
+            Start again
+          </PortalButton>
+          {error && <p className="text-[12px] mt-2" style={{ color: P.warning }}>{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
   // ── Setup: the two type facts (covers the not-yet-created case too) ──────────
   if (!view.typeFactsSet) {
     const canSave = tenure !== null && purchaseType !== null && !pending;
     return (
       <div className="space-y-3">
         <div className="rounded-2xl px-5 py-5" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
-          <p className="text-[15px] font-semibold mb-1" style={{ color: P.textPrimary }}>Your onward purchase</p>
+          <p className="text-[15px] font-semibold mb-1" style={{ color: P.textPrimary }}>
+            {onwardAddress ?? "Your onward purchase"}
+          </p>
           <p className="text-[13px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
-            Tell us about the place you&apos;re buying, so we show the right steps. Keeping this up to date helps the whole chain move.
+            {onwardAddress
+              ? "Just two quick details about the place you're buying, so we show the right steps. Keeping this up to date helps the whole chain move."
+              : "Tell us about the place you're buying, so we show the right steps. Keeping this up to date helps the whole chain move."}
           </p>
 
           <FactRow label="Property type">
@@ -121,6 +177,9 @@ export function PortalOnwardPanel({ token, initialView }: { token: string; initi
 
   return (
     <div className="space-y-3">
+      {onwardAddress && (
+        <p className="text-[14px] font-semibold px-1" style={{ color: P.textPrimary }}>{onwardAddress}</p>
+      )}
       <p className="text-[12px] px-1" style={{ color: P.textMuted }}>
         As reported by you. {view.completeCount} of {view.applicableCount} confirmed.
       </p>
@@ -155,7 +214,6 @@ export function PortalOnwardPanel({ token, initialView }: { token: string; initi
             {isOpen && (
               <div>
                 {steps.map((step, i) => {
-                  const isConfirming = confirmingCode === step.code;
                   const locked = !step.isComplete && !step.isAvailable;
                   const label = onwardStepLabel(step.code, step.name);
                   const subtext = onwardStepSubtext(step.code);
@@ -201,63 +259,13 @@ export function PortalOnwardPanel({ token, initialView }: { token: string; initi
                             >
                               Undo
                             </button>
-                          ) : step.isAvailable && !isConfirming ? (
+                          ) : step.isAvailable ? (
                             <PortalButton size="sm" full={false} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
                               Confirm
                             </PortalButton>
                           ) : null}
                         </div>
                       </div>
-
-                      {isConfirming && (
-                        <div className="px-5 pb-4" style={{ background: P.pageBg }}>
-                          <p className="text-[12px] font-semibold mb-1.5 pt-1" style={{ color: P.textSecondary }}>
-                            {step.eventDateRequired ? "When did this happen?" : "Add a date (optional)"}
-                          </p>
-                          <input
-                            type="date"
-                            value={confirmDate}
-                            onChange={(e) => setConfirmDate(e.target.value)}
-                            className="w-full mb-2 rounded-xl text-[15px]"
-                            style={{ padding: "10px 12px", border: `1px solid ${P.border}`, background: P.cardBg, color: P.textPrimary }}
-                          />
-                          <div className="flex gap-2 items-center">
-                            <PortalButton
-                              size="sm"
-                              full={false}
-                              loading={pending}
-                              onClick={() =>
-                                run(async () => {
-                                  const r = await portalConfirmOnwardStepAction({ token, milestoneCode: step.code, eventDate: confirmDate || null });
-                                  if (r && r.result.ok === false) {
-                                    setError(
-                                      r.result.reason === "locked"
-                                        ? "Confirm the earlier step first."
-                                        : r.result.reason === "awaiting_our_completion"
-                                          ? "Your onward can't complete until this sale completes."
-                                          : "We couldn't confirm this step.",
-                                    );
-                                  } else {
-                                    setConfirmingCode(null);
-                                  }
-                                  return r?.view ?? null;
-                                })
-                              }
-                            >
-                              Confirm
-                            </PortalButton>
-                            <button
-                              type="button"
-                              disabled={pending}
-                              onClick={() => setConfirmingCode(null)}
-                              className="text-[13px] font-semibold"
-                              style={{ color: P.textMuted, background: "none", border: "none", padding: "8px 10px", cursor: "pointer" }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -268,6 +276,143 @@ export function PortalOnwardPanel({ token, initialView }: { token: string; initi
       })}
 
       {error && <p className="text-[12px] px-1" style={{ color: P.warning }}>{error}</p>}
+
+      {/* Manage: onward changed, or no longer happening */}
+      <div className="px-1 pt-3">
+        {manageAction === null ? (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => { setManageAction("reset"); setError(null); }}
+              className="text-left text-[12px] font-medium"
+              style={{ color: P.textMuted, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+            >
+              My onward has changed to a different place
+            </button>
+            <button
+              type="button"
+              onClick={() => { setManageAction("abandon"); setError(null); }}
+              className="text-left text-[12px] font-medium"
+              style={{ color: P.textMuted, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+            >
+              I&apos;m no longer buying onward
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-xl px-3 py-3" style={{ background: P.pageBg }}>
+            <p className="text-[13px] mb-2" style={{ color: P.textSecondary }}>
+              {manageAction === "reset"
+                ? "Reset your onward steps so you can add the new place? Your current progress will be cleared."
+                : "Mark your onward as no longer going ahead?"}
+            </p>
+            <div className="flex gap-2 items-center">
+              <PortalButton
+                size="sm"
+                full={false}
+                loading={pending}
+                onClick={() =>
+                  run(async () => {
+                    const next = manageAction === "reset"
+                      ? await portalResetOnwardAction(token)
+                      : await portalAbandonOnwardAction(token);
+                    setManageAction(null);
+                    return next;
+                  })
+                }
+              >
+                {manageAction === "reset" ? "Yes, reset" : "Yes"}
+              </PortalButton>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setManageAction(null)}
+                className="text-[13px] font-semibold"
+                style={{ color: P.textMuted, background: "none", border: "none", padding: "8px 10px", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Confirm drawer — matches the buyer step confirmation drawer, phrased for
+          the seller's onward purchase. Slides up, title + subtext + confirm. */}
+      {confirmingStep && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
+          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div
+            className="portal-sheet relative w-full max-w-lg mx-auto"
+            style={{
+              background: P.cardBg,
+              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
+              boxShadow: P.shadowXl,
+              paddingBottom: "env(safe-area-inset-bottom, 16px)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
+            </div>
+            <button
+              onClick={closeSheet}
+              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+              aria-label="Close"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="px-6 pb-6 pt-2">
+              <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
+                {onwardStepLabel(confirmingStep.code, confirmingStep.name)}
+              </p>
+              {onwardStepSubtext(confirmingStep.code) && (
+                <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
+                  {onwardStepSubtext(confirmingStep.code)}
+                </p>
+              )}
+
+              {confirmingStep.eventDateRequired && (
+                <div className="mb-4">
+                  <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
+                    When did this happen? <span style={{ color: "#EF4444" }}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={confirmDate}
+                    onChange={(e) => setConfirmDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
+                    style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
+                  />
+                </div>
+              )}
+
+              {error && <p className="text-[13px] mb-3" style={{ color: "#EF4444" }}>{error}</p>}
+
+              <button
+                onClick={() => doConfirm(confirmingStep.code)}
+                disabled={pending}
+                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+                style={{ background: P.primary, borderRadius: P.radiusMd }}
+              >
+                {pending ? "Saving…" : "Confirm"}
+              </button>
+              <button
+                onClick={closeSheet}
+                disabled={pending}
+                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+                style={{ color: P.textSecondary }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
