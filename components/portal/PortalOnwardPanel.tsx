@@ -215,6 +215,7 @@ export function PortalOnwardPanel({
         As reported by you. {view.completeCount} of {view.applicableCount} confirmed.
       </p>
 
+      <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
       {PURCHASER_GROUPS.map((group) => {
         const steps = group.codes.map((c) => byCode.get(c)).filter((s): s is OnwardStepView => !!s);
         if (steps.length === 0) return null;
@@ -223,23 +224,24 @@ export function PortalOnwardPanel({
         const allDone = doneCount === total;
         const activeGroup = steps.some((s) => !s.isComplete && s.isAvailable);
         const isOpen = expanded[group.label] ?? activeGroup;
-        const headerBg = allDone ? P.successBg : activeGroup ? P.accentBg : "transparent";
+        const headerBg = allDone ? P.successBg : activeGroup ? P.accentBg : P.pageBg;
 
         return (
-          <div key={group.label} className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+          <div key={group.label}>
             <button
-              className="w-full flex items-center gap-3 px-5 py-4 text-left"
-              style={{ background: headerBg, borderBottom: isOpen ? `1px solid ${P.border}` : undefined }}
+              className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
+              style={{ background: headerBg, borderBottom: `1px solid ${P.border}` }}
               onClick={() => setExpanded((p) => ({ ...p, [group.label]: !isOpen }))}
             >
-              <span className="text-xl flex-shrink-0">{group.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>{group.label}</p>
-                <p className="text-[12px] mt-0.5" style={{ color: P.textSecondary }}>
-                  {allDone ? "All confirmed" : `${doneCount} of ${total} confirmed`}
-                </p>
+              <p className="text-[12px] font-bold uppercase tracking-wide min-w-0 truncate" style={{ color: P.textMuted }}>
+                {group.icon} {group.label}
+              </p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <PortalPill tone={allDone ? "green" : "coral"}>{doneCount}/{total}</PortalPill>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
-              <PortalPill tone={allDone ? "green" : "coral"}>{doneCount}/{total}</PortalPill>
             </button>
 
             {isOpen && (
@@ -305,6 +307,7 @@ export function PortalOnwardPanel({
           </div>
         );
       })}
+      </div>
 
       {error && <p className="text-[12px] px-1" style={{ color: P.warning }}>{error}</p>}
 

@@ -315,8 +315,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           </div>
         )}
         <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
-          <div className="space-y-3">
-        {/* ── Your milestones ───────────────────────────────────── */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+        {/* ── Your milestones (one unified card, flat group headers) ── */}
         {groups.map((group, gIdx) => {
           const groupMilestones = group.codes.map((c) => byCode.get(c)).filter((m): m is Milestone => !!m && !m.isNotRequired);
           if (groupMilestones.length === 0) return null;
@@ -328,25 +328,18 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           const isActive   = gIdx === activeGroupIdx;
           const isOpen     = expanded[gIdx] ?? false;
 
-          const headerBg = allDone ? P.successBg : isActive ? P.accentBg : "transparent";
+          const headerBg = allDone ? P.successBg : isActive ? P.accentBg : P.pageBg;
 
           return (
-            <div key={group.label} className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+            <div key={group.label}>
               <button
-                className="w-full flex items-center gap-3 px-5 py-4 text-left"
-                style={{
-                  background: headerBg,
-                  borderBottom: isOpen ? `1px solid ${P.border}` : undefined,
-                }}
+                className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
+                style={{ background: headerBg, borderBottom: `1px solid ${P.border}` }}
                 onClick={() => toggle(gIdx)}
               >
-                <span className="text-xl flex-shrink-0">{group.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>{group.label}</p>
-                  <p className="text-[12px] mt-0.5" style={{ color: P.textSecondary }}>
-                    {allDone ? "All complete" : `${doneCount} of ${totalCount} done`}
-                  </p>
-                </div>
+                <p className="text-[12px] font-bold uppercase tracking-wide min-w-0 truncate" style={{ color: P.textMuted }}>
+                  {group.icon} {group.label}
+                </p>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {allDone ? (
                     <PortalPill tone="green">Done</PortalPill>
@@ -457,7 +450,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${P.border}` }}>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.border, color: P.textMuted }}>View only</span>
                   <p className="text-[12px]" style={{ color: P.textMuted }}>
-                    {side === "vendor" ? "The purchase" : "The sale"} · {otherSideMilestones.filter((m) => m.isComplete).length} of {otherSideMilestones.filter((m) => !m.isNotRequired).length} steps done
+                    {otherSideMilestones.filter((m) => m.isComplete).length} of {otherSideMilestones.filter((m) => !m.isNotRequired).length} steps done
                   </p>
                 </div>
               <div>
