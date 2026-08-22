@@ -19,6 +19,9 @@ import { normaliseMessage } from "./normalise.js";
 import { startHttpServer, type BridgeState } from "./server.js";
 
 const cfg = loadConfig();
+// Anything timestamped before the bridge booted is treated as history and
+// ignored, so the initial linked-device sync never backfills the archive.
+const BOOT_TIME = Date.now();
 const state: BridgeState = { connection: "connecting", qrDataUrl: null, phoneNumber: null, lastMessageAt: null };
 const delivery = new Delivery(cfg);
 const groupNames = new Map<string, string>();
@@ -94,7 +97,11 @@ async function connect() {
   });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify") return; // only live messages, never history sync
+    // notify = new incoming message; append = often our OWN messages sent from
+    // another device (phone/desktop). We want both. Guard against the initial
+    // history sync by ignoring anything older than the bridge's boot time.
+    if (type !== "notify" && type !== "append") return;
+    log.info("messages.upsert", { type, count: messages.length });
     for (const wa of messages) {
       try {
         const remoteJid = wa.key?.remoteJid ?? "";
@@ -102,6 +109,7 @@ async function connect() {
         const name = isGroup ? await groupSubject(sock, remoteJid) : null;
         const msg = normaliseMessage(wa, name);
         if (!msg) continue;
+        if (msg.timestamp < BOOT_TIME - 60_000) continue; // history / pre-boot — skip
         state.lastMessageAt = new Date().toISOString();
         await delivery.send(msg);
       } catch (err) {
