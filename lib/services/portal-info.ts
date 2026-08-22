@@ -19,6 +19,10 @@ export type MoveInfoContext = {
   // exists), so we don't ask, and the onward address when it's a managed file.
   onwardLinkKnown: boolean;
   onwardManagedAddress: string | null;
+  // Whether the seller can still self-manage their onward (change place / no
+  // longer buying). False once the agent above has joined or been invited —
+  // then the chain link is theirs and only a withdrawal can change it.
+  onwardManageable: boolean;
 };
 
 export type UnavailableRange = { start: string; end?: string | null };
@@ -106,12 +110,16 @@ export async function getClientMoveInfo(
   // Sellers: do we already know they're buying onward (a chain link above them)?
   let onwardLinkKnown = false;
   let onwardManagedAddress: string | null = null;
+  let onwardManageable = false;
   if (side === "vendor") {
     const { getPortalChainAgent } = await import("@/lib/services/portal");
     const ca = await getPortalChainAgent(contact.propertyTransactionId, "vendor").catch(() => null);
     if (ca?.present) {
       onwardLinkKnown = true;
       onwardManagedAddress = ca.propertyAddress ?? null;
+      // Editable only while the agent above hasn't joined / been invited, and
+      // there's a managing user to attribute the change to (mirrors Settings).
+      onwardManageable = ca.editable && ca.canManage;
     }
   }
 
@@ -128,6 +136,7 @@ export async function getClientMoveInfo(
     expectedExchangeDate: isoDate(tx?.expectedExchangeDate ?? null),
     onwardLinkKnown,
     onwardManagedAddress,
+    onwardManageable,
   };
 
   const row = await prisma.clientMoveInfo.findUnique({

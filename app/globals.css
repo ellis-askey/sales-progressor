@@ -546,6 +546,25 @@ body {
 .portal-chev:hover .portal-chev-i,
 .portal-chev:focus-visible .portal-chev-i { transform: translateX(4px); }
 
+/* Quiet loading placeholder — a soft sweep rather than the word "Loading". */
+.portal-shimmer {
+  background: var(--nv2-skeleton, rgba(15,23,42,0.08));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.45) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: portal-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes portal-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+[data-portal-motion="reduced"] .portal-shimmer { animation: none; }
+
 /* Tappable "Your team" rows (solicitor / selling agent) — whole row is the
    control, a subtle wash confirms the tap target. */
 .portal-team-row { transition: background 150ms ease; }
@@ -668,6 +687,9 @@ body {
 /* Reduce motion (explicit toggle, mirrors the prefers-reduced-motion block). */
 [data-portal-motion="reduced"] .portal-edge-pulse,
 [data-portal-motion="reduced"] .portal-fade-in,
+[data-portal-motion="reduced"] .portal-reveal-fade,
+[data-portal-motion="reduced"] .portal-reveal-up,
+[data-portal-motion="reduced"] .portal-reveal-stack > *,
 [data-portal-motion="reduced"] .portal-sheet,
 [data-portal-motion="reduced"] .portal-sheet-backdrop,
 [data-portal-motion="reduced"] .portal-panel,
@@ -742,6 +764,18 @@ body {
 @keyframes portal-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .portal-fade-in { animation: portal-fade-up 560ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* Overview entrance. The hero image (and the address / pills / ring overlaid on
+   it) fades IN PLACE; every card below rises + fades. All run on first paint —
+   no JS, no hydration gate — so a mid-page refresh still reveals neatly without
+   forcing a scroll to top. `.portal-reveal-stack > *` animates each direct card
+   at the same time; the hero host is exempt so it can drive its own two-part
+   reveal (image fade + inner cards rise) internally. */
+@keyframes portal-fade-only { from { opacity: 0; } to { opacity: 1; } }
+.portal-reveal-fade { animation: portal-fade-only 560ms ease both; }
+.portal-reveal-up   { animation: portal-fade-up 560ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.portal-reveal-stack > * { animation: portal-fade-up 560ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.portal-reveal-stack > .portal-reveal-host { animation: none; }
+
 /* Bottom sheets (Confirm / help / skip) slide up + the backdrop fades in,
    instead of just appearing. */
 @keyframes portal-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -776,6 +810,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .portal-edge-pulse,
   .portal-fade-in,
+  .portal-reveal-fade,
+  .portal-reveal-up,
+  .portal-reveal-stack > *,
   .portal-sheet,
   .portal-sheet-backdrop,
   .portal-panel,

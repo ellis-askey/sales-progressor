@@ -17,10 +17,15 @@ import { PortalButton } from "./PortalButton";
 import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { formatPostcode, isValidUKPostcode, normaliseAddressString } from "@/lib/utils/address";
 import { updateMyContactAction, updateMyChainAgentAction, switchMySolicitorFirmAction } from "@/app/actions/portal-menu";
+import { portalChangeOnwardPlaceAction, portalAbandonOnwardAction } from "@/app/actions/portal-onward";
+import type { Tenure, PurchaseType } from "@prisma/client";
 
 export type EditDrawerConfig = {
-  kind: "details" | "agent" | "solicitor";
-  mode: "add" | "edit" | "switch";
+  // "onward-change" = the seller's onward moved to a different place (address +
+  // agent + tenure + method, resets the reported steps). "onward-stop" = a
+  // confirm that they're no longer buying onward.
+  kind: "details" | "agent" | "solicitor" | "onward-change" | "onward-stop";
+  mode: "add" | "edit" | "switch" | "change" | "stop";
   direction?: "above" | "below"; // agent copy: above = seller's onward, below = buyer's selling agent
   initial: {
     name?: string; email?: string; phone?: string;
@@ -47,6 +52,8 @@ function parseAddress(combined?: string): { street: string; city: string; postco
 function headerFor(config: EditDrawerConfig): { title: string; sub: string } {
   if (config.kind === "details") return { title: "Your details", sub: "Keep your contact details up to date." };
   if (config.kind === "solicitor") return { title: "Your solicitor", sub: "Add the firm and case handler looking after your file." };
+  if (config.kind === "onward-change") return { title: "Moving somewhere new?", sub: "Tell us about the property you're buying so we can show you the right steps." };
+  if (config.kind === "onward-stop") return { title: "No longer buying onward?", sub: "We'll let your team know and pause your onward steps. You can pick it back up anytime." };
   // agent
   return config.direction === "below"
     ? { title: "Your selling agent", sub: "Add the estate agent handling your sale so we can keep in touch and help keep the chain moving." }
@@ -76,6 +83,7 @@ export function PortalEditDrawer({
       agency: i.agency ?? "", agentName: i.agentName ?? "",
       street: addr.street, city: addr.city, postcode: addr.postcode,
       firmName: i.firmName ?? "", contactName: i.contactName ?? "",
+      tenure: "", purchaseType: "", shareOfFreehold: "",
     });
     setShowErrors(false); setPostcodeError(""); setError(null);
   }, [config]);
@@ -110,6 +118,8 @@ export function PortalEditDrawer({
   let canSave = false;
   if (config?.kind === "details") canSave = !!f.name?.trim();
   else if (config?.kind === "agent") canSave = !!f.agency?.trim() && !!f.street?.trim() && !!f.city?.trim() && postcodeOk;
+  else if (config?.kind === "onward-change") canSave = !!f.agency?.trim() && !!f.street?.trim() && !!f.city?.trim() && postcodeOk && !!f.tenure && !!f.purchaseType;
+  else if (config?.kind === "onward-stop") canSave = true;
   else if (config?.kind === "solicitor") {
     const base = !!f.firmName?.trim() && !!f.contactName?.trim();
     // Add / switch require every field; editing an existing one needs only firm + handler.
@@ -125,6 +135,7 @@ export function PortalEditDrawer({
     const phone = f.phone?.trim() ? normalizePhone(f.phone) : null;
     startTransition(async () => {
       let res: { ok: boolean; error?: string };
+      let onwardChanged = false;
       if (config.kind === "details") {
         res = await updateMyContactAction({ token, name: titleCaseKeepAcronyms(f.name!), email, phone });
       } else if (config.kind === "agent") {
@@ -137,6 +148,25 @@ export function PortalEditDrawer({
           agentPhone: phone,
           propertyAddress: address,
         });
+      } else if (config.kind === "onward-change") {
+        const address = normaliseAddressString(`${f.street!.trim()}, ${f.city!.trim()}, ${formatPostcode(f.postcode!)}`);
+        const r = await portalChangeOnwardPlaceAction({
+          token,
+          newAddress: address,
+          agencyName: f.agency?.trim() ? titleCaseKeepAcronyms(f.agency) : null,
+          agentName: f.agentName?.trim() ? titleCaseKeepAcronyms(f.agentName) : null,
+          agentEmail: email,
+          agentPhone: phone,
+          tenure: f.tenure as Tenure,
+          purchaseType: f.purchaseType as PurchaseType,
+          isShareOfFreehold: f.shareOfFreehold === "1",
+        });
+        res = r == null ? { ok: false, error: "We couldn't save that. Try again." } : r;
+        onwardChanged = res.ok;
+      } else if (config.kind === "onward-stop") {
+        const r = await portalAbandonOnwardAction(token);
+        res = r == null ? { ok: false, error: "We couldn't save that. Try again." } : { ok: true };
+        onwardChanged = res.ok;
       } else {
         res = await switchMySolicitorFirmAction({
           token,
@@ -148,6 +178,7 @@ export function PortalEditDrawer({
       }
       if (res.ok) {
         window.dispatchEvent(new CustomEvent("portal:details-updated"));
+        if (onwardChanged) window.dispatchEvent(new CustomEvent("portal:onward-updated"));
         onClose();
       } else {
         setError(res.error ?? "We couldn't save that. Try again.");
@@ -155,7 +186,12 @@ export function PortalEditDrawer({
     });
   }
 
-  const ctaLabel = config?.mode === "edit" ? "Save changes" : config?.mode === "switch" ? "Switch firm" : "Confirm";
+  const ctaLabel =
+    config?.kind === "onward-change" ? "Start my new purchase"
+    : config?.kind === "onward-stop" ? "Yes, I'm no longer buying onward"
+    : config?.mode === "edit" ? "Save changes"
+    : config?.mode === "switch" ? "Switch firm"
+    : "Confirm";
 
   return createPortal(
     <div aria-hidden={!open} style={{ position: "fixed", inset: 0, zIndex: 50, pointerEvents: open ? "auto" : "none" }}>
@@ -224,6 +260,38 @@ export function PortalEditDrawer({
                 </>
               )}
 
+              {config.kind === "onward-change" && (
+                <>
+                  <LabeledInput label="Agency" value={f.agency ?? ""} onChange={set("agency")} onBlur={blurName("agency")} required error={showErrors && !f.agency?.trim() ? "Enter the agency" : ""} />
+                  <LabeledInput label="Agent name" value={f.agentName ?? ""} onChange={set("agentName")} onBlur={blurName("agentName")} />
+                  <LabeledInput label="Email" value={f.email ?? ""} onChange={set("email")} onBlur={blurEmail("email")} type="email" />
+                  <LabeledInput label="Phone" value={f.phone ?? ""} onChange={set("phone")} onBlur={blurPhone("phone")} type="tel" />
+                  <div style={{ height: 1, background: P.border, margin: "10px 0 12px" }} />
+                  <LabeledInput label="Street address" value={f.street ?? ""} onChange={set("street")} onBlur={blurName("street")} required error={showErrors && !f.street?.trim() ? "Enter the street address" : ""} />
+                  <LabeledInput label="City / Town" value={f.city ?? ""} onChange={set("city")} onBlur={blurName("city")} required error={showErrors && !f.city?.trim() ? "Enter the city or town" : ""} />
+                  <LabeledInput label="Postcode" value={f.postcode ?? ""} onChange={(v) => { set("postcode")(v.toUpperCase()); setPostcodeError(""); }} onBlur={blurPostcode} required error={postcodeError || (showErrors && !postcodeOk ? "Enter a valid postcode" : "")} />
+                  <div style={{ height: 1, background: P.border, margin: "10px 0 12px" }} />
+                  <PillGroup label="Property type" error={showErrors && !f.tenure ? "Pick one" : ""}>
+                    <Pill on={f.tenure === "freehold"} onClick={() => setF((p) => ({ ...p, tenure: "freehold", shareOfFreehold: "" }))}>Freehold</Pill>
+                    <Pill on={f.tenure === "leasehold"} onClick={() => setF((p) => ({ ...p, tenure: "leasehold" }))}>Leasehold</Pill>
+                  </PillGroup>
+                  {f.tenure === "leasehold" && (
+                    <label className="flex items-center gap-2 mb-3 text-[13px]" style={{ color: P.textSecondary }}>
+                      <input type="checkbox" checked={f.shareOfFreehold === "1"} onChange={(e) => setF((p) => ({ ...p, shareOfFreehold: e.target.checked ? "1" : "" }))} />
+                      Share of freehold
+                    </label>
+                  )}
+                  <PillGroup label="How you're buying" error={showErrors && !f.purchaseType ? "Pick one" : ""}>
+                    <Pill on={f.purchaseType === "mortgage"} onClick={() => setF((p) => ({ ...p, purchaseType: "mortgage" }))}>Mortgage</Pill>
+                    <Pill on={f.purchaseType === "cash_buyer"} onClick={() => setF((p) => ({ ...p, purchaseType: "cash_buyer" }))}>Cash</Pill>
+                    <Pill on={f.purchaseType === "cash_from_proceeds"} onClick={() => setF((p) => ({ ...p, purchaseType: "cash_from_proceeds" }))}>Cash from this sale</Pill>
+                  </PillGroup>
+                  <p className="text-[12px] leading-relaxed mt-1 mb-1" style={{ color: P.textMuted }}>
+                    We&apos;ll clear your current purchase steps so you can set up your new property.
+                  </p>
+                </>
+              )}
+
               {error && <p className="text-[12px] mt-1" style={{ color: P.warning }}>{error}</p>}
             </>
           )}
@@ -272,5 +340,35 @@ function LabeledInput({
       />
       {error && <p className="text-[11px] mt-1" style={{ color: "#EF4444" }}>{error}</p>}
     </div>
+  );
+}
+
+function PillGroup({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label className="block text-[12px] font-semibold mb-1.5" style={{ color: P.textSecondary }}>
+        {label}<span style={{ color: "#EF4444" }}> *</span>
+      </label>
+      <div className="flex gap-2 flex-wrap">{children}</div>
+      {error && <p className="text-[11px] mt-1" style={{ color: "#EF4444" }}>{error}</p>}
+    </div>
+  );
+}
+
+function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        fontSize: 13, padding: "7px 13px", borderRadius: 999, cursor: "pointer",
+        border: on ? `1px solid ${P.primary}` : `1px solid ${P.border}`,
+        background: on ? P.primaryBg : P.cardBg,
+        color: on ? P.primaryText : P.textSecondary,
+        fontWeight: on ? 700 : 500,
+      }}
+    >
+      {children}
+    </button>
   );
 }

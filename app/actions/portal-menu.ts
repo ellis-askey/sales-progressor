@@ -16,8 +16,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { createChainV2, addChainLink, updateChainLinkStub, getChainForTransactionV2 } from "@/lib/services/chains";
-import { createNotification } from "@/lib/services/notifications";
+import { writeClientChainStub } from "@/lib/services/chains";
+import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
 import { getPortalChainAgent, getPortalSurveyState, type PortalChainAgent } from "@/lib/services/portal";
 import { pauseContactChases, resumeContactChases } from "@/lib/services/chase-pause";
 
@@ -166,53 +166,28 @@ export async function updateMyChainAgentAction(input: {
     return { ok: false as const, error: "We can't update the chain on this file yet. Your agent can add it for you." };
   }
 
-  const stub = {
-    stubPropertyAddress: propertyAddress,
-    stubAgencyName: agencyName ?? "",
-    stubAgentName: agentName,
-    stubAgentEmail: agentEmail,
-    stubAgentPhone: agentPhone,
-  };
-
-  let hadInvite = false;
-  const chain = await getChainForTransactionV2(contact.propertyTransactionId).catch(() => null);
-  if (!chain) {
-    await createChainV2({
-      transactionId: contact.propertyTransactionId,
-      agencyId: tx.agencyId,
-      userId: managingUserId,
-      stubs: [{ direction, ...stub }],
-    });
-  } else {
-    const own = chain.links.find((l) => l.transactionId === contact.propertyTransactionId);
-    const targetPos = own ? (direction === "above" ? own.position - 1 : own.position + 1) : null;
-    const neighbour = targetPos != null ? chain.links.find((l) => l.position === targetPos) : null;
-    if (neighbour && neighbour.transactionId !== null) {
-      return { ok: false as const, error: "That agent has already joined, so their details can't be changed here." };
-    }
-    if (neighbour) {
-      // While an invite is live it's locked; once it expires / declines /
-      // bounces it's editable again, and we flag the change for re-invite.
-      const link = await prisma.chainLink.findUnique({
-        where: { id: neighbour.id },
-        select: { inviteStatus: true, inviteSentAt: true, inviteTokenExpiresAt: true },
-      });
-      const invitePending = link?.inviteStatus === "SENT" && link.inviteTokenExpiresAt != null && link.inviteTokenExpiresAt > new Date();
-      if (invitePending) {
-        return { ok: false as const, error: "We've sent them an invite, so their details are locked for now. If they're wrong, let us know and we'll sort it." };
-      }
-      hadInvite = link?.inviteSentAt != null;
-      await updateChainLinkStub(neighbour.id, {
-        stubPropertyAddress: propertyAddress || undefined,
-        stubAgencyName: stub.stubAgencyName,
-        stubAgentName: agentName,
-        stubAgentEmail: agentEmail,
-        stubAgentPhone: agentPhone,
-      });
-    } else {
-      await addChainLink({ chainId: chain.id, userId: managingUserId, direction, ...stub });
-    }
+  const written = await writeClientChainStub({
+    transactionId: contact.propertyTransactionId,
+    agencyId: tx.agencyId,
+    managingUserId,
+    direction,
+    stub: {
+      stubPropertyAddress: propertyAddress,
+      stubAgencyName: agencyName ?? "",
+      stubAgentName: agentName,
+      stubAgentEmail: agentEmail,
+      stubAgentPhone: agentPhone,
+    },
+  });
+  if (!written.ok) {
+    return {
+      ok: false as const,
+      error: written.reason === "joined"
+        ? "That agent has already joined, so their details can't be changed here."
+        : "We've sent them an invite, so their details are locked for now. If they're wrong, let us know and we'll sort it.",
+    };
   }
+  const hadInvite = written.hadInvite;
 
   // Notify the managing agent — Updates feed (internal note) + a bell
   // notification (the first non-confirmation event surfaced in the bell).
@@ -230,6 +205,16 @@ export async function updateMyChainAgentAction(input: {
     type: "portal_chain_agent_updated",
     transactionId: contact.propertyTransactionId,
     payload: { title: hadInvite ? "Chain agent details changed" : "Chain agent added", body, contactName: contact.name },
+  });
+  // Show the client their own action back in their own portal.
+  const agentLabel = agentName ?? agencyName ?? "your agent";
+  await addPortalClientSelfNote({
+    transactionId: contact.propertyTransactionId,
+    actorContactId: contact.id,
+    actorName: contact.name,
+    side,
+    singular: `You updated your ${sideWord} agent to ${agentLabel}.`,
+    plural: (n) => `${n} updated your ${sideWord} agent to ${agentLabel}.`,
   });
 
   revalidatePath(`/portal/${input.token}`, "layout");
@@ -367,13 +352,34 @@ export async function switchMySolicitorFirmAction(input: {
       : { purchaserSolicitorFirmId: firm.id, purchaserSolicitorContactId: created.id },
   });
 
+  const firmBody = `${contact.name} switched their solicitor firm via the portal: ${cleanFirm} · ${cleanContact}${cleanEmail ? ` · ${cleanEmail}` : ""}${cleanPhone ? ` · ${cleanPhone}` : ""}. Previous firm record kept for other files.`;
   await prisma.outboundMessage.create({
-    data: {
+    data: { transactionId: contact.propertyTransactionId, type: "internal_note", contactIds: [], content: firmBody },
+  });
+  // Bell for the managing agent (self-managed) / Sales Progressor (outsourced).
+  const solTx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true },
+  });
+  const solManagingUserId = solTx
+    ? (solTx.serviceType !== "self_managed" ? solTx.assignedUserId : solTx.agentUserId)
+    : null;
+  if (solManagingUserId) {
+    await createNotification({
+      userId: solManagingUserId,
+      type: "portal_solicitor_firm_switched",
       transactionId: contact.propertyTransactionId,
-      type: "internal_note",
-      contactIds: [],
-      content: `${contact.name} switched their solicitor firm via the portal: ${cleanFirm} · ${cleanContact}${cleanEmail ? ` · ${cleanEmail}` : ""}${cleanPhone ? ` · ${cleanPhone}` : ""}. Previous firm record kept for other files.`,
-    },
+      payload: { title: "Solicitor firm changed", body: firmBody, contactName: contact.name },
+    });
+  }
+  // Show the client their own action back (vendor-scoped).
+  await addPortalClientSelfNote({
+    transactionId: contact.propertyTransactionId,
+    actorContactId: contact.id,
+    actorName: contact.name,
+    side,
+    singular: `You changed your solicitor to ${cleanFirm}.`,
+    plural: (n) => `${n} changed your solicitor to ${cleanFirm}.`,
   });
 
   revalidatePath(`/portal/${input.token}`, "layout");

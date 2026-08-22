@@ -170,14 +170,36 @@ export function PortalInformationTab({
       {ctx.role === "seller" && !ctx.hasExchanged && (
         <Section id="onward" label="Onward purchase" saved={savedSection}>
           {ctx.onwardLinkKnown ? (
-            <Row label="Buying onward">
-              <span className="text-[14px] font-semibold text-right" style={{ color: P.textPrimary }}>{ctx.onwardManagedAddress ?? "Yes"}</span>
-            </Row>
+            // The eyebrow ("Onward purchase") already names this section, so the
+            // address stands on its own, full width, with no repeated label.
+            <div className="px-4 py-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+              <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+                {ctx.onwardManagedAddress ?? "Yes"}
+              </p>
+            </div>
           ) : (
             <Field label="Are you also buying another property?">
               <YesNo value={info.buyingOnward} disabled={readOnly} onChange={(v) => patch("onward", { buyingOnward: v })} />
             </Field>
           )}
+          {ctx.onwardManageable && !readOnly ? (
+            <>
+              <OnwardManageRow
+                label="Change to a different place"
+                onClick={() => window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: { kind: "onward-change", mode: "change", direction: "above", initial: {} } }))}
+              />
+              <OnwardManageRow
+                label="No longer buying onward"
+                onClick={() => window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: { kind: "onward-stop", mode: "stop", initial: {} } }))}
+              />
+            </>
+          ) : ctx.onwardLinkKnown && !readOnly ? (
+            // Agent above has joined / been invited — the link is theirs now,
+            // so only a withdrawal can change it. No self-service here.
+            <p className="text-[12px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted, lineHeight: 1.5 }}>
+              Your onward agent is set up with us now. If your purchase changes or falls through, let us know and we&apos;ll update the chain.
+            </p>
+          ) : null}
           {(ctx.onwardLinkKnown || info.buyingOnward === true) && (
             <>
               {/* The onward STEP tracker moved to the Progress tab (swipe to
@@ -186,7 +208,7 @@ export function PortalInformationTab({
               <Field label="Onward mortgage offer expiry (if mortgaged)">
                 <DateInput value={info.onwardMortgageOfferExpiry} disabled={readOnly} onChange={onwardExpiryChange} />
               </Field>
-              <p className="text-[11px] px-4 pb-3 -mt-1" style={{ color: P.textMuted }}>
+              <p className="text-[11px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted }}>
                 Track the steps on your onward under Progress. You can add your onward agent under Your agents in Settings.
               </p>
             </>
@@ -314,6 +336,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="text-[13px] mb-2" style={{ color: P.textSecondary }}>{label}</p>
       {children}
     </div>
+  );
+}
+
+// A tappable "manage your onward" row (change place / no longer buying). Opens
+// the shared manage drawer via the portal:open-edit-drawer event.
+function OnwardManageRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      style={{ borderBottom: `1px solid ${P.border}`, background: "none", cursor: "pointer" }}
+    >
+      <span className="text-[14px] font-medium" style={{ color: P.textPrimary }}>{label}</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
   );
 }
 

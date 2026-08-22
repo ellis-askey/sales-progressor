@@ -19,10 +19,18 @@ import {
   portalSetOnwardTypeFactsAction,
   portalConfirmOnwardStepAction,
   portalUndoOnwardStepAction,
-  portalAbandonOnwardAction,
   portalReactivateOnwardAction,
-  portalResetOnwardAction,
+  portalGetOnwardTrackerAction,
 } from "@/app/actions/portal-onward";
+
+// Open the shared manage drawer (change place / no longer buying) — the same
+// stacked bottom-sheet the Settings edits use. Triggers live on the Info tab
+// and in Settings too; this one is the abandoned-state shortcut.
+function openOnwardChangeDrawer() {
+  window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", {
+    detail: { kind: "onward-change", mode: "change", direction: "above", initial: {} },
+  }));
+}
 import type { OnwardTrackerView, OnwardStepView } from "@/lib/services/onward";
 
 type Tenure = "freehold" | "leasehold";
@@ -63,7 +71,6 @@ export function PortalOnwardPanel({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
-  const [manageAction, setManageAction] = useState<"reset" | "abandon" | null>(null);
 
   // Lock the page behind while the confirm sheet is open.
   useEffect(() => {
@@ -72,6 +79,14 @@ export function PortalOnwardPanel({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, [confirmingCode]);
+
+  // The manage drawer (change place / no longer buying) lives at the shell
+  // level; refetch when it saves so this panel reflects the change.
+  useEffect(() => {
+    const onUpdated = () => { portalGetOnwardTrackerAction(token).then((v) => { if (v) setView(v); }); };
+    window.addEventListener("portal:onward-updated", onUpdated);
+    return () => window.removeEventListener("portal:onward-updated", onUpdated);
+  }, [token]);
 
   function run(fn: () => Promise<OnwardTrackerView | null>) {
     setError(null);
@@ -114,11 +129,21 @@ export function PortalOnwardPanel({
         <div className="rounded-2xl px-5 py-5" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
           <p className="text-[15px] font-semibold mb-1" style={{ color: P.textPrimary }}>You&apos;re no longer buying onward</p>
           <p className="text-[13px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
-            You told us your onward purchase isn&apos;t going ahead. If that changes, you can pick it back up.
+            You told us your onward purchase isn&apos;t going ahead. If that changes, pick your previous one back up or set up somewhere new.
           </p>
-          <PortalButton size="sm" full={false} loading={pending} onClick={() => run(() => portalReactivateOnwardAction(token))}>
-            Start again
-          </PortalButton>
+          <div className="flex flex-col gap-2">
+            <PortalButton size="sm" full={false} loading={pending} onClick={() => run(() => portalReactivateOnwardAction(token))}>
+              Pick it back up
+            </PortalButton>
+            <button
+              type="button"
+              onClick={openOnwardChangeDrawer}
+              className="text-left text-[13px] font-semibold"
+              style={{ color: P.primary, background: "none", border: "none", padding: "4px 0", cursor: "pointer" }}
+            >
+              I&apos;m buying somewhere new
+            </button>
+          </div>
           {error && <p className="text-[12px] mt-2" style={{ color: P.warning }}>{error}</p>}
         </div>
       </div>
@@ -135,9 +160,7 @@ export function PortalOnwardPanel({
             {onwardAddress ?? "Your onward purchase"}
           </p>
           <p className="text-[13px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
-            {onwardAddress
-              ? "Just two quick details about the place you're buying, so we show the right steps. Keeping this up to date helps the whole chain move."
-              : "Tell us about the place you're buying, so we show the right steps. Keeping this up to date helps the whole chain move."}
+            Tell us about the property you&apos;re buying so we can show you the right steps.
           </p>
 
           <FactRow label="Property type">
@@ -192,6 +215,7 @@ export function PortalOnwardPanel({
         As reported by you. {view.completeCount} of {view.applicableCount} confirmed.
       </p>
 
+      <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
       {PURCHASER_GROUPS.map((group) => {
         const steps = group.codes.map((c) => byCode.get(c)).filter((s): s is OnwardStepView => !!s);
         if (steps.length === 0) return null;
@@ -200,23 +224,24 @@ export function PortalOnwardPanel({
         const allDone = doneCount === total;
         const activeGroup = steps.some((s) => !s.isComplete && s.isAvailable);
         const isOpen = expanded[group.label] ?? activeGroup;
-        const headerBg = allDone ? P.successBg : activeGroup ? P.accentBg : "transparent";
+        const headerBg = allDone ? P.successBg : activeGroup ? P.accentBg : P.pageBg;
 
         return (
-          <div key={group.label} className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+          <div key={group.label}>
             <button
-              className="w-full flex items-center gap-3 px-5 py-4 text-left"
-              style={{ background: headerBg, borderBottom: isOpen ? `1px solid ${P.border}` : undefined }}
+              className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
+              style={{ background: headerBg, borderBottom: `1px solid ${P.border}` }}
               onClick={() => setExpanded((p) => ({ ...p, [group.label]: !isOpen }))}
             >
-              <span className="text-xl flex-shrink-0">{group.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>{group.label}</p>
-                <p className="text-[12px] mt-0.5" style={{ color: P.textSecondary }}>
-                  {allDone ? "All confirmed" : `${doneCount} of ${total} confirmed`}
-                </p>
+              <p className="text-[12px] font-bold uppercase tracking-wide min-w-0 truncate" style={{ color: P.textMuted }}>
+                {group.icon} {group.label}
+              </p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <PortalPill tone={allDone ? "green" : "coral"}>{doneCount}/{total}</PortalPill>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
-              <PortalPill tone={allDone ? "green" : "coral"}>{doneCount}/{total}</PortalPill>
             </button>
 
             {isOpen && (
@@ -282,67 +307,12 @@ export function PortalOnwardPanel({
           </div>
         );
       })}
+      </div>
 
       {error && <p className="text-[12px] px-1" style={{ color: P.warning }}>{error}</p>}
 
-      {/* Manage: onward changed, or no longer happening */}
-      <div className="px-1 pt-3">
-        {manageAction === null ? (
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => { setManageAction("reset"); setError(null); }}
-              className="text-left text-[12px] font-medium"
-              style={{ color: P.textMuted, background: "none", border: "none", padding: 0, cursor: "pointer" }}
-            >
-              My onward has changed to a different place
-            </button>
-            <button
-              type="button"
-              onClick={() => { setManageAction("abandon"); setError(null); }}
-              className="text-left text-[12px] font-medium"
-              style={{ color: P.textMuted, background: "none", border: "none", padding: 0, cursor: "pointer" }}
-            >
-              I&apos;m no longer buying onward
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-xl px-3 py-3" style={{ background: P.pageBg }}>
-            <p className="text-[13px] mb-2" style={{ color: P.textSecondary }}>
-              {manageAction === "reset"
-                ? "Reset your onward steps so you can add the new place? Your current progress will be cleared."
-                : "Mark your onward as no longer going ahead?"}
-            </p>
-            <div className="flex gap-2 items-center">
-              <PortalButton
-                size="sm"
-                full={false}
-                loading={pending}
-                onClick={() =>
-                  run(async () => {
-                    const next = manageAction === "reset"
-                      ? await portalResetOnwardAction(token)
-                      : await portalAbandonOnwardAction(token);
-                    setManageAction(null);
-                    return next;
-                  })
-                }
-              >
-                {manageAction === "reset" ? "Yes, reset" : "Yes"}
-              </PortalButton>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setManageAction(null)}
-                className="text-[13px] font-semibold"
-                style={{ color: P.textMuted, background: "none", border: "none", padding: "8px 10px", cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* "Changed place" and "no longer buying" live on the Information tab and
+          in Settings (where the onward is added / edited), not here. */}
 
       {/* Confirm drawer — matches the buyer step confirmation drawer, phrased for
           the seller's onward purchase. Slides up, title + subtext + confirm. */}

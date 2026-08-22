@@ -877,6 +877,62 @@ export async function removeChainLink(linkId: string, chainId: string): Promise<
   await repackPositions(chainId);
 }
 
+/**
+ * Write a client's neighbour stub (the property + agent above or below them in
+ * the chain), creating the chain / link as needed. Shared by the portal
+ * "add / edit my agent" flow and the "my onward changed to a different place"
+ * flow so the lock rules stay in one place:
+ *   - if the neighbour has JOINED (a real transaction), the stub is theirs —
+ *     the client can't overwrite it → { ok: false, reason: "joined" }
+ *   - if an invite is still live, it's locked → reason: "invite_pending"
+ *   - otherwise the stub is written, and `hadInvite` tells the caller a lapsed
+ *     invite was overwritten (so they can flag a re-invite).
+ */
+export async function writeClientChainStub(opts: {
+  transactionId: string;
+  agencyId: string;
+  managingUserId: string;
+  direction: "above" | "below";
+  stub: {
+    stubPropertyAddress: string;
+    stubAgencyName: string;
+    stubAgentName: string | null;
+    stubAgentEmail: string | null;
+    stubAgentPhone: string | null;
+  };
+}): Promise<{ ok: true; hadInvite: boolean } | { ok: false; reason: "joined" | "invite_pending" }> {
+  const { transactionId, agencyId, managingUserId, direction, stub } = opts;
+  const chain = await getChainForTransactionV2(transactionId).catch(() => null);
+  if (!chain) {
+    await createChainV2({ transactionId, agencyId, userId: managingUserId, stubs: [{ direction, ...stub }] });
+    return { ok: true, hadInvite: false };
+  }
+  const own = chain.links.find((l) => l.transactionId === transactionId);
+  const targetPos = own ? (direction === "above" ? own.position - 1 : own.position + 1) : null;
+  const neighbour = targetPos != null ? chain.links.find((l) => l.position === targetPos) : null;
+  if (neighbour && neighbour.transactionId !== null) return { ok: false, reason: "joined" };
+  if (neighbour) {
+    const link = await prisma.chainLink.findUnique({
+      where: { id: neighbour.id },
+      select: { inviteStatus: true, inviteSentAt: true, inviteTokenExpiresAt: true },
+    });
+    const invitePending =
+      link?.inviteStatus === "SENT" && link.inviteTokenExpiresAt != null && link.inviteTokenExpiresAt > new Date();
+    if (invitePending) return { ok: false, reason: "invite_pending" };
+    const hadInvite = link?.inviteSentAt != null;
+    await updateChainLinkStub(neighbour.id, {
+      stubPropertyAddress: stub.stubPropertyAddress || undefined,
+      stubAgencyName: stub.stubAgencyName,
+      stubAgentName: stub.stubAgentName,
+      stubAgentEmail: stub.stubAgentEmail,
+      stubAgentPhone: stub.stubAgentPhone,
+    });
+    return { ok: true, hadInvite };
+  }
+  await addChainLink({ chainId: chain.id, userId: managingUserId, direction, ...stub });
+  return { ok: true, hadInvite: false };
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function titleCase(str: string): string {
