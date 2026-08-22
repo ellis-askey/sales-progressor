@@ -41,7 +41,7 @@ export type IngestResult = {
   reason?: string;
 };
 
-type Side = "BUYER" | "SELLER";
+export type Side = "BUYER" | "SELLER";
 type MatchResult = {
   txId: string | null;
   side: Side | null;
@@ -83,6 +83,17 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
   });
   if (pending) return { waMessageId: m.waMessageId, status: "duplicate" };
 
+  // A chat that's already been assigned (group OR direct, auto or manually) is
+  // the source of truth — survives renames and never re-asks.
+  const mapping = await prisma.whatsAppGroupMapping.findUnique({
+    where: { waChatId: m.waChatId },
+    select: { transactionId: true, side: true },
+  });
+  if (mapping) {
+    await writeMessage(m, mapping.transactionId, mapping.side as Side);
+    return { waMessageId: m.waMessageId, status: "logged", transactionId: mapping.transactionId };
+  }
+
   const match = m.isGroup ? await matchGroup(m) : await matchDirect(m);
 
   if (match.txId) {
@@ -97,14 +108,8 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
 // ── Group matching ───────────────────────────────────────────────────────────
 
 async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
-  // 1. Permanent mapping is the source of truth — survives group renames.
-  const mapping = await prisma.whatsAppGroupMapping.findUnique({
-    where: { waChatId: m.waChatId },
-    select: { transactionId: true, side: true },
-  });
-  if (mapping) return { txId: mapping.transactionId, side: mapping.side as Side };
-
-  // 2. First time we've seen this group — match on the name convention.
+  // Mapping is checked upstream in ingestOne. Here we only name-match a group
+  // we've never seen before.
   const name = (m.groupName ?? "").trim();
   const parsed = parseGroupName(name);
   if (!parsed) return { txId: null, side: null, reason: "no_match" };
@@ -284,10 +289,22 @@ async function resolveSender(
   return { label: m.senderPhone ?? m.senderName ?? null, contactId: null, createdById: null };
 }
 
+// Manually assign a whole chat (group or DM) to a property: remember the chat →
+// property + side, then replay every held message from it onto the file. Used by
+// the Command Centre "needs assigning" screen. Idempotent.
+export async function assignChatToTransaction(waChatId: string, transactionId: string, side: Side) {
+  await prisma.whatsAppGroupMapping.upsert({
+    where: { waChatId },
+    create: { waChatId, transactionId, side, matchMethod: "manual" },
+    update: { transactionId, side, matchMethod: "manual" },
+  });
+  await flushPendingForChat(waChatId, transactionId, side);
+}
+
 // Replay every pending message for a chat onto a now-known file, then clear the
 // pending rows. Used when a chat first gets mapped (auto or, later, manually) so
 // messages that arrived before the mapping existed still land on the file.
-async function flushPendingForChat(waChatId: string, txId: string, side: Side | null) {
+export async function flushPendingForChat(waChatId: string, txId: string, side: Side | null) {
   const rows = await prisma.whatsAppPendingMessage.findMany({ where: { waChatId } });
   for (const p of rows) {
     const bm: BridgeMessage = {
