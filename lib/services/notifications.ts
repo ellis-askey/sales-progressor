@@ -27,14 +27,12 @@ export async function createNotification(args: {
 /**
  * A client-facing "you did this" note, shown back to the client in their own
  * portal timeline. Used for self-service actions (onward changes, solicitor
- * switch) so the client sees a record of what they told us.
+ * switch, agent edits) so the client sees a record of what they told us.
  *
- * Privacy: the VENDOR timeline surfaces every `visibleToClient` message on the
- * file (it ignores `contactIds`), so a purchaser's self-note would leak to the
- * vendor. We therefore only write self-notes for vendor-side actors — which
- * covers every onward action (onward is seller-only) and seller edits. A
- * purchaser scope filters by their own contactId, so a vendor self-note never
- * reaches the buyer, and nothing crosses to the other side.
+ * Privacy: the note is addressed to the actor's OWN side only. A purchaser's
+ * timeline filters by their own contactId, and the vendor's timeline now shows
+ * only file-wide broadcasts plus vendor-addressed notes (see getPortalTimeline),
+ * so a note never crosses to the other side in either direction.
  *
  * Plural-aware: when more than one client sits on the same side of the file,
  * the note names the actor ("Sam let us know…") so co-clients know who acted;
@@ -50,9 +48,9 @@ export async function addPortalClientSelfNote(opts: {
   /** Name-led form for co-clients; receives the actor's first name. */
   plural: (firstName: string) => string;
 }): Promise<void> {
-  if (opts.side !== "vendor") return; // see privacy note above
+  const roleType = opts.side === "vendor" ? "vendor" : "purchaser";
   const sameSide = await prisma.contact.findMany({
-    where: { propertyTransactionId: opts.transactionId, roleType: "vendor" },
+    where: { propertyTransactionId: opts.transactionId, roleType },
     select: { id: true },
   });
   if (sameSide.length === 0) return;

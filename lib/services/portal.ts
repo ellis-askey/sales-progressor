@@ -2435,6 +2435,18 @@ export async function getPortalTimeline(
     const completionScope = side === "purchaser"
       ? milestoneScopeWhere(forRound(opts.buyerRoundId, transactionId))
       : {};
+    // A purchaser only sees messages addressed to them (already scoped). A
+    // vendor's feed historically showed EVERY visibleToClient message on the
+    // file — which would leak a buyer's own self-note ("You changed your
+    // solicitor…") to the seller. So a vendor now sees file-wide broadcasts
+    // (no contactIds) plus anything addressed to a vendor contact, and never a
+    // note addressed only to the buyer.
+    const vendorContactIds = side === "vendor"
+      ? (await prisma.contact.findMany({
+          where: { propertyTransactionId: transactionId, roleType: "vendor" },
+          select: { id: true },
+        })).map((c) => c.id)
+      : [];
     const messageWhere = side === "purchaser"
       ? {
           transactionId,
@@ -2445,7 +2457,14 @@ export async function getPortalTimeline(
             { buyerRoundId: opts.buyerRoundId },
           ],
         }
-      : { transactionId, visibleToClient: true };
+      : {
+          transactionId,
+          visibleToClient: true,
+          OR: [
+            { contactIds: { isEmpty: true } },
+            { contactIds: { hasSome: vendorContactIds } },
+          ],
+        };
     // Documents: a client only ever sees uploads from their OWN side, never the
     // other party's. A purchaser is further scoped to their own buyer round so a
     // previous buyer's uploads can't leak. Agent / file-level uploads (no

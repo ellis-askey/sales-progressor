@@ -206,15 +206,15 @@ export async function updateMyChainAgentAction(input: {
     transactionId: contact.propertyTransactionId,
     payload: { title: hadInvite ? "Chain agent details changed" : "Chain agent added", body, contactName: contact.name },
   });
-  // Show the client their own action back in their portal (vendor-scoped).
+  // Show the client their own action back in their own portal.
   const agentLabel = agentName ?? agencyName ?? "your agent";
   await addPortalClientSelfNote({
     transactionId: contact.propertyTransactionId,
     actorContactId: contact.id,
     actorName: contact.name,
     side,
-    singular: `You updated your onward-purchase agent to ${agentLabel}.`,
-    plural: (n) => `${n} updated your onward-purchase agent to ${agentLabel}.`,
+    singular: `You updated your ${sideWord} agent to ${agentLabel}.`,
+    plural: (n) => `${n} updated your ${sideWord} agent to ${agentLabel}.`,
   });
 
   revalidatePath(`/portal/${input.token}`, "layout");
