@@ -114,22 +114,34 @@ async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
       status: { in: [...ACTIVE_STATUSES] },
       propertyAddress: { contains: parsed.address, mode: "insensitive" },
     },
-    select: { id: true },
-    take: 2,
+    select: { id: true, status: true },
+    orderBy: { updatedAt: "desc" },
+    take: 10,
   });
-  if (rows.length !== 1) return { txId: null, side: null, reason: "no_match" };
+
+  // Pick the file. If several addresses match, prefer the one live file: a
+  // property commonly has a `draft` shadow twin alongside the `active` record,
+  // so favour a single active/on_hold match over draft before giving up.
+  let chosenId: string | null = null;
+  if (rows.length === 1) {
+    chosenId = rows[0].id;
+  } else if (rows.length > 1) {
+    const live = rows.filter((r) => r.status === "active" || r.status === "on_hold");
+    if (live.length === 1) chosenId = live[0].id;
+  }
+  if (!chosenId) return { txId: null, side: null, reason: "no_match" };
 
   // Persist the permanent mapping so we never name-match this group again.
   await prisma.whatsAppGroupMapping.create({
     data: {
       waChatId: m.waChatId,
-      transactionId: rows[0].id,
+      transactionId: chosenId,
       side: parsed.side,
       groupNameAtMatch: name,
       matchMethod: "name_auto",
     },
   });
-  return { txId: rows[0].id, side: parsed.side };
+  return { txId: chosenId, side: parsed.side };
 }
 
 // "Sale of {address}" → SELLER; "Purchase of {address}" → BUYER. Returns the
