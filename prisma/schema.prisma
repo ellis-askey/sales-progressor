@@ -464,6 +464,7 @@ model PropertyTransaction {
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
   enquiryRaiseChase                EnquiryRaiseChase?
+  onwardTracker                    OnwardTracker?
   followupTaps                     FollowupTap[]
   followupNudgesDisabled           Boolean                @default(false)
   chaseSends                       ChaseSend[]
@@ -2805,6 +2806,72 @@ enum EnquiryMovementStatus {
   pending   // client report awaiting progressor review (Phase 2)
   accepted  // counts: resets the chase clock, can flip the court
   dismissed // reviewed and rejected
+}
+
+// ─── OnwardTracker ───────────────────────────────────────────────────────────
+//
+// A seller's REPORTED onward-purchase progress, held on their own sale file as a
+// stand-in until the agent handling that onward purchase claims the chain link
+// above them (Stage 3 pre-fills their reconciliation wizard from this, then the
+// tracker retires as `superseded` and the real file owns the truth). This is
+// never a real transaction — everything here is second-hand ("reported") and
+// must be labelled so wherever it renders, and is NEVER exposed across the
+// agency boundary into the shared chain view (Q6). One level of chain only (Q9).
+// Full spec: docs/active/onward-visibility/00-discovery.md.
+model OnwardTracker {
+  id                String              @id @default(cuid())
+  transactionId     String              @unique // the seller's own sale file
+  // The two facts that decide which purchaser steps apply — same axes the real
+  // engine uses via computeAutoNrCodes (lib/milestone-auto-nr.ts). Nullable
+  // until the seller/agent tells us; the step list stays gated until both set.
+  tenure            Tenure?
+  purchaseType      PurchaseType?
+  isShareOfFreehold Boolean             @default(false)
+  status            OnwardTrackerStatus @default(active)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  transaction PropertyTransaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  steps       OnwardStepConfirmation[]
+}
+
+enum OnwardTrackerStatus {
+  active
+  exchanged
+  completed
+  abandoned
+  superseded // the agent above claimed; their real file now owns the truth
+}
+
+// One row per REPORTED-complete onward step. Keyed to a purchaser-side
+// MilestoneDefinition.code (plain scalar, no relation — resolved on read, and
+// mapped code→id at claim-time reconciliation in Stage 3). Presence of a row =
+// that step is reported complete. Availability/ordering is computed on read from
+// the real predecessorCode chain, not stored.
+model OnwardStepConfirmation {
+  id                   String              @id @default(cuid())
+  trackerId            String
+  milestoneCode        String // a purchaser-side MilestoneDefinition.code, e.g. "PM7"
+  // Real-world date the step happened, if known. Null = "reported done, date
+  // unknown" (mirrors reconciliation's null-date semantics).
+  eventDate            DateTime?
+  source               OnwardConfirmSource
+  // Whoever confirmed it — the seller's Contact, or the agent/user. One is set.
+  confirmedByContactId String?
+  confirmedByUserId    String?
+  confirmedAt          DateTime            @default(now())
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  tracker OnwardTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+
+  @@unique([trackerId, milestoneCode])
+  @@index([trackerId])
+}
+
+enum OnwardConfirmSource {
+  seller
+  agent
 }
 
 model EnquiryTracker {
