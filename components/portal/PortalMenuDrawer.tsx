@@ -578,6 +578,12 @@ function YourAgentsSection({
         <>
           <ReadRow label="Agent"  value={ca.agentName ?? "—"} />
           <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
+          {direction === "above" && (
+            <SectionFooter>
+              <button type="button" onClick={() => openEditDrawer({ kind: "onward-change", mode: "change", direction: "above", initial: {} })} className="portal-menu-btn" style={btnGhost}>Change to a different place</button>
+              <button type="button" onClick={() => openEditDrawer({ kind: "onward-stop", mode: "stop", initial: {} })} className="portal-menu-btn" style={btnGhost}>No longer buying onward</button>
+            </SectionFooter>
+          )}
         </>
       ) : (
         <>

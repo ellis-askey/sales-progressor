@@ -24,6 +24,54 @@ export async function createNotification(args: {
   });
 }
 
+/**
+ * A client-facing "you did this" note, shown back to the client in their own
+ * portal timeline. Used for self-service actions (onward changes, solicitor
+ * switch) so the client sees a record of what they told us.
+ *
+ * Privacy: the VENDOR timeline surfaces every `visibleToClient` message on the
+ * file (it ignores `contactIds`), so a purchaser's self-note would leak to the
+ * vendor. We therefore only write self-notes for vendor-side actors — which
+ * covers every onward action (onward is seller-only) and seller edits. A
+ * purchaser scope filters by their own contactId, so a vendor self-note never
+ * reaches the buyer, and nothing crosses to the other side.
+ *
+ * Plural-aware: when more than one client sits on the same side of the file,
+ * the note names the actor ("Sam let us know…") so co-clients know who acted;
+ * a lone client sees the second-person form ("You let us know…").
+ */
+export async function addPortalClientSelfNote(opts: {
+  transactionId: string;
+  actorContactId: string;
+  actorName: string;
+  side: "vendor" | "purchaser";
+  /** Second-person form, e.g. "You let us know your onward purchase changed." */
+  singular: string;
+  /** Name-led form for co-clients; receives the actor's first name. */
+  plural: (firstName: string) => string;
+}): Promise<void> {
+  if (opts.side !== "vendor") return; // see privacy note above
+  const sameSide = await prisma.contact.findMany({
+    where: { propertyTransactionId: opts.transactionId, roleType: "vendor" },
+    select: { id: true },
+  });
+  if (sameSide.length === 0) return;
+  const firstName = opts.actorName.trim().split(/\s+/)[0] || opts.actorName.trim();
+  const content = sameSide.length > 1 ? opts.plural(firstName) : opts.singular;
+  // internal_note + visibleToClient:true: shows in the client's own timeline
+  // (the updates feed is type-agnostic on visibleToClient) without counting as
+  // an `outbound` comm, which would pollute chase-timing queries.
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId: opts.transactionId,
+      type: "internal_note",
+      visibleToClient: true,
+      contactIds: sameSide.map((c) => c.id),
+      content,
+    },
+  });
+}
+
 /** Marks every unread notification for a user as read. Called when the bell is clicked. */
 export async function markAllReadForUser(userId: string): Promise<number> {
   const result = await prisma.notification.updateMany({

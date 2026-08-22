@@ -182,6 +182,18 @@ export function PortalInformationTab({
               <YesNo value={info.buyingOnward} disabled={readOnly} onChange={(v) => patch("onward", { buyingOnward: v })} />
             </Field>
           )}
+          {ctx.onwardLinkKnown && !readOnly && (
+            <>
+              <OnwardManageRow
+                label="Change to a different place"
+                onClick={() => window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: { kind: "onward-change", mode: "change", direction: "above", initial: {} } }))}
+              />
+              <OnwardManageRow
+                label="No longer buying onward"
+                onClick={() => window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: { kind: "onward-stop", mode: "stop", initial: {} } }))}
+              />
+            </>
+          )}
           {(ctx.onwardLinkKnown || info.buyingOnward === true) && (
             <>
               {/* The onward STEP tracker moved to the Progress tab (swipe to
@@ -318,6 +330,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="text-[13px] mb-2" style={{ color: P.textSecondary }}>{label}</p>
       {children}
     </div>
+  );
+}
+
+// A tappable "manage your onward" row (change place / no longer buying). Opens
+// the shared manage drawer via the portal:open-edit-drawer event.
+function OnwardManageRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      style={{ borderBottom: `1px solid ${P.border}`, background: "none", cursor: "pointer" }}
+    >
+      <span className="text-[14px] font-medium" style={{ color: P.textPrimary }}>{label}</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
   );
 }
 
