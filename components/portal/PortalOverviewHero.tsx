@@ -404,7 +404,9 @@ export function PortalOverviewHero({
   const purchaseTypeLabel = formatPurchaseType(purchaseType);
 
   return (
-    <div className="space-y-4">
+    // Reveal host: exempt from the page's per-card rise so the image can fade
+    // in place while the two cards below it rise (see .portal-reveal-* in CSS).
+    <div className="space-y-4 portal-reveal-host">
       {/* ── Photo hero with overlays ─────────────────────────────────── */}
       {/* Layout: photo fills the container top; a strong gradient at the
           BOTTOM fades the photo into the page background so the content
@@ -419,7 +421,7 @@ export function PortalOverviewHero({
           Overview page uses this hero, so other pages keep their
           normal top spacing. */}
       <div
-        className="-mx-4 -mt-5"
+        className="-mx-4 -mt-5 portal-reveal-fade"
         style={{
           position: "relative",
           height: 380,
@@ -592,7 +594,7 @@ export function PortalOverviewHero({
                         (DoorDash / GitHub / etc.). */}
       {beforeProgress}
 
-      <PortalGlassCard glassId="progress-overview" label="Progress overview" style={{ padding: "16px 14px" }}>
+      <PortalGlassCard glassId="progress-overview" label="Progress overview" className="portal-reveal-up" style={{ padding: "16px 14px" }}>
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -671,7 +673,7 @@ export function PortalOverviewHero({
 
       {/* ── Expected exchange + You're in good hands ────────────────── */}
       {predictedExchangeDate && (
-        <PortalGlassCard glassId="expected-exchange" label="Expected exchange" style={{ overflow: "hidden" }}>
+        <PortalGlassCard glassId="expected-exchange" label="Expected exchange" className="portal-reveal-up" style={{ overflow: "hidden" }}>
           <div style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",

@@ -538,7 +538,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   if (!hasExchanged && !hasCompleted && transaction.expectedExchangeDate) customizeFixed.push("Add to calendar");
 
   return (
-    <div className="space-y-4 portal-fade-in">
+    <div className="space-y-4 portal-reveal-stack">
 
       {/* ── Completion banner ──────────────────────────────────── */}
       {hasCompleted && (
