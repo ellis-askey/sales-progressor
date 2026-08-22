@@ -88,12 +88,31 @@ export type AdoptionClient = {
   detail: AdoptionClientDetail;
 };
 
+// The adoption ladder, most-inclusive first. Each stage is a count of clients
+// who have reached it. Not strictly nested (a client can have notifications on
+// without installing), but read top-to-bottom it shows where people drop off.
+export type AdoptionFunnel = {
+  invited: number; // has portal access at all
+  visited: number; // opened the portal at least once
+  installed: number; // added it to their home screen
+  notifications: number; // turned on push notifications
+  engaged: number; // came back or spent real time (see isDeeplyEngaged)
+};
+
+// "Deeply engaged" = more than a single glance: two or more tracked visits, or
+// at least five minutes of real time in the portal. Used for the funnel's last
+// stage and the table's "Deeply engaged" filter.
+export function isDeeplyEngaged(c: AdoptionClient): boolean {
+  return c.detail.visits >= 2 || c.engagedMinutes >= 5;
+}
+
 export type PortalAdoption = {
   totalClients: number;
   notificationsCount: number;
   installedCount: number;
   visitedCount: number;
   cantReachCount: number;
+  funnel: AdoptionFunnel;
   clients: AdoptionClient[];
 };
 
@@ -182,12 +201,23 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     return (b.lastVisited?.getTime() ?? 0) - (a.lastVisited?.getTime() ?? 0);
   });
 
+  const notificationsCount = clients.filter((c) => c.notifications).length;
+  const installedCount = clients.filter((c) => c.installed).length;
+  const visitedCount = clients.filter((c) => c.lastVisited != null).length;
+
   return {
     totalClients: clients.length,
-    notificationsCount: clients.filter((c) => c.notifications).length,
-    installedCount: clients.filter((c) => c.installed).length,
-    visitedCount: clients.filter((c) => c.lastVisited != null).length,
+    notificationsCount,
+    installedCount,
+    visitedCount,
     cantReachCount: clients.filter((c) => isUnreachable(c.comms.kind)).length,
+    funnel: {
+      invited: clients.length,
+      visited: visitedCount,
+      installed: installedCount,
+      notifications: notificationsCount,
+      engaged: clients.filter(isDeeplyEngaged).length,
+    },
     clients,
   };
 }

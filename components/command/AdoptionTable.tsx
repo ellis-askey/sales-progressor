@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import type { AdoptionClient, CommsStatus, LastEmail, LastEmailStatus } from "@/lib/command/adoption";
+import { useMemo, useState } from "react";
+import {
+  isDeeplyEngaged,
+  isUnreachable,
+  type AdoptionClient,
+  type CommsStatus,
+  type LastEmail,
+  type LastEmailStatus,
+} from "@/lib/command/adoption";
 
 // Command Centre → App adoption table. Client component so each row can expand
 // into a full per-client detail panel (Stage 2). The base row stays light: one
@@ -28,8 +35,19 @@ const SALE_STATUS_LABEL: Record<string, string> = {
   on_hold: "On hold",
 };
 
+type FilterKey = "all" | "never_visited" | "notifications_off" | "cant_reach" | "engaged";
+
+const FILTERS: { key: FilterKey; label: string; match: (c: AdoptionClient) => boolean }[] = [
+  { key: "all", label: "All", match: () => true },
+  { key: "never_visited", label: "Never visited", match: (c) => c.lastVisited == null },
+  { key: "notifications_off", label: "Notifications off", match: (c) => !c.notifications },
+  { key: "cant_reach", label: "Can't reach", match: (c) => isUnreachable(c.comms.kind) },
+  { key: "engaged", label: "Deeply engaged", match: (c) => isDeeplyEngaged(c) },
+];
+
 export function AdoptionTable({ clients }: { clients: AdoptionClient[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<FilterKey>("all");
 
   function toggle(id: string) {
     setOpen((prev) => {
@@ -40,8 +58,40 @@ export function AdoptionTable({ clients }: { clients: AdoptionClient[] }) {
     });
   }
 
+  const counts = useMemo(() => {
+    const m = {} as Record<FilterKey, number>;
+    for (const f of FILTERS) m[f.key] = clients.filter(f.match).length;
+    return m;
+  }, [clients]);
+
+  const active = FILTERS.find((f) => f.key === filter) ?? FILTERS[0];
+  const shown = useMemo(() => clients.filter(active.match), [clients, active]);
+
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="flex flex-wrap items-center gap-1.5 px-4 py-3 border-b border-neutral-800">
+        {FILTERS.map((f) => {
+          const on = f.key === filter;
+          const warn = f.key === "cant_reach" && counts[f.key] > 0;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors ${
+                on
+                  ? "bg-neutral-100 text-neutral-900 border-neutral-100"
+                  : warn
+                    ? "bg-transparent text-[#f6b17a] border-[#5a3f2c] hover:bg-neutral-800/60"
+                    : "bg-transparent text-neutral-400 border-neutral-700 hover:bg-neutral-800/60"
+              }`}
+            >
+              {f.label}
+              <span className={on ? "text-neutral-500" : "text-neutral-600"}> {counts[f.key]}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[820px] border-collapse">
           <thead>
@@ -59,14 +109,14 @@ export function AdoptionTable({ clients }: { clients: AdoptionClient[] }) {
             </tr>
           </thead>
           <tbody>
-            {clients.length === 0 ? (
+            {shown.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-6 text-center text-[13px] text-neutral-500">
-                  No live-file clients yet.
+                  {clients.length === 0 ? "No live-file clients yet." : "No clients match this filter."}
                 </td>
               </tr>
             ) : (
-              clients.map((c) => {
+              shown.map((c) => {
                 const isOpen = open.has(c.id);
                 return (
                   <RowGroup key={c.id} client={c} isOpen={isOpen} onToggle={() => toggle(c.id)} />
