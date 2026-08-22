@@ -182,7 +182,7 @@ export function PortalInformationTab({
               <YesNo value={info.buyingOnward} disabled={readOnly} onChange={(v) => patch("onward", { buyingOnward: v })} />
             </Field>
           )}
-          {ctx.onwardLinkKnown && !readOnly && (
+          {ctx.onwardManageable && !readOnly ? (
             <>
               <OnwardManageRow
                 label="Change to a different place"
@@ -193,7 +193,13 @@ export function PortalInformationTab({
                 onClick={() => window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: { kind: "onward-stop", mode: "stop", initial: {} } }))}
               />
             </>
-          )}
+          ) : ctx.onwardLinkKnown && !readOnly ? (
+            // Agent above has joined / been invited — the link is theirs now,
+            // so only a withdrawal can change it. No self-service here.
+            <p className="text-[12px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted, lineHeight: 1.5 }}>
+              Your onward agent is set up with us now. If your purchase changes or falls through, let us know and we&apos;ll update the chain.
+            </p>
+          ) : null}
           {(ctx.onwardLinkKnown || info.buyingOnward === true) && (
             <>
               {/* The onward STEP tracker moved to the Progress tab (swipe to
