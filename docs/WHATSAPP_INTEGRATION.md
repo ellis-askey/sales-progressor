@@ -1,8 +1,10 @@
 # WhatsApp Integration — living implementation doc
 
-Last updated: 2026-08-22 (Phase 2 — PWA schema + ingest endpoint built, committed on `staging`, not pushed).
+Last updated: 2026-08-22 (Phases 2 + 3 built, committed on `staging`, not pushed).
 
-**Owner:** Ellis. **Status:** Phase 2 built. Bridge (Phase 3) not started; nothing connects to WhatsApp yet.
+**Owner:** Ellis. **Status:** PWA ingest (Phase 2) + the bridge service (Phase 3) built. Not
+yet deployed/paired — needs the staging push (applies the migration), a Railway deploy, the
+shared secret, and a one-time QR scan before it captures anything.
 
 **Decisions (2026-08-22):** (1) Proceed with the unofficial linked-device bridge on the live number, **passive listener only** — ban-risk accepted. (2) Host the bridge on **Railway**.
 
@@ -203,8 +205,11 @@ session volume path. Naming: provider-prefixed uppercase snake_case.
   was **deferred** (low-risk scope) — WhatsApp rows use `method:"whatsapp"`, `channel:"other"`
   like the existing paste importer; the timeline badge keys off `method`. Not yet applied to
   staging DB (applies on the next staging deploy via `prisma migrate deploy`).
-- **Phase 3 — Bridge service.** `whatsapp-bridge/` Baileys app: connect, session persistence,
-  reconnect, listen inbound + `fromMe` outbound, normalise, POST with retry queue.
+- **Phase 3 — Bridge service.** ✅ Done, committed on `staging` (not pushed). Isolated
+  `whatsapp-bridge/` package (Railway, excluded from the Vercel build): Baileys connect +
+  `useMultiFileAuthState` session persistence, auto-reconnect, `messages.upsert` type=notify
+  listener (inbound + `fromMe`), normalise → POST with a disk-backed retry queue, and
+  `/health` `/status` `/qr` endpoints. Untested until paired (needs Railway + a QR scan).
 - **Phase 4 — Connect/QR + status UI.** Settings → Integrations → WhatsApp: Connect
   (QR from bridge), Connected/Last-sync, Reconnect, Disconnect.
 - **Phase 5 — Group messages end to end** (inbound + outbound) via the mapping.

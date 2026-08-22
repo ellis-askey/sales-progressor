@@ -1,0 +1,8 @@
+node_modules/
+# Baileys linked-device session credentials — NEVER commit these.
+auth/
+# Disk-backed retry queue.
+queue/
+.env
+.env.local
+*.log
