@@ -239,7 +239,16 @@ export async function setOnwardTypeFacts(
 
 export type ConfirmOnwardResult =
   | { ok: true }
-  | { ok: false; reason: "no_tracker" | "type_facts_missing" | "not_applicable" | "locked" | "already_done" };
+  | {
+      ok: false;
+      reason:
+        | "no_tracker"
+        | "type_facts_missing"
+        | "not_applicable"
+        | "locked"
+        | "already_done"
+        | "awaiting_our_completion"; // onward can't complete before OUR sale completes (3a)
+    };
 
 /**
  * Report an onward step complete. Enforces the same ordering the real engine
@@ -268,6 +277,17 @@ export async function confirmOnwardStep(
 
   const availability = computeOnwardStepAvailability(defs, autoNr, confirmedSet);
   if (!availability.get(milestoneCode)) return { ok: false, reason: "locked" };
+
+  // Completion gate (3a): the onward purchase cannot complete before OUR sale
+  // completes, because completion funds flow up the chain. Block reporting the
+  // onward "completed" (PM27) until this file's own completion (VM20) is done.
+  if (milestoneCode === "PM27") {
+    const ourCompletion = await prisma.milestoneCompletion.findFirst({
+      where: { transactionId, state: "complete", milestoneDefinition: { code: "VM20" } },
+      select: { id: true },
+    });
+    if (!ourCompletion) return { ok: false, reason: "awaiting_our_completion" };
+  }
 
   const eventDateObj = eventDate ? new Date(eventDate) : null;
   await prisma.onwardStepConfirmation.create({
@@ -323,4 +343,84 @@ export async function undoOnwardStep(transactionId: string, milestoneCode: strin
   }
 
   return { ok: true };
+}
+
+/**
+ * Cascade (3a): our own sale exchanging (VM19) means the whole chain exchanged
+ * on the same day, so the seller's onward purchase has exchanged too. If a
+ * tracker exists (and isn't retired), mark the onward "exchanged" step (PM26)
+ * reported and move the tracker to `exchanged`. Called fire-and-forget from
+ * completeMilestone when VM19 completes.
+ *
+ * This bypasses the normal prereq gate on purpose: exchange is authoritative
+ * regardless of which intermediate steps happened to be individually reported.
+ * Source is `agent` — it's derived from our own agent-confirmed exchange, not a
+ * seller report. Never fabricates a tracker; a no-op when none exists.
+ */
+/**
+ * Mortgage-offer shortcut (Stage 2 v2): true when the onward is a mortgage
+ * purchase and the "solicitor has your mortgage offer" step (PM11) isn't yet
+ * reported. Used to prompt the seller after they enter their onward mortgage
+ * offer expiry date, since entering an expiry effectively tells us the offer
+ * exists.
+ */
+export async function onwardMortgageNeedsConfirm(transactionId: string): Promise<boolean> {
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId },
+    select: { purchaseType: true, steps: { where: { milestoneCode: "PM11" }, select: { id: true } } },
+  });
+  if (!tracker || tracker.purchaseType !== "mortgage") return false;
+  return tracker.steps.length === 0;
+}
+
+/**
+ * Confirm the onward mortgage offer is in place: back-fills the three mortgage
+ * steps (applied PM5 → valuation PM6 → offer received PM11) that any of aren't
+ * already reported. Bypasses the per-step gate — "offer in place" implies all
+ * three — mirroring the exchange cascade's authoritative back-fill.
+ */
+export async function backfillOnwardMortgageOffer(
+  transactionId: string,
+  confirmer: { source: "agent"; userId: string } | { source: "seller"; contactId: string },
+): Promise<void> {
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId },
+    select: { id: true, purchaseType: true, steps: { select: { milestoneCode: true } } },
+  });
+  if (!tracker || tracker.purchaseType !== "mortgage") return;
+  const done = new Set(tracker.steps.map((s) => s.milestoneCode));
+  const codes = ["PM5", "PM6", "PM11"].filter((c) => !done.has(c));
+  for (const code of codes) {
+    await prisma.onwardStepConfirmation.create({
+      data: {
+        trackerId: tracker.id,
+        milestoneCode: code,
+        source: confirmer.source,
+        confirmedByUserId: confirmer.source === "agent" ? confirmer.userId : null,
+        confirmedByContactId: confirmer.source === "seller" ? confirmer.contactId : null,
+      },
+    });
+  }
+}
+
+export async function cascadeOnwardExchange(transactionId: string): Promise<void> {
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId },
+    select: {
+      id: true,
+      status: true,
+      steps: { where: { milestoneCode: "PM26" }, select: { id: true } },
+    },
+  });
+  if (!tracker) return;
+  if (tracker.status === "superseded" || tracker.status === "abandoned") return;
+
+  if (tracker.steps.length === 0) {
+    await prisma.onwardStepConfirmation.create({
+      data: { trackerId: tracker.id, milestoneCode: "PM26", source: "agent" },
+    });
+  }
+  if (tracker.status !== "completed") {
+    await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "exchanged" } });
+  }
 }

@@ -289,7 +289,13 @@ export function OnwardPurchaseCard({
                         eventDate: confirmDate || null,
                       });
                       if (result.ok === false) {
-                        setError(result.reason === "locked" ? "Confirm the earlier step first." : "Could not report this step.");
+                        setError(
+                          result.reason === "locked"
+                            ? "Confirm the earlier step first."
+                            : result.reason === "awaiting_our_completion"
+                              ? "The onward can't complete until this sale completes."
+                              : "Could not report this step.",
+                        );
                       } else {
                         setConfirmingCode(null);
                       }

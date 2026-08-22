@@ -38,6 +38,11 @@ type Props = {
   otherSideMilestones: Milestone[];
   hasExchanged: boolean;
   side: string;
+  // Optional third panel (the seller's reported onward purchase). When present,
+  // the toggle + swipe become three panels: [onward] [your side] [other side],
+  // with onward to the LEFT so it swipes the opposite way from the other side.
+  onwardPanel?: React.ReactNode;
+  onwardLabel?: string;
 };
 
 function fmtDate(d: Date | null) {
@@ -63,7 +68,7 @@ async function fireConfetti() {
   }, 250);
 }
 
-export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side }: Props) {
+export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side, onwardPanel, onwardLabel }: Props) {
   const [, startTransition] = useTransition();
   const [optimisticMilestones, addOptimistic] = useOptimistic(
     milestones,
@@ -75,7 +80,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [loading, setLoading]               = useState(false);
   const [processingId, setProcessingId]     = useState<string | null>(null);
   const [error, setError]                   = useState<string | null>(null);
-  const [activeSide, setActiveSide]         = useState<"own" | "other">("own");
+  const [activeSide, setActiveSide]         = useState<string>("own");
   const swipeRef                            = useRef<HTMLDivElement | null>(null);
   const settleTimer                         = useRef<number | null>(null);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
@@ -216,56 +221,80 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   // this just presents them as two swipeable panels that always default to and
   // start on your own side. No new information.
   const hasOtherSide = otherSideMilestones.length > 0;
+  const hasOnward    = !!onwardPanel;
   const ownLabel   = side === "vendor" ? "Your sale" : "Your purchase";
   const otherLabel = side === "vendor" ? "The purchase" : "The sale";
-  function scrollToSide(s: "own" | "other") {
+
+  // Panel order left-to-right. Onward sits to the LEFT of your own side, so it
+  // swipes the opposite way from the other side (which stays on the right). With
+  // no onward this is exactly the previous [own, other] two-panel layout.
+  const panelKeys: string[] = [
+    ...(hasOnward ? ["onward"] : []),
+    "own",
+    ...(hasOtherSide ? ["other"] : []),
+  ];
+  const nPanels    = panelKeys.length;
+  const ownIndex   = panelKeys.indexOf("own");
+  const indexOfKey = (k: string) => Math.max(0, panelKeys.indexOf(k));
+  const labelForKey = (k: string) => (k === "onward" ? (onwardLabel ?? "Your onward") : k === "own" ? ownLabel : otherLabel);
+
+  function scrollToSide(s: string) {
     setActiveSide(s);
     const el = swipeRef.current;
-    if (el) el.scrollTo({ left: s === "other" ? el.clientWidth : 0, behavior: "smooth" });
+    if (el) el.scrollTo({ left: indexOfKey(s) * el.clientWidth, behavior: "smooth" });
   }
   function onSwipeScroll() {
     const el = swipeRef.current;
     if (!el) return;
-    const next = el.scrollLeft > el.clientWidth / 2 ? "other" : "own";
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    const next = panelKeys[Math.min(Math.max(idx, 0), nPanels - 1)] ?? "own";
     setActiveSide((prev) => (prev === next ? prev : next));
     // Settle: a slow drag or trackpad flick can leave mandatory scroll-snap
-    // resting between the two panels. When scrolling stops (~140ms of quiet),
-    // nudge it to the nearest side so it never sticks halfway.
+    // resting between panels. When scrolling stops (~140ms of quiet), nudge it
+    // to the nearest panel so it never sticks halfway.
     if (settleTimer.current) window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
       const e2 = swipeRef.current;
       if (!e2) return;
-      const target = next === "other" ? e2.clientWidth : 0;
+      const target = indexOfKey(next) * e2.clientWidth;
       if (Math.abs(e2.scrollLeft - target) > 2) {
         e2.scrollTo({ left: target, behavior: "smooth" });
       }
     }, 140);
   }
+  // Start on your own side. When onward is present your side is no longer the
+  // leftmost panel, so jump the scroll to it once on mount (no animation).
+  useEffect(() => {
+    if (ownIndex > 0 && swipeRef.current) {
+      swipeRef.current.scrollLeft = ownIndex * swipeRef.current.clientWidth;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => () => { if (settleTimer.current) window.clearTimeout(settleTimer.current); }, []);
 
   return (
     <>
-      {hasOtherSide && (
+      {nPanels > 1 && (
         <div style={{ position: "relative", display: "flex", padding: 4, borderRadius: 999, background: P.borderSubtle, marginBottom: 12 }}>
-          {/* Sliding indicator — slides across, overshoots a touch, settles. */}
+          {/* Sliding indicator: slides across, overshoots a touch, settles. */}
           <div
             aria-hidden
             style={{
-              position: "absolute", top: 4, bottom: 4, left: 4, width: "calc(50% - 4px)",
+              position: "absolute", top: 4, bottom: 4, left: 4, width: `calc((100% - 8px) / ${nPanels})`,
               borderRadius: 999, background: P.cardElevated, boxShadow: "0 1px 2px rgba(15,23,42,0.12)",
-              transform: activeSide === "other" ? "translateX(100%)" : "translateX(0)",
+              transform: `translateX(${indexOfKey(activeSide) * 100}%)`,
               transition: "transform 440ms cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
           />
-          {([["own", ownLabel], ["other", otherLabel]] as const).map(([key, lbl]) => {
+          {panelKeys.map((key) => {
             const on = activeSide === key;
             return (
               <button
                 key={key}
                 onClick={() => scrollToSide(key)}
-                style={{ position: "relative", zIndex: 1, flex: 1, border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 10px", color: on ? P.textPrimary : P.textMuted, transition: "color 200ms ease" }}
+                style={{ position: "relative", zIndex: 1, flex: 1, minWidth: 0, border: 0, background: "transparent", cursor: "pointer", fontSize: nPanels >= 3 ? 12 : 13, fontWeight: 700, padding: nPanels >= 3 ? "7px 4px" : "7px 10px", color: on ? P.textPrimary : P.textMuted, transition: "color 200ms ease", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
               >
-                {lbl}
+                {labelForKey(key)}
               </button>
             );
           })}
@@ -280,6 +309,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         className="scrollbar-hide"
         style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10 }}
       >
+        {hasOnward && (
+          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+            {onwardPanel}
+          </div>
+        )}
         <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
           <div className="space-y-3">
         {/* ── Your milestones ───────────────────────────────────── */}
