@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { formatDate, formatTimestamp } from "@/lib/utils";
+import { formatTimestamp } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
+import { getCommBadge } from "@/lib/agent/comms-display";
+import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -42,6 +43,44 @@ const FILTERS: { value: FilterKind; label: string }[] = [
 
 function isPortalView(entry: { kind: string; content?: string }) {
   return entry.kind === "comm" && typeof entry.content === "string" && entry.content.includes("viewed their client portal");
+}
+
+// Automated/system rows get a robot chip instead of a person avatar.
+function SystemAvatar({ size = 22 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: size, height: size, borderRadius: "50%", flexShrink: 0,
+        background: "linear-gradient(135deg,#EAE7F5 0%,#C9C2E8 100%)", color: "#4B3F7A",
+        display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.5),
+      }}
+    >
+      🤖
+    </span>
+  );
+}
+
+// Shared row footer: who it's from (photo/initials + name + optional role
+// sub-label) on the left, timestamp bottom-right. Used by comm + milestone rows.
+function ActorFooter({
+  role, name, image, sublabel, at, isEdited,
+}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        {role === "system" ? <SystemAvatar /> : <ActorAvatar name={name} role={role} image={image} size={22} />}
+        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {name}
+        </span>
+        {sublabel && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>· {sublabel}</span>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>(edited)</span>}
+        <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>{at ? formatTimestamp(at) : ""}</span>
+      </div>
+    </div>
+  );
 }
 
 // Renders a WhatsApp attachment inline. url is a short-lived signed URL.
@@ -309,28 +348,14 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     // Default v05 per Ellis, 2026-08-09. Surface (bg/border)
                     // comes from the variant; padding/radius stay inline.
                     <GlassCard glassId="activity-timeline-entry" label="Activity · Timeline entries" defaultVariant="v05" style={{ padding: "10px 14px", borderRadius: 10 }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                        <div className="min-w-0">
-                          <div style={{ marginBottom: 4 }}>
-                            <span style={{
-                              fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
-                              background: entry.isNotRequired ? "var(--agent-surface-glass)" : "rgba(16,185,129,0.1)",
-                              color: entry.isNotRequired ? "var(--agent-text-muted)" : "#059669",
-                            }}>
-                              {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
-                            </span>
-                          </div>
-                          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>
-                            {entry.summaryText ?? entry.milestoneName}
-                          </p>
-                          <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>
-                            {entry.confirmedByClient && entry.confirmerName
-                              ? `${entry.confirmerName} via portal · ${formatDate(entry.at)}`
-                              : entry.confirmedByClient
-                              ? `Client via portal · ${formatDate(entry.at)}`
-                              : `${entry.completedByName ? extractFirstName(entry.completedByName) : "Auto-confirmed"} · ${formatDate(entry.at)}`}
-                          </p>
-                        </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+                          background: entry.isNotRequired ? "var(--agent-surface-glass)" : "rgba(16,185,129,0.1)",
+                          color: entry.isNotRequired ? "var(--agent-text-muted)" : "#059669",
+                        }}>
+                          {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
+                        </span>
                         {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
                           <a
                             href={mosDocUrl}
@@ -346,6 +371,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           </a>
                         )}
                       </div>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>
+                        {entry.summaryText ?? entry.milestoneName}
+                      </p>
+                      <ActorFooter
+                        role={entry.confirmedByClient ? "other" : entry.actorRole}
+                        name={entry.confirmedByClient ? (entry.confirmerName ?? "Client") : (entry.completedByName ? extractFirstName(entry.completedByName) : "Auto-confirmed")}
+                        image={entry.confirmedByClient ? null : entry.actorImage}
+                        sublabel={entry.confirmedByClient ? "via portal" : null}
+                        at={entry.at}
+                      />
                     </GlassCard>
                   ) : (
                     // ── Comm card ───────────────────────────────────────────
@@ -536,20 +571,15 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                             <MediaAttachment url={entry.mediaUrl} type={entry.mediaType} />
                           )}
 
-                          {/* Footer: author pill + timestamp + edited indicator */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                            {/* WhatsApp rows carry a resolved senderLabel (contact / agent / number);
-                                other rows use the logging user's name. */}
-                            <AuthorPill name={entry.senderLabel ?? entry.createdByName} role={entry.createdByRole} />
-                            <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
-                              {formatTimestamp(entry.at)}
-                            </span>
-                            {isEdited && (
-                              <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
-                                (edited)
-                              </span>
-                            )}
-                          </div>
+                          {/* Footer: avatar + name + role sub-label (left), timestamp bottom-right */}
+                          <ActorFooter
+                            role={entry.actorRole}
+                            name={entry.actorName}
+                            image={entry.actorImage}
+                            sublabel={entry.actorSubLabel}
+                            at={entry.at}
+                            isEdited={isEdited}
+                          />
 
                           {/* Action buttons — hidden during edit to keep the form clean */}
                           {!isEditing && (
