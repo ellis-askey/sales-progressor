@@ -29,17 +29,25 @@ const groupNames = new Map<string, string>();
 // lifecycle logging without leaking message bodies or credentials.
 const waLogger = pino({ level: "silent" });
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 async function groupSubject(sock: WASocket, jid: string): Promise<string | null> {
   const cached = groupNames.get(jid);
   if (cached) return cached;
-  try {
-    const meta = await sock.groupMetadata(jid);
-    if (meta?.subject) {
-      groupNames.set(jid, meta.subject);
-      return meta.subject;
+  // A brand-new group's metadata can lag the first message. Retry a few times
+  // before giving up; the message still forwards (pends) either way and
+  // self-heals once the name is known.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const meta = await sock.groupMetadata(jid);
+      if (meta?.subject) {
+        groupNames.set(jid, meta.subject);
+        return meta.subject;
+      }
+    } catch (err) {
+      if (attempt === 2) log.warn("groupMetadata failed", { error: (err as Error).message });
     }
-  } catch (err) {
-    log.warn("groupMetadata failed", { error: (err as Error).message });
+    await sleep(800);
   }
   return null;
 }
@@ -94,6 +102,15 @@ async function connect() {
       }
       setTimeout(() => void connect(), 3000); // transient — reconnect
     }
+  });
+
+  // Learn group names as WhatsApp syncs them, so matching has the name ready
+  // (especially for freshly-created groups).
+  sock.ev.on("groups.upsert", (groups) => {
+    for (const g of groups) if (g.id && g.subject) groupNames.set(g.id, g.subject);
+  });
+  sock.ev.on("groups.update", (updates) => {
+    for (const g of updates) if (g.id && g.subject) groupNames.set(g.id, g.subject);
   });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
