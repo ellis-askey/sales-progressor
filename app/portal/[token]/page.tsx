@@ -851,7 +851,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       {/* ── Feedback widget ──────────────────────────────────────── */}
       <div style={slot("feedback")}><FeedbackWidget portalToken={token} /></div>
 
-      {/* ── Latest updates ───────────────────────────────────────── */}
+      {/* ── Latest updates (hidden entirely when there are none) ───── */}
+      {recentActivity.length > 0 && (
       <div style={slot("latest-updates")}>
       <PortalGlassCard glassId="latest-updates" label="Latest updates" className="overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${P.border}` }}>
@@ -863,19 +864,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               </span>
             )}
           </div>
-          {recentActivity.length > 0 && (
-            <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
-              See all
-            </Link>
-          )}
+          <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
+            See all
+          </Link>
         </div>
-        {recentActivity.length === 0 ? (
-          <div className="px-5 py-8 text-center">
-            <p className="text-[14px]" style={{ color: P.textSecondary }}>
-              Your team will share {saleWord} updates here.
-            </p>
-          </div>
-        ) : (
+        {
           recentActivity.map((entry: TimelineEntry, i) => (
             <div
               key={entry.id}
@@ -960,9 +953,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               )}
             </div>
           ))
-        )}
+        }
       </PortalGlassCard>
       </div>
+      )}
 
       </div>
 

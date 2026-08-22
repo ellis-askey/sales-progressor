@@ -39,7 +39,8 @@ import {
   resumeMyChasesAction,
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
-import { portalMarkRequiredAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { portalMarkRequiredAction, portalMarkNotRequiredAction, getMyMoveInfoAction } from "@/app/actions/portal";
+import type { MoveInfo, MoveInfoContext } from "@/lib/services/portal-info";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { PortalDocumentsTab } from "./PortalDocumentsTab";
 import { PortalInformationTab } from "./PortalInformationTab";
@@ -49,6 +50,7 @@ const MENU_TABS = [
   { key: "documents", label: "Documents" },
   { key: "information", label: "Information" },
   { key: "settings", label: "Settings" },
+  { key: "customisation", label: "Customisation" },
 ] as const;
 
 type Props = {
@@ -74,8 +76,18 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"documents" | "information" | "settings">("documents");
-  const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : activeTab === "information" ? 1 : 2);
+  const [activeTab, setActiveTab] = useState<"documents" | "information" | "settings" | "customisation">("documents");
+  const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : activeTab === "information" ? 1 : activeTab === "settings" ? 2 : 3);
+  // Move-info prefetched on open so the Information tab shows instantly.
+  const [moveInfo, setMoveInfo] = useState<{ context: MoveInfoContext; info: MoveInfo } | null | undefined>(undefined);
+  // Dynamic left/right fade on the (now-scrolling) tab row.
+  const tabScrollRef = useRef<HTMLDivElement>(null);
+  const [tabFade, setTabFade] = useState({ left: false, right: false });
+  function updateTabFade() {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    setTabFade({ left: el.scrollLeft > 1, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 });
+  }
   // Body-content fade-in: after the drawer slides up (260ms), the
   // inner content transitions from opacity 0 → 1 over 220ms so it
   // feels like it "settles" once the drawer has arrived. Reset on
@@ -135,6 +147,21 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
       .catch((e) => setLoadError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [open, details, loading, token]);
+
+  // Prefetch the Information-tab data on open so switching to it is instant.
+  useEffect(() => {
+    if (!open || moveInfo !== undefined) return;
+    getMyMoveInfoAction(token).then((d) => setMoveInfo(d)).catch(() => setMoveInfo(null));
+  }, [open, moveInfo, token]);
+
+  // Measure the tab-row overflow (for the edge fade) after open + on resize.
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(updateTabFade, 320);
+    window.addEventListener("resize", updateTabFade);
+    return () => { window.clearTimeout(t); window.removeEventListener("resize", updateTabFade); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function reload() {
     setLoading(true);
@@ -230,37 +257,59 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
         {/* Tabs — Documents | Settings. The underline slides with a little
             overshoot; a faint underline previews on hover (no icons). */}
         <div style={{ padding: "10px 20px 0", borderBottom: `0.5px solid ${P.border}` }}>
-          <div style={{ position: "relative", display: "flex", gap: 26 }}>
-            {ind && (
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute", bottom: 0, left: ind.left, width: ind.width, height: 2,
-                  background: P.primary, borderRadius: "1px 1px 0 0", pointerEvents: "none",
-                  transition: "left 320ms cubic-bezier(0.34,1.5,0.6,1), width 320ms cubic-bezier(0.34,1.5,0.6,1)",
-                }}
-              />
-            )}
-            {MENU_TABS.map((t, i) => {
-              const isActive = activeTab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  ref={(el) => { btnRefs.current[i] = el; }}
-                  data-active={isActive ? "true" : undefined}
-                  onClick={() => setActiveTab(t.key)}
-                  className="portal-menu-tab"
+          <div
+            ref={tabScrollRef}
+            onScroll={updateTabFade}
+            className="scrollbar-hide"
+            style={{
+              overflowX: "auto", overflowY: "hidden",
+              // Fade only the edge that has more tabs off-screen, so text is never
+              // clipped when scrolled fully to that side.
+              maskImage:
+                tabFade.left && tabFade.right ? "linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%)"
+                : tabFade.left ? "linear-gradient(to right, transparent 0, #000 22px, #000 100%)"
+                : tabFade.right ? "linear-gradient(to right, #000 calc(100% - 22px), transparent 100%)"
+                : "none",
+              WebkitMaskImage:
+                tabFade.left && tabFade.right ? "linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%)"
+                : tabFade.left ? "linear-gradient(to right, transparent 0, #000 22px, #000 100%)"
+                : tabFade.right ? "linear-gradient(to right, #000 calc(100% - 22px), transparent 100%)"
+                : "none",
+            }}
+          >
+            <div style={{ position: "relative", display: "flex", gap: 26, width: "max-content" }}>
+              {ind && (
+                <div
+                  aria-hidden
                   style={{
-                    background: "transparent", border: 0, cursor: "pointer",
-                    padding: "6px 2px 12px", fontSize: 14, fontWeight: 700,
-                    color: isActive ? P.textPrimary : P.textMuted,
+                    position: "absolute", bottom: 0, left: ind.left, width: ind.width, height: 2,
+                    background: P.primary, borderRadius: "1px 1px 0 0", pointerEvents: "none",
+                    transition: "left 320ms cubic-bezier(0.34,1.5,0.6,1), width 320ms cubic-bezier(0.34,1.5,0.6,1)",
                   }}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
+                />
+              )}
+              {MENU_TABS.map((t, i) => {
+                const isActive = activeTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    ref={(el) => { btnRefs.current[i] = el; }}
+                    data-active={isActive ? "true" : undefined}
+                    onClick={() => setActiveTab(t.key)}
+                    className="portal-menu-tab"
+                    style={{
+                      background: "transparent", border: 0, cursor: "pointer",
+                      padding: "6px 2px 12px", fontSize: 14, fontWeight: 700,
+                      color: isActive ? P.textPrimary : P.textMuted,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -276,12 +325,13 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
           {activeTab === "documents" ? (
             <PortalDocumentsTab token={token} />
           ) : activeTab === "information" ? (
-            <PortalInformationTab token={token} />
+            <PortalInformationTab token={token} initialData={moveInfo} />
+          ) : activeTab === "customisation" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <PortalAppearanceSettings />
+            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Your file + contacts load on the details fetch. Appearance &
-                  accessibility comes from context, so it always renders — pinned
-                  to the bottom, below the things a client reaches for more often. */}
               {loading && !details ? (
                 <p style={{ textAlign: "center", padding: "40px 0", color: P.textMuted, fontSize: 13 }}>Loading…</p>
               ) : loadError ? (
@@ -299,7 +349,6 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                   <NotificationsSection details={details} token={token} onSaved={reload} />
                 </>
               ) : null}
-              <PortalAppearanceSettings />
               <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
                 Signed in as {contactName}.
               </p>

@@ -80,6 +80,14 @@ export function PortalEditDrawer({
     setShowErrors(false); setPostcodeError(""); setError(null);
   }, [config]);
 
+  // Lock the page behind while the drawer is open (no scroll-through).
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   if (typeof document === "undefined") return null;
 
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
@@ -153,7 +161,14 @@ export function PortalEditDrawer({
     <div aria-hidden={!open} style={{ position: "fixed", inset: 0, zIndex: 50, pointerEvents: open ? "auto" : "none" }}>
       <div
         onClick={() => { if (!busy) onClose(); }}
-        style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", opacity: open ? 1 : 0, transition: "opacity 220ms ease" }}
+        style={{
+          position: "absolute", inset: 0,
+          background: "rgba(15,23,42,0.35)",
+          backdropFilter: open ? "blur(4px)" : "blur(0px)",
+          WebkitBackdropFilter: open ? "blur(4px)" : "blur(0px)",
+          opacity: open ? 1 : 0,
+          transition: "opacity 220ms ease, backdrop-filter 260ms ease",
+        }}
       />
       <div
         role="dialog"
