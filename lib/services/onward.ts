@@ -241,6 +241,48 @@ export async function resetOnwardTracker(transactionId: string): Promise<void> {
   });
 }
 
+/**
+ * Nudge signal (Stage 4 follow-up): is this file's seller buying onward, and if
+ * so what's the property? True when a chain link exists above them (we know the
+ * property) OR they've answered "yes, buying onward" in their portal. Used to
+ * turn the agent-side onward card from a passive "if they're buying onward" into
+ * a definitive "this seller is buying onward, set it up" prompt.
+ */
+export async function getOnwardSignalForFile(
+  transactionId: string,
+): Promise<{ buyingOnward: boolean; onwardAddress: string | null }> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chainLinkId: true },
+  });
+
+  let hasChainAbove = false;
+  let onwardAddress: string | null = null;
+  if (tx?.chainLinkId) {
+    const link = await prisma.chainLink.findUnique({
+      where: { id: tx.chainLinkId },
+      select: { position: true, chainId: true },
+    });
+    if (link) {
+      const above = await prisma.chainLink.findFirst({
+        where: { chainId: link.chainId, position: link.position - 1 },
+        select: { stubPropertyAddress: true, transaction: { select: { propertyAddress: true } } },
+      });
+      if (above) {
+        hasChainAbove = true;
+        onwardAddress = above.transaction?.propertyAddress ?? above.stubPropertyAddress ?? null;
+      }
+    }
+  }
+
+  const info = await prisma.clientMoveInfo.findUnique({
+    where: { transactionId_side: { transactionId, side: "vendor" } },
+    select: { buyingOnward: true },
+  });
+
+  return { buyingOnward: hasChainAbove || info?.buyingOnward === true, onwardAddress };
+}
+
 /** Create an empty tracker (status active) if one doesn't already exist. */
 export async function openOnwardTracker(transactionId: string): Promise<void> {
   await prisma.onwardTracker.upsert({
@@ -435,6 +477,20 @@ export async function getOnwardInheritanceForLink(claimedLinkId: string): Promis
     isShareOfFreehold: tracker.isShareOfFreehold,
     stepCodes: tracker.steps.map((s) => s.milestoneCode),
   };
+}
+
+/**
+ * Auto-retire (Stage 4 follow-up): when a chain link is withdrawn, the seller
+ * directly below it was buying that property as their onward, so their onward
+ * tracker is retired (abandoned) automatically. Called from the chain
+ * withdrawal cascade. Reuses the manual-abandon path, so the seller sees the
+ * same retired state (with "Start again"). No-op when there's no seller below
+ * or no tracker.
+ */
+export async function retireOnwardTrackerForWithdrawnLink(withdrawnLinkId: string): Promise<void> {
+  const txId = await sellerBelowTransactionId(withdrawnLinkId);
+  if (!txId) return;
+  await abandonOnwardTracker(txId);
 }
 
 /**

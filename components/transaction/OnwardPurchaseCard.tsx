@@ -65,9 +65,13 @@ const titleStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 
 export function OnwardPurchaseCard({
   transactionId,
   initialView,
+  sellerBuyingOnward = false,
+  onwardAddress = null,
 }: {
   transactionId: string;
   initialView: OnwardTrackerView;
+  sellerBuyingOnward?: boolean;
+  onwardAddress?: string | null;
 }) {
   const [view, setView] = useState<OnwardTrackerView>(initialView);
   const [pending, startTransition] = useTransition();
@@ -95,6 +99,21 @@ export function OnwardPurchaseCard({
     });
   }
 
+  // ── Retired (onward withdrawn, or the seller marked it no longer happening) ──
+  if (view.exists && view.status === "abandoned") {
+    return (
+      <Card id="onward-section" padding="none">
+        <div style={cardHeaderStyle}>
+          <h3 style={titleStyle}>Onward purchase</h3>
+          <span style={{ fontSize: 11, color: MUTED }}>Not going ahead</span>
+        </div>
+        <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
+          <p style={{ margin: 0 }}>This seller&apos;s onward purchase is no longer going ahead.</p>
+        </div>
+      </Card>
+    );
+  }
+
   // ── Not opened yet ─────────────────────────────────────────────────────────
   if (!view.exists) {
     return (
@@ -103,12 +122,18 @@ export function OnwardPurchaseCard({
           <h3 style={titleStyle}>Onward purchase</h3>
         </div>
         <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
-          <p style={{ margin: "0 0 10px" }}>
-            If this seller is buying onward, track where their purchase is up to. Reported progress
-            stays on this file and is not shared with other agencies.
-          </p>
+          {sellerBuyingOnward ? (
+            <p style={{ margin: "0 0 10px", color: "var(--agent-text-primary, #111)" }}>
+              This seller is buying onward{onwardAddress ? ` (${onwardAddress})` : ""}. Set up tracking so you and they can see where their purchase is up to.
+            </p>
+          ) : (
+            <p style={{ margin: "0 0 10px" }}>
+              If this seller is buying onward, track where their purchase is up to. Reported progress
+              stays on this file and is not shared with other agencies.
+            </p>
+          )}
           <Button
-            variant="secondary"
+            variant={sellerBuyingOnward ? "primary" : "secondary"}
             size="sm"
             loading={pending}
             onClick={() => run(() => openOnwardTrackerAction(transactionId))}

@@ -23,6 +23,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { fireChainCascadeNotifications } from "@/lib/email/chainNotifications";
+import { retireOnwardTrackerForWithdrawnLink } from "@/lib/services/onward";
 import type { ChainDirection, ChainNotificationType, ChainWithdrawalStatus } from "@prisma/client";
 
 type NearestClaimed = {
@@ -133,6 +134,11 @@ export async function cascadeChainWithdrawal(
       where: { id: withdrawingLinkId },
       data: { withdrawalStatus: "WITHDRAWN" },
     });
+    // Onward-visibility: the seller below this link was buying it as their
+    // onward, so auto-retire their reported onward tracker. Best-effort.
+    retireOnwardTrackerForWithdrawnLink(withdrawingLinkId).catch((err) =>
+      console.error(`[onward retire] failed for withdrawn link ${withdrawingLinkId}:`, err),
+    );
   }
 
   for (const direction of directions) {
