@@ -35,7 +35,7 @@ import { NextActionCardConsumer } from "@/components/transaction/NextActionCardC
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
-import { getOnwardTrackerView } from "@/lib/services/onward";
+import { getOnwardTrackerView, getOnwardSignalForFile } from "@/lib/services/onward";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
@@ -334,6 +334,7 @@ export async function OverviewPanel({
   // Onward-purchase reported tracker (Stage 1). Scope is already enforced by the
   // page loading this transaction; the service is scope-agnostic by contract.
   const onwardView = await getOnwardTrackerView(transaction.id);
+  const onwardSignal = await getOnwardSignalForFile(transaction.id);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -431,7 +432,12 @@ export async function OverviewPanel({
         </div>
       </Card>
 
-      <OnwardPurchaseCard transactionId={transaction.id} initialView={onwardView} />
+      <OnwardPurchaseCard
+        transactionId={transaction.id}
+        initialView={onwardView}
+        sellerBuyingOnward={onwardSignal.buyingOnward}
+        onwardAddress={onwardSignal.onwardAddress}
+      />
 
       {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
 
