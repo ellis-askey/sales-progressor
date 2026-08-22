@@ -86,7 +86,7 @@ async function connect() {
       const loggedOut = statusCode === DisconnectReason.loggedOut;
       log.warn("connection closed", { statusCode, loggedOut });
       if (loggedOut) {
-        log.error("logged out — clear the auth dir and re-scan the QR to reconnect");
+        log.error("logged out: clear the auth dir and re-scan the QR to reconnect");
         return; // needs a human re-pair; don't loop
       }
       setTimeout(() => void connect(), 3000); // transient — reconnect
