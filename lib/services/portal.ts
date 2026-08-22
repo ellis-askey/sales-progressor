@@ -374,6 +374,8 @@ export type PortalTeam = {
   // The client's neighbouring chain agent (phase 3) — drives the buyer's
   // "add your selling agent" row on the card.
   chainAgent: PortalChainAgent;
+  // "Purchase|Sale of {address}" — subject for the client emailing their team.
+  emailSubject: string;
 };
 
 // ── The client's neighbouring chain agent (audit #16, phase 3) ──────────────
@@ -514,6 +516,7 @@ export async function getPortalTeam(
           agentName: null, agencyName: null, agentEmail: null, agentPhone: null,
           propertyAddress: null, canManage: false,
         },
+        emailSubject: "",
       };
     }
 
@@ -577,7 +580,10 @@ export async function getPortalTeam(
 
     const chainAgent = await getPortalChainAgent(transactionId, side);
 
-    return { managing, solicitorFirmName, solicitorMailto, broker, chainAgent };
+    // Shared subject for the client emailing their team about this file.
+    const emailSubject = `${side === "purchaser" ? "Purchase" : "Sale"} of ${tx.propertyAddress}`;
+
+    return { managing, solicitorFirmName, solicitorMailto, broker, chainAgent, emailSubject };
   });
 }
 
@@ -589,12 +595,12 @@ export type PortalVCard = { fn: string; org: string | null; email: string | null
 
 export async function getPortalVCardData(
   token: string,
-): Promise<{ progressor: PortalVCard | null; solicitor: PortalVCard | null }> {
+): Promise<{ progressor: PortalVCard | null; solicitor: PortalVCard | null; agent: PortalVCard | null }> {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
     select: { roleType: true, propertyTransactionId: true },
   });
-  if (!contact) return { progressor: null, solicitor: null };
+  if (!contact) return { progressor: null, solicitor: null, agent: null };
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const tx = await prisma.propertyTransaction.findUnique({
@@ -610,7 +616,7 @@ export async function getPortalVCardData(
       purchaserSolicitorContact: { select: { name: true, email: true, phone: true } },
     },
   });
-  if (!tx) return { progressor: null, solicitor: null };
+  if (!tx) return { progressor: null, solicitor: null, agent: null };
 
   const isOutsourced = tx.serviceType !== "self_managed";
   const person = isOutsourced ? tx.assignedUser : tx.agentUser;
@@ -638,7 +644,19 @@ export async function getPortalVCardData(
       }
     : null;
 
-  return { progressor, solicitor };
+  // The client's neighbouring chain agent (their onward / selling agent).
+  const ca = await getPortalChainAgent(contact.propertyTransactionId, side).catch(() => null);
+  const agent: PortalVCard | null =
+    ca && ca.present && (ca.agentName || ca.agencyName)
+      ? {
+          fn: ca.agentName || ca.agencyName || "",
+          org: ca.agencyName,
+          email: ca.agentEmail,
+          tel: ca.agentPhone,
+        }
+      : null;
+
+  return { progressor, solicitor, agent };
 }
 
 // Phase 1 commit 5 — round-scoped read.

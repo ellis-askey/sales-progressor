@@ -63,7 +63,7 @@ export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string
             Your {dealWord} starts here
           </h2>
           <p className="text-[14px] leading-snug mb-6" style={{ color: P.textSecondary }}>
-            Follow your {dealWord} from {startPhrase} to moving day. We&apos;ll keep everything together and show you
+            Follow your {dealWord} from {startPhrase} to completion. We&apos;ll keep everything together and show you
             what&apos;s happening along the way.
           </p>
 

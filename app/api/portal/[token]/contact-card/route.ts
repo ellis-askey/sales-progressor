@@ -21,10 +21,11 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
-  const who = req.nextUrl.searchParams.get("who") === "solicitor" ? "solicitor" : "progressor";
+  const whoParam = req.nextUrl.searchParams.get("who");
+  const who = whoParam === "solicitor" ? "solicitor" : whoParam === "agent" ? "agent" : "progressor";
 
   const data = await getPortalVCardData(token);
-  const card = who === "solicitor" ? data.solicitor : data.progressor;
+  const card = who === "solicitor" ? data.solicitor : who === "agent" ? data.agent : data.progressor;
   if (!card) return new NextResponse("Not found", { status: 404 });
 
   return new NextResponse(buildVCard(card), {

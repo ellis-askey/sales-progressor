@@ -48,6 +48,19 @@ export function titleCase(str: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * Title-case each word, but leave a word untouched when the user typed two or
+ * more capital letters in a row (an acronym like "ABC" or "PLC"). Use for
+ * user-entered names and agency names where acronyms must survive — plain
+ * titleCase() above force-lowercases and would turn "ABC Estates" into
+ * "Abc Estates".
+ */
+export function titleCaseKeepAcronyms(str: string): string {
+  return str.trim().replace(/\S+/g, (word) =>
+    /[A-Z]{2,}/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+  );
+}
+
 const NAME_PREFIXES = new Set(["mr","mrs","ms","miss","dr","prof","sir","lord","lady","rev"]);
 const NAME_SUFFIXES = new Set(["jr","sr","ii","iii","iv","phd","md","esq","mbe","obe","cbe"]);
 

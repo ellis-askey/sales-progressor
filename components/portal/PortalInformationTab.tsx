@@ -18,20 +18,36 @@ function fmtDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export function PortalInformationTab({ token }: { token: string }) {
-  const [ctx, setCtx] = useState<MoveInfoContext | null>(null);
-  const [info, setInfo] = useState<MoveInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+export function PortalInformationTab({
+  token,
+  initialData,
+}: {
+  token: string;
+  // Prefetched by the menu drawer while it slides up, so the tab shows instantly
+  // with no "Loading…" flash. undefined = not provided (fetch here); a value
+  // (object or null) = already resolved.
+  initialData?: { context: MoveInfoContext; info: MoveInfo } | null;
+}) {
+  const [ctx, setCtx] = useState<MoveInfoContext | null>(initialData?.context ?? null);
+  const [info, setInfo] = useState<MoveInfo | null>(initialData?.info ?? null);
+  const [loading, setLoading] = useState(initialData === undefined);
   const [savedSection, setSavedSection] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialData !== undefined) { setCtx(initialData?.context ?? null); setInfo(initialData?.info ?? null); setLoading(false); return; }
     getMyMoveInfoAction(token).then((d) => {
       if (d) { setCtx(d.context); setInfo(d.info); }
       setLoading(false);
     });
-  }, [token]);
+  }, [token, initialData]);
 
   const [mortgageModal, setMortgageModal] = useState(false);
+  useEffect(() => {
+    if (!mortgageModal) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [mortgageModal]);
   const [mortgageBusy, setMortgageBusy] = useState(false);
 
   async function patch(section: string, p: Partial<MoveInfo>) {
@@ -181,7 +197,7 @@ export function PortalInformationTab({ token }: { token: string }) {
       {/* Mortgage-offer shortcut modal */}
       {mortgageModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => { if (!mortgageBusy) setMortgageModal(false); }}>
-          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
           <div
             className="relative w-full max-w-md mx-auto p-6"
             style={{ background: P.cardBg, borderRadius: P.radiusXl, boxShadow: P.shadowXl, marginBottom: "env(safe-area-inset-bottom, 0px)" }}

@@ -34,8 +34,11 @@ type Props = {
   // Where the action link sits. "inline" (default) puts it centre-right on the
   // same row as the title. "bottom-right" drops it below the body, right-
   // aligned — used when the banner also carries a top-right dismiss X so the
-  // two controls don't crowd the same corner.
-  actionPlacement?: "inline" | "bottom-right";
+  // two controls don't crowd the same corner. "inline-responsive" keeps it on
+  // the title row on wider screens but drops it beneath the title below the
+  // `sm` breakpoint (the X stays top-right throughout) — so the banner isn't
+  // needlessly tall when there's room.
+  actionPlacement?: "inline" | "bottom-right" | "inline-responsive";
   dismissible?: { onDismiss: () => void };
   // Optional className for cases where a caller needs extra spacing (e.g.
   // mb-3). Container styling otherwise comes from this component.
@@ -112,8 +115,15 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
             {body}
           </p>
         )}
+        {/* Below-title action: always for "bottom-right"; only below `sm` for
+            "inline-responsive" (its top-row copy shows at ≥sm). */}
         {actionBtn && actionPlacement === "bottom-right" && (
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+            {actionBtn}
+          </div>
+        )}
+        {actionBtn && actionPlacement === "inline-responsive" && (
+          <div className="flex justify-end sm:hidden" style={{ marginTop: 6 }}>
             {actionBtn}
           </div>
         )}
@@ -121,6 +131,9 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
 
       {actionBtn && actionPlacement === "inline" && (
         <span style={{ alignSelf: "center" }}>{actionBtn}</span>
+      )}
+      {actionBtn && actionPlacement === "inline-responsive" && (
+        <span className="hidden sm:flex" style={{ alignSelf: "center" }}>{actionBtn}</span>
       )}
 
       {dismissible && (

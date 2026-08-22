@@ -9,6 +9,7 @@
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
 import { PortalTeamManageRow, PortalManagePencil } from "@/components/portal/PortalTeamManageRow";
+import { PortalEditPencilButton } from "@/components/portal/PortalEditPencilButton";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { PortalFollowupButton, PortalAddConveyancerEmail } from "@/components/portal/PortalFollowupButton";
 import type { FollowupNudge } from "@/lib/portal/followup-state";
@@ -45,7 +46,7 @@ function SaveContactIcon() {
 
 // Outlined "Save contact" download link (.vcf). Neutral, to sit apart from the
 // filled WhatsApp / Email actions.
-function SaveContactButton({ token, who }: { token: string; who: "progressor" | "solicitor" }) {
+function SaveContactButton({ token, who }: { token: string; who: "progressor" | "solicitor" | "agent" }) {
   return (
     <a
       href={`/api/portal/${token}/contact-card?who=${who}`}
@@ -71,7 +72,7 @@ function SaveContactButton({ token, who }: { token: string; who: "progressor" | 
 }
 
 export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; token: string; followup?: FollowupNudge | null }) {
-  const { managing, solicitorFirmName, solicitorMailto, broker, chainAgent } = team;
+  const { managing, solicitorFirmName, solicitorMailto, broker, chainAgent, emailSubject } = team;
   // Symmetric for both sides (2026-08-17): a buyer records their selling agent
   // (chain link below them), a seller their onward-purchase agent (link above).
   const showAgentRow = chainAgent.canManage && chainAgent.applicable;
@@ -117,7 +118,7 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
             style={{
               width: 46,
               height: 46,
-              borderRadius: 12,
+              borderRadius: "50%",
               flexShrink: 0,
               display: "flex",
               alignItems: "center",
@@ -237,7 +238,7 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
               )}
               {managing.email && (
                 <a
-                  href={`mailto:${managing.email}`}
+                  href={`mailto:${managing.email}?subject=${encodeURIComponent(emailSubject)}`}
                   className="pbtn pbtn-press"
                   style={{
                     display: "inline-flex",
@@ -269,38 +270,100 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
       )}
 
       {showAgentRow && (
-        <PortalTeamManageRow
-          section="agents"
-          icon={agentHas ? "edit" : "add"}
-          label={agentHas ? `Edit your ${agentNoun}` : `Add your ${agentNoun}`}
-          topBorder={firstRow !== "agent"}
-        >
-          <div
-            style={{
-              width: 46, height: 46, borderRadius: 12, flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 700, fontSize: agentHas ? 13 : 22,
-              color: agentHas ? "#fff" : P.textMuted,
-              background: agentHas ? "linear-gradient(135deg,#3f4a63,#243049)" : P.pageBg,
-              border: agentHas ? "none" : `1.5px dashed ${P.border}`,
-              boxShadow: agentHas ? "0 2px 6px rgba(36,48,73,0.28)" : "none",
+        agentHas ? (
+          <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: firstRow === "agent" ? undefined : divider }}>
+            <div
+              style={{
+                width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, fontSize: 13, color: "#fff",
+                background: "linear-gradient(135deg,#3f4a63,#243049)",
+                boxShadow: "0 2px 6px rgba(36,48,73,0.28)",
+              }}
+            >
+              {initials(chainAgent.agentName || chainAgent.agencyName || "?")}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+                    {chainAgent.agentName || chainAgent.agencyName}
+                  </p>
+                  <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
+                    {chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : `Your ${agentNoun}`}
+                  </p>
+                </div>
+                <PortalEditPencilButton
+                  label={`Edit your ${agentNoun}`}
+                  config={{
+                    kind: "agent",
+                    mode: "edit",
+                    direction: chainAgent.direction === "below" ? "below" : "above",
+                    initial: {
+                      agency: chainAgent.agencyName ?? "",
+                      agentName: chainAgent.agentName ?? "",
+                      email: chainAgent.agentEmail ?? "",
+                      phone: chainAgent.agentPhone ?? "",
+                      propertyAddress: chainAgent.propertyAddress ?? "",
+                    },
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {chainAgent.agentEmail && (
+                  <a
+                    href={`mailto:${chainAgent.agentEmail}?subject=${encodeURIComponent(emailSubject)}`}
+                    className="pbtn pbtn-press"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 700, padding: "9px 14px", borderRadius: 11, textDecoration: "none", background: PORTAL_BTN.emailBg, boxShadow: PORTAL_BTN.emailShadow, color: "#fff" }}
+                  >
+                    <MailIcon /> Email
+                  </a>
+                )}
+                <SaveContactButton token={token} who="agent" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <PortalTeamManageRow
+            section="agents"
+            icon="add"
+            label={`Add your ${agentNoun}`}
+            topBorder={firstRow !== "agent"}
+            agentConfig={{
+              kind: "agent",
+              mode: "add",
+              direction: chainAgent.direction === "below" ? "below" : "above",
+              initial: {
+                agency: chainAgent.agencyName ?? "",
+                agentName: chainAgent.agentName ?? "",
+                email: chainAgent.agentEmail ?? "",
+                phone: chainAgent.agentPhone ?? "",
+                propertyAddress: chainAgent.propertyAddress ?? "",
+              },
             }}
           >
-            {agentHas ? initials(chainAgent.agentName || chainAgent.agencyName || "?") : "+"}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
-              {agentHas ? (chainAgent.agentName || chainAgent.agencyName) : `Your ${agentNoun}`}
-            </p>
-            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
-              {agentHas
-                ? (chainAgent.agencyName && chainAgent.agentName ? chainAgent.agencyName : `Your ${agentNoun}`)
-                : (chainAgent.direction === "below"
-                    ? "Selling somewhere too? Add your agent to keep the chain moving."
-                    : "Buying onward? Add your agent to keep the chain moving.")}
-            </p>
-          </div>
-        </PortalTeamManageRow>
+            <div
+              style={{
+                width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, fontSize: 22, color: P.textMuted,
+                background: P.pageBg, border: `1.5px dashed ${P.border}`,
+              }}
+            >
+              +
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+                {`Your ${agentNoun}`}
+              </p>
+              <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
+                {chainAgent.direction === "below"
+                  ? "Selling somewhere too? Add your agent to keep the chain moving."
+                  : "Buying onward? Add your agent to keep the chain moving."}
+              </p>
+            </div>
+          </PortalTeamManageRow>
+        )
       )}
 
       {broker && (

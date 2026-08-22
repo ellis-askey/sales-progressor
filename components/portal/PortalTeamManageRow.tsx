@@ -9,12 +9,14 @@
 
 import { PencilSimple, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { P } from "@/components/portal/portal-ui";
+import type { EditDrawerConfig } from "./PortalEditDrawer";
 
 export function PortalTeamManageRow({
   section,
   icon,
   label,
   topBorder = true,
+  agentConfig,
   children,
 }: {
   /** Menu-drawer section to scroll to: "agents" or "solicitor". */
@@ -24,6 +26,8 @@ export function PortalTeamManageRow({
   /** Accessible description of what tapping does. */
   label: string;
   topBorder?: boolean;
+  /** For the agents row: opens the edit drawer directly with prefilled data. */
+  agentConfig?: EditDrawerConfig;
   children: React.ReactNode;
 }) {
   return (
@@ -31,7 +35,13 @@ export function PortalTeamManageRow({
       type="button"
       className="portal-team-row"
       aria-label={label}
-      onClick={() => window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section } }))}
+      onClick={() =>
+        window.dispatchEvent(
+          section === "agents" && agentConfig
+            ? new CustomEvent("portal:open-edit-drawer", { detail: agentConfig })
+            : new CustomEvent("portal:open-menu", { detail: { section } }),
+        )
+      }
       style={{
         display: "flex",
         gap: 13,

@@ -9,7 +9,7 @@
 //
 // Spec: docs/active/onward-visibility/00-discovery.md.
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { P, PortalPill, PURCHASER_GROUPS } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
@@ -64,6 +64,14 @@ export function PortalOnwardPanel({
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
   const [manageAction, setManageAction] = useState<"reset" | "abandon" | null>(null);
+
+  // Lock the page behind while the confirm sheet is open.
+  useEffect(() => {
+    if (!confirmingCode) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [confirmingCode]);
 
   function run(fn: () => Promise<OnwardTrackerView | null>) {
     setError(null);
@@ -340,7 +348,7 @@ export function PortalOnwardPanel({
           the seller's onward purchase. Slides up, title + subtext + confirm. */}
       {confirmingStep && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
           <div
             className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{
