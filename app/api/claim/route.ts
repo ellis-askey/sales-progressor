@@ -13,6 +13,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { reconcileClaimMilestonesAction } from "@/app/actions/milestones";
+import { supersedeOnwardTrackerForLink } from "@/lib/services/onward";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
 import { sendClaimWelcomeIfNotSent } from "@/lib/emails/send-claim-welcome";
@@ -263,6 +264,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Stage 3 (onward inheritance): retire the seller-below's reported onward
+    // tracker — the claiming agent's real file now owns the truth. Fire-and-
+    // forget; a failure here must not fail the claim.
+    supersedeOnwardTrackerForLink(link.id).catch((err) =>
+      console.error(`[onward supersede] failed for link ${link.id}:`, err),
+    );
+
     console.log(
       `[AUDIT] chain_link_claimed linkId=${link.id} userId=${session.user.id} action=create transactionId=${result.transactionId} reconciliationMode=${typeof reconciliationMode === "string" ? reconciliationMode : "none"}`,
     );
@@ -321,6 +329,11 @@ export async function POST(req: NextRequest) {
       data: { chainLinkId: link.id },
     });
   });
+
+  // Stage 3 (onward inheritance): retire the seller-below's reported onward tracker.
+  supersedeOnwardTrackerForLink(link.id).catch((err) =>
+    console.error(`[onward supersede] failed for link ${link.id}:`, err),
+  );
 
   console.log(
     `[AUDIT] chain_link_claimed linkId=${link.id} userId=${session.user.id} action=link transactionId=${existingTransactionId}`,

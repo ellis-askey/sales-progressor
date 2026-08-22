@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { findDuplicateTransactions } from "@/lib/chain/duplicate-detection";
 import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
+import { getOnwardInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { displayChainPosition } from "@/lib/chain/positions";
 import "../styles/claim-flow.css";
@@ -203,6 +204,22 @@ export default async function ClaimConfirmPage({
     select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
   });
 
+  // Onward inheritance (Stage 3): if the seller below this link reported their
+  // onward-purchase progress, offer it as a pre-filled head-start for the
+  // reconciliation wizard. Their reported steps are purchaser-side; map the
+  // codes onto this file's purchaser milestone definition ids.
+  const onwardInheritance = await getOnwardInheritanceForLink(link.id).catch(() => null);
+  const inheritance = onwardInheritance
+    ? {
+        tenure: onwardInheritance.tenure,
+        purchaseType: onwardInheritance.purchaseType,
+        isShareOfFreehold: onwardInheritance.isShareOfFreehold,
+        stepDefIds: milestoneDefinitions
+          .filter((d) => d.side === "purchaser" && onwardInheritance.stepCodes.includes(d.code))
+          .map((d) => d.id),
+      }
+    : null;
+
   return (
     <Shell>
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 20px 64px" }}>
@@ -270,6 +287,7 @@ export default async function ClaimConfirmPage({
               createdAt: m.createdAt.toISOString(),
             }))}
             milestoneDefinitions={milestoneDefinitions}
+            inheritance={inheritance}
           />
 
           <p className="claim-wrong-note">
