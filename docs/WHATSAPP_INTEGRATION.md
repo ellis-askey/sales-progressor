@@ -1,12 +1,60 @@
 # WhatsApp Integration — living implementation doc
 
-Last updated: 2026-08-22 (Phases 2 + 3 built, committed on `staging`, not pushed).
+Last updated: 2026-08-22 (LIVE on prod: bridge paired + capturing; auto-matching working. V2 build plan below, agreed with founder, not yet built.)
 
-**Owner:** Ellis. **Status:** PWA ingest (Phase 2) + the bridge service (Phase 3) built. Not
-yet deployed/paired — needs the staging push (applies the migration), a Railway deploy, the
-shared secret, and a one-time QR scan before it captures anything.
+**Owner:** Ellis. **Status:** Bridge deployed on Railway, paired to +447508862929, capturing
+inbound + outbound live. Auto group-matching working (draft-twin fix live). Remaining gaps are
+the V2 build plan below.
 
-**Decisions (2026-08-22):** (1) Proceed with the unofficial linked-device bridge on the live number, **passive listener only** — ban-risk accepted. (2) Host the bridge on **Railway**.
+**Decisions (2026-08-22):** (1) Unofficial linked-device bridge on the live number, passive
+listener only — ban-risk accepted. (2) Bridge on **Railway** (`sales-progressor-production.up.railway.app`).
+(3) Build the V2 plan **in full**, test end-to-end, and push to staging + prod only once it is
+100% working (founder directive — no cheap/partial implementation, no incremental prod pushes).
+(4) Historical backfill of already-received messages is deferred to the very end, after the UI
+is exactly right.
+
+---
+
+## V2 build plan (agreed 2026-08-22) — the "make it proper" phase
+
+Ordered by the founder's chosen priority: sender names → needs-assigning UI → media. Built as
+one complete piece, then pushed once. Every message row must be readable and correctly routed.
+
+### WS1 — Sender attribution (who sent each message)
+Today inbound rows show "System". Resolve the real sender at ingest and display it.
+- Resolution order for each message's sender number:
+  1. A **contact on that sale** (vendor/purchaser/solicitor/broker) whose phone matches → show the **contact name**, link `contactIds`.
+  2. An **agent** (`User.phone` match) → show the **agent's name**.
+  3. Otherwise → show the **formatted number** (never blank, never "System").
+- Outbound (fromMe) → attribute to the agent whose mobile is the linked bridge number (fallback: the file's managing agent), shown as their name.
+- Storage: add `OutboundMessage.senderLabel String?` (additive migration) holding the resolved display name. Thread it through `getActivityTimeline` → `ActivityEntry` → `ActivityTimeline`/`comms-display` so WhatsApp rows render the sender + the existing WhatsApp badge + inbound/outbound colour.
+- Agent numbers: `User.phone` already exists. Founder supplies agent names + mobiles; seed them, and expose an editable mobile field where agents are managed so it stays maintainable.
+
+### WS2 — New-group robustness + self-heal
+- Bridge subscribes to `groups.upsert`/`groups.update` to cache group names as WhatsApp syncs them; retry `groupMetadata` with backoff; if still unknown, forward anyway (so it pends, never dropped).
+- Self-heal: whenever a chat becomes mapped (auto or manual), **replay every pending message for that `waChatId`** onto the file and delete the pending rows. So a missed brand-new-group first message lands as soon as the group links.
+
+### WS3 — Control surface in the Command Centre (`/command/whatsapp`)
+Superadmin/internal ops page (same home as App adoption), three parts:
+- **Connection status:** live from the bridge `/status` (connected? number, last message time) + a **Connect / re-pair** action that surfaces the QR (proxying the bridge `/qr`). Needs `WHATSAPP_BRIDGE_URL` + control secret in PWA env.
+- **Needs assigning:** unmatched chats grouped by conversation (group name, or DM sender name/number), last-message preview, count, and candidate properties.
+- **Assign the whole conversation** (not per message): pick a property (+ side; for a DM the side comes from the matched contact's role or is chosen) → create the chat→property mapping, replay all held messages for that chat, done. Reassignable later.
+
+### WS4 — Media / attachments
+- Bridge downloads media (`downloadMediaMessage`) and posts the file to a new PWA endpoint `/api/integrations/whatsapp/media` (keeps storage creds off the bridge); PWA stores it in a `whatsapp-media` Supabase bucket, size-capped, and records `OutboundMessage.mediaUrl` + type.
+- UI renders: image thumbnail (opens full), PDF/doc as a link, voice note as an audio player, video as a link/player.
+
+### WS5 — Historical backfill (LAST, deferred)
+Once the UI is signed off, one-off replay of all currently-pending + earlier messages onto their files using the finished matching + attribution, then clear diagnostic rows.
+
+### Chat-mapping model note
+Treat every chat uniformly (group or DM) as `waChatId → transaction + side`. Groups auto-map by
+name; DMs auto-map when the number is on exactly one active sale; anything ambiguous/unknown →
+needs assigning → assign the whole chat. Caveat recorded: a permanently-mapped DM sends all future
+messages to that property even if the person later discusses a different sale — reassignment
+handles that; acceptable per the "assign conversation" decision.
+
+### Open decisions before building — see the bottom of this doc / founder chat.
 
 ---
 
