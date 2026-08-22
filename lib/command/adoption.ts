@@ -106,6 +106,17 @@ export function isDeeplyEngaged(c: AdoptionClient): boolean {
   return c.detail.visits >= 2 || c.engagedMinutes >= 5;
 }
 
+// One week of the growth trend. weekStart is the Monday (UK) of the week.
+// invited = clients first added that week; activated = clients whose first
+// portal visit fell that week.
+export type GrowthWeek = {
+  weekStart: Date;
+  invited: number;
+  activated: number;
+};
+
+const GROWTH_WEEKS = 12;
+
 export type PortalAdoption = {
   totalClients: number;
   notificationsCount: number;
@@ -113,6 +124,7 @@ export type PortalAdoption = {
   visitedCount: number;
   cantReachCount: number;
   funnel: AdoptionFunnel;
+  growth: GrowthWeek[];
   clients: AdoptionClient[];
 };
 
@@ -143,6 +155,7 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
       transaction: {
         select: { status: true, propertyAddress: true, agency: { select: { name: true } } },
       },
+      createdAt: true,
       pushSubscriptions: { select: { id: true }, take: 1 },
       portalTimeSessions: { select: { totalEngagedSeconds: true, startedAt: true } },
     },
@@ -205,6 +218,12 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
   const installedCount = clients.filter((c) => c.installed).length;
   const visitedCount = clients.filter((c) => c.lastVisited != null).length;
 
+  const firstVisitById = new Map(clients.map((c) => [c.id, c.detail.firstVisitAt]));
+  const growth = computeWeeklyGrowth(
+    contacts.map((c) => ({ createdAt: c.createdAt, firstVisitAt: firstVisitById.get(c.id) ?? null })),
+    now,
+  );
+
   return {
     totalClients: clients.length,
     notificationsCount,
@@ -218,8 +237,48 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
       notifications: notificationsCount,
       engaged: clients.filter(isDeeplyEngaged).length,
     },
+    growth,
     clients,
   };
+}
+
+// Monday-00:00 (local) of the week containing d.
+function weekStartOf(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const mondayOffset = (x.getDay() + 6) % 7; // Sun=0 -> 6, Mon=1 -> 0, ...
+  x.setDate(x.getDate() - mondayOffset);
+  return x;
+}
+
+// Bucket clients into the last GROWTH_WEEKS weeks by when they were invited
+// (createdAt) and when they first visited. Dates older than the window are
+// dropped. Weeks with no activity stay in the series as zeros so the trend
+// keeps a steady x-axis.
+function computeWeeklyGrowth(
+  rows: { createdAt: Date; firstVisitAt: Date | null }[],
+  now: Date,
+): GrowthWeek[] {
+  const thisWeek = weekStartOf(now);
+  const weeks: GrowthWeek[] = [];
+  const indexByTime = new Map<number, number>();
+  for (let i = GROWTH_WEEKS - 1; i >= 0; i--) {
+    const start = new Date(thisWeek);
+    start.setDate(start.getDate() - i * 7);
+    indexByTime.set(start.getTime(), weeks.length);
+    weeks.push({ weekStart: start, invited: 0, activated: 0 });
+  }
+
+  const bump = (d: Date | null, key: "invited" | "activated") => {
+    if (!d) return;
+    const idx = indexByTime.get(weekStartOf(d).getTime());
+    if (idx != null) weeks[idx][key]++;
+  };
+  for (const r of rows) {
+    bump(r.createdAt, "invited");
+    bump(r.firstVisitAt, "activated");
+  }
+  return weeks;
 }
 
 // Resolve the single comms status for a contact, hardest block first. A client

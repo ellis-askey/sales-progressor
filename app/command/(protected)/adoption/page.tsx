@@ -1,4 +1,4 @@
-import { getPortalAdoption, type AdoptionFunnel } from "@/lib/command/adoption";
+import { getPortalAdoption, type AdoptionFunnel, type GrowthWeek } from "@/lib/command/adoption";
 import { AdoptionTable } from "@/components/command/AdoptionTable";
 
 // Command Centre → App adoption. Notifications + PWA install + engagement for
@@ -8,7 +8,7 @@ import { AdoptionTable } from "@/components/command/AdoptionTable";
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
-  const { totalClients, cantReachCount, funnel, clients } = await getPortalAdoption();
+  const { totalClients, cantReachCount, funnel, growth, clients } = await getPortalAdoption();
 
   return (
     <div className="space-y-6">
@@ -27,6 +27,8 @@ export default async function AdoptionPage() {
         </div>
         <Funnel funnel={funnel} />
       </div>
+
+      <GrowthChart growth={growth} />
 
       <AdoptionTable clients={clients} />
 
@@ -79,6 +81,48 @@ function Funnel({ funnel }: { funnel: AdoptionFunnel }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Weekly growth trend. Two bars per week: new clients invited and clients whose
+// first visit fell that week. Honest by design: with little data the chart is
+// near-empty, so an all-zero window shows a plain "not enough data yet" note
+// rather than a flat misleading baseline.
+function GrowthChart({ growth }: { growth: GrowthWeek[] }) {
+  const max = Math.max(1, ...growth.map((w) => Math.max(w.invited, w.activated)));
+  const hasData = growth.some((w) => w.invited > 0 || w.activated > 0);
+  const fmtWeek = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] uppercase tracking-wider text-neutral-500">New clients over time</p>
+        <div className="flex items-center gap-3 text-[11px] text-neutral-500">
+          <span className="flex items-center gap-1.5"><i className="inline-block w-2.5 h-2.5 rounded-sm bg-[#2563eb]/70" />Invited</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block w-2.5 h-2.5 rounded-sm bg-[#6ee7b7]/70" />First visit</span>
+        </div>
+      </div>
+
+      {hasData ? (
+        <div className="mt-3 flex items-end gap-1.5 h-24">
+          {growth.map((w, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-1" title={`Week of ${fmtWeek(w.weekStart)}: ${w.invited} invited, ${w.activated} first visits`}>
+              <div className="w-full flex items-end justify-center gap-0.5 h-full">
+                <div className="w-1/2 max-w-[10px] bg-[#2563eb]/70 rounded-sm" style={{ height: `${(w.invited / max) * 100}%` }} aria-hidden />
+                <div className="w-1/2 max-w-[10px] bg-[#6ee7b7]/70 rounded-sm" style={{ height: `${(w.activated / max) * 100}%` }} aria-hidden />
+              </div>
+              <span className="text-[9px] text-neutral-600 tabular-nums">
+                {i % 3 === 0 || i === growth.length - 1 ? fmtWeek(w.weekStart) : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-[13px] text-neutral-600">
+          Not enough data yet. New clients and their first visits will chart here as they come in.
+        </p>
+      )}
     </div>
   );
 }
