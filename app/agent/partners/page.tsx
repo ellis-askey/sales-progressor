@@ -90,8 +90,10 @@ export default async function AgentPartnersPage() {
               />
             </Card>
 
-            {/* Recommended solicitors */}
-            <Card padding="lg">
+            {/* Recommended solicitors. overflow-visible + raised stacking so the
+                firm-search dropdown can spill past the card edge and sit above
+                the cards below, instead of being clipped by Card's overflow-hidden. */}
+            <Card padding="lg" className="relative z-30" style={{ overflow: "visible" }}>
               <div className="mb-5">
                 <h2 className="text-sm font-bold text-slate-900/80 mb-1">Recommended solicitors</h2>
                 <p className="text-xs text-slate-900/50">

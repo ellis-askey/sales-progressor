@@ -34,6 +34,8 @@ import type { MilestoneSideState } from "@/components/transaction/NextMilestoneW
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
+import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
+import { getOnwardTrackerView } from "@/lib/services/onward";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
@@ -329,6 +331,10 @@ export async function OverviewPanel({
   // Milestone strip moved to page level (Zone 4 - always visible, above
   // the tab content grid). See app/agent/transactions/[id]/page.tsx.
 
+  // Onward-purchase reported tracker (Stage 1). Scope is already enforced by the
+  // page loading this transaction; the service is scope-agnostic by contract.
+  const onwardView = await getOnwardTrackerView(transaction.id);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
@@ -424,6 +430,8 @@ export async function OverviewPanel({
           />
         </div>
       </Card>
+
+      <OnwardPurchaseCard transactionId={transaction.id} initialView={onwardView} />
 
       {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
 
