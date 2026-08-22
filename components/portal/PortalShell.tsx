@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
-import { PortalAddAgentDrawer } from "./PortalAddAgentDrawer";
+import { PortalEditDrawer, type EditDrawerConfig } from "./PortalEditDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { PortalPwaPing } from "./PortalPwaPing";
 import { PortalWelcomeSheet } from "./PortalWelcomeSheet";
@@ -109,11 +109,13 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   // "Add" dispatches `portal:open-menu` with a section to scroll to.
   const [menuSection, setMenuSection] = useState<string | null>(null);
   const [menuEdit, setMenuEdit] = useState(false);
-  // Add-agent drawer. When open it stacks ABOVE the settings drawer: settings
-  // slides down (pushedDown) but stays logically open so it restores to exactly
-  // where it was when this closes. Opened from the Overview team card or the
-  // Settings "Add agent" button via the `portal:add-agent` event.
-  const [addAgentOpen, setAddAgentOpen] = useState(false);
+  // Edit drawer (details / agent / solicitor). When open it stacks ABOVE the
+  // settings drawer: settings slides down (pushedDown) but stays logically open,
+  // so it restores to exactly where it was when this closes. Opened from the
+  // Settings sections and the Overview team card via `portal:open-edit-drawer`.
+  // editConfig persists after close so the exit animation keeps its content.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editConfig, setEditConfig] = useState<EditDrawerConfig | null>(null);
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ section?: string; edit?: boolean }>).detail;
@@ -121,16 +123,19 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
       setMenuEdit(!!detail?.edit);
       setMenuOpen(true);
     };
-    const onAddAgent = () => setAddAgentOpen(true);
+    const onEdit = (e: Event) => {
+      const cfg = (e as CustomEvent<EditDrawerConfig>).detail;
+      if (cfg) { setEditConfig(cfg); setEditOpen(true); }
+    };
     window.addEventListener("portal:open-menu", onOpen);
-    window.addEventListener("portal:add-agent", onAddAgent);
+    window.addEventListener("portal:open-edit-drawer", onEdit);
     return () => {
       window.removeEventListener("portal:open-menu", onOpen);
-      window.removeEventListener("portal:add-agent", onAddAgent);
+      window.removeEventListener("portal:open-edit-drawer", onEdit);
     };
   }, []);
-  // Close both on navigation.
-  useEffect(() => { setAddAgentOpen(false); }, [pathname]);
+  // Close the edit drawer on navigation.
+  useEffect(() => { setEditOpen(false); }, [pathname]);
   // Close the drawer on navigation — if the user taps a link inside it,
   // the underlying page changes but the drawer would linger without this.
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -225,7 +230,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
       {/* Menu drawer */}
       <PortalMenuDrawer
         open={menuOpen}
-        pushedDown={addAgentOpen}
+        pushedDown={editOpen}
         onClose={() => { setMenuOpen(false); setMenuSection(null); setMenuEdit(false); }}
         token={token}
         contactName={contactName}
@@ -234,8 +239,8 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
         editSolicitor={menuEdit}
       />
 
-      {/* Add / edit chain agent — stacks above the settings drawer. */}
-      <PortalAddAgentDrawer open={addAgentOpen} onClose={() => setAddAgentOpen(false)} token={token} />
+      {/* Edit drawer (details / agent / solicitor) — stacks above settings. */}
+      <PortalEditDrawer open={editOpen} config={editConfig} token={token} onClose={() => setEditOpen(false)} />
 
       {/* 2026-08-09 hero rebuild: the property photo is now rendered
           INSIDE the Overview page (components/portal/PortalOverviewHero)

@@ -12,13 +12,28 @@
 // 2026-08-09.
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { X, User, Buildings, Bell, CaretDown, Check, Wrench, ArrowRight, Camera } from "@phosphor-icons/react/dist/ssr";
+import { X, User, Buildings, Bell, CaretDown, Check, Wrench, ArrowRight, Camera, PencilSimple } from "@phosphor-icons/react/dist/ssr";
+import type { EditDrawerConfig } from "./PortalEditDrawer";
+
+function openEditDrawer(config: EditDrawerConfig) {
+  window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: config }));
+}
+
+function EditPencil({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      style={{ background: "none", border: "none", padding: 2, cursor: "pointer", color: "var(--portal-textMuted, #8B91A3)", display: "inline-flex", alignItems: "center" }}
+    >
+      <PencilSimple size={16} weight="regular" />
+    </button>
+  );
+}
 import { P } from "./portal-ui";
 import {
   getMyPortalDetailsAction,
-  updateMyContactAction,
-  updateMySolicitorContactAction,
-  switchMySolicitorFirmAction,
   updateMyNotificationsAction,
   pauseMyChasesAction,
   resumeMyChasesAction,
@@ -133,12 +148,12 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
     }
   }
 
-  // The stacked add-agent drawer fires this after saving, so the Settings view
-  // refreshes to the new agent when it slides back up.
+  // The stacked edit drawer fires this after saving, so the Settings view
+  // refreshes (details / agent / solicitor) when it slides back up.
   useEffect(() => {
     const onUpdated = () => { if (details) void reload(); };
-    window.addEventListener("portal:agent-updated", onUpdated);
-    return () => window.removeEventListener("portal:agent-updated", onUpdated);
+    window.addEventListener("portal:details-updated", onUpdated);
+    return () => window.removeEventListener("portal:details-updated", onUpdated);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [details, token]);
 
@@ -402,65 +417,18 @@ function ProfileHeader({
 // ═══════════════════════════════════════════════════════════════════════
 
 function YourDetailsSection({
-  details, token, onSaved,
+  details,
 }: { details: MyPortalDetails; token: string; onSaved: () => void | Promise<void> }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName]   = useState(details.contact.name);
-  const [email, setEmail] = useState(details.contact.email ?? "");
-  const [phone, setPhone] = useState(details.contact.phone ?? "");
-  const [busy, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (!editing) {
-      setName(details.contact.name);
-      setEmail(details.contact.email ?? "");
-      setPhone(details.contact.phone ?? "");
-    }
-  }, [editing, details]);
-
-  function save() {
-    setError(null);
-    startTransition(async () => {
-      const res = await updateMyContactAction({
-        token, name, email: email || null, phone: phone || null,
-      });
-      if (res.ok) {
-        setEditing(false);
-        setSaved(true);
-        window.setTimeout(() => setSaved(false), 1600);
-        await onSaved();
-      } else {
-        setError(res.error ?? "Failed to save");
-      }
-    });
-  }
-
+  const c = details.contact;
   return (
-    <SectionCard icon={<User size={16} weight="regular" />} title="Your details">
-      {!editing ? (
-        <>
-          <ReadRow label="Name"  value={details.contact.name} />
-          <ReadRow label="Email" value={details.contact.email ?? "—"} />
-          <ReadRow label="Phone" value={details.contact.phone ?? "—"} />
-          <SectionFooter>
-            <button type="button" onClick={() => setEditing(true)} className="portal-menu-btn" style={btnPrimary}>Edit</button>
-            {saved && <SavedFlash />}
-          </SectionFooter>
-        </>
-      ) : (
-        <>
-          <Field label="Name"  value={name}  onChange={setName}  />
-          <Field label="Email" value={email} onChange={setEmail} type="email" />
-          <Field label="Phone" value={phone} onChange={setPhone} type="tel" />
-          {error && <p style={{ margin: "6px 4px 0", color: P.warning, fontSize: 12 }}>{error}</p>}
-          <SectionFooter>
-            <button type="button" onClick={() => setEditing(false)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
-            <button type="button" onClick={save} disabled={busy} className="portal-menu-btn" style={btnPrimary}>{busy ? "Saving…" : "Save"}</button>
-          </SectionFooter>
-        </>
-      )}
+    <SectionCard
+      icon={<User size={16} weight="regular" />}
+      title="Your details"
+      action={<EditPencil label="Edit your details" onClick={() => openEditDrawer({ kind: "details", mode: "edit", initial: { name: c.name, email: c.email ?? "", phone: c.phone ?? "" } })} />}
+    >
+      <ReadRow label="Name"  value={c.name} />
+      <ReadRow label="Email" value={c.email ?? "—"} />
+      <ReadRow label="Phone" value={c.phone ?? "—"} />
     </SectionCard>
   );
 }
@@ -478,9 +446,22 @@ function YourAgentsSection({
   // A pure cash buyer has no related sale, so no selling agent to record.
   if (!ca.applicable) return null;
 
-  // Add / edit now happens in the stacked add-agent drawer (PortalShell handles
+  // Add / edit now happens in the stacked edit drawer (PortalShell handles
   // sliding this settings drawer down and restoring it).
-  const openAgentDrawer = () => window.dispatchEvent(new CustomEvent("portal:add-agent"));
+  const direction = ca.direction === "below" ? ("below" as const) : ("above" as const);
+  const openAgent = (mode: "add" | "edit") =>
+    openEditDrawer({
+      kind: "agent",
+      mode,
+      direction,
+      initial: {
+        agency: ca.agencyName ?? "",
+        agentName: ca.agentName ?? "",
+        email: ca.agentEmail ?? "",
+        phone: ca.agentPhone ?? "",
+        propertyAddress: ca.propertyAddress ?? "",
+      },
+    });
 
   // Read-only: either the agent has joined (claimed) or we've sent a live invite
   // (invited). Claimed → theirs to keep current. Invited → locked while the
@@ -522,14 +503,15 @@ function YourAgentsSection({
   }
 
   return (
-    <SectionCard icon={<Buildings size={16} weight="regular" />} title={ca.label}>
+    <SectionCard
+      icon={<Buildings size={16} weight="regular" />}
+      title={ca.label}
+      action={has ? <EditPencil label="Edit your agent" onClick={() => openAgent("edit")} /> : undefined}
+    >
       {has ? (
         <>
           <ReadRow label="Agent"  value={ca.agentName ?? "—"} />
           <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
-          <SectionFooter>
-            <button type="button" onClick={openAgentDrawer} className="portal-menu-btn" style={btnGhost}>Update</button>
-          </SectionFooter>
         </>
       ) : (
         <>
@@ -539,7 +521,7 @@ function YourAgentsSection({
               : "Buying onward? Add the agent for the place you're buying so we can keep the chain moving."}
           </p>
           <SectionFooter>
-            <button type="button" onClick={openAgentDrawer} className="portal-menu-btn" style={btnPrimary}>Add agent</button>
+            <button type="button" onClick={() => openAgent("add")} className="portal-menu-btn" style={btnPrimary}>Add agent</button>
           </SectionFooter>
         </>
       )}
@@ -552,157 +534,57 @@ function YourAgentsSection({
 // ═══════════════════════════════════════════════════════════════════════
 
 function YourSolicitorSection({
-  details, token, onSaved, autoEdit,
+  details, autoEdit,
 }: { details: MyPortalDetails; token: string; onSaved: () => void | Promise<void>; autoEdit?: boolean }) {
-  type Mode = "read" | "update" | "switch";
-  const [mode, setMode] = useState<Mode>(autoEdit && details.solicitor ? "update" : "read");
-  const [saved, setSaved] = useState(false);
-
   const sol = details.solicitor;
 
-  function onSaveDone() {
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1600);
-    setMode("read");
-    void onSaved();
-  }
+  const openSolicitor = (mode: "add" | "edit" | "switch") =>
+    openEditDrawer({
+      kind: "solicitor",
+      mode,
+      initial: mode === "switch"
+        ? {}
+        : {
+            firmName: sol?.firmName ?? "",
+            contactName: sol?.contactName ?? "",
+            email: sol?.email ?? "",
+            phone: sol?.phone ?? "",
+          },
+    });
+
+  // Deep-link (the "add your conveyancer's email" prompt) opens edit straight away.
+  useEffect(() => {
+    if (autoEdit && sol) openSolicitor("edit");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEdit]);
 
   return (
-    <SectionCard icon={<Buildings size={16} weight="regular" />} title="Your solicitor">
+    <SectionCard
+      icon={<Buildings size={16} weight="regular" />}
+      title="Your solicitor"
+      action={sol ? <EditPencil label="Edit your solicitor" onClick={() => openSolicitor("edit")} /> : undefined}
+    >
       {!sol ? (
-        <p style={{ margin: 0, fontSize: 13, color: P.textMuted, padding: "4px 0" }}>
-          No solicitor set for your file yet. Add one below.
-        </p>
-      ) : mode === "read" ? (
+        <>
+          <p style={{ margin: 0, fontSize: 13, color: P.textMuted, padding: "2px 0 6px" }}>
+            No solicitor set for your file yet.
+          </p>
+          <SectionFooter>
+            <button type="button" onClick={() => openSolicitor("add")} className="portal-menu-btn" style={btnPrimary}>Add solicitor</button>
+          </SectionFooter>
+        </>
+      ) : (
         <>
           <ReadRow label="Firm"    value={sol.firmName} />
           <ReadRow label="Handler" value={sol.contactName ?? "—"} />
           <ReadRow label="Email"   value={sol.email ?? "—"} />
           <ReadRow label="Phone"   value={sol.phone ?? "—"} />
           <SectionFooter>
-            <button type="button" onClick={() => setMode("update")} className="portal-menu-btn" style={btnGhost}>Update details</button>
-            <button type="button" onClick={() => setMode("switch")} className="portal-menu-btn" style={btnGhost}>Switch firm</button>
-            {saved && <SavedFlash />}
+            <button type="button" onClick={() => openSolicitor("switch")} className="portal-menu-btn" style={btnGhost}>Switch firm</button>
           </SectionFooter>
         </>
-      ) : null}
-
-      {mode === "update" && sol && (
-        <UpdateSolicitorForm
-          token={token}
-          initialName={sol.contactName ?? ""}
-          initialEmail={sol.email ?? ""}
-          initialPhone={sol.phone ?? ""}
-          firmName={sol.firmName}
-          onCancel={() => setMode("read")}
-          onSaved={onSaveDone}
-        />
-      )}
-
-      {(mode === "switch" || !sol) && (
-        <SwitchFirmForm
-          token={token}
-          onCancel={() => setMode("read")}
-          onSaved={onSaveDone}
-          initialFirm=""
-        />
       )}
     </SectionCard>
-  );
-}
-
-function UpdateSolicitorForm({
-  token, initialName, initialEmail, initialPhone, firmName, onCancel, onSaved,
-}: {
-  token: string; initialName: string; initialEmail: string; initialPhone: string;
-  firmName: string;
-  onCancel: () => void; onSaved: () => void;
-}) {
-  const [name, setName]   = useState(initialName);
-  const [email, setEmail] = useState(initialEmail);
-  const [phone, setPhone] = useState(initialPhone);
-  const [busy, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <>
-      <div style={{ padding: "8px 4px 4px" }}>
-        <p style={{ margin: 0, fontSize: 12, color: P.textMuted, lineHeight: 1.4 }}>
-          Updating details for <strong style={{ color: P.textSecondary }}>{firmName}</strong>. Other files with this firm aren&apos;t affected. We save your changes just for your sale.
-        </p>
-      </div>
-      <Field label="Handler name" value={name}  onChange={setName}  />
-      <Field label="Email"        value={email} onChange={setEmail} type="email" />
-      <Field label="Phone"        value={phone} onChange={setPhone} type="tel"   />
-      {error && <p style={{ margin: "6px 4px 0", color: P.warning, fontSize: 12 }}>{error}</p>}
-      <SectionFooter>
-        <button type="button" onClick={onCancel} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
-        <button
-          type="button"
-          disabled={busy}
-          className="portal-menu-btn"
-          style={btnPrimary}
-          onClick={() => {
-            setError(null);
-            startTransition(async () => {
-              const res = await updateMySolicitorContactAction({ token, name, email: email || null, phone: phone || null });
-              if (res.ok) onSaved(); else setError(res.error ?? "Failed to save");
-            });
-          }}
-        >
-          {busy ? "Saving…" : "Save changes"}
-        </button>
-      </SectionFooter>
-    </>
-  );
-}
-
-function SwitchFirmForm({
-  token, initialFirm, onCancel, onSaved,
-}: {
-  token: string; initialFirm: string;
-  onCancel: () => void; onSaved: () => void;
-}) {
-  const [firmName, setFirmName]       = useState(initialFirm);
-  const [contactName, setContactName] = useState("");
-  const [email, setEmail]             = useState("");
-  const [phone, setPhone]             = useState("");
-  const [busy, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <>
-      <div style={{ padding: "8px 4px 4px" }}>
-        <p style={{ margin: 0, fontSize: 12, color: P.textMuted, lineHeight: 1.4 }}>
-          Moving to a different firm entirely? Enter the new firm and your case handler.
-        </p>
-      </div>
-      <Field label="Firm name"    value={firmName}    onChange={setFirmName}    />
-      <Field label="Handler name" value={contactName} onChange={setContactName} />
-      <Field label="Email"        value={email}       onChange={setEmail}       type="email" />
-      <Field label="Phone"        value={phone}       onChange={setPhone}       type="tel"   />
-      {error && <p style={{ margin: "6px 4px 0", color: P.warning, fontSize: 12 }}>{error}</p>}
-      <SectionFooter>
-        <button type="button" onClick={onCancel} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
-        <button
-          type="button"
-          disabled={busy}
-          className="portal-menu-btn"
-          style={btnPrimary}
-          onClick={() => {
-            setError(null);
-            startTransition(async () => {
-              const res = await switchMySolicitorFirmAction({
-                token, firmName, contactName, email: email || null, phone: phone || null,
-              });
-              if (res.ok) onSaved(); else setError(res.error ?? "Failed to switch firm");
-            });
-          }}
-        >
-          {busy ? "Switching…" : "Switch firm"}
-        </button>
-      </SectionFooter>
-    </>
   );
 }
 
@@ -943,7 +825,7 @@ function ServicesSection({
 //  Shared primitives
 // ═══════════════════════════════════════════════════════════════════════
 
-function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function SectionCard({ icon, title, action, children }: { icon: React.ReactNode; title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section style={{
       borderRadius: 14,
@@ -959,7 +841,8 @@ function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: 
         }}>
           {icon}
         </span>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: P.textPrimary }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: P.textPrimary, flex: 1 }}>{title}</h3>
+        {action}
       </div>
       {children}
     </section>
@@ -975,30 +858,6 @@ function ReadRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Field({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
-  return (
-    <label style={{ display: "block", padding: "8px 0" }}>
-      <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: P.textSecondary, marginBottom: 4 }}>{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          fontSize: 14,
-          borderRadius: 10,
-          border: `0.5px solid ${P.border}`,
-          background: P.cardBg,
-          color: P.textPrimary,
-          outline: "none",
-        }}
-        onFocus={(e) => { e.currentTarget.style.borderColor = P.primary; }}
-        onBlur={(e) => { e.currentTarget.style.borderColor = P.border; }}
-      />
-    </label>
-  );
-}
 
 function SectionFooter({ children }: { children: React.ReactNode }) {
   return (

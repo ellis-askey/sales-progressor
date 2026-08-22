@@ -274,6 +274,18 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
           icon={agentHas ? "edit" : "add"}
           label={agentHas ? `Edit your ${agentNoun}` : `Add your ${agentNoun}`}
           topBorder={firstRow !== "agent"}
+          agentConfig={{
+            kind: "agent",
+            mode: agentHas ? "edit" : "add",
+            direction: chainAgent.direction === "below" ? "below" : "above",
+            initial: {
+              agency: chainAgent.agencyName ?? "",
+              agentName: chainAgent.agentName ?? "",
+              email: chainAgent.agentEmail ?? "",
+              phone: chainAgent.agentPhone ?? "",
+              propertyAddress: chainAgent.propertyAddress ?? "",
+            },
+          }}
         >
           <div
             style={{
