@@ -15,7 +15,7 @@
 //    statement, so it's an estimate, not a precise balance.
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
+import { PortalSheet } from "./PortalSheet";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
 import { PortalMoney } from "./PortalMoney";
@@ -348,35 +348,7 @@ export function PortalCostsCard({
 
       {/* Stamp-duty sheet — portalled to <body>. Post-exchange it's the confirm
           flow (surcharge question); pre-exchange it's the full estimate calculator. */}
-      {open && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setOpen(false)}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-              maxHeight: "88vh",
-              overflowY: "auto",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-
+      <PortalSheet open={open} onClose={() => setOpen(false)}>
             <div className="px-6 pt-2 pb-6">
               <p className="text-[18px] font-semibold leading-snug mb-1" style={{ color: P.textPrimary }}>
                 {hasExchanged ? "Your stamp duty" : "Stamp duty estimate"}
@@ -459,10 +431,7 @@ export function PortalCostsCard({
                 </button>
               )}
             </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+      </PortalSheet>
     </>
   );
 }

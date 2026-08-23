@@ -203,9 +203,11 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
         style={{
           position: "fixed", inset: 0, zIndex: 40,
           background: "rgba(15, 23, 42, 0.30)",
+          backdropFilter: open && !pushedDown ? "blur(4px)" : "blur(0px)",
+          WebkitBackdropFilter: open && !pushedDown ? "blur(4px)" : "blur(0px)",
           opacity: open && !pushedDown ? 1 : 0,
           pointerEvents: open && !pushedDown ? "auto" : "none",
-          transition: "opacity 220ms ease",
+          transition: "opacity 220ms ease, backdrop-filter 260ms ease",
         }}
       />
       {/* Drawer */}

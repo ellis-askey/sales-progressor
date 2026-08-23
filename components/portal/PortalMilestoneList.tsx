@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition, useRef, useEffect, useLayoutEffect } from "react";
-import { createPortal } from "react-dom";
+import { PortalSheet } from "./PortalSheet";
 
 // Measure before paint on the client (avoids a height flash), plain effect on
 // the server where useLayoutEffect would warn.
@@ -523,150 +523,73 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         )}
       </div>
 
-      {/* ── Bottom sheet: milestone help / glossary (portalled) ── */}
-      {helpMilestone && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setHelpMilestone(null)}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
+      {/* ── Bottom sheet: milestone help / glossary ── */}
+      <PortalSheet open={!!helpMilestone} onClose={() => setHelpMilestone(null)}>
+        {helpMilestone && (
+          <div className="px-6 pb-6 pt-2">
+            <span
+              className="inline-block text-[11px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full mb-3"
+              style={
+                helpMilestone.who === "you"
+                  ? { background: P.primaryBg, color: P.primaryText }
+                  : { background: P.accentBg, color: P.accent }
+              }
+            >
+              {helpMilestone.whoLabel}
+            </span>
+            <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
+              {helpMilestone.label}
+            </p>
+            <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
+              {helpMilestone.description}
+            </p>
             <button
               onClick={() => setHelpMilestone(null)}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+              className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
+              style={{ background: P.primary, borderRadius: P.radiusMd }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+              Got it
             </button>
-            <div className="px-6 pb-6 pt-2">
-              <span
-                className="inline-block text-[11px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full mb-3"
-                style={
-                  helpMilestone.who === "you"
-                    ? { background: P.primaryBg, color: P.primaryText }
-                    : { background: P.accentBg, color: P.accent }
-                }
-              >
-                {helpMilestone.whoLabel}
-              </span>
-              <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
-                {helpMilestone.label}
-              </p>
-              <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
-                {helpMilestone.description}
-              </p>
-              <button
-                onClick={() => setHelpMilestone(null)}
-                className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
-                style={{ background: P.primary, borderRadius: P.radiusMd }}
-              >
-                Got it
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
 
-      {/* ── Bottom sheet: skip survey (portalled) ─────────────── */}
-      {skipSurveyId && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSkipSurveyId(null)}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
+      {/* ── Bottom sheet: skip survey ─────────────── */}
+      <PortalSheet open={!!skipSurveyId} onClose={() => setSkipSurveyId(null)} closeDisabled={skipLoading}>
+        {skipSurveyId && (
+          <div className="px-6 pb-6 pt-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.warning }}>
+              Skip survey
+            </p>
+            <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
+              Not getting a survey?
+            </p>
+            <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
+              This will mark &apos;Book your survey&apos; and &apos;Survey report received&apos; as not required. We&apos;ll also let the other side know that you&apos;re not getting a survey. You can change this from your menu at any time until your solicitor&apos;s enquiries have been satisfied.
+            </p>
+            <button
+              onClick={() => skipSurvey(skipSurveyId!)}
+              disabled={skipLoading}
+              className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+              style={{ background: P.warning, borderRadius: P.radiusMd }}
+            >
+              {skipLoading ? "Saving…" : "Yes, skip the survey"}
+            </button>
             <button
               onClick={() => setSkipSurveyId(null)}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+              disabled={skipLoading}
+              className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+              style={{ color: P.textSecondary }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+              Cancel
             </button>
-            <div className="px-6 pb-6 pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.warning }}>
-                Skip survey
-              </p>
-              <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
-                Not getting a survey?
-              </p>
-              <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
-                This will mark &apos;Book your survey&apos; and &apos;Survey report received&apos; as not required. We&apos;ll also let the other side know that you&apos;re not getting a survey. You can change this from your menu at any time until your solicitor&apos;s enquiries have been satisfied.
-              </p>
-              <button
-                onClick={() => skipSurvey(skipSurveyId!)}
-                disabled={skipLoading}
-                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
-                style={{ background: P.warning, borderRadius: P.radiusMd }}
-              >
-                {skipLoading ? "Saving…" : "Yes, skip the survey"}
-              </button>
-              <button
-                onClick={() => setSkipSurveyId(null)}
-                disabled={skipLoading}
-                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
-                style={{ color: P.textSecondary }}
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
 
-      {/* ── Bottom sheet confirm (portalled) ──────────────────── */}
-      {confirmingMilestone && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
-
-            {/* Close button */}
-            <button
-              onClick={closeSheet}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-
+      {/* ── Bottom sheet confirm ──────────────────── */}
+      <PortalSheet open={!!confirmingMilestone} onClose={closeSheet} closeDisabled={loading}>
+        {confirmingMilestone && (
             <div className="px-6 pb-6 pt-2">
               <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
                 {confirmingMilestone.eventDateRequired ? "When is this happening?" : "Are you sure?"}
@@ -755,10 +678,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Cancel
               </button>
             </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
     </>
   );
 }

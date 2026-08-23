@@ -10,9 +10,9 @@
 // Spec: docs/active/onward-visibility/00-discovery.md.
 
 import { useState, useEffect, useTransition } from "react";
-import { createPortal } from "react-dom";
 import { P, PortalPill, PURCHASER_GROUPS } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
+import { PortalSheet } from "./PortalSheet";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { onwardStepLabel, onwardStepSubtext } from "@/lib/onward-copy";
 import {
@@ -71,14 +71,6 @@ export function PortalOnwardPanel({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
-
-  // Lock the page behind while the confirm sheet is open.
-  useEffect(() => {
-    if (!confirmingCode) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [confirmingCode]);
 
   // The manage drawer (change place / no longer buying) lives at the shell
   // level; refetch when it saves so this panel reflects the change.
@@ -211,11 +203,14 @@ export function PortalOnwardPanel({
       {onwardAddress && (
         <p className="text-[14px] font-semibold px-1" style={{ color: P.textPrimary }}>{onwardAddress}</p>
       )}
-      <p className="text-[12px] px-1" style={{ color: P.textMuted }}>
-        As reported by you. {view.completeCount} of {view.applicableCount} confirmed.
-      </p>
 
       <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+      {/* Topper — matches the view-only "The purchase / The sale" card header. */}
+      <div className="px-5 py-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+        <p className="text-[12px]" style={{ color: P.textMuted }}>
+          As reported by you. {view.completeCount} of {view.applicableCount} confirmed.
+        </p>
+      </div>
       {PURCHASER_GROUPS.map((group) => {
         const steps = group.codes.map((c) => byCode.get(c)).filter((s): s is OnwardStepView => !!s);
         if (steps.length === 0) return null;
@@ -315,82 +310,55 @@ export function PortalOnwardPanel({
           in Settings (where the onward is added / edited), not here. */}
 
       {/* Confirm drawer — matches the buyer step confirmation drawer, phrased for
-          the seller's onward purchase. Slides up, title + subtext + confirm. */}
-      {confirmingStep && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
+          the seller's onward purchase. Slides up + down via PortalSheet. */}
+      <PortalSheet open={!!confirmingStep} onClose={closeSheet} closeDisabled={pending}>
+        {confirmingStep && (
+          <div className="px-6 pb-6 pt-2">
+            <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
+              {onwardStepLabel(confirmingStep.code, confirmingStep.name)}
+            </p>
+            {onwardStepSubtext(confirmingStep.code) && (
+              <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
+                {onwardStepSubtext(confirmingStep.code)}
+              </p>
+            )}
+
+            {confirmingStep.eventDateRequired && (
+              <div className="mb-4">
+                <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
+                  When did this happen? <span style={{ color: "#EF4444" }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  value={confirmDate}
+                  onChange={(e) => setConfirmDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
+                  style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
+                />
+              </div>
+            )}
+
+            {error && <p className="text-[13px] mb-3" style={{ color: "#EF4444" }}>{error}</p>}
+
+            <button
+              onClick={() => doConfirm(confirmingStep.code)}
+              disabled={pending}
+              className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+              style={{ background: P.primary, borderRadius: P.radiusMd }}
+            >
+              {pending ? "Saving…" : "Confirm"}
+            </button>
             <button
               onClick={closeSheet}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
-              aria-label="Close"
+              disabled={pending}
+              className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+              style={{ color: P.textSecondary }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              Cancel
             </button>
-
-            <div className="px-6 pb-6 pt-2">
-              <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
-                {onwardStepLabel(confirmingStep.code, confirmingStep.name)}
-              </p>
-              {onwardStepSubtext(confirmingStep.code) && (
-                <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
-                  {onwardStepSubtext(confirmingStep.code)}
-                </p>
-              )}
-
-              {confirmingStep.eventDateRequired && (
-                <div className="mb-4">
-                  <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
-                    When did this happen? <span style={{ color: "#EF4444" }}>*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={confirmDate}
-                    onChange={(e) => setConfirmDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
-                    style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
-                  />
-                </div>
-              )}
-
-              {error && <p className="text-[13px] mb-3" style={{ color: "#EF4444" }}>{error}</p>}
-
-              <button
-                onClick={() => doConfirm(confirmingStep.code)}
-                disabled={pending}
-                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
-                style={{ background: P.primary, borderRadius: P.radiusMd }}
-              >
-                {pending ? "Saving…" : "Confirm"}
-              </button>
-              <button
-                onClick={closeSheet}
-                disabled={pending}
-                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
-                style={{ color: P.textSecondary }}
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
     </div>
   );
 }
