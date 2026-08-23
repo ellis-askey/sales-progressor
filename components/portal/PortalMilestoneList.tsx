@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useOptimistic, useTransition, useRef, useEffect } from "react";
+import { useState, useOptimistic, useTransition, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
+
+// Measure before paint on the client (avoids a height flash), plain effect on
+// the server where useLayoutEffect would warn.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
@@ -83,6 +87,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [activeSide, setActiveSide]         = useState<string>("own");
   const swipeRef                            = useRef<HTMLDivElement | null>(null);
   const settleTimer                         = useRef<number | null>(null);
+  // Height-match the swipe row to the ACTIVE panel so a shorter side doesn't
+  // inherit the tallest panel's height (empty space at the foot). Re-measures
+  // on swipe and whenever the active panel's content changes (expand / confirm).
+  const panelRefs                           = useRef<Record<string, HTMLDivElement | null>>({});
+  const [panelHeight, setPanelHeight]       = useState<number | undefined>(undefined);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
@@ -272,6 +281,18 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   }, []);
   useEffect(() => () => { if (settleTimer.current) window.clearTimeout(settleTimer.current); }, []);
 
+  // Track the active panel's height (re-observing when the active side changes).
+  useIsoLayoutEffect(() => {
+    const el = panelRefs.current[activeSide];
+    if (!el) return;
+    const measure = () => setPanelHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSide, nPanels]);
+
   return (
     <>
       {nPanels > 1 && (
@@ -307,14 +328,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         ref={swipeRef}
         onScroll={onSwipeScroll}
         className="scrollbar-hide"
-        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10 }}
+        style={{ display: "flex", alignItems: "flex-start", overflowX: "auto", overflowY: "hidden", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10, boxSizing: "content-box", height: panelHeight, transition: "height 320ms cubic-bezier(0.16, 1, 0.3, 1)" }}
       >
         {hasOnward && (
-          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+          <div ref={(el) => { panelRefs.current.onward = el; }} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
             {onwardPanel}
           </div>
         )}
-        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+        <div ref={(el) => { panelRefs.current.own = el; }} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
           <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
         {/* ── Your milestones (one unified card, flat group headers) ── */}
         {groups.map((group, gIdx) => {
@@ -444,7 +465,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           </div>
         </div>
         {hasOtherSide && (
-          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+          <div ref={(el) => { panelRefs.current.other = el; }} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
             <div className="space-y-3">
               <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
                 <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${P.border}` }}>
