@@ -69,6 +69,11 @@ export type MyPortalDetails = {
   survey: {
     applicable: boolean;
     skipped: boolean;
+    // Survey is "resolved" once a surveyor is booked or a quote's been
+    // requested — at which point the buyer's menu entry flips from the
+    // survey nudge to the general "Request a quote".
+    booked: boolean;
+    requested: boolean;
     definitionId: string | null;
     canReenable: boolean;
     progressorName: string | null;
@@ -90,13 +95,22 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
       purchaserSolicitorFirm:   { select: { id: true, name: true } },
       purchaserSolicitorContact:{ select: { id: true, name: true, email: true, phone: true } },
       propertyAddress:          true,
+      bookedSurveyorName:       true,
     },
   });
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const firm    = side === "vendor" ? tx?.vendorSolicitorFirm    : tx?.purchaserSolicitorFirm;
   const solCtc  = side === "vendor" ? tx?.vendorSolicitorContact : tx?.purchaserSolicitorContact;
   const chainAgent = await getPortalChainAgent(contact.propertyTransactionId, side);
-  const survey = await getPortalSurveyState(token);
+  const surveyState = await getPortalSurveyState(token);
+  const requestedSurveyCount = await prisma.quoteRequest.count({
+    where: { contactId: contact.id, kind: "surveyor" },
+  });
+  const survey = {
+    ...surveyState,
+    booked: tx?.bookedSurveyorName != null,
+    requested: requestedSurveyCount > 0,
+  };
 
   return {
     contact: {
