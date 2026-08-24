@@ -38,7 +38,7 @@ function formatAgentTime(d: Date): string {
 
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
-function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean) {
+function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number) {
   // Reminders + Auto emails are self-progression surfaces. For agency
   // users (director/negotiator) they only appear when the agency actually
   // progresses a live file itself; agencies that outsource everything get
@@ -50,7 +50,7 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
     ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray }] : []),
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
-    ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare }] : []),
+    ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare, badge: todoDueCount > 0 ? todoDueCount : undefined }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
     ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
@@ -238,13 +238,13 @@ function UserDropdown({ session, role, userImage }: { session: Session; role: Us
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true, todoDueCount = 0 }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean; todoDueCount?: number }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
-  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles);
+  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, todoDueCount);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);

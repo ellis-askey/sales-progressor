@@ -271,6 +271,31 @@ export async function updateManualTaskAsProgressor(
   return updated;
 }
 
+/**
+ * Count of the agent/internal user's OPEN to-dos that are due today or overdue.
+ * Feeds the To-Do nav badge. Mirrors the /agent/to-do page's task assembly
+ * exactly (own agency tasks + progressor inbox + internal self-assigned) so the
+ * badge and the list never disagree.
+ */
+export async function countAgentDueOrOverdue(userId: string, agencyId: string | null, role: string): Promise<number> {
+  const isProgressor = role === "sales_progressor";
+  const isInternal = isProgressor || role === "admin" || role === "superadmin";
+  const [own, inbox, internal] = await Promise.all([
+    agencyId ? listAllTasksForAgent(userId, agencyId) : Promise.resolve([]),
+    isProgressor ? listProgressorInboxTasks(userId) : Promise.resolve([]),
+    isInternal ? listInternalSelfAssignedTasks() : Promise.resolve([]),
+  ]);
+  const todayStr = toUKDateStr(new Date());
+  const seen = new Set<string>();
+  let n = 0;
+  for (const t of [...own, ...inbox, ...internal]) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    if (t.status === "open" && t.dueDate && toUKDateStr(t.dueDate) <= todayStr) n++;
+  }
+  return n;
+}
+
 export async function countManualTasksDueToday(agencyId: string) {
   const now = new Date();
   const todayStr = toUKDateStr(now);
