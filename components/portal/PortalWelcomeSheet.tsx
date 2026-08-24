@@ -11,7 +11,7 @@
 // covering the gap between dismissing it and the next server read.
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { PortalSheet } from "./PortalSheet";
 import { House, Check, ChatCircle, Package, Key } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 
@@ -36,28 +36,12 @@ export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string
     setOpen(false);
   }
 
-  if (!open || typeof document === "undefined") return null;
-
   const dealWord = side === "vendor" ? "sale" : "purchase";
   const startPhrase = side === "vendor" ? "offer accepted" : "sale agreed";
   const startNode = side === "vendor" ? "Offer accepted" : "Sale agreed";
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end" onClick={dismiss}>
-      <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-      <div
-        className="portal-sheet relative w-full max-w-lg mx-auto"
-        style={{
-          background: P.cardBg,
-          borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-          boxShadow: P.shadowXl,
-          paddingBottom: "env(safe-area-inset-bottom, 16px)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-        </div>
+  return (
+    <PortalSheet open={open} onClose={dismiss} showClose={false}>
         <div className="px-6 pt-3 pb-6">
           <h2 className="text-[26px] font-bold leading-[1.15] mb-2" style={{ color: P.textPrimary }}>
             Your {dealWord} starts here
@@ -92,9 +76,7 @@ export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string
             Got it
           </button>
         </div>
-      </div>
-    </div>,
-    document.body
+    </PortalSheet>
   );
 }
 

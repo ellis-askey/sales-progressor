@@ -357,7 +357,7 @@ function AddSheet({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
-      <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+      <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
       <div
         className="portal-sheet relative w-full max-w-lg mx-auto"
         style={{ background: P.cardBg, borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`, boxShadow: P.shadowXl, paddingBottom: "env(safe-area-inset-bottom, 16px)" }}

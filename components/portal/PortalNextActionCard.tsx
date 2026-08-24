@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { PortalSheet } from "./PortalSheet";
 import { P, PortalPill } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
 import { PortalGlassCard } from "./PortalGlassCard";
@@ -148,37 +148,8 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
         </div>
       </PortalGlassCard>
 
-      {/* Bottom sheet — portalled to <body> so it overlays the viewport. */}
-      {sheetOpen && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
-          <div
-            className="portal-sheet-backdrop absolute inset-0"
-            style={{ background: "rgba(15,23,42,0.45)" }}
-          />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
-
-            <button
-              onClick={closeSheet}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center transition-colors"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-
+      {/* Bottom sheet — PortalSheet handles blur + slide in/out. */}
+      <PortalSheet open={sheetOpen} onClose={closeSheet} closeDisabled={loading}>
             <div className="px-6 pb-6 pt-2">
               <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
                 {milestone.eventDateRequired ? "When is this happening?" : "Are you sure?"}
@@ -223,10 +194,7 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
                 Cancel
               </button>
             </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+      </PortalSheet>
     </>
   );
 }

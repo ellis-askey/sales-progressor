@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useOptimistic, useTransition, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useOptimistic, useTransition, useRef, useEffect, useLayoutEffect } from "react";
+import { PortalSheet } from "./PortalSheet";
+
+// Measure before paint on the client (avoids a height flash), plain effect on
+// the server where useLayoutEffect would warn.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
@@ -83,6 +87,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [activeSide, setActiveSide]         = useState<string>("own");
   const swipeRef                            = useRef<HTMLDivElement | null>(null);
   const settleTimer                         = useRef<number | null>(null);
+  // Height-match the swipe row to the ACTIVE panel so a shorter side doesn't
+  // inherit the tallest panel's height (empty space at the foot). Re-measures
+  // on swipe and whenever the active panel's content changes (expand / confirm).
+  const panelRefs                           = useRef<Record<string, HTMLDivElement | null>>({});
+  const [panelHeight, setPanelHeight]       = useState<number | undefined>(undefined);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
@@ -272,6 +281,18 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   }, []);
   useEffect(() => () => { if (settleTimer.current) window.clearTimeout(settleTimer.current); }, []);
 
+  // Track the active panel's height (re-observing when the active side changes).
+  useIsoLayoutEffect(() => {
+    const el = panelRefs.current[activeSide];
+    if (!el) return;
+    const measure = () => setPanelHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSide, nPanels]);
+
   return (
     <>
       {nPanels > 1 && (
@@ -307,14 +328,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         ref={swipeRef}
         onScroll={onSwipeScroll}
         className="scrollbar-hide"
-        style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10 }}
+        style={{ display: "flex", alignItems: "flex-start", overflowX: "auto", overflowY: "hidden", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginInline: -16, paddingBlock: 10, boxSizing: "content-box", height: panelHeight, transition: "height 320ms cubic-bezier(0.16, 1, 0.3, 1)" }}
       >
         {hasOnward && (
-          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+          <div ref={(el) => { panelRefs.current.onward = el; }} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
             {onwardPanel}
           </div>
         )}
-        <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+        <div ref={(el) => { panelRefs.current.own = el; }} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
           <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
         {/* ── Your milestones (one unified card, flat group headers) ── */}
         {groups.map((group, gIdx) => {
@@ -444,7 +465,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           </div>
         </div>
         {hasOtherSide && (
-          <div style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
+          <div ref={(el) => { panelRefs.current.other = el; }} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", scrollSnapStop: "always", paddingInline: 16 }}>
             <div className="space-y-3">
               <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
                 <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${P.border}` }}>
@@ -502,150 +523,73 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         )}
       </div>
 
-      {/* ── Bottom sheet: milestone help / glossary (portalled) ── */}
-      {helpMilestone && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setHelpMilestone(null)}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
+      {/* ── Bottom sheet: milestone help / glossary ── */}
+      <PortalSheet open={!!helpMilestone} onClose={() => setHelpMilestone(null)}>
+        {helpMilestone && (
+          <div className="px-6 pb-6 pt-2">
+            <span
+              className="inline-block text-[11px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full mb-3"
+              style={
+                helpMilestone.who === "you"
+                  ? { background: P.primaryBg, color: P.primaryText }
+                  : { background: P.accentBg, color: P.accent }
+              }
+            >
+              {helpMilestone.whoLabel}
+            </span>
+            <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
+              {helpMilestone.label}
+            </p>
+            <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
+              {helpMilestone.description}
+            </p>
             <button
               onClick={() => setHelpMilestone(null)}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+              className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
+              style={{ background: P.primary, borderRadius: P.radiusMd }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+              Got it
             </button>
-            <div className="px-6 pb-6 pt-2">
-              <span
-                className="inline-block text-[11px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full mb-3"
-                style={
-                  helpMilestone.who === "you"
-                    ? { background: P.primaryBg, color: P.primaryText }
-                    : { background: P.accentBg, color: P.accent }
-                }
-              >
-                {helpMilestone.whoLabel}
-              </span>
-              <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
-                {helpMilestone.label}
-              </p>
-              <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
-                {helpMilestone.description}
-              </p>
-              <button
-                onClick={() => setHelpMilestone(null)}
-                className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
-                style={{ background: P.primary, borderRadius: P.radiusMd }}
-              >
-                Got it
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
 
-      {/* ── Bottom sheet: skip survey (portalled) ─────────────── */}
-      {skipSurveyId && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSkipSurveyId(null)}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
+      {/* ── Bottom sheet: skip survey ─────────────── */}
+      <PortalSheet open={!!skipSurveyId} onClose={() => setSkipSurveyId(null)} closeDisabled={skipLoading}>
+        {skipSurveyId && (
+          <div className="px-6 pb-6 pt-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.warning }}>
+              Skip survey
+            </p>
+            <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
+              Not getting a survey?
+            </p>
+            <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
+              This will mark &apos;Book your survey&apos; and &apos;Survey report received&apos; as not required. We&apos;ll also let the other side know that you&apos;re not getting a survey. You can change this from your menu at any time until your solicitor&apos;s enquiries have been satisfied.
+            </p>
+            <button
+              onClick={() => skipSurvey(skipSurveyId!)}
+              disabled={skipLoading}
+              className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+              style={{ background: P.warning, borderRadius: P.radiusMd }}
+            >
+              {skipLoading ? "Saving…" : "Yes, skip the survey"}
+            </button>
             <button
               onClick={() => setSkipSurveyId(null)}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+              disabled={skipLoading}
+              className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+              style={{ color: P.textSecondary }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+              Cancel
             </button>
-            <div className="px-6 pb-6 pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.warning }}>
-                Skip survey
-              </p>
-              <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
-                Not getting a survey?
-              </p>
-              <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
-                This will mark &apos;Book your survey&apos; and &apos;Survey report received&apos; as not required. We&apos;ll also let the other side know that you&apos;re not getting a survey. You can change this from your menu at any time until your solicitor&apos;s enquiries have been satisfied.
-              </p>
-              <button
-                onClick={() => skipSurvey(skipSurveyId!)}
-                disabled={skipLoading}
-                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
-                style={{ background: P.warning, borderRadius: P.radiusMd }}
-              >
-                {skipLoading ? "Saving…" : "Yes, skip the survey"}
-              </button>
-              <button
-                onClick={() => setSkipSurveyId(null)}
-                disabled={skipLoading}
-                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
-                style={{ color: P.textSecondary }}
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
 
-      {/* ── Bottom sheet confirm (portalled) ──────────────────── */}
-      {confirmingMilestone && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
-          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
-          <div
-            className="portal-sheet relative w-full max-w-lg mx-auto"
-            style={{
-              background: P.cardBg,
-              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
-              boxShadow: P.shadowXl,
-              paddingBottom: "env(safe-area-inset-bottom, 16px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-            </div>
-
-            {/* Close button */}
-            <button
-              onClick={closeSheet}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-
+      {/* ── Bottom sheet confirm ──────────────────── */}
+      <PortalSheet open={!!confirmingMilestone} onClose={closeSheet} closeDisabled={loading}>
+        {confirmingMilestone && (
             <div className="px-6 pb-6 pt-2">
               <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>
                 {confirmingMilestone.eventDateRequired ? "When is this happening?" : "Are you sure?"}
@@ -734,10 +678,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Cancel
               </button>
             </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+        )}
+      </PortalSheet>
     </>
   );
 }
