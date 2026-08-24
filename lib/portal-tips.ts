@@ -62,40 +62,40 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
     both: [
       {
         title: "You're not legally committed yet",
-        text: "The memorandum of sale records the agreed transaction, but it isn't a binding contract. Either side can still withdraw until contracts are exchanged.",
+        text: "The memorandum of sale confirms what's been agreed, but it isn't legally binding. Either side can still withdraw until contracts are exchanged.",
       },
     ],
     vendor: [
       {
         title: "Get ready for your solicitor",
-        text: "Once instructed, your solicitor will send you their terms of business and initial paperwork to complete. Return everything promptly so they can begin preparing the legal paperwork for your sale.",
+        text: "Once instructed, your solicitor will send you some initial paperwork to complete. Getting this back quickly means they can get started on the legal work for your sale.",
         hideOnceDone: ["VM3"],
       },
       {
-        title: "Get your ID ready",
-        text: "Your solicitor will need to verify your identity before they can act for you. Have photo ID and proof of address ready when requested.",
+        title: "Have your ID ready",
+        text: "Your solicitor will need to verify your identity before they can act for you. Have your photo ID and proof of address ready when they ask for it.",
         hideOnceDone: ["VM4"],
       },
       {
         title: "Gather your property paperwork",
-        text: "Start gathering any guarantees, warranties, certificates, planning or building regulation documents and records for work carried out at the property. Having these ready can help prevent delays later.",
+        text: "Start gathering any guarantees, warranties, certificates and paperwork for work carried out at the property. Having it to hand now can save time later.",
         hideOnceDone: ["VM6"],
       },
     ],
     purchaser: [
       {
         title: "Get ready for your solicitor",
-        text: "Once instructed, your solicitor will usually send you their terms of business and some initial forms to complete, such as a purchaser questionnaire. They'll also ask for information to complete their ID, anti-money laundering and source of funds checks. Having everything ready will help them get started quickly.",
+        text: "Your solicitor will send you some initial paperwork and ask for information to complete their ID, anti-money laundering and source of funds checks. Getting everything back quickly will help them get started.",
         hideOnceDone: ["PM3"],
       },
       {
-        title: "Get your ID and funds evidence ready",
-        text: "Your solicitor will need to verify your identity and understand where the money for your purchase is coming from. Have your photo ID, proof of address and evidence of your deposit or other purchase funds ready when requested.",
+        title: "Have your ID and funds evidence ready",
+        text: "Your solicitor will need to verify your identity and where the money for your purchase is coming from. Have your photo ID, proof of address and evidence of your deposit or other funds ready.",
         hideOnceDone: ["PM3"],
       },
       {
         title: "Check your agreement in principle",
-        text: "If you're buying with a mortgage, make sure your agreement in principle is still valid and speak to your broker if anything has changed since you obtained it.",
+        text: "If you're using a mortgage, check that your agreement in principle is still valid. If anything has changed since you obtained it, let your broker know.",
         hideOnceDone: ["PM5"],
       },
     ],
@@ -105,31 +105,31 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
     vendor: [
       {
         title: "Your management pack is being prepared",
-        text: "If your property is leasehold or managed, your solicitor has requested the required management information from the freeholder, managing agent or management company. These packs can take time to arrive, so we'll keep an eye on its progress.",
+        text: "If your property is leasehold or managed, your solicitor will request a management pack. These can sometimes take a while to arrive, so we'll keep an eye on it.",
         requires: ["VM8"],
         hideOnceDone: ["VM9"],
       },
       {
-        title: "Keep us updated about your onward purchase",
-        text: "If you're also buying, let us and your solicitor know about any important developments with your onward purchase. The transactions will need to line up when the chain starts discussing exchange and completion.",
+        title: "Keep us updated on your onward purchase",
+        text: "If you're buying another property, keep us and your solicitor updated on any important changes. Later on, the dates will need to work across the whole chain.",
       },
     ],
     purchaser: [
       {
         title: "Your searches are underway",
-        text: "Your solicitor has ordered searches with the relevant authorities and providers. Turnaround times vary, and there's normally nothing you need to do while you wait for the results.",
+        text: "Your solicitor has ordered the searches for the property. They can take a little while to come back, and there's usually nothing you need to do in the meantime.",
         requires: ["PM8"],
         hideOnceDone: ["PM13"],
       },
       {
         title: "Your lender will arrange a valuation",
-        text: "As part of your mortgage application, your lender will usually arrange a valuation to make sure the property is suitable security for the loan. This is for the lender and isn't a survey of the property's condition.",
+        text: "Your lender will usually value the property as part of your mortgage application. This is for the lender's benefit and isn't the same as having your own survey.",
         requires: ["PM5"],
         hideOnceDone: ["PM6", "PM11"],
       },
       {
         title: "Think about your own survey",
-        text: "The lender's valuation isn't a substitute for your own survey. An independent survey can give you a much better understanding of the property's condition and highlight anything that may need further investigation.",
+        text: "A lender's valuation doesn't check the property for you. If you want a better understanding of its condition, this is the time to arrange your own survey.",
         hideOnceDone: ["PM9"],
       },
     ],
@@ -137,49 +137,49 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
   active: {
     both: [
       {
-        title: "It can go quiet at this stage",
-        text: "There may be periods where you don't hear much while the solicitors work through enquiries. We're keeping an eye on both sides and chasing for updates where needed, so there's nothing you need to chase yourself.",
+        title: "Things can go quiet at this stage",
+        text: "There can be periods without much news while the solicitors work through enquiries. We're keeping an eye on things and chasing where needed, so you don't need to.",
         hideOnceDone: ["PM20", "VM21"],
       },
     ],
     vendor: [
       {
-        title: "Follow-up enquiries are normal",
-        text: "The buyer's solicitor may raise further questions after receiving the first replies. This is a normal part of conveyancing and doesn't necessarily mean there's a problem.",
+        title: "More enquiries are completely normal",
+        text: "The buyer's solicitor may have more questions after reviewing the first replies. Enquiries often come in rounds, so this doesn't automatically mean there's a problem.",
       },
       {
-        title: "Reply quickly when your solicitor needs you",
-        text: "Your solicitor may need information or documents from you to answer the buyer's enquiries. Responding promptly can help prevent avoidable delays.",
+        title: "Reply quickly if your solicitor needs you",
+        text: "Your solicitor may need information or documents from you to answer an enquiry. The sooner they have them, the sooner they can reply.",
       },
       {
-        title: "Keep legal questions with the solicitors",
-        text: "If the buyer raises a legal question with you directly, it's best to pass it to your solicitor rather than trying to resolve it yourself. This keeps the legal communication clear and properly recorded.",
+        title: "Leave the legal questions to your solicitor",
+        text: "If the buyer asks you a legal question directly, pass it to your solicitor rather than answering it yourself. It keeps everything clear and properly recorded.",
       },
     ],
     purchaser: [
       {
-        title: "Follow-up enquiries are normal",
-        text: "Enquiries often happen in rounds. Your solicitor may raise further questions after receiving the first replies, which doesn't necessarily mean there's a problem.",
+        title: "More enquiries are completely normal",
+        text: "Your solicitor may have further questions after reviewing the first replies. Enquiries often come in rounds, so this is a normal part of the process.",
       },
       {
-        title: "Reply quickly when your solicitor needs you",
-        text: "If your solicitor asks you for information, documents or a decision, responding promptly can help prevent avoidable delays.",
+        title: "Reply quickly if your solicitor needs you",
+        text: "If your solicitor asks for information, documents or a decision, getting back to them quickly will help keep things moving.",
       },
       {
         title: "Your solicitor is reviewing the searches",
-        text: "Once all search results have been received, your solicitor will review them and raise any points that need clarification or further investigation.",
+        text: "Once the searches are back, your solicitor will review the results and investigate anything that needs a closer look.",
         requires: ["PM13"],
         hideOnceDone: ["PM20"],
       },
       {
-        title: "Your mortgage application is being finalised",
-        text: "Once the lender has completed its valuation, there may still be underwriting or other checks to complete before your formal mortgage offer is issued. Your broker or lender will keep you updated.",
+        title: "Your mortgage is being finalised",
+        text: "Even after the valuation, your lender may still have some final checks to complete before issuing your mortgage offer. Your broker or lender will keep you updated.",
         requires: ["PM6"],
         hideOnceDone: ["PM11"],
       },
       {
         title: "Your enquiries are nearly there",
-        text: "Your solicitor will review the replies and raise any follow-up questions they need to. Once they're satisfied with everything, they'll confirm that the enquiries have been satisfied.",
+        text: "Your solicitor is reviewing the replies and will raise any final questions they need to. Once they're happy with everything, the enquiries can be signed off.",
         requires: ["PM14"],
         hideOnceDone: ["PM20"],
       },
@@ -190,15 +190,15 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
     vendor: [
       {
         title: "Exchange makes your sale legally binding",
-        text: "Once contracts are exchanged, you and the buyer are legally committed to the transaction. Withdrawing after exchange can have significant financial consequences.",
+        text: "Once contracts are exchanged, you and the buyer are legally committed to the sale. Pulling out after this point can have serious financial consequences.",
       },
       {
         title: "Think about your completion date",
-        text: "You and the buyer will need to agree a completion date before exchange. Make sure the proposed date works for your move and any onward purchase before you agree to it.",
+        text: "A completion date needs to be agreed before exchange. Make sure it works for your move and, if you're buying as well, your onward purchase.",
       },
       {
-        title: "Sign your contract documents promptly",
-        text: "Your solicitor will send you the contract and any other documents that need signing. Check the details carefully and return everything promptly so they're ready for exchange.",
+        title: "Return your signed documents promptly",
+        text: "Your solicitor will send you the documents that need signing before exchange. Check them carefully and return them promptly so everything is ready when the time comes.",
         requires: ["VM16"],
         hideOnceDone: ["VM17"],
       },
@@ -206,20 +206,20 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
     purchaser: [
       {
         title: "Exchange makes your purchase legally binding",
-        text: "Once contracts are exchanged, you and the seller are legally committed to the transaction. Withdrawing after exchange can have significant financial consequences.",
+        text: "Once contracts are exchanged, you and the seller are legally committed to the purchase. Pulling out after this point can have serious financial consequences.",
       },
       {
         title: "Think about your completion date",
-        text: "You and the seller will need to agree a completion date before exchange. Make sure the proposed date works for your moving arrangements before you agree to it.",
+        text: "A completion date needs to be agreed before exchange. Make sure it works for your moving arrangements before agreeing to it.",
       },
       {
         title: "Make sure your deposit is ready",
-        text: "Your solicitor will tell you how much they need from you and when to send it. Make sure the funds reach their client account in time for exchange.",
+        text: "Your solicitor will confirm how much they need from you and when. Make sure the funds are available in plenty of time for exchange.",
         hideOnceDone: ["PM24"],
       },
       {
-        title: "Arrange your buildings insurance",
-        text: "Your solicitor will tell you when your buildings insurance needs to start. For many purchases this will be from exchange, so make sure your cover is ready before contracts are exchanged.",
+        title: "Get your buildings insurance ready",
+        text: "Your solicitor will confirm when your buildings insurance needs to start. This is often from exchange, so make sure you have cover ready beforehand.",
         hideOnceDone: ["PM26"],
       },
     ],
@@ -229,35 +229,35 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
     vendor: [
       {
         title: "Your completion date is now fixed",
-        text: "Your sale is legally binding and the agreed completion date is now fixed. Make sure your moving arrangements are confirmed and you'll be ready to leave the property on time.",
+        text: "Your sale is legally binding and your completion date is agreed. You can now confirm your moving arrangements for the day.",
       },
       {
         title: "What happens on completion day",
-        text: "The buyer's solicitor will transfer the purchase funds to your solicitor. Keep your phone nearby and we'll let you know once completion has taken place and the keys can be released.",
+        text: "The buyer's solicitor will send the purchase funds to your solicitor. Keep your phone nearby and we'll let you know as soon as completion takes place and the keys can be released.",
       },
       {
         title: "Get the property ready for your buyer",
-        text: "Gather any manuals, warranties, service records and other useful documents you're leaving behind. Take final meter readings for your records and make sure you've removed everything that isn't included in the sale.",
+        text: "Make sure the property is cleared as agreed and gather any manuals, warranties or useful information you're leaving behind. It's also worth taking final meter readings before you leave.",
         hideOnceDone: ["VM20"],
       },
     ],
     purchaser: [
       {
         title: "Your completion date is now fixed",
-        text: "Your purchase is legally binding and the agreed completion date is now fixed. Make sure your moving arrangements are confirmed and ready for that date.",
+        text: "Your purchase is legally binding and your completion date is agreed. You can now confirm your moving arrangements for the day.",
       },
       {
         title: "What happens on completion day",
-        text: "Your solicitor will deal with the transfer of funds. Keep your phone nearby and we'll let you know as soon as completion has taken place and the keys are ready to collect.",
+        text: "Your solicitor will handle the transfer of funds. Keep your phone nearby and we'll let you know as soon as completion takes place and the keys are ready.",
       },
       {
         title: "Get ready for completion day",
-        text: "Your completion date is now fixed, so it's a good time to get everything you need for completion day arranged.",
+        text: "With the date now fixed, you can confirm your removals, time off work and anything else you need for moving day.",
         hideOnceDone: ["PM27"],
       },
       {
         title: "Start changing your address",
-        text: "You can start updating your address with your bank, DVLA, HMRC, GP, employer, pension providers and subscriptions. You may also want to arrange a Royal Mail redirection.",
+        text: "You can start updating your address with your bank, DVLA, HMRC, employer and other important services. You may also want to arrange a Royal Mail redirection.",
         hideOnceDone: ["PM27"],
       },
     ],
@@ -274,26 +274,26 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
 export const COMPLETED_NEXT: Record<PortalRole, { title: string; body: string }[]> = {
   vendor: [
     {
-      title: "Your mortgage has been dealt with",
-      body: "If you had a mortgage secured against the property, your solicitor will have used the completion funds to repay it. They'll account to you for the remaining sale proceeds after any mortgage, fees and other agreed costs have been paid.",
+      title: "Your mortgage has been repaid",
+      body: "If you had a mortgage on the property, your solicitor will repay it from the sale proceeds. They'll then send you the balance after any mortgage, fees and other agreed costs have been paid.",
     },
     {
       title: "Keep your completion statement",
-      body: "Keep your completion statement and other important documents from the sale somewhere safe. You may need them for future legal or tax purposes.",
+      body: "Keep your completion statement and other important sale documents somewhere safe. You may need them again in the future.",
     },
   ],
   purchaser: [
     {
-      title: "Your solicitor will register your ownership",
-      body: "Your solicitor will deal with registering you as the new owner with HM Land Registry. This can take some time, but there's normally nothing you need to do unless your solicitor contacts you.",
+      title: "Your ownership will be registered",
+      body: "Your solicitor will register you as the new owner with HM Land Registry. This can take some time, but there's normally nothing you need to do.",
     },
     {
       title: "Keep your important documents",
-      body: "Keep your completion statement and any important documents your solicitor sends you somewhere safe. They may be useful when you eventually sell or for future legal or tax purposes.",
+      body: "Keep your completion statement and any other important documents from your solicitor somewhere safe. They may be useful when you eventually come to sell.",
     },
     {
-      title: "Your SDLT will be dealt with",
-      body: "If Stamp Duty Land Tax was payable, your solicitor will usually submit the return and arrange payment on your behalf. Keep any confirmation they provide with your purchase records.",
+      title: "Your Stamp Duty will be dealt with",
+      body: "If Stamp Duty Land Tax is due, your solicitor will usually submit the return and arrange payment for you. Keep the confirmation with your other purchase documents.",
     },
   ],
 };

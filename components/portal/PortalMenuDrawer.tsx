@@ -74,6 +74,7 @@ type Props = {
 export function PortalMenuDrawer({ open, onClose, token, contactName, contactRole, scrollToSection, editSolicitor, pushedDown }: Props) {
   const agentsRef = useRef<HTMLDivElement>(null);
   const solicitorRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<MyPortalDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -113,6 +114,13 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   useEffect(() => {
     if (open && (scrollToSection === "solicitor" || scrollToSection === "agents")) setActiveTab("settings");
   }, [open, scrollToSection]);
+
+  // Switching tabs starts you back at the top of the new tab (not where the
+  // last one was left). Runs before the deep-link section-scroll below, so a
+  // "scroll to my solicitor" link still wins.
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [activeTab]);
 
   useEffect(() => {
     if (!open || !contentReady || !details || activeTab !== "settings") return;
@@ -326,7 +334,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
         </div>
 
         {/* Body — fades in ~220ms after the drawer finishes sliding up. */}
-        <div style={{
+        <div ref={bodyRef} style={{
           flex: 1, overflow: "auto",
           padding: "20px 20px 32px",
           paddingBottom: "max(env(safe-area-inset-bottom, 0px), 32px)",

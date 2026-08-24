@@ -62,7 +62,19 @@ export function PortalInformationTab({
     }
   }
 
-  if (loading) return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>Loading…</p>;
+  if (loading) {
+    // Quiet skeleton (matches Documents / Settings) rather than the word "Loading".
+    return (
+      <div aria-hidden style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="portal-shimmer" style={{ height: 11, width: "34%", borderRadius: 6 }} />
+            <div className="portal-shimmer" style={{ height: 46, width: "100%", borderRadius: 14 }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (!ctx || !info) return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>We couldn&apos;t load this.</p>;
 
   const other = ctx.role === "seller" ? "buyer" : "seller";
