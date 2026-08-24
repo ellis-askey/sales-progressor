@@ -48,7 +48,12 @@ export type OnwardTrackerView = {
   steps: OnwardStepView[]; // empty until typeFactsSet
   completeCount: number;
   applicableCount: number;
+  surveySkipped: boolean; // seller opted out of the survey (mirrors the buyer skip)
 };
+
+// The survey pair a seller can opt out of, mirroring the buyer's manual skip
+// (PM9 book survey cascades to PM10 survey report).
+export const ONWARD_SURVEY_CODES = ["PM9", "PM10"] as const;
 
 type PurchaserDef = {
   code: string;
@@ -133,6 +138,7 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
       steps: [],
       completeCount: 0,
       applicableCount: 0,
+      surveySkipped: false,
     };
   }
 
@@ -149,11 +155,17 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
       steps: [],
       completeCount: 0,
       applicableCount: 0,
+      surveySkipped: tracker.manualNrCodes.includes("PM9"),
     };
   }
 
   const defs = await loadPurchaserDefs();
-  const autoNr = computeAutoNrCodes(tracker.purchaseType, tracker.tenure);
+  // Auto-not-required (from tenure + how they're buying) plus anything the
+  // seller manually opted out of (e.g. the survey).
+  const autoNr = new Set<string>([
+    ...computeAutoNrCodes(tracker.purchaseType, tracker.tenure),
+    ...tracker.manualNrCodes,
+  ]);
   const confirmedByCode = new Map(tracker.steps.map((s) => [s.milestoneCode, s]));
   const confirmedSet = new Set(confirmedByCode.keys());
   const availability = computeOnwardStepAvailability(defs, autoNr, confirmedSet);
@@ -198,7 +210,29 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
     steps,
     completeCount: steps.filter((s) => s.isComplete).length,
     applicableCount: steps.length,
+    surveySkipped: tracker.manualNrCodes.includes("PM9"),
   };
+}
+
+/**
+ * Toggle the seller's survey opt-out on their onward tracker. Mirrors the
+ * buyer's manual survey skip: marks the survey pair (PM9 + PM10) not-required
+ * and clears any confirmations for them; passing skipped=false restores them.
+ */
+export async function setOnwardSurveySkipped(transactionId: string, skipped: boolean): Promise<void> {
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId },
+    select: { id: true, status: true, manualNrCodes: true },
+  });
+  if (!tracker || tracker.status === "superseded") return;
+  const set = new Set(tracker.manualNrCodes);
+  for (const c of ONWARD_SURVEY_CODES) { if (skipped) set.add(c); else set.delete(c); }
+  await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { manualNrCodes: [...set] } });
+  if (skipped) {
+    await prisma.onwardStepConfirmation.deleteMany({
+      where: { trackerId: tracker.id, milestoneCode: { in: [...ONWARD_SURVEY_CODES] } },
+    });
+  }
 }
 
 // ── Stage 4: lifecycle (manual) ──────────────────────────────────────────────
@@ -350,7 +384,10 @@ export async function confirmOnwardStep(
   if (tracker.tenure == null || tracker.purchaseType == null) return { ok: false, reason: "type_facts_missing" };
 
   const defs = await loadPurchaserDefs();
-  const autoNr = computeAutoNrCodes(tracker.purchaseType, tracker.tenure);
+  const autoNr = new Set<string>([
+    ...computeAutoNrCodes(tracker.purchaseType, tracker.tenure),
+    ...tracker.manualNrCodes,
+  ]);
   if (autoNr.has(milestoneCode) || !defs.some((d) => d.code === milestoneCode)) {
     return { ok: false, reason: "not_applicable" };
   }
