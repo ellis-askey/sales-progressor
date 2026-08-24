@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DotsThree, DownloadSimple, Trash, Plus, FileText, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
+import { PortalSheet } from "./PortalSheet";
 import { getMyPortalDocumentsAction, portalDeleteDocument, portalToggleDocumentShare } from "@/app/actions/portal";
 import { uploadDocumentDirect } from "@/lib/upload/direct-upload";
 import { categoriesFor, isDocShareable } from "@/lib/portal-documents";
@@ -132,8 +133,7 @@ export function PortalDocumentsTab({ token, initialData }: { token: string; init
         </div>
       )}
 
-      {addOpen && typeof document !== "undefined" &&
-        createPortal(<AddSheet token={token} data={data} preselect={preselect} onClose={() => setAddOpen(false)} onDone={() => { setAddOpen(false); reload(); }} />, document.body)}
+      <AddSheet open={addOpen} token={token} data={data} preselect={preselect} onClose={() => setAddOpen(false)} onDone={() => { setAddOpen(false); reload(); }} />
     </div>
   );
 }
@@ -312,12 +312,14 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
 }
 
 function AddSheet({
+  open,
   token,
   data,
   preselect,
   onClose,
   onDone,
 }: {
+  open: boolean;
   token: string;
   data: PortalDocumentsData;
   preselect: string | null;
@@ -331,6 +333,17 @@ function AddSheet({
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Always mounted now (so it can animate out), so reset the picker each time
+  // it opens, honouring the current preselect.
+  useEffect(() => {
+    if (!open) return;
+    setCatKey(preCat?.key ?? cats[0]?.key ?? "");
+    setDocKey(preselect ?? "");
+    setFile(null);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const activeCat = cats.find((c) => c.key === catKey) ?? cats[0];
 
@@ -356,16 +369,7 @@ function AddSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
-      <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
-      <div
-        className="portal-sheet relative w-full max-w-lg mx-auto"
-        style={{ background: P.cardBg, borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`, boxShadow: P.shadowXl, paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
-        </div>
+    <PortalSheet open={open} onClose={onClose} closeDisabled={uploading} showClose={false}>
         <div className="px-6 pt-2 pb-6">
           <p className="text-[18px] font-bold mb-4" style={{ color: P.textPrimary }}>Add a document</p>
 
@@ -412,7 +416,6 @@ function AddSheet({
             {uploading ? "Uploading…" : "Upload"}
           </button>
         </div>
-      </div>
-    </div>
+    </PortalSheet>
   );
 }
