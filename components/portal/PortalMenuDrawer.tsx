@@ -372,7 +372,19 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                   <div ref={agentsRef}>
                     <YourAgentsSection details={details} token={token} onSaved={reload} />
                   </div>
-                  {contactRole === "purchaser" && <ServicesSection token={token} survey={details.survey} onSaved={reload} />}
+                  {/* Buyers: survey nudge while getting a survey is still an open
+                      decision; the general "Request a quote" once it's resolved
+                      (booked, already requested, or marked not required). Sellers
+                      always get the general entry. */}
+                  {contactRole === "purchaser" &&
+                    (details.survey.applicable &&
+                    !details.survey.skipped &&
+                    !details.survey.booked &&
+                    !details.survey.requested ? (
+                      <ServicesSection token={token} survey={details.survey} onSaved={reload} />
+                    ) : (
+                      <RequestQuoteSection token={token} />
+                    ))}
                   {contactRole === "vendor" && <RequestQuoteSection token={token} />}
                   <NotificationsSection details={details} token={token} onSaved={reload} />
                 </>
