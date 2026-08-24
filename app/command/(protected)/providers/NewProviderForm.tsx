@@ -53,6 +53,7 @@ export function NewProviderForm() {
           className="w-full bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-[13px] text-[#fafafa] focus:outline-none focus:border-[#2563eb]"
         >
           <option value="surveyor">Surveyor</option>
+          <option value="structural_engineer">Structural engineer</option>
           <option value="mortgage_broker">Mortgage broker</option>
         </select>
       </div>

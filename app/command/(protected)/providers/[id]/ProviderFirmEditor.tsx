@@ -13,6 +13,7 @@ type Initial = {
   notes: string | null;
   active: boolean;
   ricsRegulated: boolean;
+  charteredEngineer: boolean;
   establishedYear: number | null;
   turnaround: string | null;
   tspDefault: boolean;
@@ -27,6 +28,7 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
   const [notes, setNotes] = useState(initial.notes ?? "");
   const [active, setActive] = useState(initial.active);
   const [ricsRegulated, setRicsRegulated] = useState(initial.ricsRegulated);
+  const [charteredEngineer, setCharteredEngineer] = useState(initial.charteredEngineer);
   const [establishedYear, setEstablishedYear] = useState(initial.establishedYear != null ? String(initial.establishedYear) : "");
   const [turnaround, setTurnaround] = useState(initial.turnaround ?? "");
   const [tspDefault, setTspDefault] = useState(initial.tspDefault);
@@ -34,6 +36,8 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
   const [error, setError] = useState<string | null>(null);
 
   const isBroker = initial.kind === "mortgage_broker";
+  const isStructural = initial.kind === "structural_engineer";
+  const isSurveyor = initial.kind === "surveyor";
   const initialYear = initial.establishedYear != null ? String(initial.establishedYear) : "";
   const dirty =
     name !== initial.name ||
@@ -43,6 +47,7 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
     (notes || "") !== (initial.notes ?? "") ||
     active !== initial.active ||
     ricsRegulated !== initial.ricsRegulated ||
+    charteredEngineer !== initial.charteredEngineer ||
     (establishedYear || "") !== initialYear ||
     (turnaround || "") !== (initial.turnaround ?? "") ||
     tspDefault !== initial.tspDefault;
@@ -60,6 +65,7 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
         notes: notes || null,
         active,
         ricsRegulated,
+        charteredEngineer,
         establishedYear: establishedYear.trim() ? Number(establishedYear.trim()) : null,
         turnaround: turnaround || null,
         tspDefault,
@@ -106,15 +112,28 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
         <label className="block text-[10px] font-semibold text-[#525252] uppercase tracking-widest mb-1.5">
           Trust signals (shown on the client picker)
         </label>
-        <label className="flex items-center gap-2 mb-2.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={ricsRegulated}
-            onChange={(e) => setRicsRegulated(e.target.checked)}
-            className="w-4 h-4 accent-[#2563eb]"
-          />
-          <span className="text-[13px] text-[#d4d4d4]">RICS regulated</span>
-        </label>
+        {isSurveyor && (
+          <label className="flex items-center gap-2 mb-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={ricsRegulated}
+              onChange={(e) => setRicsRegulated(e.target.checked)}
+              className="w-4 h-4 accent-[#2563eb]"
+            />
+            <span className="text-[13px] text-[#d4d4d4]">RICS regulated</span>
+          </label>
+        )}
+        {isStructural && (
+          <label className="flex items-center gap-2 mb-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={charteredEngineer}
+              onChange={(e) => setCharteredEngineer(e.target.checked)}
+              className="w-4 h-4 accent-[#2563eb]"
+            />
+            <span className="text-[13px] text-[#d4d4d4]">Chartered engineer <span className="text-[#737373]">(CEng / IStructE)</span></span>
+          </label>
+        )}
         <div className="grid grid-cols-2 gap-2.5">
           <TextField label="Established (year)" value={establishedYear} onChange={setEstablishedYear} placeholder="e.g. 2008" />
           <TextField label="Typical turnaround" value={turnaround} onChange={setTurnaround} placeholder="e.g. Quotes within 2 days" />

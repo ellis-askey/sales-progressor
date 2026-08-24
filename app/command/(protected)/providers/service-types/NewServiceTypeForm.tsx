@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createServiceType } from "@/app/actions/provider-service-types";
+import type { ProviderKind } from "@prisma/client";
 
 export function NewServiceTypeForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [kind, setKind] = useState<ProviderKind>("surveyor");
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
   const [sortOrder, setSortOrder] = useState<string>("50");
@@ -19,7 +21,7 @@ export function NewServiceTypeForm() {
     setError(null);
     startTransition(async () => {
       const r = await createServiceType({
-        kind: "surveyor",
+        kind,
         label,
         description: description || null,
         sortOrder: parseInt(sortOrder, 10) || 50,
@@ -81,8 +83,16 @@ export function NewServiceTypeForm() {
 
         {error && <p className="text-[11px] text-[#fca5a5]">{error}</p>}
 
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-[#525252]">Kind defaults to surveyor.</p>
+        <div className="flex items-center justify-between gap-3">
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as ProviderKind)}
+            className="bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-[12px] text-[#fafafa] focus:outline-none focus:border-[#2563eb]"
+          >
+            <option value="surveyor">Surveyor</option>
+            <option value="structural_engineer">Structural engineer</option>
+            <option value="mortgage_broker">Mortgage broker</option>
+          </select>
           <button
             onClick={submit}
             disabled={!canSubmit}

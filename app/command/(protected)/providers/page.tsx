@@ -29,6 +29,7 @@ export default async function CommandProvidersPage() {
   });
 
   const surveyorCount = firms.filter((f) => f.kind === "surveyor").length;
+  const structuralCount = firms.filter((f) => f.kind === "structural_engineer").length;
   const brokerCount = firms.filter((f) => f.kind === "mortgage_broker").length;
   const activeCount = firms.filter((f) => f.active).length;
 
@@ -58,6 +59,7 @@ export default async function CommandProvidersPage() {
       <div className="flex gap-3 mb-6">
         <SummaryTile label="Total firms" value={firms.length} />
         <SummaryTile label="Surveyors" value={surveyorCount} />
+        <SummaryTile label="Structural" value={structuralCount} />
         <SummaryTile label="Brokers" value={brokerCount} />
         <SummaryTile label="Active" value={activeCount} />
       </div>
