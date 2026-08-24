@@ -24,6 +24,7 @@ import {
   abandonOnwardTracker,
   reactivateOnwardTracker,
   resetOnwardTracker,
+  setOnwardSurveySkipped,
   type OnwardTrackerView,
   type ConfirmOnwardResult,
   type UndoOnwardResult,
@@ -197,6 +198,15 @@ export async function portalResetOnwardAction(token: string): Promise<OnwardTrac
   const v = await resolveVendor(token);
   if (!v) return null;
   await resetOnwardTracker(v.transactionId);
+  return getOnwardTrackerView(v.transactionId);
+}
+
+// Seller opts out of (or back into) the survey on their onward, mirroring the
+// buyer's manual survey skip.
+export async function portalSkipOnwardSurveyAction(token: string, skipped: boolean): Promise<OnwardTrackerView | null> {
+  const v = await resolveVendor(token);
+  if (!v) return null;
+  await setOnwardSurveySkipped(v.transactionId, skipped);
   return getOnwardTrackerView(v.transactionId);
 }
 

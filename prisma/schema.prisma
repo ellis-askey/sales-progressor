@@ -2914,6 +2914,10 @@ model OnwardTracker {
   purchaseType      PurchaseType?
   isShareOfFreehold Boolean             @default(false)
   status            OnwardTrackerStatus @default(active)
+  // Steps the seller has manually opted out of (e.g. skipping the survey),
+  // merged with the auto-not-required set on read. Mirrors the buyer's manual
+  // survey skip, which is the only step a client can opt out of.
+  manualNrCodes     String[]            @default([])
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 

@@ -20,7 +20,7 @@ import { A } from "./ui";
 import "@/app/styles/elevra.css";
 
 export const metadata = {
-  title: "Get a survey quote | Sales Progressor",
+  title: "Request a quote | Sales Progressor",
 };
 
 export const dynamic = "force-dynamic";
@@ -59,34 +59,52 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
 
   const outward = outwardCode(contact.transaction.propertyAddress);
 
-  const [serviceTypes, coveringFirms] = await Promise.all([
+  const [serviceTypes, coveringFirms, brokerFirms] = await Promise.all([
+    // All active service types across every provider kind.
     prisma.providerServiceType.findMany({
-      where: { kind: "surveyor", active: true },
-      orderBy: { sortOrder: "asc" },
+      where: { active: true },
+      orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
     }),
+    // Surveyors + structural engineers are gated to firms covering the postcode.
     outward
       ? prisma.providerFirm.findMany({
           where: {
-            kind: "surveyor",
+            kind: { in: ["surveyor", "structural_engineer"] },
             active: true,
             coverage: { some: { outwardCode: outward } },
           },
-          include: {
-            serviceTypes: { select: { serviceTypeId: true } },
-          },
+          include: { serviceTypes: { select: { serviceTypeId: true } } },
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    // Mortgage brokers work nationwide — no coverage gate, TSP default first.
+    prisma.providerFirm.findMany({
+      where: { kind: "mortgage_broker", active: true },
+      include: { serviceTypes: { select: { serviceTypeId: true } } },
+      orderBy: [{ tspDefault: "desc" }, { name: "asc" }],
+    }),
   ]);
 
-  const firmsForClient = coveringFirms.map((f) => ({
+  const allFirms = [...coveringFirms, ...brokerFirms];
+  const firmsForClient = allFirms.map((f) => ({
     id: f.id,
     name: f.name,
+    kind: f.kind,
     notes: f.notes,
     website: f.website,
     logoUrl: getProviderLogoUrl(f.logoPath),
     serviceTypeIds: f.serviceTypes.map((s) => s.serviceTypeId),
   }));
+
+  // Only offer a category the client can act on (has at least one available firm).
+  const KIND_LABELS: Record<string, string> = {
+    surveyor: "Surveyor",
+    structural_engineer: "Structural engineer",
+    mortgage_broker: "Mortgage broker",
+  };
+  const availableKinds = (["surveyor", "structural_engineer", "mortgage_broker"] as const)
+    .filter((k) => allFirms.some((f) => f.kind === k))
+    .map((k) => ({ kind: k as string, label: KIND_LABELS[k] }));
 
   return (
     <main
@@ -110,13 +128,13 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
         {/* Header */}
         <header style={{ marginBottom: 24 }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: A.coralDeep, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
-            Get a survey quote
+            Request a quote
           </p>
           <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
-            {extractFirstName(contact.name)}, let's find you a surveyor
+            {extractFirstName(contact.name)}, what do you need?
           </h1>
           <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
-            For your purchase at <strong style={{ color: A.textSecondary }}>{contact.transaction.propertyAddress}</strong>. We'll only send quotes to firms that cover your area.
+            For <strong style={{ color: A.textSecondary }}>{contact.transaction.propertyAddress}</strong>. We'll only pass your details to the firms you choose.
           </p>
         </header>
 
@@ -126,8 +144,10 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
           outwardCode={outward}
           priceLabel={priceLabel(contact.transaction.purchasePrice)}
           tenureLabel={tenureLabel(contact.transaction.tenure, contact.transaction.isShareOfFreehold)}
+          kinds={availableKinds}
           serviceTypes={serviceTypes.map((s) => ({
             id: s.id,
+            kind: s.kind,
             label: s.label,
             description: s.description,
           }))}

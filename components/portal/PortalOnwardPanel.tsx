@@ -21,6 +21,7 @@ import {
   portalUndoOnwardStepAction,
   portalReactivateOnwardAction,
   portalGetOnwardTrackerAction,
+  portalSkipOnwardSurveyAction,
 } from "@/app/actions/portal-onward";
 
 // Open the shared manage drawer (change place / no longer buying) — the same
@@ -71,6 +72,7 @@ export function PortalOnwardPanel({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
+  const [skipSheet, setSkipSheet] = useState(false);
 
   // The manage drawer (change place / no longer buying) lives at the shell
   // level; refetch when it saves so this panel reflects the change.
@@ -288,9 +290,21 @@ export function PortalOnwardPanel({
                               Undo
                             </button>
                           ) : step.isAvailable ? (
-                            <PortalButton size="sm" full={false} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
-                              Confirm
-                            </PortalButton>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <PortalButton size="sm" full={false} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
+                                Confirm
+                              </PortalButton>
+                              {step.code === "PM9" && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSkipSheet(true)}
+                                  className="text-[11px] font-medium underline"
+                                  style={{ color: P.textMuted, background: "none", border: "none", cursor: "pointer" }}
+                                >
+                                  Skip survey
+                                </button>
+                              )}
+                            </div>
                           ) : null}
                         </div>
                       </div>
@@ -306,8 +320,50 @@ export function PortalOnwardPanel({
 
       {error && <p className="text-[12px] px-1" style={{ color: P.warning }}>{error}</p>}
 
+      {view.surveySkipped && (
+        <p className="text-[12px] px-1" style={{ color: P.textMuted }}>
+          You&apos;ve marked the survey as not needed.{" "}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => portalSkipOnwardSurveyAction(token, false))}
+            className="font-semibold underline"
+            style={{ color: P.textMuted, background: "none", border: "none", cursor: "pointer" }}
+          >
+            Undo
+          </button>
+        </p>
+      )}
+
       {/* "Changed place" and "no longer buying" live on the Information tab and
           in Settings (where the onward is added / edited), not here. */}
+
+      {/* Skip-survey confirm — mirrors the buyer's skip sheet. */}
+      <PortalSheet open={skipSheet} onClose={() => setSkipSheet(false)} closeDisabled={pending}>
+        <div className="px-6 pb-6 pt-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.warning }}>Skip survey</p>
+          <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>Not getting a survey?</p>
+          <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
+            We&apos;ll mark the survey steps on your onward as not needed. You can undo this anytime.
+          </p>
+          <button
+            onClick={() => run(async () => { const v = await portalSkipOnwardSurveyAction(token, true); setSkipSheet(false); return v; })}
+            disabled={pending}
+            className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+            style={{ background: P.warning, borderRadius: P.radiusMd }}
+          >
+            {pending ? "Saving…" : "Yes, skip the survey"}
+          </button>
+          <button
+            onClick={() => setSkipSheet(false)}
+            disabled={pending}
+            className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+            style={{ color: P.textSecondary }}
+          >
+            Cancel
+          </button>
+        </div>
+      </PortalSheet>
 
       {/* Confirm drawer — matches the buyer step confirmation drawer, phrased for
           the seller's onward purchase. Slides up + down via PortalSheet. */}

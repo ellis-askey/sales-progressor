@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
@@ -95,6 +95,10 @@ function groupByTransaction(tasks: Task[]): Group[] {
   });
 }
 
+// Lets any TaskRow change its own due date without prop-drilling through
+// Section → TaskGroup → TaskRow. Null = editing disabled.
+const DueDateContext = createContext<((id: string, dueDate: string | null) => void) | null>(null);
+
 export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; role?: string }) {
   const isProgressor = role === "sales_progressor";
   const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
@@ -108,6 +112,17 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) return;
+    const updated = await res.json();
+    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+  }
+
+  async function handleDueDate(id: string, dueDate: string | null) {
+    const res = await fetch(`/api/manual-tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueDate }),
     });
     if (!res.ok) return;
     const updated = await res.json();
@@ -211,6 +226,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
   }
 
   return (
+    <DueDateContext.Provider value={handleDueDate}>
     <div className="space-y-8">
       {/* Agency users get the regular Add form; internal staff see an
           internal-self-assigned Add form (no ownership toggle — the kind
@@ -272,6 +288,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
         />
       )}
     </div>
+    </DueDateContext.Provider>
   );
 }
 
@@ -449,6 +466,8 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
   const isDone = task.status === "done";
   const [loading, setLoading] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
+  const onDueDate = useContext(DueDateContext);
   const dueStatus = task.dueDate && !isDone ? getDueStatus(task.dueDate) : null;
 
   async function toggle() {
@@ -532,23 +551,43 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
         )}
       </div>
 
-      {/* Due date or created date */}
+      {/* Due date — click to change (open tasks); created date otherwise */}
       <div style={{ flexShrink: 0, textAlign: "right", marginTop: 2 }}>
-        {dueStatus ? (
+        {editingDate ? (
+          <input
+            type="date"
+            autoFocus
+            defaultValue={task.dueDate ? toUKDateStr(task.dueDate) : ""}
+            onChange={(e) => { onDueDate?.(task.id, e.target.value || null); setEditingDate(false); }}
+            onBlur={() => setEditingDate(false)}
+            style={{ fontSize: 11, padding: "2px 4px", border: "1px solid var(--agent-border-default)", borderRadius: 6, background: "var(--agent-surface)", color: "var(--agent-text-primary)" }}
+          />
+        ) : (
           <>
-            <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>
-              {dueStatus.label}
-            </span>
-            {progressor && dueStatus.reassure && !isProgressorView && (
+            {onDueDate && !isDone ? (
+              <button
+                type="button"
+                onClick={() => setEditingDate(true)}
+                title="Change due date"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "right" }}
+              >
+                {dueStatus ? (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
+                ) : (
+                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}>Set date</span>
+                )}
+              </button>
+            ) : dueStatus ? (
+              <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
+            ) : (
+              <span style={{ fontSize: 11, color: "var(--agent-text-disabled)" }}>{fmtDate(task.createdAt)}</span>
+            )}
+            {progressor && dueStatus?.reassure && !isProgressorView && (
               <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
                 Our team is on it
               </p>
             )}
           </>
-        ) : (
-          <span style={{ fontSize: 11, color: "var(--agent-text-disabled)" }}>
-            {fmtDate(task.createdAt)}
-          </span>
         )}
       </div>
     </div>

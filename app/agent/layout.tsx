@@ -6,6 +6,7 @@ import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { shouldSeeKineticShell } from "@/lib/kinetic/flag";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
+import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
@@ -37,6 +38,12 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     session.user.agencyId,
   );
 
+  // To-Do nav badge: count of the user's own due-today + overdue to-dos.
+  // Admins don't get the To-Do nav item, so skip the query for them.
+  const todoDueCount = session.user.role === "admin"
+    ? 0
+    : await countAgentDueOrOverdue(session.user.id, session.user.agencyId, session.user.role);
+
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
       {/* The user's brand colour, derived into the full token set at render
@@ -53,7 +60,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={todoDueCount}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

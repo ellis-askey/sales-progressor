@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { P } from "./portal-ui";
+import { PortalSheet } from "./PortalSheet";
 import { getMyMoveInfoAction, portalSaveMoveInfoAction } from "@/app/actions/portal";
 import { portalOnwardMortgageStatusAction, portalConfirmOnwardMortgageOfferAction } from "@/app/actions/portal-onward";
 import type { MoveInfo, MoveInfoContext, UnavailableRange } from "@/lib/services/portal-info";
@@ -42,12 +43,6 @@ export function PortalInformationTab({
   }, [token, initialData]);
 
   const [mortgageModal, setMortgageModal] = useState(false);
-  useEffect(() => {
-    if (!mortgageModal) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [mortgageModal]);
   const [mortgageBusy, setMortgageBusy] = useState(false);
 
   async function patch(section: string, p: Partial<MoveInfo>) {
@@ -67,7 +62,19 @@ export function PortalInformationTab({
     }
   }
 
-  if (loading) return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>Loading…</p>;
+  if (loading) {
+    // Quiet skeleton (matches Documents / Settings) rather than the word "Loading".
+    return (
+      <div aria-hidden style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="portal-shimmer" style={{ height: 11, width: "34%", borderRadius: 6 }} />
+            <div className="portal-shimmer" style={{ height: 46, width: "100%", borderRadius: 14 }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (!ctx || !info) return <p className="text-[13px] py-6 text-center" style={{ color: P.textMuted }}>We couldn&apos;t load this.</p>;
 
   const other = ctx.role === "seller" ? "buyer" : "seller";
@@ -216,38 +223,31 @@ export function PortalInformationTab({
         </Section>
       )}
 
-      {/* Mortgage-offer shortcut modal */}
-      {mortgageModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => { if (!mortgageBusy) setMortgageModal(false); }}>
-          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
-          <div
-            className="relative w-full max-w-md mx-auto p-6"
-            style={{ background: P.cardBg, borderRadius: P.radiusXl, boxShadow: P.shadowXl, marginBottom: "env(safe-area-inset-bottom, 0px)" }}
-            onClick={(e) => e.stopPropagation()}
+      {/* Mortgage-offer shortcut sheet */}
+      <PortalSheet open={mortgageModal} onClose={() => setMortgageModal(false)} closeDisabled={mortgageBusy} showClose={false} maxWidthClass="max-w-md">
+        <div className="px-6 pt-2 pb-6">
+          <p className="text-[18px] font-semibold mb-2" style={{ color: P.textPrimary }}>Is your mortgage offer in place?</p>
+          <p className="text-[14px] leading-relaxed mb-5" style={{ color: P.textSecondary }}>
+            You&apos;ve added your offer expiry, so it sounds like your mortgage is sorted. If your offer is in place, we&apos;ll tick off the mortgage steps on your onward: applied, valuation and offer received.
+          </p>
+          <button
+            onClick={async () => { setMortgageBusy(true); try { await portalConfirmOnwardMortgageOfferAction(token); } finally { setMortgageBusy(false); setMortgageModal(false); } }}
+            disabled={mortgageBusy}
+            className="w-full py-3.5 rounded-xl text-[15px] font-bold text-white mb-2"
+            style={{ background: P.primary, borderRadius: P.radiusMd, opacity: mortgageBusy ? 0.6 : 1 }}
           >
-            <p className="text-[18px] font-semibold mb-2" style={{ color: P.textPrimary }}>Is your mortgage offer in place?</p>
-            <p className="text-[14px] leading-relaxed mb-5" style={{ color: P.textSecondary }}>
-              You&apos;ve added your offer expiry, so it sounds like your mortgage is sorted. If your offer is in place, we&apos;ll tick off the mortgage steps on your onward: applied, valuation and offer received.
-            </p>
-            <button
-              onClick={async () => { setMortgageBusy(true); try { await portalConfirmOnwardMortgageOfferAction(token); } finally { setMortgageBusy(false); setMortgageModal(false); } }}
-              disabled={mortgageBusy}
-              className="w-full py-3.5 rounded-xl text-[15px] font-bold text-white mb-2"
-              style={{ background: P.primary, borderRadius: P.radiusMd, opacity: mortgageBusy ? 0.6 : 1 }}
-            >
-              {mortgageBusy ? "Saving…" : "Yes, my offer is in place"}
-            </button>
-            <button
-              onClick={() => setMortgageModal(false)}
-              disabled={mortgageBusy}
-              className="w-full py-3 text-[15px] font-medium rounded-xl"
-              style={{ color: P.textSecondary }}
-            >
-              Not yet
-            </button>
-          </div>
+            {mortgageBusy ? "Saving…" : "Yes, my offer is in place"}
+          </button>
+          <button
+            onClick={() => setMortgageModal(false)}
+            disabled={mortgageBusy}
+            className="w-full py-3 text-[15px] font-medium rounded-xl"
+            style={{ color: P.textSecondary }}
+          >
+            Not yet
+          </button>
         </div>
-      )}
+      </PortalSheet>
 
       {/* MOVING PLANS */}
       <Section id="moving-plans" label="Moving plans" saved={savedSection}>
