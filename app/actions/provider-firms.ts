@@ -42,6 +42,7 @@ export type FirmInput = {
   notes?: string | null;
   active: boolean;
   ricsRegulated?: boolean;
+  charteredEngineer?: boolean;
   establishedYear?: number | null;
   turnaround?: string | null;
   // Sales Progressor's default provider of this kind — the fallback shown on
@@ -72,6 +73,7 @@ function validateFirmInput(input: FirmInput): string | null {
 function firmTrustData(input: FirmInput) {
   return {
     ricsRegulated: input.ricsRegulated ?? false,
+    charteredEngineer: input.charteredEngineer ?? false,
     establishedYear: input.establishedYear ?? null,
     turnaround: input.turnaround?.trim() || null,
   };

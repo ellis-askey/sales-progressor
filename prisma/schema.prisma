@@ -913,6 +913,9 @@ model ProviderFirm {
   // Client-facing trust signals shown on the survey-quote card (no contact
   // details — clients request quotes through us, they don't contact directly).
   ricsRegulated   Boolean @default(false)
+  // Chartered engineer credential (CEng / IStructE) — the structural-engineer
+  // equivalent of ricsRegulated. Which one is shown depends on the firm kind.
+  charteredEngineer Boolean @default(false)
   establishedYear Int?
   turnaround      String? // e.g. "Quotes within 2 working days"
   // Sales Progressor's own default provider of this kind — the one shown as
@@ -1044,6 +1047,7 @@ model QuoteRequest {
 enum ProviderKind {
   surveyor
   mortgage_broker
+  structural_engineer
 }
 
 enum QuoteRequestStatus {

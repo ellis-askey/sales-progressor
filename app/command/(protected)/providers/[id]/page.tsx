@@ -120,6 +120,7 @@ export default async function CommandProviderDetailPage({
                 notes: firm.notes,
                 active: firm.active,
                 ricsRegulated: firm.ricsRegulated,
+                charteredEngineer: firm.charteredEngineer,
                 establishedYear: firm.establishedYear,
                 turnaround: firm.turnaround,
                 tspDefault: firm.tspDefault,
