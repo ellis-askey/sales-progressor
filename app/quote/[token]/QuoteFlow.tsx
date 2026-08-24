@@ -5,10 +5,12 @@ import { submitQuoteRequest, type QuoteSubmitResult } from "./actions";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency } from "@prisma/client";
 import { A } from "./ui";
 
-type ServiceType = { id: string; label: string; description: string | null };
+type Kind = { kind: string; label: string };
+type ServiceType = { id: string; kind: string; label: string; description: string | null };
 type Firm = {
   id: string;
   name: string;
+  kind: string;
   notes: string | null;
   website: string | null;
   logoUrl: string | null;
@@ -25,6 +27,7 @@ export function QuoteFlow({
   outwardCode,
   priceLabel,
   tenureLabel,
+  kinds,
   serviceTypes,
   firms,
   contactName,
@@ -36,12 +39,15 @@ export function QuoteFlow({
   outwardCode: string | null;
   priceLabel: string | null;
   tenureLabel: string | null;
+  kinds: Kind[];
   serviceTypes: ServiceType[];
   firms: Firm[];
   contactName: string;
   contactEmail: string;
   contactPhone: string;
 }) {
+  // When there's only one category available, pre-select it and hide the step.
+  const [kind, setKind] = useState<string | null>(kinds.length === 1 ? kinds[0].kind : null);
   const [serviceTypeId, setServiceTypeId] = useState<string | null>(null);
   const [selectedFirms, setSelectedFirms] = useState<Set<string>>(new Set());
   const [contactMethod, setContactMethod] = useState<QuoteContactMethod>("either");
@@ -57,11 +63,20 @@ export function QuoteFlow({
 
   const phoneRequired = PHONE_METHODS.includes(contactMethod);
 
-  // Firms filtered by whether they offer the picked service type
+  // Service types for the chosen category.
+  const kindServiceTypes = useMemo(
+    () => (kind ? serviceTypes.filter((s) => s.kind === kind) : []),
+    [serviceTypes, kind],
+  );
+  // Firms in the chosen category that offer the picked service type.
   const eligibleFirms = useMemo(() => {
-    if (!serviceTypeId) return [] as Firm[];
-    return firms.filter((f) => f.serviceTypeIds.includes(serviceTypeId));
-  }, [firms, serviceTypeId]);
+    if (!kind || !serviceTypeId) return [] as Firm[];
+    return firms.filter((f) => f.kind === kind && f.serviceTypeIds.includes(serviceTypeId));
+  }, [firms, kind, serviceTypeId]);
+
+  // Step numbers shift by one when the category dropdown is shown.
+  const showKindStep = kinds.length > 1;
+  const n = (base: number) => base + (showKindStep ? 1 : 0);
 
   function toggleFirm(id: string) {
     const next = new Set(selectedFirms);
@@ -92,7 +107,7 @@ export function QuoteFlow({
 
   // ── Success screen — full receipt of what was sent (2026-08-19) ─────────
   if (result?.ok) {
-    const serviceLabel = serviceTypes.find((s) => s.id === serviceTypeId)?.label ?? "Survey";
+    const serviceLabel = serviceTypes.find((s) => s.id === serviceTypeId)?.label ?? "Service";
     const methodLabel: Record<QuoteContactMethod, string> = {
       either: "Phone or email", phone: "Phone", email: "Email", text: "Text message", whatsapp: "WhatsApp",
     };
@@ -202,7 +217,7 @@ export function QuoteFlow({
         >
           <p style={{ ...labelStyle, marginBottom: 10 }}>What we sent</p>
 
-          <ShareRow label="Survey type" value={serviceLabel} />
+          <ShareRow label="Service" value={serviceLabel} />
           <ShareRow label="Contact by" value={methodLabel[contactMethod]} />
           <ShareRow label="Best time" value={windowLabel[contactWindow]} />
           <ShareRow label="Timeframe" value={urgencyLabel[urgency]} />
@@ -222,7 +237,7 @@ export function QuoteFlow({
           {notes.trim() && (
             <>
               <div style={{ borderTop: `1px solid ${A.cardBorder}`, margin: "10px 0" }} />
-              <p style={{ ...labelStyle, marginBottom: 6 }}>Your note to the surveyor{result.count === 1 ? "" : "s"}</p>
+              <p style={{ ...labelStyle, marginBottom: 6 }}>Your note to the firm{result.count === 1 ? "" : "s"}</p>
               <p style={{ fontSize: 13, color: A.textPrimary, margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{notes.trim()}</p>
             </>
           )}
@@ -251,10 +266,10 @@ export function QuoteFlow({
         }}
       >
         <h2 style={{ fontSize: 18, fontWeight: 700, color: A.textPrimary, margin: "0 0 8px" }}>
-          No surveyors in your area yet
+          No firms available yet
         </h2>
         <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
-          We don't currently have any surveyors covering{" "}
+          We don't currently have any firms covering{" "}
           <strong style={{ color: A.textSecondary, fontFamily: "monospace" }}>
             {outwardCode ?? "your postcode"}
           </strong>
@@ -274,15 +289,38 @@ export function QuoteFlow({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Step 1: pick service type */}
-      <StepCard number={1} title="What kind of survey?">
+      {/* Step 1: pick provider category (hidden when only one is available) */}
+      {showKindStep && (
+        <StepCard number={1} title="What do you need?">
+          <select
+            value={kind ?? ""}
+            onChange={(e) => {
+              setKind(e.target.value || null);
+              setServiceTypeId(null);
+              setSelectedFirms(new Set());
+            }}
+            style={{ ...inputStyle, cursor: "pointer" }}
+          >
+            <option value="">Choose a type of provider…</option>
+            {kinds.map((k) => (
+              <option key={k.kind} value={k.kind}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </StepCard>
+      )}
+
+      {/* Service type (after a category is chosen) */}
+      {kind && (
+      <StepCard number={n(1)} title="What service do you need?">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {serviceTypes.map((s) => (
+          {kindServiceTypes.map((s) => (
             <button
               key={s.id}
               onClick={() => {
                 setServiceTypeId(s.id);
-                // Clear firm selection when switching service type — some firms might not offer the new type
+                // Clear firm selection when switching service — some firms might not offer the new one
                 setSelectedFirms(new Set());
               }}
               style={{
@@ -303,17 +341,18 @@ export function QuoteFlow({
           ))}
         </div>
       </StepCard>
+      )}
 
-      {/* Step 2: pick firms (only visible after step 1) */}
+      {/* Pick firms (only visible after a service is chosen) */}
       {serviceTypeId && (
         <StepCard
-          number={2}
-          title={`Pick a surveyor (${eligibleFirms.length} in your area)`}
+          number={n(2)}
+          title={`Pick a firm (${eligibleFirms.length})`}
           subtitle="You can select more than one. They'll each send you a quote."
         >
           {eligibleFirms.length === 0 ? (
             <p style={{ fontSize: 13, color: A.textMuted, padding: "12px 0", margin: 0 }}>
-              None of the firms in your area offer this service. Try picking a different service type above.
+              None of the available firms offer this service. Try picking a different service above.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -395,7 +434,7 @@ export function QuoteFlow({
 
       {/* Step 3: preferences (visible after firm picked) */}
       {serviceTypeId && selectedFirms.size > 0 && (
-        <StepCard number={3} title="How should they contact you?">
+        <StepCard number={n(3)} title="How should they contact you?">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <RadioRow
               label="Best way to reach you"
@@ -450,7 +489,7 @@ export function QuoteFlow({
 
       {/* Step 4: your contact details */}
       {serviceTypeId && selectedFirms.size > 0 && (
-        <StepCard number={4} title="Your details" subtitle="We've pre-filled from your file. Edit anything that needs updating.">
+        <StepCard number={n(4)} title="Your details" subtitle="We've pre-filled from your file. Edit anything that needs updating.">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <label style={labelStyle}>Name</label>
@@ -501,9 +540,9 @@ export function QuoteFlow({
             boxShadow: A.cardShadow,
           }}
         >
-          <p style={{ ...labelStyle, marginBottom: 10 }}>What the surveyor will see</p>
+          <p style={{ ...labelStyle, marginBottom: 10 }}>What the firm will see</p>
           <ShareRow label="Property" value={propertyAddress} />
-          {priceLabel && <ShareRow label="Purchase price" value={priceLabel} />}
+          {priceLabel && <ShareRow label="Price" value={priceLabel} />}
           {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
           {!priceLabel && !tenureLabel && (
             <p style={{ fontSize: 12, color: A.textMuted, margin: "8px 0 0", lineHeight: 1.4 }}>

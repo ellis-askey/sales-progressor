@@ -140,7 +140,9 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
 
   const validFirms = firms.filter(
     (f) =>
-      f.coverage.some((c) => c.outwardCode === outward) &&
+      // Mortgage brokers work nationwide (no coverage rows); everyone else must
+      // cover the property's outward code.
+      (f.kind === "mortgage_broker" || f.coverage.some((c) => c.outwardCode === outward)) &&
       f.serviceTypes.some((s) => s.serviceTypeId === serviceType.id),
   );
 

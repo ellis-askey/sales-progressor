@@ -373,6 +373,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                     <YourAgentsSection details={details} token={token} onSaved={reload} />
                   </div>
                   {contactRole === "purchaser" && <ServicesSection token={token} survey={details.survey} onSaved={reload} />}
+                  {contactRole === "vendor" && <RequestQuoteSection token={token} />}
                   <NotificationsSection details={details} token={token} onSaved={reload} />
                 </>
               ) : null}
@@ -776,6 +777,33 @@ function NotificationsSection({
           <SavedFlash />
         </div>
       )}
+    </SectionCard>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Request a quote — sellers' entry to /quote/[token]. Buyers reach the same
+//  picker via their survey prompt; this gives sellers a general entry so they
+//  can request a structural engineer, surveyor or mortgage broker too.
+// ═══════════════════════════════════════════════════════════════════════
+
+function RequestQuoteSection({ token }: { token: string }) {
+  return (
+    <SectionCard icon={<Wrench size={16} weight="regular" />} title="Request a quote">
+      <p style={{ margin: "0 0 10px", fontSize: 13, color: P.textSecondary, lineHeight: 1.5 }}>
+        Need a surveyor, structural engineer or mortgage broker? Tell us what you need and we&apos;ll match you with firms that cover your area.
+      </p>
+      <a
+        href={`/quote/${token}`}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+          padding: "10px 12px", borderRadius: 10, border: `1px solid ${P.border}`,
+          background: P.primaryBg, color: P.primary, textDecoration: "none", fontSize: 13, fontWeight: 600,
+        }}
+      >
+        <span>Request a quote</span>
+        <ArrowRight size={14} weight="bold" />
+      </a>
     </SectionCard>
   );
 }
