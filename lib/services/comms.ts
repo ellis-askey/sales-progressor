@@ -313,16 +313,16 @@ export type WhatsAppChatMessage = {
 };
 
 export type WhatsAppConversation = {
-  chatId: string;
-  title: string;
-  isGroup: boolean;
-  // Whether to render a sender name above inbound bubbles. True for groups and
-  // for the "imported history" buckets (which mix people); false for a live 1:1
-  // DM where the title already names the other party.
+  chatId: string; // "side:seller" | "side:buyer" | "side:other"
+  title: string; // "Seller" | "Buyer" | "Other"
+  // Whether to render a sender name above inbound bubbles. Always true here —
+  // a side thread merges a group and 1:1 DMs, so it can carry several people.
   showSenders: boolean;
   lastAt: Date;
   messages: WhatsAppChatMessage[];
 };
+
+type Side = "seller" | "buyer" | "other";
 
 export async function getWhatsAppConversations(
   transactionId: string,
@@ -339,6 +339,15 @@ export async function getWhatsAppConversations(
   if (!tx) throw new Error("Transaction not found");
 
   const contactById = new Map(tx.contacts.map((c) => [c.id, c]));
+
+  // A chat's side comes from its mapping (group OR DM, once assigned). Paste
+  // history has no mapping, so it falls back to the contacts a row was logged
+  // against. This lets us merge a side's group + 1:1 DMs into one thread.
+  const mappings = await prisma.whatsAppGroupMapping.findMany({
+    where: { transactionId },
+    select: { waChatId: true, side: true },
+  });
+  const sideByChat = new Map(mappings.map((m) => [m.waChatId, m.side]));
 
   const rows = await prisma.outboundMessage.findMany({
     where: {
@@ -369,20 +378,8 @@ export async function getWhatsAppConversations(
   // Sign every media path in one round trip, then hand each row its URL.
   const signed = await getWhatsAppMediaSignedUrlMap(rows.map((r) => r.mediaUrl));
 
-  type Meta = { waChatId?: string; isGroup?: boolean; groupName?: string | null; media?: { type?: string } };
-  const byChat = new Map<string, WhatsAppConversation>();
+  type Meta = { waChatId?: string; media?: { type?: string } };
 
-  // Resolve a paste-imported row (no chat metadata) to a side + a sender name
-  // from the contacts it was logged against. Live-captured rows carry their own
-  // senderLabel; these older rows only carry contactIds.
-  const contactSide = (contactIds: string[], buyerRoundId: string | null): "seller" | "buyer" | null => {
-    for (const id of contactIds) {
-      const role = contactById.get(id)?.roleType;
-      if (role === "vendor") return "seller";
-      if (role === "purchaser") return "buyer";
-    }
-    return buyerRoundId ? "buyer" : null;
-  };
   const contactName = (contactIds: string[]): string | null => {
     for (const id of contactIds) {
       const n = contactById.get(id)?.name;
@@ -390,48 +387,40 @@ export async function getWhatsAppConversations(
     }
     return null;
   };
+  const sideOf = (meta: Meta, contactIds: string[], buyerRoundId: string | null): Side => {
+    // 1. The chat's mapped side (group or DM).
+    if (meta.waChatId) {
+      const s = sideByChat.get(meta.waChatId);
+      if (s === "BUYER") return "buyer";
+      if (s === "SELLER") return "seller";
+    }
+    // 2. Paste history / unmapped — infer from the contacts on the row.
+    for (const id of contactIds) {
+      const role = contactById.get(id)?.roleType;
+      if (role === "vendor") return "seller";
+      if (role === "purchaser") return "buyer";
+    }
+    return buyerRoundId ? "buyer" : "other";
+  };
 
+  const byChat = new Map<string, WhatsAppConversation>();
   for (const r of rows) {
     const meta = (r.providerWebhookData as Meta | null) ?? {};
     const at = r.sentAt ?? r.createdAt;
-    const isLive = !!meta.waChatId;
-
-    let chatId: string;
-    let isGroup: boolean;
-    let showSenders: boolean;
-    let title: string;
-
-    if (isLive) {
-      chatId = `live:${meta.waChatId}`;
-      isGroup = meta.isGroup ?? false;
-      showSenders = isGroup;
-      const dmName = r.type === "inbound" ? r.senderLabel ?? contactName(r.contactIds) : null;
-      title = meta.groupName || dmName || "WhatsApp chat";
-    } else {
-      // Paste-imported history has no chat id; split it by side so buyer and
-      // seller threads never mix, and always show who said what.
-      const side = contactSide(r.contactIds, r.buyerRoundId);
-      chatId = `history:${side ?? "general"}`;
-      isGroup = false;
-      showSenders = true;
-      title = side === "seller" ? "Imported history · Seller"
-        : side === "buyer" ? "Imported history · Buyer"
-          : "Imported history";
-    }
+    const side = sideOf(meta, r.contactIds, r.buyerRoundId);
+    const chatId = `side:${side}`;
 
     let convo = byChat.get(chatId);
     if (!convo) {
-      convo = { chatId, title, isGroup, showSenders, lastAt: at, messages: [] };
+      const title = side === "seller" ? "Seller" : side === "buyer" ? "Buyer" : "Other";
+      convo = { chatId, title, showSenders: true, lastAt: at, messages: [] };
       byChat.set(chatId, convo);
     }
-    // A group name can arrive on a later message (learned on sync) — adopt it.
-    if (isLive && meta.groupName && convo.title === "WhatsApp chat") convo.title = meta.groupName;
     if (at > convo.lastAt) convo.lastAt = at;
 
     // Own (outbound) messages carry no name, WhatsApp-style. Inbound uses the
     // captured sender name, then the contact it was logged against.
-    const senderLabel =
-      r.type === "outbound" ? null : r.senderLabel ?? contactName(r.contactIds);
+    const senderLabel = r.type === "outbound" ? null : r.senderLabel ?? contactName(r.contactIds);
 
     convo.messages.push({
       id: r.id,
@@ -444,7 +433,11 @@ export async function getWhatsAppConversations(
     });
   }
 
-  // Most-recently-active chat first so the reader opens on the live one.
+  // Order messages oldest-first within each side (group + DM interleave by time).
+  for (const convo of byChat.values()) {
+    convo.messages.sort((a, b) => a.at.getTime() - b.at.getTime());
+  }
+  // Seller / Buyer order: most-recently-active first so the reader opens live.
   return [...byChat.values()].sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
 }
 

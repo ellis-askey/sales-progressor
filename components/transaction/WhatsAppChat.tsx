@@ -150,7 +150,7 @@ export function WhatsAppChat({ conversations }: { conversations: WhatsAppConvers
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: "#111b21", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convo.title}</div>
             <div style={{ fontSize: 12, color: "#667781" }}>
-              {convo.chatId.startsWith("history:") ? "Imported history" : convo.isGroup ? "Group chat" : "Direct chat"} · read-only
+              {convo.chatId === "side:other" ? "Other messages" : `All WhatsApp with the ${convo.title.toLowerCase()}`} · read-only
             </div>
           </div>
         </div>

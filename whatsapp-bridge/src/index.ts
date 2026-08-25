@@ -90,7 +90,7 @@ async function connect() {
     auth: authState,
     logger: waLogger,
     printQRInTerminal: false,
-    syncFullHistory: false, // live-from-connection; no bulk backfill
+    syncFullHistory: true, // pull the history WhatsApp still holds on (re)link
     markOnlineOnConnect: false, // stay passive — don't flip presence to "online"
   });
 
@@ -181,6 +181,28 @@ async function connect() {
         }
       } catch (err) {
         log.error("message handling failed", { error: (err as Error).message });
+      }
+    }
+  });
+
+  // Backfill: WhatsApp delivers the history it still holds via this event on
+  // (re)link. Forward each message regardless of the live watermark (they're
+  // older by definition); the PWA dedups by message id, so re-syncs don't
+  // double-insert. Text/placeholder only — historical media is frequently
+  // expired on WhatsApp's servers, so we don't attempt downloads here.
+  sock.ev.on("messaging-history.set", async ({ messages }) => {
+    if (!messages?.length) return;
+    log.info("history sync batch", { count: messages.length });
+    for (const wa of messages) {
+      try {
+        const remoteJid = wa.key?.remoteJid ?? "";
+        const isGroup = remoteJid.endsWith("@g.us");
+        const name = isGroup ? await groupSubject(sock, remoteJid) : null;
+        const msg = normaliseMessage(wa, name);
+        if (!msg) continue;
+        await delivery.send(msg);
+      } catch (err) {
+        log.error("history message handling failed", { error: (err as Error).message });
       }
     }
   });
