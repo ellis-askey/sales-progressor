@@ -74,6 +74,50 @@ const GENERAL: Record<string, string> = {
   PM26: "contracts have exchanged",
 };
 
+// First-person-plural clauses for when the CONFIRMER is the solicitor. Reads
+// "{firm} confirmed {clause}" — natural, and never "{firm} confirmed that
+// {client}'s solicitor has …" (the firm IS the client's solicitor). Approved
+// wording, Ellis 2026-08-25. Covers every solicitor-facing / chased step.
+const SOLICITOR_CONFIRM_CLAUSES: Record<string, string> = {
+  // Seller's solicitor
+  VM5:  "they have issued the property information forms",
+  VM7:  "they have issued the draft contract pack to the buyer's solicitor",
+  VM8:  "they have requested the management pack",
+  VM9:  "they have received the management pack",
+  VM10: "they have received the initial enquiries from the buyer's solicitor",
+  VM12: "they have sent their replies to the initial enquiries",
+  VM13: "they have received the further enquiries",
+  VM15: "they have sent their replies to the further enquiries",
+  VM16: "they have sent the contract documents out for signing",
+  VM17: "they have received the signed contract documents back",
+  VM18: "they are ready to exchange",
+  // Buyer's solicitor
+  PM7:  "they have received the draft contract pack",
+  PM8:  "they have ordered the searches",
+  PM11: "they have received the mortgage offer",
+  PM12: "they have received the management pack",
+  PM13: "they have received the search results",
+  PM14: "they have raised the initial enquiries with the seller's solicitor",
+  PM15: "they have received the replies to the initial enquiries",
+  PM16: "they have reviewed the replies to the initial enquiries",
+  PM17: "they have raised further enquiries",
+  PM18: "they have received the replies to the further enquiries",
+  PM19: "they have reviewed the replies to the further enquiries",
+  PM20: "they are satisfied with all the enquiries",
+  PM22: "they have sent the contract documents out for signing",
+  PM23: "they have received the signed contract documents back",
+  PM25: "they are ready to exchange",
+};
+
+/** The one place a solicitor confirmation sentence is built — used at read time
+ *  (agent notifications, comms feed, client portal) AND at store time
+ *  (MilestoneCompletion.summaryText), so every surface reads identically.
+ *  Falls back to the neutral label for any code without a written clause. */
+export function solicitorConfirmationSentence(firm: string, code: string, milestoneName: string): string {
+  const clause = SOLICITOR_CONFIRM_CLAUSES[code];
+  return clause ? `${firm} confirmed ${clause}` : `${firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+}
+
 export type UpdateConfirmer =
   | { kind: "client" }
   | { kind: "agent"; name: string }
@@ -128,10 +172,11 @@ export function confirmationSentence(opts: {
     return `${name} confirmed ${clientPronoun(sideContacts)} ${core}`;
   }
 
-  // A solicitor confirming their own step: state it plainly with the
-  // solicitor-facing label, not "{firm} confirmed that {client}'s solicitor…".
+  // A solicitor confirming their own step reads in the first person plural
+  // ("{firm} confirmed they have …"), never "{firm} confirmed that {client}'s
+  // solicitor has …" (the firm IS the client's solicitor).
   if (confirmer.kind === "solicitor") {
-    return `${confirmer.firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+    return solicitorConfirmationSentence(confirmer.firm, code, milestoneName);
   }
   const who = confirmer.name;
   if (general) return `${who} confirmed that ${general}`;
@@ -177,10 +222,10 @@ export function portalConfirmationSentence(opts: {
     if (isGeneral) return `You confirmed ${clause}`;
     return `You confirmed your ${clause}`;
   }
-  // A solicitor is the client's own solicitor, so "{firm} confirmed your
-  // solicitor has …" doubles up. Use the plain solicitor-facing label.
+  // A solicitor is the client's own solicitor, so read it in the first person
+  // plural rather than "{firm} confirmed your solicitor has …".
   if (confirmer.kind === "solicitor") {
-    return `${confirmer.firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+    return solicitorConfirmationSentence(confirmer.firm, code, milestoneName);
   }
   const who = confirmer.name;
   if (!clause) return `${who} confirmed: ${milestoneName}`;
