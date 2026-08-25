@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
+import { isExchangeDayActive } from "@/lib/services/exchange-day";
 
 // The client auto-chase pipeline stops after this many emails, then hands the
 // file to the team. Mirrors CLIENT_CHASE_COUNT_CAP in client-chase-cron.ts;
@@ -55,7 +56,7 @@ export type ChaseThread = {
   id: string; // reminderLogId
   title: string;
   side: "vendor" | "purchaser";
-  track: "client" | "solicitor" | "enquiry"; // which auto-chase lane owns this thread
+  track: "client" | "solicitor" | "enquiry" | "exchange"; // which auto-chase lane owns this thread ("exchange" = the exchange-day overlay)
   trackLabel: string; // "Buyer" / "Seller" / "Buyer's solicitor" / "Seller's solicitor"
   state: ChaseThreadState;
   waitingOn: string; // who owes the action (the client, or the solicitor)
@@ -112,7 +113,18 @@ export async function getChaseTimeline(
   // agencyId; internal staff (null) already passed the page's scope check.
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true },
+    select: {
+      id: true,
+      completionDate: true,
+      exchangeDayStartedAt: true,
+      exchangeDayCancelledAt: true,
+      exchangedAt: true,
+      exchangeDayMorningEmailAt: true,
+      exchangeDayMiddayEmailAt: true,
+      exchangeDayAfternoonEmailAt: true,
+      exchangeDayClientMorningEmailAt: true,
+      exchangeDayClientAuthorityEmailAt: true,
+    },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -142,7 +154,7 @@ export async function getChaseTimeline(
     }),
     prisma.contact.findMany({
       where: { propertyTransactionId: transactionId },
-      select: { name: true, roleType: true },
+      select: { name: true, roleType: true, exchangeAuthorityGivenAt: true },
     }),
     prisma.clientChaseState.findMany({
       where: { transactionId },
@@ -399,6 +411,89 @@ export async function getChaseTimeline(
     });
   }
 
+  // ── Exchange-day thread (an overlay, not a milestone chase) ──
+  // Derived purely from the transaction's stamp columns + per-contact authority
+  // timestamps, exactly like the enquiry trackers above — no ReminderLog, no
+  // ChaseTask, no writes. Appears whenever exchange day was ever started, and
+  // stays on as history (under "Resolved & stopped") once the day passes.
+  if (tx.exchangeDayStartedAt) {
+    const startedAt = tx.exchangeDayStartedAt;
+    const active = isExchangeDayActive({
+      exchangeDayStartedAt: tx.exchangeDayStartedAt,
+      exchangeDayCancelledAt: tx.exchangeDayCancelledAt,
+      exchangedAt: tx.exchangedAt,
+    });
+    const exchanged = !!tx.exchangedAt;
+    const cancelledThisRun = !!tx.exchangeDayCancelledAt && tx.exchangeDayCancelledAt >= startedAt;
+
+    const events: ChaseThreadEvent[] = [];
+    const compDate = tx.completionDate ? toUKDateStr(tx.completionDate) : null;
+    events.push({
+      at: startedAt.toISOString(),
+      kind: "scheduled",
+      title: "Exchange day started",
+      detail: compDate ? `Aiming to exchange today, with completion agreed for ${compDate}.` : "Aiming to exchange contracts today.",
+      actor: "System",
+    });
+
+    const emailEvent = (stamp: Date | null, title: string) => {
+      if (!stamp) return;
+      events.push({ at: stamp.toISOString(), kind: "auto_chase", title, detail: "Sent automatically.", actor: "System", delivery: "sent" });
+    };
+    emailEvent(tx.exchangeDayMorningEmailAt, "Emailed both solicitors, morning check-in");
+    emailEvent(tx.exchangeDayClientMorningEmailAt, "Emailed the buyer and seller, what today means");
+    emailEvent(tx.exchangeDayClientAuthorityEmailAt, "Asked the buyer and seller for authority to exchange");
+    emailEvent(tx.exchangeDayMiddayEmailAt, "Emailed both solicitors, midday push");
+    emailEvent(tx.exchangeDayAfternoonEmailAt, "Emailed both solicitors, afternoon push");
+
+    // Authority given (only counts for the current activation).
+    for (const c of contacts) {
+      if ((c.roleType === "vendor" || c.roleType === "purchaser") && c.exchangeAuthorityGivenAt && c.exchangeAuthorityGivenAt >= startedAt) {
+        const who = c.roleType === "vendor" ? "Seller" : "Buyer";
+        events.push({ at: c.exchangeAuthorityGivenAt.toISOString(), kind: "resolved", title: `${who} gave authority to exchange`, detail: `${c.name} confirmed we can proceed.`, actor: c.name });
+      }
+    }
+
+    if (exchanged && tx.exchangedAt) {
+      events.push({ at: tx.exchangedAt.toISOString(), kind: "resolved", title: "Exchanged", detail: "Contracts exchanged. Completion is next.", actor: "System" });
+    } else if (cancelledThisRun && tx.exchangeDayCancelledAt) {
+      events.push({ at: tx.exchangeDayCancelledAt.toISOString(), kind: "cancelled", title: "Exchange day ended", detail: "No longer aiming to exchange today.", actor: "System" });
+    }
+
+    const emailStamps = [
+      tx.exchangeDayMorningEmailAt, tx.exchangeDayMiddayEmailAt, tx.exchangeDayAfternoonEmailAt,
+      tx.exchangeDayClientMorningEmailAt, tx.exchangeDayClientAuthorityEmailAt,
+    ].filter((d): d is Date => !!d);
+    const autoChases = emailStamps.length;
+    const lastEmailAt = emailStamps.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+    const state: ChaseThreadState = exchanged ? "completed" : active ? "auto_chasing" : "cancelled";
+    const waitingOn = active ? "both solicitors and the clients" : exchanged ? "no one, contracts exchanged" : "no one, exchange day has ended";
+
+    events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+    threads.push({
+      id: "exchange-day",
+      title: "Exchange day",
+      side: "purchaser",
+      track: "exchange",
+      trackLabel: "Both sides",
+      state,
+      waitingOn,
+      autoChases,
+      manualChases: 0,
+      totalChases: autoChases,
+      lastChasedAt: lastEmailAt ? lastEmailAt.toISOString() : null,
+      nextDueAt: null,
+      nextIsAutomated: active,
+      escalatesAfter: 0,
+      escalated: false,
+      snoozedUntil: null,
+      startedAt: startedAt.toISOString(),
+      events,
+    });
+  }
+
   // Sort: state precedence, then soonest next-due.
   threads.sort((a, b) => {
     const s = STATE_ORDER[a.state] - STATE_ORDER[b.state];
@@ -409,11 +504,15 @@ export async function getChaseTimeline(
   });
 
   const activeStates: ChaseThreadState[] = ["scheduled", "auto_chasing", "handed_to_team", "manual_chasing", "escalated"];
+  // Stat cards count the milestone + enquiry chase engine only. The exchange-day
+  // overlay shows as its own thread but is deliberately excluded from these
+  // counters so "Active chases" stays a clean count of real chases.
+  const statThreads = threads.filter((t) => t.track !== "exchange");
   const stats: ChaseTimelineStats = {
-    active: threads.filter((t) => activeStates.includes(t.state)).length,
-    dueToday: threads.filter((t) => t.nextDueAt && toUKDateStr(new Date(t.nextDueAt)) === todayStr && activeStates.includes(t.state)).length,
-    escalating: threads.filter((t) => t.state === "escalated").length,
-    completed: threads.filter((t) => t.state === "completed").length,
+    active: statThreads.filter((t) => activeStates.includes(t.state)).length,
+    dueToday: statThreads.filter((t) => t.nextDueAt && toUKDateStr(new Date(t.nextDueAt)) === todayStr && activeStates.includes(t.state)).length,
+    escalating: statThreads.filter((t) => t.state === "escalated").length,
+    completed: statThreads.filter((t) => t.state === "completed").length,
   };
 
   return { stats, threads };

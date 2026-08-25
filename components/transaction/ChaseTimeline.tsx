@@ -91,7 +91,9 @@ function StatCard({ n, label, color }: { n: number; label: string; color: string
 function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selected: boolean; onSelect: () => void }) {
   const m = STATE_META[thread.state];
   const isVendor = thread.side === "vendor";
-  const sideColor = isVendor ? "var(--agent-warning)" : "var(--agent-info)";
+  const sideColor = thread.track === "exchange"
+    ? "var(--agent-primary)"
+    : isVendor ? "var(--agent-warning)" : "var(--agent-info)";
   return (
     <button
       onClick={onSelect}
@@ -228,9 +230,18 @@ function ThreadDetail({ thread }: { thread: ChaseThread }) {
         <StateChip state={thread.state} />
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", fontSize: 12, color: "var(--agent-text-secondary)", marginBottom: 18 }}>
-        <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Waiting on:</b> {thread.waitingOn}</span>
-        <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Chased:</b> {thread.autoChases} auto{thread.manualChases ? ` · ${thread.manualChases} by you` : ""}</span>
-        <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Started:</b> {fmtDate(thread.startedAt)}</span>
+        {thread.track === "exchange" ? (
+          <>
+            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Emails today:</b> {thread.autoChases}</span>
+            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Started:</b> {fmtDate(thread.startedAt)}</span>
+          </>
+        ) : (
+          <>
+            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Waiting on:</b> {thread.waitingOn}</span>
+            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Chased:</b> {thread.autoChases} auto{thread.manualChases ? ` · ${thread.manualChases} by you` : ""}</span>
+            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Started:</b> {fmtDate(thread.startedAt)}</span>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_240px]" style={{ gap: 24 }}>
@@ -247,12 +258,23 @@ function ThreadDetail({ thread }: { thread: ChaseThread }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div>
             <SectionLabel>Details</SectionLabel>
-            <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
-            <DetailRow label="Last chased" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
-            <DetailRow label={thread.nextIsAutomated ? "Next auto-chase" : "Next (reminder)"} value={thread.nextDueAt ? fmtDate(thread.nextDueAt) : "-"} />
-            <DetailRow label="Escalates after" value={thread.track === "enquiry" ? "if it stalls" : `${thread.escalatesAfter} of your chases`} />
+            {thread.track === "exchange" ? (
+              <>
+                <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
+                <DetailRow label="Emails sent today" value={String(thread.autoChases)} />
+                <DetailRow label="Last email" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
+                <DetailRow label="Status" value={STATE_META[thread.state].label} />
+              </>
+            ) : (
+              <>
+                <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
+                <DetailRow label="Last chased" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
+                <DetailRow label={thread.nextIsAutomated ? "Next auto-chase" : "Next (reminder)"} value={thread.nextDueAt ? fmtDate(thread.nextDueAt) : "-"} />
+                <DetailRow label="Escalates after" value={thread.track === "enquiry" ? "if it stalls" : `${thread.escalatesAfter} of your chases`} />
+              </>
+            )}
           </div>
-          <EscalationPath thread={thread} />
+          {thread.track !== "exchange" && <EscalationPath thread={thread} />}
         </div>
       </div>
     </div>
