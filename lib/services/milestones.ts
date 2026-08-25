@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
-import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
+import { solicitorConfirmationSentence } from "@/lib/updates-copy";
 import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { cascadeOnwardExchange } from "@/lib/services/onward";
@@ -912,7 +912,7 @@ export async function completeMilestone(
   // The firm name + the solicitor-facing step label states it plainly.
   const summaryText =
     input.confirmer.kind === "solicitor"
-      ? `${input.confirmer.firmName} confirmed: ${solicitorStepLabel(def.code, def.name)}`
+      ? solicitorConfirmationSentence(input.confirmer.firmName, def.code, def.name)
       : def.summaryTemplate
         ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
         : null;

@@ -1,5 +1,7 @@
 import { commandDb } from "@/lib/command/prisma";
 import { EmailSendersView, type AgencyOption } from "@/components/command/email-senders/EmailSendersView";
+import { AgencyDomainAuth } from "@/components/command/email-senders/AgencyDomainAuth";
+import type { SerializedDomain } from "./actions";
 
 // Command Centre → Email senders. How every outbound email resolves its From,
 // Reply-to and fallback, live per agency, with an in-house / outsourced toggle.
@@ -29,6 +31,31 @@ export default async function EmailSendersPage() {
 
   const configured = agencies.filter((a) => a.quoteSenderEmail).length;
 
+  // Domain-authentication state per agency (self-serve VerifiedDomain rows).
+  // Prefer the domain matching the sender email; else the most recent.
+  const domains = await commandDb.verifiedDomain.findMany({
+    where: { agencyId: { in: agencies.map((a) => a.id) } },
+    orderBy: { createdAt: "desc" },
+  });
+  const senderDomainOf = (email: string | null) => email?.split("@")[1]?.toLowerCase() ?? "";
+  const domainByAgency = new Map<string, SerializedDomain>();
+  for (const a of agencies) {
+    const mine = domains.filter((d) => d.agencyId === a.id);
+    const chosen = mine.find((d) => d.domain === senderDomainOf(a.quoteSenderEmail)) ?? mine[0];
+    if (chosen) {
+      domainByAgency.set(a.id, {
+        id: chosen.id,
+        domain: chosen.domain,
+        status: chosen.status,
+        dkimValid: chosen.dkimValid,
+        spfValid: chosen.spfValid,
+        cnameRecords: (chosen.cnameRecords as { host: string; data: string; type: string }[]) ?? [],
+        verifiedAt: chosen.verifiedAt ? chosen.verifiedAt.toISOString() : null,
+        lastCheckedAt: chosen.lastCheckedAt ? chosen.lastCheckedAt.toISOString() : null,
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -49,13 +76,14 @@ export default async function EmailSendersPage() {
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse">
+            <table className="w-full min-w-[720px] border-collapse">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-neutral-600">
                   <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Agency</th>
                   <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Mode</th>
                   <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Progressor address</th>
                   <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Status</th>
+                  <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Domain auth</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,6 +104,12 @@ export default async function EmailSendersPage() {
                           On fallback
                         </span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 border-b border-neutral-800/70 whitespace-nowrap">
+                      <AgencyDomainAuth
+                        agency={{ id: a.id, name: a.name, quoteSenderEmail: a.quoteSenderEmail }}
+                        initial={domainByAgency.get(a.id) ?? null}
+                      />
                     </td>
                   </tr>
                 ))}

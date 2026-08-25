@@ -246,3 +246,11 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author:** Claude, 2026-08-17
 - **Deletion criteria:** delete once the Aug-17 portal batch is signed off by Ellis.
 - **Justification:** demo data seeding, not a feature/test/npm-script. Staging-only (refuses prod) because it mutates shared rows (agency sender, Emily's phone); file creation is additive.
+
+### scripts/backfill-solicitor-summaries.ts
+
+- **Purpose:** Re-render the stored `summaryText` on existing solicitor-confirmed `MilestoneCompletion` rows to the approved sentence form ("{firm} confirmed they have ordered the searches"). Read-time surfaces already regenerate; this fixes the stored text shown on the hub + file activity timeline so past confirms read identically to new ones.
+- **Lifetime:** `one-shot`
+- **Author:** Claude, 2026-08-25
+- **Deletion criteria:** delete once it has run on production.
+- **Justification:** one-off data backfill of a display string on solicitor-confirmed rows; not a feature/test/npm-script. Idempotent (only rewrites rows whose text differs).
