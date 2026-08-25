@@ -158,7 +158,7 @@ export default withAuth(
     }
 
     // Agent users can only access the agent area, APIs, and portal â€” nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal", "/s/", "/quote", "/claim", "/invite", "/invite-negotiator", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
+    const agentAllowed = ["/agent", "/api", "/portal", "/s/", "/quote", "/claim", "/invite", "/invite-negotiator", "/outsource", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
@@ -180,6 +180,8 @@ export default withAuth(
         // Public no-auth quote-request page (Contact.portalToken gated in-page).
         if (pathname.startsWith("/quote")) return true;
         if (pathname.startsWith("/claim")) return true;
+        // Public no-auth "hand us a file" landing page for the outsourced service.
+        if (pathname.startsWith("/outsource")) return true;
         if (pathname.startsWith("/invite")) return true;
         if (pathname.startsWith("/invite-negotiator")) return true;
         if (pathname.startsWith("/api/cron/")) return true;
