@@ -104,8 +104,12 @@
   display: flex;
   align-items: center;
   padding: 0 20px;
-  background: var(--claim-bg);
-  border-bottom: 1px solid var(--claim-border);
+  /* v03 light frost — the animated mesh background shows through the top bar. */
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid rgba(26, 29, 41, 0.07);
+  box-shadow: 0 1px 12px rgba(26, 29, 41, 0.05);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -129,12 +133,12 @@
 .claim-container {
   max-width: 560px;
   margin: 0 auto;
-  padding: 40px 20px 64px;
+  padding: 48px 20px 64px;
 }
 .claim-container--narrow {
   max-width: 440px;
   margin: 0 auto;
-  padding: 40px 20px 64px;
+  padding: 48px 20px 64px;
 }
 
 /* ─── Hero card ──────────────────────────────────────────────────────────── */
@@ -553,7 +557,7 @@
   gap: 24px;
   max-width: 860px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
+  padding: 48px 24px 64px;
   align-items: start;
 }
 @media (max-width: 768px) {
