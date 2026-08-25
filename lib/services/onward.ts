@@ -363,7 +363,8 @@ export type ConfirmOnwardResult =
         | "not_applicable"
         | "locked"
         | "already_done"
-        | "awaiting_our_completion"; // onward can't complete before OUR sale completes (3a)
+        | "awaiting_our_completion" // onward can't complete before OUR sale completes (3a)
+        | "retired"; // tracker superseded (agent above now owns it) or abandoned
     };
 
 /**
@@ -381,6 +382,10 @@ export async function confirmOnwardStep(
     include: { steps: true },
   });
   if (!tracker) return { ok: false, reason: "no_tracker" };
+  // A superseded tracker (the agent above now owns the onward) or an abandoned
+  // one (seller said they're no longer buying) accepts no more updates — and
+  // must never have its status overwritten by a reported exchange/completion.
+  if (tracker.status === "superseded" || tracker.status === "abandoned") return { ok: false, reason: "retired" };
   if (tracker.tenure == null || tracker.purchaseType == null) return { ok: false, reason: "type_facts_missing" };
 
   const defs = await loadPurchaserDefs();
@@ -432,7 +437,7 @@ export async function confirmOnwardStep(
 
 export type UndoOnwardResult =
   | { ok: true }
-  | { ok: false; reason: "not_found" | "has_dependents"; blockingCode?: string };
+  | { ok: false; reason: "not_found" | "has_dependents" | "retired"; blockingCode?: string };
 
 /**
  * Undo a reported step. Blocked if a later reported step directly depends on it
@@ -445,6 +450,7 @@ export async function undoOnwardStep(transactionId: string, milestoneCode: strin
     include: { steps: true },
   });
   if (!tracker) return { ok: false, reason: "not_found" };
+  if (tracker.status === "superseded" || tracker.status === "abandoned") return { ok: false, reason: "retired" };
   const row = tracker.steps.find((s) => s.milestoneCode === milestoneCode);
   if (!row) return { ok: false, reason: "not_found" };
 

@@ -99,6 +99,24 @@ export function OnwardPurchaseCard({
     });
   }
 
+  // ── Superseded: the onward property is now a live file with its own agent,
+  //    whose real file owns the truth. This reported stand-in is read-only. ────
+  if (view.exists && view.status === "superseded") {
+    return (
+      <Card id="onward-section" padding="none">
+        <div style={cardHeaderStyle}>
+          <h3 style={titleStyle}>Onward purchase</h3>
+          <span style={{ fontSize: 11, color: MUTED }}>Handled up the chain</span>
+        </div>
+        <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
+          <p style={{ margin: 0 }}>
+            The agent progressing the property this seller is buying now owns these updates, so the reported tracker here is read-only.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   // ── Retired (onward withdrawn, or the seller marked it no longer happening) ──
   if (view.exists && view.status === "abandoned") {
     return (

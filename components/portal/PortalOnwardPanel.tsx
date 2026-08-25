@@ -107,13 +107,31 @@ export function PortalOnwardPanel({
             ? "Confirm the earlier step first."
             : r.result.reason === "awaiting_our_completion"
               ? "Your onward can't complete until this sale completes."
-              : "We couldn't confirm this step.",
+              : r.result.reason === "retired"
+                ? "This is now handled by the agent looking after the property you're buying."
+                : "We couldn't confirm this step.",
         );
       } else {
         setConfirmingCode(null);
       }
       return r?.view ?? null;
     });
+  }
+
+  // ── Superseded: the agent handling the onward property now owns these
+  //    updates (their real file took over from this reported stand-in). Read
+  //    only, no controls — there's nothing for the seller to do here. ─────────
+  if (view.status === "superseded") {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl px-5 py-5" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+          <p className="text-[15px] font-semibold mb-1" style={{ color: P.textPrimary }}>Your onward is now managed for you</p>
+          <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>
+            The agent looking after the property you&apos;re buying has taken this on, so these updates now come from them. There&apos;s nothing you need to do here.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // ── Abandoned: they said they're no longer buying onward ────────────────────
