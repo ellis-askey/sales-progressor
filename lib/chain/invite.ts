@@ -147,7 +147,6 @@ async function sendInviteEmail(input: {
   const stubPosition = stubRecord?.position ?? 0;
 
   const originatorLink = link.chain.links.find((l) => l.transactionId !== null);
-  const originatorPosition = originatorLink?.position ?? 0;
   // Render-time postcode normalisation — write-time normalisation catches
   // anything new; this catches historical rows persisted before the fix
   // so existing chains still render with canonical UK postcode form.
@@ -166,15 +165,14 @@ async function sendInviteEmail(input: {
   const originatorAgency = sender.displayAgency;
 
   const stubAddress = normaliseAddressString(link.stubPropertyAddress ?? "your sale");
-  const positionDesc =
-    stubPosition < originatorPosition ? "sale above" : "sale below";
+  const logoUrl = `${base}/logo.png`;
 
   const totalLinks = link.chain.links.length;
   const linkPosition = displayChainPosition(stubPosition, totalLinks); // bottom=#1 convention
   const claimedCount = link.chain.links.filter((l) => l.transactionId !== null).length;
   const recipientName = link.stubAgencyName ?? "there";
 
-  const subject = `${originatorAgency} has added you to a live chain: ${originatorAddress}`;
+  const subject = "You're part of a live chain";
 
   const html = buildInviteHtml({
     recipientName,
@@ -182,12 +180,12 @@ async function sendInviteEmail(input: {
     originatorAgency,
     originatorAddress,
     stubAddress,
-    positionDesc,
     linkPosition,
     totalLinks,
     claimedCount,
     claimUrl,
     declineUrl,
+    logoUrl,
   });
 
   const text = buildInviteText({
@@ -196,7 +194,6 @@ async function sendInviteEmail(input: {
     originatorAgency,
     originatorAddress,
     stubAddress,
-    positionDesc,
     linkPosition,
     totalLinks,
     claimedCount,
@@ -217,35 +214,53 @@ function buildInviteHtml(v: {
   originatorAgency: string;
   originatorAddress: string;
   stubAddress: string;
-  positionDesc: string;
   linkPosition: number;
   totalLinks: number;
   claimedCount: number;
   claimUrl: string;
   declineUrl: string;
+  logoUrl: string;
 }): string {
-  const claimedSuffix = v.claimedCount === 1 ? "agent is" : "agents are";
+  const connected = v.claimedCount === 1 ? "1 agent is already connected" : `${v.claimedCount} agents are already connected`;
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">Chain invite</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">You've been added to a live chain</h1>
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:30px 32px 26px;border-radius:0 0 24px 24px">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+    <td style="vertical-align:middle">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.8)">Chain invite</p>
+      <h1 style="margin:0;font-size:23px;font-weight:700;color:#fff;line-height:1.2">You're part of a live chain</h1>
+    </td>
+    <td style="vertical-align:middle;text-align:right;width:66px">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block">
+        <path d="M8 27 L16 20 L24 27 V35 H8 Z" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M32 27 L40 20 L48 27 V35 H32 Z" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="25" y1="31" x2="31" y2="31" stroke="#ffffff" stroke-width="2" stroke-dasharray="1 3" stroke-linecap="round"/>
+      </svg>
+    </td>
+  </tr></table>
 </div>
 <div style="padding:28px 32px">
-  <p style="margin:0 0 16px;font-size:15px">Hello ${v.recipientName},</p>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">${v.originatorName} at ${v.originatorAgency} has added you to a live sales chain on Sales Progressor.</p>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">They're tracking the sale of <strong>${v.originatorAddress}</strong> and have linked your sale at <strong>${v.stubAddress}</strong> as the ${v.positionDesc}.</p>
-  <div style="margin:0 0 24px;padding:16px 20px;background:#FFF8F6;border-left:3px solid #FF6B4A;border-radius:8px">
-    <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#1a1d29">You're #${v.linkPosition} of ${v.totalLinks} in this chain</p>
-    <p style="margin:0;font-size:12px;color:#8b91a3">${v.claimedCount} ${claimedSuffix} already tracking this chain together</p>
+  <p style="margin:0 0 16px;font-size:15px">Hi ${v.recipientName},</p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">${v.originatorName} at ${v.originatorAgency} is progressing the sale of <strong>${v.originatorAddress}</strong>, which is connected to your sale at <strong>${v.stubAddress}</strong>.</p>
+  <p style="margin:0 0 22px;font-size:14px;line-height:1.7;color:#4a5162">They've added the chain to Sales Progressor and invited you to join them.</p>
+  <div style="margin:0 0 22px;padding:14px 18px;background:#FFF8F6;border-left:3px solid #FF6B4A;border-radius:8px">
+    <p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1a1d29">You're #${v.linkPosition} of ${v.totalLinks} in the chain</p>
+    <p style="margin:0;font-size:12px;color:#8b91a3">${connected}</p>
   </div>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Claim your place and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.</p>
-  <p style="margin:0 0 28px">
-    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Claim this sale</a>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">Once you're in, you'll both have the same live view of the chain: where each sale has reached, what's outstanding and where things are currently waiting.</p>
+  <p style="margin:0 0 26px;font-size:14px;line-height:1.7;color:#4a5162">No more ringing around just to piece together the same picture.</p>
+  <p style="margin:0 0 26px">
+    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 30px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View the chain</a>
   </p>
-  <p style="margin:0 0 16px;font-size:12px;color:#8b91a3">If the button doesn't work, copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
-  <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Decline this invite →</a></p>
-  <p style="margin:0;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
-  <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
+  <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Button not working? Copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
+  <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Let us know</a>.</p>
+  <hr style="border:none;border-top:1px solid #eef0f4;margin:0 0 16px"/>
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+    <td style="vertical-align:middle;width:34px"><img src="${v.logoUrl}" width="28" height="28" alt="Sales Progressor" style="display:block;border-radius:7px"/></td>
+    <td style="vertical-align:middle;padding-left:10px">
+      <p style="margin:0;font-size:13px;font-weight:700;color:#1a1d29">Sales Progressor</p>
+      <p style="margin:1px 0 0;font-size:12px;color:#8b91a3">Making property moves better for everyone.</p>
+    </td>
+  </tr></table>
 </div>
 </body></html>`;
 }
@@ -256,28 +271,28 @@ function buildInviteText(v: {
   originatorAgency: string;
   originatorAddress: string;
   stubAddress: string;
-  positionDesc: string;
   linkPosition: number;
   totalLinks: number;
   claimedCount: number;
   claimUrl: string;
   declineUrl: string;
 }): string {
-  return `Hello ${v.recipientName},
+  return `Hi ${v.recipientName},
 
-${v.originatorName} at ${v.originatorAgency} has added you to a live sales chain on Sales Progressor.
+${v.originatorName} at ${v.originatorAgency} is progressing the sale of ${v.originatorAddress}, which is connected to your sale at ${v.stubAddress}.
 
-They're tracking the sale of ${v.originatorAddress} and have linked your sale at ${v.stubAddress} as the ${v.positionDesc}.
+They've added the chain to Sales Progressor and invited you to join them.
 
-You're #${v.linkPosition} of ${v.totalLinks} in this chain. ${v.claimedCount} agent${v.claimedCount !== 1 ? "s are" : " is"} already tracking it together.
+You're #${v.linkPosition} of ${v.totalLinks} in the chain. ${v.claimedCount === 1 ? "1 agent is" : `${v.claimedCount} agents are`} already connected.
 
-Claim your place and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.
+Once you're in, you'll both have the same live view of the chain: where each sale has reached, what's outstanding and where things are currently waiting. No more ringing around just to piece together the same picture.
 
-Claim this sale: ${v.claimUrl}
+View the chain: ${v.claimUrl}
 
-Not the right agent for this sale? Decline this invite: ${v.declineUrl}
+Not the right agent for this sale? Let us know: ${v.declineUrl}
 
-Need help? support@thesalesprogressor.co.uk
+Sales Progressor
+Making property moves better for everyone.
 `;
 }
 

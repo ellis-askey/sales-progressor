@@ -91,6 +91,7 @@ export async function sendDueChainInviteNudges(now: Date = new Date()): Promise<
       stubAddress,
       claimUrl,
       declineUrl,
+      logoUrl: `${base}/logo.png`,
     });
 
     try {
@@ -113,39 +114,61 @@ function buildNudgeEmail(v: {
   stubAddress: string;
   claimUrl: string;
   declineUrl: string;
+  logoUrl: string;
 }): { subject: string; html: string; text: string } {
-  const subject = `A reminder from ${v.originatorAgency}: your chain is ready to view`;
+  const subject = "Your chain is still live";
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">Reminder</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Your place in the chain is still saved</h1>
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:30px 32px 26px;border-radius:0 0 24px 24px">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+    <td style="vertical-align:middle">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.8)">Quick reminder</p>
+      <h1 style="margin:0;font-size:23px;font-weight:700;color:#fff;line-height:1.2">Your chain is still live</h1>
+    </td>
+    <td style="vertical-align:middle;text-align:right;width:60px">
+      <svg width="52" height="52" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block">
+        <path d="M20 24 C20 19 23 16 28 16 C33 16 36 19 36 24 C36 30 39 33 39 33 H17 C17 33 20 30 20 24 Z" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M25 37 C25 39 26 40 28 40 C30 40 31 39 31 37" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="38" cy="18" r="5" fill="#FF3B30" stroke="#ffffff" stroke-width="1.5"/>
+      </svg>
+    </td>
+  </tr></table>
 </div>
 <div style="padding:28px 32px">
-  <p style="margin:0 0 16px;font-size:15px">Hello ${v.recipientName},</p>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">A little while ago, ${v.originatorName} at ${v.originatorAgency} added your sale at <strong>${v.stubAddress}</strong> to a live chain on Sales Progressor. It's still active, and your view of the chain is ready whenever you'd like to take a look.</p>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">You can see how each sale is progressing, what's still outstanding and where the chain is currently waiting. It's simply a clearer way to keep up with the whole chain without having to chase everyone for updates.</p>
-  <p style="margin:0 0 28px">
-    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">See the chain</a>
+  <p style="margin:0 0 16px;font-size:15px">Hi ${v.recipientName},</p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">A little while ago, ${v.originatorName} at ${v.originatorAgency} invited you to join the live chain connected to your sale at <strong>${v.stubAddress}</strong>.</p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">It's still active, so your view is still there whenever you need it.</p>
+  <p style="margin:0 0 26px;font-size:14px;line-height:1.7;color:#4a5162">You'll be able to see where each sale has reached, what's outstanding and where the chain is currently waiting, alongside the other agents involved.</p>
+  <p style="margin:0 0 26px">
+    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 30px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View the chain</a>
   </p>
-  <p style="margin:0 0 16px;font-size:12px;color:#8b91a3">If the button doesn't work, copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
-  <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Let us know</a> and we'll stop.</p>
-  <p style="margin:0;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
-  <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
+  <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Button not working? Copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
+  <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Let us know</a> and we'll stop.</p>
+  <hr style="border:none;border-top:1px solid #eef0f4;margin:0 0 16px"/>
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+    <td style="vertical-align:middle;width:34px"><img src="${v.logoUrl}" width="28" height="28" alt="Sales Progressor" style="display:block;border-radius:7px"/></td>
+    <td style="vertical-align:middle;padding-left:10px">
+      <p style="margin:0;font-size:13px;font-weight:700;color:#1a1d29">Sales Progressor</p>
+      <p style="margin:1px 0 0;font-size:12px;color:#8b91a3">Making property moves better for everyone.</p>
+    </td>
+  </tr></table>
 </div>
 </body></html>`;
 
-  const text = `Hello ${v.recipientName},
+  const text = `Hi ${v.recipientName},
 
-A little while ago, ${v.originatorName} at ${v.originatorAgency} added your sale at ${v.stubAddress} to a live chain on Sales Progressor. It's still active, and your view of the chain is ready whenever you'd like to take a look.
+A little while ago, ${v.originatorName} at ${v.originatorAgency} invited you to join the live chain connected to your sale at ${v.stubAddress}.
 
-You can see how each sale is progressing, what's still outstanding and where the chain is currently waiting. It's simply a clearer way to keep up with the whole chain without having to chase everyone for updates.
+It's still active, so your view is still there whenever you need it.
 
-See the chain: ${v.claimUrl}
+You'll be able to see where each sale has reached, what's outstanding and where the chain is currently waiting, alongside the other agents involved.
+
+View the chain: ${v.claimUrl}
 
 Not the right agent for this sale? Let us know and we'll stop: ${v.declineUrl}
 
-Need help? support@thesalesprogressor.co.uk
+Sales Progressor
+Making property moves better for everyone.
 `;
 
   return { subject, html, text };
