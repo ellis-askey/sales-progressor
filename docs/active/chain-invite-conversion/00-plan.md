@@ -15,9 +15,16 @@ works + every user-facing string.
 ## Phases
 
 - **Phase 0 — Measure the funnel.** ✅ Shipped (staging). See below.
-- **Phase 1 — Cut the sign-up wall.** Sign-up = 4 fields (name, password, agency;
-  email pre-filled). Move tenure / purchase type / "where's it up to" into the app
-  as first-run setup on the claimed file. Make the "15 seconds" promise true.
+- **Phase 1 — Cut the sign-up wall.** ✅ Shipped (staging). Sign-up trimmed to
+  name, password, agency + two quick taps (tenure, purchase type — the milestone
+  engine needs them). The "Where is this sale up to?" reconciliation choice and
+  two-step milestone wizard are removed from sign-up; every claim now lands on the
+  file with the existing dismissable "Bring this file up to date" banner
+  (ReconcileLaterBanner), so catching up on progress happens in-app, in context.
+  Note: tenure + purchase type kept at sign-up deliberately — moving them in-app
+  too would need a nullable/pre-setup file state (milestone engine depends on
+  them) for near-zero friction gain. Existing-agent paths (/claim/login,
+  /claim/confirm) keep their inline reconciliation for now.
 - **Phase 2 — Stop silently binning invites.** Extend/remove the 7-day expiry;
   relax the exact-email lock (decision: recommend relax); enforce a resend cap;
   clean up dead fields + decline reliability.

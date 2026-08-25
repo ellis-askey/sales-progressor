@@ -4,11 +4,6 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
-import {
-  ReconcileMilestonePicker,
-  type MilestoneDefinitionLite,
-  type ReconciliationState,
-} from "@/components/milestones/ReconcileMilestonePicker";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -18,12 +13,15 @@ type Props = {
   token: string;
   stubEmail: string;
   stubAgencyName: string;
-  milestoneDefinitions: MilestoneDefinitionLite[];
 };
 
-type ReconciliationMode = "fresh" | "in_progress" | "later";
-
-export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDefinitions }: Props) {
+// Streamlined claim sign-up (Phase 1). Just enough to create the account and the
+// file: name, password, agency, and the two details the milestone engine needs
+// (tenure + purchase type). "Where is this sale up to?" is no longer asked here —
+// once inside, the file shows a dismissable "Bring this file up to date" banner
+// (ReconcileLaterBanner) so catching up on existing progress happens in-app, in
+// context, instead of as a wall before the account even exists.
+export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -35,21 +33,14 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
   const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
   const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | "cash_from_proceeds" | null>(null);
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
-  const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
-  const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
-  const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
-  // Main submit only enabled on purchaser wizard step (or when not reconciling at all)
-  const onPurchaserStep = reconciliationMode !== "in_progress" || wizardStep === "purchaser";
   const canSubmit =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     password.length >= 8 &&
     firmName.trim().length > 0 &&
     tenure !== null &&
-    purchaseType !== null &&
-    reconciliationMode !== null &&
-    onPurchaserStep;
+    purchaseType !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,27 +79,10 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
       return;
     }
 
-    const claimBody: Record<string, unknown> = {
-      token,
-      action: "create",
-      tenure,
-      purchaseType,
-      isShareOfFreehold,
-      reconciliationMode,
-    };
-    if (reconciliationMode === "in_progress") {
-      claimBody.reconciledMilestones = Object.entries(reconciledMilestones)
-        .filter(([, v]) => v.ticked)
-        .map(([milestoneDefinitionId, v]) => ({
-          milestoneDefinitionId,
-          eventDate: v.eventDate || null,
-        }));
-    }
-
     const claimRes = await fetch("/api/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(claimBody),
+      body: JSON.stringify({ token, action: "create", tenure, purchaseType, isShareOfFreehold }),
     });
 
     if (!claimRes.ok) {
@@ -119,42 +93,17 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
     }
 
     const { transactionId } = (await claimRes.json()) as { transactionId: string };
-    if (reconciliationMode === "later" && typeof window !== "undefined") {
+    // Every new claim lands on the file with the dismissable "Bring this file up
+    // to date" banner, so catching up on existing progress happens in-app.
+    if (typeof window !== "undefined") {
       try { window.localStorage.setItem(`reconcileLater:${transactionId}`, "1"); } catch {}
     }
     await markWelcomeSeenAction().catch(() => {});
     router.push(`/agent/transactions/${transactionId}?claimed=1&newUser=1`);
   }
 
-  const isWizardActive = reconciliationMode === "in_progress";
-  const allUpperFilled =
-    firstName.trim().length > 0 &&
-    lastName.trim().length > 0 &&
-    firmName.trim().length > 0 &&
-    tenure !== null &&
-    purchaseType !== null;
-  const upperSummary = allUpperFilled
-    ? `${firstName.trim()} ${lastName.trim()} · ${firmName.trim()} · ${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : purchaseType === "cash_buyer" ? "Cash purchase" : "Cash from Proceeds"}`
-    : "";
-
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Combined summary pill — shown when wizard is active. Clicking exits wizard mode
-         so all upper sections re-expand. */}
-      {isWizardActive && allUpperFilled && (
-        <button
-          type="button"
-          className="claim-sale-details-summary"
-          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
-          aria-label="Edit your details"
-        >
-          <span>{upperSummary}</span>
-          <span className="claim-sale-details-summary-edit">Edit</span>
-        </button>
-      )}
-
-      {/* Collapsible upper form — name + email + password + agency + sale details */}
-      <div className={`claim-collapsible${isWizardActive ? " collapsed" : ""}`} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Name row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="claim-field">
@@ -238,9 +187,9 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
         />
       </div>
 
-      {/* Sale details */}
+      {/* Sale details — the two things the milestone engine needs */}
       <div className="claim-sale-details">
-        <p className="claim-sale-details-note">Two details to set up your file.</p>
+        <p className="claim-sale-details-note">Two quick details and you're in.</p>
         <div>
           <label className="claim-field-label">Tenure</label>
           <div className="claim-segment-pill-row">
@@ -263,57 +212,6 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
           </label>
         )}
       </div>
-      </div>{/* /.claim-collapsible */}
-
-      {/* Reconciliation picker — only after tenure + purchaseType selected */}
-      {tenure && purchaseType && (
-        <div className="claim-reconcile">
-          <p className="claim-field-label">Where is this sale up to?</p>
-          <button type="button" className={`claim-reconcile-option${reconciliationMode === "fresh" ? " on" : ""}`} onClick={() => setReconciliationMode("fresh")}>
-            <span className="claim-reconcile-option-title">Just starting</span>
-            <span className="claim-reconcile-option-sub">No work done yet, start with a clean file</span>
-          </button>
-          <button type="button" className={`claim-reconcile-option${reconciliationMode === "in_progress" ? " on" : ""}`} onClick={() => setReconciliationMode("in_progress")}>
-            <span className="claim-reconcile-option-title">Already in progress</span>
-            <span className="claim-reconcile-option-sub">Tick what&apos;s already done. Add real-world dates if you know them, leave blank if not.</span>
-          </button>
-          <button type="button" className={`claim-reconcile-option${reconciliationMode === "later" ? " on" : ""}`} onClick={() => setReconciliationMode("later")}>
-            <span className="claim-reconcile-option-title">I&apos;ll set this up later</span>
-            <span className="claim-reconcile-option-sub">Claim now, mark completed milestones from the file page</span>
-          </button>
-          {reconciliationMode === "in_progress" && (
-            <>
-              {wizardStep === "purchaser" && (
-                <button
-                  type="button"
-                  className="claim-wizard-back"
-                  onClick={() => setWizardStep("vendor")}
-                >
-                  ← Back to seller milestones
-                </button>
-              )}
-              <ReconcileMilestonePicker
-                milestoneDefinitions={milestoneDefinitions}
-                tenure={tenure}
-                purchaseType={purchaseType}
-                state={reconciledMilestones}
-                onChange={setReconciledMilestones}
-                side={wizardStep}
-              />
-              {wizardStep === "vendor" && (
-                <button
-                  type="button"
-                  className="claim-btn"
-                  onClick={() => setWizardStep("purchaser")}
-                  style={{ marginTop: 12 }}
-                >
-                  Next: Buyer milestones →
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
 
       {error && (
         <div
@@ -341,16 +239,14 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
         </div>
       )}
 
-      {onPurchaserStep && (
-        <button
-          type="submit"
-          disabled={!canSubmit || loading}
-          className="claim-btn"
-          style={{ marginTop: 4 }}
-        >
-          {loading ? "Creating your account…" : "Create account & claim"}
-        </button>
-      )}
+      <button
+        type="submit"
+        disabled={!canSubmit || loading}
+        className="claim-btn"
+        style={{ marginTop: 4 }}
+      >
+        {loading ? "Creating your account…" : "Create account & claim"}
+      </button>
 
       <p className="claim-form-terms">
         By creating an account you agree to our{" "}
