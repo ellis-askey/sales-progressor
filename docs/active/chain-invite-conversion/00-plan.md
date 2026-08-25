@@ -57,8 +57,13 @@ works + every user-facing string.
   Centre "Ready to invite" list on /command/chain-invites: every neighbour added with
   an email but never invited, so idle pipeline gets prodded. No migration. Deferred:
   making the neighbour-email field more prominent in the add-node flow (POLISH-TBD).
-- **Phase 5 — Activation after claim.** Instant first value on join; short guided
-  first-run; measure return-within-a-week + first milestone.
+- **Phase 5 — Activation after claim.** ✅ Shipped (staging). First-value on join
+  already existed (ClaimWelcomeModal "You're in" + ClaimedToast + the Phase 1
+  reconcile banner), so no new overlay was added (avoided duplication). Built the
+  missing measurement: getClaimActivation + an "After they join" section on
+  /command/chain-invites showing the share of claimers who've confirmed at least one
+  step post-claim (excluding reconciled-at-claim onboarding), plus a "joined but
+  quiet" check-in list. No migration.
 - **Phase 6 — The compounding loop.** On join, prompt the new agent to invite THEIR
   onward/downward agents. Measure the knock-on (viral coefficient).
 

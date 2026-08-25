@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getChainInviteReport, getUninvitedNeighbours, type ChainFunnel, type ChainInviteFollowUp, type UninvitedNeighbour } from "@/lib/command/chain-invites";
+import { getChainInviteReport, getUninvitedNeighbours, getClaimActivation, type ChainFunnel, type ChainInviteFollowUp, type UninvitedNeighbour, type ClaimActivation } from "@/lib/command/chain-invites";
 
 // Command Centre → Chain invites. The agent-to-agent invite funnel: how far
 // invited agencies get from "email sent" to "joined", plus a call-list of the
@@ -20,9 +20,10 @@ export default async function ChainInvitesPage({
 }) {
   const { range } = await searchParams;
   const active = RANGES.find((r) => r.key === range) ?? RANGES[1]; // default 90 days
-  const [report, uninvited] = await Promise.all([
+  const [report, uninvited, activation] = await Promise.all([
     getChainInviteReport(active.days),
     getUninvitedNeighbours(),
+    getClaimActivation(),
   ]);
 
   return (
@@ -60,6 +61,8 @@ export default async function ChainInvitesPage({
       </div>
 
       <FollowUps rows={report.followUps} />
+
+      <AfterJoin activation={activation} />
 
       <UninvitedList rows={uninvited} />
 
@@ -177,6 +180,64 @@ function FollowUps({ rows }: { rows: ChainInviteFollowUp[] }) {
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+// Activation after a claim. Joining isn't the win; confirming a first step is.
+function AfterJoin({ activation }: { activation: ClaimActivation }) {
+  const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const share = activation.claimed === 0 ? 0 : Math.round((activation.activated / activation.claimed) * 100);
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-[13px] font-semibold text-neutral-200">After they join</p>
+          <p className="text-[11px] text-neutral-500 mt-0.5">
+            Joining isn&apos;t the win, using it is. How many who joined have confirmed at least one step on their file.
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-2xl font-semibold tabular-nums text-neutral-100">
+            {activation.activated}
+            <span className="text-neutral-600 text-lg">/{activation.claimed}</span>
+          </p>
+          <p className="text-[11px] text-neutral-500">confirmed a step ({share}%)</p>
+        </div>
+      </div>
+      {activation.dormant.length === 0 ? (
+        <p className="px-4 py-6 text-[13px] text-neutral-600">
+          {activation.claimed === 0
+            ? "No one has joined a chain yet."
+            : "Everyone who joined has confirmed a step."}
+        </p>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="text-neutral-500 text-left">
+                  <th className="font-medium px-4 py-2">Agent</th>
+                  <th className="font-medium px-4 py-2">Their file</th>
+                  <th className="font-medium px-4 py-2 text-right">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activation.dormant.map((d) => (
+                  <tr key={d.linkId} className="border-t border-neutral-800/70">
+                    <td className="px-4 py-2.5 text-neutral-200">{d.claimerName ?? d.agency ?? "Unknown"}</td>
+                    <td className="px-4 py-2.5 text-neutral-400">{d.address}</td>
+                    <td className="px-4 py-2.5 text-right text-neutral-500 tabular-nums">{fmt(d.claimedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-neutral-800/70">
+            <p className="text-[11px] text-neutral-600">Joined but no step confirmed yet. Worth a check-in.</p>
+          </div>
+        </>
       )}
     </div>
   );

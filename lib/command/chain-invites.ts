@@ -79,6 +79,76 @@ export async function getUninvitedNeighbours(): Promise<UninvitedNeighbour[]> {
   }));
 }
 
+// Activation after a claim: joining is not the win, using it is. A claimer counts
+// as "activated" once they confirm at least one milestone on their file AFTER
+// claiming (excluding anything reconciled at claim time, which is onboarding, not
+// real progress). See docs/active/chain-invite-conversion — Phase 5.
+export type DormantClaim = {
+  linkId: string;
+  address: string;
+  agency: string | null;
+  claimerName: string | null;
+  claimedAt: Date;
+};
+
+export type ClaimActivation = {
+  claimed: number;
+  activated: number;
+  dormant: DormantClaim[]; // joined, but no step confirmed yet
+};
+
+export async function getClaimActivation(): Promise<ClaimActivation> {
+  const links = await commandDb.chainLink.findMany({
+    where: {
+      inviteStatus: "CLAIMED",
+      claimedByUserId: { not: null },
+      claimedAt: { not: null },
+      transactionId: { not: null },
+    },
+    select: {
+      id: true,
+      claimedByUserId: true,
+      claimedAt: true,
+      claimedBy: { select: { name: true, firmName: true } },
+      transaction: {
+        select: {
+          propertyAddress: true,
+          agency: { select: { name: true } },
+          milestoneCompletions: {
+            where: { state: "complete", reconciledAtClaim: false },
+            select: { completedAt: true, completedById: true },
+          },
+        },
+      },
+    },
+    orderBy: { claimedAt: "desc" },
+  });
+
+  const dormant: DormantClaim[] = [];
+  let activated = 0;
+
+  for (const l of links) {
+    if (!l.claimedAt || !l.transaction) continue;
+    const claimedAt = l.claimedAt;
+    const confirmedAStep = l.transaction.milestoneCompletions.some(
+      (mc) => mc.completedById === l.claimedByUserId && mc.completedAt != null && mc.completedAt > claimedAt,
+    );
+    if (confirmedAStep) {
+      activated++;
+    } else {
+      dormant.push({
+        linkId: l.id,
+        address: l.transaction.propertyAddress,
+        agency: l.transaction.agency?.name ?? l.claimedBy?.firmName ?? null,
+        claimerName: l.claimedBy?.name ?? null,
+        claimedAt,
+      });
+    }
+  }
+
+  return { claimed: links.length, activated, dormant };
+}
+
 export async function getChainInviteReport(rangeDays: number | null): Promise<ChainInviteReport> {
   const since =
     rangeDays != null ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000) : null;
