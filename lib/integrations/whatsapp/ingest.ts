@@ -36,7 +36,7 @@ export type BridgeMessage = {
 
 export type IngestResult = {
   waMessageId: string;
-  status: "logged" | "pending" | "duplicate" | "invalid";
+  status: "logged" | "pending" | "duplicate" | "invalid" | "ignored";
   transactionId?: string;
   reason?: string;
 };
@@ -82,6 +82,14 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
     select: { id: true },
   });
   if (pending) return { waMessageId: m.waMessageId, status: "duplicate" };
+
+  // A dismissed chat (personal / non-property) is dropped, not re-queued, so the
+  // "needs assigning" list doesn't refill with junk. Reversible in the DB.
+  const ignored = await prisma.whatsAppIgnoredChat.findUnique({
+    where: { waChatId: m.waChatId },
+    select: { id: true },
+  });
+  if (ignored) return { waMessageId: m.waMessageId, status: "ignored" };
 
   // A chat that's already been assigned (group OR direct, auto or manually) is
   // the source of truth — survives renames and never re-asks.
@@ -286,8 +294,10 @@ async function resolveSender(
     if (agent) return { label: agent.name, contactId: null, createdById: agent.id };
   }
 
-  // 3. Fallback — the number (or the WhatsApp display name if we have no number).
-  return { label: m.senderPhone ?? m.senderName ?? null, contactId: null, createdById: null };
+  // 3. Fallback — prefer the WhatsApp display name (pushName). In groups the
+  // participant id is often a privacy LID (a long non-phone number), so the raw
+  // number is meaningless to a human; the name is what identifies the sender.
+  return { label: m.senderName ?? m.senderPhone ?? null, contactId: null, createdById: null };
 }
 
 // Manually assign a whole chat (group or DM) to a property: remember the chat →
@@ -331,6 +341,48 @@ export async function flushPendingForChat(waChatId: string, txId: string, side: 
       console.error("[whatsapp] flush pending failed", p.waMessageId, err);
     }
   }
+}
+
+// Move an already-assigned chat to a different file: remap it and relocate every
+// WhatsApp message from that chat onto the new file. Non-destructive — messages
+// are moved, never deleted. Fixes a mis-assignment.
+export async function reassignChat(waChatId: string, newTransactionId: string, side: Side) {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: newTransactionId },
+    select: { agencyId: true, activeBuyerRoundId: true },
+  });
+  if (!tx) return;
+  await prisma.whatsAppGroupMapping.upsert({
+    where: { waChatId },
+    create: { waChatId, transactionId: newTransactionId, side, matchMethod: "manual" },
+    update: { transactionId: newTransactionId, side, matchMethod: "manual" },
+  });
+  await prisma.outboundMessage.updateMany({
+    where: { method: "whatsapp", providerWebhookData: { path: ["waChatId"], equals: waChatId } },
+    data: {
+      transactionId: newTransactionId,
+      agencyId: tx.agencyId,
+      buyerRoundId: side === "BUYER" ? tx.activeBuyerRoundId : null,
+    },
+  });
+}
+
+// Stop capturing a chat onto its file: drop the mapping so future messages
+// return to the "needs assigning" queue. Existing messages stay where they are
+// (non-destructive); use reassignChat to move them instead.
+export async function unassignChat(waChatId: string) {
+  await prisma.whatsAppGroupMapping.deleteMany({ where: { waChatId } });
+}
+
+// Dismiss a chat from the "needs assigning" queue: remember it as ignored (so
+// ingest drops its future messages) and clear its pending rows.
+export async function dismissChat(waChatId: string, title: string | null) {
+  await prisma.whatsAppIgnoredChat.upsert({
+    where: { waChatId },
+    create: { waChatId, title },
+    update: { title },
+  });
+  await prisma.whatsAppPendingMessage.deleteMany({ where: { waChatId } });
 }
 
 async function writePending(m: BridgeMessage, reason: string, candidates: string[]) {

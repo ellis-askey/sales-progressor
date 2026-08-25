@@ -2087,6 +2087,17 @@ model WhatsAppPendingMessage {
   @@index([createdAt])
 }
 
+// Chats the operator has dismissed from the "needs assigning" queue (personal or
+// non-property conversations). Ingest drops messages from an ignored chat
+// instead of re-queueing them, so junk stops piling up. Reversible: delete the
+// row and the chat starts routing again.
+model WhatsAppIgnoredChat {
+  id        String   @id @default(cuid())
+  waChatId  String   @unique
+  title     String? // last known group name / sender, for context
+  createdAt DateTime @default(now())
+}
+
 enum WhatsAppSide {
   BUYER
   SELLER

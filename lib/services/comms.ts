@@ -316,6 +316,10 @@ export type WhatsAppConversation = {
   chatId: string;
   title: string;
   isGroup: boolean;
+  // Whether to render a sender name above inbound bubbles. True for groups and
+  // for the "imported history" buckets (which mix people); false for a live 1:1
+  // DM where the title already names the other party.
+  showSenders: boolean;
   lastAt: Date;
   messages: WhatsAppChatMessage[];
 };
@@ -326,9 +330,15 @@ export async function getWhatsAppConversations(
 ): Promise<WhatsAppConversation[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true, activeBuyerRoundId: true },
+    select: {
+      id: true,
+      activeBuyerRoundId: true,
+      contacts: { select: { id: true, name: true, roleType: true } },
+    },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  const contactById = new Map(tx.contacts.map((c) => [c.id, c]));
 
   const rows = await prisma.outboundMessage.findMany({
     where: {
@@ -351,6 +361,8 @@ export async function getWhatsAppConversations(
       createdAt: true,
       mediaUrl: true,
       providerWebhookData: true,
+      contactIds: true,
+      buyerRoundId: true,
     },
   });
 
@@ -360,33 +372,71 @@ export async function getWhatsAppConversations(
   type Meta = { waChatId?: string; isGroup?: boolean; groupName?: string | null; media?: { type?: string } };
   const byChat = new Map<string, WhatsAppConversation>();
 
+  // Resolve a paste-imported row (no chat metadata) to a side + a sender name
+  // from the contacts it was logged against. Live-captured rows carry their own
+  // senderLabel; these older rows only carry contactIds.
+  const contactSide = (contactIds: string[], buyerRoundId: string | null): "seller" | "buyer" | null => {
+    for (const id of contactIds) {
+      const role = contactById.get(id)?.roleType;
+      if (role === "vendor") return "seller";
+      if (role === "purchaser") return "buyer";
+    }
+    return buyerRoundId ? "buyer" : null;
+  };
+  const contactName = (contactIds: string[]): string | null => {
+    for (const id of contactIds) {
+      const n = contactById.get(id)?.name;
+      if (n) return n;
+    }
+    return null;
+  };
+
   for (const r of rows) {
     const meta = (r.providerWebhookData as Meta | null) ?? {};
-    const chatId = meta.waChatId ?? "unknown";
     const at = r.sentAt ?? r.createdAt;
-    const isGroup = meta.isGroup ?? false;
+    const isLive = !!meta.waChatId;
+
+    let chatId: string;
+    let isGroup: boolean;
+    let showSenders: boolean;
+    let title: string;
+
+    if (isLive) {
+      chatId = `live:${meta.waChatId}`;
+      isGroup = meta.isGroup ?? false;
+      showSenders = isGroup;
+      const dmName = r.type === "inbound" ? r.senderLabel ?? contactName(r.contactIds) : null;
+      title = meta.groupName || dmName || "WhatsApp chat";
+    } else {
+      // Paste-imported history has no chat id; split it by side so buyer and
+      // seller threads never mix, and always show who said what.
+      const side = contactSide(r.contactIds, r.buyerRoundId);
+      chatId = `history:${side ?? "general"}`;
+      isGroup = false;
+      showSenders = true;
+      title = side === "seller" ? "Imported history · Seller"
+        : side === "buyer" ? "Imported history · Buyer"
+          : "Imported history";
+    }
 
     let convo = byChat.get(chatId);
     if (!convo) {
-      // DM chats carry no group name — title off the other party's label.
-      const dmTitle = r.type === "inbound" ? r.senderLabel : null;
-      convo = {
-        chatId,
-        title: meta.groupName || dmTitle || "WhatsApp chat",
-        isGroup,
-        lastAt: at,
-        messages: [],
-      };
+      convo = { chatId, title, isGroup, showSenders, lastAt: at, messages: [] };
       byChat.set(chatId, convo);
     }
     // A group name can arrive on a later message (learned on sync) — adopt it.
-    if (meta.groupName && convo.title === "WhatsApp chat") convo.title = meta.groupName;
+    if (isLive && meta.groupName && convo.title === "WhatsApp chat") convo.title = meta.groupName;
     if (at > convo.lastAt) convo.lastAt = at;
+
+    // Own (outbound) messages carry no name, WhatsApp-style. Inbound uses the
+    // captured sender name, then the contact it was logged against.
+    const senderLabel =
+      r.type === "outbound" ? null : r.senderLabel ?? contactName(r.contactIds);
 
     convo.messages.push({
       id: r.id,
       direction: r.type,
-      senderLabel: r.senderLabel ?? null,
+      senderLabel,
       content: r.content,
       at,
       mediaUrl: r.mediaUrl ? signed.get(r.mediaUrl) ?? null : null,

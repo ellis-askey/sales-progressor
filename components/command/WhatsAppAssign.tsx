@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { UnmatchedChat } from "@/lib/command/whatsapp";
-import { assignWhatsAppChatAction, searchWhatsAppTargetsAction } from "@/app/actions/command-whatsapp";
+import { assignWhatsAppChatAction, searchWhatsAppTargetsAction, dismissWhatsAppChatAction } from "@/app/actions/command-whatsapp";
 
 type Side = "BUYER" | "SELLER";
 
@@ -32,6 +32,21 @@ export function WhatsAppAssign({ chat }: { chat: UnmatchedChat }) {
     startSearch(async () => setResults(await searchWhatsAppTargetsAction(q)));
   }
 
+  function dismiss() {
+    startTransition(async () => {
+      await dismissWhatsAppChatAction(chat.waChatId, chat.title);
+      setDone("dismissed");
+    });
+  }
+
+  if (done === "dismissed") {
+    return (
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-[13px] text-neutral-500">
+        Dismissed <span className="font-medium text-neutral-300">{chat.title}</span>. We'll stop capturing this chat.
+      </div>
+    );
+  }
+
   if (done) {
     return (
       <div className="bg-neutral-900 border border-[#2c5a3f] rounded-xl px-4 py-3 text-[13px] text-[#6ee7b7]">
@@ -54,9 +69,19 @@ export function WhatsAppAssign({ chat }: { chat: UnmatchedChat }) {
             <p className="mt-1 text-[12px] text-neutral-500 truncate">{chat.lastBody}</p>
           )}
         </div>
-        <span className="text-[11px] text-neutral-600 shrink-0 tabular-nums">
-          {chat.count} msg{chat.count === 1 ? "" : "s"}
-        </span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className="text-[11px] text-neutral-600 tabular-nums">
+            {chat.count} msg{chat.count === 1 ? "" : "s"}
+          </span>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={dismiss}
+            className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50"
+          >
+            Dismiss
+          </button>
+        </div>
       </div>
 
       {/* Suggested matches */}

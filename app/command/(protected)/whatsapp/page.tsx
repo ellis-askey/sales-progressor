@@ -1,5 +1,7 @@
-import { getWhatsAppConnectionStatus, getUnmatchedChats, type WhatsAppConnectionStatus } from "@/lib/command/whatsapp";
+import { getWhatsAppConnectionStatus, getUnmatchedChats, getAssignedChats, type WhatsAppConnectionStatus } from "@/lib/command/whatsapp";
 import { WhatsAppAssign } from "@/components/command/WhatsAppAssign";
+import { WhatsAppAssignedList } from "@/components/command/WhatsAppAssignedList";
+import { WhatsAppRepairButton } from "@/components/command/WhatsAppRepairButton";
 
 // Command Centre → WhatsApp. Bridge connection status + the queue of
 // conversations waiting to be assigned to a property.
@@ -14,7 +16,11 @@ function fmtWhen(iso: string | null | undefined) {
 }
 
 export default async function WhatsAppCommandPage() {
-  const [status, chats] = await Promise.all([getWhatsAppConnectionStatus(), getUnmatchedChats()]);
+  const [status, chats, assigned] = await Promise.all([
+    getWhatsAppConnectionStatus(),
+    getUnmatchedChats(),
+    getAssignedChats().catch(() => []),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -43,6 +49,16 @@ export default async function WhatsAppCommandPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-neutral-300 mb-3">
+          Assigned conversations <span className="text-neutral-600">({assigned.length})</span>
+        </h2>
+        <p className="-mt-2 mb-3 text-[12px] text-neutral-500">
+          Chats linked to a file. Move one if it landed on the wrong property, or stop capturing it.
+        </p>
+        <WhatsAppAssignedList chats={assigned} />
       </div>
     </div>
   );
@@ -77,12 +93,7 @@ function ConnectionCard({ status }: { status: WhatsAppConnectionStatus }) {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-[12px] text-neutral-500">Last message: {fmtWhen(status.lastMessageAt)}</span>
-          {status.pairUrl && (
-            <a href={status.pairUrl} target="_blank" rel="noreferrer"
-              className="text-[12px] px-2.5 py-1 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800/60 transition-colors">
-              {open ? "Re-pair" : "Pair / scan QR"}
-            </a>
-          )}
+          <WhatsAppRepairButton pairUrl={status.pairUrl ?? null} />
         </div>
       </div>
     </div>

@@ -13,13 +13,30 @@ export type BridgeState = {
   lastMessageAt: string | null;
 };
 
-export function startHttpServer(cfg: BridgeConfig, state: BridgeState) {
+export type BridgeControls = {
+  // Drop credentials and bounce the socket so a fresh QR is emitted.
+  repair: () => Promise<void>;
+};
+
+export function startHttpServer(cfg: BridgeConfig, state: BridgeState, controls?: BridgeControls) {
   const server = http.createServer((req, res) => {
     const parsed = new URL(req.url ?? "/", "http://localhost");
     const path = parsed.pathname;
 
     if (req.method === "GET" && path === "/health") {
       return json(res, 200, { status: "ok", connection: state.connection });
+    }
+
+    // Force a re-pair: clears credentials and restarts pairing so a new QR shows.
+    // Secret-gated. Called by the Command Centre "Re-pair" control.
+    if (req.method === "POST" && path === "/repair") {
+      if (req.headers["authorization"] !== `Bearer ${cfg.controlSecret}`) {
+        return json(res, 401, { error: "unauthorized" });
+      }
+      state.connection = "connecting";
+      state.qrDataUrl = null;
+      void controls?.repair();
+      return json(res, 200, { ok: true });
     }
 
     // Browser pairing page — shows a clean, auto-refreshing QR to scan.

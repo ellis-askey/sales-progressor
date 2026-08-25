@@ -90,6 +90,47 @@ export async function getUnmatchedChats(): Promise<UnmatchedChat[]> {
   return out;
 }
 
+export type AssignedChat = {
+  waChatId: string;
+  transactionId: string;
+  address: string;
+  side: "BUYER" | "SELLER";
+  matchMethod: string;
+  messageCount: number;
+  lastAt: Date | null;
+};
+
+// Chats currently mapped to a file, so the operator can fix a mis-assignment
+// (reassign / unassign). Low volume, so per-chat counts are fine.
+export async function getAssignedChats(): Promise<AssignedChat[]> {
+  const maps = await commandDb.whatsAppGroupMapping.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { transaction: { select: { propertyAddress: true } } },
+    take: 100,
+  });
+  const out: AssignedChat[] = [];
+  for (const m of maps) {
+    const where = {
+      method: "whatsapp" as const,
+      providerWebhookData: { path: ["waChatId"], equals: m.waChatId },
+    };
+    const [messageCount, last] = await Promise.all([
+      commandDb.outboundMessage.count({ where }),
+      commandDb.outboundMessage.findFirst({ where, orderBy: { sentAt: "desc" }, select: { sentAt: true } }),
+    ]);
+    out.push({
+      waChatId: m.waChatId,
+      transactionId: m.transactionId,
+      address: m.transaction?.propertyAddress ?? "(unknown file)",
+      side: m.side as "BUYER" | "SELLER",
+      matchMethod: m.matchMethod,
+      messageCount,
+      lastAt: last?.sentAt ?? null,
+    });
+  }
+  return out;
+}
+
 async function candidatesForChat(
   recent: { isGroup: boolean; senderPhone: string | null },
   parsed: { side: "BUYER" | "SELLER"; address: string } | null,

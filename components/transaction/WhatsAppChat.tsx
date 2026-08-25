@@ -90,7 +90,7 @@ function Media({ url, type }: { url: string; type: string | null }) {
   );
 }
 
-function Bubble({ m, isGroup }: { m: WhatsAppChatMessage; isGroup: boolean }) {
+function Bubble({ m, showSenders }: { m: WhatsAppChatMessage; showSenders: boolean }) {
   const outbound = m.direction === "outbound";
   const hasMedia = !!m.mediaUrl;
   const showText = m.content.trim().length > 0 && !(hasMedia && PLACEHOLDER_RE.test(m.content.trim()));
@@ -107,7 +107,7 @@ function Bubble({ m, isGroup }: { m: WhatsAppChatMessage; isGroup: boolean }) {
           boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)",
         }}
       >
-        {isGroup && !outbound && m.senderLabel && (
+        {showSenders && !outbound && m.senderLabel && (
           <div style={{ fontSize: 12.5, fontWeight: 600, color: nameColour(m.senderLabel), marginBottom: 2 }}>{m.senderLabel}</div>
         )}
         {hasMedia && m.mediaUrl && (
@@ -149,7 +149,9 @@ export function WhatsAppChat({ conversations }: { conversations: WhatsAppConvers
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: "#111b21", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convo.title}</div>
-            <div style={{ fontSize: 12, color: "#667781" }}>{convo.isGroup ? "Group chat" : "Direct chat"} · read-only</div>
+            <div style={{ fontSize: 12, color: "#667781" }}>
+              {convo.chatId.startsWith("history:") ? "Imported history" : convo.isGroup ? "Group chat" : "Direct chat"} · read-only
+            </div>
           </div>
         </div>
         {conversations.length > 1 && (
@@ -205,7 +207,7 @@ export function WhatsAppChat({ conversations }: { conversations: WhatsAppConvers
                   </span>
                 </div>
               )}
-              <Bubble m={m} isGroup={convo.isGroup} />
+              <Bubble m={m} showSenders={convo.showSenders} />
             </Fragment>
           );
         })}

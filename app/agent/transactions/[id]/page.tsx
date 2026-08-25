@@ -104,6 +104,9 @@ export default async function AgentTransactionDetailPage({
   const isProgressor = session.user.role === "sales_progressor";
   const isAdminRole  = hasAdminPowers(session);
   const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";
+  // WhatsApp capture runs on our own WhatsApp Business number for files our team
+  // progresses, so the tab is for internal staff, not customer agencies.
+  const isInternalTeam = isInternalStaff || session.user.role === "superadmin";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
   // ── Critical-path fan-out ─────────────────────────────────────────────
@@ -271,9 +274,9 @@ export default async function AgentTransactionDetailPage({
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
-    // WhatsApp tab is founder-only while the capture pipeline is being fixed
-    // (history-skip + sender attribution). Gated to Ellis, same as chase.
-    ...(isEllis ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
+    // WhatsApp tab: internal staff only (our team progresses these files over
+    // WhatsApp; customer agencies have no capture).
+    ...(isInternalTeam ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
   ];
 
   // Role-gated header controls — 2026-08-08 hero redesign: these moved
@@ -584,10 +587,10 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
 
-        {/* Tab 6: WhatsApp — founder-only while the capture pipeline is fixed.
-            The falsy when hidden is stripped by PropertyFileTabs' Children.toArray
-            so the remaining tab panels stay index-aligned. */}
-        {isEllis && (
+        {/* Tab 6: WhatsApp — internal staff only. The falsy when hidden is
+            stripped by PropertyFileTabs' Children.toArray so the remaining tab
+            panels stay index-aligned. */}
+        {isInternalTeam && (
           <Suspense fallback={<TabPanelSkeleton rows={6} />}>
             <WhatsAppPanel
               transactionId={transaction.id}

@@ -5,11 +5,31 @@ import type { proto } from "@whiskeysockets/baileys";
 import type { BridgeMedia, BridgeMessage } from "./types.js";
 
 // Digits-only phone from a WhatsApp jid ("447700900000@s.whatsapp.net" -> "447700900000").
+// Returns null for a privacy LID jid ("...@lid"): that number is not a real phone
+// and must never be treated as one (it breaks contact matching and shows as a
+// meaningless long number). Callers fall back to the display name instead.
 function phoneFromJid(jid: string | null | undefined): string | null {
   if (!jid) return null;
+  if (jid.endsWith("@lid")) return null;
   const user = jid.split("@")[0]?.split(":")[0] ?? "";
   const digits = user.replace(/\D/g, "");
   return digits ? `+${digits}` : null;
+}
+
+// A group participant's real phone jid, when Baileys exposes one alongside the
+// LID. Field names vary across Baileys versions during the LID migration, so we
+// read them defensively and only accept a real "@s.whatsapp.net" jid.
+function realPhoneJid(key: Record<string, unknown> | null | undefined, senderJid: string | null): string | null {
+  const candidates = [
+    key?.participantPn,
+    key?.participantAlt,
+    key?.senderPn,
+    senderJid,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.endsWith("@s.whatsapp.net")) return c;
+  }
+  return null;
 }
 
 function toMillis(ts: number | Long | null | undefined): number {
@@ -90,6 +110,9 @@ export function normaliseMessage(
   const fromMe = Boolean(key?.fromMe);
   // In a group, the real sender is `participant`; in a DM it's the chat jid.
   const senderJid = isGroup ? key?.participant ?? null : remoteJid;
+  // Prefer a real phone jid (for contact matching); a LID resolves to null and
+  // the PWA then attributes by pushName.
+  const phoneJid = realPhoneJid(key as unknown as Record<string, unknown>, senderJid);
 
   return {
     waMessageId: id,
@@ -97,7 +120,7 @@ export function normaliseMessage(
     isGroup,
     groupName: isGroup ? groupName : null,
     fromMe,
-    senderPhone: fromMe ? null : phoneFromJid(senderJid),
+    senderPhone: fromMe ? null : phoneFromJid(phoneJid),
     senderName: wa.pushName ?? null,
     body: body ?? null,
     timestamp: toMillis(wa.messageTimestamp as number | Long | null | undefined),

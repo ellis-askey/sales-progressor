@@ -18,11 +18,14 @@ import { log } from "./logger.js";
 import { Delivery } from "./delivery.js";
 import { normaliseMessage } from "./normalise.js";
 import { startHttpServer, type BridgeState } from "./server.js";
+import { Watermark } from "./watermark.js";
+import { rm } from "node:fs/promises";
 
 const cfg = loadConfig();
-// Anything timestamped before the bridge booted is treated as history and
-// ignored, so the initial linked-device sync never backfills the archive.
-const BOOT_TIME = Date.now();
+// History floor: the newest message already forwarded, persisted across
+// restarts (see watermark.ts). Messages older than it are archive/backfill and
+// skipped; anything newer — including a backlog from downtime — is captured.
+const watermark = new Watermark(cfg.queueDir);
 const state: BridgeState = { connection: "connecting", qrDataUrl: null, phoneNumber: null, lastMessageAt: null };
 const delivery = new Delivery(cfg);
 const groupNames = new Map<string, string>();
@@ -31,6 +34,31 @@ const groupNames = new Map<string, string>();
 const waLogger = pino({ level: "silent" });
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+let currentSock: WASocket | null = null;
+
+async function clearAuth(): Promise<void> {
+  try {
+    await rm(cfg.authDir, { recursive: true, force: true });
+    log.info("auth credentials cleared");
+  } catch (err) {
+    log.warn("auth clear failed", { error: (err as Error).message });
+  }
+}
+
+// Force a fresh pairing: drop the stored credentials and bounce the socket. The
+// connection.update "close" handler treats the bounce as transient and
+// reconnects; with creds gone it comes back up as a scannable QR. Used both on a
+// genuine logout and by the /repair control endpoint, so the bridge can always
+// recover to a QR without someone clearing the volume by hand.
+async function repair(): Promise<void> {
+  await clearAuth();
+  try {
+    currentSock?.end(new Error("manual re-pair"));
+  } catch {
+    /* socket already gone */
+  }
+}
 
 async function groupSubject(sock: WASocket, jid: string): Promise<string | null> {
   const cached = groupNames.get(jid);
@@ -66,6 +94,7 @@ async function connect() {
     markOnlineOnConnect: false, // stay passive — don't flip presence to "online"
   });
 
+  currentSock = sock;
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async (update) => {
@@ -98,8 +127,12 @@ async function connect() {
       const loggedOut = statusCode === DisconnectReason.loggedOut;
       log.warn("connection closed", { statusCode, loggedOut });
       if (loggedOut) {
-        log.error("logged out: clear the auth dir and re-scan the QR to reconnect");
-        return; // needs a human re-pair; don't loop
+        // Was a permanent dead-end: it returned without clearing creds, so /pair
+        // stuck forever. Now we clear and reconnect, which re-emits a QR.
+        log.error("logged out — clearing credentials and restarting pairing");
+        await clearAuth();
+        setTimeout(() => void connect(), 3000);
+        return;
       }
       setTimeout(() => void connect(), 3000); // transient — reconnect
     }
@@ -127,9 +160,10 @@ async function connect() {
         const name = isGroup ? await groupSubject(sock, remoteJid) : null;
         const msg = normaliseMessage(wa, name);
         if (!msg) continue;
-        if (msg.timestamp < BOOT_TIME - 60_000) continue; // history / pre-boot — skip
+        if (msg.timestamp < watermark.get() - 60_000) continue; // older than the last-seen floor — archive
         state.lastMessageAt = new Date().toISOString();
         await delivery.send(msg);
+        watermark.observe(msg.timestamp);
         // If it carries media, download it and upload after the message row
         // exists (delivery above is awaited, so the PWA can attach it).
         if (msg.media) {
@@ -153,8 +187,9 @@ async function connect() {
 }
 
 async function start() {
+  await watermark.init();
   await delivery.init();
-  startHttpServer(cfg, state);
+  startHttpServer(cfg, state, { repair });
   await connect();
 }
 
