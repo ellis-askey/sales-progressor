@@ -120,8 +120,8 @@ function buildNudgeEmail(v: {
 </div>
 <div style="padding:28px 32px">
   <p style="margin:0 0 16px;font-size:15px">Hello ${v.recipientName},</p>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">A little while ago, ${v.originatorName} at ${v.originatorAgency} added your sale at <strong>${v.stubAddress}</strong> to a live chain on Sales Progressor. It's still open, and we noticed you haven't had a look yet.</p>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Taking a look costs nothing. You'll see how every sale in the chain is progressing in real time, so you can stop guessing where the hold-up is and chase less.</p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">A little while ago, ${v.originatorName} at ${v.originatorAgency} added your sale at <strong>${v.stubAddress}</strong> to a live chain on Sales Progressor. It's still active, and your view of the chain is ready whenever you'd like to take a look.</p>
+  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">You can see how each sale is progressing, what's still outstanding and where the chain is currently waiting. It's simply a clearer way to keep up with the whole chain without having to chase everyone for updates.</p>
   <p style="margin:0 0 28px">
     <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">See the chain</a>
   </p>
@@ -134,9 +134,9 @@ function buildNudgeEmail(v: {
 
   const text = `Hello ${v.recipientName},
 
-A little while ago, ${v.originatorName} at ${v.originatorAgency} added your sale at ${v.stubAddress} to a live chain on Sales Progressor. It's still open, and we noticed you haven't had a look yet.
+A little while ago, ${v.originatorName} at ${v.originatorAgency} added your sale at ${v.stubAddress} to a live chain on Sales Progressor. It's still active, and your view of the chain is ready whenever you'd like to take a look.
 
-Taking a look costs nothing. You'll see how every sale in the chain is progressing in real time, so you can stop guessing where the hold-up is and chase less.
+You can see how each sale is progressing, what's still outstanding and where the chain is currently waiting. It's simply a clearer way to keep up with the whole chain without having to chase everyone for updates.
 
 See the chain: ${v.claimUrl}
 
