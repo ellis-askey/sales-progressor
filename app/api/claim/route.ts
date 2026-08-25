@@ -95,15 +95,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This invite link has expired" }, { status: 410 });
   }
 
-  // Email must match the stub
-  const userEmail = session.user.email?.toLowerCase().trim();
-  const stubEmail = link.stubAgentEmail?.toLowerCase().trim();
-  if (!userEmail || !stubEmail || userEmail !== stubEmail) {
-    return NextResponse.json(
-      { error: "This invite was sent to a different email address" },
-      { status: 403 },
-    );
-  }
+  // The invite token is the bearer secret: any authenticated agent who holds a
+  // valid link and has an agency can claim it. We deliberately do NOT require the
+  // logged-in email to match the invited stub email — invites get forwarded to a
+  // colleague, sent to a generic office inbox, or the agent logs in with a
+  // different address, and an exact-match wall silently killed all of those.
+  // The originator guard below still stops someone claiming their own invite.
+  // See docs/active/chain-invite-conversion — Phase 2.
 
   // Caller cannot be the originator
   if (link.chain.createdByUserId === session.user.id) {

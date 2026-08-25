@@ -25,9 +25,14 @@ works + every user-facing string.
   too would need a nullable/pre-setup file state (milestone engine depends on
   them) for near-zero friction gain. Existing-agent paths (/claim/login,
   /claim/confirm) keep their inline reconciliation for now.
-- **Phase 2 — Stop silently binning invites.** Extend/remove the 7-day expiry;
-  relax the exact-email lock (decision: recommend relax); enforce a resend cap;
-  clean up dead fields + decline reliability.
+- **Phase 2 — Stop silently binning invites.** ✅ Shipped (staging). Invite expiry
+  extended from 7/14 days to 60. Exact-email lock relaxed: any logged-in agent with
+  an agency can claim via a valid token (the originator self-claim guard stays) —
+  removes dead-ends from forwarded invites, generic office inboxes, and different
+  login emails. Resend cap added (1 initial + 5 resends). Expiry copy on the four
+  "expired" screens made window-agnostic. Deferred (not conversion-critical): the
+  unused inviteUnsubscribedAt column and decline-notification retry stay as-is
+  (Law 19 grandfather — a drop-column migration isn't worth the risk).
 - **Phase 3 — Lift the email (open + click).** Subject-line testing, deliverability,
   copy, a gentle nudge/reminder. Needs Phase 0 data first.
 - **Phase 4 — Make invites actually get sent.** Measure un-invited neighbours;

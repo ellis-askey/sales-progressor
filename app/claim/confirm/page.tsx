@@ -120,51 +120,11 @@ export default async function ClaimConfirmPage({
       />
     );
 
-  // Email mismatch — wrong account warning
-  const userEmail = session.user.email?.toLowerCase().trim();
-  const stubEmail = link.stubAgentEmail?.toLowerCase().trim();
-  const emailMismatch = !userEmail || !stubEmail || userEmail !== stubEmail;
-
-  if (emailMismatch) {
-    return (
-      <Shell>
-        <div className="claim-container--narrow">
-          <div className="claim-context-strip">
-            <a href={`/claim?token=${token}`} className="claim-context-back">
-              ← Back
-            </a>
-            <div className="claim-context-info">
-              <div className="claim-context-label">Claiming:</div>
-              <div className="claim-context-address">
-                {link.stubPropertyAddress ?? "Your sale"}
-              </div>
-            </div>
-          </div>
-
-          <h1 className="claim-sub-h1">Wrong account</h1>
-          <p className="claim-sub-p">
-            This invite was sent to <strong>{link.stubAgentEmail}</strong>. You&apos;re logged
-            in as <strong>{session.user.email}</strong>.
-          </p>
-
-          <div className="claim-warn-card">
-            <p className="claim-warn-p">
-              Log out and sign in with <strong>{link.stubAgentEmail}</strong> to claim this
-              sale. If that address isn&apos;t yours, ask the inviting agent to resend the
-              invite to <strong>{session.user.email}</strong>.
-            </p>
-          </div>
-
-          <a href="/api/auth/signout" className="claim-btn">
-            Switch account
-          </a>
-          <a href={`/claim?token=${token}`} className="claim-decline-link">
-            Cancel
-          </a>
-        </div>
-      </Shell>
-    );
-  }
+  // No email-match wall (Phase 2): the invite token is the bearer secret, so any
+  // logged-in agent who holds a valid link and has an agency can claim it. The
+  // self-claim guard above still stops the originator. This removes the silent
+  // dead-ends from forwarded invites, generic office inboxes, and logging in with
+  // a different address. See docs/active/chain-invite-conversion.
 
   // Duplicate detection
   const agencyId = session.user.agencyId;

@@ -103,7 +103,7 @@ export default async function ClaimSignupPage({
     return (
       <ClaimError
         title="This invite has expired."
-        body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
+        body="This invite link has expired. Ask the inviting agent to resend it."
       />
     );
 

@@ -50,6 +50,16 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Resend cap: one initial send plus up to five resends. Beyond that a resend
+  // is almost always a wrong/dead address, so we stop rather than keep emailing.
+  const MAX_SENDS = 6;
+  if (link.inviteResendCount >= MAX_SENDS) {
+    return NextResponse.json(
+      { error: "This invite has been sent the maximum number of times. Check the address or reach the agent another way." },
+      { status: 429 },
+    );
+  }
+
   await sendChainInvite({ link, sentByUserId: session.user.id, sentByName: session.user.name ?? "" });
   return NextResponse.json({ ok: true });
 }

@@ -43,8 +43,11 @@ export async function sendChainInvite(input: SendChainInviteInput): Promise<void
 
   const token = crypto.randomBytes(32).toString("hex");
   const isResend = link.inviteResendCount > 0;
-  const expiryDays = isResend ? 14 : 7;
-  const inviteTokenExpiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+  // Long window so a busy agent doesn't lose the invite just because they were
+  // away for a week. Was 7 days (14 on resend), which quietly binned invites.
+  // See docs/active/chain-invite-conversion — Phase 2.
+  const EXPIRY_DAYS = 60;
+  const inviteTokenExpiresAt = new Date(Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
   await prisma.chainLink.update({
     where: { id: link.id },

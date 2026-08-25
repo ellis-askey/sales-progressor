@@ -118,7 +118,7 @@ export default async function ClaimDeclinePage({
           <div className="claim-decline-body">
             <h1 className="claim-decline-h1">This invite has expired.</h1>
             <p className="claim-decline-sub">
-              The link was valid for 7 days. No action needed. We haven&apos;t notified anyone.
+              This invite has expired. No action needed. We haven&apos;t notified anyone.
             </p>
             <p className="claim-about">
               What is The Sales Progressor? Estate agents use it to track every sale in a chain
