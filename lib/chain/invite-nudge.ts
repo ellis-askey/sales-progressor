@@ -12,7 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveChainInviteSender } from "@/lib/chain/invite";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -47,6 +47,7 @@ export async function sendDueChainInviteNudges(now: Date = new Date()): Promise<
           createdBy: { select: { name: true, firmName: true, agencyId: true } },
           links: {
             select: {
+              transactionId: true,
               withdrawalStatus: true,
               transaction: { select: { status: true } },
             },
@@ -70,16 +71,18 @@ export async function sendDueChainInviteNudges(now: Date = new Date()): Promise<
 
     const claimUrl = `${base}/claim?token=${link.inviteToken}`;
     const declineUrl = `${base}/claim/decline?token=${link.inviteToken}`;
-    const originatorName = link.chain.createdBy?.name ?? "An agent";
-    const originatorAgency = link.chain.createdBy?.firmName ?? "their agency";
     const recipientName = link.stubAgencyName ?? "there";
     const stubAddress = normaliseAddressString(link.stubPropertyAddress ?? "your sale");
-    const firstName = originatorName.trim().split(/\s+/)[0] || undefined;
-
-    const { from, replyTo } = await resolveAgencySender(
-      link.chain.createdBy?.agencyId ?? null,
-      firstName ? { personFirstName: firstName } : undefined,
-    );
+    // Brand from the originating file (customer agency + right persona), the same
+    // way the invite does. See resolveChainInviteSender.
+    const originatorTxId = link.chain.links.find((l) => l.transactionId)?.transactionId ?? null;
+    const { from, replyTo, displayFirstName, displayAgency } = await resolveChainInviteSender(originatorTxId, {
+      name: link.chain.createdBy?.name ?? "An agent",
+      agencyId: link.chain.createdBy?.agencyId ?? null,
+      agencyName: link.chain.createdBy?.firmName ?? "their agency",
+    });
+    const originatorName = displayFirstName;
+    const originatorAgency = displayAgency;
 
     const { subject, html, text } = buildNudgeEmail({
       recipientName,

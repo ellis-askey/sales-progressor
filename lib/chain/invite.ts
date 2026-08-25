@@ -4,7 +4,8 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { resolveAgencySender, resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -71,6 +72,48 @@ export async function sendChainInvite(input: SendChainInviteInput): Promise<void
   });
 }
 
+// Resolve who a chain invite (or its nudge) comes from. Brands from the
+// ORIGINATING FILE, not from whoever clicked "invite" — so it is always the
+// customer agency (never "Sales Progressor"), with the right persona:
+//   self-managed -> the agency's own agent   ("{first} at {Agency}")
+//   outsourced   -> the assigned progressor   ("{first} at {Agency}")
+// The from-address follows the agency sender policy (the agency's verified
+// address, else the established fallback). Only falls back to the sending user's
+// own agency when there is no originating file. See docs/active/chain-invite-conversion.
+export async function resolveChainInviteSender(
+  originatorTransactionId: string | null,
+  fallback: { name: string; agencyId: string | null; agencyName: string },
+): Promise<{ from: string; replyTo: string; displayFirstName: string; displayAgency: string }> {
+  const firstOf = (n: string) => n.trim().split(/\s+/)[0] || n;
+
+  if (originatorTransactionId) {
+    const otx = await prisma.propertyTransaction.findUnique({
+      where: { id: originatorTransactionId },
+      select: {
+        serviceType: true,
+        agency: { select: { name: true } },
+        assignedUser: { select: { name: true } },
+        agentUser: { select: { name: true } },
+      },
+    });
+    if (otx) {
+      const { from, replyTo } = await resolveAgencySenderForTransaction(originatorTransactionId);
+      const personaName =
+        (otx.serviceType === "self_managed" ? otx.agentUser?.name : otx.assignedUser?.name) ?? fallback.name;
+      const displayAgency = otx.agency?.name ? stripAgencyLegalSuffix(otx.agency.name) : fallback.agencyName;
+      return { from, replyTo, displayFirstName: firstOf(personaName), displayAgency };
+    }
+  }
+
+  // No originating file (shouldn't happen for a real chain) — brand from the
+  // sending user's own agency, as before.
+  const { from, replyTo } = await resolveAgencySender(
+    fallback.agencyId,
+    fallback.name ? { personFirstName: firstOf(fallback.name) } : undefined,
+  );
+  return { from, replyTo, displayFirstName: firstOf(fallback.name), displayAgency: fallback.agencyName };
+}
+
 // Looks up any extra context needed and sends the HTML + plain-text invite email.
 async function sendInviteEmail(input: {
   link: LinkForInvite;
@@ -92,8 +135,9 @@ async function sendInviteEmail(input: {
       })
     : null;
 
-  const originatorName = originator?.name ?? sentByName;
-  const originatorAgency = originator?.firmName ?? sentByName;
+  // Fallback identity, used only if there's no originating file to brand from.
+  const fallbackName = originator?.name ?? sentByName;
+  const fallbackAgency = originator?.firmName ?? sentByName;
 
   // Look up stub's own position and originator's position in chain
   const stubRecord = await prisma.chainLink.findUnique({
@@ -110,6 +154,16 @@ async function sendInviteEmail(input: {
   const originatorAddress = normaliseAddressString(
     originatorLink?.transaction?.propertyAddress ?? "a property",
   );
+
+  // Brand the invite from the ORIGINATING FILE (always the customer agency, never
+  // "Sales Progressor") with the right persona. See resolveChainInviteSender.
+  const sender = await resolveChainInviteSender(originatorLink?.transactionId ?? null, {
+    name: fallbackName,
+    agencyId: originator?.agencyId ?? null,
+    agencyName: fallbackAgency,
+  });
+  const originatorName = sender.displayFirstName;
+  const originatorAgency = sender.displayAgency;
 
   const stubAddress = normaliseAddressString(link.stubPropertyAddress ?? "your sale");
   const positionDesc =
@@ -154,14 +208,7 @@ async function sendInviteEmail(input: {
   // and we key the log off the email address only.
   // Send from the originator agency's authenticated address (Reply-To matching),
   // SP fallback when they have none.
-  // Personal from-name ("Mac at Meldone Estates") reads warmer and lands better
-  // than the agency name alone — for agencies with their own authenticated sender.
-  const originatorFirstName = originatorName.trim().split(/\s+/)[0] || undefined;
-  const { from: inviteFrom, replyTo: inviteReplyTo } = await resolveAgencySender(
-    originator?.agencyId,
-    originatorFirstName ? { personFirstName: originatorFirstName } : undefined,
-  );
-  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: inviteFrom, replyTo: inviteReplyTo, kind: "chain_invite", meta: { originatorAgency } });
+  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: sender.from, replyTo: sender.replyTo, kind: "chain_invite", meta: { originatorAgency } });
 }
 
 function buildInviteHtml(v: {

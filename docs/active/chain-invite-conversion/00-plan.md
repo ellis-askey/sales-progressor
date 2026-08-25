@@ -35,9 +35,16 @@ works + every user-facing string.
   (Law 19 grandfather — a drop-column migration isn't worth the risk).
 - **Phase 3 — Lift the email (open + click).** ✅ Shipped (staging), click-first
   (no open pixel — decided: unreliable under Apple MPP + small deliverability cost,
-  and we already capture click-through + bounces). Two changes: (1) personal
-  from-name on the invite ("{first} at {Agency}" for agencies with their own
-  authenticated sender). (2) A one-time auto-nudge: a daily weekday cron
+  and we already capture click-through + bounces). Two changes: (1) invite +
+  nudge sender branded from the ORIGINATING FILE (resolveChainInviteSender), so it
+  always shows the customer agency "{first} at {Agency}", never "Sales Progressor".
+  This fixes outsourced files run by internal staff (agencyId null), which
+  previously leaked "Sales Progressor" + the internal person's name because the
+  sender was derived from the chain creator's user. Persona = the agency agent
+  (self-managed) or the assigned progressor (outsourced). Full agency-DOMAIN
+  sending still needs the agency's verified quoteSenderEmail; without it the
+  from-name is agency/persona-branded but the address falls back per policy.
+  (2) A one-time auto-nudge: a daily weekday cron
   (/api/cron/chain-invite-nudge, 10:00) emails a gentle reminder to invites
   delivered but never opened after 3 days, reusing the SAME token (original link
   still works), capped at one per invite (inviteNudgedAt). Deferred: formal
