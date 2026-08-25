@@ -562,6 +562,26 @@ export async function getChainForTransactionV2(
   return getChainV2(txn.chainLink.chainId, viewerUserId);
 }
 
+// Count of neighbours in this file's chain that could be invited but haven't
+// been: an unclaimed stub link with a usable email and inviteStatus NOT_SENT.
+// Drives the "invite them" nudge on the file — an invite that never gets sent is
+// lost pipeline. See docs/active/chain-invite-conversion — Phase 4.
+export async function getUninvitedNeighbourCount(transactionId: string): Promise<number> {
+  const txn = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chainLink: { select: { chainId: true } } },
+  });
+  if (!txn?.chainLink) return 0;
+  return prisma.chainLink.count({
+    where: {
+      chainId: txn.chainLink.chainId,
+      transactionId: null,
+      inviteStatus: "NOT_SENT",
+      stubAgentEmail: { contains: "@" },
+    },
+  });
+}
+
 // ─── Chain activity feed (#14) ────────────────────────────────────────────────
 // Cross-chain "what's happened" feed for the wide drawer's opt-in activity card.
 // Aggregates the real, already-happened events across every link:

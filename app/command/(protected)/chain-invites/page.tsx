@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getChainInviteReport, type ChainFunnel, type ChainInviteFollowUp } from "@/lib/command/chain-invites";
+import { getChainInviteReport, getUninvitedNeighbours, type ChainFunnel, type ChainInviteFollowUp, type UninvitedNeighbour } from "@/lib/command/chain-invites";
 
 // Command Centre → Chain invites. The agent-to-agent invite funnel: how far
 // invited agencies get from "email sent" to "joined", plus a call-list of the
@@ -20,7 +20,10 @@ export default async function ChainInvitesPage({
 }) {
   const { range } = await searchParams;
   const active = RANGES.find((r) => r.key === range) ?? RANGES[1]; // default 90 days
-  const report = await getChainInviteReport(active.days);
+  const [report, uninvited] = await Promise.all([
+    getChainInviteReport(active.days),
+    getUninvitedNeighbours(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -57,6 +60,8 @@ export default async function ChainInvitesPage({
       </div>
 
       <FollowUps rows={report.followUps} />
+
+      <UninvitedList rows={uninvited} />
 
       <p className="text-[12px] text-neutral-600 leading-relaxed">
         &ldquo;Viewed&rdquo; means they clicked through from the email and saw the chain.
@@ -167,6 +172,56 @@ function FollowUps({ rows }: { rows: ChainInviteFollowUp[] }) {
                       <span className="text-neutral-600">not yet</span>
                     )}
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Neighbours added to a chain with an email but never invited. Not part of the
+// funnel (nothing was ever sent) — shown so idle invites get a prod.
+function UninvitedList({ rows }: { rows: UninvitedNeighbour[] }) {
+  const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-neutral-800">
+        <p className="text-[13px] font-semibold text-neutral-200">Ready to invite ({rows.length})</p>
+        <p className="text-[11px] text-neutral-500 mt-0.5">
+          Neighbours added to a chain with an email, but no invite sent yet. Free pipeline. Prod the agency to send, or reach the neighbour yourself.
+        </p>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-4 py-6 text-[13px] text-neutral-600">
+          Nothing sitting idle. Every neighbour with an email on file has been invited.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="text-neutral-500 text-left">
+                <th className="font-medium px-4 py-2">Neighbour</th>
+                <th className="font-medium px-4 py-2">Their sale</th>
+                <th className="font-medium px-4 py-2">Added by</th>
+                <th className="font-medium px-4 py-2 text-right">Added</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.linkId} className="border-t border-neutral-800/70">
+                  <td className="px-4 py-2.5">
+                    <span className="text-neutral-200 block">{r.neighbourAgency ?? "Unknown agency"}</span>
+                    {r.neighbourEmail && <span className="text-neutral-600 block text-[11px]">{r.neighbourEmail}</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-neutral-400">{r.neighbourAddress}</td>
+                  <td className="px-4 py-2.5 text-neutral-400">
+                    {r.invitingAgent ?? "-"}
+                    {r.invitingAgency ? <span className="text-neutral-600"> · {r.invitingAgency}</span> : ""}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-neutral-500 tabular-nums">{fmt(r.addedAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -37,6 +37,48 @@ export type ChainInviteReport = {
   followUps: ChainInviteFollowUp[]; // looked but haven't joined — the call list
 };
 
+// A neighbour that's been added to a chain with a usable email but never invited
+// — free pipeline sitting idle. Ellis's list to prod personally, or to prompt the
+// originating agency to send. See docs/active/chain-invite-conversion — Phase 4.
+export type UninvitedNeighbour = {
+  linkId: string;
+  neighbourAddress: string;
+  neighbourAgency: string | null;
+  neighbourEmail: string | null;
+  invitingAgent: string | null;
+  invitingAgency: string | null;
+  addedAt: Date;
+};
+
+export async function getUninvitedNeighbours(): Promise<UninvitedNeighbour[]> {
+  const links = await commandDb.chainLink.findMany({
+    where: {
+      transactionId: null,
+      inviteStatus: "NOT_SENT",
+      stubAgentEmail: { contains: "@" },
+    },
+    select: {
+      id: true,
+      stubPropertyAddress: true,
+      stubAgencyName: true,
+      stubAgentEmail: true,
+      createdAt: true,
+      chain: { select: { createdBy: { select: { name: true, firmName: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return links.map((l) => ({
+    linkId: l.id,
+    neighbourAddress: l.stubPropertyAddress ?? "A neighbouring sale",
+    neighbourAgency: l.stubAgencyName,
+    neighbourEmail: l.stubAgentEmail,
+    invitingAgent: l.chain.createdBy?.name ?? null,
+    invitingAgency: l.chain.createdBy?.firmName ?? null,
+    addedAt: l.createdAt,
+  }));
+}
+
 export async function getChainInviteReport(rangeDays: number | null): Promise<ChainInviteReport> {
   const since =
     rangeDays != null ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000) : null;

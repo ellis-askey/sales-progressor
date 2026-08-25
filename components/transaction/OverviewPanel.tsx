@@ -34,6 +34,7 @@ import type { MilestoneSideState } from "@/components/transaction/NextMilestoneW
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
+import { UninvitedNeighboursNote } from "@/components/chain/UninvitedNeighboursNote";
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
 import { getOnwardTrackerView, getOnwardSignalForFile } from "@/lib/services/onward";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
@@ -414,7 +415,10 @@ export async function OverviewPanel({
 
       <Card id="chain-section" padding="none">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-          <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
+          <div>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
+            <UninvitedNeighboursNote transactionId={transaction.id} />
+          </div>
           <ViewChainButton
             transactionId={transaction.id}
             currentUserId={currentUserId}

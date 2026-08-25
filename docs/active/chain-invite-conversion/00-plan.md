@@ -50,8 +50,13 @@ works + every user-facing string.
   still works), capped at one per invite (inviteNudgedAt). Deferred: formal
   subject-line A/B (premature at current volume — needs hundreds of sends to read).
   Migration 20260825130000_chain_invite_nudge (one nullable column).
-- **Phase 4 — Make invites actually get sent.** Measure un-invited neighbours;
-  prompt originators to invite; make capturing a neighbour's email natural.
+- **Phase 4 — Make invites actually get sent.** ✅ Shipped (staging). (1) In-app
+  nudge: the file's Property chain card shows "N neighbours are added but not invited
+  yet" (UninvitedNeighboursNote) when there are unclaimed stub links with an email and
+  inviteStatus NOT_SENT; the existing Open chain button is the action. (2) Command
+  Centre "Ready to invite" list on /command/chain-invites: every neighbour added with
+  an email but never invited, so idle pipeline gets prodded. No migration. Deferred:
+  making the neighbour-email field more prominent in the add-node flow (POLISH-TBD).
 - **Phase 5 — Activation after claim.** Instant first value on join; short guided
   first-run; measure return-within-a-week + first milestone.
 - **Phase 6 — The compounding loop.** On join, prompt the new agent to invite THEIR
