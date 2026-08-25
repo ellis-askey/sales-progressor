@@ -56,6 +56,18 @@ export function ReconcileLaterBanner({
     }
   }, [transactionId]);
 
+  // The claim welcome modal's "Set up" button hands off to this modal: it fires
+  // this event, so the setup opens directly instead of leaving the agent to find
+  // the banner. Show the banner too, in case the flag wasn't set.
+  useEffect(() => {
+    function onOpen() {
+      setVisible(true);
+      setModalOpen(true);
+    }
+    window.addEventListener("sp:open-reconcile", onOpen);
+    return () => window.removeEventListener("sp:open-reconcile", onOpen);
+  }, []);
+
   function clearFlag() {
     if (typeof window === "undefined") return;
     try {

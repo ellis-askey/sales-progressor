@@ -110,8 +110,16 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
           <Feature Icon={Gift} title="No cost" body="Your place in this chain is free." />
         </div>
 
-        {/* CTA */}
-        <button onClick={() => setVisible(false)} className="agent-btn agent-btn-color-primary" style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700, marginTop: 2 }}>
+        {/* CTA — hands off to the milestone-setup modal (ReconcileLaterBanner
+            listens for this event) so it opens directly instead of just closing. */}
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("sp:open-reconcile"));
+            setVisible(false);
+          }}
+          className="agent-btn agent-btn-color-primary"
+          style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700, marginTop: 2 }}
+        >
           Set up {short}
         </button>
         <button onClick={() => setVisible(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--agent-text-muted)", textDecoration: "underline", margin: "-8px auto 0", padding: 6 }}>
