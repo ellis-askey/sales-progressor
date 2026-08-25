@@ -4,11 +4,16 @@
 //
 //   client confirms  -> "Joanne Phillips confirmed her mortgage application has been submitted"
 //   agent confirms   -> "Ellis Askey confirmed that Joanne Phillips' mortgage application has been submitted"
-//   solicitor        -> "Cameron & Co confirmed that Joanne Phillips' solicitor has ordered the searches"
+//   solicitor        -> "Cameron & Co confirmed: Searches ordered"
+//     (a solicitor IS the client's solicitor, so "confirmed that {client}'s
+//      solicitor has …" would read as the firm reporting its own action
+//      second-hand — we use the plain solicitor-facing step label instead.)
 //
 // Names + pronouns: one client -> his/her from title (else their); two or more
 // -> always "their", and when someone else confirms, all clients are named.
 // Reviewed + approved by Ellis 2026-08-12.
+
+import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 
 // The possessive core per code. VM19/PM26 (exchange) are non-possessive and
 // live in GENERAL below.
@@ -123,7 +128,12 @@ export function confirmationSentence(opts: {
     return `${name} confirmed ${clientPronoun(sideContacts)} ${core}`;
   }
 
-  const who = confirmer.kind === "agent" ? confirmer.name : confirmer.firm;
+  // A solicitor confirming their own step: state it plainly with the
+  // solicitor-facing label, not "{firm} confirmed that {client}'s solicitor…".
+  if (confirmer.kind === "solicitor") {
+    return `${confirmer.firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+  }
+  const who = confirmer.name;
   if (general) return `${who} confirmed that ${general}`;
   if (!core) return `${who} confirmed: ${milestoneName}`;
   return `${who} confirmed that ${clientPossessive(sideContacts, side)} ${core}`;
@@ -167,7 +177,12 @@ export function portalConfirmationSentence(opts: {
     if (isGeneral) return `You confirmed ${clause}`;
     return `You confirmed your ${clause}`;
   }
-  const who = confirmer.kind === "agent" ? confirmer.name : confirmer.firm;
+  // A solicitor is the client's own solicitor, so "{firm} confirmed your
+  // solicitor has …" doubles up. Use the plain solicitor-facing label.
+  if (confirmer.kind === "solicitor") {
+    return `${confirmer.firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+  }
+  const who = confirmer.name;
   if (!clause) return `${who} confirmed: ${milestoneName}`;
   if (isGeneral) return `${who} confirmed that ${clause}`;
   return `${who} confirmed your ${clause}`;
