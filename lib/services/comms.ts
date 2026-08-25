@@ -293,6 +293,111 @@ export async function getActivityTimeline(
   );
 }
 
+// ─── WhatsApp reader ────────────────────────────────────────────────────────
+// The activity timeline deliberately hides WhatsApp (method !== "whatsapp"),
+// so the captured chats need their own reader. This groups a file's WhatsApp
+// messages back into conversations (a file can have a buyer-side and a
+// vendor-side group) and returns them chat-style: oldest-first within a chat,
+// newest chat first, media pre-signed. Read-only — we never send from here.
+
+export type WhatsAppChatMessage = {
+  id: string;
+  // "outbound" = sent from the linked account (the agent); "inbound" = the
+  // other party. Drives which side of the thread the bubble sits on.
+  direction: CommType;
+  senderLabel: string | null;
+  content: string;
+  at: Date;
+  mediaUrl: string | null; // ready-to-use signed URL (or null)
+  mediaType: string | null;
+};
+
+export type WhatsAppConversation = {
+  chatId: string;
+  title: string;
+  isGroup: boolean;
+  lastAt: Date;
+  messages: WhatsAppChatMessage[];
+};
+
+export async function getWhatsAppConversations(
+  transactionId: string,
+  agencyId: string | null,
+): Promise<WhatsAppConversation[]> {
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const rows = await prisma.outboundMessage.findMany({
+    where: {
+      transactionId,
+      method: "whatsapp",
+      // Match the activity timeline's relist scope: buyer-attributed rows
+      // only for the active round, file-level (NULL) rows always. Stops an
+      // old fall-through buyer's WhatsApp group surfacing on a relisted file.
+      ...(tx.activeBuyerRoundId
+        ? { OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }] }
+        : { buyerRoundId: null }),
+    },
+    orderBy: { sentAt: "asc" },
+    select: {
+      id: true,
+      type: true,
+      content: true,
+      senderLabel: true,
+      sentAt: true,
+      createdAt: true,
+      mediaUrl: true,
+      providerWebhookData: true,
+    },
+  });
+
+  // Sign every media path in one round trip, then hand each row its URL.
+  const signed = await getWhatsAppMediaSignedUrlMap(rows.map((r) => r.mediaUrl));
+
+  type Meta = { waChatId?: string; isGroup?: boolean; groupName?: string | null; media?: { type?: string } };
+  const byChat = new Map<string, WhatsAppConversation>();
+
+  for (const r of rows) {
+    const meta = (r.providerWebhookData as Meta | null) ?? {};
+    const chatId = meta.waChatId ?? "unknown";
+    const at = r.sentAt ?? r.createdAt;
+    const isGroup = meta.isGroup ?? false;
+
+    let convo = byChat.get(chatId);
+    if (!convo) {
+      // DM chats carry no group name — title off the other party's label.
+      const dmTitle = r.type === "inbound" ? r.senderLabel : null;
+      convo = {
+        chatId,
+        title: meta.groupName || dmTitle || "WhatsApp chat",
+        isGroup,
+        lastAt: at,
+        messages: [],
+      };
+      byChat.set(chatId, convo);
+    }
+    // A group name can arrive on a later message (learned on sync) — adopt it.
+    if (meta.groupName && convo.title === "WhatsApp chat") convo.title = meta.groupName;
+    if (at > convo.lastAt) convo.lastAt = at;
+
+    convo.messages.push({
+      id: r.id,
+      direction: r.type,
+      senderLabel: r.senderLabel ?? null,
+      content: r.content,
+      at,
+      mediaUrl: r.mediaUrl ? signed.get(r.mediaUrl) ?? null : null,
+      mediaType: meta.media?.type ?? null,
+    });
+  }
+
+  // Most-recently-active chat first so the reader opens on the live one.
+  return [...byChat.values()].sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
+}
+
 // Counts automated CHASE emails per contact on a transaction, in a rolling
 // 7-day window. Used by the contact rows on the file detail page to surface
 // "is this person being over-chased *right now*?" — a signal the agent

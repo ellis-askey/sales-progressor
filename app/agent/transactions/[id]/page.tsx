@@ -65,6 +65,7 @@ import { getExchangeDayState, getExchangeDayAuthority } from "@/lib/services/exc
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
 import { ChaseTimelinePanel } from "@/components/transaction/ChaseTimelinePanel";
+import { WhatsAppPanel } from "@/components/transaction/WhatsAppPanel";
 import { ToDoPanel } from "@/components/transaction/ToDoPanel";
 import { ActivityPanel } from "@/components/transaction/ActivityPanel";
 import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
@@ -270,6 +271,7 @@ export default async function AgentTransactionDetailPage({
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
+    { key: "whatsapp",   label: "WhatsApp", icon: "whatsapp" },
   ];
 
   // Role-gated header controls — 2026-08-08 hero redesign: these moved
@@ -577,6 +579,14 @@ export default async function AgentTransactionDetailPage({
             contacts={transaction.contacts}
             vendorSolicitor={transaction.vendorSolicitorContact ?? null}
             purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
+          />
+        </Suspense>
+
+        {/* Tab 6: WhatsApp — read-only transcript of chats paired to this file */}
+        <Suspense fallback={<TabPanelSkeleton rows={6} />}>
+          <WhatsAppPanel
+            transactionId={transaction.id}
+            agencyId={session.user.agencyId}
           />
         </Suspense>
       </PropertyFileTabs>
