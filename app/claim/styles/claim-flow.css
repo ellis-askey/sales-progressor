@@ -605,6 +605,25 @@
   margin: 0;
   line-height: 1.5;
 }
+/* Sale-details reveal — hidden until the account fields are all filled, then it
+ * expands (opacity + height) and the submit button below it slides down. */
+.claim-sale-reveal {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.42s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease;
+}
+.claim-sale-reveal.open {
+  max-height: 440px;
+  opacity: 1;
+}
+.claim-sale-reveal-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(26, 29, 41, 0.08);
+}
 
 /* ─── Summary card (confirm) ─────────────────────────────────────────────── */
 .claim-confirm-h1 {

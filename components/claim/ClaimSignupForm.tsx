@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
 
-function toTitleCase(str: string): string {
-  return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-}
-
-// Inlined (not imported from lib/chain/positions) because that module imports
-// prisma — pulling it into this client component would break the browser build.
-// Display convention: bottom of chain = #1, counting up. See lib/chain/positions.
-function displayChainPosition(dbPosition: number, totalLinks: number): number {
-  return totalLinks - dbPosition;
+// Capitalise the first letter of each word, leaving the rest as typed — so "jane"
+// becomes "Jane" but intentional caps like "CJ" or "Mcb" are preserved.
+function capitalizeWords(s: string): string {
+  return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Inlined (not imported from lib/chain/positions, which imports prisma) so this
+// client component's browser bundle stays clean. Bottom of chain = #1, up.
+function displayChainPosition(dbPosition: number, totalLinks: number): number {
+  return totalLinks - dbPosition;
+}
 
 export type PanelLink = {
   id: string;
@@ -41,12 +41,10 @@ type Props = {
   invitedDate: string | null;
 };
 
-// Streamlined claim sign-up (Phase 1, revised). Left column creates the account;
-// the sale details (tenure + purchase type) live in their own card on the right,
-// under the chain panel, so it's clear they describe THE SALE being claimed, not
-// the account. The whole thing is one client component so the right-column pills
-// update the same state the left-column form submits. "Where is this sale up to?"
-// is captured in-app afterwards (ReconcileLaterBanner). See docs/active/chain-invite-conversion.
+// Streamlined claim sign-up. Account fields first; once they're all valid the
+// sale details (about the sale being claimed) reveal above the button, which
+// slides down. "Where is this sale up to?" is captured in-app afterwards
+// (ReconcileLaterBanner). See docs/active/chain-invite-conversion.
 export function ClaimSignupForm({
   token,
   stubEmail,
@@ -60,13 +58,12 @@ export function ClaimSignupForm({
   originatorAgency,
   invitedDate,
 }: Props) {
-  const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState(stubEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [firmName, setFirmName] = useState(toTitleCase(stubAgencyName));
+  const [firmName, setFirmName] = useState(capitalizeWords(stubAgencyName));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
@@ -74,14 +71,14 @@ export function ClaimSignupForm({
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
 
   const emailOk = EMAIL_RE.test(email.trim());
-  const canSubmit =
+  // Sale details reveal once the account is fully filled in.
+  const accountReady =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     emailOk &&
     password.length >= 8 &&
-    firmName.trim().length > 0 &&
-    tenure !== null &&
-    purchaseType !== null;
+    firmName.trim().length > 0;
+  const canSubmit = accountReady && tenure !== null && purchaseType !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,11 +106,7 @@ export function ClaimSignupForm({
       return;
     }
 
-    const signInResult = await signIn("credentials", {
-      email: cleanEmail,
-      password,
-      redirect: false,
-    });
+    const signInResult = await signIn("credentials", { email: cleanEmail, password, redirect: false });
 
     if (signInResult?.error || !signInResult?.ok) {
       setLoading(false);
@@ -135,18 +128,19 @@ export function ClaimSignupForm({
     }
 
     const { transactionId } = (await claimRes.json()) as { transactionId: string };
-    // Every new claim lands on the file with the dismissable "Bring this file up to
-    // date" banner, so catching up on existing progress happens in-app.
     if (typeof window !== "undefined") {
       try { window.localStorage.setItem(`reconcileLater:${transactionId}`, "1"); } catch {}
     }
     await markWelcomeSeenAction().catch(() => {});
-    router.push(`/agent/transactions/${transactionId}?claimed=1&newUser=1`);
+    // Full-page navigation (not router.push) so the agent app boots fresh: the
+    // ThemeModeBoot script only runs on a real load, so a client-side push would
+    // land them in the wrong (dark) theme. See docs/active/chain-invite-conversion.
+    window.location.href = `/agent/transactions/${transactionId}?claimed=1&newUser=1`;
   }
 
   return (
     <div className="claim-signup-grid">
-      {/* ── Left — create your account ── */}
+      {/* ── Left — create your account, then the sale details reveal ── */}
       <div className="claim-signup-account">
         <div className="claim-form-card">
           <h1 className="claim-sub-h1">Create your account</h1>
@@ -157,18 +151,18 @@ export function ClaimSignupForm({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="claim-field">
                 <label className="claim-field-label">First name</label>
-                <input className="claim-field-input" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" placeholder="Jane" />
+                <input className="claim-field-input" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={() => setFirstName((v) => capitalizeWords(v))} required autoComplete="given-name" autoCapitalize="words" placeholder="Jane" />
               </div>
               <div className="claim-field">
                 <label className="claim-field-label">Last name</label>
-                <input className="claim-field-input" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" placeholder="Smith" />
+                <input className="claim-field-input" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => setLastName((v) => capitalizeWords(v))} required autoComplete="family-name" autoCapitalize="words" placeholder="Smith" />
               </div>
             </div>
 
             {/* Email — editable, pre-filled from the invite */}
             <div className="claim-field">
               <label className="claim-field-label">Email</label>
-              <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@youragency.co.uk" />
+              <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" autoCapitalize="off" placeholder="you@youragency.co.uk" />
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>
                 Pre-filled from the invite. Change it if it isn&apos;t yours.
               </p>
@@ -186,9 +180,41 @@ export function ClaimSignupForm({
             </div>
 
             {/* Agency */}
-            <div className="claim-field claim-field-gap">
+            <div className="claim-field">
               <label className="claim-field-label">Agency name</label>
-              <input className="claim-field-input" type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} required autoComplete="organization" placeholder="Your estate agency" />
+              <input className="claim-field-input" type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} onBlur={() => setFirmName((v) => capitalizeWords(v))} required autoComplete="organization" placeholder="Your estate agency" />
+            </div>
+
+            {/* Sale details — revealed once the account is filled in; the button below
+                slides down as it opens. About the sale being claimed, not the account. */}
+            <div className={`claim-sale-reveal${accountReady ? " open" : ""}`} aria-hidden={!accountReady}>
+              <div className="claim-sale-reveal-inner">
+                <div>
+                  <p className="claim-sale-card-eyebrow">About your sale</p>
+                  <p className="claim-sale-card-address">{stubAddress}</p>
+                </div>
+                <div>
+                  <label className="claim-field-label">Tenure</label>
+                  <div className="claim-segment-pill-row">
+                    <button type="button" className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`} onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}>Freehold</button>
+                    <button type="button" className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`} onClick={() => setTenure("leasehold")}>Leasehold</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="claim-field-label">Purchase type</label>
+                  <div className="claim-segment-pill-row">
+                    <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
+                    <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
+                    <button type="button" className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from Proceeds</button>
+                  </div>
+                </div>
+                {tenure === "leasehold" && (
+                  <label className="claim-share-of-freehold">
+                    <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => setIsShareOfFreehold(e.target.checked)} />
+                    Share of freehold
+                  </label>
+                )}
+              </div>
             </div>
 
             {error && (
@@ -220,116 +246,85 @@ export function ClaimSignupForm({
         </div>
       </div>
 
-      {/* ── Right — the chain you're joining + this sale's details ── */}
-      <div className="claim-signup-side">
-        <div className="claim-panel">
-          <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
-          <p className="claim-panel-address">{stubAddress}</p>
-          <div className="claim-panel-rule" />
+      {/* ── Right — the chain you're joining ── */}
+      <div className="claim-panel">
+        <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
+        <p className="claim-panel-address">{stubAddress}</p>
+        <div className="claim-panel-rule" />
 
-          <div className="claim-chain">
-            {panelLinks.map((cl, i) => {
-              const isYours = cl.id === ownLinkId;
-              const isClaimed = cl.transactionId !== null;
-              const address = isClaimed ? (cl.transactionAddress ?? "") : isYours ? (stubAddress ?? "") : "";
-              const agency = cl.claimedFirmName ?? null;
-              return (
-                <div key={cl.id}>
-                  {i > 0 && (
-                    <div className="claim-chain-connector">
-                      <div className="claim-chain-connector-dot" />
-                      <div className="claim-chain-connector-line" />
-                      <div className="claim-chain-connector-dot" />
-                    </div>
-                  )}
-                  <div className="claim-chain-row">
-                    <div className="claim-chain-gutter">
-                      <span className="claim-chain-num">{String(displayChainPosition(cl.position, chainLinksCount)).padStart(2, "0")}</span>
-                    </div>
-                    <div className={`claim-chain-card ${isYours ? "claim-chain-card--yours" : isClaimed ? "claim-chain-card--claimed" : "claim-chain-card--pending"}`}>
-                      {isYours ? (
-                        <>
-                          <div className="claim-chain-head">
-                            <span className="claim-chain-address">{address || "Your sale"}</span>
-                            <span className="claim-chain-status">YOU</span>
-                          </div>
-                          <div className="claim-chain-inner">
-                            <span className="claim-chain-inner-text">Your sale</span>
-                          </div>
-                        </>
-                      ) : isClaimed ? (
-                        <>
-                          <div className="claim-chain-head">
-                            <span className="claim-chain-address">{address}</span>
-                            <span className="claim-chain-status">✓</span>
-                          </div>
-                          {agency && <div className="claim-chain-agency">{agency}</div>}
-                        </>
-                      ) : (
-                        <div className="claim-chain-head">
-                          <span className="claim-chain-address" style={{ color: "rgba(255,255,255,.5)", fontStyle: "italic", fontWeight: 400 }}>Pending</span>
-                        </div>
-                      )}
-                    </div>
+        <div className="claim-chain">
+          {panelLinks.map((cl, i) => {
+            const isYours = cl.id === ownLinkId;
+            const isClaimed = cl.transactionId !== null;
+            const address = isClaimed ? (cl.transactionAddress ?? "") : isYours ? (stubAddress ?? "") : "";
+            const agency = cl.claimedFirmName ?? null;
+            return (
+              <div key={cl.id}>
+                {i > 0 && (
+                  <div className="claim-chain-connector">
+                    <div className="claim-chain-connector-dot" />
+                    <div className="claim-chain-connector-line" />
+                    <div className="claim-chain-connector-dot" />
                   </div>
-                </div>
-              );
-            })}
-
-            {panelGhostCount > 0 && (
-              <>
-                <div className="claim-chain-connector">
-                  <div className="claim-chain-connector-dot" />
-                  <div className="claim-chain-connector-line" />
-                  <div className="claim-chain-connector-dot" />
-                </div>
+                )}
                 <div className="claim-chain-row">
                   <div className="claim-chain-gutter">
-                    <span className="claim-chain-num" style={{ fontSize: 14, opacity: 0.5 }}>··</span>
+                    <span className="claim-chain-num">{String(displayChainPosition(cl.position, chainLinksCount)).padStart(2, "0")}</span>
                   </div>
-                  <div className="claim-chain-card claim-chain-card--ghost">
-                    <span className="claim-chain-address" style={{ color: "rgba(255,255,255,.4)", fontSize: 11, fontWeight: 400 }}>and {panelGhostCount} more</span>
+                  <div className={`claim-chain-card ${isYours ? "claim-chain-card--yours" : isClaimed ? "claim-chain-card--claimed" : "claim-chain-card--pending"}`}>
+                    {isYours ? (
+                      <>
+                        <div className="claim-chain-head">
+                          <span className="claim-chain-address">{address || "Your sale"}</span>
+                          <span className="claim-chain-status">YOU</span>
+                        </div>
+                        <div className="claim-chain-inner">
+                          <span className="claim-chain-inner-text">Your sale</span>
+                        </div>
+                      </>
+                    ) : isClaimed ? (
+                      <>
+                        <div className="claim-chain-head">
+                          <span className="claim-chain-address">{address}</span>
+                          <span className="claim-chain-status">✓</span>
+                        </div>
+                        {agency && <div className="claim-chain-agency">{agency}</div>}
+                      </>
+                    ) : (
+                      <div className="claim-chain-head">
+                        <span className="claim-chain-address" style={{ color: "rgba(255,255,255,.5)", fontStyle: "italic", fontWeight: 400 }}>Pending</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            );
+          })}
 
-          <p className="claim-panel-invite">
-            Invited by {originatorName}
-            {originatorAgency ? ` · ${originatorAgency}` : ""}
-            {invitedDate ? ` · ${invitedDate}` : ""}
-          </p>
-        </div>
-
-        {/* Sale details — about the sale being claimed, not the account */}
-        <div className="claim-sale-card">
-          <p className="claim-sale-card-eyebrow">About your sale</p>
-          <p className="claim-sale-card-address">{stubAddress}</p>
-          <p className="claim-sale-card-note">Two quick details so we set up the right steps for this sale.</p>
-
-          <div>
-            <label className="claim-field-label">Tenure</label>
-            <div className="claim-segment-pill-row">
-              <button type="button" className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`} onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}>Freehold</button>
-              <button type="button" className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`} onClick={() => setTenure("leasehold")}>Leasehold</button>
-            </div>
-          </div>
-          <div>
-            <label className="claim-field-label">Purchase type</label>
-            <div className="claim-segment-pill-row">
-              <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
-              <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
-              <button type="button" className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from Proceeds</button>
-            </div>
-          </div>
-          {tenure === "leasehold" && (
-            <label className="claim-share-of-freehold">
-              <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => setIsShareOfFreehold(e.target.checked)} />
-              Share of freehold
-            </label>
+          {panelGhostCount > 0 && (
+            <>
+              <div className="claim-chain-connector">
+                <div className="claim-chain-connector-dot" />
+                <div className="claim-chain-connector-line" />
+                <div className="claim-chain-connector-dot" />
+              </div>
+              <div className="claim-chain-row">
+                <div className="claim-chain-gutter">
+                  <span className="claim-chain-num" style={{ fontSize: 14, opacity: 0.5 }}>··</span>
+                </div>
+                <div className="claim-chain-card claim-chain-card--ghost">
+                  <span className="claim-chain-address" style={{ color: "rgba(255,255,255,.4)", fontSize: 11, fontWeight: 400 }}>and {panelGhostCount} more</span>
+                </div>
+              </div>
+            </>
           )}
         </div>
+
+        <p className="claim-panel-invite">
+          Invited by {originatorName}
+          {originatorAgency ? ` · ${originatorAgency}` : ""}
+          {invitedDate ? ` · ${invitedDate}` : ""}
+        </p>
       </div>
     </div>
   );
