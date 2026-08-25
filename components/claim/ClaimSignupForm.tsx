@@ -4,10 +4,16 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
-import { displayChainPosition } from "@/lib/chain/positions";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+// Inlined (not imported from lib/chain/positions) because that module imports
+// prisma — pulling it into this client component would break the browser build.
+// Display convention: bottom of chain = #1, counting up. See lib/chain/positions.
+function displayChainPosition(dbPosition: number, totalLinks: number): number {
+  return totalLinks - dbPosition;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
