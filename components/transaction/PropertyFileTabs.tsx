@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback, Children } from "react";
 import { ChevronDown } from "lucide-react";
-import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
@@ -23,6 +23,7 @@ const TAB_ICONS: Record<string, Icon> = {
   activity: Pulse,
   documents: FileText,
   chase: PaperPlaneTilt,
+  whatsapp: WhatsappLogo,
 };
 
 type Tab = { key: string; label: string; badge?: number; icon?: string };
