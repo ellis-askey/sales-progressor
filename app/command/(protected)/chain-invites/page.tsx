@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getChainInviteReport, getUninvitedNeighbours, getClaimActivation, type ChainFunnel, type ChainInviteFollowUp, type UninvitedNeighbour, type ClaimActivation } from "@/lib/command/chain-invites";
+import { getChainInviteReport, getUninvitedNeighbours, getClaimActivation, getLoopMetrics, type ChainFunnel, type ChainInviteFollowUp, type UninvitedNeighbour, type ClaimActivation, type LoopMetrics } from "@/lib/command/chain-invites";
 
 // Command Centre → Chain invites. The agent-to-agent invite funnel: how far
 // invited agencies get from "email sent" to "joined", plus a call-list of the
@@ -20,10 +20,11 @@ export default async function ChainInvitesPage({
 }) {
   const { range } = await searchParams;
   const active = RANGES.find((r) => r.key === range) ?? RANGES[1]; // default 90 days
-  const [report, uninvited, activation] = await Promise.all([
+  const [report, uninvited, activation, loop] = await Promise.all([
     getChainInviteReport(active.days),
     getUninvitedNeighbours(),
     getClaimActivation(),
+    getLoopMetrics(),
   ]);
 
   return (
@@ -63,6 +64,8 @@ export default async function ChainInvitesPage({
       <FollowUps rows={report.followUps} />
 
       <AfterJoin activation={activation} />
+
+      <KnockOn m={loop} />
 
       <UninvitedList rows={uninvited} />
 
@@ -181,6 +184,34 @@ function FollowUps({ rows }: { rows: ChainInviteFollowUp[] }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// The compounding loop: joiners who then invited their own neighbours.
+function KnockOn({ m }: { m: LoopMetrics }) {
+  const cells: { label: string; value: number; sub: string }[] = [
+    { label: "Joined", value: m.joiners, sub: "claimed an invite" },
+    { label: "Then invited", value: m.joinersWhoInvited, sub: "invited others in turn" },
+    { label: "Invites they sent", value: m.invitesByJoiners, sub: "onward invites" },
+    { label: "Joined from those", value: m.claimsFromJoiners, sub: "the chain spreading" },
+  ];
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-4">
+      <p className="text-[13px] font-semibold text-neutral-200">Knock-on</p>
+      <p className="text-[11px] text-neutral-500 mt-0.5 mb-3">
+        The flywheel: agents who joined, then invited their own neighbours. When &ldquo;joined from
+        those&rdquo; starts to outpace &ldquo;joined&rdquo;, the product is spreading on its own.
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {cells.map((c) => (
+          <div key={c.label} className="rounded-lg bg-neutral-800/40 px-3 py-2">
+            <p className="text-xl font-semibold tabular-nums text-neutral-100">{c.value}</p>
+            <p className="text-[11px] font-medium text-neutral-300 mt-0.5">{c.label}</p>
+            <p className="text-[10px] text-neutral-600">{c.sub}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

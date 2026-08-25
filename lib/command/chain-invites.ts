@@ -149,6 +149,43 @@ export async function getClaimActivation(): Promise<ClaimActivation> {
   return { claimed: links.length, activated, dormant };
 }
 
+// The compounding loop: agents who joined a chain, then went on to invite their
+// own neighbours. When "joined from those" outpaces "joined", the product is
+// spreading on its own. See docs/active/chain-invite-conversion — Phase 6.
+export type LoopMetrics = {
+  joiners: number; // agents who claimed an invite
+  joinersWhoInvited: number; // of those, how many then sent an invite themselves
+  invitesByJoiners: number; // total onward invites those joiners sent
+  claimsFromJoiners: number; // of those onward invites, how many were claimed
+};
+
+export async function getLoopMetrics(): Promise<LoopMetrics> {
+  const claimedLinks = await commandDb.chainLink.findMany({
+    where: { inviteStatus: "CLAIMED", claimedByUserId: { not: null } },
+    select: { claimedByUserId: true },
+  });
+  const joinerIds = [...new Set(claimedLinks.map((l) => l.claimedByUserId).filter((id): id is string => !!id))];
+  if (joinerIds.length === 0) {
+    return { joiners: 0, joinersWhoInvited: 0, invitesByJoiners: 0, claimsFromJoiners: 0 };
+  }
+
+  // Onward invites: links these joiners actually sent (they were the last sender).
+  const invites = await commandDb.chainLink.findMany({
+    where: {
+      lastInviteSentByUserId: { in: joinerIds },
+      inviteStatus: { in: ["SENT", "CLAIMED", "DECLINED", "BOUNCED"] },
+    },
+    select: { lastInviteSentByUserId: true, inviteStatus: true },
+  });
+
+  return {
+    joiners: joinerIds.length,
+    joinersWhoInvited: new Set(invites.map((i) => i.lastInviteSentByUserId)).size,
+    invitesByJoiners: invites.length,
+    claimsFromJoiners: invites.filter((i) => i.inviteStatus === "CLAIMED").length,
+  };
+}
+
 export async function getChainInviteReport(rangeDays: number | null): Promise<ChainInviteReport> {
   const since =
     rangeDays != null ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000) : null;

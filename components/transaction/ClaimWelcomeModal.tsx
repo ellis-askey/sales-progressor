@@ -66,6 +66,9 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
             <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.65 }}>
               When you&apos;re ready, add your buyer&apos;s and seller&apos;s details and tick off steps as they happen.
             </p>
+            <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.65 }}>
+              Know the agent for the sale above or below yours? Add them to the chain from your file and we&apos;ll invite them in too, so the whole chain can see where things stand.
+            </p>
           </div>
         </Modal.Body>
 

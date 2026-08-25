@@ -64,8 +64,12 @@ works + every user-facing string.
   /command/chain-invites showing the share of claimers who've confirmed at least one
   step post-claim (excluding reconciled-at-claim onboarding), plus a "joined but
   quiet" check-in list. No migration.
-- **Phase 6 — The compounding loop.** On join, prompt the new agent to invite THEIR
-  onward/downward agents. Measure the knock-on (viral coefficient).
+- **Phase 6 — The compounding loop.** ✅ Shipped (staging). (1) At the join moment,
+  the "You're in" welcome modal now prompts the new agent to add the agent above/below
+  them so we invite them in too, seeding the next round of invites. (2) getLoopMetrics
+  + a "Knock-on" section on /command/chain-invites: joiners → how many then invited
+  others → onward invites sent → claims from those. When "joined from those" outpaces
+  "joined", the flywheel is turning. No migration.
 
 ## Phase 0 — Measure the funnel (shipped)
 
