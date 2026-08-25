@@ -224,3 +224,39 @@ export async function notifyPortalChaseNote(args: {
     },
   });
 }
+
+/**
+ * A mortgage buyer tapped "Request a call back" on the broker card, and the
+ * broker is the agency's OWN broker (not a TSP provider). That path only sends
+ * one email to the agent, which can be missed — or, if no agent email is on
+ * file, sent nothing at all. This bell is the in-app trace so the request can't
+ * silently stall. Recipient is the person the email targets (agentUser, falling
+ * back to assignedUser) so one human gets it on both surfaces.
+ *
+ * The TSP-broker path doesn't need this — it logs a QuoteRequest into the
+ * Command Centre quotes inbox, which is its in-app trace.
+ *
+ * Pre-rendered body so the bell renderer uses it verbatim (no re-stitching).
+ */
+export async function notifyBrokerCallbackRequested(args: {
+  userId: string;
+  transactionId: string;
+  contactName: string;
+  firmName: string;
+  propertyAddress: string;
+  preferredMethod: string;
+}): Promise<void> {
+  await createNotification({
+    userId: args.userId,
+    type: "broker_callback_requested",
+    transactionId: args.transactionId,
+    payload: {
+      contactName: args.contactName,
+      firmName: args.firmName,
+      propertyAddress: args.propertyAddress,
+      preferredMethod: args.preferredMethod,
+      title: "Broker call-back requested",
+      body: `${args.contactName} asked to speak with ${args.firmName} about ${args.propertyAddress}. Preferred contact: ${args.preferredMethod}.`,
+    },
+  });
+}

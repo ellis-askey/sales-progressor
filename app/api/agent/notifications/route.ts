@@ -20,6 +20,11 @@ const BELL_NOTIFICATION_TYPES = [
   "enquiries_stalled",
   "enquiries_raise_stalled",
   "solicitor_update",
+  // Broker card: a buyer asked their agency's own broker to call back (needs
+  // the agent to pass it on), and the delivery-failed safety net. Both carry a
+  // pre-rendered body the sentence builder falls back to.
+  "broker_callback_requested",
+  "broker_callback_bounced",
 ];
 
 // The small pill shown on a bell item, per notification type. "Paused" for a
@@ -27,6 +32,7 @@ const BELL_NOTIFICATION_TYPES = [
 function pillLabelForType(type: string): string {
   if (type === "portal_chases_paused") return "Paused";
   if (type === "enquiries_stalled" || type === "enquiries_raise_stalled") return "Stalled";
+  if (type === "broker_callback_requested" || type === "broker_callback_bounced") return "Broker";
   return "Update";
 }
 

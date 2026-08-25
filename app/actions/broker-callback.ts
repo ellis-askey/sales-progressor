@@ -36,6 +36,7 @@ import { revalidatePath } from "next/cache";
 import { sendChainEmail } from "@/lib/email";
 import { outwardCode } from "@/lib/utils/address";
 import { resolveBroker, resolveBrokerServiceType } from "@/lib/services/broker-card";
+import { notifyBrokerCallbackRequested } from "@/lib/services/notifications";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
@@ -221,6 +222,19 @@ export async function requestBrokerCallbackAction(
   if (broker.source === "agent") {
     // Tell the agency agent so they follow up with their own broker.
     const recipient = tx.agentUser ?? tx.assignedUser;
+    // In-app trace first, so the request is never lost: this fires even when
+    // the agent has no email on file (the old silent-drop), and gives a bell
+    // the agent can't miss if they overlook the email.
+    if (recipient?.id) {
+      await notifyBrokerCallbackRequested({
+        userId: recipient.id,
+        transactionId: tx.id,
+        contactName: contact.name,
+        firmName: broker.firmName,
+        propertyAddress: tx.propertyAddress,
+        preferredMethod: methodWord,
+      }).catch((err) => console.error("[broker-callback] bell failed", err));
+    }
     if (recipient?.email) {
       const text = [
         `${contact.name} has asked to speak with your recommended mortgage broker (${broker.firmName}) about ${tx.propertyAddress}.`,
