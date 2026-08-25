@@ -39,6 +39,7 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
       onClose={() => setVisible(false)}
       ariaLabel="You're in"
       size="md"
+      zLayer="escalated"
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <Modal.Header>

@@ -164,7 +164,7 @@ export function ClaimSignupForm({
               <label className="claim-field-label">Email</label>
               <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" autoCapitalize="off" placeholder="you@youragency.co.uk" />
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>
-                Pre-filled from the invite. Change it if it isn&apos;t yours.
+                We&apos;ve filled this in from the invite. Change it if needed.
               </p>
             </div>
 
