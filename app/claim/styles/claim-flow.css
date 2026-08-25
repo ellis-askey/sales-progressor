@@ -78,16 +78,24 @@
 
 /* ─── Keyframes ──────────────────────────────────────────────────────────── */
 @keyframes claim-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes claim-card-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes claim-row-enter {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
-@keyframes claim-card-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0);   }
-}
-@keyframes claim-row-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0);   }
+
+/* Respect reduced-motion: drop the entrance + ambient motion entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .claim-page,
+  .claim-page * {
+    animation: none !important;
+  }
 }
 
 /* ─── Shell ──────────────────────────────────────────────────────────────── */
@@ -509,8 +517,8 @@
   background: var(--claim-grad);
   border-radius: var(--claim-r-hero);
   padding: 24px 20px;
-  position: sticky;
-  top: 80px;
+  animation: claim-card-enter 260ms ease-out both;
+  animation-delay: 120ms;
 }
 .claim-panel-eyebrow {
   font-size: 10px;
@@ -551,6 +559,47 @@
 @media (max-width: 768px) {
   .claim-signup-grid { grid-template-columns: 1fr; }
   .claim-panel { display: none; }
+}
+.claim-signup-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Sale details — its own card on the right (desktop), below the chain panel.
+ * On mobile it flows after the account card (the panel is hidden). Fades up on
+ * arrival like the other cards. */
+.claim-sale-card {
+  background: var(--claim-surface);
+  border-radius: var(--claim-r-card);
+  border: 1px solid var(--claim-border);
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(26,29,41,.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: claim-card-enter 280ms ease-out both;
+  animation-delay: 180ms;
+}
+.claim-sale-card-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--claim-text-3);
+  margin: 0;
+}
+.claim-sale-card-address {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--claim-text-1);
+  margin: 0;
+  line-height: 1.3;
+}
+.claim-sale-card-note {
+  font-size: 12px;
+  color: var(--claim-text-3);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* ─── Summary card (confirm) ─────────────────────────────────────────────── */
