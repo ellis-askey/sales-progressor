@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fireDeclineNotification } from "@/lib/email/chainNotifications";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import "../styles/claim-flow.css";
 
@@ -183,6 +185,11 @@ export default async function ClaimDeclinePage({
   await prisma.chainLink.update({
     where: { id: link.id },
     data: { inviteStatus: "DECLINED", inviteDeclinedAt: new Date() },
+  });
+
+  // Funnel: the invited agent explicitly said this isn't their sale.
+  await trackServerEvent(`chain-invite-${link.id}`, ANALYTICS_EVENTS.CHAIN_INVITE_DECLINED, {
+    linkId: link.id,
   });
 
   if (link.createdByUserId) {

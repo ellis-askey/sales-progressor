@@ -41,6 +41,13 @@ export const ANALYTICS_EVENTS = {
   NEGOTIATOR_INVITATION_SENT:     "negotiator_invitation_sent",
   NEGOTIATOR_INVITATION_ACCEPTED: "negotiator_invitation_accepted",
 
+  // Chain invites — conversion funnel (Phase 0)
+  CHAIN_INVITE_SENT:      "chain_invite_sent",
+  CHAIN_INVITE_VIEWED:    "chain_invite_viewed",
+  CHAIN_CLAIM_STARTED:    "chain_claim_started",
+  CHAIN_CLAIM_COMPLETED:  "chain_claim_completed",
+  CHAIN_INVITE_DECLINED:  "chain_invite_declined",
+
   // High-value page views
   PAGE_VIEW_HUB:        "page_view_hub",
   PAGE_VIEW_ANALYTICS:  "page_view_analytics",

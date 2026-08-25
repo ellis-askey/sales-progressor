@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ClaimLoginForm } from "@/components/claim/ClaimLoginForm";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
+import { recordClaimStarted } from "@/lib/chain/funnel";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,9 @@ export default async function ClaimLoginPage({
         body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
       />
     );
+
+  // Funnel: they clicked "Claim this sale" and reached a claim step.
+  await recordClaimStarted(link.id);
 
   const stubEmail = link.stubAgentEmail ?? "";
 

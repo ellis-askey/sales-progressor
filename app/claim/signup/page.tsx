@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ClaimSignupForm } from "@/components/claim/ClaimSignupForm";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { displayChainPosition } from "@/lib/chain/positions";
+import { recordClaimStarted } from "@/lib/chain/funnel";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -105,6 +106,9 @@ export default async function ClaimSignupPage({
         body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
       />
     );
+
+  // Funnel: they clicked "Claim this sale" and reached a claim step.
+  await recordClaimStarted(link.id);
 
   const chainLinks = link.chain?.links ?? [];
   const originatorName = link.chain?.createdBy?.name ?? "An agent";

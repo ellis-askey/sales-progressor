@@ -18,6 +18,8 @@ import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
 import { sendClaimWelcomeIfNotSent } from "@/lib/emails/send-claim-welcome";
 import { normaliseAddressString } from "@/lib/utils/address";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import type { Tenure, PurchaseType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -287,6 +289,12 @@ export async function POST(req: NextRequest) {
       propertyAddress: link.stubPropertyAddress ?? "",
     });
 
+    // Funnel: the invited agent finished joining the chain (new-account path).
+    await trackServerEvent(session.user.id, ANALYTICS_EVENTS.CHAIN_CLAIM_COMPLETED, {
+      linkId: link.id,
+      action: "create",
+    });
+
     return NextResponse.json({ ok: true, transactionId: result.transactionId });
   }
 
@@ -338,5 +346,12 @@ export async function POST(req: NextRequest) {
   console.log(
     `[AUDIT] chain_link_claimed linkId=${link.id} userId=${session.user.id} action=link transactionId=${existingTransactionId}`,
   );
+
+  // Funnel: the invited agent finished joining the chain (linked-existing-file path).
+  await trackServerEvent(session.user.id, ANALYTICS_EVENTS.CHAIN_CLAIM_COMPLETED, {
+    linkId: link.id,
+    action: "link",
+  });
+
   return NextResponse.json({ ok: true, transactionId: existingTransactionId });
 }

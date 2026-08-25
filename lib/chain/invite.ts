@@ -7,6 +7,8 @@ import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { normaliseAddressString } from "@/lib/utils/address";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import crypto from "crypto";
 
 type LinkForInvite = {
@@ -57,6 +59,13 @@ export async function sendChainInvite(input: SendChainInviteInput): Promise<void
   });
 
   await sendInviteEmail({ link, token, sentByName: input.sentByName });
+
+  // Funnel: top of the chain-invite funnel. distinctId is the sending agent so
+  // this stitches to their profile; the invited agent is still just a stub.
+  await trackServerEvent(sentByUserId, ANALYTICS_EVENTS.CHAIN_INVITE_SENT, {
+    linkId: link.id,
+    isResend,
+  });
 }
 
 // Looks up any extra context needed and sends the HTML + plain-text invite email.

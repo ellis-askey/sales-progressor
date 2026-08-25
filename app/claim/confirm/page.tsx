@@ -7,6 +7,7 @@ import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
 import { getOnwardInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { displayChainPosition } from "@/lib/chain/positions";
+import { recordClaimStarted } from "@/lib/chain/funnel";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -106,6 +107,9 @@ export default async function ClaimConfirmPage({
         body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
       />
     );
+
+  // Funnel: they clicked "Claim this sale" and reached the confirm step.
+  await recordClaimStarted(link.id);
 
   // Self-claim guard
   if (link.chain.createdByUserId === session.user.id)

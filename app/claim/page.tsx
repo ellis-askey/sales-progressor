@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { displayChainPosition } from "@/lib/chain/positions";
+import { recordInviteViewed } from "@/lib/chain/funnel";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import "./styles/claim-flow.css";
 
@@ -139,6 +140,10 @@ export default async function ClaimPage({
       />
     );
   }
+
+  // Funnel: this is a genuine view of a live invite — they clicked through from
+  // the email and are now seeing the chain. Stamped once.
+  await recordInviteViewed(link.id);
 
   const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;

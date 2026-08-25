@@ -1712,6 +1712,14 @@ model ChainLink {
   inviteToken            String?      @unique
   inviteTokenExpiresAt   DateTime?
   inviteSentAt           DateTime?
+  // Conversion-funnel stamps (Phase 0). inviteFirstViewedAt = first time the
+  // invited agent opened the /claim landing page (i.e. clicked through from the
+  // email). claimStartedAt = first time they reached a claim step (signup /
+  // login / confirm), i.e. clicked "Claim this sale". Together with inviteSentAt,
+  // claimedAt, inviteDeclinedAt and inviteBouncedAt these let us measure where
+  // invited agents drop off. Set once (idempotent), never cleared.
+  inviteFirstViewedAt    DateTime?
+  claimStartedAt         DateTime?
   inviteBouncedAt        DateTime?
   inviteUnsubscribedAt   DateTime?
   inviteDeclinedAt       DateTime?
