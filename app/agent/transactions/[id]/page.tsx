@@ -398,7 +398,7 @@ export default async function AgentTransactionDetailPage({
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>
-      <ClaimWelcomeAsync address={transaction.propertyAddress} chainLinkId={transaction.chainLinkId ?? null} />
+      <ClaimWelcomeAsync address={transaction.propertyAddress} transactionId={transaction.id} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <OnHoldBanner show={transaction.status === "on_hold"} />
       <RelistBanner

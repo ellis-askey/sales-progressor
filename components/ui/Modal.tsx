@@ -38,7 +38,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "md" | "lg" | "xl";
 type Surface = "solid" | "glass";
 type ZLayer = "default" | "escalated" | "deep";
 
@@ -46,6 +46,7 @@ const sizeMaxWidth: Record<Size, string> = {
   sm: "384px",
   md: "448px",
   lg: "512px",
+  xl: "680px",
 };
 
 // z-index per docs/reference/DESIGN_TOKENS.md "Z-index — modal escalation rule".
