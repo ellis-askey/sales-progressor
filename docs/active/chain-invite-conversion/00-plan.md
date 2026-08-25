@@ -33,8 +33,16 @@ works + every user-facing string.
   "expired" screens made window-agnostic. Deferred (not conversion-critical): the
   unused inviteUnsubscribedAt column and decline-notification retry stay as-is
   (Law 19 grandfather — a drop-column migration isn't worth the risk).
-- **Phase 3 — Lift the email (open + click).** Subject-line testing, deliverability,
-  copy, a gentle nudge/reminder. Needs Phase 0 data first.
+- **Phase 3 — Lift the email (open + click).** ✅ Shipped (staging), click-first
+  (no open pixel — decided: unreliable under Apple MPP + small deliverability cost,
+  and we already capture click-through + bounces). Two changes: (1) personal
+  from-name on the invite ("{first} at {Agency}" for agencies with their own
+  authenticated sender). (2) A one-time auto-nudge: a daily weekday cron
+  (/api/cron/chain-invite-nudge, 10:00) emails a gentle reminder to invites
+  delivered but never opened after 3 days, reusing the SAME token (original link
+  still works), capped at one per invite (inviteNudgedAt). Deferred: formal
+  subject-line A/B (premature at current volume — needs hundreds of sends to read).
+  Migration 20260825130000_chain_invite_nudge (one nullable column).
 - **Phase 4 — Make invites actually get sent.** Measure un-invited neighbours;
   prompt originators to invite; make capturing a neighbour's email natural.
 - **Phase 5 — Activation after claim.** Instant first value on join; short guided

@@ -154,7 +154,13 @@ async function sendInviteEmail(input: {
   // and we key the log off the email address only.
   // Send from the originator agency's authenticated address (Reply-To matching),
   // SP fallback when they have none.
-  const { from: inviteFrom, replyTo: inviteReplyTo } = await resolveAgencySender(originator?.agencyId);
+  // Personal from-name ("Mac at Meldone Estates") reads warmer and lands better
+  // than the agency name alone — for agencies with their own authenticated sender.
+  const originatorFirstName = originatorName.trim().split(/\s+/)[0] || undefined;
+  const { from: inviteFrom, replyTo: inviteReplyTo } = await resolveAgencySender(
+    originator?.agencyId,
+    originatorFirstName ? { personFirstName: originatorFirstName } : undefined,
+  );
   await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: inviteFrom, replyTo: inviteReplyTo, kind: "chain_invite", meta: { originatorAgency } });
 }
 

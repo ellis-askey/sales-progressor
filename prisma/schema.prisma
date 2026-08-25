@@ -1720,6 +1720,9 @@ model ChainLink {
   // invited agents drop off. Set once (idempotent), never cleared.
   inviteFirstViewedAt    DateTime?
   claimStartedAt         DateTime?
+  // Phase 3: a one-time reminder was sent to an invite that was delivered but
+  // never opened. Set once, so each invite gets at most one nudge.
+  inviteNudgedAt         DateTime?
   inviteBouncedAt        DateTime?
   inviteUnsubscribedAt   DateTime?
   inviteDeclinedAt       DateTime?

@@ -115,6 +115,10 @@
     {
       "path": "/api/cron/exchange-day-emails",
       "schedule": "*/15 7-16 * * 1-5"
+    },
+    {
+      "path": "/api/cron/chain-invite-nudge",
+      "schedule": "0 10 * * 1-5"
     }
   ]
 }

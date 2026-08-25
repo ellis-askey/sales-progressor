@@ -31,6 +31,7 @@ export type AgentEmailKind =
   | "domain_auth"
   | "verified_email"
   | "chain_invite"
+  | "chain_invite_nudge"
   | "password_reset";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).
