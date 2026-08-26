@@ -5,6 +5,7 @@ import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
@@ -1298,6 +1299,65 @@ export async function getHubAttentionItems(
       nextDueDate: t.escalatedAt,
       escalationReason: "No movement in 3 weeks",
       escalatedAt: t.escalatedAt,
+      escalatedByName: null,
+    });
+  }
+
+  // Scenario D: an exchange whose predicted date has passed while the file has
+  // gone quiet surfaces as an overdue attention item, so a stuck file can't
+  // silently drop off the hub. A file that's still moving self-heals — each
+  // milestone confirm refreshes expectedExchangeDate to a future prediction
+  // (lib/services/exchange-prediction.ts) so it never reaches this window.
+  // See docs/active/three-notes-distilled-2026-08-26.md (Note 1, Scenario D).
+  const overdueCandidates = await prisma.propertyTransaction.findMany({
+    where: {
+      AND: [
+        txLogFilter,
+        {
+          exchangedAt: null,
+          OR: [
+            { overridePredictedDate: { lt: now } },
+            { overridePredictedDate: null, expectedExchangeDate: { lt: now } },
+          ],
+        },
+      ],
+    },
+    select: {
+      id: true,
+      propertyAddress: true,
+      photoStoragePath: true,
+      expectedExchangeDate: true,
+      overridePredictedDate: true,
+      exchangedAt: true,
+      milestoneCompletions: {
+        where: { state: "complete", completedAt: { not: null } },
+        orderBy: { completedAt: "desc" },
+        take: 1,
+        select: { completedAt: true },
+      },
+    },
+  });
+  for (const tx of overdueCandidates) {
+    const { stuck, passedDate } = isExchangeOverdueStuck({
+      exchangedAt: tx.exchangedAt,
+      expectedExchangeDate: tx.expectedExchangeDate,
+      overridePredictedDate: tx.overridePredictedDate,
+      lastMilestoneConfirmedAt: tx.milestoneCompletions[0]?.completedAt ?? null,
+      now,
+    });
+    if (!stuck || !passedDate) continue;
+    items.push({
+      id: `xovr-${tx.id}`,
+      urgency: "overdue",
+      reminderName: "Exchange date passed",
+      transaction: {
+        id: tx.id,
+        propertyAddress: tx.propertyAddress,
+        photoStoragePath: tx.photoStoragePath,
+      },
+      nextDueDate: passedDate,
+      escalationReason: "Exchange date passed and the file's gone quiet",
+      escalatedAt: null,
       escalatedByName: null,
     });
   }

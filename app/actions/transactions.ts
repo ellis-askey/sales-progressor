@@ -912,6 +912,50 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
   revalidateTx(transactionId);
 }
 
+// Scenario D: revise the exchange date on a file that's gone quiet past its
+// predicted date. Writes a manual override (which wins on every display surface
+// and drops the file out of the hub's overdue list) and records that both
+// parties were spoken to. The hard block — bothPartiesInformed must be true —
+// is enforced here as well as in the modal, so a date never slides in silence.
+// See docs/active/three-notes-distilled-2026-08-26.md (Note 1, Scenario D).
+export async function reviseOverdueExchangeDateAction(input: {
+  transactionId: string;
+  newDate: string; // ISO yyyy-mm-dd from the date input
+  bothPartiesInformed: boolean;
+}) {
+  const session = await requireSession();
+
+  if (!input.bothPartiesInformed) {
+    throw new Error("Confirm both parties have been told before revising the date");
+  }
+  const parsed = new Date(input.newDate);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Enter a valid date");
+  }
+
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  await prisma.propertyTransaction.update({
+    where: { id: input.transactionId },
+    data: { overridePredictedDate: parsed },
+  });
+
+  const dateStr = parsed.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  await logActivity(
+    input.transactionId,
+    `${session.user.name} revised the expected exchange date to ${dateStr} after speaking to both parties`,
+    session.user.id,
+  );
+
+  revalidateTx(input.transactionId);
+  revalidatePath("/agent/hub", "page");
+}
+
 export async function saveAgentFeeAction(input: {
   transactionId: string;
   agentFeeAmount: number | null;

@@ -20,6 +20,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { addWorkingDays } from "@/lib/emails/working-hours";
 import {
   calculatePhaseAwarePrediction,
   computeEffectiveStartDate,
@@ -99,4 +100,55 @@ export async function refreshExpectedExchangeDate(
   });
 
   return predicted;
+}
+
+// ─── Scenario D: overdue-and-stuck detection ─────────────────────────────────
+// See docs/active/three-notes-distilled-2026-08-26.md (Note 1, Scenario D).
+
+// Grace before an overdue exchange nags. A file exchanging a couple of days
+// later than predicted is normal, so we only flag once it's this many working
+// days past AND the file has gone quiet. Single tunable constant — retune here
+// after watching it behave.
+export const OVERDUE_GRACE_WD = 2;
+
+/**
+ * Is this file's exchange overdue *and stuck*?
+ *
+ * Overdue: the effective predicted date (a manual override if set, else the
+ * stored prediction) is more than OVERDUE_GRACE_WD working days in the past and
+ * the file hasn't exchanged.
+ *
+ * Stuck: no milestone has been confirmed on or after that date. A file that is
+ * still moving self-heals — each confirm calls refreshExpectedExchangeDate,
+ * pushing expectedExchangeDate to a future prediction, so it never reaches the
+ * overdue window. The silence test still matters for the manual-override case,
+ * where a past override is NOT refreshed by ongoing confirmations.
+ *
+ * Shared by the hub attention list (getHubAttentionItems) and the file-level
+ * revise banner so both agree on exactly when to nag.
+ */
+export function isExchangeOverdueStuck(args: {
+  exchangedAt: Date | null;
+  expectedExchangeDate: Date | null;
+  overridePredictedDate: Date | null;
+  lastMilestoneConfirmedAt: Date | null;
+  now?: Date;
+}): { stuck: boolean; passedDate: Date | null } {
+  const now = args.now ?? new Date();
+  if (args.exchangedAt) return { stuck: false, passedDate: null };
+
+  const effective = args.overridePredictedDate ?? args.expectedExchangeDate;
+  if (!effective) return { stuck: false, passedDate: null };
+
+  // Not yet past the working-day grace → not overdue.
+  if (now < addWorkingDays(effective, OVERDUE_GRACE_WD)) {
+    return { stuck: false, passedDate: effective };
+  }
+
+  // Confirmed activity on/after the date → still moving, not stuck.
+  if (args.lastMilestoneConfirmedAt && args.lastMilestoneConfirmedAt >= effective) {
+    return { stuck: false, passedDate: effective };
+  }
+
+  return { stuck: true, passedDate: effective };
 }

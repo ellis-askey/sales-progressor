@@ -36,7 +36,9 @@ import {
   getMilestonesCached,
 } from "@/lib/services/cached-fetchers";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
+import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import { totalHoldMs } from "@/lib/services/hold-duration";
+import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
@@ -243,6 +245,27 @@ export default async function AgentTransactionDetailPage({
     progress.fileLevelPhase = detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase;
   }
 
+  // Scenario D: is the exchange date past and the file gone quiet? Drives the
+  // revise-date banner below (see lib/services/exchange-prediction.ts). Same
+  // detection the hub uses, so the banner and the hub attention item agree.
+  const lastMilestoneConfirmedAt = allCompletions
+    .map((c) => c.completedAt)
+    .filter((d): d is Date => d != null)
+    .reduce<Date | null>((max, d) => (max && max > d ? max : d), null);
+  const exchangeOverdueStuck = isExchangeOverdueStuck({
+    exchangedAt: transaction.exchangedAt ?? null,
+    expectedExchangeDate: transaction.expectedExchangeDate ?? null,
+    overridePredictedDate: transaction.overridePredictedDate ?? null,
+    lastMilestoneConfirmedAt,
+  });
+  // Same rule as the hub attention list: whoever progresses the file sees the
+  // nag. Internal staff on every file; agency users on their own self-managed
+  // files only (outsourced files are progressed by our team).
+  const showExchangeOverdueBanner =
+    exchangeOverdueStuck.stuck &&
+    !!exchangeOverdueStuck.passedDate &&
+    (isInternalStaff || session.user.role === "superadmin" || transaction.serviceType === "self_managed");
+
   // "Managing this file" name in the hero. Rules (locked 2026-08-08):
   //   outsourced  → the assigned progressor (sales_progressor). Null if
   //                 no one is assigned yet — the hero renders "Not
@@ -406,6 +429,13 @@ export default async function AgentTransactionDetailPage({
       <ClaimWelcomeAsync address={transaction.propertyAddress} transactionId={transaction.id} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <OnHoldBanner show={transaction.status === "on_hold"} />
+      {showExchangeOverdueBanner && (
+        <ReviseExchangeBanner
+          transactionId={transaction.id}
+          address={transaction.propertyAddress}
+          passedDateIso={exchangeOverdueStuck.passedDate!.toISOString()}
+        />
+      )}
       <RelistBanner
         show={transaction.status === "withdrawn" && transaction.exchangedAt === null}
         transactionId={transaction.id}
