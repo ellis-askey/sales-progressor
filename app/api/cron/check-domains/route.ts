@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
 import { sendAgentEmail } from "@/lib/email/agent-log";
+import { adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
 
 // Called nightly by Vercel Cron. Protected by CRON_SECRET header.
 export async function GET(req: NextRequest) {
@@ -38,6 +39,11 @@ export async function GET(req: NextRequest) {
           lastCheckedAt: new Date(),
         },
       });
+
+      // Newly verified → adopt as the agency's sending address (if none yet).
+      if (nowValid && domain.agencyId) {
+        await adoptVerifiedDomainAsAgencySender(domain.agencyId, domain.domain);
+      }
 
       // If a previously working domain has broken, email all affected users
       if (wasValid && !nowValid) {

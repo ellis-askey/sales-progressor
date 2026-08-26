@@ -54,6 +54,25 @@ export async function listVerifiedDomainsForAgency(agencyId: string) {
   });
 }
 
+/**
+ * The link that makes a verified domain actually drive outbound sender
+ * resolution: when an agency's domain becomes verified, adopt updates@<domain>
+ * as the agency's sending address (Agency.quoteSenderEmail). Only fills a blank
+ * — never overrides an address the agency already has. Idempotent; safe to call
+ * from every verify path (founder, self-serve, nightly recheck).
+ */
+export async function adoptVerifiedDomainAsAgencySender(agencyId: string, domain: string): Promise<void> {
+  const agency = await prisma.agency.findUnique({
+    where: { id: agencyId },
+    select: { quoteSenderEmail: true },
+  });
+  if (!agency || agency.quoteSenderEmail) return;
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: { quoteSenderEmail: `updates@${domain.toLowerCase()}` },
+  });
+}
+
 // ─── User email queries ───────────────────────────────────────────────────────
 
 export async function listVerifiedEmailsForUser(userId: string) {

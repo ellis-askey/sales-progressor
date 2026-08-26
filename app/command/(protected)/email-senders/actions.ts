@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createAuthenticatedDomain, validateAuthenticatedDomain } from "@/lib/services/sendgrid";
-import { isPersonalDomain, getVerifiedDomainForAgency } from "@/lib/services/verified-emails";
+import { isPersonalDomain, getVerifiedDomainForAgency, adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
 
 export type SerializedDomain = {
   id: string;
@@ -108,6 +108,9 @@ export async function checkAgencyDomainAction(verifiedDomainId: string): Promise
       verifiedAt: result.valid && !vd.verifiedAt ? new Date() : vd.verifiedAt,
     },
   });
+
+  // Newly verified → adopt it as the agency's sending address (if none yet).
+  if (result.valid) await adoptVerifiedDomainAsAgencySender(vd.agencyId, vd.domain);
 
   revalidatePath("/command/email-senders");
   return { ok: true, domain: serialize(updated), valid: result.valid };

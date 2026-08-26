@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
+import { adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
 
 export async function POST(
   _req: NextRequest,
@@ -27,6 +28,12 @@ export async function POST(
       lastCheckedAt: new Date(),
     },
   });
+
+  // Newly verified → adopt it as the agency's sending address (if none yet), so
+  // the agency's automated mail starts sending from their own domain.
+  if (result.valid && domain.agencyId) {
+    await adoptVerifiedDomainAsAgencySender(domain.agencyId, domain.domain);
+  }
 
   return NextResponse.json({ domain: updated, valid: result.valid });
 }

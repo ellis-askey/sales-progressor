@@ -48,15 +48,23 @@ export async function resolveAgencySender(
 /**
  * The canonical per-file outbound sender, keyed by transaction.
  *
- * 1. If the agency has its own authenticated address (quoteSenderEmail), send
- *    from it, branded "{progressor/agent first name} at {Agency}".
- * 2. If not, fall back by how the file is run (founder decision 2026-08-17):
- *    - OUTSOURCED (we progress it): the assigned progressor's own
- *      @thesalesprogressor.co.uk address (whichever progressor is on the file).
- *      If somehow no progressor is assigned, the generic updates@ inbox.
- *    - SELF-MANAGED / in-house (the agency runs it): the generic updates@ inbox.
+ * Display name is ALWAYS the agency's ("{agent first name} at {Agency}"), so a
+ * client never sees "Sales Progressor" as the sender. What varies is the actual
+ * sending address + reply-to:
  *
- * Reply-To always matches the sending address.
+ * 1. Agency verified its own domain (quoteSenderEmail = updates@theirdomain):
+ *    - if the acting agent's own email is ON that domain, send from THEIR
+ *      address (the SP per-person model); otherwise the agency's updates@.
+ * 2. Not yet set up:
+ *    - OUTSOURCED (we run it): the assigned progressor's own
+ *      @thesalesprogressor.co.uk address.
+ *    - SELF-MANAGED (Option C): agency-branded display + the agent's own email
+ *      as reply-to, sent on our shared updates@ address until they verify a
+ *      domain. Hides everything SP-related except the actual sending address,
+ *      which the domain step later cleans up.
+ *
+ * Reply-To matches the sending address, except in the Option C case where it's
+ * the agent's own inbox so replies reach the agency, not us.
  */
 export async function resolveAgencySenderForTransaction(transactionId: string): Promise<ResolvedSender> {
   const tx = await prisma.propertyTransaction.findUnique({
@@ -64,28 +72,43 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     select: {
       agencyId: true,
       serviceType: true,
-      agency: { select: { quoteSenderEmail: true } },
+      agency: { select: { name: true, quoteSenderEmail: true } },
       assignedUser: { select: { name: true, email: true } },
-      agentUser: { select: { name: true } },
+      agentUser: { select: { name: true, email: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
 
-  // 1) Agency's own authenticated address.
+  // Who's acting on the file: the agency agent on self-managed, the progressor
+  // on outsourced. Used for the branded display name and the Option C reply-to.
+  const acting = tx.serviceType === "self_managed" ? tx.agentUser : tx.assignedUser;
+  const firstName = acting?.name?.trim().split(/\s+/)[0] || undefined;
+  const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
+  const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
+
+  // 1) Agency's own verified domain.
   if (tx.agency?.quoteSenderEmail) {
-    const persona = tx.serviceType === "self_managed" ? tx.agentUser?.name : tx.assignedUser?.name;
-    return resolveAgencySender(
-      tx.agencyId,
-      persona ? { personFirstName: persona.trim().split(/\s+/)[0] } : undefined,
-    );
+    const verifiedDomain = tx.agency.quoteSenderEmail.split("@")[1]?.toLowerCase();
+    const actingDomain = acting?.email?.split("@")[1]?.toLowerCase();
+    // Per-person: acting agent's own address when it's on the verified domain.
+    const addr = acting?.email && actingDomain && actingDomain === verifiedDomain
+      ? acting.email
+      : tx.agency.quoteSenderEmail;
+    return { from: buildFrom(display, addr), replyTo: addr };
   }
 
-  // 2) Fallback, by how the file is run.
+  // 2) Not yet set up. Outsourced: the progressor's own address (they run it).
   if (tx.serviceType === "outsourced" && tx.assignedUser?.email) {
     return {
       from: buildFrom(tx.assignedUser.name ?? "Sales Progressor", tx.assignedUser.email),
       replyTo: tx.assignedUser.email,
     };
   }
-  return resolveAgencySender(null); // in-house (or outsourced w/o progressor) -> updates@
+
+  // 3) Self-managed, not yet set up — Option C: agency display, agent reply-to,
+  // our shared address underneath.
+  return {
+    from: buildFrom(display, SP_REPLY_TO),
+    replyTo: acting?.email ?? SP_REPLY_TO,
+  };
 }
