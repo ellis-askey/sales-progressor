@@ -335,6 +335,14 @@ model PropertyTransaction {
   // statistics. Set true by the migration action; defaults false.
   isMigrated Boolean @default(false)
 
+  // Demo showcase file, created by the "Add a demo" button on the add-sale page
+  // when an agency has no real sales yet. Fully-populated best-practice example
+  // (fake address/contacts/solicitors). Excluded from the trial anchor, billing,
+  // and real-sale adoption metrics. Auto-removed after demoExpiresAt (~1 week),
+  // or removed manually. See docs/active/demo-sale/SPEC.md.
+  isDemo        Boolean   @default(false)
+  demoExpiresAt DateTime?
+
   lastActivityAt DateTime?
 
   // Agent-provided WhatsApp group invite URL for this file. Populated after
