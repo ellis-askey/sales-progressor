@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/milestones";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -121,6 +122,12 @@ export async function POST(req: NextRequest) {
         await maybeAutoCompleteTransaction(transactionId, { actorUserId: session.user.id });
       }
 
+      // Keep the stored expectedExchangeDate in step with the live prediction
+      // (mirrors confirmMilestoneAction). Best-effort; no-op once exchanged.
+      await refreshExpectedExchangeDate(transactionId).catch((err) => {
+        console.error("[api/milestones complete] expectedExchangeDate refresh failed", err);
+      });
+
       return NextResponse.json(result, { status: 201 });
     }
 
@@ -133,6 +140,9 @@ export async function POST(req: NextRequest) {
         reason,
         downstreamIds: Array.isArray(downstreamIds) ? downstreamIds : [],
         newPurchaseType: newPurchaseType as PurchaseType | undefined,
+      });
+      await refreshExpectedExchangeDate(transactionId).catch((err) => {
+        console.error("[api/milestones reverse] expectedExchangeDate refresh failed", err);
       });
       return NextResponse.json({ success: true });
     }

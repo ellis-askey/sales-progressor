@@ -39,6 +39,7 @@ import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
+import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -190,6 +191,14 @@ export async function confirmMilestoneAction(input: {
     anchorCodes: anchorCodesForEval,
   }).catch((err) => {
     console.error("[confirmMilestoneAction] reminder re-eval failed", err);
+  });
+
+  // Refresh the stored expectedExchangeDate from the live phase-aware
+  // prediction so the hub/diary date self-adjusts as the file progresses.
+  // Best-effort: a failure here must not break the confirm. No-op once the
+  // file has exchanged (the VM19/PM26 sync above already wrote the real date).
+  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+    console.error("[confirmMilestoneAction] expectedExchangeDate refresh failed", err);
   });
 
   // Single revalidate after all DB writes (primary + bilateral counterpart)
@@ -542,6 +551,12 @@ export async function reverseMilestoneAction(input: {
     agencyId:      session.user.agencyId || undefined,
   });
 
+  // Reversing a milestone lengthens the remaining critical path — refresh the
+  // stored prediction so the hub date pushes back out. Best-effort.
+  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+    console.error("[reverseMilestoneAction] expectedExchangeDate refresh failed", err);
+  });
+
   revalidateTx(input.transactionId);
 }
 
@@ -614,6 +629,12 @@ export async function executeUndoMilestoneAction(input: {
   // the timeline stays coherent with the user's action.
   await evaluateTransactionReminders(input.transactionId).catch((err) => {
     console.error("[executeUndoMilestoneAction] reminder re-eval failed", err);
+  });
+
+  // Undoing a milestone lengthens the remaining critical path — refresh the
+  // stored prediction so the hub date pushes back out. Best-effort.
+  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+    console.error("[executeUndoMilestoneAction] expectedExchangeDate refresh failed", err);
   });
 
   revalidateTx(input.transactionId);
