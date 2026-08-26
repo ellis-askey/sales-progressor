@@ -166,7 +166,6 @@ async function sendInviteEmail(input: {
   const originatorAgency = sender.displayAgency;
 
   const stubAddress = normaliseAddressString(link.stubPropertyAddress ?? "your sale");
-  const logoUrl = `${base}/logo.png`;
 
   const totalLinks = link.chain.links.length;
   const linkPosition = displayChainPosition(stubPosition, totalLinks); // bottom=#1 convention
@@ -189,7 +188,6 @@ async function sendInviteEmail(input: {
     claimedCount,
     claimUrl,
     declineUrl,
-    logoUrl,
     logoBand,
   });
 
@@ -224,7 +222,6 @@ function buildInviteHtml(v: {
   claimedCount: number;
   claimUrl: string;
   declineUrl: string;
-  logoUrl: string;
   logoBand: string;
 }): string {
   const connected = v.claimedCount === 1 ? "1 agent is already connected" : `${v.claimedCount} agents are already connected`;
@@ -259,14 +256,6 @@ function buildInviteHtml(v: {
   </p>
   <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Button not working? Copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
   <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Let us know</a>.</p>
-  <hr style="border:none;border-top:1px solid #eef0f4;margin:0 0 16px"/>
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
-    <td style="vertical-align:middle;width:34px"><img src="${v.logoUrl}" width="28" height="28" alt="Sales Progressor" style="display:block;border-radius:7px"/></td>
-    <td style="vertical-align:middle;padding-left:10px">
-      <p style="margin:0;font-size:13px;font-weight:700;color:#1a1d29">Sales Progressor</p>
-      <p style="margin:1px 0 0;font-size:12px;color:#8b91a3">Making property moves better for everyone.</p>
-    </td>
-  </tr></table>
 </div>
 </body></html>`;
 }
