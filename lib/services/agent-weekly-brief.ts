@@ -56,10 +56,6 @@ export function deriveFileState(input: {
   return "ontrack";
 }
 
-function fmtDate(d: Date) {
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
 function daysUntil(d: Date) {
   return Math.round((new Date(d).setHours(12, 0, 0, 0) - new Date().setHours(12, 0, 0, 0)) / 86400000);
 }
@@ -221,11 +217,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
     for (const f of files) {
       const meta = STATE_META[f.state];
       const steps = f.total > 0 ? `${f.stageLabel}, ${f.completed} of ${f.total} steps` : f.stageLabel;
-      const exchangeTag =
-        f.state === "exchange" && f.expectedExchangeDate
-          ? ` (${fmtDate(f.expectedExchangeDate)}, ${daysUntil(f.expectedExchangeDate)}d)`
-          : "";
-      lines.push(`  · ${f.address}: ${steps} · ${meta.label}${exchangeTag}`);
+      lines.push(`  · ${f.address}: ${steps} · ${meta.label}`);
       if (f.reason) lines.push(`      ${f.reason}`);
     }
     lines.push(``, `Have a productive week.`);
@@ -235,10 +227,6 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       .map((f) => {
         const meta = STATE_META[f.state];
         const steps = f.total > 0 ? `${f.stageLabel} · ${f.completed} of ${f.total} steps` : f.stageLabel;
-        const exchangeTag =
-          f.state === "exchange" && f.expectedExchangeDate
-            ? `<span style="color:#6b7280;font-weight:400"> · ${fmtDate(f.expectedExchangeDate)} (${daysUntil(f.expectedExchangeDate)}d)</span>`
-            : "";
         const reasonHtml = f.reason
           ? `<div style="color:#9ca3af;font-size:11px;margin-top:2px">${f.reason}</div>`
           : "";
@@ -248,7 +236,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
     <div style="color:#6b7280;font-size:12px;margin-top:2px">${steps}</div>
   </td>
   <td style="padding:12px 0;border-top:1px solid #f0f0f2;text-align:right;white-space:nowrap;vertical-align:top">
-    <span style="color:${meta.colour};font-size:13px;font-weight:600">${meta.label}</span>${exchangeTag}
+    <span style="color:${meta.colour};font-size:13px;font-weight:600">${meta.label}</span>
     ${reasonHtml}
   </td>
 </tr>`;
