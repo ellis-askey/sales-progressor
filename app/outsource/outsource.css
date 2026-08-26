@@ -1,0 +1,77 @@
+/* Layout + card chrome for the public /outsource landing page. Kept as a small
+ * stylesheet (not inline) so the desktop grids can use media queries — on desktop
+ * the hero sits beside the form and the steps/reasons run 3-across; everything
+ * stacks on mobile. Colours mirror app/outsource/ui.ts (the sunset glass look). */
+
+.os-wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 44px 20px 72px;
+}
+
+/* Hero + form. One column on mobile (hero, then form), two on desktop. */
+.os-top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 880px) {
+  .os-top {
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 44px;
+  }
+  .os-form-sticky {
+    position: sticky;
+    top: 84px;
+  }
+}
+
+/* Steps / reasons — stacked on mobile, 3-across on desktop. */
+.os-grid3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  .os-grid3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Frosted-glass card floating over the iridescent AppBackground. */
+.os-card {
+  background: rgba(255, 255, 255, 0.58);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.60);
+  box-shadow: 0 8px 32px rgba(90, 58, 40, 0.10), 0 2px 8px rgba(45, 24, 16, 0.05);
+  border-radius: 18px;
+}
+
+.os-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(45, 24, 16, 0.62);
+  margin: 0 0 14px;
+}
+
+.os-input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 16px;
+  color: #2D1810;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(45, 24, 16, 0.14);
+  border-radius: 10px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.os-input:focus {
+  border-color: #FF6B4A;
+  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.12);
+}

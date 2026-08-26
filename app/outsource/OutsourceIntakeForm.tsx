@@ -6,11 +6,6 @@ import { A } from "./ui";
 
 const label: CSSProperties = { display: "block", fontSize: 12.5, fontWeight: 600, color: A.textSecondary, marginBottom: 6 };
 const optional: CSSProperties = { color: A.textFaint, fontWeight: 400 };
-const inputBase: CSSProperties = {
-  width: "100%", padding: "11px 14px", fontSize: 16, color: A.textPrimary,
-  background: A.inputBg, border: `1px solid ${A.inputBorder}`, borderRadius: 10,
-  outline: "none", boxSizing: "border-box", fontFamily: "inherit",
-};
 
 export function OutsourceIntakeForm() {
   const [name, setName] = useState("");
@@ -49,7 +44,6 @@ export function OutsourceIntakeForm() {
 
   return (
     <>
-      <style>{`.os-input:focus{border-color:${A.coralDeep};box-shadow:0 0 0 3px rgba(255,107,74,0.12);}`}</style>
       <h2 style={{ margin: "0 0 4px", fontSize: 21, fontWeight: 800, color: A.textPrimary, letterSpacing: "-0.02em" }}>Hand us your first file</h2>
       <p style={{ margin: "0 0 20px", fontSize: 14, color: A.textSecondary, lineHeight: 1.55 }}>Takes a minute. From there, it&apos;s ours to progress.</p>
 
@@ -57,33 +51,33 @@ export function OutsourceIntakeForm() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={label}>Your name</label>
-            <input className="os-input" style={inputBase} value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Jane Smith" />
+            <input className="os-input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Jane Smith" />
           </div>
           <div>
             <label style={label}>Agency</label>
-            <input className="os-input" style={inputBase} value={agency} onChange={(e) => setAgency(e.target.value)} required autoComplete="organization" placeholder="Your estate agency" />
+            <input className="os-input" value={agency} onChange={(e) => setAgency(e.target.value)} required autoComplete="organization" placeholder="Your estate agency" />
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={label}>Email</label>
-            <input className="os-input" style={inputBase} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@youragency.co.uk" />
+            <input className="os-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@youragency.co.uk" />
           </div>
           <div>
             <label style={label}>Phone <span style={optional}>(optional)</span></label>
-            <input className="os-input" style={inputBase} value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="07…" />
+            <input className="os-input" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="07…" />
           </div>
         </div>
 
         <div>
           <label style={label}>The sale</label>
-          <input className="os-input" style={inputBase} value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} required placeholder="Property address of the agreed sale" />
+          <input className="os-input" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} required placeholder="Property address of the agreed sale" />
         </div>
 
         <div>
           <label style={label}>Anything we should know? <span style={optional}>(optional)</span></label>
-          <textarea className="os-input" style={{ ...inputBase, resize: "vertical", minHeight: 76 }} value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Chain, target dates, anything useful" />
+          <textarea className="os-input" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} style={{ resize: "vertical", minHeight: 76 }} placeholder="Chain, target dates, anything useful" />
         </div>
 
         {error && (
