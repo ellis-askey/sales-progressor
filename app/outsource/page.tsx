@@ -47,7 +47,17 @@ export default function OutsourcePage() {
           boxShadow: "0 1px 16px rgba(90,58,40,0.06)",
         }}
       >
-        <img src="/logo.png" width={30} height={30} alt="" style={{ borderRadius: 8, display: "block" }} />
+        <svg width={30} height={30} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }} aria-hidden>
+          <defs>
+            <linearGradient id="os-bm-grad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#FFAA7A" />
+              <stop offset="100%" stopColor="#FF6B4A" />
+            </linearGradient>
+          </defs>
+          <rect width="44" height="44" rx="12" fill="url(#os-bm-grad)" />
+          <circle cx="22" cy="22" r="11" fill="white" />
+          <path d="M16.8 22.4l3.4 3.4 7-7.2" stroke="#FF7A54" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         <span style={{ fontSize: 15, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.01em" }}>Sales Progressor</span>
       </header>
 
