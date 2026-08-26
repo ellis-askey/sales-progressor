@@ -63,8 +63,8 @@ The rate-limit layer is fully written but **switched off** — `lib/ratelimit.ts
 - **1a** ✅ (`e36d17e5`) Option C branding + agent reply-to in `resolveAgencySenderForTransaction`; once on their verified domain, a neg/director whose own email is on it sends from their personal address (SP model).
 - **1b** ✅ (`e36d17e5`) `adoptVerifiedDomainAsAgencySender` sets `updates@<domain>` when a domain verifies — called from all three verify paths (founder, self-serve, nightly cron). Fills a blank only.
 - **1c** ✅ (`4fcbe4bc`) honest success copy on the sending-address screen.
-- **1d** ✅ (`4fcbe4bc`) routed 3 client-facing leaks through the agency sender (portal-message reply, survey-quote link, "visible update"). Command Centre sender reference updated.
-- **Remaining/optional:** locate the completion-day "what happens next" pack (may already route via the milestone email path); agency logo in client emails (stretch). The portal-message→agent notice is agent-facing, left as SP.
+- **1d** ✅ (`4fcbe4bc` + `780d9832`) routed all client-facing leaks through the agency sender: portal-message reply, survey-quote link, "visible update", and the completion "what happens next" pack (both the send-now and scheduled/enqueued paths — the queue drain forwards payload.from/replyTo). Also fixed the shared `portalEmailHtml` footer ("contact your sales progressor" → "just reply to this email"). Command Centre sender reference updated.
+- **Remaining/optional:** agency logo in client emails (stretch). The portal-message→agent notice is agent-facing, left as SP.
 - **Acceptance:** a client email always shows the agency as sender with replies to the agent; on domain verify it swaps to their address automatically. ✅ met for the wired paths.
 
 **Closes audit points 1–5.**
