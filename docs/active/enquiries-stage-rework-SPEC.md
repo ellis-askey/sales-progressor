@@ -57,11 +57,11 @@ The tracker is **internal / agent-facing**. The client portal shows state only (
 
 ### 2.3 The chase (replaces the signal the deleted ticks used to carry)
 
-- **Cadence:** every **9 working days** of silence. 9 (not 10) so the nudge lands on a different weekday each time instead of becoming "the Monday email" that gets ignored.
+- **Cadence:** every **7 working days** of silence. An odd number of working days so the nudge lands on a different weekday each time instead of becoming "the Monday email" that gets ignored.
 - **Targeted:** the chase points at whoever holds the ball.
   - Seller's solicitor (replies owed): *"Any update on the outstanding replies?"*
   - Buyer's solicitor (reviewing / deciding): *"Are you now satisfied, or is anything still outstanding?"*
-- **Clock resets on movement.** Any logged reply or sensor report restarts the 9-working-day timer, so an active file is chased more calmly.
+- **Clock resets on movement.** Any logged reply or sensor report restarts the 7-working-day timer, so an active file is chased more calmly.
 - **Replyable, human, per-sender.** The chase sends as a real email from the correct sender for the file (each agency from its own connected domain; EXP files from ellis@thesalesprogressor.co.uk). A solicitor who never touches the portal can simply **reply in Outlook**, and that reply lands in the right human inbox and *is* a movement signal. The chase and the sensor (section 5) are the same mechanism from two directions.
 - **Format:** plain, professional, friendly — the way a person writes in Outlook. **No branded milestone template.** Body + one button "**Provide an update**" (opens the portal link) + the option to just reply. Signature:
   ```
@@ -73,8 +73,8 @@ The tracker is **internal / agent-facing**. The client portal shows state only (
 
 ### 2.4 The escalation (the "3-week ceiling")
 
-- **Ceiling:** 3 weeks = **15 working days** of continuous silence is the maximum tolerated with no comms.
-- Timeline from "raised" or last movement, if fully silent: nudge at working day 9; at working day 15 it **escalates**.
+- **Ceiling:** **13 working days** (about 2.5 weeks) of continuous silence is the maximum tolerated with no comms.
+- Timeline from "raised" or last movement, if fully silent: nudge at working day 7; at working day 13 it **escalates**.
 - **Escalation = a task + a visible flag.** A task lands on the right owner: *"Enquiries: chased, no movement in 3 weeks — time to call them."* And the file's enquiries block shows an amber **"stalled — 3 weeks, no reply"** flag, which also surfaces in the owner's hub attention list / daily view so it can't hide behind a polite email.
 - **Nudges continue** after escalation; escalation adds a human, it does not stop the robot.
 - **Owner routing by tier:** internal progressor for outsourced files; the agency's negotiator for self-managed.
@@ -245,20 +245,20 @@ Each stage below is scoped to be a single reviewable change (Law 5: one concern 
 - **Depends on:** 1.2 (needs the final milestone set). One concern, its own PR.
 
 #### Stage 1.4 — The chase (adapt the existing engine, don't rebuild)
-- **Goal:** an open enquiries loop chases the right solicitor on the 9-working-day drumbeat, replyable, and calms on movement — reusing `lib/solicitor-confirm/chase.ts`.
+- **Goal:** an open enquiries loop chases the right solicitor on the 7-working-day drumbeat, replyable, and calms on movement — reusing `lib/solicitor-confirm/chase.ts`.
 - **Changes:**
   - Reuse the existing engine: it already computes working-day cadence, resolves the per-agency/EXP replyable sender, respects the per-side pause flag + `expectedDate` snooze, is idempotent via `SolicitorChaseState`, and escalates. We are **configuring and narrowing it**, not writing a cron.
-  - **Cadence:** set the surviving enquiries codes' `SolicitorReminderRule` to grace + repeat = **9 working days**.
+  - **Cadence:** set the surviving enquiries codes' `SolicitorReminderRule` to grace + repeat = **7 working days**.
   - **Differentiated ask:** the per-side digest already targets the right solicitor; adjust the solicitor step labels / copy so the seller's solicitor reads "any update on the outstanding replies?" and the buyer's reads "satisfied, or anything outstanding?".
   - **Seller chase target** (decision 6): resolve how the seller's solicitor stays chaseable once VM12/VM15 are deleted — either the tracker-driven trigger (A) or a retained seller step (B).
   - **Movement resets the clock:** logging a movement (Stage 1.6) writes the same signal the engine reads as "responded", so the cadence restarts.
   - The "Provide an update" solicitor link is the existing tokenised `/s/{token}` confirm/stop flow (already built), not a new button.
-- **Verify:** with the master switch on in sandbox, a seeded stalled file sends to the correct solicitor at 9 working days; pause + `expectedDate` suppress; a logged movement restarts the cadence; sender correct for an EXP file and an agency file.
+- **Verify:** with the master switch on in sandbox, a seeded stalled file sends to the correct solicitor at 7 working days; pause + `expectedDate` suppress; a logged movement restarts the cadence; sender correct for an EXP file and an agency file.
 - **Depends on:** 1.1 (tracker), 1.2 (final code set). Reuses the existing working-day calendar + engine.
 
 #### Stage 1.5 — Escalation (reuse the existing pass, add the visible flag)
 - **Goal:** three weeks of silence can't hide.
-- **Changes:** the engine's escalation pass already notifies the assigned agent after the chase cap. Tune the enquiries codes so escalation lands at the **3-week (15 working day)** ceiling, and confirm the notification routes to the tier-resolved owner (internal progressor for outsourced; agency negotiator for self-managed) — the engine currently targets `assignedUserId ?? agentUserId`, which already encodes this. **Add** the amber "stalled — 3 weeks, no reply" flag on the tracker + file enquiries block, and surface it in the hub attention list (`lib/services/hub.ts` / `components/hub`) so it's visible without opening the file. Nudges continue after escalation.
+- **Changes:** the engine's escalation pass already notifies the assigned agent after the chase cap. Tune the enquiries codes so escalation lands at the **13 working day** ceiling, and confirm the notification routes to the tier-resolved owner (internal progressor for outsourced; agency negotiator for self-managed) — the engine currently targets `assignedUserId ?? agentUserId`, which already encodes this. **Add** the amber "stalled — 3 weeks, no reply" flag on the tracker + file enquiries block, and surface it in the hub attention list (`lib/services/hub.ts` / `components/hub`) so it's visible without opening the file. Nudges continue after escalation.
 - **Verify:** a seeded 3-week-silent file produces one notification to the right owner (no duplicates on re-run) and renders the flag on the file and in the hub.
 - **Depends on:** 1.4.
 
@@ -374,7 +374,7 @@ Each stage below is scoped to be a single reviewable change (Law 5: one concern 
 1. **Weight split** — confirm PM14 6 / PM20 14 and VM10 8 / new-satisfied 16, or tune.
 2. **Seller-side "satisfied" mirror milestone** — confirm we add it (my recommendation) versus loading all 24% onto VM10 (which reintroduces a frozen seller bar).
 3. **Client milestone email format** — the plain Outlook-style format is specced for the *solicitor chase* emails. Confirm the *client* milestone emails (PM14/VM10/PM20) stay in the existing branded template with adapted content, or whether you want them revisited separately.
-4. **Chase cadence + ceiling** — confirm 9 working days between nudges and 15 working days (3 weeks) as the escalation ceiling.
+4. **Chase cadence + ceiling** — confirmed: 7 working days between nudges and 13 working days as the escalation ceiling (aligned to the live constants 2026-08-26).
 5. **Sign-off to proceed to Phase 1 build**, staging first.
 6. **Seller chase target** (surfaced by the Stage 1.0 baseline) — once VM12/VM15 are deleted, the seller's solicitor has no "send your replies" milestone to chase. Choose: **(A)** tracker-driven chase off the whose-court state (truer to the new model, a change to the engine's trigger), or **(B)** retain one open seller-side "enquiries" solicitor step chaseable until satisfied. My lean: **(A)**.
 

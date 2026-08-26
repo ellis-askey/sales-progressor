@@ -20,20 +20,20 @@ const tracker = (over: Over = {}) => ({
 });
 
 describe("enquiryChaseDecision", () => {
-  it("no chase before 9 working days", () => {
-    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 8))).toEqual({ chaseDue: false, escalateDue: false });
+  it("no chase before 7 working days", () => {
+    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 6))).toEqual({ chaseDue: false, escalateDue: false });
   });
 
-  it("chase due at 9 working days, no escalation yet", () => {
-    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 9))).toEqual({ chaseDue: true, escalateDue: false });
+  it("chase due at 7 working days, no escalation yet", () => {
+    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 7))).toEqual({ chaseDue: true, escalateDue: false });
   });
 
-  it("escalates at 15 working days (3 weeks) of silence", () => {
-    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 15)).escalateDue).toBe(true);
+  it("escalates at 13 working days (~2.5 weeks) of silence", () => {
+    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 13)).escalateDue).toBe(true);
   });
 
-  it("does not escalate before 15 working days", () => {
-    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 14)).escalateDue).toBe(false);
+  it("does not escalate before 13 working days", () => {
+    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 12)).escalateDue).toBe(false);
   });
 
   it("does not re-escalate once already escalated", () => {
@@ -42,9 +42,9 @@ describe("enquiryChaseDecision", () => {
   });
 
   it("repeat cadence runs from the last chase", () => {
-    const lastChasedAt = addWorkingDays(anchor, 9);
-    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 8)).chaseDue).toBe(false);
-    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 9)).chaseDue).toBe(true);
+    const lastChasedAt = addWorkingDays(anchor, 7);
+    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 6)).chaseDue).toBe(false);
+    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 7)).chaseDue).toBe(true);
   });
 
   it("a logged movement resets both clocks", () => {
