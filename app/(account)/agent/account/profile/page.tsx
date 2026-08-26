@@ -28,6 +28,8 @@ import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
 import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
+import { AgencyLogoSection } from "@/components/account/v2/AgencyLogoSection";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 
 export default async function AccountProfilePage({
   searchParams,
@@ -42,6 +44,17 @@ export default async function AccountProfilePage({
     select: { phone: true, agentPreferences: true, image: true },
   });
   const currentBrand = getBrandColor(userRecord?.agentPreferences);
+
+  // Agency logo is a director-level, agency-wide brand setting (client emails).
+  const isDirector = session.user.role === "director";
+  let agencyLogoUrl: string | null = null;
+  if (isDirector && session.user.agencyId) {
+    const agency = await prisma.agency.findUnique({
+      where: { id: session.user.agencyId },
+      select: { logoPath: true },
+    });
+    agencyLogoUrl = getAgencyLogoUrl(agency?.logoPath);
+  }
 
   const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
@@ -89,6 +102,24 @@ export default async function AccountProfilePage({
         </div>
         <BrandColorPicker initialColor={currentBrand} />
       </section>
+
+      {isDirector && (
+        <>
+          <div style={{ borderTop: HAIRLINE }} />
+          {/* Agency logo (director only) */}
+          <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
+                Agency logo
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                Your logo, shown at the top of the emails your clients receive.
+              </p>
+            </div>
+            <AgencyLogoSection initialLogoUrl={agencyLogoUrl} />
+          </section>
+        </>
+      )}
 
       <div style={{ borderTop: HAIRLINE }} />
 

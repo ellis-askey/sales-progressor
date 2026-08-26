@@ -670,7 +670,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     disabled={loading || isPending}
                     className="agent-link agent-link-muted"
                     style={{ fontSize: 11 }}
-                    title="Mark as not required"
+                    title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
                   >
                     Not required
                   </button>

@@ -40,6 +40,10 @@ model Agency {
   // regardless of this flag.
   weeklyClientUpdatesEnabled Boolean @default(true)
 
+  // The agency's own logo, shown in client-facing emails. Path in the public
+  // agency-logos bucket (`{agencyId}.{ext}`); full public URL via getAgencyLogoUrl.
+  logoPath String?
+
   // Signup attribution
   signupSource      String?
   signupMedium      String?

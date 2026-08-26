@@ -8,6 +8,13 @@ Last updated: 2026-08-26
 
 ---
 
+## Free-agency launch — Phase 5: agency logo bucket (2026-08-26)
+
+The agency-logo feature (directors upload their logo, shown in client emails) needs a **public** Supabase Storage bucket named exactly **`agency-logos`** on **staging AND prod** (same as `provider-logos`/`whatsapp-media`). Without it, uploads fail.
+- [ ] Create a **public-read** bucket `agency-logos` on staging Supabase.
+- [ ] Create the same on prod Supabase (before prod launch).
+- Note: it must be public-read so email clients can fetch the logo via a permanent URL (signed URLs expire before an email is opened).
+
 ## Free-agency launch — Phase 0 (2026-08-26)
 
 **Rate limiting (Phase 0.3) — highest-leverage pre-launch action.** The throttles for AI, email, invites, login and signup are fully built and already wired at every endpoint; they are simply switched OFF (no-op) until Upstash is provisioned. Do this before opening free signups.

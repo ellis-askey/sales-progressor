@@ -132,6 +132,34 @@ export async function deleteProviderLogo(path: string): Promise<void> {
   await client.storage.from(PROVIDER_LOGOS_BUCKET).remove([path]);
 }
 
+// ── Agency logos (public bucket) ────────────────────────────────────────────
+// A customer agency's own logo, shown in client-facing emails. Public-read so
+// email clients can fetch it via a permanent URL (signed URLs would expire before
+// an email is opened). Path is `{agencyId}.{ext}` (upsert). Bucket creation is a
+// manual step — see docs/active/ELLIS_MANUAL_TODO.md.
+export const AGENCY_LOGOS_BUCKET = "agency-logos";
+
+export async function uploadAgencyLogo(path: string, buffer: Buffer, mimeType: string): Promise<string> {
+  const client = getClient();
+  const { error } = await client.storage
+    .from(AGENCY_LOGOS_BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+  if (error) throw new Error(`Agency logo upload failed: ${error.message}`);
+  return path;
+}
+
+export function getAgencyLogoUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  return `${url}/storage/v1/object/public/${AGENCY_LOGOS_BUCKET}/${path}`;
+}
+
+export async function deleteAgencyLogo(path: string): Promise<void> {
+  const client = getClient();
+  await client.storage.from(AGENCY_LOGOS_BUCKET).remove([path]);
+}
+
 // ── Staff avatars (public bucket) ────────────────────────────────────────────
 // Internal-staff / agent profile photos. Public-read like provider logos so
 // the buyer/seller portal and every "who did it" surface can render them
