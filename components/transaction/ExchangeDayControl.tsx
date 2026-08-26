@@ -58,9 +58,12 @@ export function ExchangeDayControl({
   const [date, setDate] = useState(toDateInput(completionDate));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Local "today" (en-CA formats as YYYY-MM-DD) for the min attribute + guard.
+  const todayStr = new Date().toLocaleDateString("en-CA");
 
   async function doStart() {
     if (!date) { setError("Please set the agreed completion date."); return; }
+    if (date < todayStr) { setError("The completion date can't be in the past."); return; }
     setLoading(true); setError(null);
     const r = await startExchangeDayAction({ transactionId, completionDate: date, pathname });
     setLoading(false);
@@ -132,7 +135,7 @@ export function ExchangeDayControl({
           <Modal.Body style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)", margin: 0 }}>
-                Here&apos;s what we&apos;ll send today, automatically:
+                Here&apos;s what we&apos;ll send today:
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {[
@@ -158,6 +161,7 @@ export function ExchangeDayControl({
               <input
                 type="date"
                 value={date}
+                min={todayStr}
                 onChange={(e) => setDate(e.target.value)}
                 style={{
                   padding: "13px 15px", borderRadius: 12, border: "1px solid var(--agent-border-default)",

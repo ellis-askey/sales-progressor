@@ -9,6 +9,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { startExchangeDay, cancelExchangeDay } from "@/lib/services/exchange-day";
+import { toUKDateStr } from "@/lib/utils";
 
 export type ExchangeDayResult = { ok: true } | { ok: false; error: string };
 
@@ -29,6 +30,11 @@ export async function startExchangeDayAction(input: {
 }): Promise<ExchangeDayResult> {
   const { session, ok } = await guard(input.transactionId);
   if (!ok) return { ok: false, error: "File not found or not in your scope." };
+  // A completion date in the past is never valid (completion is on/after
+  // exchange). Client validates too; this is the defence-in-depth guard.
+  if (input.completionDate && toUKDateStr(new Date(input.completionDate)) < toUKDateStr(new Date())) {
+    return { ok: false, error: "The completion date can't be in the past." };
+  }
   try {
     await startExchangeDay({
       transactionId: input.transactionId,
