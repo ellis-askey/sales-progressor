@@ -208,8 +208,13 @@ export function AgentFileSidebar({
         ? Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100)
         : null;
 
+  // Free-plan agencies (Agency.feeTier === "free") are never charged the
+  // progressor fee, on any file — hide the row and keep it out of net income,
+  // even on files that pre-date the plan flip (whose freeOnExchange may still
+  // be false until the retroactive stamp runs).
+  const agencyIsFree = agencyFeeOverride?.feeTier === "free";
   const progressorFeePence =
-    showOurFee && ourFee.fee != null && !transaction.freeOnExchange ? ourFee.fee : 0;
+    showOurFee && ourFee.fee != null && !transaction.freeOnExchange && !agencyIsFree ? ourFee.fee : 0;
   const totalFeesPence =
     (agentFeeCalcPence ?? 0)
     + (transaction.referralFee ?? 0)
@@ -504,7 +509,7 @@ export function AgentFileSidebar({
             value={transaction.brokerReferralFee != null ? formatFee(transaction.brokerReferralFee) : "–"}
           />
         )}
-        {showOurFee && ourFee.fee != null && (
+        {showOurFee && ourFee.fee != null && !agencyIsFree && (
           <SidebarRow
             label="Progressor fee"
             value={transaction.freeOnExchange

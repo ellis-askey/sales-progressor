@@ -85,7 +85,7 @@ export function AgencyFeeManager({
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">Agency fees</h2>
           <p className="text-[12px] text-neutral-500 mt-1 max-w-2xl leading-relaxed">
-            Per-agency override for outsourced files. Self-managed stays £59 regardless. Standard agencies
+            Per-agency override. Self-managed is £59 unless the agency is set to free. Standard agencies
             use the sliding scale: under £350k → £250, £350k&ndash;£499k → £300, £500k+ → £350.
           </p>
         </div>
@@ -108,7 +108,7 @@ export function AgencyFeeManager({
             <option value="">Select an agency…</option>
             {agencies.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} {a.feeTier === "legacy" ? `(legacy ${a.legacyOutsourcedFeePence != null ? fmtGBP(a.legacyOutsourcedFeePence) : "unset"})` : "(sliding)"}
+                {a.name} {a.feeTier === "legacy" ? `(legacy ${a.legacyOutsourcedFeePence != null ? fmtGBP(a.legacyOutsourcedFeePence) : "unset"})` : a.feeTier === "free" ? "(free)" : "(sliding)"}
               </option>
             ))}
           </select>
@@ -117,7 +117,7 @@ export function AgencyFeeManager({
         <div>
           <span className="block text-[10px] font-mono uppercase tracking-wider text-neutral-500 mb-1">Fee type</span>
           <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-[3px]">
-            {(["standard", "legacy"] as ClientType[]).map((t) => (
+            {(["standard", "legacy", "free"] as ClientType[]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -163,9 +163,11 @@ export function AgencyFeeManager({
       {selected && (
         <p className="mb-4 text-[12px] text-neutral-500">
           {selected.name} has {selected.transactionCount} file{selected.transactionCount === 1 ? "" : "s"} on the platform.{" "}
-          {feeTier === "legacy"
-            ? "After save: every outsourced exchange charges the fixed amount above."
-            : "After save: outsourced exchanges fall back to the sliding scale based on purchase price."}
+          {feeTier === "free"
+            ? "After save: this agency is free. No self-managed fee on any file, and its existing open files are freed too."
+            : feeTier === "legacy"
+              ? "After save: every outsourced exchange charges the fixed amount above."
+              : "After save: outsourced exchanges fall back to the sliding scale based on purchase price."}
         </p>
       )}
 
@@ -192,6 +194,8 @@ export function AgencyFeeManager({
                 <td className="px-3 py-2.5">
                   {a.feeTier === "legacy" ? (
                     <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border text-amber-400 bg-amber-950/50 border-amber-900">Legacy</span>
+                  ) : a.feeTier === "free" ? (
+                    <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-950/50 border-emerald-900">Free</span>
                   ) : (
                     <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border text-neutral-400 bg-neutral-800/60 border-neutral-700">Sliding</span>
                   )}

@@ -55,6 +55,16 @@ export async function stampTrialState(
     throw new Error(`stampTrialState: Agency ${agencyId} not found`);
   }
 
+  // Free-tier agencies: every file is free-on-exchange, forever — this is the
+  // permanent free self-managed plan, not the 14-day trial. Still stamp
+  // firstSubmissionAt so analytics have the anchor.
+  if (agency.feeTier === "free") {
+    if (agency.firstSubmissionAt === null) {
+      await tx.agency.update({ where: { id: agencyId }, data: { firstSubmissionAt: new Date() } });
+    }
+    return true;
+  }
+
   // Legacy agencies: no trial, ever. Still stamp firstSubmissionAt on the
   // first create so downstream surfaces that key off it (analytics etc.)
   // see the correct anchor — but the trial verdict is always false.

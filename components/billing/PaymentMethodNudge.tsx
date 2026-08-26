@@ -41,6 +41,7 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
     },
   });
   if (!agency) return null;
+  if (agency.feeTier === "free") return null;      // free plan — never nudge for a card
   if (agency.stripeCustomerId) return null;       // card already on file
 
   // Legacy agencies skip the trial-elapsed gate — they're billable from

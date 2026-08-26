@@ -233,6 +233,7 @@ enum UserRole {
 enum ClientType {
   legacy
   standard
+  free // free self-managed tier — never billed on exchange (Agency.feeTier)
 }
 
 enum ServiceType {

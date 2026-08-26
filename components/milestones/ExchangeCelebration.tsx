@@ -113,7 +113,7 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
         <h2 className="text-2xl font-bold text-slate-900 mb-2 leading-tight">Exchange confirmed</h2>
         <p className="text-base font-semibold text-slate-600 mb-3 leading-snug">{address}</p>
         <p className="text-sm text-slate-500 leading-relaxed mb-8">
-          Contracts are now legally exchanged. Your fee is crystallised.
+          Contracts are now legally exchanged.
         </p>
 
         <button

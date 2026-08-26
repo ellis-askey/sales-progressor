@@ -34,6 +34,17 @@ export async function saveAgencyFeeAction(input: {
     },
   });
 
+  // Free tier is retroactive: every not-yet-billed file for this agency becomes
+  // free-on-exchange so existing open files stop showing/charging the fee, not
+  // just new ones. We never un-free an already-billed file, and moving OFF free
+  // leaves existing stamps untouched (no surprise back-billing).
+  if (input.feeTier === "free") {
+    await prisma.propertyTransaction.updateMany({
+      where: { agencyId: input.agencyId, billedAtExchange: null, freeOnExchange: false },
+      data: { freeOnExchange: true },
+    });
+  }
+
   revalidatePath("/command/agencies", "page");
   return { ok: true };
 }
