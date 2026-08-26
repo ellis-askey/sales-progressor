@@ -104,6 +104,8 @@ The rate-limit layer is fully written but **switched off** — `lib/ratelimit.ts
 ## Phase 4 — Voice & jargon polish
 *Why: reads as unfinished; quick wins.*
 
+**STATUS (2026-08-26): built, on STAGING (`6e55b672`).** "N/R"→"Not required"; reconcile copy → plain English + milestone→step in that flow + em-dash dropped; contact "Delete"→"Remove"; withdrawal-control em-dash dropped; dev pages (/agent/polish, /audit, /anim-preview) gated to internal via layout guards. "crystallised" already gone in Phase 0.
+
 - "N/R" button label (`MilestoneRow.tsx:675`), "reconciliation" (`ReconcileLaterBanner.tsx`), "crystallised" (`ExchangeCelebration.tsx:116`), "Delete"→"Remove" (`ContactsSection.tsx:343`), stray em-dashes (`StatusControl.tsx:376`, `ReconcileLaterBanner.tsx:242`), and milestone-vs-"Steps" noun consistency. Voice gate per `docs/reference/VOICE.md`.
 - Gate the dev/QA routes under `/agent/*` (anim-preview, polish, audit/overlays) to internal roles so external agents can't reach raw-code pages.
 - **Acceptance:** VOICE.md passes on agent-facing strings; no dev routes reachable by an agency.
