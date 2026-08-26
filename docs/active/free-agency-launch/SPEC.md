@@ -74,6 +74,8 @@ The rate-limit layer is fully written but **switched off** — `lib/ratelimit.ts
 ## Phase 2 — Automation transparency & control
 *Why: powerful client-facing automations fire with no preview and, in two cases, no off-switch for the agent whose clients get them.*
 
+**STATUS (2026-08-26): built, on STAGING only (`355a7925`+`c3dc85ca`), awaiting Ellis verification before prod.** Decisions: confirmation emails on-with-switch; weekly on + toggle; chase timeline to agency users on self-managed files only. Migration `20260826150000_agency_weekly_client_updates`.
+
 - **2.1 Exchange-day preview:** before "Start exchange day", show what will send, to whom, and at what times (up to ~10 emails on a two-sided file; clients get an action button). `components/transaction/ExchangeDayControl.tsx`, `lib/exchange-day/*`.
 - **2.2 Milestone-confirm cue + control:** warn "this will email your buyer and seller" before confirming, and expose the confirmation-email off-switch to self-managed agents (currently internal-only, `components/transaction/EmailSettingsDrawer.tsx:235`; fan-out at `app/actions/milestones.ts:312`).
 - **2.3 Weekly "all on track" email:** make it respect unsubscribe / hold flags and add an agency-level opt-out (`lib/services/client-weekly-update.ts:37`). **Compliance item** — it currently emails people who unsubscribed.
