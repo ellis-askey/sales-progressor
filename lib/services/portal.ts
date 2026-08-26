@@ -5,7 +5,8 @@ import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
-import { agencyLogoEmailHtml } from "@/lib/email/agency-logo";
+import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
@@ -1161,7 +1162,7 @@ export async function logPortalMilestoneConfirm(
   const progressorEmail = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const { from: agencyEmailFrom, replyTo, logoUrl: agencyLogoUrl } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
   // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
@@ -1287,7 +1288,7 @@ export async function logPortalMilestoneConfirm(
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
-      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, agencyLogoUrl, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       sendEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }).catch(() => {});
@@ -1684,7 +1685,7 @@ function richMilestoneEmailHtml({
   serviceType,
   whatsappNumber,
   extraVars,
-  agencyLogoUrl,
+  logo,
 }: {
   greeting: string;
   copy: RecipientEmailCopy;
@@ -1696,11 +1697,17 @@ function richMilestoneEmailHtml({
   serviceType?: string;
   whatsappNumber?: string;
   extraVars?: Record<string, string>;
-  agencyLogoUrl?: string | null;
+  logo?: { logoUrl?: string | null; tileColor?: string | null; scale?: LogoScale | null; align?: LogoAlign | null };
 }): string {
   const vars = { address, ...extraVars };
   const ctaBg   = isProgressor ? "#3B82F6" : "#FF6B4A";
   const ctaLabel = copy.action ?? "View portal";
+
+  // Agency logo band (Option B: colour-matched full-width band above the coral
+  // hero). Client sends only; progressor sends stay unbranded.
+  const logoBand = isProgressor || !logo?.logoUrl
+    ? ""
+    : agencyLogoHeaderHtml({ logoUrl: logo.logoUrl, tileColor: logo.tileColor, scale: logo.scale, align: logo.align });
 
   const whatNextBlock = copy.whatNext
     ? `<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">${interpolate(copy.whatNext, vars)}</p>`
@@ -1718,9 +1725,8 @@ function richMilestoneEmailHtml({
            </a>`
         : `<p style="margin:0;font-size:13px;color:#4a5162">Questions? Your progressor is <strong>${progressorName}</strong>.</p>`;
 
-  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader("A step just moved forward. Here's where things are up to.")}
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader("A step just moved forward. Here's where things are up to.")}${logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  ${isProgressor ? "" : agencyLogoEmailHtml(agencyLogoUrl)}
   <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${interpolate(copy.heroLabel, vars)}</h1>
 </div>
@@ -1932,7 +1938,7 @@ async function sendRichMilestoneEmails(
   const progressorEmail  = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const { from: agencyEmailFrom, replyTo, logoUrl: agencyLogoUrl } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)
@@ -2028,7 +2034,7 @@ async function sendRichMilestoneEmails(
     const vars     = { address, eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, agencyLogoUrl, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 

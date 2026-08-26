@@ -15,13 +15,22 @@
 import { prisma } from "@/lib/prisma";
 import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 const SP_REPLY_TO = "updates@thesalesprogressor.co.uk";
 
-// logoUrl: the agency's own logo for the email header, when they've set one.
-// Only populated by the per-transaction resolver.
-export type ResolvedSender = { from: string; replyTo: string; logoUrl?: string | null };
+// logoUrl + tileColor/scale/align: the agency's own logo and how it's presented
+// in the email header, when they've set one. Only populated by the
+// per-transaction resolver.
+export type ResolvedSender = {
+  from: string;
+  replyTo: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
+  scale?: LogoScale | null;
+  align?: LogoAlign | null;
+};
 
 /**
  * Resolve the From/Reply-To for an agency's outbound email.
@@ -75,7 +84,12 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     select: {
       agencyId: true,
       serviceType: true,
-      agency: { select: { name: true, quoteSenderEmail: true, logoPath: true } },
+      agency: {
+        select: {
+          name: true, quoteSenderEmail: true,
+          logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true,
+        },
+      },
       assignedUser: { select: { name: true, email: true } },
       agentUser: { select: { name: true, email: true } },
     },
@@ -88,7 +102,12 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
   const firstName = acting?.name?.trim().split(/\s+/)[0] || undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
-  const logoUrl = getAgencyLogoUrl(tx.agency?.logoPath);
+  const logo = {
+    logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
+    tileColor: tx.agency?.logoTileColor ?? null,
+    scale: (tx.agency?.logoScale as LogoScale | null) ?? null,
+    align: (tx.agency?.logoAlign as LogoAlign | null) ?? null,
+  };
 
   // 1) Agency's own verified domain.
   if (tx.agency?.quoteSenderEmail) {
@@ -98,7 +117,7 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     const addr = acting?.email && actingDomain && actingDomain === verifiedDomain
       ? acting.email
       : tx.agency.quoteSenderEmail;
-    return { from: buildFrom(display, addr), replyTo: addr, logoUrl };
+    return { from: buildFrom(display, addr), replyTo: addr, ...logo };
   }
 
   // 2) Not yet set up. Outsourced: the progressor's own address (they run it).
@@ -106,7 +125,7 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     return {
       from: buildFrom(tx.assignedUser.name ?? "Sales Progressor", tx.assignedUser.email),
       replyTo: tx.assignedUser.email,
-      logoUrl,
+      ...logo,
     };
   }
 
@@ -115,6 +134,6 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
   return {
     from: buildFrom(display, SP_REPLY_TO),
     replyTo: acting?.email ?? SP_REPLY_TO,
-    logoUrl,
+    ...logo,
   };
 }

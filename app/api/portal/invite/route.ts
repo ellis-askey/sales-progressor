@@ -3,7 +3,8 @@ import { preheader } from "@/lib/email/preheader";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
-import { agencyLogoEmailHtml } from "@/lib/email/agency-logo";
+import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { buildGreeting } from "@/lib/portal-copy";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
           agencyId: true,
           agentUser: { select: { name: true } },
           assignedUser: { select: { name: true } },
-          agency: { select: { name: true, logoPath: true } },
+          agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
         },
       },
     },
@@ -70,9 +71,8 @@ export async function POST(req: NextRequest) {
       "",
       agencyName,
     ].join("\n"),
-    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader(`Follow every step of your ${saleWord} in one place, whenever you want to check.`)}
+    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader(`Follow every step of your ${saleWord} in one place, whenever you want to check.`)}${agencyLogoHeaderHtml({ logoUrl: getAgencyLogoUrl(contact.transaction.agency.logoPath), tileColor: contact.transaction.agency.logoTileColor, scale: contact.transaction.agency.logoScale as LogoScale | null, align: contact.transaction.agency.logoAlign as LogoAlign | null })}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:40px 32px 32px;border-radius:0 0 24px 24px">
-  ${agencyLogoEmailHtml(getAgencyLogoUrl(contact.transaction.agency.logoPath))}
   <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${agencyName}</p>
   <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#fff;line-height:1.2">${address}</h1>
   <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85)">Your ${saleWord} portal is ready</p>

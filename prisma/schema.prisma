@@ -41,8 +41,14 @@ model Agency {
   weeklyClientUpdatesEnabled Boolean @default(true)
 
   // The agency's own logo, shown in client-facing emails. Path in the public
-  // agency-logos bucket (`{agencyId}.{ext}`); full public URL via getAgencyLogoUrl.
+  // agency-logos bucket (`{agencyId}.png`); full public URL via getAgencyLogoUrl.
   logoPath String?
+  // Email-branding presentation, set in the branding studio (Account > Profile).
+  // logoTileColor: hex background of the logo band (detected, or overridden).
+  // logoScale: "sm" | "md" | "lg" logo height. logoAlign: "left" | "center".
+  logoTileColor String?
+  logoScale     String?
+  logoAlign     String?
 
   // Signup attribution
   signupSource      String?
