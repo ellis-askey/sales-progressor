@@ -28,6 +28,7 @@ import {
 import type { DiaryItem } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
+import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ExchangeForecastChart, ServiceSplitDonut,
 } from "@/components/hub/HubCharts";
@@ -157,6 +158,7 @@ export default async function LegacyHub() {
   const session = await requireSession();
   const role              = session.user.role;
   const isInternalStaff   = role === "admin" || role === "sales_progressor" || role === "viewer";
+  const hasOutsourced     = await agencyHasActiveOutsourcedFile(session.user.agencyId);
   const isProgressor      = role === "sales_progressor";
   const isAdmin           = hasAdminPowers(session);
   const canCreateSale     = role === "director" || role === "negotiator" || role === "admin";
@@ -180,7 +182,7 @@ export default async function LegacyHub() {
             New sale
           </Link>
         )}
-        {!isInternalStaff && (
+        {!isInternalStaff && hasOutsourced && (
           <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
         )}
       </PageHeader>

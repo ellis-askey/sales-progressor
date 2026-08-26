@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { listAllTasksForAgent, listProgressorInboxTasks, listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
+import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
@@ -22,6 +23,10 @@ export default async function AgentTodoPage() {
   const internalTasks = isInternal ? await listInternalSelfAssignedTasks() : [];
   const tasks = [...ownTasks, ...inboxTasks, ...internalTasks];
 
+  // "Your progressor" wording + controls only make sense once the agency has a
+  // file being progressed by our team. Self-managed-only agencies never see it.
+  const hasOutsourced = await agencyHasActiveOutsourcedFile(session.user.agencyId);
+
   const todayStr = toUKDateStr(new Date());
 
   const ownOpen      = tasks.filter((t) => !t.isAgentRequest && t.status === "open");
@@ -35,7 +40,9 @@ export default async function AgentTodoPage() {
 
   const subtitle = isProgressor
     ? "Your management notes, plus requests from agents."
-    : "Your notes, plus anything you've flagged to your progressor.";
+    : hasOutsourced
+      ? "Your notes, plus anything you've flagged to your progressor."
+      : "Your notes and reminders.";
 
   const progLabel = isProgressor ? "from agents" : "with progressor";
 
@@ -57,7 +64,7 @@ export default async function AgentTodoPage() {
       </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4" style={{ maxWidth: 680 }}>
-        <AgentTodoList initialTasks={tasks} role={role} />
+        <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
       </div>
     </>
   );

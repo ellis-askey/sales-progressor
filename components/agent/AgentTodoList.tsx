@@ -99,8 +99,12 @@ function groupByTransaction(tasks: Task[]): Group[] {
 // Section → TaskGroup → TaskRow. Null = editing disabled.
 const DueDateContext = createContext<((id: string, dueDate: string | null) => void) | null>(null);
 
-export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; role?: string }) {
+export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean }) {
   const isProgressor = role === "sales_progressor";
+  // Only offer the "assign to your progressor" flow (and its wording) when the
+  // agency actually has a file with our team. Self-managed-only agencies just
+  // see their own to-dos.
+  const canUseProgressor = !isProgressor && hasOutsourced;
   const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
   const [tasks, setTasks] = useState(initialTasks);
   const [showOwnDone, setShowOwnDone] = useState(false);
@@ -184,7 +188,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
         {isInternal ? (
           <AddManualTaskForm internalMode onAdd={handleAddInternal} />
         ) : (
-          <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
+          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} />
         )}
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
@@ -195,7 +199,9 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
           <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
             {isInternal
               ? "Add an internal to-do above. Visible to your whole internal team."
-              : "Add a task or send your progressor a request."}
+              : canUseProgressor
+                ? "Add a task or send your progressor a request."
+                : "Add a task to get started."}
           </p>
         </div>
 
@@ -234,7 +240,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
       {isInternal ? (
         <AddManualTaskForm internalMode onAdd={handleAddInternal} />
       ) : (
-        <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
+        <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} />
       )}
 
       {/* ── My to-dos / My notes (agency users only) ── */}

@@ -12,6 +12,7 @@ import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
+import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
 import { X } from "lucide-react";
 import type { TransactionStatus } from "@prisma/client";
@@ -79,6 +80,9 @@ export default async function AllTransactionsPage({
   const { filter, exchanging } = await searchParams;
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  // "Send a note to our team" only routes somewhere if the agency has a file with
+  // our team. Hide it for self-managed-only agencies (it would file to nobody).
+  const hasOutsourced = await agencyHasActiveOutsourcedFile(session.user.agencyId);
   const isAdminPowers = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
@@ -165,8 +169,9 @@ export default async function AllTransactionsPage({
             New sale
           </Link>
         )}
-        {/* AgentFlagButton — agent-only (internal staff don't flag to themselves) */}
-        {!isInternalStaff && (
+        {/* AgentFlagButton — agent-only, and only when there's a team to receive
+            it (an active outsourced sale). */}
+        {!isInternalStaff && hasOutsourced && (
           <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
         )}
       </PageHeader>
