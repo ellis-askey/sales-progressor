@@ -56,6 +56,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ? `\n\nYou can view your progress at any time here:\n${base}/portal/${contact.portalToken}`
         : "";
 
+      const { from: fromAddr, replyTo, canReply } = await resolveAgencySenderForTransaction(tx.id);
+
       const text = [
         buildGreeting(contact.name),
         ``,
@@ -63,10 +65,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ``,
         `No news at this stage is genuinely good news. It means nothing unexpected is holding things up. Behind the scenes we're chasing solicitors, watching the process, and keeping everything moving.`,
         ``,
-        `If anything needs your attention we'll be in touch right away. Otherwise, just reply to this email if you have questions.${portalLink}`,
+        `If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}${portalLink}`,
       ].join("\n");
-
-      const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
       const portalSection = contact.portalToken
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
@@ -77,7 +77,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${buildGreeting(contact.name)}</h1>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Quick check-in on your <strong>${roleLabel}</strong> at <strong>${tx.propertyAddress}</strong> — everything's progressing as it should.</p>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">No news at this stage is genuinely good news. It means nothing unexpected is holding things up. Behind the scenes we're chasing solicitors, watching the process, and keeping everything moving.</p>
-<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">If anything needs your attention we'll be in touch right away. Otherwise, just reply to this email if you have questions.</p>
+<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}</p>
 ${portalSection}
 <p style="margin:0;font-size:12px;color:#8b91a3">${tx.agency.name}</p>
 </body></html>`;

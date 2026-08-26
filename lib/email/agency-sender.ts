@@ -19,13 +19,21 @@ import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 const SP_REPLY_TO = "updates@thesalesprogressor.co.uk";
+// Unmonitored reply target for self-managed files with no agent inbox — so a
+// client reply never lands with us. We never invite a reply to this address
+// (canReply is false when it's used).
+const SP_NOREPLY = "noreply@thesalesprogressor.co.uk";
 
 // logoUrl + tileColor/scale/align: the agency's own logo and how it's presented
 // in the email header, when they've set one. Only populated by the
 // per-transaction resolver.
+// canReply: whether a client reply reaches a real, intended inbox — false only
+// when a self-managed file has no agent email and we fall back to noreply. The
+// "just reply to this email" line is suppressed when this is false.
 export type ResolvedSender = {
   from: string;
   replyTo: string;
+  canReply?: boolean;
   logoUrl?: string | null;
   tileColor?: string | null;
   scale?: LogoScale | null;
@@ -51,10 +59,10 @@ export async function resolveAgencySender(
     if (agency?.quoteSenderEmail) {
       const brand = stripAgencyLegalSuffix(agency.name);
       const display = opts?.personFirstName ? `${opts.personFirstName} at ${brand}` : brand;
-      return { from: buildFrom(display, agency.quoteSenderEmail), replyTo: agency.quoteSenderEmail };
+      return { from: buildFrom(display, agency.quoteSenderEmail), replyTo: agency.quoteSenderEmail, canReply: true };
     }
   }
-  return { from: SP_FROM, replyTo: SP_REPLY_TO };
+  return { from: SP_FROM, replyTo: SP_REPLY_TO, canReply: true };
 }
 
 /**
@@ -119,14 +127,18 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     const addr = acting?.email && actingDomain && actingDomain === verifiedDomain
       ? acting.email
       : tx.agency.quoteSenderEmail;
-    return { from: buildFrom(display, addr), replyTo: addr, ...logo };
+    return { from: buildFrom(display, addr), replyTo: addr, canReply: true, ...logo };
   }
 
   // 2) Not yet verified — agency-branded display, the agent's own email as
   // reply-to, our shared updates@ address underneath (Option C, all files).
+  // Self-managed with no agent inbox falls back to noreply, NEVER to us;
+  // outsourced falls back to us, since we run the file.
+  const replyTo = acting?.email ?? (tx.serviceType === "self_managed" ? SP_NOREPLY : SP_REPLY_TO);
   return {
     from: buildFrom(display, SP_REPLY_TO),
-    replyTo: acting?.email ?? SP_REPLY_TO,
+    replyTo,
+    canReply: replyTo !== SP_NOREPLY,
     ...logo,
   };
 }
