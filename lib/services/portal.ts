@@ -1639,7 +1639,7 @@ function portalEmailHtml({ greeting, body, ctaText, ctaUrl }: {
 <p style="margin:0 0 16px">${greeting}</p>
 <p style="margin:0 0 24px;line-height:1.6;color:#4a5162">${body}</p>
 <p><a href="${ctaUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${ctaText}</a></p>
-<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
+<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">If you have any questions, just reply to this email.</p>
 </body></html>`;
 }
 
@@ -2261,11 +2261,14 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   const ctx = await loadCompletionPackContext(transactionId);
   if (!ctx) return;
 
+  // Client-facing pack — send from the agency (Option C), not Sales Progressor.
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
+
   const vendorIds: string[] = [];
   let vendorPlainForLog = "";
   for (const c of ctx.vendors) {
     const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
-    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html }).catch(() => {});
+    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
     vendorIds.push(c.id);
     if (!vendorPlainForLog) vendorPlainForLog = body.text;
   }
@@ -2277,7 +2280,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   let purchaserPlainForLog = "";
   for (const c of ctx.purchasers) {
     const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
-    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html }).catch(() => {});
+    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
     purchaserIds.push(c.id);
     if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
   }
@@ -2295,6 +2298,10 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
   const ctx = await loadCompletionPackContext(transactionId);
   if (!ctx) return;
 
+  // Client-facing pack — carry the agency sender through to the drain so the
+  // scheduled send goes out as the agency (Option C), not Sales Progressor.
+  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
+
   const sourceIdBase = `${transactionId}:${milestoneCode}`;
   for (const c of ctx.vendors) {
     const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
@@ -2303,7 +2310,7 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
       sourceId: sourceIdBase,
       recipientEmail: body.recipientEmail,
       recipientContactId: c.id,
-      payload: { subject: body.subject, text: body.text, html: body.html },
+      payload: { subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo },
       scheduledFor,
     }).catch(() => {});
   }
@@ -2314,7 +2321,7 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
       sourceId: sourceIdBase,
       recipientEmail: body.recipientEmail,
       recipientContactId: c.id,
-      payload: { subject: body.subject, text: body.text, html: body.html },
+      payload: { subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo },
       scheduledFor,
     }).catch(() => {});
   }
