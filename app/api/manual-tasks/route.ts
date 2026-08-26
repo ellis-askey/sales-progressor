@@ -73,6 +73,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cannot create agent task without an agency" }, { status: 400 });
   }
 
+  // Guard (Law 7): a linked transaction must belong to the caller's agency.
+  // Without this a crafted transactionId would attach another agency's file to
+  // this to-do and leak its property address into the caller's list.
+  if (transactionId) {
+    const owned = await prisma.propertyTransaction.findFirst({
+      where: { id: transactionId, agencyId: session.user.agencyId },
+      select: { id: true },
+    });
+    if (!owned) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+  }
+
   const task = await createManualTask({
     agencyId: session.user.agencyId,
     createdById: session.user.id,

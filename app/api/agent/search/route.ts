@@ -99,7 +99,14 @@ export async function GET(req: NextRequest) {
       take: 4,
       select: {
         id: true, name: true,
-        _count: { select: { vendorForTransactions: true, purchaserForTransactions: true } },
+        // Scope the counts to what the caller can see (Law 7). Unscoped, this
+        // leaked how many files a firm handles platform-wide across agencies.
+        _count: {
+          select: {
+            vendorForTransactions: { where: txWhere as Prisma.PropertyTransactionWhereInput },
+            purchaserForTransactions: { where: txWhere as Prisma.PropertyTransactionWhereInput },
+          },
+        },
       },
     }),
   ]);

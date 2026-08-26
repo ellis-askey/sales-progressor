@@ -84,10 +84,12 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         name: true,
+        // Scope the counts to what the caller can see (Law 7). Unscoped, this
+        // leaked how many files a firm handles platform-wide across agencies.
         _count: {
           select: {
-            vendorForTransactions: true,
-            purchaserForTransactions: true,
+            vendorForTransactions: { where: txScopeWhere },
+            purchaserForTransactions: { where: txScopeWhere },
           },
         },
       },
