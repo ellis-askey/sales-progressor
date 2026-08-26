@@ -90,15 +90,17 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
           logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true,
         },
       },
-      assignedUser: { select: { name: true, email: true } },
       agentUser: { select: { name: true, email: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
 
-  // Who's acting on the file: the agency agent on self-managed, the progressor
-  // on outsourced. Used for the branded display name and the Option C reply-to.
-  const acting = tx.serviceType === "self_managed" ? tx.agentUser : tx.assignedUser;
+  // The client-facing sender is ALWAYS the agency's own agent — even on
+  // outsourced files, where our progressor runs the file but stays invisible to
+  // the client (Ellis, 2026-08-26). Reply-to is the agent's own email (the one
+  // they gave us, e.g. ellis@akeman-residential.co.uk); the sending address is
+  // their verified domain when set, otherwise our shared updates@ fallback.
+  const acting = tx.agentUser;
   const firstName = acting?.name?.trim().split(/\s+/)[0] || undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
@@ -120,17 +122,8 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     return { from: buildFrom(display, addr), replyTo: addr, ...logo };
   }
 
-  // 2) Not yet set up. Outsourced: the progressor's own address (they run it).
-  if (tx.serviceType === "outsourced" && tx.assignedUser?.email) {
-    return {
-      from: buildFrom(tx.assignedUser.name ?? "Sales Progressor", tx.assignedUser.email),
-      replyTo: tx.assignedUser.email,
-      ...logo,
-    };
-  }
-
-  // 3) Self-managed, not yet set up — Option C: agency display, agent reply-to,
-  // our shared address underneath.
+  // 2) Not yet verified — agency-branded display, the agent's own email as
+  // reply-to, our shared updates@ address underneath (Option C, all files).
   return {
     from: buildFrom(display, SP_REPLY_TO),
     replyTo: acting?.email ?? SP_REPLY_TO,

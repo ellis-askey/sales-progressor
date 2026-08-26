@@ -300,6 +300,7 @@ function escapeHtml(s: string): string {
 // is the digest path; N=1 must not route through here).
 export function assembleMilestoneDigest(
   rows: MilestoneDigestPayload[],
+  logoBand = "",
 ): AssembledDigest {
   if (rows.length < 2) {
     throw new Error(`[milestone-digest] assembleMilestoneDigest called with ${rows.length} rows; N>=2 required (N=1 sends as-is)`);
@@ -383,7 +384,7 @@ export function assembleMilestoneDigest(
   renderSection(acted);
   renderSection(counterpart);
 
-  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader("A few steps just moved forward. Here's where things are up to.")}
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader("A few steps just moved forward. Here's where things are up to.")}${logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
   <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${escapeHtml(address)}</p>
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Updates</h1>
@@ -418,8 +419,9 @@ export function renderEditedEmailHtml(args: {
   heading: string;   // the edited subject doubles as the hero heading
   text: string;      // edited plain-text body, greeting included
   portalUrl: string;
+  logoBand?: string; // agency logo band above the coral header (Option B)
 }): string {
-  const { address, heading, text, portalUrl } = args;
+  const { address, heading, text, portalUrl, logoBand = "" } = args;
   const paragraphs = text
     .split(/\r?\n\r?\n/)
     .map((block) =>
@@ -433,7 +435,7 @@ export function renderEditedEmailHtml(args: {
     .map((block) => `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#4a5162">${block}</p>`)
     .join("\n  ");
 
-  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
   <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${escapeHtml(address)}</p>
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${escapeHtml(heading)}</h1>

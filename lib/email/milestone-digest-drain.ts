@@ -20,11 +20,21 @@ import { sendEmail } from "@/lib/email";
 import { isContactEmailSuppressed } from "@/lib/email";
 import { logAutomatedEmail } from "@/lib/services/portal";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
 import {
   assembleMilestoneDigest,
   renderEditedEmailHtml,
   type MilestoneDigestPayload,
 } from "@/lib/email/milestone-digest";
+
+// The agency logo band (Option B) for a file's client emails, keyed on the
+// transaction the queued rows belong to. Same source as the single-event
+// sender, so digests match single sends in the inbox.
+async function logoBandForTx(txId: string | null): Promise<string> {
+  if (!txId) return "";
+  const s = await resolveAgencySenderForTransaction(txId);
+  return agencyLogoHeaderHtml({ logoUrl: s.logoUrl, tileColor: s.tileColor, scale: s.scale, align: s.align });
+}
 
 // sourceId for MILESTONE_CONFIRMATION rows is `${transactionId}:${milestoneCode}`.
 // All rows in a per-contact group share the same transactionId.
@@ -72,6 +82,7 @@ export type SendDecision<T> =
 
 export function decideSendForGroup<T extends { payload: unknown }>(
   rows: T[],
+  logoBand = "",
 ): SendDecision<T> {
   if (rows.length === 0) {
     throw new Error("[milestone-digest-drain] empty group passed to decideSendForGroup");
@@ -99,6 +110,7 @@ export function decideSendForGroup<T extends { payload: unknown }>(
         heading: override.subject,
         text: override.text,
         portalUrl: first.portalUrl,
+        logoBand,
       }),
       acted: { heading: "", items: [] },
       counterpart: { heading: "", items: [] },
@@ -106,7 +118,7 @@ export function decideSendForGroup<T extends { payload: unknown }>(
     return { mode: "digest", rows, assembled };
   }
 
-  const assembled = assembleMilestoneDigest(payloads);
+  const assembled = assembleMilestoneDigest(payloads, logoBand);
   return { mode: "digest", rows, assembled };
 }
 
@@ -183,9 +195,10 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
       continue;
     }
 
+    const groupLogoBand = await logoBandForTx(transactionIdFromSourceId(rows[0].sourceId));
     let decision: SendDecision<typeof rows[number]>;
     try {
-      decision = decideSendForGroup(rows);
+      decision = decideSendForGroup(rows, groupLogoBand);
     } catch (err) {
       // Assembler threw (e.g. unknown milestone code). Mark group as
       // errored — don't crash the whole drain.
@@ -347,9 +360,10 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
       continue;
     }
 
+    const groupLogoBand = await logoBandForTx(transactionIdFromSourceId(rows[0].sourceId));
     let decision: SendDecision<typeof rows[number]>;
     try {
-      decision = decideSendForGroup(rows);
+      decision = decideSendForGroup(rows, groupLogoBand);
     } catch (err) {
       const message = err instanceof Error ? err.message : "decide error";
       await prisma.outboundEmailQueue.updateMany({

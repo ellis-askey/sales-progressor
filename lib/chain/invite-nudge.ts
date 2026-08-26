@@ -13,6 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveChainInviteSender } from "@/lib/chain/invite";
+import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -84,6 +85,8 @@ export async function sendDueChainInviteNudges(now: Date = new Date()): Promise<
     const originatorName = displayFirstName;
     const originatorAgency = displayAgency;
 
+    const logoBand = await agencyLogoBand(link.chain.createdBy?.agencyId ?? null);
+
     const { subject, html, text } = buildNudgeEmail({
       recipientName,
       originatorName,
@@ -92,6 +95,7 @@ export async function sendDueChainInviteNudges(now: Date = new Date()): Promise<
       claimUrl,
       declineUrl,
       logoUrl: `${base}/logo.png`,
+      logoBand,
     });
 
     try {
@@ -115,10 +119,11 @@ function buildNudgeEmail(v: {
   claimUrl: string;
   declineUrl: string;
   logoUrl: string;
+  logoBand: string;
 }): { subject: string; html: string; text: string } {
   const subject = "Your chain is still live";
 
-  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${v.logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:30px 32px 26px;border-radius:0 0 24px 24px">
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
     <td style="vertical-align:middle">

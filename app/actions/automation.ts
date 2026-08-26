@@ -21,6 +21,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { renderEditedEmailHtml } from "@/lib/email/milestone-digest";
+import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
 
 type ActionResult<T = void> =
@@ -662,6 +663,7 @@ export async function updateEmailPayload(
         heading: patch.subject.trim(),
         text: patch.text.trim(),
         portalUrl,
+        logoBand: await agencyLogoBand(tx.agencyId),
       });
     }
   } else if (email.emailType === "CLIENT_CHASE") {

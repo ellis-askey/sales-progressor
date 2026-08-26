@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender, resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { normaliseAddressString } from "@/lib/utils/address";
@@ -174,6 +175,9 @@ async function sendInviteEmail(input: {
 
   const subject = "You're part of a live chain";
 
+  // Agency logo band (Option B) for the originating agency, above the coral hero.
+  const logoBand = await agencyLogoBand(originator?.agencyId ?? null);
+
   const html = buildInviteHtml({
     recipientName,
     originatorName,
@@ -186,6 +190,7 @@ async function sendInviteEmail(input: {
     claimUrl,
     declineUrl,
     logoUrl,
+    logoBand,
   });
 
   const text = buildInviteText({
@@ -220,9 +225,10 @@ function buildInviteHtml(v: {
   claimUrl: string;
   declineUrl: string;
   logoUrl: string;
+  logoBand: string;
 }): string {
   const connected = v.claimedCount === 1 ? "1 agent is already connected" : `${v.claimedCount} agents are already connected`;
-  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${v.logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:30px 32px 26px;border-radius:0 0 24px 24px">
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
     <td style="vertical-align:middle">

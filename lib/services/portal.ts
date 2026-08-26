@@ -1337,6 +1337,7 @@ export async function logPortalMilestoneConfirm(
           saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
           stepLabel: portalLabel,
           portalUrl,
+          logoBand: agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }),
         }),
       }).catch(() => {});
       logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText).catch(() => {});
@@ -1498,7 +1499,8 @@ export async function sendAdminMilestoneNotificationToPortal(
 
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17).
-  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign } = await resolveAgencySenderForTransaction(transactionId);
+  const logoBand = agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign });
 
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
@@ -1560,7 +1562,7 @@ export async function sendAdminMilestoneNotificationToPortal(
       stepLabel = portalLabel;
     }
 
-    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl });
+    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand });
     const lines = [`Hi ${firstName},`, "", intro.replace(/<[^>]+>/g, ""), ""];
     if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? `: ${stepDate}` : ""}`, "");
     lines.push(`View your portal: ${portalUrl}`);
@@ -1582,9 +1584,9 @@ export async function sendAdminMilestoneNotificationToPortal(
   }
 }
 
-function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl }: {
+function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "" }: {
   firstName: string; address: string; headline: string; intro: string;
-  stepLabel: string | null; stepDate: string | null; portalUrl: string;
+  stepLabel: string | null; stepDate: string | null; portalUrl: string; logoBand?: string;
 }) {
   const stepBlock = stepLabel ? `
   <div style="margin:0 0 24px;padding:14px 18px;background:#F0FDF4;border-left:3px solid #10B981;border-radius:8px">
@@ -1593,7 +1595,7 @@ function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabe
     ${stepDate ? `<p style="margin:4px 0 0;font-size:13px;color:#4a5162">${stepDate}</p>` : ""}
   </div>` : "";
 
-  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
   <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${headline}</h1>
@@ -1610,10 +1612,10 @@ function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabe
 </body></html>`;
 }
 
-function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl }: {
-  firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string;
+function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "" }: {
+  firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string; logoBand?: string;
 }) {
-  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
   <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Step confirmed</h1>
