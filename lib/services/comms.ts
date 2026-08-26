@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import type { CommType, CommMethod } from "@prisma/client";
 import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
@@ -1131,6 +1132,7 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
   const base      = process.env.NEXTAUTH_URL ?? "";
   const address   = tx.propertyAddress;
   const agency    = tx.agency.name;
+  const sender    = await resolveAgencySenderForTransaction(transactionId);
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
@@ -1139,6 +1141,8 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
     const portalUrl = `${base}/portal/${c.portalToken}/updates`;
 
     await sendEmail({
+      from: sender.from,
+      replyTo: sender.replyTo,
       to: c.email,
       subject: `Update on your ${saleWord} — ${address}`,
       text: [

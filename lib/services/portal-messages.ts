@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -219,7 +220,10 @@ export async function sendProgressorPortalReply(
 
   if (contact.email && contact.portalToken) {
     const portalUrl = `${base}/portal/${contact.portalToken}/updates`;
+    const sender = await resolveAgencySenderForTransaction(transactionId);
     sendEmail({
+      from:    sender.from,
+      replyTo: sender.replyTo,
       to:      contact.email,
       subject: `Message from ${progressorName}: ${address}`,
       text: [
@@ -238,7 +242,6 @@ export async function sendProgressorPortalReply(
   <p style="margin:0;font-size:15px;color:#1a1d29;line-height:1.5">${content}</p>
 </div>
 <p><a href="${portalUrl}" style="display:inline-block;background:#3B82F6;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
-<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">Sales Progressor</p>
 </body></html>`,
     }).catch(() => {});
   }

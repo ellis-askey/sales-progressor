@@ -54,9 +54,9 @@ export const EMAIL_SENDERS: EmailSender[] = [
   { id: "invite", group: "Buyers & sellers (clients)", name: "Portal invite / portal link", kind: "agencyPerson" },
   { id: "outsource-intro", group: "Buyers & sellers (clients)", name: "Outsource-intro to buyer + seller", kind: "agentOwn", note: "outsourced files only", scope: "outsourced" },
   { id: "gap-completion", group: "Buyers & sellers (clients)", name: "Completion pack (“what happens next”)", kind: "spGap" },
-  { id: "gap-reply", group: "Buyers & sellers (clients)", name: "Progressor's reply to a client message", kind: "spGap" },
-  { id: "gap-visible", group: "Buyers & sellers (clients)", name: "“Visible update” to clients (comms tool)", kind: "spGap" },
-  { id: "gap-quotelink", group: "Buyers & sellers (clients)", name: "Survey-quote link to a buyer", kind: "spGap", reply: "the agent's email" },
+  { id: "gap-reply", group: "Buyers & sellers (clients)", name: "Progressor's reply to a client message", kind: "agencyPerson" },
+  { id: "gap-visible", group: "Buyers & sellers (clients)", name: "“Visible update” to clients (comms tool)", kind: "agencyPerson" },
+  { id: "gap-quotelink", group: "Buyers & sellers (clients)", name: "Survey-quote link to a buyer", kind: "agencyPerson", reply: "the agent's email" },
 
   // Surveyors & providers
   { id: "quote-req", group: "Surveyors & providers", name: "Survey quote request to a firm", kind: "agencyPlain", reply: "the client's email" },

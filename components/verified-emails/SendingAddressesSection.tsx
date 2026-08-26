@@ -135,7 +135,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {step.type === "success" && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
           <p className="text-sm font-semibold text-emerald-700">
-            ✓ {step.email ? `${step.email} is verified` : "Email address verified"} — you can now send emails from the dashboard.
+            ✓ {step.email ? `${step.email} is verified.` : "Address verified."} Your emails to clients and solicitors now send from your own address, with replies coming straight back to you.
           </p>
         </div>
       )}

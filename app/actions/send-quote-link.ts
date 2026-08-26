@@ -11,6 +11,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export type SendQuoteLinkResult =
@@ -76,7 +77,11 @@ ${session.user.name ?? "Your agent"}
 `;
 
   try {
+    // Agency-branded sender; reply-to stays the acting agent so the buyer's
+    // reply reaches the person who sent it.
+    const { from } = await resolveAgencySenderForTransaction(tx.id);
     await sendEmail({
+      from,
       to: buyer.email!,
       subject,
       text,
