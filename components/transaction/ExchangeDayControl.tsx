@@ -129,37 +129,64 @@ export function ExchangeDayControl({
               Flag this file as aiming to exchange today
             </p>
           </Modal.Header>
-          <Modal.Body style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <Modal.Body style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)", margin: 0 }}>
-                Here&apos;s exactly what we&apos;ll send today, automatically:
+                Here&apos;s what we&apos;ll send today, automatically:
               </p>
-              <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 7, fontSize: 13.5, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
-                <li><strong style={{ color: "var(--agent-text-primary)" }}>First thing:</strong> email to both solicitors asking them to exchange.</li>
-                <li><strong style={{ color: "var(--agent-text-primary)" }}>9am and 11am:</strong> email to the buyer and seller asking them to give their solicitor authority to exchange and stay reachable.</li>
-                <li><strong style={{ color: "var(--agent-text-primary)" }}>Lunchtime:</strong> a follow-up to both solicitors if it hasn&apos;t exchanged yet.</li>
-                <li><strong style={{ color: "var(--agent-text-primary)" }}>Late afternoon:</strong> a final solicitor follow-up if it still hasn&apos;t.</li>
-              </ul>
-              <p style={{ fontSize: 12.5, color: "var(--agent-text-muted)", margin: 0 }}>
-                Emails go out on weekdays only, and your everyday chasing pauses while exchange day is on.
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  { label: "First thing", text: "Both solicitors are asked to exchange." },
+                  { label: "9am and 11am", text: "The buyer and seller are asked to give their solicitor authority to exchange and keep their phone nearby." },
+                  { label: "Lunchtime", text: "If you haven’t exchanged, we’ll follow up with both solicitors." },
+                  { label: "Late afternoon", text: "Still not exchanged? We’ll send one final follow-up." },
+                ].map((item) => (
+                  <div key={item.label} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "#f97316", flexShrink: 0, marginTop: 6 }} />
+                    <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                      <strong style={{ color: "var(--agent-text-primary)" }}>{item.label}:</strong> {item.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--agent-text-muted)", margin: 0 }}>
+                Exchange day emails are only sent on weekdays. Your usual automated chasing pauses for the day, so nobody gets unnecessary emails while you&apos;re trying to exchange.
               </p>
             </div>
-            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              Agreed completion date
+            <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Agreed completion date</span>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                style={{ padding: "10px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-default)", fontSize: 14, background: "var(--agent-surface-elevated)", color: "var(--agent-text-primary)" }}
+                style={{
+                  padding: "13px 15px", borderRadius: 12, border: "1px solid var(--agent-border-default)",
+                  fontSize: 15, fontWeight: 500, background: "var(--agent-surface-elevated)",
+                  color: "var(--agent-text-primary)", colorScheme: "light", width: "100%",
+                  boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+                }}
               />
               <span style={{ fontSize: 12, fontWeight: 400, color: "var(--agent-text-muted)" }}>
-                Required. You can&apos;t agree to exchange without an agreed completion date.
+                Required. You&apos;ll need an agreed completion date before starting exchange day.
               </span>
             </label>
             {error && <p style={{ fontSize: 13, color: "var(--agent-danger)", margin: 0 }}>{error}</p>}
           </Modal.Body>
           <Modal.Footer style={{ padding: "12px 24px 20px", gap: 12, justifyContent: undefined }}>
-            <button onClick={() => setStartOpen(false)} disabled={loading} className="agent-btn agent-btn-ghost-bordered flex-1">Cancel</button>
+            <button
+              onClick={() => setStartOpen(false)}
+              disabled={loading}
+              style={{
+                flex: 1, padding: "10px 16px", borderRadius: 12, background: "transparent",
+                color: "rgba(15,23,42,0.75)", fontWeight: 600, fontSize: 14,
+                border: "1px solid rgba(15,23,42,0.16)", cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.5 : 1, transition: "background 150ms",
+              }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = "rgba(15,23,42,0.04)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              Cancel
+            </button>
             <ModalPrimaryButton onClick={doStart} disabled={loading}>{loading ? "Starting…" : "Start exchange day"}</ModalPrimaryButton>
           </Modal.Footer>
         </Modal>
