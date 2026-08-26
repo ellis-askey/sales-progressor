@@ -86,8 +86,10 @@ The rate-limit layer is fully written but **switched off** — `lib/ratelimit.ts
 
 ---
 
-## Phase 3 — Remove the "our team / progressor / outsourced" scaffolding for self-managed agencies
-*Why: these imply a support team stands behind the agency; for a self-managed agency they dead-end or read as broken.*
+## Phase 3 — Show progressor controls only when an outsourced sale is in play
+*Why: the progressor/our-team controls dead-end for an agency with no outsourced files. (Reframed with Ellis: the new-sale "Send to us" option and the hub's outsourcing awareness are INTENTIONAL upsell/intake — kept. Only the genuinely-broken progressor scaffolding is gated.)*
+
+**STATUS (2026-08-26): built, on STAGING (`31d1d3a0`).** New `agencyHasActiveOutsourcedFile(agencyId)` helper. Gated on it: 3.1 "Send a note to our team" button (hub + files list); 3.2 To-Do "assign to your progressor" toggle + subtitle/empty-state wording. Kept: "Send to us" (routes to Unassigned queue), hub awareness, the per-file "Self-managed" badge. Dropped 3.3/3.4 as bugs (they're intentional).
 
 - **3.1** Hide or re-point "Send a note to our team" (`app/agent/transactions/page.tsx:169`, `legacy-hub.tsx:183`, `app/api/agent/flag/route.ts`).
 - **3.2** To-Do page: remove the "your progressor" section, CTA, and "with progressor" stat for self-managed (`app/agent/to-do/page.tsx`, `components/agent/AgentTodoList.tsx:198,277,542`).
