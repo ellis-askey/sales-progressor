@@ -54,7 +54,7 @@ export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean
         </button>
       </div>
       <p className="mt-3 text-[12.5px] font-medium text-slate-600">
-        {enabled ? "On — clients get a weekly check-in." : "Off — no weekly update is sent."}
+        {enabled ? "On. Clients get a weekly check-in." : "Off. No weekly update is sent."}
       </p>
       {error && <p className="mt-2 text-[12.5px] text-red-500">{error}</p>}
     </section>
