@@ -8,6 +8,20 @@ Last updated: 2026-08-26
 
 ---
 
+## Free-agency launch — Phase 0 (2026-08-26)
+
+**Rate limiting (Phase 0.3) — highest-leverage pre-launch action.** The throttles for AI, email, invites, login and signup are fully built and already wired at every endpoint; they are simply switched OFF (no-op) until Upstash is provisioned. Do this before opening free signups.
+- [ ] Create a free Upstash Redis database (upstash.com), EU region.
+- [ ] In Vercel (prod AND staging) set three vars: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` (from the Upstash dashboard), and `RATE_LIMIT_ENABLED=true`.
+- [ ] Redeploy. Verify: >5 failed logins in 15 min gets blocked; >30 AI chase generations in an hour gets throttled.
+- Note: image generation (Replicate) is separately gated behind a still-pending API token, so it is not an open cost surface yet. `checkPortalLimit` exists but is not wired to any endpoint (client-portal token abuse is low risk) — say if you want it applied.
+
+**Migration (Phase 0.2).** The `client_type_free` migration adds the free tier; it applies automatically on the next staging then prod deploy (Vercel runs `prisma migrate deploy`). Verify both builds go green.
+
+**How to set an agency free (Phase 0.2).** Command Centre → Agencies → pick the agency → Fee type → **Free** → Save. That zeroes the fee on all their files (existing open ones included) and stops any card nag.
+
+---
+
 ## Outsource landing page — leads inbox + cold-email campaign (2026-08-26, shipped to prod)
 
 The public "hand us a file" page is live at **portal.thesalesprogressor.co.uk/outsource** (no auth, whitelisted in middleware). A submission emails the lead to your internal inbox (the agent's address set as Reply-To) and sends the agent a confirmation. Email-only V1 — no DB model / tracking dashboard yet.
