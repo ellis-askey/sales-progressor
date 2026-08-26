@@ -4,7 +4,26 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-08-22
+Last updated: 2026-08-26
+
+---
+
+## Outsource landing page — leads inbox + cold-email campaign (2026-08-26, shipped to prod)
+
+The public "hand us a file" page is live at **portal.thesalesprogressor.co.uk/outsource** (no auth, whitelisted in middleware). A submission emails the lead to your internal inbox (the agent's address set as Reply-To) and sends the agent a confirmation. Email-only V1 — no DB model / tracking dashboard yet.
+
+- [ ] **Confirm `support@thesalesprogressor.co.uk` is monitored** — that's where new leads land by default. To send them elsewhere, set **`OUTSOURCE_LEADS_INBOX`** in Vercel (prod) to a different address. Code default: [app/outsource/actions.ts](../../app/outsource/actions.ts) → `OUTSOURCE_LEADS_INBOX ?? "support@thesalesprogressor.co.uk"`.
+- [ ] **(Optional) Nicer public URL** — the page lives under the portal subdomain. If you want a cleaner marketing URL, point a marketing-domain path at it.
+
+**Cold-email campaign (run in parallel, external — NOT on thesalesprogressor.co.uk):**
+- [ ] Buy 2–3 secondary domains (e.g. getsalesprogressor.com, trysalesprogressor.co.uk). Never send cold mail from the main domain — it protects the transactional mail (weekly briefs, client updates) that actually matters.
+- [ ] 2–3 Google Workspace inboxes per domain (~£5/inbox/mo).
+- [ ] A cold-email tool — Smartlead or Instantly (~£30–40/mo).
+- [ ] Connect the inboxes + run warm-up for ~2–3 weeks before sending a single cold email.
+- [ ] Have your agent-email list ready (the large pool you mentioned).
+- [ ] Let the tool set SPF/DKIM/DMARC on the new domains (follow its guide).
+- [ ] Every email points recipients at **/outsource**.
+- [ ] **Cold outreach email copy** — CC to draft (pending your go-ahead).
 
 ---
 
