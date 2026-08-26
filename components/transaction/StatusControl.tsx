@@ -373,7 +373,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                   <>The agents above you have already been notified. Nothing new is sent from your side. The chain below you will be split off into its own chain.</>
                 )}
                 {pickedReason === "OTHER" && (
-                  <>Agents on <strong>both sides</strong> of the chain will be notified. The chain stays connected for now — they decide their own next step.</>
+                  <>Agents on <strong>both sides</strong> of the chain will be notified. The chain stays connected for now, and they decide their own next step.</>
                 )}
               </div>
             )}

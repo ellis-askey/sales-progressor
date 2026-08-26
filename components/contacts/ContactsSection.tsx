@@ -340,7 +340,7 @@ function RowKebab({
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <Trash size={14} weight="regular" />
-              Delete
+              Remove
             </button>
           </div>
         </>

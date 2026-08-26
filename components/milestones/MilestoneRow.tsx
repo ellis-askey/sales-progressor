@@ -317,7 +317,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           }, 200);
         } else {
           const count = outstandingIds.length;
-          toast.success(def.name, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} reconciled` } : undefined);
+          toast.success(def.name, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} marked done` } : undefined);
         }
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not complete this step."));
@@ -672,7 +672,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     style={{ fontSize: 11 }}
                     title="Mark as not required"
                   >
-                    N/R
+                    Not required
                   </button>
                 )}
                 {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && (

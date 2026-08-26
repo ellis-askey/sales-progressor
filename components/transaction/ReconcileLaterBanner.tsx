@@ -84,7 +84,7 @@ export function ReconcileLaterBanner({
 
   async function handleSubmit() {
     if (!tenure || !purchaseType) {
-      setError("This file is missing tenure or purchase type, so it can't be reconciled yet.");
+      setError("This file is missing tenure or purchase type, so it can't be set up yet.");
       return;
     }
     setError(null);
@@ -122,8 +122,8 @@ export function ReconcileLaterBanner({
         kind="info"
         icon={<Info size={18} weight="fill" />}
         title="Bring this file up to date"
-        body="Mark which milestones are already done and (if you know) when they happened. Your file's timeline and predictions will track accurately from there."
-        action={{ label: "Set up milestones →", onClick: () => setModalOpen(true) }}
+        body="Mark which steps are already done and (if you know) when they happened. Your file's timeline and predictions will track accurately from there."
+        action={{ label: "Set up steps →", onClick: () => setModalOpen(true) }}
         dismissible={{ onDismiss: handleDismiss }}
         className="mb-1"
       />
@@ -212,7 +212,7 @@ function ReconcileModal({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1a1d29" }}>
-              Set up which milestones are done
+              Set up which steps are done
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "#4a5162" }}>
               Tick what's already happened. Add the date if you know it; leave blank if you don&apos;t.
@@ -236,7 +236,7 @@ function ReconcileModal({
                 onClick={() => onStepChange("vendor")}
                 style={{ marginBottom: 12 }}
               >
-                ← Back to seller milestones
+                ← Back to seller steps
               </button>
             )}
             <ReconcileMilestonePicker
@@ -250,7 +250,7 @@ function ReconcileModal({
           </>
         ) : (
           <p style={{ fontSize: 13, color: "#dc2626" }}>
-            This file is missing tenure or purchase type — can&apos;t reconcile until those are set.
+            This file is missing tenure or purchase type, so it can&apos;t be set up until those are added.
           </p>
         )}
 
@@ -276,7 +276,7 @@ function ReconcileModal({
               className="claim-btn"
               type="button"
             >
-              {submitting ? "Saving…" : tickedCount > 0 ? `Save ${tickedCount} milestone${tickedCount === 1 ? "" : "s"}` : "Save"}
+              {submitting ? "Saving…" : tickedCount > 0 ? `Save ${tickedCount} step${tickedCount === 1 ? "" : "s"}` : "Save"}
             </button>
           ) : (
             <button
@@ -285,7 +285,7 @@ function ReconcileModal({
               className="claim-btn"
               type="button"
             >
-              Next: Buyer milestones →
+              Next: Buyer steps →
             </button>
           )}
         </div>
