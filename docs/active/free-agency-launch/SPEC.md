@@ -53,15 +53,19 @@ The rate-limit layer is fully written but **switched off** — `lib/ratelimit.ts
 ---
 
 ## Phase 1 — Email sender identity (TRUST BLOCKER)
-*Why: an agency's clients currently receive automated email branded "Sales Progressor", and replies route to us. This alone breaks trust at scale.*
+*Why: an agency's clients currently receive automated email branded "Sales Progressor", and replies route to us.*
 
-- **1.1** Self-serve "send from your own address" that actually drives **all automated agency mail** — i.e. the verified flow sets the value `resolveAgencySenderForTransaction` reads (`Agency.quoteSenderEmail` or its replacement), not just the manual-send record.
-- **1.2** Make `lib/email/agency-sender.ts` resolve to the agency's verified address for automated lifecycle mail (portal invite, milestone updates, weekly update, solicitor, exchange-day, enquiries).
-- **1.3** Fix the misleading success copy in `components/verified-emails/SendingAddressesSection.tsx:137` so it reflects what's actually enabled.
-- **1.4** Make the command-centre domain-auth flow finish the job (also set the sender), so the founder path completes (`app/command/(protected)/email-senders/actions.ts:68-80`).
-- **1.5** Define fallback behaviour before a sender is verified: explicit, not silent SP-branding (see Open Decisions: block vs label).
-- **Stretch:** agency logo in client emails (`app/api/portal/invite/route.ts:72`).
-- **Acceptance:** a new agency completes setup; a test client + solicitor email send from the agency's address with replies routing to them. Before setup, behaviour is explicit, never silently "Sales Progressor".
+**Reframe (verified in code):** the send resolver already sends from the agency when `Agency.quoteSenderEmail` is set, and SendGrid domain-auth already exists (founder + self-serve). The gap was (a) nothing set `quoteSenderEmail` on verify, and (b) the pre-setup fallback showed plain "Sales Progressor". So Phase 1 = wiring + Option C, not a build.
+
+**Approach — Option C (founder decision):** a client email ALWAYS shows the agency as sender ("{agent first name} at {Agency}") with the agent's own email as reply-to, even before any DNS setup. Only the actual address stays `updates@thesalesprogressor.co.uk` until they verify a domain, then it swaps automatically. DNS setup is a recommended upgrade (own address + isolated sending reputation), **not a gate** — this replaces the earlier hold-vs-send decision.
+
+**STATUS (2026-08-26): shipped.**
+- **1a** ✅ (`e36d17e5`) Option C branding + agent reply-to in `resolveAgencySenderForTransaction`; once on their verified domain, a neg/director whose own email is on it sends from their personal address (SP model).
+- **1b** ✅ (`e36d17e5`) `adoptVerifiedDomainAsAgencySender` sets `updates@<domain>` when a domain verifies — called from all three verify paths (founder, self-serve, nightly cron). Fills a blank only.
+- **1c** ✅ (`4fcbe4bc`) honest success copy on the sending-address screen.
+- **1d** ✅ (`4fcbe4bc`) routed 3 client-facing leaks through the agency sender (portal-message reply, survey-quote link, "visible update"). Command Centre sender reference updated.
+- **Remaining/optional:** locate the completion-day "what happens next" pack (may already route via the milestone email path); agency logo in client emails (stretch). The portal-message→agent notice is agent-facing, left as SP.
+- **Acceptance:** a client email always shows the agency as sender with replies to the agent; on domain verify it swaps to their address automatically. ✅ met for the wired paths.
 
 **Closes audit points 1–5.**
 
