@@ -538,6 +538,24 @@ export async function updateAgencyChasePolicy(
   return { ok: true };
 }
 
+// Agency-level on/off for the weekly "all on track" client update. Director
+// only. Off means the whole agency stops sending the weekly email; unsubscribed
+// clients are excluded regardless (that's enforced at send time).
+export async function setWeeklyClientUpdatesEnabled(enabled: boolean): Promise<ActionResult> {
+  const session = await requireSession();
+  if (session.user.role !== "director") {
+    return { ok: false, error: "Only directors can change automation settings." };
+  }
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return { ok: false, error: "Missing agency context." };
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: { weeklyClientUpdatesEnabled: enabled },
+  });
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}
+
 // ─── Email preview / edit ───────────────────────────────────────────────
 
 export type UpdateEmailPayloadInput = {

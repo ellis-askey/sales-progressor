@@ -27,16 +27,26 @@ export async function StepsPanel({ transactionId, agencyId, purchaseType }: Prop
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
   return (
-    <MilestonePanel
-      transactionId={transactionId}
-      vendor={milestoneData.vendor}
-      purchaser={milestoneData.purchaser}
-      exchangeReady={milestoneData.exchangeReady}
-      vendorGateReady={milestoneData.vendorGateReady}
-      purchaserGateReady={milestoneData.purchaserGateReady}
-      graceDaysByCode={graceDaysByCode}
-      clientChaseByCode={clientChaseByCode}
-      purchaseType={purchaseType}
-    />
+    <>
+      {/* Confirm-time cue: agents should know confirming a step emails the
+          client, and where to control it. */}
+      <p
+        className="mb-3 rounded-lg px-3 py-2 text-[12.5px]"
+        style={{ background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-subtle)", color: "var(--agent-text-muted)" }}
+      >
+        Confirming a step sends an update to the buyer and seller. You can turn that off per file in Email settings.
+      </p>
+      <MilestonePanel
+        transactionId={transactionId}
+        vendor={milestoneData.vendor}
+        purchaser={milestoneData.purchaser}
+        exchangeReady={milestoneData.exchangeReady}
+        vendorGateReady={milestoneData.vendorGateReady}
+        purchaserGateReady={milestoneData.purchaserGateReady}
+        graceDaysByCode={graceDaysByCode}
+        clientChaseByCode={clientChaseByCode}
+        purchaseType={purchaseType}
+      />
+    </>
   );
 }

@@ -130,11 +130,20 @@ export function ExchangeDayControl({
             </p>
           </Modal.Header>
           <Modal.Body style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <p style={{ fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)", margin: 0 }}>
-              We&apos;ll email both solicitors through the day (first thing, then a follow-up around lunchtime and one
-              late afternoon if it hasn&apos;t exchanged), and ask the clients to give their solicitor authority and
-              stay reachable.
-            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)", margin: 0 }}>
+                Here&apos;s exactly what we&apos;ll send today, automatically:
+              </p>
+              <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 7, fontSize: 13.5, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                <li><strong style={{ color: "var(--agent-text-primary)" }}>First thing:</strong> email to both solicitors asking them to exchange.</li>
+                <li><strong style={{ color: "var(--agent-text-primary)" }}>9am and 11am:</strong> email to the buyer and seller asking them to give their solicitor authority to exchange and stay reachable.</li>
+                <li><strong style={{ color: "var(--agent-text-primary)" }}>Lunchtime:</strong> a follow-up to both solicitors if it hasn&apos;t exchanged yet.</li>
+                <li><strong style={{ color: "var(--agent-text-primary)" }}>Late afternoon:</strong> a final solicitor follow-up if it still hasn&apos;t.</li>
+              </ul>
+              <p style={{ fontSize: 12.5, color: "var(--agent-text-muted)", margin: 0 }}>
+                Emails go out on weekdays only, and your everyday chasing pauses while exchange day is on.
+              </p>
+            </div>
             <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               Agreed completion date
               <input

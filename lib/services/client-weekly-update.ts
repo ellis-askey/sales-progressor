@@ -7,6 +7,13 @@ import { buildGreeting } from "@/lib/portal-copy";
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
 
+  // Agency-level opt-out: a director can switch the whole weekly update off.
+  const agencyPref = await prisma.agency.findUnique({
+    where: { id: agencyId },
+    select: { weeklyClientUpdatesEnabled: true },
+  });
+  if (agencyPref && agencyPref.weeklyClientUpdatesEnabled === false) return 0;
+
   // Active transactions for this agency
   const transactions = await prisma.propertyTransaction.findMany({
     where: { agencyId, status: "active" },
@@ -23,7 +30,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         take: 1,
       },
       contacts: {
-        where: { email: { not: null }, roleType: { in: ["purchaser", "vendor"] } },
+        // Never email a client who has unsubscribed (compliance).
+        where: { email: { not: null }, unsubscribedAt: null, roleType: { in: ["purchaser", "vendor"] } },
         select: { id: true, name: true, email: true, portalToken: true, roleType: true },
       },
     },

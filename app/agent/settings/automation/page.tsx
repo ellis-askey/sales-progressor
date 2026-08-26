@@ -21,6 +21,7 @@ import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { AutomationSettingsForm } from "@/components/automation/AutomationSettingsForm";
 import { SolicitorAutomationForm } from "@/components/automation/SolicitorAutomationForm";
 import { SolicitorPerCodeTable } from "@/components/automation/SolicitorPerCodeTable";
+import { WeeklyUpdateToggle } from "@/components/automation/WeeklyUpdateToggle";
 
 export default async function AutomationSettingsPage() {
   const session = await requireSession();
@@ -31,7 +32,7 @@ export default async function AutomationSettingsPage() {
   const [agency, rules, defs, solicitorSettings, solicitorRules] = await Promise.all([
     prisma.agency.findUnique({
       where: { id: agencyId },
-      select: { chaseEmailsEnabled: true },
+      select: { chaseEmailsEnabled: true, weeklyClientUpdatesEnabled: true },
     }),
     prisma.reminderRule.findMany({
       where: { isActive: true, targetMilestoneCode: { not: null } },
@@ -86,6 +87,7 @@ export default async function AutomationSettingsPage() {
         initialChaseEmailsEnabled={agency.chaseEmailsEnabled}
         initialRules={editableRules}
       />
+      <WeeklyUpdateToggle initialEnabled={agency.weeklyClientUpdatesEnabled} />
       <SolicitorAutomationForm
         initial={{
           enabled: solicitorSettings?.enabledByDefault ?? false,

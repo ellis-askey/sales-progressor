@@ -263,14 +263,20 @@ export default async function AgentTransactionDetailPage({
     ? ((transaction.assignedUser as { image?: string | null } | null)?.image ?? null)
     : (agentUser?.image ?? null);
 
+  // Chase timeline: the founder sees it on every file; a customer agency sees it
+  // on their own self-managed (self-progressed) files, where the chasing is done
+  // on their behalf and they should be able to see it. Not shown on outsourced
+  // files to agency users (our team runs those).
+  const showChaseTimeline =
+    isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
+
   // Tab strip — badges (counts on Reminders + To-Do) update via
   // TabBadgeReporter once the relevant panels stream in.
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
     { key: "milestones", label: "Steps", icon: "steps" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
-    // Chase Timeline is founder-only while in review — gated to Ellis.
-    ...(isEllis ? [{ key: "chase", label: "Chase timeline", icon: "chase" }] : []),
+    ...(showChaseTimeline ? [{ key: "chase", label: "Chase timeline", icon: "chase" }] : []),
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
@@ -299,7 +305,6 @@ export default async function AgentTransactionDetailPage({
     return (
       <EmailSettingsButton
         transactionId={transaction.id}
-        isInternalStaff={internal}
         hasPhoto={!!heroPhotoUrl}
       />
     );
@@ -538,10 +543,10 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
 
-        {/* Tab 3: Chase timeline — founder-only (gated to Ellis). The falsy
-            when hidden is stripped by PropertyFileTabs' Children.toArray so
-            the remaining tab panels stay index-aligned. */}
-        {isEllis && (
+        {/* Tab 3: Chase timeline — founder on all files, agency users on their
+            own self-managed files. The falsy when hidden is stripped by
+            PropertyFileTabs' Children.toArray so panels stay index-aligned. */}
+        {showChaseTimeline && (
           <Suspense fallback={<TabPanelSkeleton rows={5} />}>
             <ChaseTimelinePanel
               transactionId={transaction.id}

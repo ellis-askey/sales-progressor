@@ -128,7 +128,6 @@ function EmailSettingsDrawer({
   open,
   onClose,
   transactionId,
-  isInternalStaff,
   state,
   onStateChange,
   onReload,
@@ -136,7 +135,6 @@ function EmailSettingsDrawer({
   open: boolean;
   onClose: () => void;
   transactionId: string;
-  isInternalStaff: boolean;
   state: EmailSettingsState | null;
   onStateChange: (next: EmailSettingsState) => void;
   onReload: () => void;
@@ -232,20 +230,20 @@ function EmailSettingsDrawer({
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {isInternalStaff && (
-              <section>
-                <SectionHeading
-                  title="Step confirmation emails"
-                  sub="Sent to the buyer and seller when a step is confirmed on this file."
-                />
-                <SettingRow
-                  label="Send confirmation emails"
-                  on={!state.suppressPortalConfirmEmails}
-                  onToggle={toggleConfirmEmails}
-                  disabled={pendingKey !== null}
-                />
-              </section>
-            )}
+            {/* Available to whoever controls this file's emails — internal staff
+                and self-managed agencies (the button only opens for those). */}
+            <section>
+              <SectionHeading
+                title="Step confirmation emails"
+                sub="Sent to the buyer and seller when a step is confirmed on this file."
+              />
+              <SettingRow
+                label="Send confirmation emails"
+                on={!state.suppressPortalConfirmEmails}
+                onToggle={toggleConfirmEmails}
+                disabled={pendingKey !== null}
+              />
+            </section>
 
             <section>
               <SectionHeading
@@ -328,11 +326,9 @@ function EmailSettingsDrawer({
 // anything is paused or the file is on hold. Clicking opens the drawer.
 export function EmailSettingsButton({
   transactionId,
-  isInternalStaff,
   hasPhoto = false,
 }: {
   transactionId: string;
-  isInternalStaff: boolean;
   // When the hero has a property photo behind it, the pill mirrors the
   // "Back to files" control: a dark translucent fill + blur so the label
   // stays legible over imagery. Without a photo it uses the solid overlay
@@ -357,7 +353,7 @@ export function EmailSettingsButton({
     ? state.contacts.filter((c) => c.paused).length +
       (state.vendorSolicitor?.paused ? 1 : 0) +
       (state.purchaserSolicitor?.paused ? 1 : 0) +
-      (isInternalStaff && state.suppressPortalConfirmEmails ? 1 : 0)
+      (state.suppressPortalConfirmEmails ? 1 : 0)
     : 0;
   const onHold = state?.status === "on_hold";
   const attention = onHold || pausedCount > 0;
@@ -419,7 +415,6 @@ export function EmailSettingsButton({
         open={open}
         onClose={() => setOpen(false)}
         transactionId={transactionId}
-        isInternalStaff={isInternalStaff}
         state={state}
         onStateChange={setState}
         onReload={reload}

@@ -35,6 +35,11 @@ model Agency {
   // Must be a verified SendGrid sender for the agency's domain.
   quoteSenderEmail String?
 
+  // Weekly "all on track" client update. On by default; a director can switch
+  // the whole agency off in settings. Sends never reach an unsubscribed contact
+  // regardless of this flag.
+  weeklyClientUpdatesEnabled Boolean @default(true)
+
   // Signup attribution
   signupSource      String?
   signupMedium      String?
