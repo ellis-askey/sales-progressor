@@ -116,6 +116,8 @@ The rate-limit layer is fully written but **switched off** — `lib/ratelimit.ts
 
 ## Phase 5 — Onboarding reinforcement (polish, optional)
 *Onboarding is already good (points 23–25); this is reinforcement only.*
+
+**STATUS (2026-08-26): built, on STAGING (`88b2ff24`).** Reframed with Ellis: 5.2 (invite prompt is per-session, reappears) and 5.4 (everyone sees the same legacy hub; kinetic is parked/shown-to-nobody) are non-issues, dropped. Built: 5.1 agency logo (director upload on Account>Profile, white-chip render in portal-invite + milestone emails, text fallback; Agency.logoPath, migration 20260826170000, public `agency-logos` bucket = manual step); 5.3 "Not required" consequence hint (Ellis's string). Migration + bucket needed before it works.
 - Kinetic-hub empty-welcome state (only needed if the kinetic hub is rolled to agencies).
 - Re-entry path for the portal-invite prompt (currently one-shot).
 - Agency logo/branding in client-facing surfaces.
