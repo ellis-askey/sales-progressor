@@ -1,5 +1,6 @@
-// Legacy hub — rendered when kineticEnabled === false (customer agencies
-// during Stage 1 rollout). Metadata export moved to the router page.tsx.
+// The agent hub. (Formerly "legacy-hub" from an abandoned "kinetic" redesign
+// that was reverted twice for regressions and removed 2026-08-27 — this is now
+// the one and only hub.) Metadata lives on the route page.tsx.
 //
 // 2026-08-10: rewritten from a single-Promise.all monolith into per-section
 // async server components wrapped in Suspense. Shell (header + payment
@@ -154,7 +155,7 @@ function InlineLoadingCard({
 
 // ── Page — shell renders instantly, body gated behind pipelineStats+attention ─
 
-export default async function LegacyHub() {
+export default async function Hub() {
   const session = await requireSession();
   const role              = session.user.role;
   const isInternalStaff   = role === "admin" || role === "sales_progressor" || role === "viewer";

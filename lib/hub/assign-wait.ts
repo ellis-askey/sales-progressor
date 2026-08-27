@@ -1,6 +1,6 @@
 // Shared SLA display for how long an outsourced file has been waiting to be
 // assigned an SP progressor. Amber once it has waited 48 hours, red at 72.
-// Used by both hub cards (legacy AttentionCard + kinetic InternalOnlyCards).
+// Used by the hub's "Needs your attention" card (AttentionCard).
 
 export type AssignWaitLevel = "ok" | "amber" | "red";
 

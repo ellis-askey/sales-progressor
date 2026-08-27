@@ -238,7 +238,7 @@ function UserDropdown({ session, role, userImage }: { session: Session; role: Us
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, kineticEnabled, hasSelfManagedFiles = true, todoDueCount = 0 }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; kineticEnabled?: boolean; hasSelfManagedFiles?: boolean; todoDueCount?: number }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0 }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -286,7 +286,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   }
 
   return (
-    <div className="agent-shell-root" data-theme="custom" data-kinetic={kineticEnabled ? "true" : undefined} style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme="custom" style={{ display: "flex" }}>
 
       {/* Elevra-backgrounds pass, 2026-08-08: the old plasma-SVG + coral
           aurora was removed. Backdrop now lives in <AppBackground /> mounted

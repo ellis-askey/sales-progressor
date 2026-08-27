@@ -3,9 +3,9 @@
 // three pulsating dots) — same visual language every route-level loader
 // in the app uses from 2026-08-09 onwards.
 //
-// Once the RSC starts streaming, kinetic-hub / legacy-hub replace this
-// with their per-section Suspense boundaries (each with its own inline
-// LoadingCard fallback) and content fades in section by section.
+// Once the RSC starts streaming, the hub replaces this with its per-section
+// Suspense boundaries (each with its own inline LoadingCard fallback) and
+// content fades in section by section.
 
 import Link from "next/link";
 import { Plus } from "@phosphor-icons/react/dist/ssr";

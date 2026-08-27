@@ -4,7 +4,6 @@ import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { resolveAgentSession } from "@/lib/agent-session";
-import { shouldSeeKineticShell } from "@/lib/kinetic/flag";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
@@ -14,7 +13,6 @@ import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import { brandThemeCss } from "@/lib/agent/brand-theme";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
-import "./styles/kinetic-shell.css";
 // Elevra-backgrounds pass, 2026-08-08. Page-level backgrounds keyed on
 // [data-theme="light|dark"] on <html>. Coexists with the shell's
 // data-theme={"sunset"|...} on .agent-shell-root (different selector,
@@ -29,7 +27,6 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     await resolveAgentSession();
   void theme; void mobileTheme; // legacy preset fields; the app now runs on the custom brand colour
 
-  const kineticEnabled = shouldSeeKineticShell(session);
 
   // Gates the Reminders + Auto-emails nav items (see helper docstring).
   const hasSelfManagedFiles = await agencyUserHasSelfManagedFiles(
@@ -60,7 +57,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} kineticEnabled={kineticEnabled} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={todoDueCount}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={todoDueCount}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />
