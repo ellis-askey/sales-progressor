@@ -471,9 +471,12 @@ export async function solicitorRaisedExpectedDateAction(token: string, expectedD
   return { ok: true };
 }
 
-// (3) Provide a written update → records an internal note on the file so the
-// agent sees it in the file's activity. Attributed to the file's agent with a
-// "[Solicitor update]" prefix (the solicitor isn't a system user).
+// (3) Provide a written update → records an "Update" on the file's activity
+// feed, attributed to the solicitor's firm via senderLabel (the solicitor
+// isn't a system user, so we can't set createdById to them). Stays type
+// internal_note so it never leaves the file — never client-facing. The
+// timeline reads senderLabel as the author and renders the "Update" pill off
+// it; the raw message is stored as-is with no code/prefix.
 export async function solicitorLeaveUpdateAction(
   token: string,
   milestoneDefinitionId: string,
@@ -496,7 +499,8 @@ export async function solicitorLeaveUpdateAction(
         purpose: "chase",
         status: "sent",
         subject: `Update from ${firmName}`,
-        content: `[Solicitor update · ${def.code}] ${trimmed}`,
+        content: trimmed,
+        senderLabel: firmName,
         contactIds: [],
         createdById: authorId,
         createdByRole: "director",

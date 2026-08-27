@@ -12,6 +12,9 @@ export type CommBadgeInput = {
   type: string;
   method: string | null;
   isAutomated: boolean;
+  // Set on solicitor-left updates (firm name). Distinguishes an "Update" from a
+  // plain internal note — both share type internal_note.
+  senderLabel?: string | null;
 };
 
 export type BadgeInfo = { label: string; icon: string; bg: string; color: string };
@@ -46,6 +49,11 @@ export function getCommBadge(entry: CommBadgeInput): BadgeInfo {
     return { label: "System email", icon: "✉", bg: "rgba(99,102,241,0.1)", color: "#4f46e5" };
   }
   if (entry.type === "internal_note") {
+    // A solicitor-left update carries the firm on senderLabel — render it as an
+    // "Update" (distinct blue), not a plain amber internal note.
+    if (entry.senderLabel) {
+      return { label: "Update", icon: "💬", bg: "rgba(37,99,235,0.10)", color: "#2563eb" };
+    }
     return { label: "Internal note", icon: "📝", bg: "rgba(217,119,6,0.1)", color: "#d97706" };
   }
   const isOut = entry.type === "outbound";

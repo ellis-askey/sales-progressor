@@ -260,6 +260,13 @@ export async function getActivityTimeline(
   // contact (seller/buyer/solicitor).
   const resolveCommActor = (c: (typeof comms)[number]) => {
     if (c.isAutomated) return { role: "system" as ActorRole, name: "System", image: null, sub: null };
+    // A solicitor-left update (the /s/<token> flow) is stored as an
+    // internal_note but authored by the firm, carried on senderLabel. Show the
+    // firm as the author rather than the file's agent (whose id we borrow for
+    // createdById because the solicitor isn't a system user).
+    if (c.type === "internal_note" && c.senderLabel) {
+      return { role: "solicitor" as ActorRole, name: c.senderLabel, image: null, sub: null };
+    }
     if (c.createdById) {
       return {
         role: userRoleToActor(c.createdByRole),

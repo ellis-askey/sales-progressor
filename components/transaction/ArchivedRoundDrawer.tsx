@@ -137,7 +137,7 @@ type ArchivedRoundPayload = {
     completedAt: string | null; completedByName: string | null;
     eventDate: string | null; summaryText: string | null; confirmedByPortal: boolean;
   }>;
-  comms: Array<{ id: string; type: string; method: string | null; content: string; createdAt: string; createdByName: string | null; visibleToClient: boolean; isAutomated: boolean }>;
+  comms: Array<{ id: string; type: string; method: string | null; content: string; createdAt: string; createdByName: string | null; senderLabel: string | null; visibleToClient: boolean; isAutomated: boolean }>;
   fileDocuments: Array<{ id: string; filename: string; mimeType: string | null; fileSize: number; source: string | null; createdAt: string; signedUrl: string | null }>;
 };
 
@@ -554,7 +554,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                 ) : (
                   <div style={{ padding: "4px 16px 14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
                     {data.comms.map((c) => {
-                      const badge = getCommBadge({ type: c.type, method: c.method, isAutomated: c.isAutomated });
+                      const badge = getCommBadge({ type: c.type, method: c.method, isAutomated: c.isAutomated, senderLabel: c.senderLabel });
                       return (
                         <div
                           key={c.id}
@@ -575,7 +575,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                               <span aria-hidden="true">{badge.icon}</span>
                               {badge.label}
                             </span>
-                            <AuthorPill name={c.createdByName} />
+                            <AuthorPill name={c.senderLabel ?? c.createdByName} />
                             <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
                               {fmtDate(c.createdAt)}
                             </span>

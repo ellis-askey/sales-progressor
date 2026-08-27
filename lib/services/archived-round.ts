@@ -76,6 +76,9 @@ export type ArchivedRoundData = {
     content: string;
     createdAt: Date;
     createdByName: string | null;
+    // Solicitor-left updates carry the firm here; drives the "Update" pill +
+    // firm-as-author rendering, same as the live timeline.
+    senderLabel: string | null;
     visibleToClient: boolean;
     isAutomated: boolean;
   }[];
@@ -222,6 +225,7 @@ export async function getArchivedRoundData(
         createdAt: true,
         visibleToClient: true,
         isAutomated: true,
+        senderLabel: true,
         createdBy: { select: { name: true } },
       },
       orderBy: { createdAt: "asc" },
@@ -246,6 +250,7 @@ export async function getArchivedRoundData(
       content: r.content,
       createdAt: r.createdAt,
       createdByName: r.createdBy?.name ?? null,
+      senderLabel: r.senderLabel ?? null,
       visibleToClient: r.visibleToClient,
       isAutomated: r.isAutomated,
     })),
@@ -262,6 +267,7 @@ export async function getArchivedRoundData(
       content: r.content,
       createdAt: r.createdAt,
       createdByName: r.fromClient ? null : r.sentBy?.name ?? null,
+      senderLabel: null,
       visibleToClient: true,
       isAutomated: false,
     })),

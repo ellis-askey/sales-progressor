@@ -78,7 +78,7 @@ function titleFor(entry: ActivityEntry): string {
   if (entry.kind === "milestone") {
     return entry.isNotRequired ? "Step marked not required" : "Step confirmed";
   }
-  if (entry.type === "internal_note") return "Internal note";
+  if (entry.type === "internal_note") return entry.senderLabel ? `Update from ${entry.senderLabel}` : "Internal note";
   const direction = entry.type === "outbound" ? "Sent" : "Received";
   const method = entry.method === "email" ? "email"
     : entry.method === "phone" ? "call"
