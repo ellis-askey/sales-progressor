@@ -13,8 +13,14 @@ import type { SolicitorSide } from "./codes";
 
 const SECRET = process.env.NEXTAUTH_SECRET ?? "dev-solicitor-secret";
 
+// Links are valid for ~30 days from issue (D5). Every chase email mints a fresh
+// one, so an active file always has a working link; a stale or forwarded link
+// stops working after the window. This matters now that the page can surface
+// the MOS — a leaked old link shouldn't reach documents indefinitely.
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function signSolicitorToken(transactionId: string, side: SolicitorSide): string {
-  const body = Buffer.from(`${transactionId}.${side}`).toString("base64url");
+  const body = Buffer.from(`${transactionId}.${side}.${Date.now()}`).toString("base64url");
   const sig = crypto.createHmac("sha256", SECRET).update(body).digest("base64url").slice(0, 20);
   return `${body}.${sig}`;
 }
@@ -31,7 +37,13 @@ export function verifySolicitorToken(
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
     return null;
   }
-  const [transactionId, side] = Buffer.from(body, "base64url").toString().split(".");
+  const [transactionId, side, issuedAtStr] = Buffer.from(body, "base64url").toString().split(".");
   if (!transactionId || (side !== "vendor" && side !== "purchaser")) return null;
+
+  // Expiry check. Legacy tokens without an issued-at timestamp fail here and are
+  // treated as invalid; the next chase email reissues a fresh one.
+  const issuedAt = Number(issuedAtStr);
+  if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > MAX_AGE_MS) return null;
+
   return { transactionId, side };
 }

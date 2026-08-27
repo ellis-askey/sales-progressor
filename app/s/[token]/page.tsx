@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { getSignedUrl } from "@/lib/supabase-storage";
 import { resolveDisplayStages, type ResolvedStage } from "@/lib/milestones/display-stages";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
@@ -114,6 +115,16 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
     },
   );
 
+  // Memorandum of sale (Stage 5): the one document we surface to the solicitor.
+  // View/download only. Signed URL minted at render (short-lived); if the page
+  // sits open past its TTL, a reload re-signs it.
+  const mosDoc = await prisma.transactionDocument.findFirst({
+    where: { transactionId: tx.id, source: "mos" },
+    select: { filename: true, storagePath: true, fileSize: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const mosUrl = mosDoc ? await getSignedUrl(mosDoc.storagePath).catch(() => null) : null;
+
   // Enquiries loop: shown whenever the file's enquiries stage is open, separate
   // from the milestone steps above (the loop is tracked, not chased as a step).
   const enquiries = await getEnquiryTrackerView(tx.id);
@@ -166,6 +177,10 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
       />
 
       <ProgressStrip stages={displayStages} />
+
+      {mosDoc && mosUrl && (
+        <DocumentsCard filename={mosDoc.filename} url={mosUrl} fileSize={mosDoc.fileSize} />
+      )}
 
       {steps.length > 0 && (
         <div>
@@ -347,6 +362,62 @@ function StageNode({ stage, index }: { stage: ResolvedStage; index: number }) {
         {sub}
       </p>
     </div>
+  );
+}
+
+function formatBytes(bytes: number | null): string | null {
+  if (!bytes || bytes <= 0) return null;
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// The Memorandum of sale, as a download. View-only for now (D4).
+function DocumentsCard({ filename, url, fileSize }: { filename: string; url: string; fileSize: number | null }) {
+  const size = formatBytes(fileSize);
+  return (
+    <Card style={{ padding: "18px 22px" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: S.muted }}>Documents</p>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          textDecoration: "none",
+          background: S.nested,
+          border: `1px solid ${S.nestedBorder}`,
+          borderRadius: 10,
+          padding: "12px 14px",
+        }}
+      >
+        <span
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 9,
+            background: "#eef2f8",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={S.inkSoft} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5" />
+          </svg>
+        </span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.3 }}>Memorandum of sale</span>
+          <span style={{ display: "block", fontSize: 12, color: S.muted, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {filename}{size ? ` · ${size}` : ""}
+          </span>
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: S.accent, flexShrink: 0 }}>Download</span>
+      </a>
+    </Card>
   );
 }
 
