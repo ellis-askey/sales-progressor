@@ -29,6 +29,11 @@ function rows(...complete: string[]): MilestoneRowForStages[] {
   }));
 }
 
+// Steps marked "not required" (skipped) — isComplete false, isNotRequired true.
+function skipped(...codes: string[]): MilestoneRowForStages[] {
+  return codes.map((code) => ({ code, isComplete: false, isNotRequired: true, completion: null }));
+}
+
 function statusMap(stages: ReturnType<typeof resolveDisplayStages>) {
   return Object.fromEntries(stages.map((s) => [s.key, s.status]));
 }
@@ -126,5 +131,53 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
     const stages = resolveDisplayStages([], forecast);
     expect(stages.find((s) => s.key === "exchange")?.forecastDate).toEqual(new Date("2026-08-31"));
     expect(stages.find((s) => s.key === "completion")?.forecastDate).toEqual(new Date("2026-09-14"));
+  });
+});
+
+// Note C (2026-08-27): a skipped (not_required) stage must not pin the file to
+// "Up next" forever — it settles as "skipped" and the real next stage advances.
+// The bug Ellis saw on 4 Covert Road: searches skipped → "Searches · Up next"
+// stuck permanently because the resolver only looked at isComplete.
+describe("resolveDisplayStages — skipped (not_required) stages", () => {
+  test("searches skipped mid-file: Searches shows skipped, Enquiries becomes up next", () => {
+    const s = statusMap(
+      resolveDisplayStages(
+        [...rows("VM1", "PM1", "VM7", "PM7"), ...skipped("PM8", "PM13")],
+        NO_FORECAST,
+      ),
+    );
+    expect(s.searches).toBe("skipped");
+    expect(s.enquiries).toBe("up_next");
+    expect(s.exchange).toBe("pending");
+  });
+
+  test("searches began then skipped: still resolves to skipped, not in progress", () => {
+    const s = statusMap(
+      resolveDisplayStages(
+        [...rows("VM1", "PM1", "VM7", "PM7", "PM8"), ...skipped("PM13")],
+        NO_FORECAST,
+      ),
+    );
+    expect(s.searches).toBe("skipped");
+    expect(s.enquiries).toBe("up_next");
+  });
+
+  test("a skipped stage never blocks a later in-progress stage", () => {
+    const s = statusMap(
+      resolveDisplayStages(
+        [...rows("VM1", "PM1", "VM7", "PM7", "PM14"), ...skipped("PM13")],
+        NO_FORECAST,
+      ),
+    );
+    expect(s.searches).toBe("skipped");
+    expect(s.enquiries).toBe("in_progress");
+  });
+
+  test("skipped stage is never left as up_next (the 4 Covert Road regression)", () => {
+    const stages = resolveDisplayStages(
+      [...rows("VM1", "PM1", "VM7", "PM7"), ...skipped("PM8", "PM13")],
+      NO_FORECAST,
+    );
+    expect(stages.find((s) => s.key === "searches")?.status).not.toBe("up_next");
   });
 });

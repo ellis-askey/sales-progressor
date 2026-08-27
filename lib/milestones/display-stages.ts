@@ -66,10 +66,17 @@ export const DISPLAY_STAGES: DisplayStageDef[] = [
 export type MilestoneRowForStages = {
   code: string;
   isComplete: boolean;
+  // 2026-08-27 (Note C): a step marked "not required" (skipped). The resolver
+  // treats a stage's exit as settled when every exit code is complete OR
+  // not_required, so a skipped stage stops pinning the file to "Up next".
+  isNotRequired?: boolean;
   completion?: { completedAt: Date | null } | null;
 };
 
-export type StageStatus = "complete" | "in_progress" | "up_next" | "pending";
+// "skipped" — the stage's exit was reached by skipping (not_required), not by
+// genuine completion. Rendered muted/struck on the strip; the real next stage
+// takes "up_next".
+export type StageStatus = "complete" | "skipped" | "in_progress" | "up_next" | "pending";
 
 export type ResolvedStage = {
   key: DisplayStageKey;
@@ -99,10 +106,20 @@ export function resolveDisplayStages(
   for (const m of milestones) byCode.set(m.code, m);
 
   const isCodeComplete = (code: string) => !!byCode.get(code)?.isComplete;
+  const isCodeNotRequired = (code: string) => !!byCode.get(code)?.isNotRequired;
+  // A code no longer blocks its stage once it's either genuinely complete or
+  // marked not-required (skipped).
+  const isCodeSettled = (code: string) => isCodeComplete(code) || isCodeNotRequired(code);
   const completedAtOf = (code: string) => byCode.get(code)?.completion?.completedAt ?? null;
 
   const rows = DISPLAY_STAGES.map((def) => {
     const isComplete = def.exitCodes.every(isCodeComplete);
+    // Settled = every exit code is complete OR skipped. A stage that's settled
+    // but not fully complete was skipped (at least one exit was not_required).
+    const isSettled = def.exitCodes.every(isCodeSettled);
+    const isSkipped = isSettled && !isComplete;
+    // "Begun" only counts genuine completion of an entry code — a skipped entry
+    // never lights the stage up as in-progress (it settles instead).
     const hasBegun = def.entryCodes.some(isCodeComplete);
 
     // completedAt = the LATEST exit completion (multi-exit stages finish
@@ -122,19 +139,23 @@ export function resolveDisplayStages(
       forecastDate = forecast.targetCompletionDate ?? null;
     }
 
-    return { def, isComplete, hasBegun, completedAt, forecastDate };
+    return { def, isComplete, isSettled, isSkipped, hasBegun, completedAt, forecastDate };
   });
 
-  const anyInProgress = rows.some((r) => !r.isComplete && r.hasBegun);
-  const firstNotComplete = rows.findIndex((r) => !r.isComplete);
+  // A skipped stage is settled, so it neither blocks "up_next" nor counts as
+  // in-progress — the file advances to the real next stage.
+  const anyInProgress = rows.some((r) => !r.isSettled && r.hasBegun);
+  const firstNotSettled = rows.findIndex((r) => !r.isSettled);
 
   return rows.map((r, i) => {
     let status: StageStatus;
     if (r.isComplete) {
       status = "complete";
+    } else if (r.isSkipped) {
+      status = "skipped";
     } else if (r.hasBegun) {
       status = "in_progress";
-    } else if (!anyInProgress && i === firstNotComplete) {
+    } else if (!anyInProgress && i === firstNotSettled) {
       status = "up_next";
     } else {
       status = "pending";

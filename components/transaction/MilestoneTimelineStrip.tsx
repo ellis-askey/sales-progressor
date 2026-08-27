@@ -53,6 +53,15 @@ const STAGE_TONES: Record<StageStatus, {
     labelColor: "var(--agent-text-primary)",
     dateColor: "var(--agent-text-muted)",
   },
+  // Skipped (not_required) — quiet + muted, mirroring the Activity tab's
+  // "Skipped" treatment. The stage was passed over, not ticked off.
+  skipped: {
+    ring: "rgba(15, 23, 42, 0.12)",
+    bg: "transparent",
+    iconColor: "var(--agent-text-muted)",
+    labelColor: "var(--agent-text-muted)",
+    dateColor: "var(--agent-text-muted)",
+  },
   in_progress: {
     ring: "var(--agent-coral)",
     bg: "rgba(var(--agent-coral-rgb), 0.10)",
@@ -79,6 +88,9 @@ const STAGE_TONES: Record<StageStatus, {
 function formatStageDate(stage: MilestoneStage): string {
   if (stage.status === "complete" && stage.completedAt) {
     return formatDate(stage.completedAt);
+  }
+  if (stage.status === "skipped") {
+    return "Skipped";
   }
   if (stage.status === "in_progress") {
     return "In progress";
@@ -204,6 +216,8 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
       >
         {stage.status === "complete" ? (
           <Check size={18} weight="bold" />
+        ) : stage.status === "skipped" ? (
+          <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1 }} aria-hidden>–</span>
         ) : (
           <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
             {index}
@@ -220,6 +234,7 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
+          textDecoration: stage.status === "skipped" ? "line-through" : undefined,
         }}>{stage.name}</p>
         <p style={{
           margin: "2px 0 0",
