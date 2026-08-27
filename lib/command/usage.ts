@@ -201,7 +201,11 @@ export type AgentDetail = {
   userId: string;
   name: string;
   role: string;
+  agencyId: string | null;
   agencyName: string;
+  // Agency-wide email branding (shared across the agency; shown on client
+  // emails). Managed from the CC agent drill-down on the director's behalf.
+  logo: { logoPath: string | null; tileColor: string | null; scale: string | null; align: string | null };
   image: string | null;
   imageFocusX: number;
   imageFocusY: number;
@@ -218,9 +222,14 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
   const user = await commandDb.user.findUnique({
     where: { id: userId },
     select: {
-      id: true, name: true, role: true,
+      id: true, name: true, role: true, agencyId: true,
       image: true, imageFocusX: true, imageFocusY: true,
-      agency: { select: { name: true } },
+      agency: {
+        select: {
+          name: true,
+          logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true,
+        },
+      },
     },
   });
   if (!user) return null;
@@ -297,7 +306,14 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
     userId: user.id,
     name: user.name,
     role: user.role,
+    agencyId: user.agencyId,
     agencyName: user.agency?.name ?? "—",
+    logo: {
+      logoPath: user.agency?.logoPath ?? null,
+      tileColor: user.agency?.logoTileColor ?? null,
+      scale: user.agency?.logoScale ?? null,
+      align: user.agency?.logoAlign ?? null,
+    },
     image: user.image,
     imageFocusX: user.imageFocusX,
     imageFocusY: user.imageFocusY,

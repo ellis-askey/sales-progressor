@@ -35,7 +35,17 @@ export interface BrandingInitial {
   align: LogoAlign | null;
 }
 
-export function EmailBrandingStudio({ initial }: { initial: BrandingInitial }) {
+// `endpoint` is the base URL for the logo API (POST upload / PATCH adjust /
+// DELETE). Defaults to the director's own route; the Command Centre passes its
+// superadmin route (/api/command/agencies/{agencyId}/logo) to manage an
+// agency's branding on their behalf. Same component, same live preview.
+export function EmailBrandingStudio({
+  initial,
+  endpoint = "/api/agent/agency-logo",
+}: {
+  initial: BrandingInitial;
+  endpoint?: string;
+}) {
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const [autoColor, setAutoColor] = useState(initial.tileColor ?? WHITE);
@@ -70,7 +80,7 @@ export function EmailBrandingStudio({ initial }: { initial: BrandingInitial }) {
     setBusy(true);
     try {
       const dataBase64 = await fileToBase64(file);
-      const res = await fetch("/api/agent/agency-logo", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ dataBase64, mimetype: file.type }),
@@ -97,7 +107,7 @@ export function EmailBrandingStudio({ initial }: { initial: BrandingInitial }) {
     setSavingState("saving");
     setError(null);
     try {
-      const res = await fetch("/api/agent/agency-logo", {
+      const res = await fetch(endpoint, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ tileColor, scale, align }),
@@ -120,7 +130,7 @@ export function EmailBrandingStudio({ initial }: { initial: BrandingInitial }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/agent/agency-logo", { method: "DELETE" });
+      const res = await fetch(endpoint, { method: "DELETE" });
       if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Couldn't remove the logo."); return; }
       setLogoUrl(null);
       setLocalPreview(null);
