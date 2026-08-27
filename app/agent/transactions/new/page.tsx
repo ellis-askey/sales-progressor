@@ -9,6 +9,10 @@ import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { AddDemoCard } from "@/components/transactions-v2/AddDemoCard";
 
+// The "Add a demo" server action (posted to this route) builds a rich 3-file
+// chain and takes ~10s, so give this route generous headroom over the default.
+export const maxDuration = 60;
+
 // 14 days, same window used by stampTrialState to decide freeOnExchange.
 // Past this point new sales cost money; if no card is on file the
 // director hits the trial-expired modal instead of the form.

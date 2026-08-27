@@ -15,6 +15,18 @@ A real sale the agency adds themselves is never a demo and is untouched by any o
 - **Lifecycle:** flagged `isDemo` + `demoExpiresAt` (~1 week). Auto-removed by the daily `demo-cleanup` cron once expired, or removed manually by the agent.
 - **Billing anchor unchanged:** the 14-day free clock stays on the first **real** sale (`Agency.firstSubmissionAt`). The demo never sets it, is never billed, and is excluded from real-sale metrics. We push agents to add a real sale on demo day, so in practice account creation and first real sale are the same day anyway.
 
+## The showcase is a 3-link chain (enriched 2026-08-27)
+
+"Add a demo" stands up a **chain of three fully-recorded demo files** so a new agency sees a working chain, not just one file. DB position 0 is the top (most to do); the highest position is the bottom (furthest along):
+
+- **Top — 22 Rothamsted Avenue, Harpenden** (~25% done): Sarah's onward purchase, the most to do.
+- **Middle — 14 Beaumont Rise, Harpenden** (~62%): the star file (MOS attached, full comms trail). The button opens this one.
+- **Bottom — 3 Leyton Court, St Albans** (~90%): the first-time buyer, furthest along.
+
+Each file is lived-in: milestones completed with **lifelike spread dates** and **varied confirmers** (agent / buyer's solicitor / seller's solicitor / client via portal), a **comms trail** of outbound client emails, phone/SMS/WhatsApp updates, **inbound replies** from the client, and **internal notes**. The middle file carries the fullest trail. All emails are `@example.com` so nothing sends. Takes ~10s to build (route `maxDuration` raised to 60s).
+
+**Agent photo:** the file hero shows the *real logged-in agent's own* `User.image` — the demo can't fake a real user's face. Agencies whose agents have set a profile photo see it; otherwise initials.
+
 ## The preset (one canonical showcase file)
 
 `DEMO_PRESET` in `lib/services/demo-sale.ts`:
@@ -40,9 +52,10 @@ All `@example.com` (reserved, non-deliverable) so the demo never emails anyone.
 - `components/transactions-v2/AddDemoCard.tsx` + `app/agent/transactions/new/page.tsx` — the affordance.
 - `app/api/cron/demo-cleanup/route.ts` + `vercel.json` — daily cleanup.
 
-## Still to do
+## Done
 
-- **Demo badge + "remove now"** banner on the file so it's never mistaken for a real sale and can be removed on demand (`removeDemoSale` service exists; needs an action + banner, and `isDemo` added to the file-page fetcher).
-- **Exclusions sweep:** confirm demo files are excluded from billing-on-exchange and Command Centre adoption/real-sale metrics (trial anchor already excluded).
-- **MOS document** attach once supplied.
-- **Prod:** upload `House.png` to prod Supabase storage at `demo/house.png` (see ELLIS_MANUAL_TODO).
+- Demo badge + "Remove now" banner on the file (removes the whole demo chain).
+- Exclusions: billing-on-exchange, metrics rollup, revenue, adoption funnel, overview, activation events (trial anchor too).
+- MOS attached (shared `demo/mos.pdf`).
+- Prod: `house.png` + `mos.pdf` uploaded to prod storage.
+- 3-link chain, party-attributed confirmations, comms trail + notes, lifelike dates.
