@@ -50,7 +50,7 @@ function exchangeLabel(iso: string | null): string | null {
 }
 
 export type UpdateKind = "milestone" | "price" | "note" | "reply" | "document";
-export type UpdateWho = "agent" | "client" | "solicitor";
+export type UpdateWho = "agent" | "client" | "helper" | "solicitor";
 export type UpdateSide = "vendor" | "purchaser" | null;
 
 type RowBase = { id: string; atIso: string; who: UpdateWho; side: UpdateSide };
@@ -101,9 +101,9 @@ function Leading({ u }: { u: UpdateRow }) {
     if (u.who === "agent") {
       return <UserAvatar user={{ name: u.byName ?? "", image: u.byImage }} size={26} className="flex-shrink-0" />;
     }
-    if (u.who === "client") {
-      // The client's own photo if they've uploaded one (audit #16 phase 2),
-      // otherwise the generic silhouette.
+    if (u.who === "client" || u.who === "helper") {
+      // The client's (or helper's) own photo if uploaded (audit #16 phase 2),
+      // otherwise the generic silhouette. A helper is a person on the side.
       // eslint-disable-next-line @next/next/no-img-element
       return <img src={u.byImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />;
     }

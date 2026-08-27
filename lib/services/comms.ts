@@ -13,7 +13,7 @@ import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
-import { confirmationSentence, type UpdateConfirmer } from "@/lib/updates-copy";
+import { confirmationSentence, resolveConfirmer } from "@/lib/updates-copy";
 import { getWhatsAppMediaSignedUrlMap } from "@/lib/supabase-storage";
 import type { ActorRole } from "@/components/ui/Avatar";
 
@@ -124,7 +124,7 @@ export async function getActivityTimeline(
       // round's createdAt are old-sale residue. Filter them out so the live
       // timeline reads as just-this-sale, matching the buyer-attributed scope.
       activeBuyerRound: { select: { createdAt: true } },
-      contacts: { select: { id: true, name: true, roleType: true, image: true } },
+      contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
       // toggle either row when logging the comm). They must be in the
@@ -214,22 +214,17 @@ export async function getActivityTimeline(
     const side = c.milestoneDefinition.side as "vendor" | "purchaser";
     const sideContacts = tx.contacts
       .filter((ct) => ct.roleType === side)
-      .map((ct) => ({ name: ct.name }));
+      .map((ct) => ({ id: ct.id, name: ct.name, isPrincipal: ct.isPrincipal }));
 
-    // Who confirmed: client via portal / the solicitor firm / the agent or
-    // progressor (their full name). Null = a genuine system auto-confirm.
-    const confirmer: UpdateConfirmer | null = confirmedByClient
-      ? { kind: "client" }
-      : c.confirmedBySolicitorFirmId
-        ? { kind: "solicitor", firm: c.confirmedBySolicitorFirm?.name ?? "The solicitor" }
-        : c.completedBy
-          ? { kind: "agent", name: c.completedBy.name ?? "A colleague" }
-          : null;
+    // Classify who confirmed (a helper reads "on behalf of ...") and get the
+    // side's PRINCIPAL names — helpers are never in the named list. Null = a
+    // genuine system auto-confirm.
+    const { confirmer, principals } = resolveConfirmer(c, sideContacts);
 
     const sentence = c.state === "not_required"
       ? (c.summaryText ?? c.milestoneDefinition.name)
       : confirmer
-        ? confirmationSentence({ code: c.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: c.milestoneDefinition.name })
+        ? confirmationSentence({ code: c.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: c.milestoneDefinition.name })
         : (c.summaryText ?? c.milestoneDefinition.name);
 
     // The confirmer's name + photo for the inline avatar. For a portal confirm

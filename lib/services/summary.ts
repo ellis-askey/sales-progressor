@@ -17,12 +17,13 @@ export async function resolveTemplateTokens(
 ): Promise<Record<string, string>> {
   const contacts = await prisma.contact.findMany({
     where: { propertyTransactionId: transactionId },
-    select: { name: true, roleType: true },
+    select: { name: true, roleType: true, isPrincipal: true },
   });
 
   const byRole = (role: string) => {
+    // Principals only — a helper is never named in the stored summary.
     const names = contacts
-      .filter((c) => c.roleType === role)
+      .filter((c) => c.roleType === role && c.isPrincipal)
       .map((c) => extractFirstName(c.name));
     if (names.length === 0) return role === "vendor" ? "the vendor" : role === "purchaser" ? "the purchaser" : "the solicitor";
     if (names.length === 1) return names[0];

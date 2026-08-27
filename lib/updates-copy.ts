@@ -183,6 +183,9 @@ function clientsOrParty(contacts: SideContact[] | undefined, code: string): stri
 
 export type UpdateConfirmer =
   | { kind: "client" }
+  // A helper/representative on the side confirmed on the principals' behalf.
+  // sideContacts passed alongside are the PRINCIPALS (the real clients).
+  | { kind: "helper"; name: string }
   | { kind: "agent"; name: string }
   | { kind: "solicitor"; firm: string };
 
@@ -239,6 +242,16 @@ export function confirmationSentence(opts: {
     return `${name} confirmed ${clientPronoun(sideContacts)} ${core}`;
   }
 
+  // A helper confirmed on the principals' behalf. sideContacts are the
+  // principals (the real clients). Reads "Lucy confirmed on behalf of Mrs Ayres
+  // that her solicitor has issued the draft contract pack".
+  if (confirmer.kind === "helper") {
+    const principals = allClientNames(sideContacts, side);
+    if (general) return `${confirmer.name} confirmed on behalf of ${principals} that ${general}`;
+    if (!core) return `${confirmer.name} confirmed on behalf of ${principals}: ${milestoneName}`;
+    return `${confirmer.name} confirmed on behalf of ${principals} that ${clientPronoun(sideContacts)} ${core}`;
+  }
+
   // A solicitor confirming their own step reads in the first person plural
   // ("{firm} confirmed they have …"), never "{firm} confirmed that {client}'s
   // solicitor has …" (the firm IS the client's solicitor).
@@ -253,6 +266,35 @@ export function confirmationSentence(opts: {
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Classify who confirmed a milestone into an UpdateConfirmer, and return the
+// side's PRINCIPAL contacts (helpers excluded from every name). Shared by every
+// agent surface so the wording is identical everywhere. A portal confirm by a
+// non-principal contact becomes a "helper" confirmer (the "on behalf of" copy).
+export function resolveConfirmer(
+  m: {
+    confirmedByPortal: boolean;
+    confirmedByContactId: string | null;
+    confirmedBySolicitorFirmId: string | null;
+    confirmedBySolicitorFirm?: { name: string } | null;
+    completedBy?: { name: string | null } | null;
+  },
+  sideContacts: { id: string; name: string; isPrincipal: boolean }[],
+): { confirmer: UpdateConfirmer | null; principals: SideContact[] } {
+  const principals: SideContact[] = sideContacts.filter((c) => c.isPrincipal).map((c) => ({ name: c.name }));
+  if (m.confirmedByPortal) {
+    const c = m.confirmedByContactId ? sideContacts.find((x) => x.id === m.confirmedByContactId) : null;
+    if (c && !c.isPrincipal) return { confirmer: { kind: "helper", name: c.name }, principals };
+    return { confirmer: { kind: "client" }, principals };
+  }
+  if (m.confirmedBySolicitorFirmId) {
+    return { confirmer: { kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" }, principals };
+  }
+  if (m.completedBy) {
+    return { confirmer: { kind: "agent", name: m.completedBy.name ?? "A colleague" }, principals };
+  }
+  return { confirmer: null, principals };
 }
 
 /** Client-portal wording. When the step is on the VIEWER's own side it's
@@ -288,6 +330,13 @@ export function portalConfirmationSentence(opts: {
     if (!clause) return `You confirmed: ${milestoneName}`;
     if (isGeneral) return `You confirmed ${clause}`;
     return `You confirmed your ${clause}`;
+  }
+  // A helper confirmed on the viewer's behalf ("Lucy confirmed on your behalf
+  // that your solicitor has issued the draft contract pack").
+  if (confirmer.kind === "helper") {
+    if (!clause) return `${confirmer.name} confirmed on your behalf: ${milestoneName}`;
+    if (isGeneral) return `${confirmer.name} confirmed on your behalf that ${clause}`;
+    return `${confirmer.name} confirmed on your behalf that your ${clause}`;
   }
   // A solicitor is the client's own solicitor, so read it in the first person
   // plural rather than "{firm} confirmed your solicitor has …".

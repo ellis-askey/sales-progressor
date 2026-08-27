@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
-import { confirmationSentence, bellNotificationSentence } from "@/lib/updates-copy";
+import { confirmationSentence, bellNotificationSentence, resolveConfirmer } from "@/lib/updates-copy";
 import { prisma } from "@/lib/prisma";
 
 // Non-milestone notification types the bell surfaces ("more than just
@@ -68,17 +68,14 @@ export async function GET(req: NextRequest) {
     const side = m.milestoneDefinition.side as "vendor" | "purchaser";
     const sideContacts = (m.transaction.contacts ?? [])
       .filter((c) => c.roleType === side)
-      .map((c) => ({ name: c.name }));
-    const confirmer = m.confirmedByPortal
-      ? ({ kind: "client" } as const)
-      : m.confirmedBySolicitorFirmId
-        ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
-        : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
-    // For a portal-confirmed step, show the client's own photo (audit #16
-    // phase 2): the exact contact if we recorded who confirmed, else the
-    // side's contact. Null falls back to the generic silhouette in the bell.
-    const clientContact =
-      confirmer.kind === "client"
+      .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
+    const resolved = resolveConfirmer(m, sideContacts);
+    const confirmer = resolved.confirmer ?? ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    const principals = resolved.principals;
+    // For a portal/helper-confirmed step, show whoever confirmed (audit #16
+    // phase 2): the exact contact if recorded, else the side's contact.
+    const confirmingContact =
+      confirmer.kind === "client" || confirmer.kind === "helper"
         ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
           ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
         : null;
@@ -88,12 +85,14 @@ export async function GET(req: NextRequest) {
         id: m.id,
         txId: m.transaction.id,
         address: m.transaction.propertyAddress,
-        sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
+        sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name }),
         who: confirmer.kind,
         avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
-          : confirmer.kind === "client" ? (clientContact?.image ?? null)
+          : confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.image ?? null)
           : null,
-        avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "") : "",
+        avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "")
+          : confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.name ?? "")
+          : "",
         at: (m.completedAt ?? new Date()).toISOString(),
         updateLabel: null as string | null,
       },

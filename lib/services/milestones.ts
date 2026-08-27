@@ -621,7 +621,7 @@ export async function getMilestonesForTransaction(
       id: true,
       activeBuyerRoundId: true,
       bookedSurveyorName: true,
-      contacts: { select: { id: true, name: true, roleType: true } },
+      contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true } },
     },
   });
   if (!transaction) throw new Error("Transaction not found");
@@ -630,11 +630,12 @@ export async function getMilestonesForTransaction(
   // confirmed (confirmedByContactId — they each have their own link), and fall
   // back to the milestone side's client name(s) for older rows that didn't
   // record the specific contact.
-  const contactNameById = new Map(transaction.contacts.map((c) => [c.id, c.name]));
+  const contactById = new Map(transaction.contacts.map((c) => [c.id, c]));
   const joinContactNames = (names: string[]): string =>
     names.length <= 1 ? (names[0] ?? "") : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  const vendorClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name)) || null;
-  const purchaserClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)) || null;
+  // Principal names only — helpers never appear in the "Confirmed by" fallback.
+  const vendorClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "vendor" && c.isPrincipal).map((c) => c.name)) || null;
+  const purchaserClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "purchaser" && c.isPrincipal).map((c) => c.name)) || null;
 
   // Retired enquiry sub-steps are hidden from every milestone list (enquiries
   // rework) — they no longer gate or carry weight, and are removed for good in
@@ -719,8 +720,13 @@ export async function getMilestonesForTransaction(
           ? userNameById.get(completion.completedById) ?? null
           : null,
         confirmedByClientName: completion?.confirmedByPortal
-          ? ((completion.confirmedByContactId ? contactNameById.get(completion.confirmedByContactId) : null)
-              ?? (def.side === "vendor" ? vendorClientName : purchaserClientName))
+          ? (() => {
+              const fallback = def.side === "vendor" ? vendorClientName : purchaserClientName;
+              const c = completion.confirmedByContactId ? contactById.get(completion.confirmedByContactId) : null;
+              // Helper confirmed → "Lucy on behalf of Mrs Ayres".
+              if (c && !c.isPrincipal) return fallback ? `${c.name} on behalf of ${fallback}` : c.name;
+              return c?.name ?? fallback;
+            })()
           : null,
         bookedSurveyorName: def.code === "PM9" ? bookedSurveyorName : null,
       };

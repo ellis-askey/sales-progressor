@@ -3,7 +3,7 @@ import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase } from "@/lib/services/fees";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
-import { confirmationSentence } from "@/lib/updates-copy";
+import { confirmationSentence, resolveConfirmer } from "@/lib/updates-copy";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
@@ -301,7 +301,7 @@ export async function getAgentMilestoneActivity(
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, status: true,
           // id + image added for the client-confirmer avatar (audit #16 phase 2).
-          contacts: { select: { id: true, name: true, roleType: true, image: true } },
+          contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true } },
         },
       },
       milestoneDefinition: { select: { code: true, name: true, side: true } },
@@ -321,7 +321,7 @@ export async function getAgentMilestoneActivity(
 // rules match the rest of the feed. Signing of photos and document links happens
 // in the page (batched); this returns raw storage paths.
 
-export type UpdateWho = "agent" | "client" | "solicitor";
+export type UpdateWho = "agent" | "client" | "helper" | "solicitor";
 export type UpdateSide = "vendor" | "purchaser" | null;
 
 export type UpdateFeedTx = {
@@ -394,7 +394,7 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       take: 120,
       include: {
         transaction: {
-          select: { ...FEED_TX_SELECT, contacts: { select: { id: true, name: true, roleType: true, image: true } } },
+          select: { ...FEED_TX_SELECT, contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true } } },
         },
         milestoneDefinition: { select: { code: true, name: true, side: true } },
         completedBy: { select: { name: true, image: true } },
@@ -448,15 +448,15 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
 
   for (const m of completions) {
     const side = m.milestoneDefinition.side as "vendor" | "purchaser";
-    const sideContacts = (m.transaction.contacts ?? []).filter((c) => c.roleType === side).map((c) => ({ name: c.name }));
-    const confirmer = m.confirmedByPortal
-      ? ({ kind: "client" } as const)
-      : m.confirmedBySolicitorFirmId
-        ? ({ kind: "solicitor", firm: m.confirmedBySolicitorFirm?.name ?? "The solicitor" } as const)
-        : ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
-    // Client-confirmed steps carry the client's own photo (audit #16 phase 2):
-    // the exact contact if recorded, else the side's contact.
-    const clientContact = confirmer.kind === "client"
+    const sideContacts = (m.transaction.contacts ?? []).filter((c) => c.roleType === side).map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
+    const resolved = resolveConfirmer(m, sideContacts);
+    // Preserve the old behaviour of always attributing (system auto-confirms
+    // fall back to the completing user, or "A colleague").
+    const confirmer = resolved.confirmer ?? ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    const principals = resolved.principals;
+    // Avatar carries whoever actually confirmed — the helper if a helper did it,
+    // the client if they did, else the completing user.
+    const confirmingContact = confirmer.kind === "client" || confirmer.kind === "helper"
       ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
         ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
       : null;
@@ -470,9 +470,9 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       transaction: txCore,
       code: m.milestoneDefinition.code,
       stageKey: stageMap.get(m.milestoneDefinition.code) ?? null,
-      sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: m.milestoneDefinition.name }),
-      byName: confirmer.kind === "client" ? (clientContact?.name ?? null) : (m.completedBy?.name ?? null),
-      byImage: confirmer.kind === "client" ? (clientContact?.image ?? null) : (m.completedBy?.image ?? null),
+      sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name }),
+      byName: confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.name ?? null) : (m.completedBy?.name ?? null),
+      byImage: confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.image ?? null) : (m.completedBy?.image ?? null),
     });
   }
 
