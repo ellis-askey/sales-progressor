@@ -1,15 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  solicitorConfirmStepAction,
-  solicitorSetExpectedDateAction,
-  solicitorLeaveUpdateAction,
-} from "./actions";
+import { solicitorConfirmStepAction, solicitorUpdateStepAction } from "./actions";
 
 type Step = { id: string; code: string; label: string; expectedDate: string | null };
-type Mode = null | "date" | "update";
-type Done = null | "confirmed" | "date" | "update";
+type Done = null | "confirmed" | "updated";
 
 const NAVY = "#0f2740";
 const BORDER = "#cdd8e6";
@@ -35,26 +30,60 @@ export function SolicitorRespond({ token, steps }: { token: string; steps: Step[
   );
 }
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : "Something went wrong. Please try again.";
+}
+
 function StepCard({ token, step, emphasise }: { token: string; step: Step; emphasise: boolean }) {
-  const [mode, setMode] = useState<Mode>(null);
+  const [open, setOpen] = useState(false);
   const [done, setDone] = useState<Done>(null);
   const [error, setError] = useState<string | null>(null);
   const [date, setDate] = useState(step.expectedDate ?? "");
-  const [text, setText] = useState("");
+  const [note, setNote] = useState("");
+  // What the "updated" confirmation should say, captured at submit time.
+  const [savedDate, setSavedDate] = useState<string | null>(null);
+  const [savedNote, setSavedNote] = useState(false);
   const [pending, start] = useTransition();
 
-  function run(fn: () => Promise<unknown>, outcome: Exclude<Done, null>) {
+  function confirm() {
     setError(null);
     start(async () => {
       try {
-        await fn();
-        setDone(outcome);
-        setMode(null);
+        await solicitorConfirmStepAction(token, step.id);
+        setDone("confirmed");
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+        setError(errMsg(e));
       }
     });
   }
+
+  function sendUpdate() {
+    setError(null);
+    const d = date.trim() ? date : null;
+    const n = note;
+    if (!d && !n.trim()) {
+      setError("Please add a date or a short update.");
+      return;
+    }
+    start(async () => {
+      try {
+        await solicitorUpdateStepAction(token, step.id, d, n);
+        setSavedDate(d);
+        setSavedNote(!!n.trim());
+        setDone("updated");
+        setOpen(false);
+      } catch (e) {
+        setError(errMsg(e));
+      }
+    });
+  }
+
+  const updatedMessage = (() => {
+    const parts: string[] = [];
+    if (savedDate) parts.push(`noted ${formatUk(savedDate)}`);
+    if (savedNote) parts.push("passed your update on");
+    return `Thank you. We&rsquo;ve ${parts.join(" and ")}.`;
+  })();
 
   return (
     <div style={{ border: `1px solid ${BORDER}`, borderLeft: `4px solid ${NAVY}`, borderRadius: 6, padding: "13px 16px", background: "#ffffff" }}>
@@ -63,66 +92,49 @@ function StepCard({ token, step, emphasise }: { token: string; step: Step; empha
       </p>
 
       {done ? (
-        <p style={{ margin: "10px 0 0", fontSize: 13, color: "#2f7d4f", fontWeight: 600 }}>
-          {done === "confirmed" && "Confirmed as done. Thank you."}
-          {done === "date" && `Thank you. We've noted ${formatUk(date)}.`}
-          {done === "update" && "Thank you. Your update has been passed on."}
-        </p>
+        <p
+          style={{ margin: "10px 0 0", fontSize: 13, color: "#2f7d4f", fontWeight: 600 }}
+          dangerouslySetInnerHTML={{
+            __html: done === "confirmed" ? "Confirmed as done. Thank you." : updatedMessage,
+          }}
+        />
       ) : (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => solicitorConfirmStepAction(token, step.id), "confirmed")}
-              style={primaryBtn(pending)}
-            >
-              {pending ? "Saving…" : "Confirm this is done"}
+            <button type="button" disabled={pending} onClick={confirm} style={primaryBtn(pending)}>
+              {pending && !open ? "Saving…" : "Confirm this is done"}
             </button>
-            <button type="button" disabled={pending} onClick={() => setMode(mode === "date" ? null : "date")} style={secondaryBtn}>
-              Give an expected date
-            </button>
-            <button type="button" disabled={pending} onClick={() => setMode(mode === "update" ? null : "update")} style={secondaryBtn}>
-              Provide an update
+            <button type="button" disabled={pending} onClick={() => setOpen((o) => !o)} style={secondaryBtn}>
+              {open ? "Close" : "Give an update"}
             </button>
           </div>
 
-          {mode === "date" && (
-            <div style={{ marginTop: 12 }}>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={inputStyle}
-              />
-              <button
-                type="button"
-                disabled={pending || !date}
-                onClick={() => run(() => solicitorSetExpectedDateAction(token, step.id, date), "date")}
-                style={{ ...primaryBtn(pending || !date), marginLeft: 8, width: "auto", display: "inline-block" }}
-              >
-                Save date
-              </button>
-            </div>
-          )}
-
-          {mode === "update" && (
-            <div style={{ marginTop: 12 }}>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                rows={3}
-                placeholder="A short note on where this stands…"
-                style={{ ...inputStyle, width: "100%", resize: "vertical", boxSizing: "border-box" }}
-              />
-              <button
-                type="button"
-                disabled={pending || !text.trim()}
-                onClick={() => run(() => solicitorLeaveUpdateAction(token, step.id, text), "update")}
-                style={{ ...primaryBtn(pending || !text.trim()), marginTop: 8, width: "auto", display: "inline-block" }}
-              >
-                Send update
-              </button>
+          {open && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Expected date <span style={{ color: "#8493a8", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Update <span style={{ color: "#8493a8", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  placeholder="A short note on where this stands…"
+                  style={{ ...inputStyle, width: "100%", resize: "vertical", boxSizing: "border-box" }}
+                />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  disabled={pending || (!date.trim() && !note.trim())}
+                  onClick={sendUpdate}
+                  style={{ ...primaryBtn(pending || (!date.trim() && !note.trim())), width: "auto", display: "inline-block" }}
+                >
+                  {pending ? "Sending…" : "Send update"}
+                </button>
+              </div>
             </div>
           )}
 
@@ -162,6 +174,16 @@ const secondaryBtn: React.CSSProperties = {
   padding: "11px 14px",
   borderRadius: 7,
   cursor: "pointer",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#6b7c93",
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  marginBottom: 6,
 };
 
 const inputStyle: React.CSSProperties = {
