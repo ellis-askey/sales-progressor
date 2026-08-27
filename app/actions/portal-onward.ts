@@ -25,12 +25,10 @@ import {
   reactivateOnwardTracker,
   resetOnwardTracker,
   setOnwardSurveySkipped,
-  getOnwardSignalForFile,
   type OnwardTrackerView,
   type ConfirmOnwardResult,
   type UndoOnwardResult,
 } from "@/lib/services/onward";
-import { applySurveyBooking } from "@/lib/services/survey-booking";
 import { writeClientChainStub } from "@/lib/services/chains";
 import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
 
@@ -154,61 +152,6 @@ export async function portalOnwardMortgageStatusAction(token: string): Promise<{
   const v = await resolveVendor(token);
   if (!v) return null;
   return { needsConfirm: await onwardMortgageNeedsConfirm(v.transactionId) };
-}
-
-// ── Onward survey recommendation ─────────────────────────────────────────────
-//
-// The seller gets the same survey card their buyer gets, pointed at the property
-// they're BUYING. State drives the portal card: no quotes yet → "arrange a
-// survey" (links to /quote/[token]?onward=1); quotes out → "confirm which firm";
-// booked / skipped / PM9 reported → hidden. Onward quotes are the surveyor/
-// structural quotes on this file requested by the seller (vendor) contact.
-
-export type OnwardSurveyState = {
-  onwardAddress: string | null;
-  skipped: boolean;
-  pm9Done: boolean;
-  hasBooked: boolean;
-  quotes: { id: string; firmName: string; status: string }[];
-};
-
-export async function portalGetOnwardSurveyAction(token: string): Promise<OnwardSurveyState | null> {
-  const v = await resolveVendor(token);
-  if (!v) return null;
-  const [sig, view, quotes] = await Promise.all([
-    getOnwardSignalForFile(v.transactionId),
-    getOnwardTrackerView(v.transactionId),
-    prisma.quoteRequest.findMany({
-      where: {
-        transactionId: v.transactionId,
-        contactId: v.contactId,
-        kind: { in: ["surveyor", "structural_engineer"] },
-      },
-      orderBy: { submittedAt: "desc" },
-      select: { id: true, status: true, provider: { select: { name: true } } },
-    }),
-  ]);
-  const pm9 = view.steps.find((s) => s.code === "PM9");
-  return {
-    onwardAddress: sig.onwardAddress,
-    skipped: view.surveySkipped,
-    pm9Done: !!pm9?.isComplete,
-    hasBooked: quotes.some((q) => q.status === "booked" || q.status === "won"),
-    quotes: quotes.map((q) => ({ id: q.id, firmName: q.provider.name, status: q.status })),
-  };
-}
-
-// The seller confirms which surveyor they're going with. Books that quote (and
-// marks the others not-chosen) via the shared booking rule, then the card hides.
-export async function portalConfirmOnwardSurveyAction(input: {
-  token: string;
-  quoteRequestId: string;
-}): Promise<OnwardSurveyState | null> {
-  const v = await resolveVendor(input.token);
-  if (!v) return null;
-  await applySurveyBooking(v.transactionId, { kind: "our_firm", quoteRequestId: input.quoteRequestId }, null);
-  revalidatePortal(input.token);
-  return portalGetOnwardSurveyAction(input.token);
 }
 
 // The seller confirms their onward mortgage offer is in place → back-fills the

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
+import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onward";
 import { getPortalBrokerCard } from "@/lib/services/broker-card";
 import { PortalBrokerCard } from "@/components/portal/PortalBrokerCard";
 import type { TimelineEntry } from "@/lib/services/portal";
@@ -165,14 +166,22 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   };
 
   const instructedDone = isMilestoneCompleteByCode(side === "vendor" ? "VM1" : "PM1");
-  // Once the buyer's survey is booked (PM9) the quote prompt is redundant.
-  // Reactive to milestone state, so undoing PM9 brings the card back.
-  const surveyBooked = milestones.some((m) => m.code === "PM9" && m.isComplete);
 
-  // Has this buyer already requested survey quotes? Distinct firms + latest
-  // submit, so we can acknowledge it rather than showing "Get a survey quote"
-  // as if nothing happened. Own data (scoped by this contact's id).
-  const surveyQuotes = side === "purchaser"
+  // Seller's onward purchase: the survey card mirrors the buyer's, pointed at
+  // the property they're BUYING (address from the chain link above). Only when
+  // they're buying onward AND we know that property, so surveyors can be matched
+  // by its postcode.
+  const onwardSig = side === "vendor"
+    ? await getOnwardSignalForFile(transaction.id)
+    : { buyingOnward: false, onwardAddress: null };
+  const buyingOnward = onwardSig.buyingOnward && !!onwardSig.onwardAddress;
+  const onwardTracker = buyingOnward ? await getOnwardTrackerView(transaction.id) : null;
+  const onwardSurveySkipped = onwardTracker?.surveySkipped ?? false;
+  const onwardPm9Done = onwardTracker?.steps.find((s) => s.code === "PM9")?.isComplete ?? false;
+
+  // Survey quotes: buyer = their own purchase; seller = their onward. Both are
+  // filed under this contact's id, so the same lookup serves both.
+  const surveyQuotes = (side === "purchaser" || buyingOnward)
     ? await getPortalSurveyQuotes(contact.id)
     : { firmNames: [], lastQuotedAt: null, bookedFirmName: null, bookedAt: null };
   const quotedFirmNames = surveyQuotes.firmNames;
@@ -186,8 +195,13 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const brokerCard = side === "purchaser"
     ? await getPortalBrokerCard(transaction.id, contact.id)
     : null;
-  const bookedSurveyorName = surveyQuotes.bookedFirmName ?? transaction.bookedSurveyorName ?? null;
+  const bookedSurveyorName = surveyQuotes.bookedFirmName ?? (side === "purchaser" ? transaction.bookedSurveyorName : null) ?? null;
   const bookedSurveyorAt = surveyQuotes.bookedAt;
+  // The prompt disappears once the survey's booked: buyer = PM9 on their sale;
+  // seller = their onward PM9 reported, or a booked onward quote.
+  const surveyBooked = side === "vendor"
+    ? (onwardPm9Done || !!bookedSurveyorName)
+    : milestones.some((m) => m.code === "PM9" && m.isComplete);
   const draftPackDone  = isMilestoneCompleteByCode("VM7");
   const pm8Done        = isMilestoneCompleteByCode("PM8");  // searches ordered
   const pm13Done       = isMilestoneCompleteByCode("PM13"); // results back
@@ -477,13 +491,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const tips  = getStageTips(stage, side, token, doneCodes);
 
   // ── Customize overview (Batch 1): which moveable cards are present + order ──
-  const showSurveyQuote    = side === "purchaser" && instructedDone && !surveyBooked && !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName;
+  const showSurveyQuote    = !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && !surveyBooked && (
+    (side === "purchaser" && instructedDone) ||
+    (side === "vendor" && buyingOnward && !onwardSurveySkipped)
+  );
+  // Buyer's survey card points at their own /quote link; the seller's at the
+  // onward variant (?onward=1), which matches surveyors to the onward postcode.
+  const surveyQuoteHref = side === "vendor" ? `/quote/${token}?onward=1` : `/quote/${token}`;
   // Mortgage broker card: useful before the mortgage application is in, so we
   // show it once instructed and hide it once PM5 (application submitted) is
   // done, or after exchange/completion. Reactive to milestone state.
   const pm5Done            = isMilestoneCompleteByCode("PM5");
   const showBrokerCard     = side === "purchaser" && brokerCard !== null && instructedDone && !pm5Done && !hasExchanged && !hasCompleted;
-  const showSurveyStatus   = side === "purchaser" && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
+  const showSurveyStatus   = (side === "purchaser" || (side === "vendor" && buyingOnward)) && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
   const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
@@ -605,7 +625,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       {showSurveyQuote && (
         <div style={slot("survey-quote")}>
         <Link
-          href={`/quote/${token}`}
+          href={surveyQuoteHref}
           className="pbtn pbtn-press block"
           style={{
             borderRadius: 16,
@@ -629,10 +649,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[15px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
-              Get a survey quote
+              {side === "vendor" ? "Get a survey for your onward" : "Get a survey quote"}
             </p>
             <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
-              Local firms in your area, <b style={{ color: "#0060DF" }}>from &pound;400</b>.
+              {side === "vendor" ? (
+                <>Surveyors that cover the area you&apos;re buying in, <b style={{ color: "#0060DF" }}>from &pound;400</b>.</>
+              ) : (
+                <>Local firms in your area, <b style={{ color: "#0060DF" }}>from &pound;400</b>.</>
+              )}
             </p>
           </div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -682,7 +706,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               {bookedSurveyorName ? (
                 <>
                   <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
-                    Survey booked with {bookedSurveyorName}
+                    {side === "vendor" ? `Onward survey booked with ${bookedSurveyorName}` : `Survey booked with ${bookedSurveyorName}`}
                   </p>
                   <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
                     {bookedSurveyorAt ? `Booked for ${fmtDate(bookedSurveyorAt)}.` : ""} They&apos;ll be in touch to arrange access.
@@ -691,7 +715,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               ) : (
                 <>
                   <p className="text-[14px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
-                    Survey quote requested
+                    {side === "vendor" ? "Onward survey quote requested" : "Survey quote requested"}
                   </p>
                   <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
                     {quotedFirmNames.length === 1
