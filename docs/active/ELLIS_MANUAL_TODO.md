@@ -8,6 +8,12 @@ Last updated: 2026-08-26
 
 ---
 
+## Demo showcase file — prod house image (2026-08-27)
+
+The "Add a demo" showcase file points every demo at one shared storage object `demo/house.png` in the `transaction-documents` bucket. It has been uploaded to **staging**. Before the demo feature goes to prod:
+- [ ] Upload `Images/House.png` to **prod** Supabase storage, bucket `transaction-documents`, path `demo/house.png` (a one-off; the app reads it via signed URL). Until then, demo files on prod fall back to the gradient hero.
+- Note: the `demo-cleanup` cron (removes expired demo files daily) runs automatically from `vercel.json` on the existing `CRON_SECRET`; no manual step.
+
 ## Free-agency launch — Phase 5: agency logo bucket (2026-08-26)
 
 The agency-logo feature (directors upload their logo, shown in client emails) needs a **public** Supabase Storage bucket named exactly **`agency-logos`** on **staging AND prod** (same as `provider-logos`/`whatsapp-media`). Without it, uploads fail.

@@ -7,6 +7,7 @@ import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledg
 import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
+import { AddDemoCard } from "@/components/transactions-v2/AddDemoCard";
 
 // 14 days, same window used by stampTrialState to decide freeOnExchange.
 // Past this point new sales cost money; if no card is on file the
@@ -115,6 +116,20 @@ export default async function AgentNewSaleV2Page() {
   ]);
   const showPortalPrompt =
     agentAddedSaleCount === 0 && (currentUserRow?.portalInviteSkipCount ?? 0) === 0;
+
+  // "Add a demo" affordance: shown to an agency user with no real sales yet and
+  // no existing demo (one at a time). Reappears if the demo later expires and
+  // they still have not added a real sale. See lib/services/demo-sale.ts.
+  const showAddDemo = session.user.agencyId
+    ? await (async () => {
+        const agencyId = session.user.agencyId!;
+        const [real, demo] = await Promise.all([
+          prisma.propertyTransaction.count({ where: { agencyId, isDemo: false } }),
+          prisma.propertyTransaction.count({ where: { agencyId, isDemo: true } }),
+        ]);
+        return real === 0 && demo === 0;
+      })()
+    : false;
 
   const isDirector = session.user.role === "director";
   const assignableAgents = isDirector && session.user.agencyId
@@ -229,6 +244,7 @@ export default async function AgentNewSaleV2Page() {
       <PageHeader title="New sale" subtitle="Drop your memo of sale to get started, or fill in manually." />
 
       <div className="px-4 md:px-8 pt-2 pb-8">
+        {showAddDemo && <AddDemoCard />}
         <NewSaleFlow
           recommendedFirms={recommendedFirms}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

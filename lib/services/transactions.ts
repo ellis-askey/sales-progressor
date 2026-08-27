@@ -804,6 +804,11 @@ export type CreateTransactionInput = {
   // Excludes the row from milestone-velocity analytics — backdated
   // completedAt timestamps would pollute averages otherwise.
   isMigrated?: boolean;
+  // True for the "Add a demo" showcase file. Bypasses the payment block and
+  // the trial anchor (never sets Agency.firstSubmissionAt — that clock belongs
+  // to the first REAL sale), stamps demoExpiresAt ~1 week out, and is never
+  // billed. See docs/active/demo-sale/SPEC.md.
+  isDemo?: boolean;
 };
 
 // Build a chaseRuleSnapshot from the current ReminderRule rows. Forward-only
@@ -876,14 +881,20 @@ export async function createTransaction(input: CreateTransactionInput) {
     // PaymentBlockedError which the caller surfaces as a "update your card"
     // UX message. Existing files keep running regardless — block is strictly
     // on NEW file creation. See lib/billing/payment-block.ts.
-    await assertCanCreateFile(input.agencyId, tx);
+    // Demo showcase files bypass the payment block and the trial anchor: they
+    // must never set Agency.firstSubmissionAt (that clock belongs to the first
+    // REAL sale) and are never billed on exchange.
+    if (!input.isDemo) {
+      await assertCanCreateFile(input.agencyId, tx);
+    }
 
     // Stamp the frozen-trial state. If this is the agency's first-ever
     // PropertyTransaction, Agency.firstSubmissionAt is set inside this same
     // tx; the returned boolean is persisted on the new row and NEVER
     // recomputed. Atomic with the create below to avoid two parallel
-    // first-time creates both claiming to be the anchor file.
-    const freeOnExchange = await stampTrialState(input.agencyId, tx);
+    // first-time creates both claiming to be the anchor file. Demo files skip
+    // this entirely (freeOnExchange is moot — a demo never reaches exchange).
+    const freeOnExchange = input.isDemo ? true : await stampTrialState(input.agencyId, tx);
 
     const created = await tx.propertyTransaction.create({
     data: {
@@ -905,6 +916,8 @@ export async function createTransaction(input: CreateTransactionInput) {
       tenure: input.tenure ?? null,
       isShareOfFreehold: input.isShareOfFreehold ?? false,
       isMigrated: input.isMigrated ?? false,
+      isDemo: input.isDemo ?? false,
+      demoExpiresAt: input.isDemo ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
       purchaseType: input.purchaseType ?? null,
       notes: input.notes ?? null,
       vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,
