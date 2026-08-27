@@ -8,6 +8,7 @@ import { markChaseOpened, recipientForSide } from "@/lib/enquiries/chase-log";
 import { SolicitorRespond } from "./SolicitorRespond";
 import { SolicitorEnquiries } from "./SolicitorEnquiries";
 import { SolicitorRaisePanel } from "./SolicitorRaisePanel";
+import { S } from "./ui";
 
 export const dynamic = "force-dynamic";
 
@@ -137,17 +138,23 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
 
   return (
     <Shell>
-      <Letterhead brand={brand} />
-      <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "28px 26px 8px" }}>
-        <p style={{ margin: "0 0 12px", fontSize: 15, color: "#0f2740", fontWeight: 600 }}>
-          {hasAnything ? "Where do things stand?" : "Thank you"}
-        </p>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#33475b" }}>
+      <Header brand={brand} />
+
+      <Card>
+        <h1 style={{ margin: "0 0 8px", fontSize: 19, fontWeight: 700, color: S.ink, letterSpacing: "-0.01em" }}>
+          {hasAnything ? "Where do things stand?" : `Thank you, ${firmName ?? "and all the best"}`}
+        </h1>
+        <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: S.inkSoft }}>
           {hasAnything
-            ? `I'm looking after ${sellerNames || "our client"} and overseeing the progression on this sale. You can confirm where things stand, give an expected date, or leave a short update below. It takes about a minute and needs no password.`
-            : "There is nothing outstanding on this matter from your side right now. Thank you for your help keeping things moving."}
+            ? `I'm looking after ${sellerNames || "our client"} and keeping this sale moving. Confirm where things stand, add an expected date, or leave a short note below. It takes about a minute, with no login.`
+            : "There's nothing outstanding from your side right now. Thank you for helping keep things moving."}
         </p>
-      </div>
+        {hasAnything && (
+          <p style={{ margin: "12px 0 0", fontSize: 13, lineHeight: 1.55, color: S.muted }}>
+            A quick update here keeps the buyer and seller informed on our side, so you hear from us less.
+          </p>
+        )}
+      </Card>
 
       <MatterDetails
         address={tx.propertyAddress}
@@ -161,7 +168,8 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
       <ProgressStrip stages={displayStages} />
 
       {steps.length > 0 && (
-        <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "8px 26px 4px" }}>
+        <div>
+          <SectionHeading>What&rsquo;s due from you</SectionHeading>
           <SolicitorRespond token={token} steps={steps} />
         </div>
       )}
@@ -182,21 +190,61 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
   );
 }
 
-// ─── Presentational pieces (server-rendered, inline-styled to match the email) ─
+// ─── Presentational pieces — the solicitor-portal skin (see ./ui.ts) ─────────
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#eef1f5", padding: "28px 16px", fontFamily: "-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" }}>
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>{children}</div>
+    <div
+      style={{
+        minHeight: "100svh",
+        background: `linear-gradient(180deg, ${S.bgTop} 0%, ${S.bgBottom} 34%)`,
+        padding: "22px 16px 56px",
+        fontFamily: "-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: 620, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
     </div>
   );
 }
 
-function Letterhead({ brand }: { brand: string }) {
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ background: "#0f2740", borderRadius: "10px 10px 0 0", padding: "22px 26px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span style={{ fontSize: 16, fontWeight: 600, color: "#ffffff", letterSpacing: ".2px" }}>{brand}</span>
-      <span style={{ fontSize: 11, color: "#9fb3c8", textTransform: "uppercase", letterSpacing: "1.2px" }}>Sale progression</span>
+    <div
+      style={{
+        background: S.card,
+        border: `1px solid ${S.cardBorder}`,
+        borderRadius: 16,
+        boxShadow: S.cardShadow,
+        padding: "20px 22px",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 style={{ margin: "4px 4px 10px", fontSize: 15, fontWeight: 700, color: S.ink }}>{children}</h2>
+  );
+}
+
+function Header({ brand }: { brand: string }) {
+  return (
+    <div
+      style={{
+        background: S.primary,
+        borderRadius: 16,
+        padding: "20px 22px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        boxShadow: S.cardShadow,
+      }}
+    >
+      <span style={{ fontSize: 17, fontWeight: 700, color: "#ffffff", letterSpacing: ".2px" }}>{brand}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 600, color: "#9fb3c8", textTransform: "uppercase", letterSpacing: "1.4px" }}>Sale progression</span>
     </div>
   );
 }
@@ -205,23 +253,21 @@ function MatterDetails({ address, price, seller, buyer, firmName, actingFor }: {
   address: string; price: string | null; seller: string; buyer: string; firmName: string | null; actingFor: string;
 }) {
   const Row = ({ label, value }: { label: string; value: string }) => (
-    <div style={{ display: "flex", padding: "3px 0", fontSize: 13, lineHeight: 1.5 }}>
-      <span style={{ color: "#6b7c93", width: 150, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: "#0f2740" }}>{value}</span>
+    <div style={{ display: "flex", gap: 16, padding: "6px 0", fontSize: 13.5, lineHeight: 1.5, alignItems: "baseline" }}>
+      <span style={{ color: S.muted, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: S.ink, fontWeight: 600, marginLeft: "auto", textAlign: "right" }}>{value}</span>
     </div>
   );
   return (
-    <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "12px 26px 4px" }}>
-      <div style={{ background: "#f6f8fb", border: "1px solid #e3e9f0", borderRadius: 8, padding: "16px 18px" }}>
-        <p style={{ margin: "0 0 12px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "#6b7c93" }}>Matter details</p>
-        <Row label="Property" value={address} />
-        {price && <Row label="Sale price" value={price} />}
-        {seller && <Row label="Seller" value={seller} />}
-        {buyer && <Row label="Buyer" value={buyer} />}
-        {firmName && <Row label="Your firm" value={firmName} />}
-        <Row label="You are acting for" value={actingFor} />
-      </div>
-    </div>
+    <Card style={{ padding: "18px 22px" }}>
+      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: S.muted }}>Matter details</p>
+      <Row label="Property" value={address} />
+      {price && <Row label="Sale price" value={price} />}
+      {seller && <Row label="Seller" value={seller} />}
+      {buyer && <Row label="Buyer" value={buyer} />}
+      {firmName && <Row label="Your firm" value={firmName} />}
+      <Row label="You are acting for" value={actingFor} />
+    </Card>
   );
 }
 
@@ -233,27 +279,25 @@ function fmtShort(d: Date): string {
 // sides. Scrolls horizontally on narrow screens.
 function ProgressStrip({ stages }: { stages: ResolvedStage[] }) {
   return (
-    <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "12px 26px 4px" }}>
-      <div style={{ background: "#f6f8fb", border: "1px solid #e3e9f0", borderRadius: 8, padding: "16px 14px 14px" }}>
-        <p style={{ margin: "0 0 14px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "#6b7c93" }}>
-          Where the sale is up to
-        </p>
-        <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
-          {stages.map((s, i) => (
-            <StageNode key={s.key} stage={s} index={i + 1} />
-          ))}
-        </div>
+    <Card style={{ padding: "18px 18px 16px" }}>
+      <p style={{ margin: "0 0 16px 2px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: S.muted }}>
+        Where the sale is up to
+      </p>
+      <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+        {stages.map((s, i) => (
+          <StageNode key={s.key} stage={s} index={i + 1} />
+        ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
 function StageNode({ stage, index }: { stage: ResolvedStage; index: number }) {
   const st = stage.status;
   const circle: React.CSSProperties = {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -261,14 +305,14 @@ function StageNode({ stage, index }: { stage: ResolvedStage; index: number }) {
     fontWeight: 700,
     margin: "0 auto",
     ...(st === "complete"
-      ? { background: "#0f2740", color: "#ffffff" }
+      ? { background: S.primary, color: "#ffffff" }
       : st === "in_progress"
-        ? { background: "#ffffff", border: "2px solid #0f2740", color: "#0f2740" }
+        ? { background: S.accentTint, border: `2px solid ${S.accent}`, color: S.accent }
         : st === "up_next"
-          ? { background: "#ffffff", border: "2px solid #cdd8e6", color: "#33475b" }
+          ? { background: "#ffffff", border: "2px solid #cbd6e4", color: S.inkSoft }
           : st === "skipped"
-            ? { background: "#eef3f8", color: "#9fb0c4" }
-            : { background: "#ffffff", border: "1px solid #dfe5ec", color: "#9fb0c4" }),
+            ? { background: "#eef2f8", color: "#9fb0c4" }
+            : { background: "#ffffff", border: "1px solid #e2e9f2", color: "#9fb0c4" }),
   };
   const sub =
     st === "complete"
@@ -280,16 +324,16 @@ function StageNode({ stage, index }: { stage: ResolvedStage; index: number }) {
           : st === "skipped"
             ? "Skipped"
             : stage.forecastDate ? `~ ${fmtShort(stage.forecastDate)}` : "To do";
-  const subColor = st === "in_progress" || st === "up_next" ? "#0f2740" : "#8493a8";
+  const subColor = st === "in_progress" ? S.accent : st === "up_next" ? S.ink : S.faint;
   return (
-    <div style={{ flex: "1 0 74px", minWidth: 74, textAlign: "center" }}>
+    <div style={{ flex: "1 0 76px", minWidth: 76, textAlign: "center" }}>
       <div style={circle}>{st === "complete" ? "✓" : st === "skipped" ? "–" : index}</div>
       <p
         style={{
-          margin: "8px 0 0",
+          margin: "9px 0 0",
           fontSize: 11,
           fontWeight: 600,
-          color: st === "skipped" ? "#9fb0c4" : "#0f2740",
+          color: st === "skipped" ? "#9fb0c4" : S.ink,
           lineHeight: 1.3,
           textDecoration: st === "skipped" ? "line-through" : "none",
           whiteSpace: "nowrap",
@@ -308,21 +352,19 @@ function StageNode({ stage, index }: { stage: ResolvedStage; index: number }) {
 
 function Footer({ brand }: { brand: string }) {
   return (
-    <div style={{ background: "#f6f8fb", border: "1px solid #dfe5ec", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "18px 26px" }}>
-      <p style={{ margin: 0, fontSize: 11, lineHeight: 1.6, color: "#8493a8" }}>
-        Sent by {brand} in relation to the matter above. If you&rsquo;re not the right person for this file, just reply to the email and let me know.
-      </p>
-    </div>
+    <p style={{ margin: "8px 4px 0", fontSize: 11.5, lineHeight: 1.6, color: S.faint, textAlign: "center" }}>
+      Sent by {brand} in relation to the matter above. If you&rsquo;re not the right person for this file, just reply to the email and let us know.
+    </p>
   );
 }
 
 function InvalidNotice() {
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #dfe5ec", borderRadius: 10, padding: "40px 28px", textAlign: "center" }}>
-      <p style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600, color: "#0f2740" }}>This link is not valid</p>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#6b7c93" }}>
-        The link may have expired or been mistyped. Please reply to the email you received and I&rsquo;ll send a fresh one.
+    <Card style={{ padding: "40px 28px", textAlign: "center" }}>
+      <p style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: S.ink }}>This link is not valid</p>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: S.muted }}>
+        The link may have expired or been mistyped. Please reply to the email you received and we&rsquo;ll send a fresh one.
       </p>
-    </div>
+    </Card>
   );
 }
