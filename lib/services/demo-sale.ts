@@ -34,6 +34,9 @@ export const DEMO_PRESET = {
   purchaser: { name: "Daniel Okafor", email: "daniel.okafor@example.com", phone: "07700 900456" },
   vendorSolicitor: { firm: "Harpenden & Ellwood LLP", name: "Margaret Ellwood", email: "margaret.ellwood@example.com", phone: "01582 900100" },
   purchaserSolicitor: { firm: "Verulam Legal", name: "Priya Nair", email: "priya.nair@example.com", phone: "01727 900200" },
+  // Shared memorandum-of-sale document every demo points at (uploaded once per
+  // environment to demo/mos.pdf, same as the photo).
+  mos: { storagePath: "demo/mos.pdf", filename: "Memorandum of Sale - 14 Beaumont Rise.pdf", mimeType: "application/pdf", fileSize: 23650 },
 };
 
 // Backdate the file so its milestones read as real ongoing work, not a single
@@ -50,20 +53,42 @@ const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
  * Callers must guard that the agency has no real sales and no existing demo
  * (see addDemoSaleAction).
  */
+// Find-or-create the shared demo solicitor firms + handlers. Reused by every
+// demo (SolicitorFirm.name is unique), so they are singletons and are never
+// deleted when a demo is removed.
+async function ensureDemoSolicitors(): Promise<{ vFirmId: string; vSolId: string; pFirmId: string; pSolId: string }> {
+  async function ensure(firm: string, sol: { name: string; email: string; phone: string }) {
+    const firmRow = await prisma.solicitorFirm.upsert({
+      where: { name: firm },
+      update: {},
+      create: { name: firm },
+      select: { id: true },
+    });
+    let solRow = await prisma.solicitorContact.findFirst({
+      where: { firmId: firmRow.id, name: sol.name },
+      select: { id: true },
+    });
+    if (!solRow) {
+      solRow = await prisma.solicitorContact.create({
+        data: { firmId: firmRow.id, name: sol.name, email: sol.email, phone: sol.phone },
+        select: { id: true },
+      });
+    }
+    return { firmId: firmRow.id, solId: solRow.id };
+  }
+  const v = await ensure(DEMO_PRESET.vendorSolicitor.firm, DEMO_PRESET.vendorSolicitor);
+  const p = await ensure(DEMO_PRESET.purchaserSolicitor.firm, DEMO_PRESET.purchaserSolicitor);
+  return { vFirmId: v.firmId, vSolId: v.solId, pFirmId: p.firmId, pSolId: p.solId };
+}
+
 export async function createDemoSale(opts: { agencyId: string; agentUserId: string }): Promise<string> {
   const createdAt = new Date(Date.now() - DEMO_AGE_DAYS * 24 * 60 * 60 * 1000);
 
-  // Fake solicitor firms + handlers on each side.
-  const vFirm = await prisma.solicitorFirm.create({ data: { name: DEMO_PRESET.vendorSolicitor.firm }, select: { id: true } });
-  const vSol = await prisma.solicitorContact.create({
-    data: { firmId: vFirm.id, name: DEMO_PRESET.vendorSolicitor.name, email: DEMO_PRESET.vendorSolicitor.email, phone: DEMO_PRESET.vendorSolicitor.phone },
-    select: { id: true },
-  });
-  const pFirm = await prisma.solicitorFirm.create({ data: { name: DEMO_PRESET.purchaserSolicitor.firm }, select: { id: true } });
-  const pSol = await prisma.solicitorContact.create({
-    data: { firmId: pFirm.id, name: DEMO_PRESET.purchaserSolicitor.name, email: DEMO_PRESET.purchaserSolicitor.email, phone: DEMO_PRESET.purchaserSolicitor.phone },
-    select: { id: true },
-  });
+  // Solicitor firms + handlers. SolicitorFirm.name is globally unique, and
+  // multiple demos (different agencies) share the same fake firms, so these are
+  // find-or-create singletons — reused across demos and never deleted on
+  // cleanup (only the demo transaction is removed).
+  const { vFirmId, vSolId, pFirmId, pSolId } = await ensureDemoSolicitors();
 
   // The file itself, via the canonical create (round + chase snapshot + event).
   // isDemo makes it skip the trial anchor + payment block and stamp demoExpiresAt.
@@ -76,10 +101,10 @@ export async function createDemoSale(opts: { agencyId: string; agentUserId: stri
     purchasePrice: DEMO_PRESET.purchasePricePence,
     tenure: DEMO_PRESET.tenure,
     purchaseType: DEMO_PRESET.purchaseType,
-    vendorSolicitorFirmId: vFirm.id,
-    vendorSolicitorContactId: vSol.id,
-    purchaserSolicitorFirmId: pFirm.id,
-    purchaserSolicitorContactId: pSol.id,
+    vendorSolicitorFirmId: vFirmId,
+    vendorSolicitorContactId: vSolId,
+    purchaserSolicitorFirmId: pFirmId,
+    purchaserSolicitorContactId: pSolId,
     isDemo: true,
   });
 
@@ -102,6 +127,18 @@ export async function createDemoSale(opts: { agencyId: string; agentUserId: stri
       portalToken: randomBytes(20).toString("base64url"),
     },
   });
+
+  // Attach the memorandum of sale (points at the shared demo/mos.pdf object).
+  await prisma.transactionDocument.create({
+    data: {
+      transactionId: tx.id,
+      filename: DEMO_PRESET.mos.filename,
+      storagePath: DEMO_PRESET.mos.storagePath,
+      fileSize: DEMO_PRESET.mos.fileSize,
+      mimeType: DEMO_PRESET.mos.mimeType,
+      source: "mos",
+    },
+  }).catch((err) => console.error("[createDemoSale] MOS attach failed", err));
 
   // Milestones: initialise the full engine, then complete a best-practice
   // progression with completedAt spread across the file's life.
@@ -150,19 +187,16 @@ export async function createDemoSale(opts: { agencyId: string; agentUserId: stri
 export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ removed: number }> {
   const expired = await prisma.propertyTransaction.findMany({
     where: { isDemo: true, demoExpiresAt: { not: null, lte: now } },
-    select: { id: true, vendorSolicitorFirmId: true, purchaserSolicitorFirmId: true },
+    select: { id: true },
   });
 
   let removed = 0;
   for (const tx of expired) {
     try {
+      // Only the transaction (cascades its rounds / milestones / contacts). The
+      // shared demo solicitor firms are singletons and are left in place.
       await prisma.propertyTransaction.delete({ where: { id: tx.id } });
       removed++;
-      // Best-effort: the fake solicitor firms were created for this demo only,
-      // so remove them too (cascades their contacts). Swallow any FK surprise.
-      for (const firmId of [tx.vendorSolicitorFirmId, tx.purchaserSolicitorFirmId]) {
-        if (firmId) await prisma.solicitorFirm.delete({ where: { id: firmId } }).catch(() => {});
-      }
     } catch (err) {
       console.error(`[cleanupExpiredDemos] failed to remove demo ${tx.id}`, err);
     }
@@ -178,12 +212,10 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
 export async function removeDemoSale(transactionId: string, agencyId: string): Promise<boolean> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId, agencyId, isDemo: true },
-    select: { id: true, vendorSolicitorFirmId: true, purchaserSolicitorFirmId: true },
+    select: { id: true },
   });
   if (!tx) return false;
+  // Shared demo solicitor firms are singletons — leave them; remove only the file.
   await prisma.propertyTransaction.delete({ where: { id: tx.id } });
-  for (const firmId of [tx.vendorSolicitorFirmId, tx.purchaserSolicitorFirmId]) {
-    if (firmId) await prisma.solicitorFirm.delete({ where: { id: firmId } }).catch(() => {});
-  }
   return true;
 }

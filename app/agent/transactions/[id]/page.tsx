@@ -39,6 +39,7 @@ import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
+import { DemoFileBanner } from "@/components/transaction/DemoFileBanner";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
@@ -429,6 +430,12 @@ export default async function AgentTransactionDetailPage({
       <ClaimWelcomeAsync address={transaction.propertyAddress} transactionId={transaction.id} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <OnHoldBanner show={transaction.status === "on_hold"} />
+      {transaction.isDemo && (
+        <DemoFileBanner
+          transactionId={transaction.id}
+          expiresAtIso={transaction.demoExpiresAt ? transaction.demoExpiresAt.toISOString() : null}
+        />
+      )}
       {showExchangeOverdueBanner && (
         <ReviseExchangeBanner
           transactionId={transaction.id}

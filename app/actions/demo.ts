@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { createDemoSale } from "@/lib/services/demo-sale";
+import { createDemoSale, removeDemoSale } from "@/lib/services/demo-sale";
 
 // Stand up the demo showcase file for the caller's agency, then open it.
 // Guarded to agency users with no real sales and no existing demo (one demo at
@@ -26,4 +26,18 @@ export async function addDemoSaleAction() {
   revalidatePath("/agent/hub");
   revalidatePath("/agent/transactions");
   redirect(`/agent/transactions/${txId}`);
+}
+
+// Remove a demo file on request (the "Remove now" button on the demo banner).
+// Guards demo + agency ownership inside removeDemoSale; a no-op if the file
+// isn't a demo or isn't theirs. Returns them to the hub.
+export async function removeDemoSaleAction(transactionId: string) {
+  const session = await requireSession();
+  const agencyId = session.user.agencyId;
+  if (!agencyId) throw new Error("Not permitted");
+
+  await removeDemoSale(transactionId, agencyId);
+  revalidatePath("/agent/hub");
+  revalidatePath("/agent/transactions");
+  redirect("/agent/hub");
 }
