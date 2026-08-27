@@ -40,6 +40,14 @@ model Agency {
   // regardless of this flag.
   weeklyClientUpdatesEnabled Boolean @default(true)
 
+  // Cross-chain nicety: when this agency's seller confirms a step on their
+  // onward-purchase tracker, email the agent handling that onward purchase (a
+  // neighbour we've already INVITED, never a cold contact) a polite "we've been
+  // informed" note with a small Sales Progressor nudge. OFF by default — this
+  // is outbound to a non-customer, so a director opts in via settings.
+  // See docs/active/three-notes-distilled-2026-08-27.md (Note A).
+  chainNeighbourUpdatesEnabled Boolean @default(false)
+
   // The agency's own logo, shown in client-facing emails. Path in the public
   // agency-logos bucket (`{agencyId}.png`); full public URL via getAgencyLogoUrl.
   logoPath String?
@@ -1783,11 +1791,35 @@ model ChainLink {
   lastInviteSentBy       User?                    @relation("ChainLinkLastInviteSentBy", fields: [lastInviteSentByUserId], references: [id])
   triggeredNotifications ChainNotificationQueue[] @relation("CascadeTrigger")
   receivedNotifications  ChainNotificationQueue[] @relation("CascadeRecipient")
+  neighbourUpdates       ChainNeighbourUpdate[]
 
   @@unique([chainId, position])
   @@index([transactionId])
   @@index([claimedByUserId])
   @@index([stubAgentEmail])
+}
+
+// ─── ChainNeighbourUpdate ─────────────────────────────────────────────────────
+// Note A (docs/active/three-notes-distilled-2026-08-27.md). When a seller
+// confirms a step on their onward-purchase tracker, we queue a polite update to
+// the agent handling that onward purchase (the INVITED stub link above). Its own
+// tiny queue (not OutboundEmailQueue, which only accepts a User/Contact
+// recipient) so several confirmations in a short window drain into ONE concise
+// digest. Sent only if the seller's agency opted in, the neighbour was invited
+// (not cold), has an email, and hasn't unsubscribed.
+model ChainNeighbourUpdate {
+  id            String    @id @default(cuid())
+  chainLinkId   String // the invited stub link above = the recipient onward agent
+  transactionId String // the seller's own sale file (branding + context)
+  milestoneCode String // the onward purchaser-side step reported complete
+  scheduledFor  DateTime // batching window; the drain sends on/after this
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([chainLinkId, milestoneCode]) // dedup: one update per step per neighbour
+  @@index([sentAt, scheduledFor])
 }
 
 // ─── ChainNotificationQueue ───────────────────────────────────────────────────
