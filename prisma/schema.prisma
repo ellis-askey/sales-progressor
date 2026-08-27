@@ -29,6 +29,15 @@ model Agency {
   // toggle via /agent/settings/automation.
   chaseEmailsEnabled Boolean @default(true)
 
+  // Per-agency master switches for the three solicitor/enquiries chase streams.
+  // Default false so a NEW agency never auto-chases until it's switched on in the
+  // Command Centre. Existing agencies are migrated to true (preserving the prior
+  // global-on behaviour). Read per-file by the chase engines; the global
+  // SolicitorChaseSettings.enabledByDefault stays as the top-level kill switch.
+  solicitorChaseEnabled    Boolean @default(false)
+  enquiryReplyChaseEnabled Boolean @default(false)
+  enquiryRaiseChaseEnabled Boolean @default(false)
+
   // Verified sender address for outbound surveyor quote requests on this
   // agency's files (e.g. ellis@akeman-residential.co.uk). Null → the quote is
   // sent from the Sales Progressor fallback (ellis@thesalesprogressor.co.uk).
@@ -2924,7 +2933,10 @@ model SolicitorChaseState {
 // has cadence values to fall back on).
 model SolicitorChaseSettings {
   id               String   @id @default("singleton")
-  enabledByDefault Boolean  @default(true)
+  // Global master kill switch. Default false so a recreated/reseeded singleton
+  // can never silently arm chasing for every agency (per-agency switches live on
+  // Agency). The live row stays true; new rows land off.
+  enabledByDefault Boolean  @default(false)
   graceWorkingDays Int      @default(5)
   repeatDays       Int      @default(7)
   maxChases        Int      @default(2)

@@ -85,7 +85,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     // email its solicitors or escalate to its owner. (The tracker is also
     // closed/snoozed on status change — see the status-change handler — but
     // this filter is the belt-and-braces guard the chase itself owns.)
-    where: { closedAt: null, transaction: { is: { status: "active" } } },
+    where: { closedAt: null, transaction: { is: { status: "active", agency: { is: { enquiryReplyChaseEnabled: true } } } } },
     select: {
       id: true,
       currentlyWith: true,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getUsageOverview, type AgentUsage, type AgencyUsage, type UsageStatus } from "@/lib/command/usage";
 import { commandDb } from "@/lib/command/prisma";
 import { AgencyFeeManager, type AgencyFeeRow } from "@/components/command/agencies/AgencyFeeManager";
+import { AgencyChaseControl, type AgencyChaseRow } from "@/components/command/agencies/AgencyChaseControl";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "—";
@@ -92,8 +93,22 @@ export default async function AgenciesPage({
       feeTier: true,
       legacyOutsourcedFeePence: true,
       stripeCustomerId: true,
+      solicitorChaseEnabled: true,
+      enquiryReplyChaseEnabled: true,
+      enquiryRaiseChaseEnabled: true,
       _count: { select: { transactions: true } },
     },
+  });
+  const chaseRows: AgencyChaseRow[] = feeAgencies.map((a) => ({
+    id: a.id,
+    name: a.name,
+    solicitorChaseEnabled: a.solicitorChaseEnabled,
+    enquiryReplyChaseEnabled: a.enquiryReplyChaseEnabled,
+    enquiryRaiseChaseEnabled: a.enquiryRaiseChaseEnabled,
+  }));
+  const chaseSettings = await commandDb.solicitorChaseSettings.findUnique({
+    where: { id: "singleton" },
+    select: { enabledByDefault: true },
   });
   const feeRows: AgencyFeeRow[] = feeAgencies.map((a) => ({
     id: a.id,
@@ -231,6 +246,11 @@ export default async function AgenciesPage({
       {/* Agency fees (relocated from /agent/admin) */}
       <div className="pt-2">
         <AgencyFeeManager agencies={feeRows} legacyCount={legacyFeeCount} totalCount={feeRows.length} />
+      </div>
+
+      {/* Per-agency chase control */}
+      <div className="pt-2">
+        <AgencyChaseControl agencies={chaseRows} globalMasterOn={chaseSettings?.enabledByDefault ?? false} />
       </div>
     </div>
   );

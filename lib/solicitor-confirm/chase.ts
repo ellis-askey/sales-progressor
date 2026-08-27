@@ -196,6 +196,10 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
   const txs = await prisma.propertyTransaction.findMany({
     where: {
       status: "active",
+      // Per-agency gate: only chase files whose owning agency has solicitor
+      // chasing switched on (Command Centre). The global master switch above
+      // still applies on top.
+      agency: { is: { solicitorChaseEnabled: true } },
       OR: [
         { vendorSolicitorContactId: { not: null } },
         { purchaserSolicitorContactId: { not: null } },
