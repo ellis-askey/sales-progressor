@@ -62,6 +62,8 @@ Everything below already exists and is cloneable (file refs in §3):
 
 ## 5. Data-sharing decisions (THE GATE — confirm before building A & B)
 
+**DECISIONS LOCKED (2026-08-28):** A2 (buyer states only, no dates) · B2 (chain shape + rolled-up % + address, no status words) · C keep · D remove bell. Greeting = solicitor contact's first name, same treatment as the client portal. Hero image supplied → `public/solicitor-hero.png`. Confirm wording is **per-step contextual** ("Mark as received" for a document; each step gets wording that fits its question).
+
 The investigation surfaced a sharp line: **most of the mock is shared sale facts, but two cards would newly expose the buyer's private progress.** We build the shell, hero, progress overview and open-updates freely; the two below wait for your call.
 
 ### Decision A — the "Other Side (Buyer)" card
