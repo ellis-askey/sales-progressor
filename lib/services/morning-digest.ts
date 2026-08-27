@@ -4,6 +4,7 @@ import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
 import { pushExchangeApproaching, pushMortgageOfferExpiring } from "@/lib/agent/push-events";
+import { possessiveClientLabel } from "@/lib/updates-copy";
 
 type DigestFile = {
   id: string;
@@ -277,7 +278,12 @@ export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number
       side: true,
       mortgageOfferExpiry: true,
       onwardMortgageOfferExpiry: true,
-      transaction: { select: { id: true, propertyAddress: true, assignedUserId: true, agentUserId: true } },
+      transaction: {
+        select: {
+          id: true, propertyAddress: true, assignedUserId: true, agentUserId: true,
+          contacts: { select: { name: true, roleType: true } },
+        },
+      },
     },
   });
 
@@ -287,7 +293,9 @@ export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number
     if (!ownerId) continue;
 
     // The buyer's own offer lives on the purchaser row; the seller's onward
-    // offer on the vendor row. Emit whichever this row carries.
+    // offer on the vendor row. Emit whichever this row carries. The client
+    // label names the people whose offer it is (buyer for their own, seller for
+    // an onward), so the alert reads "Ben and Molly's" not "the buyer's".
     const offers: { side: "buyer" | "seller_onward"; date: Date }[] = [];
     if (row.side === "purchaser" && row.mortgageOfferExpiry) offers.push({ side: "buyer", date: row.mortgageOfferExpiry });
     if (row.side === "vendor" && row.onwardMortgageOfferExpiry) offers.push({ side: "seller_onward", date: row.onwardMortgageOfferExpiry });
@@ -296,6 +304,10 @@ export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number
       const daysUntil = Math.round((new Date(offer.date).setUTCHours(0, 0, 0, 0) - todayMs) / 86400000);
       const stage = mortgageExpiryStage(daysUntil);
       if (!stage) continue;
+
+      const contactRole = offer.side === "buyer" ? "purchaser" : "vendor";
+      const names = row.transaction.contacts.filter((c) => c.roleType === contactRole).map((c) => c.name);
+      const clientLabel = possessiveClientLabel(names, offer.side === "buyer" ? "The buyer's" : "The seller's");
 
       const dateKey = offer.date.toISOString().slice(0, 10);
       const dedupeKey = `${offer.side}:${dateKey}:${stage}`;
@@ -315,10 +327,10 @@ export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number
           userId: ownerId,
           type: "mortgage_offer_expiring",
           transactionId: row.transaction.id,
-          payload: { dedupeKey, dateKey, stage, side: offer.side, daysUntil, propertyAddress: row.transaction.propertyAddress },
+          payload: { dedupeKey, dateKey, stage, side: offer.side, daysUntil, clientLabel, propertyAddress: row.transaction.propertyAddress },
         },
       });
-      pushMortgageOfferExpiring(row.transaction.id, offer.side, daysUntil).catch(() => {});
+      pushMortgageOfferExpiring(row.transaction.id, offer.side, daysUntil, clientLabel).catch(() => {});
       fired++;
     }
   }

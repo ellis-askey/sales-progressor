@@ -14,6 +14,23 @@
 // Reviewed + approved by Ellis 2026-08-12.
 
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
+import { extractFirstName } from "@/lib/contacts/displayName";
+
+// Possessive client label from a side's contact names, first-names only, so a
+// notification reads with the real people rather than "the buyer". Handles one
+// or several: []→fallback, [Ben]→"Ben's", [Ben,Molly]→"Ben and Molly's",
+// [A,B,C]→"A, B and C's". `fallback` is already possessive (e.g. "The buyer's").
+export function possessiveClientLabel(names: string[], fallback: string): string {
+  const firsts = names.map((n) => extractFirstName(n).trim()).filter(Boolean);
+  if (firsts.length === 0) return fallback;
+  const joined =
+    firsts.length === 1
+      ? firsts[0]
+      : firsts.length === 2
+        ? `${firsts[0]} and ${firsts[1]}`
+        : `${firsts.slice(0, -1).join(", ")} and ${firsts[firsts.length - 1]}`;
+  return `${joined}'s`;
+}
 
 // The possessive core per code. VM19/PM26 (exchange) are non-possessive and
 // live in GENERAL below.
@@ -391,14 +408,18 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
     return `${name} paused their chase reminders until ${date}.`;
   }
   if (type === "mortgage_offer_expiring") {
-    const side = String(payload.side ?? "buyer");
-    const whose = side === "seller_onward" ? "seller's onward mortgage offer" : "buyer's mortgage offer";
+    const isOnward = payload.side === "seller_onward";
+    const poss = String(payload.clientLabel ?? (isOnward ? "The seller's" : "The buyer's"));
+    const onward = isOnward ? " onward" : "";
     if (String(payload.stage) === "expired") {
-      return `The ${whose} has now expired. Check the client has a fresh offer in hand.`;
+      return `${poss}${onward} mortgage offer has expired. Check whether a new offer or extension is in place.`;
     }
     const days = Number(payload.daysUntil ?? 0);
-    const when = days <= 1 ? "tomorrow" : `in ${days} days`;
-    return `The ${whose} expires ${when}. Make sure a renewal is in motion.`;
+    const when = days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+    const tail = isOnward
+      ? "Check whether an extension will be needed."
+      : "Check whether an extension is being arranged.";
+    return `${poss}${onward} mortgage offer expires ${when}. ${tail}`;
   }
   // enquiries_stalled + solicitor_update carry a ready-made `message`;
   // portal_chain_agent_updated + others carry a pre-rendered body/title.

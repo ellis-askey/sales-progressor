@@ -495,6 +495,7 @@ async function MortgageExpirySlot({ vis }: { vis: AgentVisibility }) {
         transactionId: i.transactionId,
         propertyAddress: i.propertyAddress,
         side: i.side,
+        clientLabel: i.clientLabel,
         expiryDate: i.expiryDate.toISOString(),
       }))}
     />

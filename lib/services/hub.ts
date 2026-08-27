@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
+import { possessiveClientLabel } from "@/lib/updates-copy";
 import { classifyReminder } from "@/lib/reminders/classify";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
@@ -458,6 +459,9 @@ export type MortgageExpiryItem = {
   // "buyer" = the buyer's own mortgage offer on this purchase; "seller_onward"
   // = the seller's offer on the property they're buying onward.
   side: "buyer" | "seller_onward";
+  // Possessive client label ("Ben and Molly's"), so the card names the people
+  // rather than "Buyer's offer".
+  clientLabel: string;
   expiryDate: Date;
   photoStoragePath: string | null;
 };
@@ -489,18 +493,25 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility): Promise
       side: true,
       mortgageOfferExpiry: true,
       onwardMortgageOfferExpiry: true,
-      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
+      transaction: {
+        select: {
+          id: true, propertyAddress: true, photoStoragePath: true,
+          contacts: { select: { name: true, roleType: true } },
+        },
+      },
     },
   });
 
   const items: MortgageExpiryItem[] = [];
   for (const r of rows) {
     const inWindow = (d: Date | null): d is Date => d != null && d >= floor && d <= horizon;
+    const label = (role: "purchaser" | "vendor", fallback: string) =>
+      possessiveClientLabel(r.transaction.contacts.filter((c) => c.roleType === role).map((c) => c.name), fallback);
     if (r.side === "purchaser" && inWindow(r.mortgageOfferExpiry)) {
-      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "buyer", expiryDate: r.mortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
+      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "buyer", clientLabel: label("purchaser", "The buyer's"), expiryDate: r.mortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
     }
     if (r.side === "vendor" && inWindow(r.onwardMortgageOfferExpiry)) {
-      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "seller_onward", expiryDate: r.onwardMortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
+      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "seller_onward", clientLabel: label("vendor", "The seller's"), expiryDate: r.onwardMortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
     }
   }
   items.sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());

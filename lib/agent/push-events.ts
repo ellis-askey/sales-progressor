@@ -142,18 +142,28 @@ export async function pushMortgageOfferExpiring(
   transactionId: string,
   side: "buyer" | "seller_onward",
   daysUntil: number,
+  // Possessive client label, e.g. "Ben and Molly's". Falls back to a generic
+  // label when we don't have contact names.
+  clientLabel?: string,
 ): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: { propertyAddress: true },
   });
   if (!tx) return;
-  const whose = side === "seller_onward" ? "Seller's onward mortgage offer" : "Buyer's mortgage offer";
+  const onward = side === "seller_onward" ? " onward" : "";
+  const whose = clientLabel
+    ? `${clientLabel}${onward} offer`
+    : side === "seller_onward"
+      ? "Seller's onward mortgage offer"
+      : "Buyer's mortgage offer";
   const title = daysUntil < 0
-    ? `${whose}: expired`
-    : daysUntil <= 1
-      ? `${whose}: expires tomorrow`
-      : `${whose}: ${daysUntil} days left`;
+    ? `${whose} expired`
+    : daysUntil <= 0
+      ? `${whose} expires today`
+      : daysUntil === 1
+        ? `${whose} expires tomorrow`
+        : `${whose} expires in ${daysUntil} days`;
   await pushToFileOwner({
     transactionId,
     key: "mortgageOfferExpiring",

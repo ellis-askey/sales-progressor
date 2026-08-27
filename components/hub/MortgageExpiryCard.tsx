@@ -20,6 +20,8 @@ export type MortgageExpiryCardItem = {
   transactionId: string;
   propertyAddress: string;
   side: "buyer" | "seller_onward";
+  // Possessive client label ("Ben and Molly's"), or a generic fallback.
+  clientLabel: string;
   // ISO date string (serialised from the server Date).
   expiryDate: string;
 };
@@ -105,7 +107,7 @@ export function MortgageExpiryCard({ items }: { items: MortgageExpiryCardItem[] 
           {items.map((item) => {
             const days = daysUntil(item.expiryDate);
             const t = tone(days);
-            const whose = item.side === "seller_onward" ? "Seller's onward offer" : "Buyer's offer";
+            const whose = `${item.clientLabel} ${item.side === "seller_onward" ? "onward offer" : "offer"}`;
             const dateStr = new Date(item.expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
             return (
               <div key={`${item.transactionId}-${item.side}`} style={{
