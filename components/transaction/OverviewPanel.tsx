@@ -255,6 +255,35 @@ export async function OverviewPanel({
     progress.fileLevelPhase = detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase;
   }
 
+  // ── "Running late" slip warning (C1) ───────────────────────────────────
+  // Fire only when the system predicts exchange more than two weeks past the
+  // 12-week target, the estimate is trustworthy (past the onboarding phase),
+  // and the file is still live (not on hold, not already exchanged/completed).
+  // Name the current blocker: the earliest incomplete exchange-gating step that
+  // is unlocked (waiting on someone), else the earliest incomplete one.
+  const isExchangedOrDone = completedMilestoneCodes.some(
+    (c) => c === "VM19" || c === "PM26" || c === "VM20" || c === "PM27",
+  );
+  const slipDays = progress.predictedExchangeDate && progress.twelveWeekTarget
+    ? Math.round((new Date(progress.predictedExchangeDate).getTime() - new Date(progress.twelveWeekTarget).getTime()) / 86400000)
+    : 0;
+  const isSlipping =
+    !progress.isEarlyEstimate && slipDays > 14 && transaction.status !== "on_hold" && !isExchangedOrDone;
+  const slipBlocker = isSlipping
+    ? (() => {
+        const blockers = allMilestones
+          .filter((m) => !m.isComplete && !m.isNotRequired && m.blocksExchange)
+          .sort((a, b) => a.orderIndex - b.orderIndex);
+        return blockers.find((m) => m.isAvailable) ?? blockers[0] ?? null;
+      })()
+    : null;
+  const slip = isSlipping && progress.predictedExchangeDate
+    ? {
+        predictedDateLabel: progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+        bottleneckName: slipBlocker?.name ?? null,
+      }
+    : null;
+
   // ── Reminder summaries ─────────────────────────────────────────────────
   const now = new Date();
   const todayUKStr = toUKDateStr(now);
@@ -341,7 +370,7 @@ export async function OverviewPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
+      <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} slip={slip} />
 
       {/* People: Clients (contacts) + Professionals (solicitors) in one card
           with a header toggle, so the solicitor is one tap away. */}

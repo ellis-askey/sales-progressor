@@ -14,6 +14,9 @@ type Props = {
   // pick between "X overdue" copy and "X need attention" copy.
   overdueCount: number;
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
+  // Set when the file is predicted to exchange more than two weeks past target.
+  // Names the current blocker so the banner can say why, not just that.
+  slip?: { predictedDateLabel: string; bottleneckName: string | null } | null;
 };
 
 // Local-time YYYY-MM-DD, so "a new day" respects the agent's timezone rather
@@ -22,7 +25,7 @@ function todayKey(): string {
   return new Date().toLocaleDateString("en-CA");
 }
 
-export function FileHealthBanner({ transactionId, actionableCount, overdueCount, onTrack }: Props) {
+export function FileHealthBanner({ transactionId, actionableCount, overdueCount, onTrack, slip }: Props) {
   const { setActiveTab } = useTabContext();
 
   // Count-aware dismissal. The X hides the banner for the rest of the day, but
@@ -55,10 +58,31 @@ export function FileHealthBanner({ transactionId, actionableCount, overdueCount,
   // already says everything is frozen, and the at_risk/off_track signal is
   // not meaningful when time isn't ticking.
   if (onTrack === "on_hold") return null;
+  if (dismissed) return null;
+
+  // The slip warning takes precedence: it's the specific "running late" signal
+  // and it names the step holding things up, so it's more useful than the
+  // generic behind-schedule line. Present tense, framed as an estimate.
+  if (slip) {
+    return (
+      <AgentBanner
+        kind="danger"
+        icon={<Warning size={18} weight="fill" />}
+        title="Running behind on exchange"
+        body={`Our best estimate now has this exchanging around ${slip.predictedDateLabel}, more than two weeks past the target.${slip.bottleneckName ? ` The step we're waiting on is ${slip.bottleneckName}.` : ""} It's a projection, not a promise.`}
+        action={
+          actionableCount > 0
+            ? { label: "View reminders →", onClick: () => setActiveTab("reminders") }
+            : undefined
+        }
+        actionPlacement="inline-responsive"
+        dismissible={{ onDismiss: handleDismiss }}
+      />
+    );
+  }
 
   const isBehind = onTrack === "at_risk" || onTrack === "off_track";
   if (actionableCount === 0 && !isBehind) return null;
-  if (dismissed) return null;
 
   const isRed = actionableCount > 0 && isBehind;
   const kind = isRed ? "danger" : "warning";
