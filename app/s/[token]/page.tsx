@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { resolveDisplayStages, type ResolvedStage } from "@/lib/milestones/display-stages";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
@@ -40,6 +41,9 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
       propertyAddress: true,
       purchasePrice: true,
       activeBuyerRoundId: true,
+      expectedExchangeDate: true,
+      overridePredictedDate: true,
+      completionDate: true,
       agency: { select: { name: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
@@ -88,6 +92,27 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
     expectedDate: r.expectedDate ? r.expectedDate.toISOString().slice(0, 10) : null,
   }));
 
+  // Whole-sale progress at a glance (Stage 3): the six display stages across
+  // BOTH sides, read-only. Reuses the resolver the agent app + client portal
+  // use, so the solicitor sees the same honest picture everyone else does.
+  const allRows = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: tx.id, ...milestoneScopeWhere(scope) },
+    select: { state: true, completedAt: true, milestoneDefinition: { select: { code: true } } },
+  });
+  const displayStages = resolveDisplayStages(
+    allRows.map((r) => ({
+      code: r.milestoneDefinition.code,
+      isComplete: r.state === "complete",
+      isNotRequired: r.state === "not_required",
+      completion: { completedAt: r.completedAt },
+    })),
+    {
+      expectedExchangeDate: tx.expectedExchangeDate ?? null,
+      overridePredictedDate: tx.overridePredictedDate ?? null,
+      targetCompletionDate: tx.completionDate ?? null,
+    },
+  );
+
   // Enquiries loop: shown whenever the file's enquiries stage is open, separate
   // from the milestone steps above (the loop is tracked, not chased as a step).
   const enquiries = await getEnquiryTrackerView(tx.id);
@@ -132,6 +157,8 @@ export default async function SolicitorConfirmPage({ params }: PageProps) {
         firmName={firmName ?? null}
         actingFor={actingFor}
       />
+
+      <ProgressStrip stages={displayStages} />
 
       {steps.length > 0 && (
         <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "8px 26px 4px" }}>
@@ -194,6 +221,87 @@ function MatterDetails({ address, price, seller, buyer, firmName, actingFor }: {
         {firmName && <Row label="Your firm" value={firmName} />}
         <Row label="You are acting for" value={actingFor} />
       </div>
+    </div>
+  );
+}
+
+function fmtShort(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// Read-only "where the sale is up to" strip: the six display stages across both
+// sides. Scrolls horizontally on narrow screens.
+function ProgressStrip({ stages }: { stages: ResolvedStage[] }) {
+  return (
+    <div style={{ background: "#ffffff", borderLeft: "1px solid #dfe5ec", borderRight: "1px solid #dfe5ec", padding: "12px 26px 4px" }}>
+      <div style={{ background: "#f6f8fb", border: "1px solid #e3e9f0", borderRadius: 8, padding: "16px 14px 14px" }}>
+        <p style={{ margin: "0 0 14px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "#6b7c93" }}>
+          Where the sale is up to
+        </p>
+        <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+          {stages.map((s, i) => (
+            <StageNode key={s.key} stage={s} index={i + 1} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StageNode({ stage, index }: { stage: ResolvedStage; index: number }) {
+  const st = stage.status;
+  const circle: React.CSSProperties = {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: 700,
+    margin: "0 auto",
+    ...(st === "complete"
+      ? { background: "#0f2740", color: "#ffffff" }
+      : st === "in_progress"
+        ? { background: "#ffffff", border: "2px solid #0f2740", color: "#0f2740" }
+        : st === "up_next"
+          ? { background: "#ffffff", border: "2px solid #cdd8e6", color: "#33475b" }
+          : st === "skipped"
+            ? { background: "#eef3f8", color: "#9fb0c4" }
+            : { background: "#ffffff", border: "1px solid #dfe5ec", color: "#9fb0c4" }),
+  };
+  const sub =
+    st === "complete"
+      ? stage.completedAt ? fmtShort(stage.completedAt) : "Done"
+      : st === "in_progress"
+        ? "In progress"
+        : st === "up_next"
+          ? "Up next"
+          : st === "skipped"
+            ? "Skipped"
+            : stage.forecastDate ? `~ ${fmtShort(stage.forecastDate)}` : "To do";
+  const subColor = st === "in_progress" || st === "up_next" ? "#0f2740" : "#8493a8";
+  return (
+    <div style={{ flex: "1 0 74px", minWidth: 74, textAlign: "center" }}>
+      <div style={circle}>{st === "complete" ? "✓" : st === "skipped" ? "–" : index}</div>
+      <p
+        style={{
+          margin: "8px 0 0",
+          fontSize: 11,
+          fontWeight: 600,
+          color: st === "skipped" ? "#9fb0c4" : "#0f2740",
+          lineHeight: 1.3,
+          textDecoration: st === "skipped" ? "line-through" : "none",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {stage.name}
+      </p>
+      <p style={{ margin: "2px 0 0", fontSize: 10, color: subColor, fontWeight: st === "in_progress" ? 700 : 400, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+        {sub}
+      </p>
     </div>
   );
 }
