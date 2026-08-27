@@ -16,7 +16,6 @@ import { getOnwardSignalForFile } from "@/lib/services/onward";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { QuoteFlow } from "./QuoteFlow";
-import { AppBackground } from "@/components/decor/AppBackground";
 import { A } from "./ui";
 import "@/app/styles/elevra.css";
 
@@ -73,7 +72,8 @@ export default async function QuotePage({
     const sig = await getOnwardSignalForFile(contact.transaction.id);
     if (!sig.onwardAddress) {
       return (
-        <main style={{ minHeight: "100svh", padding: "24px 20px 64px" }}>
+        <main style={{ minHeight: "100svh", padding: "24px 20px 64px", background: "transparent" }}>
+          <div aria-hidden className="portal-ambient" />
           <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
               We need your onward address first
@@ -145,34 +145,17 @@ export default async function QuotePage({
         padding: "24px 20px 64px",
       }}
     >
-      {/* Ultimate fallback base, behind the WebGL backdrop, for the pre-mount
-       * first frame or a no-WebGL browser. AppBackground paints its own white
-       * base + iridescence on top of this once mounted. */}
-      <div
-        aria-hidden
-        className="fixed inset-0 -z-20"
-        style={{ background: "linear-gradient(180deg, #FBFAFF 0%, #F2EFFA 100%)" }}
-      />
-      <AppBackground />
+      {/* Same fixed ambient wash the client portal uses (.portal-ambient in
+       * globals.css), so this page and the portal read as one product. */}
+      <div aria-hidden className="portal-ambient" />
 
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        {/* Header */}
-        <header style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: A.coralDeep, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
-            Request a quote
-          </p>
-          <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
-            {extractFirstName(contact.name)}, what do you need?
-          </h1>
-          <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
-            For <strong style={{ color: A.textSecondary }}>{targetAddress}</strong>
-            {onward ? " (the property you're buying)" : ""}. We'll only pass your details to the firms you choose.
-          </p>
-        </header>
-
+        {/* The header lives inside QuoteFlow so it can react to where you are in
+         * the flow (asking vs. sent) and cross-fade between the two. */}
         <QuoteFlow
           token={token}
           propertyAddress={targetAddress}
+          firstName={extractFirstName(contact.name)}
           outwardCode={outward}
           onward={onward}
           priceLabel={onward ? null : priceLabel(contact.transaction.purchasePrice)}

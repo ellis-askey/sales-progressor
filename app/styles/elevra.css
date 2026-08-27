@@ -82,3 +82,16 @@ html.elevra-bg {
     radial-gradient(55vmax 45vmax at 92% 16%, rgba(215, 195, 255, 0.34), transparent 58%),
     #ffffff;
 }
+
+/*
+ * Public quote flow — state transitions. `.quote-enter` rises + fades (used
+ * for the state-aware header and the sticky submit bar as it appears);
+ * `.quote-fade` is a plain opacity fade. Both reference the global `enter` /
+ * `enter-fade` keyframes (globals.css) and are silenced under reduced motion.
+ */
+.quote-enter { animation: enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.quote-fade  { animation: enter-fade 0.32s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .quote-enter,
+  .quote-fade { animation: none; }
+}

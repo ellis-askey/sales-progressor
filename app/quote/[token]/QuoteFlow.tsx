@@ -24,6 +24,7 @@ const PHONE_METHODS: QuoteContactMethod[] = ["phone", "text", "whatsapp"];
 export function QuoteFlow({
   token,
   propertyAddress,
+  firstName,
   outwardCode,
   priceLabel,
   tenureLabel,
@@ -37,6 +38,8 @@ export function QuoteFlow({
 }: {
   token: string;
   propertyAddress: string;
+  // The client's first name, for the page header. Extracted server-side.
+  firstName: string;
   outwardCode: string | null;
   priceLabel: string | null;
   tenureLabel: string | null;
@@ -126,6 +129,19 @@ export function QuoteFlow({
     });
   }
 
+  // Success-screen "Request something else" — clears the picker back to step 1
+  // but keeps the client's contact details so they don't retype them (e.g. a
+  // surveyor request followed by a mortgage broker).
+  function requestAnother() {
+    setResult(null);
+    setServiceTypeId(null);
+    setSelectedFirms(new Set());
+    setNotes("");
+    // Re-open the category choice only when there's more than one to pick from.
+    if (kinds.length > 1) setKind(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   // ── Success screen — full receipt of what was sent (2026-08-19) ─────────
   if (result?.ok) {
     const serviceLabel = serviceTypes.find((s) => s.id === serviceTypeId)?.label ?? "Service";
@@ -142,6 +158,8 @@ export function QuoteFlow({
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <QuoteHeader sent firstName={firstName} address={propertyAddress} count={result.count} />
+
         {/* Hero: tick + who it went to, surveyors shown like the picker rows */}
         <div
           style={{
@@ -264,6 +282,24 @@ export function QuoteFlow({
           )}
         </div>
 
+        <button
+          onClick={requestAnother}
+          style={{
+            width: "100%",
+            padding: "13px",
+            borderRadius: 14,
+            border: `1.5px solid ${A.coralTintBorder}`,
+            background: A.coralTint,
+            color: A.coralDark,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+        >
+          Request something else
+        </button>
+
         <p style={{ fontSize: 13, color: A.textMuted, margin: 0, lineHeight: 1.5, textAlign: "center", padding: "0 8px" }}>
           If you don't hear back within a couple of days, let your agent know.
         </p>
@@ -274,28 +310,31 @@ export function QuoteFlow({
   // ── Zero coverage — friendly empty state ────────────────────────────────
   if (firms.length === 0) {
     return (
-      <div
-        style={{
-          background: A.cardBg,
-          backdropFilter: A.cardBlur,
-          WebkitBackdropFilter: A.cardBlur,
-          border: `1px solid ${A.cardBorder}`,
-          borderRadius: 20,
-          padding: 24,
-          textAlign: "center",
-          boxShadow: A.cardShadow,
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: A.textPrimary, margin: "0 0 8px" }}>
-          No firms available yet
-        </h2>
-        <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
-          We don't currently have any firms covering{" "}
-          <strong style={{ color: A.textSecondary, fontFamily: "monospace" }}>
-            {outwardCode ?? "your postcode"}
-          </strong>
-          . We're expanding our network. In the meantime, please ask your agent for a recommendation.
-        </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <QuoteHeader sent={false} firstName={firstName} address={propertyAddress} count={0} />
+        <div
+          style={{
+            background: A.cardBg,
+            backdropFilter: A.cardBlur,
+            WebkitBackdropFilter: A.cardBlur,
+            border: `1px solid ${A.cardBorder}`,
+            borderRadius: 20,
+            padding: 24,
+            textAlign: "center",
+            boxShadow: A.cardShadow,
+          }}
+        >
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: A.textPrimary, margin: "0 0 8px" }}>
+            No firms available yet
+          </h2>
+          <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
+            We don't currently have any firms covering{" "}
+            <strong style={{ color: A.textSecondary, fontFamily: "monospace" }}>
+              {outwardCode ?? "your postcode"}
+            </strong>
+            . We're expanding our network. In the meantime, please ask your agent for a recommendation.
+          </p>
+        </div>
       </div>
     );
   }
@@ -310,6 +349,8 @@ export function QuoteFlow({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <QuoteHeader sent={false} firstName={firstName} address={propertyAddress} count={0} />
+
       {/* Step 1: pick provider category (hidden when only one is available) */}
       {showKindStep && (
         <StepCard number={1} title="What do you need?">
@@ -335,10 +376,12 @@ export function QuoteFlow({
       {/* Service type (after a category is chosen) */}
       {kind && (
       <StepCard number={n(1)} title="What service do you need?">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div role="radiogroup" aria-label="Service" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {kindServiceTypes.map((s) => (
             <button
               key={s.id}
+              role="radio"
+              aria-checked={serviceTypeId === s.id}
               onClick={() => {
                 setServiceTypeId(s.id);
                 // Clear firm selection when switching service — some firms might not offer the new one
@@ -376,12 +419,15 @@ export function QuoteFlow({
               None of the available firms offer this service. Try picking a different service above.
             </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div role="group" aria-label="Firms" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {eligibleFirms.map((f) => {
                 const isSelected = selectedFirms.has(f.id);
                 return (
                   <button
                     key={f.id}
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    aria-label={f.name}
                     onClick={() => toggleFirm(f.id)}
                     style={{
                       display: "flex",
@@ -565,74 +611,84 @@ export function QuoteFlow({
                 </p>
               </div>
             )}
+
+            {/* What the firm will see — folded into this card (2026-08-27) so
+                the property summary and the client's details read as one. */}
+            <div style={{ borderTop: `1px solid ${A.cardBorder}`, marginTop: 2, paddingTop: 14 }}>
+              <p style={{ ...labelStyle, marginBottom: 8 }}>What the firm will see</p>
+              <ShareRow label="Property" value={propertyAddress} />
+              {effectivePriceLabel && <ShareRow label="Price" value={effectivePriceLabel} />}
+              {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
+              {!effectivePriceLabel && !tenureLabel && (
+                <p style={{ fontSize: 12, color: A.textMuted, margin: "8px 0 0", lineHeight: 1.4 }}>
+                  We'll pass on the property details we hold on your file.
+                </p>
+              )}
+            </div>
           </div>
         </StepCard>
       )}
 
-      {/* Read-only: what the surveyor will see about the property */}
+      {/* Spacer so the last card clears the fixed submit bar. */}
+      {serviceTypeId && selectedFirms.size > 0 && <div style={{ height: 76 }} aria-hidden />}
+
+      {/* Sticky submit — rises + fades in once a service and firm are picked, so
+          it's always in reach instead of buried below four cards. */}
       {serviceTypeId && selectedFirms.size > 0 && (
         <div
+          className="quote-enter"
           style={{
-            background: A.cardBg,
-            backdropFilter: A.cardBlur,
-            WebkitBackdropFilter: A.cardBlur,
-            border: `1px solid ${A.cardBorder}`,
-            borderRadius: 20,
-            padding: "16px 20px",
-            boxShadow: A.cardShadow,
+            position: "fixed",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 50,
+            background: "rgba(255,251,245,0.82)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            borderTop: `1px solid ${A.cardBorder}`,
+            padding: "12px 20px calc(12px + env(safe-area-inset-bottom))",
+            boxShadow: "0 -6px 24px rgba(45,24,16,0.08)",
           }}
         >
-          <p style={{ ...labelStyle, marginBottom: 10 }}>What the firm will see</p>
-          <ShareRow label="Property" value={propertyAddress} />
-          {effectivePriceLabel && <ShareRow label="Price" value={effectivePriceLabel} />}
-          {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
-          {!effectivePriceLabel && !tenureLabel && (
-            <p style={{ fontSize: 12, color: A.textMuted, margin: "8px 0 0", lineHeight: 1.4 }}>
-              We'll pass on the property details we hold on your file.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Submit */}
-      {serviceTypeId && selectedFirms.size > 0 && (
-        <div>
-          {result?.ok === false && (
-            <div
+          <div style={{ maxWidth: 640, margin: "0 auto" }}>
+            {result?.ok === false && (
+              <div
+                style={{
+                  marginBottom: 10,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: A.dangerBg,
+                  border: `1px solid ${A.dangerBorder}`,
+                  color: A.danger,
+                  fontSize: 13,
+                }}
+              >
+                {result.error}
+              </div>
+            )}
+            <button
+              onClick={submit}
+              disabled={!canSubmit}
               style={{
-                marginBottom: 12,
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: A.dangerBg,
-                border: `1px solid ${A.dangerBorder}`,
-                color: A.danger,
-                fontSize: 13,
+                width: "100%",
+                padding: "14px",
+                borderRadius: 14,
+                border: "none",
+                background: canSubmit ? A.coralGradient : A.bgWarm,
+                color: canSubmit ? "white" : A.textFaint,
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: canSubmit ? "pointer" : "not-allowed",
+                transition: "all 0.15s",
+                boxShadow: canSubmit ? "0 6px 22px -6px rgba(255, 107, 74, 0.5)" : "none",
               }}
             >
-              {result.error}
-            </div>
-          )}
-          <button
-            onClick={submit}
-            disabled={!canSubmit}
-            style={{
-              width: "100%",
-              padding: "14px",
-              borderRadius: 14,
-              border: "none",
-              background: canSubmit ? A.coralGradient : A.bgWarm,
-              color: canSubmit ? "white" : A.textFaint,
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: canSubmit ? "pointer" : "not-allowed",
-              transition: "all 0.15s",
-              boxShadow: canSubmit ? "0 6px 22px -6px rgba(255, 107, 74, 0.5)" : "none",
-            }}
-          >
-            {pending
-              ? "Sending…"
-              : `Request quote${selectedFirms.size > 1 ? "s" : ""} from ${selectedFirms.size} firm${selectedFirms.size === 1 ? "" : "s"}`}
-          </button>
+              {pending
+                ? "Sending…"
+                : `Request quote${selectedFirms.size > 1 ? "s" : ""} from ${selectedFirms.size} firm${selectedFirms.size === 1 ? "" : "s"}`}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -640,6 +696,42 @@ export function QuoteFlow({
 }
 
 // ── Building blocks ──────────────────────────────────────────────────────
+
+// Page header that reacts to where you are in the flow. While choosing it
+// asks "what do you need?"; once sent it becomes a warm confirmation. The
+// `key` flips on state change so the new copy rises + fades in (.quote-enter,
+// silenced under reduced motion) — the "fade out, fade in" the brief asked for.
+function QuoteHeader({
+  sent,
+  firstName,
+  address,
+  count,
+}: {
+  sent: boolean;
+  firstName: string;
+  address: string;
+  count: number;
+}) {
+  return (
+    <header key={sent ? "sent" : "ask"} className="quote-enter" style={{ marginBottom: 4 }}>
+      <p style={{ fontSize: 11, fontWeight: 600, color: A.coralDeep, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
+        {sent ? "All done" : "Request a quote"}
+      </p>
+      <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
+        {sent ? `That's sorted, ${firstName}` : `${firstName}, what do you need?`}
+      </h1>
+      <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
+        {sent ? (
+          `Here's everything we sent. The ${count === 1 ? "firm" : "firms"} will be in touch directly.`
+        ) : (
+          <>
+            For <strong style={{ color: A.textSecondary }}>{address}</strong>. We'll only pass your details to the firms you choose.
+          </>
+        )}
+      </p>
+    </header>
+  );
+}
 
 function ShareRow({ label, value }: { label: string; value: string }) {
   return (
@@ -717,10 +809,12 @@ function RadioRow({
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      <div role="radiogroup" aria-label={label} style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {options.map((o) => (
           <button
             key={o.value}
+            role="radio"
+            aria-checked={value === o.value}
             onClick={() => onChange(o.value)}
             style={{
               padding: "6px 12px",
