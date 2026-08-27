@@ -452,6 +452,61 @@ export type ExpiredHoldItem = {
   photoStoragePath: string | null;
 };
 
+export type MortgageExpiryItem = {
+  transactionId: string;
+  propertyAddress: string;
+  // "buyer" = the buyer's own mortgage offer on this purchase; "seller_onward"
+  // = the seller's offer on the property they're buying onward.
+  side: "buyer" | "seller_onward";
+  expiryDate: Date;
+  photoStoragePath: string | null;
+};
+
+// Hub card feed: client-supplied mortgage-offer expiries on active, not-yet-
+// exchanged files in the viewer's scope, expiring within ~30 days (or recently
+// lapsed). Same visibility rules as getExpiredHolds. Read-only surfacing of the
+// same dates the property-file Overview card shows — so a lapsing offer is
+// visible without opening every file. The stepped bell/push alerts are fired
+// separately by the morning-digest cron (fireMortgageExpiryAlerts).
+export async function getUpcomingMortgageExpiries(vis: AgentVisibility): Promise<MortgageExpiryItem[]> {
+  const todayMs = new Date().setUTCHours(0, 0, 0, 0);
+  const horizon = new Date(todayMs + 30 * 86400000);
+  const floor = new Date(todayMs - 60 * 86400000); // include recently-lapsed, not ancient dates
+  const txNested = buildTxNested(vis);
+  const txFilter: Prisma.PropertyTransactionWhereInput = vis.internalMode
+    ? { ...txNested, status: "active", exchangedAt: null }
+    : { ...txNested, status: "active", exchangedAt: null, agencyId: vis.agencyId };
+
+  const rows = await prisma.clientMoveInfo.findMany({
+    where: {
+      transaction: txFilter,
+      OR: [
+        { mortgageOfferExpiry: { gte: floor, lte: horizon } },
+        { onwardMortgageOfferExpiry: { gte: floor, lte: horizon } },
+      ],
+    },
+    select: {
+      side: true,
+      mortgageOfferExpiry: true,
+      onwardMortgageOfferExpiry: true,
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
+    },
+  });
+
+  const items: MortgageExpiryItem[] = [];
+  for (const r of rows) {
+    const inWindow = (d: Date | null): d is Date => d != null && d >= floor && d <= horizon;
+    if (r.side === "purchaser" && inWindow(r.mortgageOfferExpiry)) {
+      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "buyer", expiryDate: r.mortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
+    }
+    if (r.side === "vendor" && inWindow(r.onwardMortgageOfferExpiry)) {
+      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "seller_onward", expiryDate: r.onwardMortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
+    }
+  }
+  items.sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());
+  return items;
+}
+
 export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHoldItem[]> {
   const now = new Date();
   const txNested = buildTxNested(vis);

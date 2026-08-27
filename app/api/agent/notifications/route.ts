@@ -25,6 +25,8 @@ const BELL_NOTIFICATION_TYPES = [
   // pre-rendered body the sentence builder falls back to.
   "broker_callback_requested",
   "broker_callback_bounced",
+  // Tier-1 automation: a client's mortgage offer is nearing (or past) expiry.
+  "mortgage_offer_expiring",
 ];
 
 // The small pill shown on a bell item, per notification type. "Paused" for a
@@ -33,6 +35,7 @@ function pillLabelForType(type: string): string {
   if (type === "portal_chases_paused") return "Paused";
   if (type === "enquiries_stalled" || type === "enquiries_raise_stalled") return "Stalled";
   if (type === "broker_callback_requested" || type === "broker_callback_bounced") return "Broker";
+  if (type === "mortgage_offer_expiring") return "Expiring";
   return "Update";
 }
 

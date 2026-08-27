@@ -3,7 +3,7 @@ import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
-import { pushExchangeApproaching } from "@/lib/agent/push-events";
+import { pushExchangeApproaching, pushMortgageOfferExpiring } from "@/lib/agent/push-events";
 
 type DigestFile = {
   id: string;
@@ -247,4 +247,81 @@ export async function fireExchangeApproachingPushes(agencyId: string): Promise<n
   }
 
   return pushed;
+}
+
+// Daily mortgage-offer expiry sweep. Runs in the same morning cron pass. For
+// every active, not-yet-exchanged file where a client entered a mortgage-offer
+// expiry (the buyer's own, or the seller's onward-purchase offer), warns the
+// file owner as it approaches — stepped so it can't quietly slip: a heads-up at
+// 21 days, a sharper nudge at 7, and an escalation once it lapses. Each stage
+// fires ONCE per offer date (dedup via a Notification keyed on date + stage).
+// The push helper checks the owner's per-event toggle before firing.
+type MortgageExpiryStage = "21" | "7" | "expired";
+
+function mortgageExpiryStage(daysUntil: number): MortgageExpiryStage | null {
+  if (daysUntil < 0) return "expired";
+  if (daysUntil <= 7) return "7";
+  if (daysUntil <= 21) return "21";
+  return null;
+}
+
+export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number> {
+  const todayMs = new Date().setUTCHours(0, 0, 0, 0);
+
+  const rows = await prisma.clientMoveInfo.findMany({
+    where: {
+      transaction: { agencyId, status: "active", exchangedAt: null },
+      OR: [{ mortgageOfferExpiry: { not: null } }, { onwardMortgageOfferExpiry: { not: null } }],
+    },
+    select: {
+      side: true,
+      mortgageOfferExpiry: true,
+      onwardMortgageOfferExpiry: true,
+      transaction: { select: { id: true, propertyAddress: true, assignedUserId: true, agentUserId: true } },
+    },
+  });
+
+  let fired = 0;
+  for (const row of rows) {
+    const ownerId = row.transaction.assignedUserId ?? row.transaction.agentUserId;
+    if (!ownerId) continue;
+
+    // The buyer's own offer lives on the purchaser row; the seller's onward
+    // offer on the vendor row. Emit whichever this row carries.
+    const offers: { side: "buyer" | "seller_onward"; date: Date }[] = [];
+    if (row.side === "purchaser" && row.mortgageOfferExpiry) offers.push({ side: "buyer", date: row.mortgageOfferExpiry });
+    if (row.side === "vendor" && row.onwardMortgageOfferExpiry) offers.push({ side: "seller_onward", date: row.onwardMortgageOfferExpiry });
+
+    for (const offer of offers) {
+      const daysUntil = Math.round((new Date(offer.date).setUTCHours(0, 0, 0, 0) - todayMs) / 86400000);
+      const stage = mortgageExpiryStage(daysUntil);
+      if (!stage) continue;
+
+      const dateKey = offer.date.toISOString().slice(0, 10);
+      const dedupeKey = `${offer.side}:${dateKey}:${stage}`;
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId: ownerId,
+          type: "mortgage_offer_expiring",
+          transactionId: row.transaction.id,
+          payload: { path: ["dedupeKey"], equals: dedupeKey },
+        },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      await prisma.notification.create({
+        data: {
+          userId: ownerId,
+          type: "mortgage_offer_expiring",
+          transactionId: row.transaction.id,
+          payload: { dedupeKey, dateKey, stage, side: offer.side, daysUntil, propertyAddress: row.transaction.propertyAddress },
+        },
+      });
+      pushMortgageOfferExpiring(row.transaction.id, offer.side, daysUntil).catch(() => {});
+      fired++;
+    }
+  }
+
+  return fired;
 }

@@ -30,7 +30,8 @@ export type PushKey =
   | "fileAssigned"            // a file was assigned/reassigned to me
   | "exchangeApproaching"     // expectedExchangeDate is within 7 days
   | "chainEvent"              // chain link event affecting my file
-  | "saleRelisted";           // a withdrawn file I own was relisted with a new buyer
+  | "saleRelisted"            // a withdrawn file I own was relisted with a new buyer
+  | "mortgageOfferExpiring";  // a client's mortgage offer is nearing expiry
 
 export type NotificationPrefs = {
   morningDigest: boolean;
@@ -54,6 +55,7 @@ export const DEFAULT_PUSH_PREFS: Record<PushKey, boolean> = {
   saleRelisted:        true,   // operationally critical: the relist promises
                                 // the new buyer a call within two working days;
                                 // the SP must know the file is back live
+  mortgageOfferExpiring: true, // time-sensitive: a lapsing offer can sink a sale
 };
 
 // Email-channel defaults are ALL on (preserves behaviour); push defaults
@@ -82,6 +84,7 @@ export const PUSH_KEYS: readonly PushKey[] = [
   "exchangeApproaching",
   "chainEvent",
   "saleRelisted",
+  "mortgageOfferExpiring",
 ];
 
 export function isNotificationKey(value: string): value is NotificationKey {

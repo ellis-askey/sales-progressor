@@ -390,6 +390,16 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
       : "soon";
     return `${name} paused their chase reminders until ${date}.`;
   }
+  if (type === "mortgage_offer_expiring") {
+    const side = String(payload.side ?? "buyer");
+    const whose = side === "seller_onward" ? "seller's onward mortgage offer" : "buyer's mortgage offer";
+    if (String(payload.stage) === "expired") {
+      return `The ${whose} has now expired. Check the client has a fresh offer in hand.`;
+    }
+    const days = Number(payload.daysUntil ?? 0);
+    const when = days <= 1 ? "tomorrow" : `in ${days} days`;
+    return `The ${whose} expires ${when}. Make sure a renewal is in motion.`;
+  }
   // enquiries_stalled + solicitor_update carry a ready-made `message`;
   // portal_chain_agent_updated + others carry a pre-rendered body/title.
   return String(payload.message ?? payload.body ?? payload.title ?? "Update on your file");

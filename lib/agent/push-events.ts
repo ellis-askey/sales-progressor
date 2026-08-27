@@ -134,6 +134,34 @@ export async function pushExchangeApproaching(
   });
 }
 
+// A client's mortgage offer is nearing (or past) expiry. Caller is responsible
+// for dedup — a daily cron fires this once per offer date per warning stage
+// (21 days out, 7 days out, expired). `side` distinguishes the buyer's own
+// offer from the seller's onward-purchase offer.
+export async function pushMortgageOfferExpiring(
+  transactionId: string,
+  side: "buyer" | "seller_onward",
+  daysUntil: number,
+): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { propertyAddress: true },
+  });
+  if (!tx) return;
+  const whose = side === "seller_onward" ? "Seller's onward mortgage offer" : "Buyer's mortgage offer";
+  const title = daysUntil < 0
+    ? `${whose}: expired`
+    : daysUntil <= 1
+      ? `${whose}: expires tomorrow`
+      : `${whose}: ${daysUntil} days left`;
+  await pushToFileOwner({
+    transactionId,
+    key: "mortgageOfferExpiring",
+    title,
+    body: shortAddress(tx.propertyAddress),
+  });
+}
+
 // A chain event affecting this file (lost buyer / lost purchase / asked to
 // wait / wait nudge / decline). Caller passes the recipient userId directly
 // because the chain notification queue already knows who to address — no

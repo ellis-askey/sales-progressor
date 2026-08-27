@@ -58,6 +58,11 @@ const TOGGLES: Spec[] = [
     description: "Daily check; fires once per file when the exchange target is within a week.",
   },
   {
+    key: "mortgageOfferExpiring",
+    label: "Mortgage offer expiring",
+    description: "Daily check; warns you as a client's mortgage-offer expiry nears: a heads-up at 21 days, a sharper nudge at 7, and once it lapses.",
+  },
+  {
     key: "chainEvent",
     label: "Chain updates",
     description: "When something happens on a chain your file is part of — a pulled buyer, a fallen purchase, a wait request, or a declined invite.",

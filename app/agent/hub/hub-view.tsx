@@ -24,7 +24,7 @@ import {
   getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
-  getHubPipelineStages,
+  getHubPipelineStages, getUpcomingMortgageExpiries,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
@@ -36,6 +36,7 @@ import {
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
+import { MortgageExpiryCard } from "@/components/hub/MortgageExpiryCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { SectionLoading } from "@/components/hub/SectionLoading";
@@ -369,6 +370,11 @@ function FullHubBody({
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
+      {/* Mortgage offers nearing expiry — hidden when none */}
+      <Suspense fallback={null}>
+        <MortgageExpirySlot vis={ctx.vis} />
+      </Suspense>
+
       {/* Pipeline at a glance — 5 stage tiles */}
       <Suspense fallback={<InlineLoadingCard label="Loading pipeline stages…" minHeight={100} />}>
         <PipelineStagesSlot vis={ctx.vis} />
@@ -477,6 +483,21 @@ async function AttentionSlot({
         />
       </AnimatedSection>
     </SectionReveal>
+  );
+}
+
+async function MortgageExpirySlot({ vis }: { vis: AgentVisibility }) {
+  const items = await getUpcomingMortgageExpiries(vis);
+  if (items.length === 0) return null;
+  return (
+    <MortgageExpiryCard
+      items={items.map((i) => ({
+        transactionId: i.transactionId,
+        propertyAddress: i.propertyAddress,
+        side: i.side,
+        expiryDate: i.expiryDate.toISOString(),
+      }))}
+    />
   );
 }
 

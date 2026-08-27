@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendMorningDigests, fireExchangeApproachingPushes } from "@/lib/services/morning-digest";
+import { sendMorningDigests, fireExchangeApproachingPushes, fireMortgageExpiryAlerts } from "@/lib/services/morning-digest";
 
 // Runs 08:00 weekdays via Vercel Cron (see vercel.json).
 // Protected by CRON_SECRET header.
@@ -19,12 +19,15 @@ export async function GET(req: NextRequest) {
 
   let totalSent = 0;
   let totalPushed = 0;
+  let totalMortgageAlerts = 0;
   for (const agency of agencies) {
     const sent = await sendMorningDigests(agency.id).catch(() => 0);
     totalSent += sent;
     const pushed = await fireExchangeApproachingPushes(agency.id).catch(() => 0);
     totalPushed += pushed;
+    const mortgageAlerts = await fireMortgageExpiryAlerts(agency.id).catch(() => 0);
+    totalMortgageAlerts += mortgageAlerts;
   }
 
-  return NextResponse.json({ sent: totalSent, exchangeApproachingPushed: totalPushed });
+  return NextResponse.json({ sent: totalSent, exchangeApproachingPushed: totalPushed, mortgageExpiryAlerts: totalMortgageAlerts });
 }
