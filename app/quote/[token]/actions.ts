@@ -51,6 +51,9 @@ export type QuoteSubmitInput = {
   // Seller requesting a survey for their ONWARD purchase: match + snapshot
   // against the onward property's address, not the file it opened from.
   onward?: boolean;
+  // Optional agreed price for the onward purchase (pence) — we don't hold the
+  // onward's price on the seller's file, so they can add it for a sharper quote.
+  onwardPricePence?: number | null;
 };
 
 export type QuoteSubmitResult =
@@ -151,7 +154,9 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     }
     const trackerView = await getOnwardTrackerView(contact.transaction.id);
     effAddress = sig.onwardAddress;
-    effPricePence = null; // the onward's price isn't held on this file
+    // The onward's price isn't on this file; use the seller's typed figure if
+    // they gave one, otherwise leave it unrecorded.
+    effPricePence = input.onwardPricePence != null && input.onwardPricePence > 0 ? input.onwardPricePence : null;
     effTenure = trackerView.tenure;
     effShare = trackerView.isShareOfFreehold;
   }

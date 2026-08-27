@@ -62,6 +62,20 @@ export function QuoteFlow({
   const [clientName, setClientName] = useState(contactName);
   const [clientEmail, setClientEmail] = useState(contactEmail);
   const [clientPhone, setClientPhone] = useState(contactPhone);
+  // Onward only: the seller can add the price they agreed for the property
+  // they're buying (we don't hold it on their file). Optional.
+  const [onwardPrice, setOnwardPrice] = useState("");
+  const onwardPricePence = (() => {
+    const digits = onwardPrice.replace(/[^\d]/g, "");
+    if (!digits) return null;
+    const pounds = parseInt(digits, 10);
+    return Number.isFinite(pounds) && pounds > 0 ? pounds * 100 : null;
+  })();
+  // The price shown to the firm: the seller's typed onward price, or the file's
+  // own price for a normal buyer request.
+  const effectivePriceLabel = onward
+    ? (onwardPricePence != null ? `£${(onwardPricePence / 100).toLocaleString("en-GB")}` : null)
+    : priceLabel;
 
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<QuoteSubmitResult | null>(null);
@@ -105,6 +119,7 @@ export function QuoteFlow({
         clientEmail,
         clientPhone,
         onward,
+        onwardPricePence,
       });
       setResult(r);
       if (r.ok) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -237,7 +252,7 @@ export function QuoteFlow({
           <div style={{ borderTop: `1px solid ${A.cardBorder}`, margin: "10px 0" }} />
           <p style={{ ...labelStyle, marginBottom: 6 }}>Property</p>
           <ShareRow label="Address" value={propertyAddress} />
-          {priceLabel && <ShareRow label="Price" value={priceLabel} />}
+          {effectivePriceLabel && <ShareRow label="Price" value={effectivePriceLabel} />}
           {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
 
           {notes.trim() && (
@@ -529,6 +544,27 @@ export function QuoteFlow({
                 }}
               />
             </div>
+            {onward && (
+              <div>
+                <label style={labelStyle}>
+                  Agreed purchase price <span style={{ color: A.textMuted, fontWeight: 400 }}>(optional)</span>
+                </label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: A.textMuted, fontSize: 15, pointerEvents: "none" }}>&pound;</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={onwardPrice}
+                    onChange={(e) => setOnwardPrice(e.target.value)}
+                    placeholder="e.g. 450,000"
+                    style={{ ...inputStyle, paddingLeft: 26 }}
+                  />
+                </div>
+                <p style={{ fontSize: 12, color: A.textMuted, margin: "4px 0 0", lineHeight: 1.4 }}>
+                  What you agreed to pay for the property. Helps the surveyor quote accurately.
+                </p>
+              </div>
+            )}
           </div>
         </StepCard>
       )}
@@ -548,9 +584,9 @@ export function QuoteFlow({
         >
           <p style={{ ...labelStyle, marginBottom: 10 }}>What the firm will see</p>
           <ShareRow label="Property" value={propertyAddress} />
-          {priceLabel && <ShareRow label="Price" value={priceLabel} />}
+          {effectivePriceLabel && <ShareRow label="Price" value={effectivePriceLabel} />}
           {tenureLabel && <ShareRow label="Tenure" value={tenureLabel} />}
-          {!priceLabel && !tenureLabel && (
+          {!effectivePriceLabel && !tenureLabel && (
             <p style={{ fontSize: 12, color: A.textMuted, margin: "8px 0 0", lineHeight: 1.4 }}>
               We'll pass on the property details we hold on your file.
             </p>
