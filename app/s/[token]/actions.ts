@@ -18,6 +18,14 @@ import {
   scheduleOrSendCompletionPack,
 } from "@/lib/services/portal";
 
+// Everyone who should get a bell for a solicitor's activity on a file: the
+// agency agent AND the assigned Sales Progressor (outsourced files), de-duped.
+// On self-managed files assignedUserId is null, so only the agent is notified;
+// on outsourced files both are, so whoever is progressing it always sees it.
+function fileNotifyRecipients(tx: { agentUserId: string | null; assignedUserId: string | null }): string[] {
+  return [...new Set([tx.agentUserId, tx.assignedUserId].filter((id): id is string => Boolean(id)))];
+}
+
 // Shared guard: re-verify the signed token on EVERY write (never trust the
 // client) and confirm the step is one this side's solicitor is actually
 // asked about. Returns the decoded matter + the milestone definition, plus
@@ -335,11 +343,11 @@ export async function solicitorEnquiriesUpdateAction(token: string, message: str
   });
   if (!logged) throw new Error("The enquiries stage on this matter is not open.");
 
-  const authorId = tx.agentUserId ?? tx.assignedUserId;
-  if (authorId) {
-    await prisma.notification.create({
-      data: {
-        userId: authorId,
+  const recipients = fileNotifyRecipients(tx);
+  if (recipients.length) {
+    await prisma.notification.createMany({
+      data: recipients.map((userId) => ({
+        userId,
         type: "solicitor_update",
         transactionId: decoded.transactionId,
         payload: {
@@ -347,7 +355,7 @@ export async function solicitorEnquiriesUpdateAction(token: string, message: str
           step: "enquiries",
           message: `${firmName} left an enquiries update: ${trimmed}`,
         },
-      },
+      })),
     });
   }
 
@@ -506,19 +514,23 @@ export async function solicitorLeaveUpdateAction(
         createdByRole: "director",
       },
     });
-    // …and a bell notification so the assigned agent sees it promptly.
-    await prisma.notification.create({
-      data: {
-        userId: authorId,
-        type: "solicitor_update",
-        transactionId: decoded.transactionId,
-        payload: {
-          firmName,
-          step: def.code,
-          message: `${firmName} left an update: ${trimmed}`,
-        },
-      },
-    });
+    // …and a bell notification to everyone on the file (agent + assigned
+    // progressor), so whoever is progressing an outsourced file sees it too.
+    const recipients = fileNotifyRecipients(tx);
+    if (recipients.length) {
+      await prisma.notification.createMany({
+        data: recipients.map((userId) => ({
+          userId,
+          type: "solicitor_update",
+          transactionId: decoded.transactionId,
+          payload: {
+            firmName,
+            step: def.code,
+            message: `${firmName} left an update: ${trimmed}`,
+          },
+        })),
+      });
+    }
   }
 
   revalidatePath(`/s/${token}`);
