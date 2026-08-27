@@ -322,6 +322,7 @@ export async function getRevenueDashboard(
         agency: agencyWhere,
         status: "active",
         billedAtExchange: null,
+        isDemo: false,
       },
       select: {
         id: true,
@@ -640,7 +641,7 @@ export async function getAgencyRevenueDetail(
       },
     }),
     commandDb.propertyTransaction.findMany({
-      where: { agencyId, status: "active", billedAtExchange: null },
+      where: { agencyId, status: "active", billedAtExchange: null, isDemo: false },
       select: {
         id: true,
         propertyAddress: true,

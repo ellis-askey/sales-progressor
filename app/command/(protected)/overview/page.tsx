@@ -122,6 +122,7 @@ export default async function OverviewPage({
       where: {
         status: { in: ["active", "on_hold"] },
         milestoneCompletions: { none: { completedAt: { gte: fourteenDaysAgo } } },
+        isDemo: false,
       },
     }),
     // Agent drafts across the platform — used to compute the potential

@@ -133,7 +133,9 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     where: {
       portalToken: { not: null },
       roleType: { in: ["purchaser", "vendor"] },
-      transaction: { status: { in: [...LIVE_STATUSES] } },
+      // Exclude demo showcase files so their fake clients don't inflate the
+      // portal-adoption funnel.
+      transaction: { status: { in: [...LIVE_STATUSES] }, isDemo: false },
     },
     select: {
       id: true,

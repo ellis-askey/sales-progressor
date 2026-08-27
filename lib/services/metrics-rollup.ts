@@ -132,6 +132,9 @@ async function computeMetricsForScope(
     ...agencyFilter,
     ...excludeInternalAgency,
     isMigrated: false,
+    // Demo showcase files are not real usage — scrub them from every metric
+    // built on txFilter (created / exchanged / completed / milestones / files).
+    isDemo: false,
     ...(scope.serviceType !== null && { serviceType: scope.serviceType }),
   };
 

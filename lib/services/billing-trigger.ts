@@ -43,7 +43,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -54,6 +54,10 @@ export async function maybeStampExchange(
     where: { id: transactionId, exchangedAt: null },
     data: { exchangedAt: now },
   });
+
+  // 2a. Demo showcase files never bill (guarding the source here keeps every
+  // downstream billing reader safe — a demo never gets billedAtExchange set).
+  if (txn.isDemo) return;
 
   // 2. Trial files exchange but don't bill
   if (txn.freeOnExchange) return;

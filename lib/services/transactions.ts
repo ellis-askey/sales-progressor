@@ -960,19 +960,22 @@ export async function createTransaction(input: CreateTransactionInput) {
     });
   });
 
-  // Command Centre event log — fires after the $transaction commits.
-  await recordEvent({
-    type: "transaction_created",
-    agencyId: input.agencyId,
-    userId: input.agentUserId ?? input.assignedUserId ?? undefined,
-    entityType: "PropertyTransaction",
-    entityId: newTx.id,
-    metadata: {
-      progressedBy: newTx.progressedBy,
-      serviceType: newTx.serviceType,
-      isMigrated: newTx.isMigrated,
-    },
-  });
+  // Command Centre event log — fires after the $transaction commits. Demo
+  // showcase files are not real activity, so they emit no activation event.
+  if (!newTx.isDemo) {
+    await recordEvent({
+      type: "transaction_created",
+      agencyId: input.agencyId,
+      userId: input.agentUserId ?? input.assignedUserId ?? undefined,
+      entityType: "PropertyTransaction",
+      entityId: newTx.id,
+      metadata: {
+        progressedBy: newTx.progressedBy,
+        serviceType: newTx.serviceType,
+        isMigrated: newTx.isMigrated,
+      },
+    });
+  }
 
   return newTx;
 }
