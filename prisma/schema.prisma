@@ -709,6 +709,16 @@ model Contact {
   phone                 String?
   email                 String?
   roleType              ContactRole
+  // A person on a side who is NOT the actual buyer/seller — a helper, an
+  // assistant, or a representative acting for a trust/company. isPrincipal=false
+  // keeps them OUT of the "who confirmed" wording (only real clients are named);
+  // when they confirm a step it reads "{helper} confirmed on behalf of {client}".
+  // portalEligible drives portal access + client emails: principals are always
+  // eligible; a helper is silent unless a director ticks "give them a portal".
+  // Existing contacts default to principal + eligible (no behaviour change).
+  // See docs/active/three-notes-distilled-2026-08-27.md (Note B).
+  isPrincipal           Boolean     @default(true)
+  portalEligible        Boolean     @default(true)
   portalToken           String?     @unique
   lastVisitedPortalAt   DateTime?
   // First-visit welcome sheet gate. Stamped once when the client dismisses the
