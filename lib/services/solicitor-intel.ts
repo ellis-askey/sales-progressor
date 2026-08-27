@@ -12,10 +12,20 @@ export type SolicitorIntel = {
   medianDaysSearches: number | null; // PM9 → PM10
   rating: "fast" | "average" | "slow" | "unknown";
   warning: string | null;
+  // Fall-through track record. The denominator is RESOLVED files only — a sale
+  // that either completed or fell through; files still in flight don't count.
+  // The rate stays null until there are enough resolved files to be meaningful,
+  // so we never show "100% fell through" off a single sale.
+  resolvedFiles: number;
+  fallThroughCount: number;
+  fallThroughRate: number | null; // percent 0–100, null below the sample floor
 };
 
 const BASELINE_EXCHANGE_WEEKS = 12;
 const BASELINE_SEARCH_DAYS = 21;
+// Don't publish a fall-through rate until a firm has this many resolved files —
+// below it, one outcome swings the percentage wildly and it's just noise.
+const MIN_RESOLVED_FOR_RATE = 5;
 
 // The middle value of a sorted list — the "typical" file, unskewed by the odd
 // disaster (a collapsed chain, an awkward leasehold) that an average would let
@@ -117,6 +127,17 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
   const medianDaysRaw = median(searchDaysList);
   const medianDaysSearches = medianDaysRaw !== null ? Math.round(medianDaysRaw) : null;
 
+  // Fall-through rate over resolved files only (completed or withdrawn).
+  // "withdrawn" is the terminal fell-through status; in-flight files (active /
+  // on_hold / draft) are excluded from the denominator so the rate reflects
+  // settled outcomes, not work still in progress.
+  const withdrawnFiles = allTx.filter((tx) => tx.status === "withdrawn").length;
+  const completedStatusFiles = allTx.filter((tx) => tx.status === "completed").length;
+  const resolvedFiles = withdrawnFiles + completedStatusFiles;
+  const fallThroughRate = resolvedFiles >= MIN_RESOLVED_FOR_RATE
+    ? Math.round((withdrawnFiles / resolvedFiles) * 100)
+    : null;
+
   // Rating
   let rating: SolicitorIntel["rating"] = "unknown";
   let warning: string | null = null;
@@ -143,6 +164,9 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
     medianDaysSearches,
     rating,
     warning,
+    resolvedFiles,
+    fallThroughCount: withdrawnFiles,
+    fallThroughRate,
   };
 }
 

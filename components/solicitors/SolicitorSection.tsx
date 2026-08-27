@@ -17,6 +17,9 @@ type SolicitorIntel = {
   medianDaysSearches: number | null;
   rating: "fast" | "average" | "slow" | "unknown";
   warning: string | null;
+  resolvedFiles: number;
+  fallThroughCount: number;
+  fallThroughRate: number | null;
 };
 
 type SolicitorInfo = {
@@ -103,9 +106,21 @@ function SolicitorIntelChips({ firmId }: { firmId: string }) {
   const intelTone: "success" | "danger" | "muted" =
     intel.rating === "fast" ? "success" : intel.rating === "slow" ? "danger" : "muted";
 
+  // Fall-through chip: only once there are enough resolved sales to be honest.
+  // Zero fall-throughs is a positive signal; anything above just states the fact
+  // in a low-key tone (we can dial the colour up later if it proves useful).
+  const showFallThrough = intel.fallThroughRate !== null;
+  const fallThroughText = intel.fallThroughRate === 0
+    ? `No fall-throughs across ${intel.resolvedFiles} sales`
+    : `${intel.fallThroughRate}% fell through (${intel.fallThroughCount} of ${intel.resolvedFiles} sales)`;
+  const fallThroughTone: "success" | "muted" = intel.fallThroughRate === 0 ? "success" : "muted";
+
   return (
     <div className="agent-reveal-in" style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
       <Pill glass tone={intelTone} size="sm" style={{ alignSelf: "flex-start" }}>{parts}</Pill>
+      {showFallThrough && (
+        <Pill glass tone={fallThroughTone} size="sm" style={{ alignSelf: "flex-start" }}>{fallThroughText}</Pill>
+      )}
       {intel.warning && (
         <Pill glass tone="warning" size="sm" style={{ alignSelf: "flex-start" }}>{intel.warning}</Pill>
       )}
