@@ -19,6 +19,8 @@ export async function listAssignableAgentsForAgency(agencyId: string): Promise<A
     where: {
       agencyId,
       role: { in: ["director", "negotiator"] },
+      // Exclude the made-up demo staff member who manages demo showcase files.
+      isDemo: false,
     },
     select: { id: true, name: true, email: true, role: true },
     orderBy: [{ role: "asc" }, { name: "asc" }],

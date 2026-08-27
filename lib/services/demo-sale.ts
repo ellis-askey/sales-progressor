@@ -16,12 +16,35 @@
 // See docs/active/demo-sale/SPEC.md.
 
 import { randomBytes } from "node:crypto";
-import type { PurchaseType, Tenure } from "@prisma/client";
+import type { PurchaseType, Tenure, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
+
+// The made-up staff member who "manages" every demo file, so a demo is never
+// presented as the real user's own file or photo. Owns the files, authors the
+// comms, and is the agent-side confirmer. Excluded from team pickers (User.isDemo).
+// The avatar object (Images/Agent.png) is uploaded once per environment to the
+// public avatars bucket at this path — see docs/active/ELLIS_MANUAL_TODO.md.
+const DEMO_AGENT = { name: "Charlotte Hayes", avatarPath: "demo-agent.png" };
+
+async function ensureDemoAgent(agencyId: string): Promise<string> {
+  const email = `demo-agent+${agencyId}@example.com`;
+  const image = getAvatarPublicUrl(DEMO_AGENT.avatarPath);
+  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existing) {
+    await prisma.user.update({ where: { id: existing.id }, data: { name: DEMO_AGENT.name, image, isDemo: true } });
+    return existing.id;
+  }
+  const created = await prisma.user.create({
+    data: { email, name: DEMO_AGENT.name, role: "negotiator" as UserRole, agencyId, isDemo: true, image },
+    select: { id: true },
+  });
+  return created.id;
+}
 
 const DEMO_EXPIRY_DAYS = 7;
 const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
@@ -318,12 +341,15 @@ async function buildChain(topTxId: string, midTxId: string, botTxId: string, age
  */
 export async function createDemoSale(opts: { agencyId: string; agentUserId: string }): Promise<string> {
   const sols = await ensureDemoSolicitors();
+  // Every demo file is owned + managed + confirmed by the made-up demo agent,
+  // never the real user, so it can't read as "their file".
+  const demoAgentId = await ensureDemoAgent(opts.agencyId);
   // Sequential (not Promise.all) so we don't run three heavy createTransaction
   // $transactions concurrently against the pooler.
-  const top = await buildDemoFile(TOP, opts.agencyId, opts.agentUserId, sols);
-  const middle = await buildDemoFile(MIDDLE, opts.agencyId, opts.agentUserId, sols);
-  const bottom = await buildDemoFile(BOTTOM, opts.agencyId, opts.agentUserId, sols);
-  await buildChain(top.txId, middle.txId, bottom.txId, opts.agencyId, opts.agentUserId);
+  const top = await buildDemoFile(TOP, opts.agencyId, demoAgentId, sols);
+  const middle = await buildDemoFile(MIDDLE, opts.agencyId, demoAgentId, sols);
+  const bottom = await buildDemoFile(BOTTOM, opts.agencyId, demoAgentId, sols);
+  await buildChain(top.txId, middle.txId, bottom.txId, opts.agencyId, demoAgentId);
   return middle.txId;
 }
 

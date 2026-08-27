@@ -126,6 +126,10 @@ model User {
   canViewAllFiles     Boolean    @default(false)
   hasSeenAgentWelcome Boolean    @default(false)
   isInternal          Boolean    @default(false)
+  // Made-up staff member who "manages" the demo showcase files, so a demo is
+  // never presented as the real user's own file. Excluded from team pickers.
+  // See lib/services/demo-sale.ts and docs/active/demo-sale/SPEC.md.
+  isDemo              Boolean    @default(false)
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 

@@ -25,7 +25,7 @@ A real sale the agency adds themselves is never a demo and is untouched by any o
 
 Each file is lived-in: milestones completed with **lifelike spread dates** and **varied confirmers** (agent / buyer's solicitor / seller's solicitor / client via portal), a **comms trail** of outbound client emails, phone/SMS/WhatsApp updates, **inbound replies** from the client, and **internal notes**. The middle file carries the fullest trail. All emails are `@example.com` so nothing sends. Takes ~10s to build (route `maxDuration` raised to 60s).
 
-**Agent photo:** the file hero shows the *real logged-in agent's own* `User.image` — the demo can't fake a real user's face. Agencies whose agents have set a profile photo see it; otherwise initials.
+**Managing agent:** every demo file is owned, managed, and confirmed by a made-up staff member — **Charlotte Hayes** (`User.isDemo = true`, photo `avatars/demo-agent.png` from `Images/Agent.png`), find-or-created per agency. This keeps the demo from reading as the real user's own file or photo. She's excluded from team pickers via `isDemo`.
 
 ## The preset (one canonical showcase file)
 

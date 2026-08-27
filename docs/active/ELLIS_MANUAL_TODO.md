@@ -10,9 +10,11 @@ Last updated: 2026-08-26
 
 ## Demo showcase file — prod house image (2026-08-27)
 
-The "Add a demo" showcase file points every demo at one shared storage object `demo/house.png` in the `transaction-documents` bucket. It has been uploaded to **staging**. Before the demo feature goes to prod:
-- [ ] Upload `Images/House.png` to **prod** Supabase storage, bucket `transaction-documents`, path `demo/house.png` (a one-off; the app reads it via signed URL). Until then, demo files on prod fall back to the gradient hero.
-- Note: the `demo-cleanup` cron (removes expired demo files daily) runs automatically from `vercel.json` on the existing `CRON_SECRET`; no manual step.
+The "Add a demo" showcase file points every demo at two shared storage objects in the `transaction-documents` bucket. Both are uploaded to **staging**. Before the demo feature goes to prod, upload the same two to **prod** Supabase (one-off; the app reads them via signed URL). Until then, demo files on prod fall back to the gradient hero and have no MOS.
+- ~~Upload `Images/House.png` to prod `transaction-documents` at path `demo/house.png`.~~ Done by CC 2026-08-27.
+- ~~Upload `Images/memorandum_of_sale_14_beaumont_rise.pdf` to prod `transaction-documents` at path `demo/mos.pdf`.~~ Done by CC 2026-08-27.
+- ~~Upload `Images/Agent.png` to prod `avatars` bucket at path `demo-agent.png` (the made-up demo agent Charlotte Hayes's photo).~~ Done by CC 2026-08-27.
+- Note: the `demo-cleanup` cron runs automatically from `vercel.json` on the existing `CRON_SECRET`; no manual step.
 
 ## Free-agency launch — Phase 5: agency logo bucket (2026-08-26)
 
