@@ -228,8 +228,10 @@ export type PortalDataResult =
   | null;
 
 async function getPortalDataInner(token: string) {
-  const contact = await prisma.contact.findUnique({
-    where: { portalToken: token },
+  // portalEligible gate: a helper who wasn't given portal access is denied even
+  // with a token (findFirst, since the where is no longer a single unique key).
+  const contact = await prisma.contact.findFirst({
+    where: { portalToken: token, portalEligible: true },
     select: {
       id: true,
       name: true,
@@ -1087,7 +1089,7 @@ export async function logPortalMilestoneConfirm(
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
       },
     },
   });
@@ -1359,7 +1361,7 @@ export async function logPortalMilestoneConfirm(
       ? `There's an update on your ${otherSaleWord} at <strong>${address}</strong>: ${otherStep}. Log in to see the latest.`
       : `There's been a progress update on your ${otherSaleWord} at <strong>${address}</strong>. Log in to your portal to see the latest.`;
     const otherContacts = tx.contacts.filter(
-      (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
+      (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken && c.portalEligible
     );
     const otherIds: string[] = [];
     for (const other of otherContacts) {
@@ -1490,8 +1492,8 @@ export async function sendAdminMilestoneNotificationToPortal(
       assignedUser: { select: { name: true } },
       agentUser: { select: { name: true } },
       contacts: {
-        where: { roleType: { in: ["vendor", "purchaser"] } },
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+        where: { roleType: { in: ["vendor", "purchaser"] }, portalEligible: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
       },
     },
   });
@@ -1904,8 +1906,8 @@ async function sendRichMilestoneEmails(
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
-        where: { roleType: { in: ["vendor", "purchaser"] } },
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+        where: { roleType: { in: ["vendor", "purchaser"] }, portalEligible: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
       },
     },
   });
@@ -2250,15 +2252,15 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
       completionDate: true,
       agentUser: { select: { name: true } },
       contacts: {
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
       },
     },
   });
   if (!tx) return null;
   const narrow = (c: typeof tx.contacts[number]): CompletionPackContact | null =>
     c.email ? { id: c.id, name: c.name, email: c.email, portalToken: c.portalToken } : null;
-  const vendors    = tx.contacts.filter((c) => c.roleType === "vendor")   .map(narrow).filter((c): c is CompletionPackContact => c !== null);
-  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser").map(narrow).filter((c): c is CompletionPackContact => c !== null);
+  const vendors    = tx.contacts.filter((c) => c.roleType === "vendor" && c.portalEligible)   .map(narrow).filter((c): c is CompletionPackContact => c !== null);
+  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.portalEligible).map(narrow).filter((c): c is CompletionPackContact => c !== null);
   return {
     address: tx.propertyAddress,
     completionDate: tx.completionDate,
@@ -2410,6 +2412,9 @@ export type TimelineEntry =
       confirmedByContactImage: string | null;
       confirmedBySolicitorFirmName: string | null;
       confirmedByClient: boolean;
+      // Set to the helper's name when a helper confirmed the step on this side;
+      // drives the "X confirmed on your behalf" portal wording. Null otherwise.
+      helperName: string | null;
       eventDate: Date | null;
       createdAt: Date | null;
     }
@@ -2533,16 +2538,16 @@ export async function getPortalTimeline(
     const confirmerContactIds = [
       ...new Set(completions.map((c) => c.confirmedByContactId).filter((x): x is string => !!x)),
     ];
-    const contactImageById = confirmerContactIds.length
+    const confirmerById = confirmerContactIds.length
       ? new Map(
           (
             await prisma.contact.findMany({
               where: { id: { in: confirmerContactIds } },
-              select: { id: true, image: true },
+              select: { id: true, image: true, name: true, isPrincipal: true },
             })
-          ).map((c) => [c.id, c.image] as const),
+          ).map((c) => [c.id, c] as const),
         )
-      : new Map<string, string | null>();
+      : new Map<string, { image: string | null; name: string; isPrincipal: boolean }>();
 
     // Exchange + completion are simultaneous bilateral events (VM19/PM26 and
     // VM20/PM27 auto-complete together). Each party only needs their OWN side's
@@ -2563,9 +2568,14 @@ export async function getPortalTimeline(
           side: c.milestoneDefinition.side as "vendor" | "purchaser",
           completedByName: c.completedBy?.name ?? null,
           completedByImage: c.completedBy?.image ?? null,
-          confirmedByContactImage: c.confirmedByContactId ? (contactImageById.get(c.confirmedByContactId) ?? null) : null,
+          confirmedByContactImage: c.confirmedByContactId ? (confirmerById.get(c.confirmedByContactId)?.image ?? null) : null,
           confirmedBySolicitorFirmName: c.confirmedBySolicitorFirm?.name ?? null,
           confirmedByClient: c.confirmedByPortal,
+          // A helper confirmed this step → the portal reads "X on your behalf".
+          helperName: (() => {
+            const cc = c.confirmedByContactId ? confirmerById.get(c.confirmedByContactId) : null;
+            return cc && !cc.isPrincipal ? cc.name : null;
+          })(),
           eventDate: c.eventDate ?? null,
           createdAt: c.completedAt,
         };

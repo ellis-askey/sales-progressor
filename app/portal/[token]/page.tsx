@@ -929,7 +929,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                         side: entry.side,
                         viewerSide: side,
                         confirmer: entry.confirmedByClient
-                          ? { kind: "client" }
+                          ? (entry.helperName ? { kind: "helper", name: entry.helperName } : { kind: "client" })
                           : entry.confirmedBySolicitorFirmName
                             ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
                             : { kind: "agent", name: entry.completedByName ?? "Your team" },

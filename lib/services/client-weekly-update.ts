@@ -31,7 +31,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       },
       contacts: {
         // Never email a client who has unsubscribed (compliance).
-        where: { email: { not: null }, unsubscribedAt: null, roleType: { in: ["purchaser", "vendor"] } },
+        where: { email: { not: null }, unsubscribedAt: null, roleType: { in: ["purchaser", "vendor"] }, portalEligible: true },
         select: { id: true, name: true, email: true, portalToken: true, roleType: true },
       },
     },

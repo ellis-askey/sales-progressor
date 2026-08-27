@@ -1157,7 +1157,7 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
       propertyAddress: true,
       agency: { select: { name: true } },
       contacts: {
-        where: { roleType: { in: ["vendor", "purchaser"] } },
+        where: { roleType: { in: ["vendor", "purchaser"] }, portalEligible: true },
         select: { id: true, name: true, email: true, roleType: true, portalToken: true },
       },
     },
