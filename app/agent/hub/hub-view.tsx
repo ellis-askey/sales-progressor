@@ -24,7 +24,7 @@ import {
   getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
-  getHubPipelineStages, getUpcomingMortgageExpiries,
+  getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
@@ -37,6 +37,7 @@ import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
 import { MortgageExpiryCard } from "@/components/hub/MortgageExpiryCard";
+import { GoneQuietCard } from "@/components/hub/GoneQuietCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { SectionLoading } from "@/components/hub/SectionLoading";
@@ -370,6 +371,13 @@ function FullHubBody({
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
+      {/* Gone quiet — internal staff only for now; hidden when none */}
+      {ctx.vis.internalMode && (
+        <Suspense fallback={null}>
+          <GoneQuietSlot vis={ctx.vis} />
+        </Suspense>
+      )}
+
       {/* Mortgage offers nearing expiry — hidden when none */}
       <Suspense fallback={null}>
         <MortgageExpirySlot vis={ctx.vis} />
@@ -483,6 +491,22 @@ async function AttentionSlot({
         />
       </AnimatedSection>
     </SectionReveal>
+  );
+}
+
+async function GoneQuietSlot({ vis }: { vis: AgentVisibility }) {
+  const items = await getGoneQuietFiles(vis);
+  if (items.length === 0) return null;
+  return (
+    <GoneQuietCard
+      items={items.map((i) => ({
+        transactionId: i.transactionId,
+        propertyAddress: i.propertyAddress,
+        kind: i.kind,
+        reason: i.reason,
+        detectedAt: i.detectedAt.toISOString(),
+      }))}
+    />
   );
 }
 

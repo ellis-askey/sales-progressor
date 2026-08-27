@@ -429,6 +429,55 @@ export async function getHubFlags(vis: AgentVisibility): Promise<HubFlag[]> {
     });
 }
 
+// ── Gone-quiet queue ──────────────────────────────────────────────────────────
+
+const GONE_QUIET_KINDS = ["long_silence", "portal_gone_quiet", "no_portal_activity"] as const;
+
+export type GoneQuietItem = {
+  transactionId: string;
+  propertyAddress: string;
+  kind: string;
+  reason: string | null;
+  detectedAt: Date;
+};
+
+// Hub "Gone quiet" queue (internal staff for now). Surfaces files that have gone
+// dark: a client who was engaging and stopped (portal_gone_quiet), one who never
+// engaged (no_portal_activity), or a file with no communication logged for 10+
+// days (long_silence — meaningful for our files, where comms are actually
+// captured). One row per file, longest-standing concern first. Read-only
+// surfacing of the nightly problem-detection flags, which otherwise only reach
+// the weekly email. Deliberately separate from the attention card: an overdue
+// step is a different thing from a whole file going quiet.
+export async function getGoneQuietFiles(vis: AgentVisibility): Promise<GoneQuietItem[]> {
+  const txNested = buildTxNested(vis);
+  const flags = await prisma.transactionFlag.findMany({
+    where: {
+      resolvedAt: null,
+      kind: { in: [...GONE_QUIET_KINDS] },
+      transaction: { status: "active", ...txNested },
+      // agencyId only scopes agency viewers; internal staff are scoped by
+      // txNested (outsourced / assigned) and carry a null agencyId, so applying
+      // it there would wrongly match nothing (the getHubFlags FU-05 bug).
+      ...(vis.internalMode ? {} : { agencyId: vis.agencyId }),
+    },
+    orderBy: { detectedAt: "asc" },
+    select: {
+      kind: true, reason: true, detectedAt: true,
+      transaction: { select: { id: true, propertyAddress: true } },
+    },
+  });
+  // One row per file — the earliest-detected (longest-standing) flag wins.
+  const seen = new Set<string>();
+  const items: GoneQuietItem[] = [];
+  for (const f of flags) {
+    if (seen.has(f.transaction.id)) continue;
+    seen.add(f.transaction.id);
+    items.push({ transactionId: f.transaction.id, propertyAddress: f.transaction.propertyAddress, kind: f.kind, reason: f.reason, detectedAt: f.detectedAt });
+  }
+  return items;
+}
+
 // ── Momentum ──────────────────────────────────────────────────────────────────
 
 // ── Hold-expired files ────────────────────────────────────────────────────
@@ -1263,6 +1312,10 @@ export type HubAttentionItem = {
   reminderName: string;
   transaction: { id: string; propertyAddress: string; photoStoragePath: string | null };
   nextDueDate: Date;
+  // Effective predicted exchange date (override ?? predicted), null if none.
+  // Feeds the internal "most time-critical" ranking so files close to exchange
+  // rise above routine early-stage nudges.
+  exchangeDate: Date | null;
   // 2026-07-13 (Chunk 8): manual-escalation trio - all null when the
   // engine auto-flipped, or when the item isn't escalated at all. Read
   // by the tooltip on the Sale Health / Attention list's Escalated pill.
@@ -1306,7 +1359,7 @@ export async function getHubAttentionItems(
       id: true,
       nextDueDate: true,
       reminderRule: { select: { name: true } },
-      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true } },
       // status + snoozedUntil + chase fields all needed by classifyReminder.
       status: true,
       snoozedUntil: true,
@@ -1336,8 +1389,9 @@ export async function getHubAttentionItems(
         id: log.id,
         urgency: bucket as HubAttentionItem["urgency"],
         reminderName: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
-        transaction: log.transaction,
+        transaction: { id: log.transaction.id, propertyAddress: log.transaction.propertyAddress, photoStoragePath: log.transaction.photoStoragePath },
         nextDueDate: log.nextDueDate,
+        exchangeDate: log.transaction.overridePredictedDate ?? log.transaction.expectedExchangeDate ?? null,
         escalationReason: task?.escalationReason ?? null,
         escalatedAt: task?.escalatedAt ?? null,
         escalatedByName: task?.escalatedBy?.name ?? null,
@@ -1352,7 +1406,7 @@ export async function getHubAttentionItems(
     select: {
       id: true,
       escalatedAt: true,
-      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true } },
     },
   });
   for (const t of stalled) {
@@ -1361,8 +1415,9 @@ export async function getHubAttentionItems(
       id: `enq-${t.id}`,
       urgency: "escalated",
       reminderName: "Enquiries stalled",
-      transaction: t.transaction,
+      transaction: { id: t.transaction.id, propertyAddress: t.transaction.propertyAddress, photoStoragePath: t.transaction.photoStoragePath },
       nextDueDate: t.escalatedAt,
+      exchangeDate: t.transaction.overridePredictedDate ?? t.transaction.expectedExchangeDate ?? null,
       escalationReason: "No movement in 3 weeks",
       escalatedAt: t.escalatedAt,
       escalatedByName: null,
@@ -1422,17 +1477,39 @@ export async function getHubAttentionItems(
         photoStoragePath: tx.photoStoragePath,
       },
       nextDueDate: passedDate,
+      exchangeDate: tx.overridePredictedDate ?? tx.expectedExchangeDate ?? passedDate,
       escalationReason: "Exchange date passed and the file's gone quiet",
       escalatedAt: null,
       escalatedByName: null,
     });
   }
 
-  const order = { escalated: 0, overdue: 1, due_today: 2 };
-  items.sort((a, b) => {
-    const d = order[a.urgency] - order[b.urgency];
-    return d !== 0 ? d : new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
-  });
+  // Internal staff get a "most time-critical" ranking: keep urgency as the base
+  // weight (escalated highest — something's actively going wrong), but lift
+  // files close to (or past) exchange so a near-exchange file beats a routine
+  // early-stage nudge. Value/fee deliberately plays no part. Agency viewers keep
+  // the original urgency-then-due-date order until this proves itself internally.
+  if (vis.internalMode) {
+    const rank = (it: HubAttentionItem): number => {
+      const base = it.urgency === "escalated" ? 100 : it.urgency === "overdue" ? 60 : 30;
+      let proximity = 0;
+      if (it.exchangeDate) {
+        const days = Math.floor((it.exchangeDate.getTime() - now.getTime()) / 86400000);
+        proximity = days < 0 ? 90 : days <= 7 ? 80 : days <= 14 ? 50 : days <= 30 ? 25 : 0;
+      }
+      return base + proximity;
+    };
+    items.sort((a, b) => {
+      const d = rank(b) - rank(a);
+      return d !== 0 ? d : new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
+    });
+  } else {
+    const order = { escalated: 0, overdue: 1, due_today: 2 };
+    items.sort((a, b) => {
+      const d = order[a.urgency] - order[b.urgency];
+      return d !== 0 ? d : new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
+    });
+  }
 
   return items;
 }
