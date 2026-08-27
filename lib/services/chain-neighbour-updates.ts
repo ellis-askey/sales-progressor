@@ -20,7 +20,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveChainInviteSender } from "@/lib/chain/invite";
-import { onwardStepLabel } from "@/lib/onward-copy";
+import { purchaserStepClause } from "@/lib/updates-copy";
 import { buildInviteUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { isInviteEmailSuppressed } from "@/lib/email";
 
@@ -143,7 +143,9 @@ async function sendNeighbourGroup(
     select: { code: true, name: true },
   });
   const nameByCode = new Map(defs.map((d) => [d.code, d.name]));
-  const labels = codes.map((c) => onwardStepLabel(c, nameByCode.get(c) ?? c));
+  // Third-person, from the onward agent's point of view ("their searches have
+  // come back"), never the seller's own second-person portal wording.
+  const labels = codes.map((c) => purchaserStepClause(c, nameByCode.get(c) ?? c));
 
   const sender = await resolveChainInviteSender(sellerTransactionId, {
     name: seller.agency.name,
@@ -183,7 +185,7 @@ function joinLabels(labels: string[]): string {
   return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
 }
 
-function buildNeighbourEmail(v: {
+export function buildNeighbourEmail(v: {
   recipientName: string;
   sellerName: string;
   onwardAddress: string;

@@ -75,6 +75,16 @@ const GENERAL: Record<string, string> = {
   PM20: "all enquiries are now satisfied",
 };
 
+// Third-person clause for a purchaser-side step, phrased for someone OTHER than
+// the client (e.g. the onward agent hearing that their buyer has progressed):
+// "their {core}", or a bare general fact for exchanged / all-enquiries. Falls
+// back to the milestone name. See lib/services/chain-neighbour-updates.ts.
+export function purchaserStepClause(code: string, milestoneName: string): string {
+  if (GENERAL[code]) return GENERAL[code];
+  if (CORES[code]) return `their ${CORES[code]}`;
+  return milestoneName;
+}
+
 // First-person-plural clauses for when the CONFIRMER is the solicitor. Reads
 // "{firm} confirmed {clause}" — natural, and never "{firm} confirmed that
 // {client}'s solicitor has …" (the firm IS the client's solicitor). Approved
