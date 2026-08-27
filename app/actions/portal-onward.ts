@@ -31,6 +31,7 @@ import {
 } from "@/lib/services/onward";
 import { writeClientChainStub } from "@/lib/services/chains";
 import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
+import { enqueueOnwardNeighbourUpdate } from "@/lib/services/chain-neighbour-updates";
 
 // Resolve a portal token to its Contact and require it be the seller (vendor).
 // Returns null when the token is invalid or not a vendor — callers translate
@@ -129,6 +130,11 @@ export async function portalConfirmOnwardStepAction(input: {
     source: "seller",
     contactId: v.contactId,
   });
+  // Note A: let the onward agent above know (invited neighbours only, agency
+  // opt-in). Fire-and-forget — never blocks or breaks the client's confirm.
+  if (result.ok) {
+    void enqueueOnwardNeighbourUpdate(v.transactionId, input.milestoneCode).catch(() => {});
+  }
   revalidatePortal(input.token);
   const view = await getOnwardTrackerView(v.transactionId);
   return { result, view };

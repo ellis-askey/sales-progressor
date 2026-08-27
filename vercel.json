@@ -9,6 +9,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/drain-chain-neighbour-updates",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/enquiries-chase",
       "schedule": "0 9 * * 1-5"
     },

@@ -32,6 +32,7 @@ export type AgentEmailKind =
   | "verified_email"
   | "chain_invite"
   | "chain_invite_nudge"
+  | "chain_neighbour_update"
   | "password_reset";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).

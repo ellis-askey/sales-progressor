@@ -22,6 +22,7 @@ import { AutomationSettingsForm } from "@/components/automation/AutomationSettin
 import { SolicitorAutomationForm } from "@/components/automation/SolicitorAutomationForm";
 import { SolicitorPerCodeTable } from "@/components/automation/SolicitorPerCodeTable";
 import { WeeklyUpdateToggle } from "@/components/automation/WeeklyUpdateToggle";
+import { ChainNeighbourUpdatesToggle } from "@/components/automation/ChainNeighbourUpdatesToggle";
 
 export default async function AutomationSettingsPage() {
   const session = await requireSession();
@@ -32,7 +33,7 @@ export default async function AutomationSettingsPage() {
   const [agency, rules, defs, solicitorSettings, solicitorRules] = await Promise.all([
     prisma.agency.findUnique({
       where: { id: agencyId },
-      select: { chaseEmailsEnabled: true, weeklyClientUpdatesEnabled: true },
+      select: { chaseEmailsEnabled: true, weeklyClientUpdatesEnabled: true, chainNeighbourUpdatesEnabled: true },
     }),
     prisma.reminderRule.findMany({
       where: { isActive: true, targetMilestoneCode: { not: null } },
@@ -88,6 +89,7 @@ export default async function AutomationSettingsPage() {
         initialRules={editableRules}
       />
       <WeeklyUpdateToggle initialEnabled={agency.weeklyClientUpdatesEnabled} />
+      <ChainNeighbourUpdatesToggle initialEnabled={agency.chainNeighbourUpdatesEnabled} />
       <SolicitorAutomationForm
         initial={{
           enabled: solicitorSettings?.enabledByDefault ?? false,

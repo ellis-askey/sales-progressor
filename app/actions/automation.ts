@@ -557,6 +557,24 @@ export async function setWeeklyClientUpdatesEnabled(enabled: boolean): Promise<A
   return { ok: true };
 }
 
+// Chain neighbour updates (Note A) — director-only, off by default. When on,
+// a seller confirming an onward-purchase step notifies the invited onward agent
+// above. Only invited (never cold) neighbours are emailed; they can unsubscribe.
+export async function setChainNeighbourUpdatesEnabled(enabled: boolean): Promise<ActionResult> {
+  const session = await requireSession();
+  if (session.user.role !== "director") {
+    return { ok: false, error: "Only directors can change automation settings." };
+  }
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return { ok: false, error: "Missing agency context." };
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: { chainNeighbourUpdatesEnabled: enabled },
+  });
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}
+
 // ─── Email preview / edit ───────────────────────────────────────────────
 
 export type UpdateEmailPayloadInput = {
