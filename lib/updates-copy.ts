@@ -29,7 +29,6 @@ const CORES: Record<string, string> = {
   VM8: "solicitor has requested the management pack",
   VM9: "solicitor has received the management pack",
   VM10: "solicitor has received the initial enquiries",
-  VM21: "all enquiries are satisfied now",
   VM11: "solicitor now has the initial replies",
   VM12: "solicitor has replied to the buyer's solicitor",
   VM13: "solicitor has received the additional enquiries",
@@ -59,7 +58,6 @@ const CORES: Record<string, string> = {
   PM17: "solicitor has raised additional enquiries",
   PM18: "solicitor has received the additional replies",
   PM19: "solicitor has reviewed the additional replies",
-  PM20: "enquiries are all satisfied now",
   PM21: "solicitor's final report has arrived",
   PM22: "contract is ready to sign",
   PM23: "contract has been signed and returned",
@@ -68,10 +66,13 @@ const CORES: Record<string, string> = {
   PM27: "purchase has completed",
 };
 
-// Non-possessive facts (contracts exchanged): same clause however it's said.
+// Non-possessive facts (contracts exchanged, all enquiries satisfied): the same
+// clause however it's said, with no "{client}'s" prefix.
 const GENERAL: Record<string, string> = {
   VM19: "contracts have exchanged",
   PM26: "contracts have exchanged",
+  VM21: "all enquiries are now satisfied",
+  PM20: "all enquiries are now satisfied",
 };
 
 // First-person-plural clauses for when the CONFIRMER is the solicitor. Reads
@@ -88,8 +89,8 @@ const SOLICITOR_CONFIRM_CLAUSES: Record<string, string> = {
   VM12: "they have sent their replies to the initial enquiries",
   VM13: "they have received the further enquiries",
   VM15: "they have sent their replies to the further enquiries",
-  VM16: "they have sent the contract documents out for signing",
-  VM17: "they have received the signed contract documents back",
+  VM16: "they have issued the contract to {clients} for signing",
+  VM17: "they have received the signed contract back from {clients}",
   VM18: "they are ready to exchange",
   // Buyer's solicitor
   PM7:  "they have received the draft contract pack",
@@ -104,8 +105,8 @@ const SOLICITOR_CONFIRM_CLAUSES: Record<string, string> = {
   PM18: "they have received the replies to the further enquiries",
   PM19: "they have reviewed the replies to the further enquiries",
   PM20: "they are satisfied with all the enquiries",
-  PM22: "they have sent the contract documents out for signing",
-  PM23: "they have received the signed contract documents back",
+  PM22: "they have issued the contract to {clients} for signing",
+  PM23: "they have received the signed contract back from {clients}",
   PM25: "they are ready to exchange",
 };
 
@@ -113,9 +114,31 @@ const SOLICITOR_CONFIRM_CLAUSES: Record<string, string> = {
  *  (agent notifications, comms feed, client portal) AND at store time
  *  (MilestoneCompletion.summaryText), so every surface reads identically.
  *  Falls back to the neutral label for any code without a written clause. */
-export function solicitorConfirmationSentence(firm: string, code: string, milestoneName: string): string {
+// True for the steps a solicitor actually confirms (they have written clauses).
+// Used to keep demo/seed data from attributing a solicitor confirm to a step a
+// solicitor would never confirm (which would fall back to the neutral label).
+export function hasSolicitorClause(code: string): boolean {
+  return code in SOLICITOR_CONFIRM_CLAUSES;
+}
+
+export function solicitorConfirmationSentence(
+  firm: string,
+  code: string,
+  milestoneName: string,
+  sideContacts?: SideContact[],
+): string {
   const clause = SOLICITOR_CONFIRM_CLAUSES[code];
-  return clause ? `${firm} confirmed ${clause}` : `${firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+  if (!clause) return `${firm} confirmed: ${solicitorStepLabel(code, milestoneName)}`;
+  // Some clauses name the clients (e.g. "issued the contract to {clients}").
+  const filled = clause.includes("{clients}")
+    ? clause.replace("{clients}", clientsOrParty(sideContacts, code))
+    : clause;
+  return `${firm} confirmed ${filled}`;
+}
+
+function clientsOrParty(contacts: SideContact[] | undefined, code: string): string {
+  if (contacts && contacts.length > 0) return joinNames(contacts.map((c) => c.name));
+  return code.startsWith("VM") ? "the seller" : "the buyer";
 }
 
 export type UpdateConfirmer =
@@ -180,7 +203,7 @@ export function confirmationSentence(opts: {
   // ("{firm} confirmed they have …"), never "{firm} confirmed that {client}'s
   // solicitor has …" (the firm IS the client's solicitor).
   if (confirmer.kind === "solicitor") {
-    return solicitorConfirmationSentence(confirmer.firm, code, milestoneName);
+    return solicitorConfirmationSentence(confirmer.firm, code, milestoneName, sideContacts);
   }
   const who = confirmer.name;
   if (general) return `${who} confirmed that ${general}`;

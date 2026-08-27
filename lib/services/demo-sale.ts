@@ -22,6 +22,7 @@ import { createTransaction } from "@/lib/services/transactions";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { hasSolicitorClause } from "@/lib/updates-copy";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 
 // The made-up staff member who "manages" every demo file, so a demo is never
@@ -237,7 +238,9 @@ async function seedMilestones(
   for (let i = 0; i < completed.length; i++) {
     const c = completed[i];
     const offset = Math.round(span - (i / Math.max(completed.length - 1, 1)) * (span - 1));
-    const channel = i % 4 === 1 ? "solicitor" : i % 4 === 3 ? "portal" : "agent";
+    let channel = i % 4 === 1 ? "solicitor" : i % 4 === 3 ? "portal" : "agent";
+    // Only attribute a solicitor confirm to a step a solicitor actually confirms.
+    if (channel === "solicitor" && !hasSolicitorClause(c.code)) channel = "agent";
     let attribution: Record<string, unknown>;
     if (channel === "solicitor") {
       attribution = c.side === "purchaser"
