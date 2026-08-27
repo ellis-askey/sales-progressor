@@ -12,6 +12,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { outwardCode } from "@/lib/utils/address";
+import { getOnwardSignalForFile } from "@/lib/services/onward";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { QuoteFlow } from "./QuoteFlow";
@@ -37,8 +38,16 @@ function priceLabel(pence: number | null): string | null {
   return `£${Math.round(pence / 100).toLocaleString("en-GB")}`;
 }
 
-export default async function QuotePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function QuotePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ onward?: string }>;
+}) {
   const { token } = await params;
+  const { onward: onwardParam } = await searchParams;
+  const onward = onwardParam === "1";
 
   const contact = await prisma.contact.findFirst({
     where: { portalToken: token },
@@ -57,7 +66,29 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
 
   if (!contact) notFound();
 
-  const outward = outwardCode(contact.transaction.propertyAddress);
+  // Onward mode: point the whole picker at the property they're buying (from
+  // the chain link above their file), not the file's own address.
+  let targetAddress = contact.transaction.propertyAddress;
+  if (onward) {
+    const sig = await getOnwardSignalForFile(contact.transaction.id);
+    if (!sig.onwardAddress) {
+      return (
+        <main style={{ minHeight: "100svh", padding: "24px 20px 64px" }}>
+          <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
+              We need your onward address first
+            </h1>
+            <p style={{ fontSize: 14, color: A.textMuted }}>
+              Add the property you&apos;re buying in your portal, then we can find surveyors that cover that area.
+            </p>
+          </div>
+        </main>
+      );
+    }
+    targetAddress = sig.onwardAddress;
+  }
+
+  const outward = outwardCode(targetAddress);
 
   const [serviceTypes, coveringFirms, brokerFirms] = await Promise.all([
     // All active service types across every provider kind.
@@ -134,16 +165,18 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
             {extractFirstName(contact.name)}, what do you need?
           </h1>
           <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
-            For <strong style={{ color: A.textSecondary }}>{contact.transaction.propertyAddress}</strong>. We'll only pass your details to the firms you choose.
+            For <strong style={{ color: A.textSecondary }}>{targetAddress}</strong>
+            {onward ? " (the property you're buying)" : ""}. We'll only pass your details to the firms you choose.
           </p>
         </header>
 
         <QuoteFlow
           token={token}
-          propertyAddress={contact.transaction.propertyAddress}
+          propertyAddress={targetAddress}
           outwardCode={outward}
-          priceLabel={priceLabel(contact.transaction.purchasePrice)}
-          tenureLabel={tenureLabel(contact.transaction.tenure, contact.transaction.isShareOfFreehold)}
+          onward={onward}
+          priceLabel={onward ? null : priceLabel(contact.transaction.purchasePrice)}
+          tenureLabel={onward ? null : tenureLabel(contact.transaction.tenure, contact.transaction.isShareOfFreehold)}
           kinds={availableKinds}
           serviceTypes={serviceTypes.map((s) => ({
             id: s.id,

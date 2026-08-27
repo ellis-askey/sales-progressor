@@ -33,6 +33,7 @@ export function QuoteFlow({
   contactName,
   contactEmail,
   contactPhone,
+  onward = false,
 }: {
   token: string;
   propertyAddress: string;
@@ -45,6 +46,10 @@ export function QuoteFlow({
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  // When true this request is for the seller's ONWARD purchase (a different
+  // property), not the file it opened from. Sent to the action so it stores the
+  // onward address on the quote.
+  onward?: boolean;
 }) {
   // When there's only one category available, pre-select it and hide the step.
   const [kind, setKind] = useState<string | null>(kinds.length === 1 ? kinds[0].kind : null);
@@ -99,6 +104,7 @@ export function QuoteFlow({
         clientName,
         clientEmail,
         clientPhone,
+        onward,
       });
       setResult(r);
       if (r.ok) window.scrollTo({ top: 0, behavior: "smooth" });

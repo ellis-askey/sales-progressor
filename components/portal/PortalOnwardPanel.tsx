@@ -22,6 +22,9 @@ import {
   portalReactivateOnwardAction,
   portalGetOnwardTrackerAction,
   portalSkipOnwardSurveyAction,
+  portalGetOnwardSurveyAction,
+  portalConfirmOnwardSurveyAction,
+  type OnwardSurveyState,
 } from "@/app/actions/portal-onward";
 
 // Open the shared manage drawer (change place / no longer buying) — the same
@@ -74,6 +77,12 @@ export function PortalOnwardPanel({
   const [confirmDate, setConfirmDate] = useState("");
   const [skipSheet, setSkipSheet] = useState(false);
 
+  // Onward survey recommendation state (the card that mirrors the buyer's).
+  const [survey, setSurvey] = useState<OnwardSurveyState | null>(null);
+  const [surveyBusy, setSurveyBusy] = useState(false);
+  const refreshSurvey = () => { portalGetOnwardSurveyAction(token).then(setSurvey); };
+  useEffect(() => { refreshSurvey(); }, [token, view]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // The manage drawer (change place / no longer buying) lives at the shell
   // level; refetch when it saves so this panel reflects the change.
   useEffect(() => {
@@ -97,6 +106,62 @@ export function PortalOnwardPanel({
 
   const confirmingStep = confirmingCode ? view.steps.find((s) => s.code === confirmingCode) ?? null : null;
   function closeSheet() { if (!pending) setConfirmingCode(null); }
+
+  function confirmSurveyFirm(quoteRequestId: string) {
+    if (surveyBusy) return;
+    setSurveyBusy(true);
+    portalConfirmOnwardSurveyAction({ token, quoteRequestId })
+      .then((s) => setSurvey(s))
+      .finally(() => setSurveyBusy(false));
+  }
+
+  const joinFirms = (names: string[]) =>
+    names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+
+  const showSurveyCard =
+    !!survey && !!survey.onwardAddress && !survey.skipped && !survey.pm9Done && !survey.hasBooked;
+  const surveyCard = showSurveyCard ? (
+    <div className="rounded-2xl px-5 py-4" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+      {survey!.quotes.length === 0 ? (
+        <>
+          <p className="text-[14px] font-semibold mb-1" style={{ color: P.textPrimary }}>Arrange your survey</p>
+          <p className="text-[13px] leading-relaxed mb-3" style={{ color: P.textSecondary }}>
+            Most buyers get a survey before exchange. We&apos;ll show you surveyors that cover the area you&apos;re
+            buying in, and they&apos;ll come back to you with a quote directly.
+          </p>
+          <a
+            href={`/quote/${token}?onward=1`}
+            className="inline-block text-[13px] font-semibold rounded-full"
+            style={{ background: P.primary, color: "#fff", padding: "9px 18px", textDecoration: "none" }}
+          >
+            Find a surveyor
+          </a>
+        </>
+      ) : (
+        <>
+          <p className="text-[14px] font-semibold mb-1" style={{ color: P.textPrimary }}>Your survey quotes</p>
+          <p className="text-[13px] leading-relaxed mb-3" style={{ color: P.textSecondary }}>
+            You&apos;ve asked {joinFirms(survey!.quotes.map((q) => q.firmName))} for a quote. Once you&apos;ve
+            chosen, let us know which one you&apos;re going with.
+          </p>
+          <div className="flex flex-col gap-2 mb-2">
+            {survey!.quotes.map((q) => (
+              <PortalButton key={q.id} size="sm" full={false} loading={surveyBusy} onClick={() => confirmSurveyFirm(q.id)}>
+                I&apos;m going with {q.firmName}
+              </PortalButton>
+            ))}
+          </div>
+          <a
+            href={`/quote/${token}?onward=1`}
+            className="text-[13px] font-semibold"
+            style={{ color: P.primary, textDecoration: "none" }}
+          >
+            Ask another firm
+          </a>
+        </>
+      )}
+    </div>
+  ) : null;
 
   function doConfirm(code: string) {
     run(async () => {
@@ -223,6 +288,8 @@ export function PortalOnwardPanel({
       {onwardAddress && (
         <p className="text-[14px] font-semibold px-1" style={{ color: P.textPrimary }}>{onwardAddress}</p>
       )}
+
+      {surveyCard}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
       {/* Topper — matches the view-only "The purchase / The sale" card header. */}

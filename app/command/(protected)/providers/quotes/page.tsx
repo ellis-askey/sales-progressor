@@ -58,6 +58,9 @@ export default async function QuoteInboxPage({
       include: {
         provider: { select: { id: true, name: true, logoPath: true } },
         serviceType: { select: { label: true } },
+        // A survey quote from a vendor contact is for their onward purchase
+        // (sellers don't survey the property they're selling) — flag it.
+        contact: { select: { roleType: true } },
       },
     }),
     commandDb.quoteRequest.groupBy({
@@ -159,7 +162,14 @@ export default async function QuoteInboxPage({
                       </div>
                     </td>
                     <td className="px-3 py-2 text-[11px] text-[#a3a3a3]">{r.serviceType.label}</td>
-                    <td className="px-3 py-2 text-[11px] font-mono text-[#a3a3a3]">{r.propertyPostcode}</td>
+                    <td className="px-3 py-2 text-[11px] font-mono text-[#a3a3a3]">
+                      <span>{r.propertyPostcode}</span>
+                      {r.contact?.roleType === "vendor" && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold uppercase tracking-wide bg-[#1e3a8a]/40 text-[#93c5fd] align-middle">
+                          Onward
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-[11px] text-[#a3a3a3] capitalize">{r.urgency.replace("_", " ")}</td>
                     <td className="px-3 py-2 text-[11px] text-[#737373] text-right tabular-nums">
                       {r.submittedAt.toISOString().slice(0, 10)}

@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { outwardCode } from "@/lib/utils/address";
+import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onward";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
 
 // Contact methods that reach the client on a phone number — server-side mirror
@@ -47,6 +48,9 @@ export type QuoteSubmitInput = {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
+  // Seller requesting a survey for their ONWARD purchase: match + snapshot
+  // against the onward property's address, not the file it opened from.
+  onward?: boolean;
 };
 
 export type QuoteSubmitResult =
@@ -133,9 +137,33 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
     return { ok: false, error: "That service type is no longer available." };
   }
 
-  const outward = outwardCode(contact.transaction.propertyAddress);
+  // For an onward request, everything — the area match AND the snapshot stored
+  // on the quote — is against the property they're BUYING, resolved from the
+  // chain link above their file, not the file's own address.
+  let effAddress = contact.transaction.propertyAddress;
+  let effPricePence: number | null = contact.transaction.purchasePrice ?? null;
+  let effTenure: Tenure | null = contact.transaction.tenure ?? null;
+  let effShare = contact.transaction.isShareOfFreehold;
+  if (input.onward) {
+    const sig = await getOnwardSignalForFile(contact.transaction.id);
+    if (!sig.onwardAddress) {
+      return { ok: false, error: "We don't have the address of your onward purchase yet. Add it in your portal first." };
+    }
+    const trackerView = await getOnwardTrackerView(contact.transaction.id);
+    effAddress = sig.onwardAddress;
+    effPricePence = null; // the onward's price isn't held on this file
+    effTenure = trackerView.tenure;
+    effShare = trackerView.isShareOfFreehold;
+  }
+
+  const outward = outwardCode(effAddress);
   if (!outward) {
-    return { ok: false, error: "We couldn't read the postcode for your sale. Please contact your agent." };
+    return {
+      ok: false,
+      error: input.onward
+        ? "We couldn't read the postcode of your onward purchase. Please contact your agent."
+        : "We couldn't read the postcode for your sale. Please contact your agent.",
+    };
   }
 
   const validFirms = firms.filter(
@@ -151,8 +179,8 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   }
 
   // 3. Create one QuoteRequest per valid firm.
-  const propertyAddress = contact.transaction.propertyAddress;
-  const propertyPostcode = extractPostcodeFromAddress(propertyAddress);
+  const propertyAddress = effAddress;
+  const propertyPostcode = extractPostcodeFromAddress(effAddress);
   // Send the quote FROM the agency's own verified address (e.g.
   // ellis@akeman-residential for an Akeman sale). No verified sender on file
   // (e.g. EXP) → the file-type-aware fallback (outsourced = the progressor's
@@ -161,9 +189,9 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   const senderAddress = contact.transaction.agency?.quoteSenderEmail
     ?? (await resolveAgencySenderForTransaction(contact.transaction.id)).replyTo;
   const quoteFrom = buildFrom(agencyName, senderAddress);
-  const pricePence = contact.transaction.purchasePrice ?? null;
-  const tenure = contact.transaction.tenure ?? null;
-  const tenureText = tenureLabel(tenure, contact.transaction.isShareOfFreehold);
+  const pricePence = effPricePence;
+  const tenure = effTenure;
+  const tenureText = tenureLabel(tenure, effShare);
   const priceText = priceLabel(pricePence);
 
   const created = await Promise.all(
