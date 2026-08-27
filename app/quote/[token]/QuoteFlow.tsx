@@ -629,11 +629,10 @@ export function QuoteFlow({
         </StepCard>
       )}
 
-      {/* Spacer so the last card clears the fixed submit bar. */}
-      {serviceTypeId && selectedFirms.size > 0 && <div style={{ height: 76 }} aria-hidden />}
-
       {/* Sticky submit — rises + fades in once a service and firm are picked, so
-          it's always in reach instead of buried below four cards. */}
+          it's always in reach instead of buried below four cards. Same frosted
+          glass as the cards above it (A.card* tokens). Page bottom padding
+          (page.tsx) gives the footer room to clear it. */}
       {serviceTypeId && selectedFirms.size > 0 && (
         <div
           className="quote-enter"
@@ -643,9 +642,9 @@ export function QuoteFlow({
             right: 0,
             bottom: 0,
             zIndex: 50,
-            background: "rgba(255,251,245,0.82)",
-            backdropFilter: "blur(20px) saturate(180%)",
-            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            background: A.cardBg,
+            backdropFilter: A.cardBlur,
+            WebkitBackdropFilter: A.cardBlur,
             borderTop: `1px solid ${A.cardBorder}`,
             padding: "12px 20px calc(12px + env(safe-area-inset-bottom))",
             boxShadow: "0 -6px 24px rgba(45,24,16,0.08)",

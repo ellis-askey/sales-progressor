@@ -142,7 +142,9 @@ export default async function QuotePage({
       style={{
         minHeight: "100svh",
         background: "transparent",
-        padding: "24px 20px 64px",
+        // Extra bottom room so the footer clears the fixed submit bar without a
+        // large spacer gap above it.
+        padding: "24px 20px 104px",
       }}
     >
       {/* Same fixed ambient wash the client portal uses (.portal-ambient in
@@ -173,7 +175,7 @@ export default async function QuotePage({
           contactPhone={contact.phone ?? ""}
         />
 
-        <footer style={{ marginTop: 32, textAlign: "center" }}>
+        <footer style={{ marginTop: 20, textAlign: "center" }}>
           <p style={{ fontSize: 11, color: A.textFaint }}>
             Your details are only shared with the firms you select. Read our{" "}
             <a href="/privacy" style={{ color: A.coralDeep, textDecoration: "underline" }}>
