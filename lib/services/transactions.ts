@@ -242,7 +242,7 @@ export async function getTransaction(id: string, agencyId: string) {
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true, image: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
@@ -275,7 +275,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true, image: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },

@@ -78,6 +78,10 @@ type Contact = {
   createdAt: Date;
   lastVisitedPortalAt?: Date | null;
   unsubscribedAt?: Date | null;
+  // Note B: a helper is someone on a side who isn't the actual client. They're
+  // never named in confirmations; portalEligible controls their portal/emails.
+  isPrincipal?: boolean;
+  portalEligible?: boolean;
 };
 
 function fmtRelative(date: Date): string {
@@ -129,6 +133,9 @@ type PortalState = "none" | "not_invited" | "invited" | "active";
 function resolvePortalState(contact: Contact, lastViewed: Date | undefined): PortalState {
   const role = asRole(contact.roleType);
   if (role !== "vendor" && role !== "purchaser") return "none";
+  // Note B: a helper without portal access (isPrincipal false, not opted in)
+  // has a token minted at creation but no portal/emails — hide the portal card.
+  if (contact.isPrincipal === false && contact.portalEligible === false) return "none";
   if (!contact.portalToken) return "not_invited";
   if (lastViewed) return "active";
   return "invited";
@@ -405,7 +412,7 @@ export function ContactsSection({
   const [copied, setCopied] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [exitingId, setExitingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", roleType: "vendor" as string, isHelper: false, givePortal: false });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [inviting, setInviting] = useState<string | null>(null);
@@ -504,7 +511,14 @@ export function ContactsSection({
     setEditingId(contact.id);
     setExitingId(null);
     setEditError(null);
-    setEditForm({ name: contact.name, phone: contact.phone ?? "", email: contact.email ?? "" });
+    setEditForm({
+      name: contact.name,
+      phone: contact.phone ?? "",
+      email: contact.email ?? "",
+      roleType: contact.roleType,
+      isHelper: contact.isPrincipal === false,
+      givePortal: contact.portalEligible ?? false,
+    });
   }
 
   function closeEdit() {
@@ -519,7 +533,19 @@ export function ContactsSection({
   function handleEdit(contactId: string) {
     setEditSaving(true);
     setEditError(null);
-    const snap = { id: contactId, transactionId, name: titleCase(editForm.name), phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null, email: editForm.email.trim() || null };
+    const canHelper = editForm.roleType === "vendor" || editForm.roleType === "purchaser";
+    const isHelper = canHelper && editForm.isHelper;
+    const snap = {
+      id: contactId,
+      transactionId,
+      name: titleCase(editForm.name),
+      phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null,
+      email: editForm.email.trim() || null,
+      // Only send the role flags for a side that can have a helper; leaving
+      // them undefined keeps solicitors/brokers untouched (principal default).
+      isPrincipal: canHelper ? !isHelper : undefined,
+      portalEligible: isHelper ? editForm.givePortal : undefined,
+    };
     startTransition(async () => {
       try {
         await updateContactAction(snap);
@@ -702,6 +728,11 @@ export function ContactsSection({
                             <RoleIcon role={r} size={11} />
                             {roleLabel(r)}
                           </Pill>
+                          {contact.isPrincipal === false && (
+                            <Pill glass tone="muted" size="sm" title="A helper (not the actual client). We never name them in confirmations.">
+                              Helper
+                            </Pill>
+                          )}
                         </div>
 
                         {/* Status pills row: last contacted, chase count, opted out */}
@@ -841,6 +872,20 @@ export function ContactsSection({
                       placeholder="Email"
                       className={INPUT}
                     />
+                    {(editForm.roleType === "vendor" || editForm.roleType === "purchaser") && (
+                      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
+                        <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer">
+                          <input type="checkbox" checked={editForm.isHelper} onChange={(e) => setEditForm((f) => ({ ...f, isHelper: e.target.checked }))} className="mt-0.5" />
+                          <span>They&rsquo;re helping, not the actual {editForm.roleType === "vendor" ? "seller" : "buyer"} (a relative, an assistant, or a representative). We won&rsquo;t name them in confirmations.</span>
+                        </label>
+                        {editForm.isHelper && (
+                          <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer pl-[26px]">
+                            <input type="checkbox" checked={editForm.givePortal} onChange={(e) => setEditForm((f) => ({ ...f, givePortal: e.target.checked }))} className="mt-0.5" />
+                            <span>Give them their own portal login and updates.</span>
+                          </label>
+                        )}
+                      </div>
+                    )}
                     {editError && editingId === contact.id && (
                       <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
                         {editError}

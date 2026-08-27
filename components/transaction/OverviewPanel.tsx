@@ -59,6 +59,8 @@ type Contact = {
   createdAt: Date;
   lastVisitedPortalAt?: Date | null;
   unsubscribedAt?: Date | null;
+  isPrincipal?: boolean;
+  portalEligible?: boolean;
 };
 
 type SolicitorContact = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
