@@ -23,7 +23,7 @@ export type AgencyChaseRow = {
 const STREAMS: { key: ChaseStream; label: string; help: string }[] = [
   { key: "solicitorChaseEnabled", label: "Solicitor confirmations", help: "Chases solicitors to confirm a step is done" },
   { key: "enquiryReplyChaseEnabled", label: "Enquiries chase", help: "Chases whoever holds the enquiries (solicitors)" },
-  { key: "enquiryRaiseChaseEnabled", label: "Enquiries raise", help: "Chases to get enquiries raised — reaches buyers" },
+  { key: "enquiryRaiseChaseEnabled", label: "Enquiries raise", help: "Chases to get enquiries raised (reaches buyers, not just solicitors)" },
 ];
 
 function Toggle({ on, disabled, onClick }: { on: boolean; disabled: boolean; onClick: () => void }) {
