@@ -531,6 +531,7 @@ model PropertyTransaction {
 
   quoteRequests QuoteRequest[]
   whatsAppGroupMappings WhatsAppGroupMapping[]
+  hubCardDismissals HubCardDismissal[]
 
   @@index([serviceType, createdAt])
 }
@@ -2047,6 +2048,30 @@ model TransactionFlag {
 
   @@unique([transactionId, kind])
   @@index([agencyId, resolvedAt])
+}
+
+// Snooze/dismiss for the hub "Gone quiet" + "Mortgage offers expiring" cards.
+// These cards surface computed signals (flags / client-supplied dates) that
+// don't clear until the underlying situation does, so a handled file would
+// otherwise nag forever. Dismissing hides that row for a snooze window; if the
+// situation still holds afterwards it resurfaces (nothing is lost).
+//   cardKind  = "gone_quiet" | "mortgage_expiry"
+//   signature = gone_quiet: "quiet"; mortgage: "<side>:<expiryISO>" so a
+//               RENEWED offer (new date) reappears immediately.
+// File-level (not per-user): these cards are internal-staff only.
+model HubCardDismissal {
+  id             String   @id @default(cuid())
+  transactionId  String
+  cardKind       String
+  signature      String
+  dismissedUntil DateTime
+  dismissedById  String?
+  createdAt      DateTime @default(now())
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, cardKind, signature])
+  @@index([cardKind, dismissedUntil])
 }
 
 // â”€â”€â”€ NextAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -436,9 +436,22 @@ const GONE_QUIET_KINDS = ["long_silence", "portal_gone_quiet", "no_portal_activi
 export type GoneQuietItem = {
   transactionId: string;
   propertyAddress: string;
+  photoStoragePath: string | null;
   kind: string;
-  reason: string | null;
-  detectedAt: Date;
+  subtext: string;
+  pillLabel: string;
+  // Days since the last logged activity — shown for the comms-silence flag
+  // where it's the meaningful number. Null for the portal flags (portal
+  // engagement, not comms) and when nothing's ever been logged.
+  lastContactDays: number | null;
+  // Predicted exchange date (override ?? predicted) → the "how urgent" chip.
+  exchangeDate: Date | null;
+};
+
+const GONE_QUIET_PILL: Record<string, string> = {
+  portal_gone_quiet: "Gone quiet",
+  no_portal_activity: "Never engaged",
+  long_silence: "No contact",
 };
 
 // Hub "Gone quiet" queue (internal staff for now). Surfaces files that have gone
@@ -449,13 +462,21 @@ export type GoneQuietItem = {
 // surfacing of the nightly problem-detection flags, which otherwise only reach
 // the weekly email. Deliberately separate from the attention card: an overdue
 // step is a different thing from a whole file going quiet.
-export async function getGoneQuietFiles(vis: AgentVisibility): Promise<GoneQuietItem[]> {
+export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<GoneQuietItem[]> {
   const txNested = buildTxNested(vis);
+  const now = new Date();
   const flags = await prisma.transactionFlag.findMany({
     where: {
       resolvedAt: null,
       kind: { in: [...GONE_QUIET_KINDS] },
-      transaction: { status: "active", ...txNested },
+      transaction: {
+        status: "active",
+        ...txNested,
+        // Don't repeat a file that's already in "Needs your attention".
+        ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
+        // Not dismissed (snooze still active).
+        hubCardDismissals: { none: { cardKind: "gone_quiet", dismissedUntil: { gt: now } } },
+      },
       // agencyId only scopes agency viewers; internal staff are scoped by
       // txNested (outsourced / assigned) and carry a null agencyId, so applying
       // it there would wrongly match nothing (the getHubFlags FU-05 bug).
@@ -464,16 +485,50 @@ export async function getGoneQuietFiles(vis: AgentVisibility): Promise<GoneQuiet
     orderBy: { detectedAt: "asc" },
     select: {
       kind: true, reason: true, detectedAt: true,
-      transaction: { select: { id: true, propertyAddress: true } },
+      transaction: {
+        select: {
+          id: true, propertyAddress: true, photoStoragePath: true, lastActivityAt: true,
+          expectedExchangeDate: true, overridePredictedDate: true,
+          contacts: { select: { name: true, roleType: true } },
+        },
+      },
     },
   });
+
+  const firstName = (n: string) => n.trim().split(/\s+/)[0] || n;
   // One row per file — the earliest-detected (longest-standing) flag wins.
   const seen = new Set<string>();
   const items: GoneQuietItem[] = [];
   for (const f of flags) {
-    if (seen.has(f.transaction.id)) continue;
-    seen.add(f.transaction.id);
-    items.push({ transactionId: f.transaction.id, propertyAddress: f.transaction.propertyAddress, kind: f.kind, reason: f.reason, detectedAt: f.detectedAt });
+    const tx = f.transaction;
+    if (seen.has(tx.id)) continue;
+    seen.add(tx.id);
+    // Name the client only when there's a single buyer (unambiguous).
+    const buyers = tx.contacts.filter((c) => c.roleType === "purchaser");
+    const who = buyers.length === 1 ? firstName(buyers[0].name) : null;
+    let subtext: string;
+    const lastContactDays = tx.lastActivityAt
+      ? Math.floor((now.getTime() - new Date(tx.lastActivityAt).getTime()) / 86400000)
+      : null;
+    if (f.kind === "portal_gone_quiet") {
+      subtext = `${who ?? "A client"} was checking the portal regularly, then stopped.`;
+    } else if (f.kind === "no_portal_activity") {
+      subtext = who ? `${who} hasn't opened the portal since it was set up.` : "No client has opened the portal since it was set up.";
+    } else {
+      subtext = lastContactDays != null
+        ? `No contact logged in ${lastContactDays} ${lastContactDays === 1 ? "day" : "days"}.`
+        : "No calls, emails or messages logged on this file.";
+    }
+    items.push({
+      transactionId: tx.id,
+      propertyAddress: tx.propertyAddress,
+      photoStoragePath: tx.photoStoragePath,
+      kind: f.kind,
+      subtext,
+      pillLabel: GONE_QUIET_PILL[f.kind] ?? "Quiet",
+      lastContactDays: f.kind === "long_silence" ? lastContactDays : null,
+      exchangeDate: tx.overridePredictedDate ?? tx.expectedExchangeDate ?? null,
+    });
   }
   return items;
 }
@@ -513,6 +568,9 @@ export type MortgageExpiryItem = {
   clientLabel: string;
   expiryDate: Date;
   photoStoragePath: string | null;
+  // Predicted exchange date (override ?? predicted) → the "how urgent" chip
+  // (offer expiring + still far from exchange is the real worry).
+  exchangeDate: Date | null;
 };
 
 // Hub card feed: client-supplied mortgage-offer expiries on active, not-yet-
@@ -521,14 +579,22 @@ export type MortgageExpiryItem = {
 // same dates the property-file Overview card shows — so a lapsing offer is
 // visible without opening every file. The stepped bell/push alerts are fired
 // separately by the morning-digest cron (fireMortgageExpiryAlerts).
-export async function getUpcomingMortgageExpiries(vis: AgentVisibility): Promise<MortgageExpiryItem[]> {
+export async function getUpcomingMortgageExpiries(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<MortgageExpiryItem[]> {
+  const now = new Date();
   const todayMs = new Date().setUTCHours(0, 0, 0, 0);
   const horizon = new Date(todayMs + 30 * 86400000);
   const floor = new Date(todayMs - 60 * 86400000); // include recently-lapsed, not ancient dates
   const txNested = buildTxNested(vis);
+  const base: Prisma.PropertyTransactionWhereInput = {
+    ...txNested,
+    status: "active",
+    exchangedAt: null,
+    // Don't repeat a file that's already in "Needs your attention".
+    ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
+  };
   const txFilter: Prisma.PropertyTransactionWhereInput = vis.internalMode
-    ? { ...txNested, status: "active", exchangedAt: null }
-    : { ...txNested, status: "active", exchangedAt: null, agencyId: vis.agencyId };
+    ? base
+    : { ...base, agencyId: vis.agencyId };
 
   const rows = await prisma.clientMoveInfo.findMany({
     where: {
@@ -545,7 +611,14 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility): Promise
       transaction: {
         select: {
           id: true, propertyAddress: true, photoStoragePath: true,
+          expectedExchangeDate: true, overridePredictedDate: true,
           contacts: { select: { name: true, roleType: true } },
+          // Active dismissals so we can drop just the dismissed offer date,
+          // keyed by "<side>:<expiryISO>" — a renewed offer reappears.
+          hubCardDismissals: {
+            where: { cardKind: "mortgage_expiry", dismissedUntil: { gt: now } },
+            select: { signature: true },
+          },
         },
       },
     },
@@ -553,15 +626,18 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility): Promise
 
   const items: MortgageExpiryItem[] = [];
   for (const r of rows) {
+    const tx = r.transaction;
+    const dismissed = new Set(tx.hubCardDismissals.map((d) => d.signature));
+    const exchangeDate = tx.overridePredictedDate ?? tx.expectedExchangeDate ?? null;
     const inWindow = (d: Date | null): d is Date => d != null && d >= floor && d <= horizon;
     const label = (role: "purchaser" | "vendor", fallback: string) =>
-      possessiveClientLabel(r.transaction.contacts.filter((c) => c.roleType === role).map((c) => c.name), fallback);
-    if (r.side === "purchaser" && inWindow(r.mortgageOfferExpiry)) {
-      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "buyer", clientLabel: label("purchaser", "The buyer's"), expiryDate: r.mortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
-    }
-    if (r.side === "vendor" && inWindow(r.onwardMortgageOfferExpiry)) {
-      items.push({ transactionId: r.transaction.id, propertyAddress: r.transaction.propertyAddress, side: "seller_onward", clientLabel: label("vendor", "The seller's"), expiryDate: r.onwardMortgageOfferExpiry, photoStoragePath: r.transaction.photoStoragePath });
-    }
+      possessiveClientLabel(tx.contacts.filter((c) => c.roleType === role).map((c) => c.name), fallback);
+    const push = (side: "buyer" | "seller_onward", date: Date, role: "purchaser" | "vendor", fallback: string) => {
+      if (dismissed.has(`${side}:${date.toISOString().slice(0, 10)}`)) return;
+      items.push({ transactionId: tx.id, propertyAddress: tx.propertyAddress, side, clientLabel: label(role, fallback), expiryDate: date, photoStoragePath: tx.photoStoragePath, exchangeDate });
+    };
+    if (r.side === "purchaser" && inWindow(r.mortgageOfferExpiry)) push("buyer", r.mortgageOfferExpiry, "purchaser", "The buyer's");
+    if (r.side === "vendor" && inWindow(r.onwardMortgageOfferExpiry)) push("seller_onward", r.onwardMortgageOfferExpiry, "vendor", "The seller's");
   }
   items.sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());
   return items;

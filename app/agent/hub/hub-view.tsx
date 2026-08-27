@@ -36,8 +36,7 @@ import {
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
-import { MortgageExpiryCard } from "@/components/hub/MortgageExpiryCard";
-import { GoneQuietCard } from "@/components/hub/GoneQuietCard";
+import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { SectionLoading } from "@/components/hub/SectionLoading";
@@ -371,16 +370,10 @@ function FullHubBody({
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
-      {/* Gone quiet — internal staff only for now; hidden when none */}
-      {ctx.vis.internalMode && (
-        <Suspense fallback={null}>
-          <GoneQuietSlot vis={ctx.vis} />
-        </Suspense>
-      )}
-
-      {/* Mortgage offers nearing expiry — hidden when none */}
+      {/* Gone quiet + mortgage expiries — deduped against Needs-attention AND
+          each other so a property never stacks across cards. Hidden when none. */}
       <Suspense fallback={null}>
-        <MortgageExpirySlot vis={ctx.vis} />
+        <LowerHubCards vis={ctx.vis} attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)} />
       </Suspense>
 
       {/* Pipeline at a glance — 5 stage tiles */}
@@ -494,35 +487,112 @@ async function AttentionSlot({
   );
 }
 
-async function GoneQuietSlot({ vis }: { vis: AgentVisibility }) {
-  const items = await getGoneQuietFiles(vis);
-  if (items.length === 0) return null;
-  return (
-    <GoneQuietCard
-      items={items.map((i) => ({
-        transactionId: i.transactionId,
-        propertyAddress: i.propertyAddress,
-        kind: i.kind,
-        reason: i.reason,
-        detectedAt: i.detectedAt.toISOString(),
-      }))}
-    />
-  );
+// ── Hub-card row formatting (shared by the two lightweight list cards) ───────
+
+function fmtShortDate(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-async function MortgageExpirySlot({ vis }: { vis: AgentVisibility }) {
-  const items = await getUpcomingMortgageExpiries(vis);
-  if (items.length === 0) return null;
+// The "how urgent" chip: an expiring/quiet file that's close to (or past)
+// exchange is the real worry; one far off is routine.
+function exchangeMeta(exchangeDate: Date | null): { text: string | null; tone: "muted" | "warning" } {
+  if (!exchangeDate) return { text: null, tone: "muted" };
+  const days = Math.floor((exchangeDate.getTime() - Date.now()) / 86400000);
+  if (days < 0) return { text: "Exchange date has passed", tone: "warning" };
+  if (days <= 30) return { text: `Near exchange · ~${fmtShortDate(exchangeDate)}`, tone: "warning" };
+  return { text: `Exchange ~${fmtShortDate(exchangeDate)}`, tone: "muted" };
+}
+
+function buildGoneQuietRows(
+  items: Awaited<ReturnType<typeof getGoneQuietFiles>>,
+  photoMap: Map<string, string>,
+): HubRowData[] {
+  return items.map((i) => {
+    const meta = exchangeMeta(i.exchangeDate);
+    return {
+      transactionId: i.transactionId,
+      href: `/agent/transactions/${i.transactionId}`,
+      photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
+      address: i.propertyAddress,
+      pillLabel: i.pillLabel,
+      pillTone: "muted" as HubRowTone,
+      subtext: i.subtext,
+      meta: meta.text,
+      metaTone: meta.tone,
+      dismissSignature: "quiet",
+    };
+  });
+}
+
+function buildMortgageRows(
+  items: Awaited<ReturnType<typeof getUpcomingMortgageExpiries>>,
+  photoMap: Map<string, string>,
+): HubRowData[] {
+  const todayMs = new Date().setHours(0, 0, 0, 0);
+  return items.map((i) => {
+    const days = Math.floor((new Date(i.expiryDate).setHours(0, 0, 0, 0) - todayMs) / 86400000);
+    const pillLabel = days < 0
+      ? (days === -1 ? "Expired yesterday" : `Expired ${-days} days ago`)
+      : days === 0 ? "Expires today"
+      : days === 1 ? "Expires tomorrow"
+      : `${days} days left`;
+    const pillTone: HubRowTone = days < 0 || days <= 7 ? "danger" : days <= 21 ? "warning" : "coral";
+    const meta = exchangeMeta(i.exchangeDate);
+    return {
+      transactionId: i.transactionId,
+      href: `/agent/transactions/${i.transactionId}`,
+      photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
+      address: i.propertyAddress,
+      pillLabel,
+      pillTone,
+      subtext: `${i.clientLabel} ${i.side === "seller_onward" ? "onward offer" : "offer"} · expires ${new Date(i.expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+      meta: meta.text,
+      metaTone: meta.tone,
+      dismissSignature: `${i.side}:${new Date(i.expiryDate).toISOString().slice(0, 10)}`,
+    };
+  });
+}
+
+// Fetches both lower cards together so a property shows in at most one place:
+// Needs-attention wins, then mortgage (a hard deadline), then gone-quiet.
+async function LowerHubCards({ vis, attentionTxIds }: { vis: AgentVisibility; attentionTxIds: string[] }) {
+  const mortgage = await getUpcomingMortgageExpiries(vis, attentionTxIds);
+  const mortgageTxIds = mortgage.map((m) => m.transactionId);
+  // Gone quiet is internal-staff only for now; also drop anything already shown
+  // in mortgage above it.
+  const goneQuiet = vis.internalMode
+    ? await getGoneQuietFiles(vis, [...attentionTxIds, ...mortgageTxIds])
+    : [];
+  if (goneQuiet.length === 0 && mortgage.length === 0) return null;
+
+  const photoMap = await getSignedUrlMap([
+    ...goneQuiet.map((i) => i.photoStoragePath),
+    ...mortgage.map((i) => i.photoStoragePath),
+  ]);
+
   return (
-    <MortgageExpiryCard
-      items={items.map((i) => ({
-        transactionId: i.transactionId,
-        propertyAddress: i.propertyAddress,
-        side: i.side,
-        clientLabel: i.clientLabel,
-        expiryDate: i.expiryDate.toISOString(),
-      }))}
-    />
+    <>
+      {goneQuiet.length > 0 && (
+        <HubListCard
+          cardKind="gone_quiet"
+          iconName="clock"
+          headerTone="muted"
+          title="Gone quiet"
+          subtitle={goneQuiet.length === 1 ? "1 file has gone quiet and may need a personal nudge." : `${goneQuiet.length} files have gone quiet and may need a personal nudge.`}
+          rows={buildGoneQuietRows(goneQuiet, photoMap)}
+        />
+      )}
+      {mortgage.length > 0 && (
+        <HubListCard
+          cardKind="mortgage_expiry"
+          iconName="bank"
+          headerTone="warning"
+          title="Mortgage offers expiring"
+          subtitle={mortgage.length === 1 ? "1 client mortgage offer is nearing its expiry." : `${mortgage.length} client mortgage offers are nearing their expiry.`}
+          rows={buildMortgageRows(mortgage, photoMap)}
+        />
+      )}
+    </>
   );
 }
 
