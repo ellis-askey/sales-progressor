@@ -1138,9 +1138,10 @@ export async function switchServiceTypeAction(
         // Outsourced → self_managed: drop any SP assignment, since no SP is
         // managing the file anymore. Outsourced files keep their existing
         // assignment (or null, which routes them to "Needs SP assigning").
+        // Switching TO outsourced (re)starts the SP waiting clock from now.
         ...(target === "self_managed"
           ? { assignedUserId: null, assignedAt: null }
-          : {}),
+          : { outsourcedAt: new Date() }),
       },
     });
 

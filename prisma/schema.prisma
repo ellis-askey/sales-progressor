@@ -283,6 +283,11 @@ model PropertyTransaction {
   agentUserId                 String?
   progressedBy                ProgressedBy      @default(progressor)
   serviceType                 ServiceType       @default(self_managed)
+  // When the file became outsourced (needing an SP progressor). Stamped on
+  // create-as-outsourced and on a switch to outsourced. Drives the SP
+  // unassigned-file waiting clock; null for self-managed files. Reads fall
+  // back to createdAt when absent (files born outsourced before this existed).
+  outsourcedAt                DateTime?
   expectedExchangeDate        DateTime?
   purchasePrice               Int?
   // Buyer-entered figures from the portal "Your costs" card (in pence), used to

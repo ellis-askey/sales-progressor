@@ -1660,6 +1660,9 @@ export type HubUnassignedFile = {
   propertyAddress: string;
   agencyName: string | null;
   createdAt: Date;
+  // When the file started waiting to be assigned an SP (outsourcedAt, falling
+  // back to createdAt for files born outsourced before that column existed).
+  waitingSince: Date;
   photoStoragePath: string | null;
 };
 
@@ -1667,23 +1670,29 @@ export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUn
   if (vis.internalMode !== "admin_all") return [];
   const files = await prisma.propertyTransaction.findMany({
     where: { assignedUserId: null, status: "active", serviceType: "outsourced" },
-    orderBy: { createdAt: "asc" },
-    take: 10,
+    take: 20,
     select: {
       id: true,
       propertyAddress: true,
       createdAt: true,
+      outsourcedAt: true,
       photoStoragePath: true,
       agency: { select: { name: true } },
     },
   });
-  return files.map((f) => ({
-    id: f.id,
-    propertyAddress: f.propertyAddress,
-    agencyName: f.agency?.name ?? null,
-    createdAt: f.createdAt,
-    photoStoragePath: f.photoStoragePath,
-  }));
+  // Sort by how long each has been waiting (longest first). Done in JS off the
+  // effective "waiting since" so switched files (outsourcedAt later than
+  // createdAt) rank by their real wait, not their file age.
+  return files
+    .map((f) => ({
+      id: f.id,
+      propertyAddress: f.propertyAddress,
+      agencyName: f.agency?.name ?? null,
+      createdAt: f.createdAt,
+      waitingSince: f.outsourcedAt ?? f.createdAt,
+      photoStoragePath: f.photoStoragePath,
+    }))
+    .sort((a, b) => a.waitingSince.getTime() - b.waitingSince.getTime());
 }
 
 // ─── Hub card: outsourced files with an unacknowledged relist ───

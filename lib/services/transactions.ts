@@ -911,6 +911,9 @@ export async function createTransaction(input: CreateTransactionInput) {
       agentUserId: input.agentUserId ?? null,
       progressedBy: input.progressedBy ?? "progressor",
       serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",
+      // When it becomes outsourced, stamp the SP waiting clock. Anchored to
+      // createdAt (like assignedAt) so backdated files measure from the right moment.
+      outsourcedAt: (input.progressedBy ?? "progressor") === "agent" ? null : (input.createdAt ?? new Date()),
       expectedExchangeDate: input.expectedExchangeDate ?? autoExchangeDate,
       purchasePrice: input.purchasePrice ?? null,
       tenure: input.tenure ?? null,

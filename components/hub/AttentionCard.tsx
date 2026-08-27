@@ -44,6 +44,7 @@ import {
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { assignUserAction, acknowledgeRelistAction, clearChainSetupPendingAction } from "@/app/actions/transactions";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { assignWaitBadge } from "@/lib/hub/assign-wait";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type {
@@ -362,7 +363,10 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
         : `${visibleReminders.length} ${visibleReminders.length === 1 ? "reminder" : "reminders"}`,
     );
   }
-  if (unassigned.length) summaryParts.push(`${unassigned.length} to assign`);
+  if (unassigned.length) {
+    const overSla = unassigned.filter((f) => assignWaitBadge(f.waitingSince).level !== "ok").length;
+    summaryParts.push(overSla > 0 ? `${unassigned.length} to assign (${overSla} over 48h)` : `${unassigned.length} to assign`);
+  }
   if (relists.length) summaryParts.push(`${relists.length} new ${relists.length === 1 ? "buyer" : "buyers"}`);
   if (chainSetup.length) summaryParts.push(`${chainSetup.length} chain ${chainSetup.length === 1 ? "setup" : "setups"}`);
   const summary = summaryParts.length > 0 ? summaryParts.join(" · ") : "Reminders, holds and anything waiting on you.";
@@ -650,11 +654,14 @@ function AttentionRow({
     href = `/agent/transactions/${h.transactionId}`;
   } else if (row.kind === "unassigned") {
     const f = row.item;
-    tone = "coral";
+    // Escalate the row colour by how long it's waited to be assigned: coral
+    // under 48h, amber (warning) from 48h, red (danger) from 72h.
+    const wait = assignWaitBadge(f.waitingSince);
+    tone = wait.level === "red" ? "danger" : wait.level === "amber" ? "warning" : "coral";
     pill = { label: "Needs assigning" };
     txId = f.id;
     address = f.propertyAddress;
-    secondary = f.agencyName ?? "Waiting for a progressor";
+    secondary = f.agencyName ? `${f.agencyName} · unclaimed ${wait.text}` : `Unclaimed ${wait.text}`;
     href = `/agent/transactions/${f.id}`;
   } else if (row.kind === "relist") {
     const r = row.item;
