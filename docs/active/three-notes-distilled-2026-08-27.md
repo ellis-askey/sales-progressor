@@ -1,8 +1,13 @@
 # Three notes (batch 2) — distilled to plans
 
-Captured 2026-08-27 from Ellis's raw notes. Each is a **separate concern / separate PR** (Law 5). Format per note: what you said → what's actually there today (verified) → proposed design → the decisions I still need. **Nothing is built yet.**
+Captured 2026-08-27 from Ellis's raw notes. Each is a **separate concern / separate PR** (Law 5). Format per note: what you said → what's actually there today (verified) → proposed design → the decisions I still need.
 
-Suggested order: **Note C** (small, clear bug) → **Note B** (contact type, needs a migration) → **Note A** (cross-chain email, biggest + has a legal angle).
+## ✅ STATUS — all three shipped to staging + production 2026-08-27
+- **Note A — cross-chain onward-neighbour emails: SHIPPED.** New per-agency opt-in (off by default), curated high-signal confirms only, stub-agent unsubscribe/suppression, sent from the agency identity via the chain-invite sender. Prod deploy green.
+- **Note B — helper/representative contact: SHIPPED.** `Contact.isPrincipal` + `Contact.portalEligible` (migration `20260827160000_contact_helper_flags`, applied staging + prod). Helpers excluded from every "who confirmed" name list; "{helper} confirmed on behalf of {client}" on agent/own-side surfaces, client-only on the other side; add + edit UI with helper toggle + portal tickbox; Helper badge on the file card. Prod deploy green.
+- **Note C — skipped steps show "Up next" forever: SHIPPED.** `resolveDisplayStages` now settles a stage on complete OR not_required, reports a new `skipped` status rendered muted/struck on the strip; weekly brief self-heals. 4 tests added. Prod deploy green.
+
+Build order used: **Note C** (small, clear bug) → **Note B** (contact type, migration) → **Note A** (cross-chain email, biggest + legal angle).
 
 ---
 
