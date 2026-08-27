@@ -21,6 +21,7 @@ export type SolicitorDigestInput = {
   steps: { label: string }[];
   confirmUrl: string; // {baseUrl}/s/{token}
   stopUrl: string; // {baseUrl}/s/{token}/stop
+  qrUrl?: string; // {baseUrl}/s/{token}/qr — hosted PNG; scan to open on phone
 };
 
 const NAVY = "#0f2740";
@@ -45,7 +46,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
   html: string;
   text: string;
 } {
-  const { brand, address, sellerNames, side, firmName, steps, confirmUrl, stopUrl } = input;
+  const { brand, address, sellerNames, side, firmName, steps, confirmUrl, stopUrl, qrUrl } = input;
   const single = steps.length === 1;
   const actingFor = side === "vendor" ? "The seller" : "The buyer";
   const price = formatPrice(input.pricePence);
@@ -100,6 +101,16 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
     ? "Could you please confirm the status of the following:"
     : `Could you please confirm where these ${steps.length} steps stand:`;
 
+  // Hosted QR (not an inline data-URI — Gmail/Outlook strip those). Scanning it
+  // opens the same confirm page on the solicitor's phone.
+  const qrBlock = qrUrl
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;"><tr>
+         <td align="center" style="padding-top:16px;border-top:1px solid #eef1f5;">
+           <img src="${qrUrl}" alt="Scan to open on your phone" width="132" height="132" style="display:block;margin:0 auto;border:1px solid #e3e9f0;border-radius:8px;" />
+           <p style="margin:10px 0 0;font-size:12px;color:#6b7c93;line-height:1.5;">Prefer your phone? Scan the code to open it there.</p>
+         </td></tr></table>`
+    : "";
+
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:24px;background:#eef1f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">${preheader("A few steps on this file are waiting for your confirmation.")}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;"><tr><td>
@@ -127,6 +138,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
     <tr><td style="padding:22px 28px 6px;">
       ${cta}
       <p style="margin:14px 0 0;font-size:12px;line-height:1.55;color:#8493a8;">${single ? "These links are unique to this matter and don&rsquo;t need a password. " : "On the next screen you can, for each step, confirm it&rsquo;s done, give an expected date, or leave a short update. It needs no password. "}Nothing you confirm here is binding; it simply keeps our file up to date so everyone can see progress.</p>
+      ${qrBlock}
     </td></tr>
     <tr><td style="padding:22px 28px 26px;">
       <p style="margin:0 0 2px;font-size:14px;color:#33475b;line-height:1.6;">Many thanks for your help,</p>

@@ -365,6 +365,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     steps: group.steps.map((s) => ({ label: s.label })),
     confirmUrl: `${base}/s/${token}`,
     stopUrl: `${base}/s/${token}/stop`,
+    qrUrl: `${base}/s/${token}/qr`,
   });
 
   // Sender = the agency's authenticated sending address (Agency.quoteSenderEmail),
