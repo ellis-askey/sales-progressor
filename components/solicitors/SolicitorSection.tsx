@@ -13,8 +13,8 @@ import { CommsButton } from "@/components/ui/CommsButton";
 type SolicitorIntel = {
   totalFiles: number;
   completedFiles: number;
-  avgWeeksToExchange: number | null;
-  avgDaysSearches: number | null;
+  medianWeeksToExchange: number | null;
+  medianDaysSearches: number | null;
   rating: "fast" | "average" | "slow" | "unknown";
   warning: string | null;
 };
@@ -98,7 +98,7 @@ function SolicitorIntelChips({ firmId }: { firmId: string }) {
   const parts = [
     ratingLabel,
     `${intel.totalFiles} file${intel.totalFiles !== 1 ? "s" : ""}`,
-    intel.avgWeeksToExchange !== null ? `Avg ${intel.avgWeeksToExchange}w` : null,
+    intel.medianWeeksToExchange !== null ? `Typical ${intel.medianWeeksToExchange}w` : null,
   ].filter(Boolean).join(" · ");
   const intelTone: "success" | "danger" | "muted" =
     intel.rating === "fast" ? "success" : intel.rating === "slow" ? "danger" : "muted";
