@@ -127,13 +127,13 @@ The stateless token is elegant but has properties worth deciding on before we su
 
 ## 8. Open decisions (this is what we shape)
 
-- **D1 — Design skin:** (a) keep professional letterhead, (b) full portal glass, or (c) hybrid: portal structure + restrained professional skin. *Lean: (c).*
+- **D1 — Design skin: LOCKED (c) hybrid** (2026-08-27) — client-portal structure + mobile polish, restrained professional skin with its own palette. No consumer warmth/glass.
 - **D2 — Scope of what they see:** own-side steps only (today), or whole-file **progress context** (read) + own-side confirmables. *Lean: whole-file progress + own-side confirm.*
 - **D3 — Combined action:** fold expected-date + update into one submit; and should a **Confirm** optionally carry a note/date in the same action? *Lean: yes to combining; confirm stays a clean one-tap with optional note.*
-- **D4 — Documents:** which docs does a solicitor see (MOS only / all agent-shared), read-only vs upload-back, and in which build phase? *Lean: MOS + agent-shared, read-only first; upload-back later.*
-- **D5 — Token security:** add an expiry + re-issue per email? A light document gate (postcode)? Or leave the stateless token as-is for now? *Lean: add expiry + reissue; gate documents behind a lightweight check.*
+- **D4 — Documents: LOCKED (2026-08-27) — MOS only, view/download only.** No other shared docs yet; "send back to us" (solicitor uploads a doc — draft contract, searches, enquiry replies, ID — straight onto the file) is a later phase, needs type/safety checks + routing.
+- **D5 — Token security: LOCKED (2026-08-27).** Add **link expiry (~30 days) + a fresh link in every email**; active solicitors never notice (each email renews it), only stale/forwarded links die. **No postcode/document gate while it's MOS-only** (the acting solicitor already holds the MOS) — revisit a light one-time check only if we later share genuinely sensitive docs. Frictionless access (no password/gate) for confirming, dating, updating, and viewing the MOS is preserved. Future direction: a proper multi-case solicitor **login** (toggle between their files) layers on top much later and replaces the magic link only for solicitors who opt in — nothing here blocks it.
 - **D6 — QR placement:** QR block in every chasing digest email alongside the button (both), or QR-only? *Lean: both — button + QR.*
-- **D7 — Trust copy:** exact "we keep the parties updated" framing and how hard we lean on it. Voice pass needed (professional register, no consumer softness).
+- **D7 — Trust copy:** exact "we keep the parties updated" framing. **Ellis approves the string in context at implementation time** (needs to see what surrounds it on the page), not now.
 - **D8 — Relationship to solicitor-confirm scope.md:** confirm this doc **extends** that feature (same token, same routing, same cadence, same sender) and we don't fork. *Lean: yes.*
 - **D9 — Build order:** which of §3's five deltas ships first. *Lean: QR (tiny, immediate value) → combined card → progress-at-a-glance → documents → skin polish.*
 
