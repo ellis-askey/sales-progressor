@@ -75,14 +75,44 @@ const GENERAL: Record<string, string> = {
   PM20: "all enquiries are now satisfied",
 };
 
-// Third-person clause for a purchaser-side step, phrased for someone OTHER than
-// the client (e.g. the onward agent hearing that their buyer has progressed):
-// "their {core}", or a bare general fact for exchanged / all-enquiries. Falls
-// back to the milestone name. See lib/services/chain-neighbour-updates.ts.
-export function purchaserStepClause(code: string, milestoneName: string): string {
-  if (GENERAL[code]) return GENERAL[code];
-  if (CORES[code]) return `their ${CORES[code]}`;
-  return milestoneName;
+// Bespoke, possessive, pronoun-driven clauses for the onward-neighbour email —
+// the onward agent hearing that their buyer has progressed. "{poss}" becomes
+// his / her / their (from any title on the name, else "their"). Purpose-written
+// so it reads naturally ("his solicitor has received his mortgage offer"),
+// never the raw milestone name. Falls back to the milestone name for any
+// uncovered code. See lib/services/chain-neighbour-updates.ts.
+const NEIGHBOUR_CLAUSES: Record<string, string> = {
+  PM1:  "{poss} solicitor has been instructed",
+  PM2:  "{poss} solicitor has the memorandum of sale",
+  PM3:  "{poss} ID and money-laundering checks are done",
+  PM4:  "{poss} money on account is with {poss} solicitor",
+  PM5:  "{poss} mortgage application is in",
+  PM6:  "{poss} lender valuation is booked",
+  PM7:  "{poss} solicitor has the draft contract pack",
+  PM8:  "{poss} solicitor has ordered the searches",
+  PM9:  "{poss} survey is booked",
+  PM10: "{poss} survey report is back",
+  PM11: "{poss} solicitor has received {poss} mortgage offer",
+  PM12: "{poss} solicitor has the management pack",
+  PM13: "{poss} solicitor has received {poss} search results",
+  PM14: "{poss} solicitor has raised enquiries with the seller's solicitor",
+  PM15: "{poss} solicitor has the replies to those enquiries",
+  PM16: "{poss} solicitor has reviewed the replies",
+  PM17: "{poss} solicitor has raised further enquiries",
+  PM18: "{poss} solicitor has the replies to the further enquiries",
+  PM19: "{poss} solicitor has reviewed the further replies",
+  PM20: "{poss} enquiries are all satisfied",
+  PM21: "{poss} solicitor's final report is in",
+  PM22: "{poss} contract is ready to sign",
+  PM23: "{poss} signed contract is back with {poss} solicitor",
+  PM24: "{poss} deposit has been transferred",
+  PM25: "{poss} solicitor is ready to exchange",
+};
+
+export function neighbourStepClause(code: string, sideContact: SideContact | null, milestoneName: string): string {
+  const poss = sideContact ? clientPronoun([sideContact]) : "their";
+  const template = NEIGHBOUR_CLAUSES[code];
+  return template ? template.replace(/\{poss\}/g, poss) : milestoneName;
 }
 
 // First-person-plural clauses for when the CONFIRMER is the solicitor. Reads

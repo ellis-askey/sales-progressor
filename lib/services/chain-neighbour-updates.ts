@@ -20,7 +20,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveChainInviteSender } from "@/lib/chain/invite";
-import { purchaserStepClause } from "@/lib/updates-copy";
+import { neighbourStepClause } from "@/lib/updates-copy";
 import { buildInviteUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { isInviteEmailSuppressed } from "@/lib/email";
 
@@ -134,7 +134,11 @@ async function sendNeighbourGroup(
   });
   if (!seller?.agency?.chainNeighbourUpdatesEnabled) return false;
 
-  const sellerName = seller.contacts[0]?.name ?? "your buyer";
+  // Raw name drives the pronoun (his/her from a title, else their); the display
+  // name drops the honorific (voice rule: no titles in rendered names). So
+  // "Mr Marcus Fielding" shows as "Marcus Fielding" but reads "his".
+  const rawName = seller.contacts[0]?.name ?? "your buyer";
+  const displayName = rawName.replace(/^(mr|mrs|ms|miss|dr|prof|sir|dame|lord|lady)\.?\s+/i, "").trim() || rawName;
   const onwardAddress = link.stubPropertyAddress ?? "the property";
 
   const codes = [...new Set(rows.map((r) => r.milestoneCode))];
@@ -143,9 +147,9 @@ async function sendNeighbourGroup(
     select: { code: true, name: true },
   });
   const nameByCode = new Map(defs.map((d) => [d.code, d.name]));
-  // Third-person, from the onward agent's point of view ("their searches have
-  // come back"), never the seller's own second-person portal wording.
-  const labels = codes.map((c) => purchaserStepClause(c, nameByCode.get(c) ?? c));
+  // Bespoke, possessive, third-person clauses ("his solicitor has received his
+  // mortgage offer") — never the seller's own second-person portal wording.
+  const labels = codes.map((c) => neighbourStepClause(c, { name: rawName }, nameByCode.get(c) ?? c));
 
   const sender = await resolveChainInviteSender(sellerTransactionId, {
     name: seller.agency.name,
@@ -158,7 +162,7 @@ async function sendNeighbourGroup(
 
   const { subject, html, text } = buildNeighbourEmail({
     recipientName: link.stubAgentName ?? "there",
-    sellerName,
+    sellerName: displayName,
     onwardAddress,
     labels,
     agency: sender.displayAgency,
@@ -179,7 +183,10 @@ async function sendNeighbourGroup(
   return true;
 }
 
-function joinLabels(labels: string[]): string {
+function capitalise(s: string): string {
+  return s.length ? s[0].toUpperCase() + s.slice(1) : s;
+}
+function joinClauses(labels: string[]): string {
   if (labels.length <= 1) return labels[0] ?? "";
   if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
   return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
@@ -196,16 +203,20 @@ export function buildNeighbourEmail(v: {
 }): { subject: string; html: string; text: string } {
   const many = v.labels.length > 1;
   const subject = `An update on your sale of ${v.onwardAddress}`;
-  const lead = many
-    ? `${v.sellerName}, the buyer of ${v.onwardAddress}, has confirmed a few things: ${joinLabels(v.labels)}.`
-    : `${v.sellerName}, the buyer of ${v.onwardAddress}, has confirmed ${v.labels[0]}.`;
+  const who = `${v.sellerName}, the buyer of ${v.onwardAddress},`;
 
+  // Plain text: single is prose, multiple is bullets.
   const text = [
     `Hi ${v.recipientName},`,
     ``,
-    `${v.agency} here. ${lead}`,
+    `${v.agency} here.`,
     ``,
-    `We're keeping this chain moving on Sales Progressor. You can see where the whole chain stands here:`,
+    many
+      ? `${who} has confirmed the following updates:`
+      : `${who} has confirmed ${v.labels[0]}.`,
+    ...(many ? ["", ...v.labels.map((l) => `  • ${capitalise(l)}`)] : []),
+    ``,
+    `We're keeping the chain moving on Sales Progressor. See where the whole chain stands here:`,
     v.claimUrl,
     ``,
     `Kind regards,`,
@@ -214,10 +225,22 @@ export function buildNeighbourEmail(v: {
     `If you'd rather not receive these updates, unsubscribe: ${v.unsubscribeUrl}`,
   ].join("\n");
 
+  // HTML: orange-bulleted lines for multiple, prose for single.
+  const bodyBlock = many
+    ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.5">${escapeHtml(who)} has confirmed the following updates:</p>
+  ${v.labels
+    .map(
+      (l) =>
+        `<p style="margin:0 0 7px;font-size:14px;line-height:1.5"><span style="color:#FF6B4A;font-weight:700">&#8226;</span>&nbsp;&nbsp;${escapeHtml(capitalise(l))}</p>`,
+    )
+    .join("\n  ")}`
+    : `<p style="margin:0 0 14px;font-size:14px;line-height:1.5">${escapeHtml(who)} has confirmed <strong>${escapeHtml(v.labels[0] ?? "")}</strong>.</p>`;
+
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1d29;background:#fff">
   <p style="margin:0 0 14px;font-size:14px">Hi ${escapeHtml(v.recipientName)},</p>
-  <p style="margin:0 0 14px;font-size:14px;line-height:1.5">${escapeHtml(v.agency)} here. ${escapeHtml(v.sellerName)}, the buyer of ${escapeHtml(v.onwardAddress)}, has confirmed ${many ? "a few things" : ""}${many ? `: <strong>${escapeHtml(joinLabels(v.labels))}</strong>` : `<strong>${escapeHtml(v.labels[0] ?? "")}</strong>`}.</p>
-  <p style="margin:0 0 18px;font-size:14px;line-height:1.5">We're keeping this chain moving on Sales Progressor.</p>
+  <p style="margin:0 0 14px;font-size:14px;line-height:1.5">${escapeHtml(v.agency)} here.</p>
+  ${bodyBlock}
+  <p style="margin:16px 0 18px;font-size:14px;line-height:1.5">We're keeping the chain moving on Sales Progressor.</p>
   <p style="margin:0 0 20px"><a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px">See where the chain stands</a></p>
   <p style="margin:0 0 4px;font-size:14px">Kind regards,</p>
   <p style="margin:0 0 24px;font-size:14px">${escapeHtml(v.agency)}</p>
