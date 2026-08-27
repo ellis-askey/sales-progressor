@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from "./codes";
@@ -328,6 +329,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       purchasePrice: true,
       agentUserId: true,
       assignedUserId: true,
+      agentUser: { select: { name: true, phone: true, image: true } },
+      assignedUser: { select: { name: true, phone: true, image: true } },
       agency: { select: { name: true } },
       vendorSolicitorFirmId: true,
       vendorSolicitorFirm: { select: { name: true } },
@@ -353,6 +356,10 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
 
   const token = signSolicitorToken(tx.id, side);
   const base = baseUrl();
+  // Signature = the person looking after the file: the assigned progressor on
+  // an outsourced file, otherwise the agency's own agent. Name + phone + avatar
+  // sign the email off personally.
+  const person = tx.assignedUser ?? tx.agentUser;
   const { subject, html, text } = buildSolicitorDigestEmail({
     brand,
     address: tx.propertyAddress,
@@ -366,6 +373,9 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     confirmUrl: `${base}/s/${token}`,
     stopUrl: `${base}/s/${token}/stop`,
     qrUrl: `${base}/s/${token}/qr`,
+    personName: person?.name ?? brand,
+    personPhone: person?.phone ?? null,
+    avatarUrl: getAvatarPublicUrl(person?.image),
   });
 
   // Sender = the agency's authenticated sending address (Agency.quoteSenderEmail),
