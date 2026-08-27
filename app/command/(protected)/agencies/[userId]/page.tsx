@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAgentDetail } from "@/lib/command/usage";
 import { AgentPhotoManager } from "@/components/command/agents/AgentPhotoManager";
+import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "0m";
@@ -78,6 +80,32 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ us
           focusY={a.imageFocusY}
         />
       </section>
+
+      {/* agency email branding — set on their behalf. Agency-wide (shared across
+          the agency's client emails), so the same logo shows for every agent
+          here and on the director's own settings the moment it's saved. */}
+      {a.agencyId && (
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+            Agency email branding
+          </h2>
+          <p className="text-[12px] text-neutral-500 mb-3">
+            The logo shown at the top of client emails, shared across {a.agencyName}. Editing here is the
+            same as the director doing it in their own settings — it saves to the agency and shows immediately.
+          </p>
+          <div className="bg-white rounded-xl p-5 border border-neutral-800">
+            <EmailBrandingStudio
+              initial={{
+                logoUrl: getAgencyLogoUrl(a.logo.logoPath),
+                tileColor: a.logo.tileColor,
+                scale: a.logo.scale as BrandingInitial["scale"],
+                align: a.logo.align as BrandingInitial["align"],
+              }}
+              endpoint={`/api/command/agencies/${a.agencyId}/logo`}
+            />
+          </div>
+        </section>
+      )}
 
       {/* summary tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
