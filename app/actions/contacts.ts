@@ -35,6 +35,10 @@ export async function createContactAction(input: {
   phone: string | null;
   email: string | null;
   roleType: ContactRole;
+  // Note B: false = a helper/representative (kept out of confirmation names);
+  // portalEligible gives a helper portal + email access when a director opts in.
+  isPrincipal?: boolean;
+  portalEligible?: boolean;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -81,6 +85,8 @@ export async function updateContactAction(input: {
   name: string;
   phone: string | null;
   email: string | null;
+  isPrincipal?: boolean;
+  portalEligible?: boolean;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -104,9 +110,18 @@ export async function updateContactAction(input: {
   const conflict = findContactConflict({ name: input.name, phone: input.phone, email: input.email }, others);
   if (conflict) throw makeDuplicateContactError(conflict.kind, conflict.withName);
 
+  // Helper/portal edits (Note B). A principal is always portal-eligible; a
+  // helper's access follows the tickbox. Only touched when provided.
+  const roleData =
+    input.isPrincipal === undefined
+      ? {}
+      : {
+          isPrincipal: input.isPrincipal,
+          portalEligible: input.isPrincipal ? true : (input.portalEligible ?? false),
+        };
   await prisma.contact.update({
     where: { id: input.id },
-    data: { name: input.name.trim(), phone: input.phone?.trim() || null, email: input.email?.trim() || null },
+    data: { name: input.name.trim(), phone: input.phone?.trim() || null, email: input.email?.trim() || null, ...roleData },
   });
   await logActivity(
     input.transactionId,

@@ -97,6 +97,8 @@ const EMPTY_FORM = {
   roleType: "vendor" as ContactRole,
   email:    "",
   phone:    "",
+  isHelper:   false,
+  givePortal: false,
 };
 
 const INPUT = "glass-input w-full px-3 py-2 text-sm";
@@ -481,7 +483,8 @@ export function ContactsSection({
     setError(null);
     setLoading(true);
     setShowForm(false);
-    const snap = { propertyTransactionId: transactionId, name: titleCase(form.name), email: form.email.trim() || null, phone: form.phone.trim() || null, roleType: form.roleType };
+    const isHelper = (form.roleType === "vendor" || form.roleType === "purchaser") && form.isHelper;
+    const snap = { propertyTransactionId: transactionId, name: titleCase(form.name), email: form.email.trim() || null, phone: form.phone.trim() || null, roleType: form.roleType, isPrincipal: !isHelper, portalEligible: isHelper ? form.givePortal : true };
     const formSnap = { ...form };
     startTransition(async () => {
       try {
@@ -903,6 +906,21 @@ export function ContactsSection({
                 <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="07700 900 000" className={INPUT} />
               </div>
             </div>
+
+            {(form.roleType === "vendor" || form.roleType === "purchaser") && (
+              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
+                <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={form.isHelper} onChange={(e) => setForm((p) => ({ ...p, isHelper: e.target.checked }))} className="mt-0.5" />
+                  <span>They&rsquo;re helping, not the actual {form.roleType === "vendor" ? "seller" : "buyer"} (a relative, an assistant, or a representative). We won&rsquo;t name them in confirmations.</span>
+                </label>
+                {form.isHelper && (
+                  <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer pl-[26px]">
+                    <input type="checkbox" checked={form.givePortal} onChange={(e) => setForm((p) => ({ ...p, givePortal: e.target.checked }))} className="mt-0.5" />
+                    <span>Give them their own portal login and updates.</span>
+                  </label>
+                )}
+              </div>
+            )}
 
             {error && (
               <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600">

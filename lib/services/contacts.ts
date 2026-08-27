@@ -22,6 +22,11 @@ export type CreateContactInput = {
   // panel "vanish" the moment they were saved. Vendor / solicitor / broker
   // rows stay NULL — they're file-level by design.
   buyerRoundId?: string | null;
+  // Note B: false = a helper/representative on the side (not the real client),
+  // kept out of confirmation names. portalEligible drives portal + client
+  // emails; principals default eligible, helpers only when a director opts in.
+  isPrincipal?: boolean;
+  portalEligible?: boolean;
 };
 
 /**
@@ -38,6 +43,7 @@ export async function createContact(input: CreateContactInput, scope: AccessScop
     throw new Error("Transaction not found or access denied");
   }
 
+  const isPrincipal = input.isPrincipal ?? true;
   return prisma.contact.create({
     data: {
       propertyTransactionId: input.propertyTransactionId,
@@ -45,6 +51,9 @@ export async function createContact(input: CreateContactInput, scope: AccessScop
       phone: input.phone ?? null,
       email: input.email ?? null,
       roleType: input.roleType,
+      isPrincipal,
+      // A principal is always portal-eligible; a helper only when opted in.
+      portalEligible: isPrincipal ? true : (input.portalEligible ?? false),
       portalToken: randomUUID(),
       buyerRoundId: input.buyerRoundId ?? null,
     },
