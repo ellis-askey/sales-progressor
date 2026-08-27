@@ -13,6 +13,7 @@ import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
+import { confirmationSentence, type UpdateConfirmer } from "@/lib/updates-copy";
 import { getWhatsAppMediaSignedUrlMap } from "@/lib/supabase-storage";
 import type { ActorRole } from "@/components/ui/Avatar";
 
@@ -30,6 +31,13 @@ export type ActivityEntry =
       isNotRequired: boolean;
       confirmedByClient: boolean;
       confirmerName: string | null;
+      // Inline "{who} confirmed {clause}" sentence + the confirmer's name/photo,
+      // so the timeline reads as one line (matches the agent Updates feed).
+      // who = the agent/progressor's full name, the client's name(s), or the
+      // solicitor firm. See lib/updates-copy.ts confirmationSentence.
+      sentence: string;
+      byName: string | null;
+      byImage: string | null;
       // Avatar/colour for the person who completed the step.
       actorRole: ActorRole;
       actorName: string;
@@ -151,8 +159,9 @@ export async function getActivityTimeline(
       },
       orderBy: { completedAt: "desc" },
       include: {
-        milestoneDefinition: { select: { name: true, code: true } },
+        milestoneDefinition: { select: { name: true, code: true, side: true } },
         completedBy: { select: { name: true, image: true, role: true } },
+        confirmedBySolicitorFirm: { select: { name: true } },
       },
     }),
     // Phase-2 PR 3 (OutboundMessage scoping): scope buyer-attributed
@@ -202,7 +211,35 @@ export async function getActivityTimeline(
 
   const milestoneEntries: ActivityEntry[] = completions.map((c) => {
     const confirmedByClient = c.confirmedByPortal;
-    const confirmerName = confirmedByClient ? "Client (portal)" : null;
+    const side = c.milestoneDefinition.side as "vendor" | "purchaser";
+    const sideContacts = tx.contacts
+      .filter((ct) => ct.roleType === side)
+      .map((ct) => ({ name: ct.name }));
+
+    // Who confirmed: client via portal / the solicitor firm / the agent or
+    // progressor (their full name). Null = a genuine system auto-confirm.
+    const confirmer: UpdateConfirmer | null = confirmedByClient
+      ? { kind: "client" }
+      : c.confirmedBySolicitorFirmId
+        ? { kind: "solicitor", firm: c.confirmedBySolicitorFirm?.name ?? "The solicitor" }
+        : c.completedBy
+          ? { kind: "agent", name: c.completedBy.name ?? "A colleague" }
+          : null;
+
+    const sentence = c.state === "not_required"
+      ? (c.summaryText ?? c.milestoneDefinition.name)
+      : confirmer
+        ? confirmationSentence({ code: c.milestoneDefinition.code, side, confirmer, sideContacts, milestoneName: c.milestoneDefinition.name })
+        : (c.summaryText ?? c.milestoneDefinition.name);
+
+    // The confirmer's name + photo for the inline avatar. For a portal confirm
+    // this is the specific client; otherwise the completing user.
+    const clientContact = confirmedByClient
+      ? (tx.contacts.find((ct) => ct.id === c.confirmedByContactId) ?? tx.contacts.find((ct) => ct.roleType === side))
+      : null;
+    const byName = confirmedByClient ? (clientContact?.name ?? null) : (c.completedBy?.name ?? null);
+    const byImage = confirmedByClient ? (clientContact?.image ?? null) : (c.completedBy?.image ?? null);
+
     return {
       kind: "milestone",
       id: c.id,
@@ -213,10 +250,13 @@ export async function getActivityTimeline(
       completedByName: c.completedBy?.name ?? null,
       isNotRequired: c.state === "not_required",
       confirmedByClient,
-      confirmerName,
-      actorRole: c.completedBy ? userRoleToActor(c.completedBy.role) : "system",
-      actorName: c.completedBy?.name ?? "System",
-      actorImage: c.completedBy?.image ?? null,
+      confirmerName: confirmedByClient ? "Client (portal)" : null,
+      sentence,
+      byName,
+      byImage,
+      actorRole: confirmedByClient ? "other" : c.completedBy ? userRoleToActor(c.completedBy.role) : c.confirmedBySolicitorFirmId ? "other" : "system",
+      actorName: byName ?? "System",
+      actorImage: byImage,
     };
   });
 

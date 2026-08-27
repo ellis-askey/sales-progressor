@@ -371,16 +371,25 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           </a>
                         )}
                       </div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>
-                        {entry.summaryText ?? entry.milestoneName}
-                      </p>
-                      <ActorFooter
-                        role={entry.confirmedByClient ? "other" : entry.actorRole}
-                        name={entry.confirmedByClient ? (entry.confirmerName ?? "Client") : (entry.completedByName ? extractFirstName(entry.completedByName) : "Auto-confirmed")}
-                        image={entry.confirmedByClient ? null : entry.actorImage}
-                        sublabel={entry.confirmedByClient ? "via portal" : null}
-                        at={entry.at}
-                      />
+                      {/* One line: avatar + the full "{who} confirmed {clause}"
+                          sentence (who = agent/progressor full name, client
+                          name(s), or solicitor firm). The name is inside the
+                          sentence, so no separate footer. */}
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                        {entry.isNotRequired || (!entry.byName && !entry.byImage) ? (
+                          <SystemAvatar />
+                        ) : (
+                          <ActorAvatar name={entry.byName ?? entry.actorName} role={entry.actorRole} image={entry.byImage} size={22} />
+                        )}
+                        <p style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.45 }}>
+                          {entry.sentence}
+                        </p>
+                        {entry.at && (
+                          <time style={{ flexShrink: 0, fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", marginTop: 3 }}>
+                            {formatTimestamp(entry.at)}
+                          </time>
+                        )}
+                      </div>
                     </GlassCard>
                   ) : (
                     // ── Comm card ───────────────────────────────────────────

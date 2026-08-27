@@ -137,8 +137,12 @@ function clientPossessive(contacts: SideContact[], side: "vendor" | "purchaser")
   if (contacts.length === 0) return side === "vendor" ? "the seller's" : "the buyer's";
   return possessive(joinNames(contacts.map((c) => c.name)));
 }
-function primaryClientName(contacts: SideContact[], side: "vendor" | "purchaser"): string {
-  return contacts[0]?.name ?? (side === "vendor" ? "The seller" : "The buyer");
+// All clients on a side, joined ("Sarah and James Whitfield"), so a joint
+// buyer/seller reads correctly when they confirm a step. Falls back to the
+// generic party label when we have no named contacts.
+function allClientNames(contacts: SideContact[], side: "vendor" | "purchaser"): string {
+  if (contacts.length === 0) return side === "vendor" ? "The seller" : "The buyer";
+  return joinNames(contacts.map((c) => c.name));
 }
 function clientPronoun(contacts: SideContact[]): "his" | "her" | "their" {
   // Two or more clients -> always "their". One client -> his/her from a title
@@ -166,7 +170,7 @@ export function confirmationSentence(opts: {
   const core = CORES[code];
 
   if (confirmer.kind === "client") {
-    const name = primaryClientName(sideContacts, side);
+    const name = allClientNames(sideContacts, side);
     if (general) return `${name} confirmed ${general}`;
     if (!core) return `${name} confirmed: ${milestoneName}`;
     return `${name} confirmed ${clientPronoun(sideContacts)} ${core}`;
