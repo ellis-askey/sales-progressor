@@ -40,6 +40,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** permanent. Re-run during Phase 4 culls and quarterly thereafter.
 - **Justification:** same as components inventory — a maintenance tool that powers a docs artifact.
 
+### scripts/seed-overdue-exchange-demo.ts
+
+- **Purpose:** STAGING demo for the exchange-date work (Note 1 of docs/active/three-notes-distilled-2026-08-26.md). Backfills expectedExchangeDate from the live prediction on every active file, seeds one "moving" file (self-adjusting date) and one "stuck" file (overdue + quiet) so the hub amber item + file revise-banner can be walked through.
+- **Lifetime:** `one-shot`
+- **Author:** CC, 2026-08-27
+- **Deletion criteria:** delete after Ellis has walked the demo and the seeded demo files are removed from staging.
+- **Justification:** a throwaway walk-through seeder, staging-only (refuses to run against the prod DB host before any write). Not a feature or test — it fabricates demo state that must never ship to real users (Law 20 keeps demo strings in seed files like this).
+
 ### scripts/seed-playwright-director.ts
 
 - **Purpose:** Creates or refreshes a dedicated staging director user (`playwright-baseline@thesalesprogressor.test`) with a known password matching `TEST_PASSWORD`. Used by `e2e/baseline-file-detail.spec.ts` for autonomous Playwright screenshot capture and surface-1 E2E coverage.
