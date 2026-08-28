@@ -58,6 +58,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           purchaserSolicitorFirm: { select: { name: true } },
           vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
+          purchaserSolicitorEmailsPausedUntil: true,
           contacts: {
             select: {
               name: true, roleType: true, email: true, portalToken: true,
@@ -193,7 +194,8 @@ export async function runRaiseChaseCron(now: Date): Promise<{
         }
       } else {
         const email = tx.purchaserSolicitorContact?.email;
-        if (email && !tx.purchaserSolicitorEmailsPaused) {
+        const psPaused = tx.purchaserSolicitorEmailsPaused || (tx.purchaserSolicitorEmailsPausedUntil != null && tx.purchaserSolicitorEmailsPausedUntil > new Date());
+        if (email && !psPaused) {
           const token = signSolicitorToken(tx.id, "purchaser");
           const clientNames = tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name);
           const mail = buildRaiseSolicitorEmail({

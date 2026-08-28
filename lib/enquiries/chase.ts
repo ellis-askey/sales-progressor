@@ -105,9 +105,11 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           vendorSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
+          vendorSolicitorEmailsPausedUntil: true,
           purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
+          purchaserSolicitorEmailsPausedUntil: true,
           contacts: { select: { name: true, roleType: true } },
         },
       },
@@ -159,7 +161,9 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
 
     const solicitorContact = seller ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
     const email = solicitorContact?.email;
-    const paused = seller ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
+    const pausedFlag = seller ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
+    const pausedUntil = seller ? tx.vendorSolicitorEmailsPausedUntil : tx.purchaserSolicitorEmailsPausedUntil;
+    const paused = pausedFlag || (pausedUntil != null && pausedUntil > new Date());
     if (!email || paused) continue; // no one to chase on this side yet
 
     // Sending address = the file's agency authenticated address (Reply-To

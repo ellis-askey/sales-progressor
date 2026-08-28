@@ -276,13 +276,26 @@ export async function solicitorSetEmailsPausedAction(token: string, paused: bool
   if (!decoded) throw new Error("This link is not valid.");
   const limit = await checkSolicitorConfirmLimit(token);
   if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
-  await prisma.propertyTransaction.update({
-    where: { id: decoded.transactionId },
-    data:
-      decoded.side === "vendor"
-        ? { vendorSolicitorEmailsPaused: paused }
-        : { purchaserSolicitorEmailsPaused: paused },
-  });
+  // Turning back on also clears any timed pause.
+  const data = decoded.side === "vendor"
+    ? { vendorSolicitorEmailsPaused: paused, ...(paused ? {} : { vendorSolicitorEmailsPausedUntil: null }) }
+    : { purchaserSolicitorEmailsPaused: paused, ...(paused ? {} : { purchaserSolicitorEmailsPausedUntil: null }) };
+  await prisma.propertyTransaction.update({ where: { id: decoded.transactionId }, data });
+  return { ok: true };
+}
+
+// Timed pause (1 or 2 weeks): hold chases until a date, then auto-resume. Clears
+// the permanent flag so it's a temporary hold, not an opt-out.
+export async function solicitorPauseUntilAction(token: string, weeks: 1 | 2): Promise<{ ok: true }> {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+  const until = new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000);
+  const data = decoded.side === "vendor"
+    ? { vendorSolicitorEmailsPaused: false, vendorSolicitorEmailsPausedUntil: until }
+    : { purchaserSolicitorEmailsPaused: false, purchaserSolicitorEmailsPausedUntil: until };
+  await prisma.propertyTransaction.update({ where: { id: decoded.transactionId }, data });
   return { ok: true };
 }
 

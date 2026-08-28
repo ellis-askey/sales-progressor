@@ -415,6 +415,10 @@ model PropertyTransaction {
   purchaserEmailsPaused          Boolean @default(false)
   vendorSolicitorEmailsPaused    Boolean @default(false)
   purchaserSolicitorEmailsPaused Boolean @default(false)
+  // Timed pause (solicitor portal Notifications): when set to a future date,
+  // the side's solicitor chases are held until then, auto-resuming after.
+  vendorSolicitorEmailsPausedUntil    DateTime?
+  purchaserSolicitorEmailsPausedUntil DateTime?
 
   // Temporary internal-staff debug toggle. When true, the buyer/seller
   // portal confirmation email (sendAdminMilestoneNotificationToPortal)
@@ -909,6 +913,9 @@ model SolicitorContact {
   // conveyancer" buttons). Entered against the handler so it's reused across
   // every file that handler is on.
   secondaryEmail String?
+  // Handler's profile photo (public avatar URL). Set from the solicitor portal;
+  // shown on their confirmations in the feed. Falls back to initials.
+  image     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

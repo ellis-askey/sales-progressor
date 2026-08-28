@@ -217,9 +217,11 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       exchangedAt: true,
       vendorSolicitorContactId: true,
       vendorSolicitorEmailsPaused: true,
+      vendorSolicitorEmailsPausedUntil: true,
       vendorSolicitorContact: { select: { email: true } },
       purchaserSolicitorContactId: true,
       purchaserSolicitorEmailsPaused: true,
+      purchaserSolicitorEmailsPausedUntil: true,
       purchaserSolicitorContact: { select: { email: true } },
       milestoneCompletions: {
         select: {
@@ -257,8 +259,10 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
     for (const side of ["vendor", "purchaser"] as SolicitorSide[]) {
       const contactId = side === "vendor" ? tx.vendorSolicitorContactId : tx.purchaserSolicitorContactId;
       const email = side === "vendor" ? tx.vendorSolicitorContact?.email : tx.purchaserSolicitorContact?.email;
-      const paused = side === "vendor" ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
-      // No solicitor / no email / opted out → nothing sends.
+      const pausedFlag = side === "vendor" ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
+      const pausedUntil = side === "vendor" ? tx.vendorSolicitorEmailsPausedUntil : tx.purchaserSolicitorEmailsPausedUntil;
+      const paused = pausedFlag || (pausedUntil != null && pausedUntil > new Date());
+      // No solicitor / no email / opted out / paused → nothing sends.
       if (!contactId || !email || paused) continue;
 
       const codes = solicitorCodesForSide(side);

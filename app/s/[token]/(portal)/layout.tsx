@@ -37,6 +37,8 @@ export default async function SolicitorPortalLayout({
       purchaserSolicitorContact: { select: { name: true } },
       vendorSolicitorEmailsPaused: true,
       purchaserSolicitorEmailsPaused: true,
+      vendorSolicitorEmailsPausedUntil: true,
+      purchaserSolicitorEmailsPausedUntil: true,
     },
   });
   if (!tx) return <InvalidShell />;
@@ -44,6 +46,8 @@ export default async function SolicitorPortalLayout({
   const contact = decoded.side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
   const firstName = contact?.name ? extractFirstName(contact.name) : "";
   const emailsPaused = decoded.side === "vendor" ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
+  const pausedUntilRaw = decoded.side === "vendor" ? tx.vendorSolicitorEmailsPausedUntil : tx.purchaserSolicitorEmailsPausedUntil;
+  const pausedUntil = pausedUntilRaw && pausedUntilRaw > new Date() ? pausedUntilRaw.toISOString() : null;
 
   const mosDoc = await prisma.transactionDocument.findFirst({
     where: { transactionId: tx.id, source: "mos" },
@@ -59,7 +63,7 @@ export default async function SolicitorPortalLayout({
 
   return (
     <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
-      <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null} emailsPaused={emailsPaused}>
+      <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null} emailsPaused={emailsPaused} pausedUntil={pausedUntil}>
         {children}
       </SolicitorPortalShell>
     </PortalGlassProvider>

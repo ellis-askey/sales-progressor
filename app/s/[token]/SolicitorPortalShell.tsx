@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { List, House, ClockCounterClockwise, ChatCircle, X, FileArrowDown, BellSlash } from "@phosphor-icons/react/dist/ssr";
 import { PortalDesignLab } from "@/components/portal/PortalDesignLab";
-import { solicitorSetEmailsPausedAction } from "./actions";
+import { solicitorSetEmailsPausedAction, solicitorPauseUntilAction } from "./actions";
 import { S } from "./ui";
 import { GreetingText } from "./GreetingText";
 
@@ -19,6 +19,7 @@ export function SolicitorPortalShell({
   mosUrl,
   mosFilename,
   emailsPaused,
+  pausedUntil,
   children,
 }: {
   token: string;
@@ -26,6 +27,7 @@ export function SolicitorPortalShell({
   mosUrl: string | null;
   mosFilename: string | null;
   emailsPaused: boolean;
+  pausedUntil: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -124,7 +126,7 @@ export function SolicitorPortalShell({
       </nav>
 
       {menuOpen && (
-        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} onClose={() => setMenuOpen(false)} />
+        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} pausedUntil={pausedUntil} onClose={() => setMenuOpen(false)} />
       )}
     </div>
   );
@@ -158,21 +160,32 @@ function TabItem({ href, label, active, icon }: { href: string; label: string; a
   );
 }
 
-function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; emailsPaused: boolean; onClose: () => void }) {
+function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; emailsPaused: boolean; pausedUntil: string | null; onClose: () => void }) {
   const [paused, setPaused] = useState(emailsPaused);
+  const [until, setUntil] = useState<string | null>(pausedUntil);
   const [pending, start] = useTransition();
+  const isPaused = paused || !!until;
 
   function toggle() {
-    const next = !paused;
-    setPaused(next);
-    start(async () => {
-      try {
-        await solicitorSetEmailsPausedAction(token, next);
-      } catch {
-        setPaused(!next); // revert on failure
-      }
-    });
+    if (isPaused) {
+      setPaused(false);
+      setUntil(null);
+      start(async () => { try { await solicitorSetEmailsPausedAction(token, false); } catch { setPaused(emailsPaused); setUntil(pausedUntil); } });
+    } else {
+      setPaused(true);
+      start(async () => { try { await solicitorSetEmailsPausedAction(token, true); } catch { setPaused(false); } });
+    }
   }
+
+  function pauseFor(weeks: 1 | 2) {
+    const d = new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
+    setUntil(d);
+    setPaused(false);
+    start(async () => { try { await solicitorPauseUntilAction(token, weeks); } catch { setUntil(pausedUntil); } });
+  }
+
+  const untilLabel = until ? new Date(until).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null;
+  const pauseBtn: React.CSSProperties = { flex: 1, padding: "9px 10px", fontSize: 12.5, fontWeight: 600, color: S.inkSoft, background: "#fff", border: "1px solid #d5deea", borderRadius: 9, cursor: pending ? "default" : "pointer" };
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -234,21 +247,27 @@ function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, onClose }: { toke
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: S.ink }}>Reminder emails</span>
-            <span style={{ display: "block", fontSize: 12, color: S.muted }}>{paused ? "Paused for this matter" : "On for this matter"}</span>
+            <span style={{ display: "block", fontSize: 12, color: S.muted }}>{until ? `Paused until ${untilLabel}` : paused ? "Paused for this matter" : "On for this matter"}</span>
           </span>
           <button
             type="button"
             onClick={toggle}
             disabled={pending}
             role="switch"
-            aria-checked={!paused}
+            aria-checked={!isPaused}
             aria-label="Reminder emails for this matter"
-            style={{ width: 44, height: 26, borderRadius: 13, border: "none", padding: 0, position: "relative", cursor: pending ? "default" : "pointer", background: !paused ? S.accent : "rgba(15,39,64,0.18)", transition: "background 180ms ease", flexShrink: 0 }}
+            style={{ width: 44, height: 26, borderRadius: 13, border: "none", padding: 0, position: "relative", cursor: pending ? "default" : "pointer", background: !isPaused ? S.accent : "rgba(15,39,64,0.18)", transition: "background 180ms ease", flexShrink: 0 }}
           >
-            <span style={{ position: "absolute", top: 3, left: 3, width: 20, height: 20, borderRadius: 10, background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.2)", transform: !paused ? "translateX(18px)" : "translateX(0)", transition: "transform 180ms cubic-bezier(0.16,1,0.3,1)" }} />
+            <span style={{ position: "absolute", top: 3, left: 3, width: 20, height: 20, borderRadius: 10, background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.2)", transform: !isPaused ? "translateX(18px)" : "translateX(0)", transition: "transform 180ms cubic-bezier(0.16,1,0.3,1)" }} />
           </button>
         </div>
-        <p style={{ margin: "8px 2px 0", fontSize: 11.5, color: S.faint, lineHeight: 1.5 }}>Turn off to stop chasing emails on this matter. You can turn them back on any time.</p>
+        {!isPaused && (
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button type="button" onClick={() => pauseFor(1)} disabled={pending} style={pauseBtn}>Pause 1 week</button>
+            <button type="button" onClick={() => pauseFor(2)} disabled={pending} style={pauseBtn}>Pause 2 weeks</button>
+          </div>
+        )}
+        <p style={{ margin: "8px 2px 0", fontSize: 11.5, color: S.faint, lineHeight: 1.5 }}>Turn off to stop chasing emails on this matter, or pause them for a while. You can turn them back on any time.</p>
       </aside>
     </>
   );
