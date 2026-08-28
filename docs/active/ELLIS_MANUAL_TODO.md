@@ -17,6 +17,15 @@ The Briefing-page rework adds a Prisma migration (`20260828180000_signal_living_
   - `APPLY=1 npx tsx scripts/flag-test-agencies-internal.ts` (dry-run first without `APPLY=1`). Run against staging, then prod. Add more names via `NAMES="EXP - DB,Other Test"` if there are other test agencies.
   - Delete the script once done (registered as one-shot in SCRIPTS_REGISTRY).
 
+## Command Centre Files — property-photo backfill (2026-08-28)
+
+The Files review made the "photos to add" queue storage-aware, but existing files whose image is in storage yet whose DB `photoStoragePath` is null need repairing so the photo shows again everywhere (portal, agent app, chain drawer).
+- [ ] Run the backfill on **staging** first (dry-run, then apply), then **prod**. From your own shell:
+  - `npx tsx scripts/backfill-property-photos.ts` (dry-run — shows what it would fix)
+  - `APPLY=1 npx tsx scripts/backfill-property-photos.ts` (writes)
+  - Delete the script once run on both envs (registered one-shot).
+- [ ] ROOT CAUSE (for when we review the agent file page): the agent-app photo upload (`/api/agent/upload-property-photo`) uploads to storage but relies on a separate `setPropertyPhotoAction` call to persist `photoStoragePath`; if that second step is missed, drift recurs. Fix = have the upload route persist the field in the same request (like the Command Centre route already does).
+
 ## Demo showcase file — prod house image (2026-08-27)
 
 The "Add a demo" showcase file points every demo at two shared storage objects in the `transaction-documents` bucket. Both are uploaded to **staging**. Before the demo feature goes to prod, upload the same two to **prod** Supabase (one-off; the app reads them via signed URL). Until then, demo files on prod fall back to the gradient hero and have no MOS.

@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import {
-  getFilesNeedingPhoto,
-  countFilesNeedingPhoto,
+  getPhotoQueue,
   searchFiles,
   getFileOperational,
+  getFilesList,
   dismissPhotoReminder,
   type FileOperational,
+  type FileListRow,
+  type FileAttention,
 } from "@/lib/command/files";
+import { listStoredPhotoTxIds } from "@/lib/supabase-storage";
 import { PhotoUploadButton } from "@/components/command/files/PhotoUploadButton";
+import InfoTip from "@/components/command/shared/InfoTip";
 
 // ── formatters ───────────────────────────────────────────────────────────────
 function fmtDuration(seconds: number): string {
@@ -38,6 +42,12 @@ function fmtAge(d: Date): string {
   if (days === 1) return "added yesterday";
   return "added today";
 }
+function fmtExchange(days: number | null): string {
+  if (days == null) return "—";
+  if (days < 0) return `${Math.abs(days)}d overdue`;
+  if (days === 0) return "today";
+  return `${days}d`;
+}
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
@@ -50,6 +60,12 @@ function avColor(name: string): string {
 }
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft", active: "In progress", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
+};
+
+const ATTENTION_META: Record<FileAttention, { label: string; style: string }> = {
+  no_photo:      { label: "No photo",      style: "text-amber-400 bg-amber-950/50 border-amber-900" },
+  exchange_soon: { label: "Exchange soon", style: "text-blue-400 bg-blue-950/50 border-blue-900" },
+  idle:          { label: "No recent work", style: "text-neutral-400 bg-neutral-800/60 border-neutral-700" },
 };
 
 // ── dismiss action ───────────────────────────────────────────────────────────
@@ -65,28 +81,44 @@ async function dismissAction(formData: FormData) {
 export default async function FilesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tx?: string }>;
+  searchParams: Promise<{ q?: string; tx?: string; status?: string; att?: string }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
+  const statusFilter = sp.status === "active" || sp.status === "on_hold" ? sp.status : undefined;
+  const attFilter = (["no_photo", "exchange_soon", "idle"] as const).find((a) => a === sp.att);
 
-  const [noPhoto, noPhotoCount, results] = await Promise.all([
-    getFilesNeedingPhoto(),
-    countFilesNeedingPhoto(),
-    q ? searchFiles(q) : Promise.resolve([]),
+  // One storage listing serves the photo queue, search results and the list.
+  const storedIds = await listStoredPhotoTxIds();
+
+  const selectedId = sp.tx;
+  const [photoQueue, results, file, list] = await Promise.all([
+    getPhotoQueue(storedIds),
+    q ? searchFiles(q, storedIds) : Promise.resolve([]),
+    selectedId ? getFileOperational(selectedId) : Promise.resolve(null),
+    !selectedId && !q ? getFilesList({ storedIds, status: statusFilter, attention: attFilter }) : Promise.resolve(null),
   ]);
 
-  const selectedId = sp.tx ?? (results.length === 1 ? results[0].id : undefined);
-  const file: FileOperational | null = selectedId ? await getFileOperational(selectedId) : null;
-
-  const qs = (txId: string) => `/command/files?${new URLSearchParams({ ...(q ? { q } : {}), tx: txId }).toString()}`;
+  const qs = (extra: Record<string, string>) => {
+    const p = new URLSearchParams({ ...(q ? { q } : {}), ...extra });
+    return `/command/files?${p.toString()}`;
+  };
+  const listHref = (extra: Record<string, string>) => {
+    const base: Record<string, string> = {};
+    if (statusFilter) base.status = statusFilter;
+    if (attFilter) base.att = attFilter;
+    const merged = { ...base, ...extra };
+    for (const k of Object.keys(merged)) if (!merged[k]) delete merged[k];
+    const p = new URLSearchParams(merged);
+    return `/command/files${p.toString() ? `?${p}` : ""}`;
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-100">Files</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          Search any property to see who&rsquo;s working it, how engaged the client is, and whether it needs upkeep.
+          Browse any live property to see who&rsquo;s working it, how engaged the client is, and whether it needs upkeep.
         </p>
       </div>
 
@@ -98,7 +130,7 @@ export default async function FilesPage({
         <input
           name="q"
           defaultValue={q}
-          placeholder="Search by address, e.g. Oakfield Road"
+          placeholder="Search any property by address (includes completed + withdrawn)"
           className="flex-1 bg-transparent outline-none text-sm text-neutral-100 placeholder:text-neutral-600"
         />
         <button type="submit" className="text-xs font-medium text-blue-400 hover:text-blue-300">Search</button>
@@ -119,7 +151,7 @@ export default async function FilesPage({
                 return (
                   <Link
                     key={r.id}
-                    href={qs(r.id)}
+                    href={qs({ tx: r.id })}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       active
                         ? "bg-blue-950/40 border-blue-900 text-neutral-100"
@@ -139,16 +171,21 @@ export default async function FilesPage({
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
-        {/* operational panel */}
+        {/* main column */}
         <div>
           {file ? (
-            <FilePanel file={file} />
-          ) : (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-8 text-center">
-              <p className="text-sm text-neutral-500">
-                {q ? "Pick a property above to open its operational view." : "Search for a property to begin."}
-              </p>
+            <div className="space-y-3">
+              <Link href={q ? qs({}) : listHref({})} className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200">
+                ← {q ? "Back to results" : "All files"}
+              </Link>
+              <FilePanel file={file} />
             </div>
+          ) : q ? (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-8 text-center">
+              <p className="text-sm text-neutral-500">Pick a property above to open its operational view.</p>
+            </div>
+          ) : (
+            <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} listHref={listHref} />
           )}
         </div>
 
@@ -158,18 +195,22 @@ export default async function FilesPage({
             <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
               Photos to add
               <span className="text-[11px] font-mono text-amber-400 bg-amber-950/50 border border-amber-900 rounded-full px-2 py-0.5">
-                {noPhotoCount}
+                {photoQueue.count}
               </span>
+              <InfoTip label="How the photo queue works" align="right">
+                Live files (in progress or on hold) with genuinely no photo. We now check storage too, so a file whose
+                image is already uploaded is not flagged even if its record was out of sync. Demo and internal files are excluded.
+              </InfoTip>
             </div>
             <p className="text-[11.5px] text-neutral-500 mt-1">
-              Live files with no property photo. Add one, or dismiss the old ones you&rsquo;ll never fill.
+              Add one, or dismiss the old ones you&rsquo;ll never fill.
             </p>
           </div>
 
-          {noPhoto.length === 0 ? (
+          {photoQueue.files.length === 0 ? (
             <p className="px-4 py-6 text-sm text-neutral-500 text-center">Every live file has a photo. Nothing to do.</p>
           ) : (
-            noPhoto.map((f) => (
+            photoQueue.files.map((f) => (
               <div key={f.id} className="flex items-center gap-3 px-4 py-3 border-b border-neutral-800 last:border-b-0">
                 <div className="w-9 h-9 rounded-md shrink-0 bg-neutral-950 border border-dashed border-neutral-700 flex items-center justify-center">
                   <svg className="w-4 h-4 text-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -195,6 +236,106 @@ export default async function FilesPage({
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── browsable live-files list ─────────────────────────────────────────────────
+function BrowsableList({
+  list,
+  statusFilter,
+  attFilter,
+  listHref,
+}: {
+  list: { rows: FileListRow[]; total: number } | null;
+  statusFilter?: "active" | "on_hold";
+  attFilter?: FileAttention;
+  listHref: (extra: Record<string, string>) => string;
+}) {
+  const rows = list?.rows ?? [];
+  const total = list?.total ?? 0;
+
+  const statusChips: Array<{ v: string; label: string }> = [
+    { v: "", label: "All live" },
+    { v: "active", label: "In progress" },
+    { v: "on_hold", label: "On hold" },
+  ];
+  const attChips: Array<{ v: string; label: string }> = [
+    { v: "", label: "All" },
+    { v: "no_photo", label: "Needs photo" },
+    { v: "exchange_soon", label: "Exchange soon" },
+    { v: "idle", label: "No recent work" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {/* filters */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Status</span>
+          {statusChips.map((c) => {
+            const on = (statusFilter ?? "") === c.v;
+            return (
+              <Link key={c.v || "all"} href={listHref({ status: c.v })} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"}`}>{c.label}</Link>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Attention</span>
+          {attChips.map((c) => {
+            const on = (attFilter ?? "") === c.v;
+            return (
+              <Link key={c.v || "all"} href={listHref({ att: c.v })} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"}`}>{c.label}</Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">
+        <table className="w-full border-collapse text-[13px] min-w-[720px]">
+          <thead>
+            <tr className="bg-neutral-950/60">
+              {["Property", "Agency", "Status", "Last worked", "Team time", "Exchange", "Attention"].map((h, i) => (
+                <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 4 && i <= 5 ? "text-right" : "text-left"}`}>
+                  <span className="inline-flex items-center gap-1">
+                    {h}
+                    {h === "Team time" && <InfoTip label="What Team time means">Total engaged time on this file from completed work sessions.</InfoTip>}
+                    {h === "Last worked" && <InfoTip label="What Last worked means">When anyone on the team last had this file open.</InfoTip>}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-neutral-500">No live files match this filter.</td></tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.id} className="border-b border-neutral-800 last:border-b-0 hover:bg-neutral-800/30 transition-colors">
+                  <td className="px-3.5 py-2.5">
+                    <Link href={`/command/files?tx=${r.id}`} className="font-medium text-neutral-100 hover:text-blue-300 transition-colors">{r.address}</Link>
+                  </td>
+                  <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{r.agencyName}</td>
+                  <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap text-[11px] uppercase tracking-wide">{STATUS_LABEL[r.status] ?? r.status}</td>
+                  <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{fmtRelative(r.lastTeamActivityAt)}</td>
+                  <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{fmtDuration(r.teamSeconds)}</td>
+                  <td className={`px-3.5 py-2.5 text-right tabular-nums ${r.daysToExchange != null && r.daysToExchange < 0 ? "text-red-400" : r.daysToExchange != null && r.daysToExchange <= 14 ? "text-amber-400" : "text-neutral-300"}`}>{fmtExchange(r.daysToExchange)}</td>
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex gap-1 flex-wrap">
+                      {r.attention.map((a) => (
+                        <span key={a} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${ATTENTION_META[a].style}`}>{ATTENTION_META[a].label}</span>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {total > rows.length && (
+        <p className="text-[11.5px] text-neutral-600">Showing {rows.length} of {total} live files. Narrow with a filter or search for a specific address.</p>
+      )}
     </div>
   );
 }

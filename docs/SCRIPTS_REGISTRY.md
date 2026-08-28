@@ -40,6 +40,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete once the target test agencies are flagged internal on both staging and production (tracked in ELLIS_MANUAL_TODO).
 - **Justification:** a rare data-hygiene correction, dry-run-guarded, run by the founder against the chosen env. Not a recurring feature; an admin toggle would be over-engineering for a one-off.
 
+### scripts/backfill-property-photos.ts
+
+- **Purpose:** Repair property-photo drift — set `photoStoragePath` on files whose image is in the `property-photos/` storage bucket but whose DB field was never persisted (agent two-step upload missing step 2), so the photo shows again everywhere.
+- **Lifetime:** `one-shot`
+- **Author:** CC (Command Centre review — Files page), 2026-08-28
+- **Deletion criteria:** delete once run on staging + production and the root-cause fix (agent upload persists the field in-request) has shipped.
+- **Justification:** a data-repair reconciliation between storage and DB, dry-run-guarded, run by the founder per env. Not a recurring feature.
+
 ### scripts/inventory/scripts.ts
 
 - **Purpose:** Walks `scripts/` and emits `docs/inventory/SCRIPTS.md` classifying each script per the cull categories (`archive-delete` / `promote-feature` / `promote-test` / `promote-npm-script` / `keep-as-is`).

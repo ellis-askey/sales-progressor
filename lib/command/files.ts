@@ -3,12 +3,22 @@
 // Superadmin-only (Law 8) — uses commandDb, no agency scoping.
 
 import { commandDb } from "@/lib/command/prisma";
+import { listStoredPhotoTxIds } from "@/lib/supabase-storage";
 
 const INTERNAL_ROLES = new Set(["superadmin", "admin", "sales_progressor"]);
 
-// Files that could still get a photo: live statuses only (a completed or
-// withdrawn sale never needs one).
-const LIVE_STATUSES = ["draft", "active", "on_hold"] as const;
+// Files that are still "live" work: a draft isn't started, and a completed or
+// withdrawn sale never needs upkeep. Both the photo queue and the browsable
+// list use this set. Demo + internal-agency files are excluded separately.
+const LIVE_STATUSES = ["active", "on_hold"] as const;
+
+// Shared "real live customer file" filter — live status, not demo, not an
+// internal/test agency. Matches the rest of the Command Centre.
+const LIVE_FILE_WHERE = {
+  status: { in: [...LIVE_STATUSES] as ("active" | "on_hold")[] },
+  isDemo: false,
+  agency: { isInternal: false },
+};
 
 export type NoPhotoFile = {
   id: string;
@@ -17,14 +27,20 @@ export type NoPhotoFile = {
   createdAt: Date;
 };
 
-// The "photos to add" upkeep queue: live files with no photo the founder
-// hasn't dismissed. Oldest first (most likely to be worked or dismissed).
-export async function getFilesNeedingPhoto(limit = 40): Promise<NoPhotoFile[]> {
-  const rows = await commandDb.propertyTransaction.findMany({
+// The "photos to add" upkeep queue: live customer files with genuinely no photo
+// the founder hasn't dismissed. Storage-aware — a file whose image is already in
+// the bucket (but whose DB field was never persisted by the agent two-step
+// upload) is NOT flagged, so this stops showing false positives. Oldest first.
+export async function getPhotoQueue(
+  storedIds?: Set<string>,
+  limit = 40,
+): Promise<{ files: NoPhotoFile[]; count: number }> {
+  const stored = storedIds ?? (await listStoredPhotoTxIds());
+  const candidates = await commandDb.propertyTransaction.findMany({
     where: {
+      ...LIVE_FILE_WHERE,
       photoStoragePath: null,
       photoReminderDismissedAt: null,
-      status: { in: [...LIVE_STATUSES] },
     },
     select: {
       id: true,
@@ -33,24 +49,17 @@ export async function getFilesNeedingPhoto(limit = 40): Promise<NoPhotoFile[]> {
       agency: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
-    take: limit,
   });
-  return rows.map((r) => ({
-    id: r.id,
-    address: r.propertyAddress,
-    agencyName: r.agency?.name ?? "—",
-    createdAt: r.createdAt,
-  }));
-}
-
-export async function countFilesNeedingPhoto(): Promise<number> {
-  return commandDb.propertyTransaction.count({
-    where: {
-      photoStoragePath: null,
-      photoReminderDismissedAt: null,
-      status: { in: [...LIVE_STATUSES] },
-    },
-  });
+  const missing = candidates.filter((c) => !stored.has(c.id));
+  return {
+    count: missing.length,
+    files: missing.slice(0, limit).map((r) => ({
+      id: r.id,
+      address: r.propertyAddress,
+      agencyName: r.agency?.name ?? "—",
+      createdAt: r.createdAt,
+    })),
+  };
 }
 
 export type FileSearchResult = {
@@ -61,7 +70,7 @@ export type FileSearchResult = {
   hasPhoto: boolean;
 };
 
-export async function searchFiles(q: string, limit = 12): Promise<FileSearchResult[]> {
+export async function searchFiles(q: string, storedIds?: Set<string>, limit = 12): Promise<FileSearchResult[]> {
   const term = q.trim();
   if (!term) return [];
   const rows = await commandDb.propertyTransaction.findMany({
@@ -81,8 +90,111 @@ export async function searchFiles(q: string, limit = 12): Promise<FileSearchResu
     address: r.propertyAddress,
     agencyName: r.agency?.name ?? "—",
     status: r.status,
-    hasPhoto: !!r.photoStoragePath,
+    hasPhoto: !!r.photoStoragePath || (storedIds?.has(r.id) ?? false),
   }));
+}
+
+// ── Browsable live-files list ─────────────────────────────────────────────────
+// The default view when not searching: real live customer files with at-a-glance
+// operational health, each opening the operational panel. Distinct from Today
+// (milestone-stuck) and Agencies (agent activity) — this is per-file operational
+// state (who's touched it, photo, exchange proximity).
+export type FileAttention = "no_photo" | "exchange_soon" | "idle";
+export type FileListRow = {
+  id: string;
+  address: string;
+  agencyName: string;
+  status: string;
+  hasPhoto: boolean;
+  lastTeamActivityAt: Date | null;
+  teamSeconds: number;
+  exchangeDate: Date | null;
+  daysToExchange: number | null;
+  attention: FileAttention[];
+};
+
+const IDLE_DAYS = 14;
+const EXCHANGE_SOON_DAYS = 14;
+
+export async function getFilesList(opts: {
+  storedIds?: Set<string>;
+  status?: "active" | "on_hold";
+  attention?: FileAttention;
+  limit?: number;
+}): Promise<{ rows: FileListRow[]; total: number }> {
+  const stored = opts.storedIds ?? (await listStoredPhotoTxIds());
+  const limit = opts.limit ?? 100;
+
+  const files = await commandDb.propertyTransaction.findMany({
+    where: {
+      ...LIVE_FILE_WHERE,
+      ...(opts.status ? { status: opts.status } : {}),
+    },
+    select: {
+      id: true,
+      propertyAddress: true,
+      status: true,
+      photoStoragePath: true,
+      expectedExchangeDate: true,
+      predictedExchangeDate: true,
+      overridePredictedDate: true,
+      agency: { select: { name: true } },
+    },
+    take: 400,
+  });
+  const ids = files.map((f) => f.id);
+
+  // Team activity per file, batched: last touch (any session) + engaged seconds
+  // (closed sessions only).
+  const [lastAgg, secAgg] = ids.length
+    ? await Promise.all([
+        commandDb.fileTimeSession.groupBy({
+          by: ["transactionId"],
+          where: { transactionId: { in: ids } },
+          _max: { lastActivityAt: true },
+        }),
+        commandDb.fileTimeSession.groupBy({
+          by: ["transactionId"],
+          where: { transactionId: { in: ids }, endedAt: { not: null } },
+          _sum: { totalEngagedSeconds: true },
+        }),
+      ])
+    : [[], []];
+  const lastMap = new Map(lastAgg.map((g) => [g.transactionId, g._max.lastActivityAt ?? null]));
+  const secMap = new Map(secAgg.map((g) => [g.transactionId, g._sum.totalEngagedSeconds ?? 0]));
+
+  const now = Date.now();
+  let rows: FileListRow[] = files.map((f) => {
+    const hasPhoto = !!f.photoStoragePath || stored.has(f.id);
+    const lastTeamActivityAt = lastMap.get(f.id) ?? null;
+    const exchangeDate = f.overridePredictedDate ?? f.predictedExchangeDate ?? f.expectedExchangeDate ?? null;
+    const daysToExchange = exchangeDate
+      ? Math.round((new Date(exchangeDate).getTime() - now) / 86_400_000)
+      : null;
+    const attention: FileAttention[] = [];
+    if (!hasPhoto) attention.push("no_photo");
+    if (daysToExchange != null && daysToExchange >= 0 && daysToExchange <= EXCHANGE_SOON_DAYS) attention.push("exchange_soon");
+    if (!lastTeamActivityAt || now - lastTeamActivityAt.getTime() > IDLE_DAYS * 86_400_000) attention.push("idle");
+    return {
+      id: f.id,
+      address: f.propertyAddress,
+      agencyName: f.agency?.name ?? "—",
+      status: f.status,
+      hasPhoto,
+      lastTeamActivityAt,
+      teamSeconds: secMap.get(f.id) ?? 0,
+      exchangeDate,
+      daysToExchange,
+      attention,
+    };
+  });
+
+  if (opts.attention) rows = rows.filter((r) => r.attention.includes(opts.attention!));
+
+  // Most recently worked first; never-touched sink to the bottom.
+  rows.sort((a, b) => (b.lastTeamActivityAt?.getTime() ?? 0) - (a.lastTeamActivityAt?.getTime() ?? 0));
+
+  return { rows: rows.slice(0, limit), total: rows.length };
 }
 
 export type TeamMember = { name: string; role: string; internal: boolean; seconds: number };
