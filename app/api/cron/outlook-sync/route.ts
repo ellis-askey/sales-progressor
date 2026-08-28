@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { syncOutlookMailbox } from "@/lib/integrations/outlook/sync";
+import { interpretNewInboundEmails } from "@/lib/services/email-interpret";
 
 // Tier 3, Stage 1 — automatic capture. Runs the existing Outlook sync on a
 // schedule for every connected mailbox, so replies land on the right file by
@@ -49,5 +50,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ mailboxes, logged, unmatched });
+  // Stage 2: read the newly-captured emails and turn the meaningful ones into
+  // proposals for human review. Never acts — only writes MilestoneProposal rows.
+  const interp = await interpretNewInboundEmails(30).catch(() => ({ interpreted: 0, proposed: 0 }));
+
+  return NextResponse.json({ mailboxes, logged, unmatched, interpreted: interp.interpreted, proposed: interp.proposed });
 }
