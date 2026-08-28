@@ -28,10 +28,12 @@ function fmtGBP(pence: number): string {
 export function AgencyFeeManager({
   agencies,
   legacyCount,
+  freeCount,
   totalCount,
 }: {
   agencies: AgencyFeeRow[];
   legacyCount: number;
+  freeCount: number;
   totalCount: number;
 }) {
   const router = useRouter();
@@ -77,7 +79,7 @@ export function AgencyFeeManager({
   }
 
   const selected = agencies.find((a) => a.id === selectedId) ?? null;
-  const standardCount = totalCount - legacyCount;
+  const standardCount = totalCount - legacyCount - freeCount;
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
@@ -92,6 +94,7 @@ export function AgencyFeeManager({
         <div className="text-[11px] text-neutral-500 text-right shrink-0 tabular-nums">
           <p><span className="font-semibold text-neutral-200">{standardCount}</span> on sliding scale</p>
           <p><span className="font-semibold text-neutral-200">{legacyCount}</span> on legacy fixed</p>
+          {freeCount > 0 && <p><span className="font-semibold text-neutral-200">{freeCount}</span> free</p>}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { commandDb } from "@/lib/command/prisma";
 import { AgencyFeeManager, type AgencyFeeRow } from "@/components/command/agencies/AgencyFeeManager";
 import { AgencyChaseControl, type AgencyChaseRow } from "@/components/command/agencies/AgencyChaseControl";
 import { WeeklyUpdateControl, type WeeklyUpdateRow } from "@/components/command/agencies/WeeklyUpdateControl";
+import InfoTip from "@/components/command/shared/InfoTip";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "—";
@@ -42,9 +43,10 @@ function avColor(name: string): string {
 const STATUS_STYLE: Record<UsageStatus, string> = {
   active: "text-emerald-400 bg-emerald-950/50 border-emerald-900",
   quiet: "text-amber-400 bg-amber-950/50 border-amber-900",
-  dormant: "text-neutral-500 bg-neutral-800/60 border-neutral-700",
+  dormant: "text-red-400 bg-red-950/40 border-red-900",
+  never: "text-violet-400 bg-violet-950/40 border-violet-900",
 };
-const STATUS_LABEL: Record<UsageStatus, string> = { active: "Active", quiet: "Quiet", dormant: "Dormant" };
+const STATUS_LABEL: Record<UsageStatus, string> = { active: "Active", quiet: "Quiet", dormant: "Dormant", never: "Never on" };
 
 function StatusPill({ status }: { status: UsageStatus }) {
   return (
@@ -76,11 +78,17 @@ function Sparkline({ weeks }: { weeks: number[] }) {
 export default async function AgenciesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; q?: string }>;
+  searchParams: Promise<{ view?: string; q?: string; status?: string }>;
 }) {
   const sp = await searchParams;
   const view = sp.view === "agency" ? "agency" : "agent";
   const q = (sp.q ?? "").trim().toLowerCase();
+  const statusFilter = (["active", "quiet", "dormant", "never", "gonequiet"] as const).find((s) => s === sp.status);
+  const matchesStatus = (s: UsageStatus): boolean => {
+    if (!statusFilter) return true;
+    if (statusFilter === "gonequiet") return s === "quiet" || s === "dormant";
+    return s === statusFilter;
+  };
 
   const { agents, agencies, summary } = await getUsageOverview();
 
@@ -140,13 +148,32 @@ export default async function AgenciesPage({
     transactionCount: a._count.transactions,
   }));
   const legacyFeeCount = feeRows.filter((a) => a.feeTier === "legacy").length;
+  const freeFeeCount = feeRows.filter((a) => a.feeTier === "free").length;
 
-  const agentRows: AgentUsage[] = q
-    ? agents.filter((a) => a.name.toLowerCase().includes(q) || a.agencyName.toLowerCase().includes(q))
-    : agents;
-  const agencyRows: AgencyUsage[] = q ? agencies.filter((a) => a.agencyName.toLowerCase().includes(q)) : agencies;
+  const agentRows: AgentUsage[] = agents.filter(
+    (a) =>
+      matchesStatus(a.status) &&
+      (!q || a.name.toLowerCase().includes(q) || a.agencyName.toLowerCase().includes(q)),
+  );
+  const agencyRows: AgencyUsage[] = agencies.filter(
+    (a) => matchesStatus(a.status) && (!q || a.agencyName.toLowerCase().includes(q)),
+  );
 
-  const tab = (v: "agent" | "agency") => `/command/agencies?${new URLSearchParams({ view: v, ...(q ? { q: sp.q ?? "" } : {}) }).toString()}`;
+  const qsWith = (extra: Record<string, string>) => {
+    const p = new URLSearchParams({ view, ...(sp.q ? { q: sp.q } : {}), ...(sp.status ? { status: sp.status } : {}), ...extra });
+    // Drop empty status so "All" clears cleanly.
+    if (!p.get("status")) p.delete("status");
+    return `/command/agencies?${p.toString()}`;
+  };
+  const tab = (v: "agent" | "agency") => qsWith({ view: v });
+  const statusHref = (s: string) => qsWith({ status: s });
+  const STATUS_FILTERS: Array<{ value: string; label: string }> = [
+    { value: "", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "quiet", label: "Quiet" },
+    { value: "dormant", label: "Dormant" },
+    { value: "never", label: "Never on" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -156,19 +183,38 @@ export default async function AgenciesPage({
       </div>
 
       {/* summary tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          { k: "Active this week", v: String(summary.activeAgents7d), d: "agents with a session", warn: false },
-          { k: "Hours logged · 7d", v: fmtHoursShort(summary.hoursSeconds7d), d: "real engaged time", warn: false },
-          { k: "Logins · 7d", v: String(summary.logins7d), d: "across all agents", warn: false },
-          { k: "Gone quiet", v: String(summary.goneQuiet), d: "not seen in 14+ days", warn: summary.goneQuiet > 0 },
-        ].map((t) => (
-          <div key={t.k} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
-            <div className="text-[10.5px] font-mono uppercase tracking-wider text-neutral-500">{t.k}</div>
-            <div className={`text-2xl font-semibold tracking-tight mt-1 tabular-nums ${t.warn ? "text-amber-400" : "text-neutral-100"}`}>{t.v}</div>
-            <div className="text-[11.5px] text-neutral-500 mt-0.5">{t.d}</div>
-          </div>
-        ))}
+          { k: "Active this week", v: String(summary.activeAgents7d), d: "active in the last 7 days", tone: "", href: statusHref("active"),
+            tip: "Agents with any activity (any event, not just a login) in the last 7 days." },
+          { k: "Hours logged · 7d", v: fmtHoursShort(summary.hoursSeconds7d), d: "real engaged time", tone: "", href: null,
+            tip: "Engaged time from completed sessions that started in the last 7 days. Open sessions aren't counted until they close, so this can read low." },
+          { k: "Logins · 7d", v: String(summary.logins7d), d: "across all agents", tone: "", href: null,
+            tip: "Sign-in events across all agents in the last 7 days." },
+          { k: "Gone quiet", v: String(summary.goneQuiet), d: "silent 7+ days", tone: summary.goneQuiet > 0 ? "amber" : "", href: statusHref("gonequiet"),
+            tip: "Agents who were active before but have gone 7+ days without activity. Quiet = 7 to 14 days, Dormant = 14+ days. Click to see who." },
+          { k: "Never activated", v: String(summary.neverActivated), d: "invited, never logged in", tone: summary.neverActivated > 0 ? "violet" : "", href: statusHref("never"),
+            tip: "Invited but no activity ever. These need onboarding, not winning back." },
+        ].map((t) => {
+          const valColor = t.tone === "amber" ? "text-amber-400" : t.tone === "violet" ? "text-violet-400" : "text-neutral-100";
+          const body = (
+            <>
+              <div className="text-[10.5px] font-mono uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+                {t.k}
+                <InfoTip label={`What ${t.k} means`}>{t.tip}</InfoTip>
+              </div>
+              <div className={`text-2xl font-semibold tracking-tight mt-1 tabular-nums ${valColor}`}>{t.v}</div>
+              <div className="text-[11.5px] text-neutral-500 mt-0.5">{t.d}{t.href ? " ›" : ""}</div>
+            </>
+          );
+          return t.href ? (
+            <Link key={t.k} href={t.href} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 hover:border-neutral-700 transition-colors">
+              {body}
+            </Link>
+          ) : (
+            <div key={t.k} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">{body}</div>
+          );
+        })}
       </div>
 
       {/* search + toggle */}
@@ -186,6 +232,30 @@ export default async function AgenciesPage({
         </div>
       </div>
 
+      {/* status filter */}
+      <div className="flex items-center gap-2 flex-wrap -mt-1">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Status</span>
+        {STATUS_FILTERS.map((f) => {
+          const on = (sp.status ?? "") === f.value;
+          return (
+            <Link
+              key={f.value || "all"}
+              href={statusHref(f.value)}
+              className={`text-[12px] font-medium px-2.5 py-1 rounded-md transition-colors ${
+                on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"
+              }`}
+            >
+              {f.label}
+            </Link>
+          );
+        })}
+        {statusFilter && (
+          <span className="text-[11px] text-neutral-600">
+            {view === "agent" ? `${agentRows.length} agent${agentRows.length === 1 ? "" : "s"}` : `${agencyRows.length} agenc${agencyRows.length === 1 ? "y" : "ies"}`}
+          </span>
+        )}
+      </div>
+
       {/* table */}
       <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">
         {view === "agent" ? (
@@ -193,13 +263,19 @@ export default async function AgenciesPage({
             <thead>
               <tr className="bg-neutral-950/60">
                 {["Agent", "Agency", "Last active", "Logins · 7d", "Hours · 7d", "Files", "Activity · 12wk", "Status"].map((h, i) => (
-                  <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 3 && i <= 5 ? "text-right" : "text-left"}`}>{h}</th>
+                  <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 3 && i <= 5 ? "text-right" : "text-left"}`}>
+                    <span className="inline-flex items-center gap-1">
+                      {h}
+                      {h === "Activity · 12wk" && <InfoTip label="What the sparkline shows">One bar per week for the last 12 weeks. Bar height is how many sessions that agent had that week.</InfoTip>}
+                      {h === "Files" && <InfoTip label="What Files counts">Distinct files the agent touched in the last 7 days.</InfoTip>}
+                    </span>
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {agentRows.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-neutral-500">{q ? "No agents match that search." : "No agent activity yet."}</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agents match this filter." : "No agent activity yet."}</td></tr>
               ) : (
                 agentRows.map((a) => (
                   <tr key={a.userId} className="border-b border-neutral-800 last:border-b-0">
@@ -240,11 +316,15 @@ export default async function AgenciesPage({
             </thead>
             <tbody>
               {agencyRows.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-neutral-500">{q ? "No agencies match that search." : "No agency activity yet."}</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agencies match this filter." : "No agency activity yet."}</td></tr>
               ) : (
                 agencyRows.map((a) => (
                   <tr key={a.agencyId} className="border-b border-neutral-800 last:border-b-0">
-                    <td className="px-3.5 py-2.5 font-semibold text-neutral-100 whitespace-nowrap">{a.agencyName}</td>
+                    <td className="px-3.5 py-2.5 font-semibold whitespace-nowrap">
+                      <Link href={`/command/agencies?view=agent&q=${encodeURIComponent(a.agencyName)}`} className="text-neutral-100 hover:text-blue-300 transition-colors">
+                        {a.agencyName}
+                      </Link>
+                    </td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.agentCount}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.activeCount}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.logins7d}</td>
@@ -261,12 +341,12 @@ export default async function AgenciesPage({
       </div>
 
       <p className="text-[11.5px] text-neutral-600">
-        Active = a session in the last 7 days · Quiet = 7&ndash;14 days · Dormant = 14+ days. Hours and files come from the same engaged-time tracking as the Files tab; logins and last-active from the event log.
+        Active = activity in the last 7 days · Quiet = 7&ndash;14 days · Dormant = 14+ days · Never on = invited but never logged in. Hours and files come from the same engaged-time tracking as the Files tab; logins and last-active from the event log.
       </p>
 
       {/* Agency fees (relocated from /agent/admin) */}
       <div className="pt-2">
-        <AgencyFeeManager agencies={feeRows} legacyCount={legacyFeeCount} totalCount={feeRows.length} />
+        <AgencyFeeManager agencies={feeRows} legacyCount={legacyFeeCount} freeCount={freeFeeCount} totalCount={feeRows.length} />
       </div>
 
       {/* Per-agency chase control */}
