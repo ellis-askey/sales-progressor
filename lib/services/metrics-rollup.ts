@@ -56,7 +56,7 @@ type InternalIds = {
   userIds: string[];
 };
 
-async function loadInternalIds(): Promise<InternalIds> {
+export async function loadInternalIds(): Promise<InternalIds> {
   const [agencies, users] = await Promise.all([
     prisma.agency.findMany({ where: { isInternal: true }, select: { id: true } }),
     prisma.user.findMany({ where: { isInternal: true }, select: { id: true } }),
@@ -82,7 +82,9 @@ type MetricValues = {
   aiSpendCents: number;
 };
 
-async function computeMetricsForScope(
+export type { Scope, MetricValues, InternalIds };
+
+export async function computeMetricsForScope(
   dateStr: string,
   scope: Scope,
   internal: InternalIds
