@@ -33,8 +33,10 @@ export default async function SolicitorPortalLayout({
     where: { id: decoded.transactionId },
     select: {
       id: true,
-      vendorSolicitorContact: { select: { name: true } },
-      purchaserSolicitorContact: { select: { name: true } },
+      vendorSolicitorContact: { select: { name: true, phone: true, email: true, secondaryEmail: true, image: true } },
+      purchaserSolicitorContact: { select: { name: true, phone: true, email: true, secondaryEmail: true, image: true } },
+      vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
       vendorSolicitorEmailsPaused: true,
       purchaserSolicitorEmailsPaused: true,
       vendorSolicitorEmailsPausedUntil: true,
@@ -45,6 +47,14 @@ export default async function SolicitorPortalLayout({
 
   const contact = decoded.side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
   const firstName = contact?.name ? extractFirstName(contact.name) : "";
+  const firmName = (decoded.side === "vendor" ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? null;
+  const myDetails = {
+    name: contact?.name ?? "",
+    phone: contact?.phone ?? "",
+    email: contact?.email ?? "",
+    secondaryEmail: contact?.secondaryEmail ?? "",
+    image: contact?.image ?? null,
+  };
   const emailsPaused = decoded.side === "vendor" ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
   const pausedUntilRaw = decoded.side === "vendor" ? tx.vendorSolicitorEmailsPausedUntil : tx.purchaserSolicitorEmailsPausedUntil;
   const pausedUntil = pausedUntilRaw && pausedUntilRaw > new Date() ? pausedUntilRaw.toISOString() : null;
@@ -63,7 +73,7 @@ export default async function SolicitorPortalLayout({
 
   return (
     <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
-      <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null} emailsPaused={emailsPaused} pausedUntil={pausedUntil}>
+      <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails}>
         {children}
       </SolicitorPortalShell>
     </PortalGlassProvider>

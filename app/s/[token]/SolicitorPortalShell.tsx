@@ -5,7 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { List, House, ClockCounterClockwise, ChatCircle, X, FileArrowDown, BellSlash } from "@phosphor-icons/react/dist/ssr";
 import { PortalDesignLab } from "@/components/portal/PortalDesignLab";
+import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { solicitorSetEmailsPausedAction, solicitorPauseUntilAction } from "./actions";
+import { SolicitorSettings, type MyDetails } from "./SolicitorSettings";
 import { S } from "./ui";
 import { GreetingText } from "./GreetingText";
 
@@ -20,6 +23,8 @@ export function SolicitorPortalShell({
   mosFilename,
   emailsPaused,
   pausedUntil,
+  firmName,
+  myDetails,
   children,
 }: {
   token: string;
@@ -28,6 +33,8 @@ export function SolicitorPortalShell({
   mosFilename: string | null;
   emailsPaused: boolean;
   pausedUntil: string | null;
+  firmName: string | null;
+  myDetails: MyDetails;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -126,8 +133,11 @@ export function SolicitorPortalShell({
       </nav>
 
       {menuOpen && (
-        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} pausedUntil={pausedUntil} onClose={() => setMenuOpen(false)} />
+        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails} onClose={() => setMenuOpen(false)} />
       )}
+
+      <PortalAutoRefresh />
+      <FeedbackWidget portalToken={token} />
     </div>
   );
 }
@@ -160,7 +170,7 @@ function TabItem({ href, label, active, icon }: { href: string; label: string; a
   );
 }
 
-function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; emailsPaused: boolean; pausedUntil: string | null; onClose: () => void }) {
+function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, firmName, myDetails, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; emailsPaused: boolean; pausedUntil: string | null; firmName: string | null; myDetails: MyDetails; onClose: () => void }) {
   const [paused, setPaused] = useState(emailsPaused);
   const [until, setUntil] = useState<string | null>(pausedUntil);
   const [pending, start] = useTransition();
@@ -213,16 +223,21 @@ function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, onCl
           borderRadius: "20px 20px 0 0",
           boxShadow: "0 -10px 34px rgba(9,20,40,0.18)",
           padding: "10px 18px calc(20px + env(safe-area-inset-bottom))",
+          maxHeight: "88svh",
+          overflowY: "auto",
         }}
       >
-        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(15,39,64,0.14)", margin: "4px auto 14px" }} />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.muted }}>This matter</p>
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(15,39,64,0.14)", margin: "4px auto 6px" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: S.ink }}>Menu</p>
           <button type="button" onClick={onClose} aria-label="Close menu" style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: S.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             <X size={16} weight="bold" />
           </button>
         </div>
 
+        <SolicitorSettings token={token} firmName={firmName} details={myDetails} />
+
+        {mosUrl && <p style={{ margin: "16px 2px 8px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.muted }}>Documents</p>}
         {mosUrl && (
           <a
             href={mosUrl}

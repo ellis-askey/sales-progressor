@@ -284,6 +284,35 @@ export async function solicitorSetEmailsPausedAction(token: string, paused: bool
   return { ok: true };
 }
 
+// Update the handler's own contact details (portal Settings). Edits the shared
+// SolicitorContact record — genuinely their own details, reused across their
+// files. Name is never blanked.
+export async function solicitorUpdateMyDetailsAction(
+  token: string,
+  input: { name: string; phone: string; email: string; secondaryEmail: string },
+): Promise<{ ok: true }> {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: decoded.transactionId },
+    select: { vendorSolicitorContactId: true, purchaserSolicitorContactId: true },
+  });
+  const contactId = decoded.side === "vendor" ? tx?.vendorSolicitorContactId : tx?.purchaserSolicitorContactId;
+  if (!contactId) throw new Error("No handler is recorded on this file.");
+  await prisma.solicitorContact.update({
+    where: { id: contactId },
+    data: {
+      name: input.name.trim() || undefined,
+      phone: input.phone.trim() || null,
+      email: input.email.trim() || null,
+      secondaryEmail: input.secondaryEmail.trim() || null,
+    },
+  });
+  return { ok: true };
+}
+
 // Timed pause (1 or 2 weeks): hold chases until a date, then auto-resume. Clears
 // the permanent flag so it's a temporary hold, not an opt-out.
 export async function solicitorPauseUntilAction(token: string, weeks: 1 | 2): Promise<{ ok: true }> {

@@ -43,6 +43,13 @@ export async function getSolicitorUpdates(
     },
   });
 
+  // The own-side handler's photo, shown on their firm-attributed confirmations.
+  const txContacts = await prisma.propertyTransaction.findUnique({
+    where: { id: txId },
+    select: { vendorSolicitorContact: { select: { image: true } }, purchaserSolicitorContact: { select: { image: true } } },
+  });
+  const myFirmImage = (side === "vendor" ? txContacts?.vendorSolicitorContact?.image : txContacts?.purchaserSolicitorContact?.image) ?? null;
+
   const contactIds = comps.map((c) => c.confirmedByContactId).filter((x): x is string => !!x);
   const contacts = contactIds.length
     ? await prisma.contact.findMany({ where: { id: { in: contactIds } }, select: { id: true, name: true, image: true } })
@@ -68,6 +75,7 @@ export async function getSolicitorUpdates(
     if (ownSide) {
       if (c.confirmedBySolicitorFirm) {
         actorName = c.confirmedBySolicitorFirm.name;
+        actorImage = myFirmImage;
         actorRole = "firm";
       } else if (c.confirmedByContactId) {
         const ct = contactById.get(c.confirmedByContactId);
