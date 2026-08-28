@@ -9,6 +9,7 @@ import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { solicitorSetEmailsPausedAction, solicitorPauseUntilAction } from "./actions";
 import { SolicitorSettings, type MyDetails } from "./SolicitorSettings";
+import { SolicitorWelcome } from "./SolicitorWelcome";
 import { S } from "./ui";
 import { GreetingText } from "./GreetingText";
 
@@ -136,6 +137,7 @@ export function SolicitorPortalShell({
         <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails} onClose={() => setMenuOpen(false)} />
       )}
 
+      <SolicitorWelcome firstName={firstName} />
       <PortalAutoRefresh />
       <FeedbackWidget portalToken={token} />
     </div>
