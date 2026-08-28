@@ -7,6 +7,7 @@ import { displayChainPosition } from "@/lib/chain/positions";
 import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { formatChainPriceFull } from "@/lib/chain/summary";
+import { Pill, type PillProps } from "@/components/ui/Pill";
 import type { ChainLinkV2, ChainNodeIntel } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 
@@ -20,26 +21,23 @@ function relativeTime(date: Date | string | null): string {
   return `${days}d ago`;
 }
 
-// Status pill styled with agent tokens (theme-aware across every agent theme).
-// Colour follows the same semantics as the mock: your file = coral, claimed =
-// success, invited = warning, declined/bounced = danger, unclaimed = neutral.
-function statusPillStyle(kind: ReturnType<typeof getChainLinkStatus>["kind"]): {
-  color: string;
-  background: string;
-} {
+// Status pill tone (theme-aware via the canonical Pill primitive). Semantics:
+// your file = coral/brand, claimed = success, invited = warning,
+// declined/bounced = danger, unclaimed = neutral/muted.
+function statusTone(kind: ReturnType<typeof getChainLinkStatus>["kind"]): NonNullable<PillProps["tone"]> {
   switch (kind) {
     case "claimed_own":
     case "your_transaction":
-      return { color: "var(--agent-coral-darker)", background: "var(--agent-coral-bg-tint)" };
+      return "brand";
     case "claimed_other":
-      return { color: "var(--agent-success)", background: "var(--agent-success-bg)" };
+      return "success";
     case "invited":
-      return { color: "var(--agent-warning)", background: "var(--agent-warning-bg)" };
+      return "warning";
     case "bounced":
     case "declined":
-      return { color: "var(--agent-danger)", background: "var(--agent-danger-bg)" };
+      return "danger";
     default:
-      return { color: "var(--agent-text-muted)", background: "var(--agent-border-subtle)" };
+      return "muted";
   }
 }
 
@@ -50,16 +48,15 @@ function ChainStatusBadge({
   status: ReturnType<typeof getChainLinkStatus>;
   label: string;
 }) {
-  const s = statusPillStyle(status.kind);
+  const tone = statusTone(status.kind);
+  // Coloured states get the glass treatment; the neutral "unclaimed" pill stays
+  // a quiet muted chip.
   return (
-    <span
-      className="chain-status-pill"
-      style={{ color: s.color, background: s.background }}
-    >
+    <Pill tone={tone} size="sm" glass={tone !== "muted"}>
       {status.kind === "bounced" && <span aria-hidden>⚠ </span>}
       {label}
       <span className="sr-only">Status: {label}</span>
-    </span>
+    </Pill>
   );
 }
 
@@ -541,20 +538,10 @@ export function LinkCard({
 
             {/* Buyer-position signal — shared across the chain (cash / first-time). */}
             {link.transaction?.buyerPosition && (
-              <span
-                style={{
-                  display: "inline-block",
-                  marginTop: 4,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "var(--agent-success)",
-                  background: "var(--agent-success-bg)",
-                  border: "0.5px solid var(--agent-success-border)",
-                  borderRadius: 4,
-                  padding: "2px 6px",
-                }}
-              >
-                {link.transaction.buyerPosition}
+              <span style={{ display: "inline-flex", marginTop: 4 }}>
+                <Pill tone="success" size="sm" glass>
+                  {link.transaction.buyerPosition}
+                </Pill>
               </span>
             )}
 
