@@ -166,41 +166,93 @@ export async function solicitorConfirmStepAction(
   return { ok: true };
 }
 
-// (2) Give an expected date → writes MilestoneCompletion.expectedDate without
-// completing the step. Mirrors the client portal's "set a date" behaviour.
-export async function solicitorSetExpectedDateAction(
+// (2) Give an expected date AND/OR leave an update, in one submit (Stage 2).
+// Writes MilestoneCompletion.expectedDate when a date is given, and posts an
+// internal-only note to the file when text is given. At least one is required.
+// The step is NOT completed — this is "where it stands", not "it's done".
+export async function solicitorUpdateStepAction(
   token: string,
   milestoneDefinitionId: string,
-  expectedDate: string,
+  expectedDate: string | null,
+  note: string,
 ): Promise<{ ok: true }> {
-  if (!expectedDate) throw new Error("Please choose a date.");
-  const { decoded, def, tx, side } = await resolveStep(token, milestoneDefinitionId);
+  const trimmedNote = note.trim();
+  const hasDate = !!expectedDate;
+  if (!hasDate && !trimmedNote) throw new Error("Please add a date or a short update.");
 
-  const scope = forRound(tx.activeBuyerRoundId, decoded.transactionId);
-  const existing = await prisma.milestoneCompletion.findFirst({
-    where: {
-      transactionId: decoded.transactionId,
-      milestoneDefinitionId: def.id,
-      ...milestoneScopeWhere(scope),
-    },
-    select: { id: true },
-  });
+  const { decoded, def, tx, side, firmName } = await resolveStep(token, milestoneDefinitionId);
 
-  if (existing) {
-    await prisma.milestoneCompletion.update({
-      where: { id: existing.id },
-      data: { expectedDate: new Date(expectedDate) },
-    });
-  } else {
-    await prisma.milestoneCompletion.create({
-      data: {
+  // Expected date → upsert onto the completion (mirrors the client "set a date").
+  if (hasDate) {
+    const date = new Date(expectedDate as string);
+    if (Number.isNaN(date.getTime())) throw new Error("Please choose a valid date.");
+
+    const scope = forRound(tx.activeBuyerRoundId, decoded.transactionId);
+    const existing = await prisma.milestoneCompletion.findFirst({
+      where: {
         transactionId: decoded.transactionId,
         milestoneDefinitionId: def.id,
-        state: "available",
-        expectedDate: new Date(expectedDate),
-        buyerRoundId: side === "purchaser" ? tx.activeBuyerRoundId : null,
+        ...milestoneScopeWhere(scope),
       },
+      select: { id: true },
     });
+
+    if (existing) {
+      await prisma.milestoneCompletion.update({
+        where: { id: existing.id },
+        data: { expectedDate: date },
+      });
+    } else {
+      await prisma.milestoneCompletion.create({
+        data: {
+          transactionId: decoded.transactionId,
+          milestoneDefinitionId: def.id,
+          state: "available",
+          expectedDate: date,
+          buyerRoundId: side === "purchaser" ? tx.activeBuyerRoundId : null,
+        },
+      });
+    }
+  }
+
+  // Note → internal-only activity entry + a bell to everyone on the file. Never
+  // client-facing (type internal_note), attributed to the firm via senderLabel.
+  if (trimmedNote) {
+    const authorId = tx.agentUserId ?? tx.assignedUserId;
+    if (authorId) {
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: decoded.transactionId,
+          agencyId: tx.agencyId,
+          type: "internal_note",
+          method: "email",
+          channel: "other",
+          purpose: "chase",
+          status: "sent",
+          subject: `Update from ${firmName}`,
+          content: trimmedNote,
+          senderLabel: firmName,
+          contactIds: [],
+          createdById: authorId,
+          createdByRole: "director",
+        },
+      });
+      const recipients = fileNotifyRecipients(tx);
+      if (recipients.length) {
+        await prisma.notification.createMany({
+          data: recipients.map((userId) => ({
+            userId,
+            type: "solicitor_update",
+            transactionId: decoded.transactionId,
+            payload: {
+              firmName,
+              step: def.code,
+              message: `${firmName} left an update: ${trimmedNote}`,
+            },
+          })),
+        });
+      }
+    }
   }
 
   revalidatePath(`/s/${token}`);
@@ -213,17 +265,66 @@ export async function solicitorSetExpectedDateAction(
 // stops sending; the confirm links themselves keep working. Reversible via the
 // file's 4-toggle pause menu.
 export async function solicitorStopEmailsAction(token: string): Promise<{ ok: true }> {
+  return solicitorSetEmailsPausedAction(token, true);
+}
+
+// Toggle the per-side solicitor reminder pause (portal Notifications control).
+// paused=true pauses this side's chases; false resumes them. Reversible either
+// way from the portal (the old stop-link was one-directional).
+export async function solicitorSetEmailsPausedAction(token: string, paused: boolean): Promise<{ ok: true }> {
   const decoded = verifySolicitorToken(token);
   if (!decoded) throw new Error("This link is not valid.");
   const limit = await checkSolicitorConfirmLimit(token);
   if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
-  await prisma.propertyTransaction.update({
+  // Turning back on also clears any timed pause.
+  const data = decoded.side === "vendor"
+    ? { vendorSolicitorEmailsPaused: paused, ...(paused ? {} : { vendorSolicitorEmailsPausedUntil: null }) }
+    : { purchaserSolicitorEmailsPaused: paused, ...(paused ? {} : { purchaserSolicitorEmailsPausedUntil: null }) };
+  await prisma.propertyTransaction.update({ where: { id: decoded.transactionId }, data });
+  return { ok: true };
+}
+
+// Update the handler's own contact details (portal Settings). Edits the shared
+// SolicitorContact record — genuinely their own details, reused across their
+// files. Name is never blanked.
+export async function solicitorUpdateMyDetailsAction(
+  token: string,
+  input: { name: string; phone: string; email: string; secondaryEmail: string },
+): Promise<{ ok: true }> {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+  const tx = await prisma.propertyTransaction.findUnique({
     where: { id: decoded.transactionId },
-    data:
-      decoded.side === "vendor"
-        ? { vendorSolicitorEmailsPaused: true }
-        : { purchaserSolicitorEmailsPaused: true },
+    select: { vendorSolicitorContactId: true, purchaserSolicitorContactId: true },
   });
+  const contactId = decoded.side === "vendor" ? tx?.vendorSolicitorContactId : tx?.purchaserSolicitorContactId;
+  if (!contactId) throw new Error("No handler is recorded on this file.");
+  await prisma.solicitorContact.update({
+    where: { id: contactId },
+    data: {
+      name: input.name.trim() || undefined,
+      phone: input.phone.trim() || null,
+      email: input.email.trim() || null,
+      secondaryEmail: input.secondaryEmail.trim() || null,
+    },
+  });
+  return { ok: true };
+}
+
+// Timed pause (1 or 2 weeks): hold chases until a date, then auto-resume. Clears
+// the permanent flag so it's a temporary hold, not an opt-out.
+export async function solicitorPauseUntilAction(token: string, weeks: 1 | 2): Promise<{ ok: true }> {
+  const decoded = verifySolicitorToken(token);
+  if (!decoded) throw new Error("This link is not valid.");
+  const limit = await checkSolicitorConfirmLimit(token);
+  if (!limit.success) throw new Error("Too many requests just now. Please wait a moment and try again.");
+  const until = new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000);
+  const data = decoded.side === "vendor"
+    ? { vendorSolicitorEmailsPaused: false, vendorSolicitorEmailsPausedUntil: until }
+    : { purchaserSolicitorEmailsPaused: false, purchaserSolicitorEmailsPausedUntil: until };
+  await prisma.propertyTransaction.update({ where: { id: decoded.transactionId }, data });
   return { ok: true };
 }
 
@@ -479,60 +580,3 @@ export async function solicitorRaisedExpectedDateAction(token: string, expectedD
   return { ok: true };
 }
 
-// (3) Provide a written update → records an "Update" on the file's activity
-// feed, attributed to the solicitor's firm via senderLabel (the solicitor
-// isn't a system user, so we can't set createdById to them). Stays type
-// internal_note so it never leaves the file — never client-facing. The
-// timeline reads senderLabel as the author and renders the "Update" pill off
-// it; the raw message is stored as-is with no code/prefix.
-export async function solicitorLeaveUpdateAction(
-  token: string,
-  milestoneDefinitionId: string,
-  message: string,
-): Promise<{ ok: true }> {
-  const trimmed = message.trim();
-  if (!trimmed) throw new Error("Please type an update first.");
-  const { decoded, def, tx, firmName } = await resolveStep(token, milestoneDefinitionId);
-
-  const authorId = tx.agentUserId ?? tx.assignedUserId;
-  if (authorId) {
-    // Internal note on the file's activity feed…
-    await prisma.outboundMessage.create({
-      data: {
-        transactionId: decoded.transactionId,
-        agencyId: tx.agencyId,
-        type: "internal_note",
-        method: "email",
-        channel: "other",
-        purpose: "chase",
-        status: "sent",
-        subject: `Update from ${firmName}`,
-        content: trimmed,
-        senderLabel: firmName,
-        contactIds: [],
-        createdById: authorId,
-        createdByRole: "director",
-      },
-    });
-    // …and a bell notification to everyone on the file (agent + assigned
-    // progressor), so whoever is progressing an outsourced file sees it too.
-    const recipients = fileNotifyRecipients(tx);
-    if (recipients.length) {
-      await prisma.notification.createMany({
-        data: recipients.map((userId) => ({
-          userId,
-          type: "solicitor_update",
-          transactionId: decoded.transactionId,
-          payload: {
-            firmName,
-            step: def.code,
-            message: `${firmName} left an update: ${trimmed}`,
-          },
-        })),
-      });
-    }
-  }
-
-  revalidatePath(`/s/${token}`);
-  return { ok: true };
-}

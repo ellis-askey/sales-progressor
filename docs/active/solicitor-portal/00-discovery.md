@@ -139,16 +139,15 @@ The stateless token is elegant but has properties worth deciding on before we su
 
 ---
 
-## 9. Suggested build stages (draft — refine after decisions)
+## 9. Build stages — ALL SHIPPED TO STAGING (2026-08-28)
 
-1. **QR in the digest email** — smallest, immediate trust value. No schema change.
-2. **Combined expected-date + update** on the what's-due card — UX change to `SolicitorRespond`.
-3. **Progress-at-a-glance** (whole-file 6-stage strip, read-only) added to the page.
-4. **Skin pass** to the agreed design (D1) — own `ui.ts`, mobile-first layout.
-5. **Documents (MOS + agent-shared)** surfaced with signed links, behind the agreed security gate (D5).
-6. **Token hardening** (expiry + reissue) if chosen.
+1. **QR in the digest email** ✅ — hosted PNG under `/s/[token]/qr`, plus the whole email rebuilt to the approved mock (hosted icons, trust line, personal signature: person + agency + phone + avatar).
+2. **Combined expected-date + update** ✅ — one-tap Confirm + a single "Give an update" (date + note together); `solicitorUpdateStepAction`.
+3. **Progress-at-a-glance** ✅ — read-only whole-sale 6-stage strip via `resolveDisplayStages`.
+4. **Skin pass** ✅ — hybrid professional skin, own `app/s/[token]/ui.ts`, rounded cards on a soft page.
+5. **MOS + token expiry** ✅ — Memorandum of sale as a signed download (view-only); links carry an issued-at and expire ~30 days, reissued per email (D5).
 
-Migrations (if any — e.g. token issued-at, document visibility) go **staging-first** (Law 3). Most of stages 1–4 need no migration.
+**No migrations** were needed — all five stages are code-only (the solicitor-confirm data model already existed). Everything is on **staging only**; not pushed to prod. Follow-up: the enquiries / raise-enquiries panels still wear the old letterhead styling and want a skin pass to match.
 
 ---
 
