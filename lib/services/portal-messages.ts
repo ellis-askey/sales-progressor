@@ -176,7 +176,11 @@ export async function sendProgressorPortalReply(
   contactId: string,
   content: string,
   progressorId: string,
-  progressorName: string
+  progressorName: string,
+  // email defaults to true (existing callers unchanged). The "Draft for
+  // everyone" flow passes false to post to the portal without emailing, unless
+  // the user flips the "Also email" toggle.
+  options?: { email?: boolean },
 ): Promise<void> {
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, propertyTransactionId: transactionId },
@@ -218,7 +222,7 @@ export async function sendProgressorPortalReply(
     }).catch(() => {});
   }
 
-  if (contact.email && contact.portalToken) {
+  if (options?.email !== false && contact.email && contact.portalToken) {
     const portalUrl = `${base}/portal/${contact.portalToken}/updates`;
     const sender = await resolveAgencySenderForTransaction(transactionId);
     sendEmail({
