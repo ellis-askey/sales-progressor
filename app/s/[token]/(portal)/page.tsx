@@ -7,6 +7,7 @@ import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
 import { markChaseOpened, recipientForSide } from "@/lib/enquiries/chase-log";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { SolicitorHero } from "../SolicitorHero";
+import { PointOfContactCard } from "../PointOfContactCard";
 import { ProgressOverviewCard, PortalCard } from "../portal-cards";
 import { OpenUpdatesCard } from "../OpenUpdatesCard";
 import { OtherSideCard, otherSideConfig } from "../OtherSideCard";
@@ -58,12 +59,16 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
       completionDate: true,
       updatedAt: true,
       agency: { select: { name: true } },
+      assignedUser: { select: { name: true, phone: true, email: true, image: true } },
+      agentUser: { select: { name: true, phone: true, email: true, image: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       contacts: { select: { name: true, roleType: true } },
     },
   });
   if (!tx) return null;
+
+  const person = tx.assignedUser ?? tx.agentUser;
 
   const side = decoded.side;
   void markChaseOpened(tx.id, recipientForSide(side)).catch(() => {});
@@ -165,6 +170,8 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
           agencyName={brand}
         />
       </div>
+
+      {person?.name && <PointOfContactCard person={person} agencyName={brand} />}
 
       <ProgressOverviewCard stages={displayStages} timelineHref={`/s/${token}/progress`} />
 
