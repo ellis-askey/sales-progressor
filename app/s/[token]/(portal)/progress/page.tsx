@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { forRound, vendorOnly } from "@/lib/services/milestone-scope";
 import { getPortalMilestones, type PortalMilestone } from "@/lib/services/portal";
 import { getMilestoneCopy } from "@/lib/portal-copy";
+import { solicitorOwnLabel } from "@/lib/solicitor-confirm/feed-copy";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { ProgressMirror, type MRow } from "../../ProgressMirror";
 
@@ -32,7 +33,7 @@ export default async function SolicitorProgressPage({ params }: { params: Promis
     const copy = getMilestoneCopy(m.code);
     return {
       code: m.code,
-      label: copy.label,
+      label: solicitorOwnLabel(m.code, copy.label),
       labelOther: copy.labelOther ?? copy.label,
       isComplete: m.isComplete,
       isNotRequired: m.isNotRequired,

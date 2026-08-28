@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
-import { getMilestoneCopy, getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
+import { getMilestoneCopy, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
+import { solicitorOwnSubtext, solicitorOtherSubtextOverride } from "@/lib/solicitor-confirm/feed-copy";
 import { getSignedUrl } from "@/lib/supabase-storage";
 
 // A chronological "what's happened" feed for the solicitor portal. Own-side
@@ -62,10 +63,10 @@ export async function getSolicitorUpdates(
     const copy = getMilestoneCopy(code);
     const when = c.completedAt ?? c.createdAt;
 
-    // Fluent sentence (founder-authored copy), not the raw milestone label.
+    // Fluent sentence, voiced for a solicitor reader (not the client copy).
     const title = ownSide
-      ? getMilestoneUpdateSubtext(code) ?? copy.label
-      : getMilestoneUpdateSubtextOther(code) ?? copy.labelOther ?? copy.label;
+      ? solicitorOwnSubtext(code) ?? copy.label
+      : solicitorOtherSubtextOverride(code) ?? getMilestoneUpdateSubtextOther(code) ?? copy.labelOther ?? copy.label;
 
     let sub: string | null = null;
     let actorName: string | null = null;
