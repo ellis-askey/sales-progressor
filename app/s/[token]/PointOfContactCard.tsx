@@ -33,20 +33,26 @@ function vcardHref(p: ContactPerson, org: string): string {
   return "data:text/vcard;charset=utf-8," + encodeURIComponent(lines.join("\n"));
 }
 
+// Matches the shape + press-down of the Open-updates mark buttons (radius 11,
+// weight 700, .pbtn) so the two cards' buttons read as one family. Icon left.
 function Action({ href, icon, label, external }: { href: string; icon: React.ReactNode; label: string; external?: boolean }) {
   return (
     <a
       href={href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      style={{ flex: 1, minWidth: 0, display: "inline-flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", padding: "8px 6px", borderRadius: 10, background: "rgba(15,39,64,0.04)", color: S.inkSoft }}
+      className="pbtn pbtn-press"
+      style={{ flex: 1, minWidth: 0, display: "inline-flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", padding: "8px 10px", borderRadius: 11, background: "rgba(15,39,64,0.05)", border: "1px solid #d5deea", color: S.inkSoft }}
     >
       <span style={{ color: S.accent, display: "inline-flex", flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </a>
   );
 }
 
-export function PointOfContactCard({ person, agencyName }: { person: ContactPerson; agencyName: string }) {
+export function PointOfContactCard({ person, agencyName, emailSubject }: { person: ContactPerson; agencyName: string; emailSubject?: string }) {
+  const mailto = person.email
+    ? `mailto:${person.email}${emailSubject ? `?subject=${encodeURIComponent(emailSubject)}` : ""}`
+    : null;
   return (
     <PortalCard glassId="sol-contact" label="Point of contact">
       <CardKicker>Your point of contact</CardKicker>
@@ -63,10 +69,10 @@ export function PointOfContactCard({ person, agencyName }: { person: ContactPers
         </div>
       </div>
       <div style={{ display: "flex", gap: 7, marginTop: 14 }}>
-        {person.phone && <Action href={`tel:${person.phone}`} icon={<Phone size={15} weight="regular" />} label="Call" />}
-        {person.email && <Action href={`mailto:${person.email}`} icon={<EnvelopeSimple size={15} weight="regular" />} label="Email" />}
-        {person.phone && <Action href={whatsappHref(person.phone)} icon={<WhatsappLogo size={15} weight="regular" />} label="WhatsApp" external />}
-        <Action href={vcardHref(person, agencyName)} icon={<DownloadSimple size={15} weight="regular" />} label="Save" />
+        {person.phone && <Action href={`tel:${person.phone}`} icon={<Phone size={16} weight="regular" />} label="Call" />}
+        {mailto && <Action href={mailto} icon={<EnvelopeSimple size={16} weight="regular" />} label="Email" />}
+        {person.phone && <Action href={whatsappHref(person.phone)} icon={<WhatsappLogo size={16} weight="regular" />} label="WhatsApp" external />}
+        <Action href={vcardHref(person, agencyName)} icon={<DownloadSimple size={16} weight="regular" />} label="Save" />
       </div>
     </PortalCard>
   );

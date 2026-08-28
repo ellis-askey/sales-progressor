@@ -190,6 +190,12 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
   const ringPercent = Math.round(((completedCount + inProgCount * 0.5) / displayStages.length) * 100);
   const firstActiveIdx = displayStages.findIndex((s) => s.status === "in_progress" || s.status === "up_next");
   const ringStep = firstActiveIdx >= 0 ? firstActiveIdx + 1 : displayStages.length;
+  const currentStageName = (firstActiveIdx >= 0 ? displayStages[firstActiveIdx] : displayStages[displayStages.length - 1])?.name ?? null;
+
+  // Prefilled subject for the "Email" contact action: "Sale/Purchase of {full
+  // address} - Client: {names}" (names joined with & for more than one).
+  const clientNames = side === "vendor" ? sellerNames : buyerNames;
+  const emailSubject = `${side === "vendor" ? "Sale" : "Purchase"} of ${tx.propertyAddress}${clientNames ? ` - Client: ${clientNames}` : ""}`;
 
   return (
     <div className="portal-reveal-stack" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -207,12 +213,13 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
           firmName={firmName}
           ringPercent={ringPercent}
           ringStep={ringStep}
+          currentStageName={currentStageName}
           lastUpdated={fmtLastUpdated(tx.updatedAt)}
           agencyName={brand}
         />
       </div>
 
-      {person?.name && <PointOfContactCard person={person} agencyName={brand} />}
+      {person?.name && <PointOfContactCard person={person} agencyName={brand} emailSubject={emailSubject} />}
 
       <ProgressOverviewCard stages={displayStages} timelineHref={`/s/${token}/progress`} />
 

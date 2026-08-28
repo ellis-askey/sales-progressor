@@ -16,6 +16,7 @@ export type HeroProps = {
   firmName: string | null;
   ringPercent: number; // 0-100
   ringStep: number; // 1-6
+  currentStageName: string | null; // e.g. "Searches" — shown under the ring
   lastUpdated: string | null;
   agencyName: string;
 };
@@ -68,7 +69,15 @@ export function SolicitorHero(p: HeroProps) {
               {p.purchaseType && <HeroPill>{p.purchaseType}</HeroPill>}
             </div>
           </div>
-          <SolicitorHeroRing percent={p.ringPercent} step={p.ringStep} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <SolicitorHeroRing percent={p.ringPercent} step={p.ringStep} />
+            {p.currentStageName && (
+              <div style={{ textAlign: "center", maxWidth: 104 }}>
+                <p style={{ margin: 0, fontSize: 9, fontWeight: 700, color: S.heroTextSoft, textTransform: "uppercase", letterSpacing: "0.10em" }}>Current stage</p>
+                <p style={{ margin: "3px 0 0", fontSize: 13, fontWeight: 700, color: S.heroText, lineHeight: 1.2 }}>{p.currentStageName}</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Frosted white card */}
@@ -93,7 +102,7 @@ export function SolicitorHero(p: HeroProps) {
             <div style={{ width: 1, background: "rgba(15,39,64,0.10)", flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0, paddingLeft: 14 }}>
               <p style={{ margin: "0 0 3px", fontSize: 12, color: S.muted }}>Your firm</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: S.ink, lineHeight: 1.35 }}>{p.firmName ?? "—"}</p>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: S.ink, lineHeight: 1.35 }}>{p.firmName ?? "Not set"}</p>
             </div>
           </div>
           {p.lastUpdated && (
