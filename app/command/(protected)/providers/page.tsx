@@ -11,6 +11,8 @@ import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
+import { formatGBP } from "@/lib/command/revenue";
+import InfoTip from "@/components/command/shared/InfoTip";
 import { NewProviderForm } from "./NewProviderForm";
 import { CopyOnboardingButton } from "./CopyOnboardingButton";
 import { Plus } from "lucide-react";
@@ -21,12 +23,32 @@ export default async function CommandProvidersPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user || !hasSuperAdminPowers(session)) redirect("/dashboard");
 
-  const firms = await commandDb.providerFirm.findMany({
-    orderBy: [{ active: "desc" }, { name: "asc" }],
-    include: {
-      _count: { select: { coverage: true, serviceTypes: true, quoteRequests: true } },
-    },
-  });
+  const [firms, statusGroups, referralGroups] = await Promise.all([
+    commandDb.providerFirm.findMany({
+      orderBy: [{ active: "desc" }, { name: "asc" }],
+      include: {
+        _count: { select: { coverage: true, serviceTypes: true, quoteRequests: true } },
+      },
+    }),
+    // Per-firm quote outcomes.
+    commandDb.quoteRequest.groupBy({ by: ["providerId", "status"], _count: { _all: true } }),
+    // Per-firm referral earned (won quotes).
+    commandDb.quoteRequest.groupBy({ by: ["providerId"], where: { status: "won" }, _sum: { referralFeePence: true } }),
+  ]);
+
+  // Per-firm performance: won count, win rate, referral earned.
+  const perfByFirm = new Map<string, { won: number; decided: number; referralPence: number }>();
+  for (const g of statusGroups) {
+    const cur = perfByFirm.get(g.providerId) ?? { won: 0, decided: 0, referralPence: 0 };
+    if (g.status === "won") { cur.won += g._count._all; cur.decided += g._count._all; }
+    else if (g.status === "not_chosen" || g.status === "lost") cur.decided += g._count._all;
+    perfByFirm.set(g.providerId, cur);
+  }
+  for (const g of referralGroups) {
+    const cur = perfByFirm.get(g.providerId) ?? { won: 0, decided: 0, referralPence: 0 };
+    cur.referralPence = g._sum.referralFeePence ?? 0;
+    perfByFirm.set(g.providerId, cur);
+  }
 
   const surveyorCount = firms.filter((f) => f.kind === "surveyor").length;
   const structuralCount = firms.filter((f) => f.kind === "structural_engineer").length;
@@ -91,9 +113,19 @@ export default async function CommandProvidersPage() {
                 <tr>
                   <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-left">Firm</th>
                   <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-left">Kind</th>
-                  <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Areas</th>
+                  <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">
+                    <span className="inline-flex items-center gap-1 justify-end">Areas<InfoTip label="Areas" align="right">Outward postcodes this firm covers (matched to a property at quote time).</InfoTip></span>
+                  </th>
                   <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Services</th>
-                  <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Quotes</th>
+                  <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">
+                    <span className="inline-flex items-center gap-1 justify-end">Quotes<InfoTip label="Quotes" align="right">Total quote requests routed to this firm, all outcomes.</InfoTip></span>
+                  </th>
+                  <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">
+                    <span className="inline-flex items-center gap-1 justify-end">Won<InfoTip label="Won" align="right">Quotes this firm won, and its win rate (won ÷ decided).</InfoTip></span>
+                  </th>
+                  <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">
+                    <span className="inline-flex items-center gap-1 justify-end">Referral<InfoTip label="Referral" align="right">Your referral income earned across this firm's won quotes.</InfoTip></span>
+                  </th>
                   <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Status</th>
                 </tr>
               </thead>
@@ -147,6 +179,28 @@ export default async function CommandProvidersPage() {
                       </td>
                       <td className="px-3 py-2 text-[12px] text-[#a3a3a3] text-right tabular-nums">
                         {f._count.quoteRequests}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {(() => {
+                          const perf = perfByFirm.get(f.id);
+                          const won = perf?.won ?? 0;
+                          const rate = perf && perf.decided > 0 ? Math.round((perf.won / perf.decided) * 100) : null;
+                          if (won === 0 && (perf?.decided ?? 0) === 0) return <span className="text-[#525252]">·</span>;
+                          return (
+                            <span className="text-[12px] text-[#a3a3a3]">
+                              {won}
+                              {rate != null && <span className="text-[10px] text-[#525252] ml-1">({rate}%)</span>}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-3 py-2 text-[12px] text-right tabular-nums">
+                        {(() => {
+                          const pence = perfByFirm.get(f.id)?.referralPence ?? 0;
+                          return pence > 0
+                            ? <span className="text-[#86efac]">{formatGBP(pence)}</span>
+                            : <span className="text-[#525252]">·</span>;
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-right">
                         {f.active ? (

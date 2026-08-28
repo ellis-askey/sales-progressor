@@ -10,8 +10,12 @@ import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
+import { formatGBP } from "@/lib/command/revenue";
+import InfoTip from "@/components/command/shared/InfoTip";
 import { ChevronLeft } from "lucide-react";
 import type { QuoteRequestStatus } from "@prisma/client";
+
+const STALE_PENDING_DAYS = 7;
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +54,10 @@ export default async function QuoteInboxPage({
     ...(firmId ? { providerId: firmId } : {}),
   };
 
-  const [rows, counts, firmContext] = await Promise.all([
+  const firmScope = firmId ? { providerId: firmId } : {};
+  const staleBefore = new Date(Date.now() - STALE_PENDING_DAYS * 86_400_000);
+
+  const [rows, counts, firmContext, referralWon, referralCollected, staleCount] = await Promise.all([
     commandDb.quoteRequest.findMany({
       where,
       orderBy: { submittedAt: "desc" },
@@ -65,15 +72,34 @@ export default async function QuoteInboxPage({
     }),
     commandDb.quoteRequest.groupBy({
       by: ["status"],
-      where: firmId ? { providerId: firmId } : {},
+      where: firmScope,
       _count: { _all: true },
     }),
     firmId
       ? commandDb.providerFirm.findUnique({ where: { id: firmId }, select: { name: true } })
       : Promise.resolve(null),
+    // Referral fees on won quotes (your cut).
+    commandDb.quoteRequest.aggregate({
+      where: { status: "won", ...firmScope },
+      _sum: { referralFeePence: true },
+    }),
+    commandDb.quoteRequest.aggregate({
+      where: { status: "won", referralFeeCollected: true, ...firmScope },
+      _sum: { referralFeePence: true },
+    }),
+    // Pending quotes that have gone cold.
+    commandDb.quoteRequest.count({ where: { status: "pending", submittedAt: { lt: staleBefore }, ...firmScope } }),
   ]);
 
   const countByStatus = new Map(counts.map((c) => [c.status, c._count._all]));
+  const n = (s: QuoteRequestStatus) => countByStatus.get(s) ?? 0;
+  const wonN = n("won"), notChosenN = n("not_chosen"), lostN = n("lost"), bookedN = n("booked");
+  const decidedN = wonN + notChosenN + lostN;
+  const winRate = decidedN > 0 ? Math.round((wonN / decidedN) * 100) : null;
+  const totalN = counts.reduce((sum, c) => sum + c._count._all, 0);
+  const referralEarnedPence = referralWon._sum.referralFeePence ?? 0;
+  const referralCollectedPence = referralCollected._sum.referralFeePence ?? 0;
+  const referralOutstandingPence = referralEarnedPence - referralCollectedPence;
 
   return (
     <div>
@@ -91,6 +117,42 @@ export default async function QuoteInboxPage({
         Client-submitted requests routed to the firm's email + Ellis. Update
         status here to fuel win-rate and referral-fee tracking.
       </p>
+
+      {/* Win-rate + referral summary */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-5">
+        <QuoteStat
+          label="Win rate"
+          value={winRate == null ? "—" : `${winRate}%`}
+          sub={winRate == null ? "no decisions yet" : `${wonN} of ${decidedN} decided`}
+          tip="Quotes won as a share of decided ones (won ÷ won + not chosen + lost). Pending, booked and expired don't count as decisions."
+        />
+        <QuoteStat
+          label="Referral earned"
+          value={formatGBP(referralEarnedPence)}
+          sub={`${wonN} won quote${wonN === 1 ? "" : "s"}`}
+          tip="Your referral cut (about 10%) across all won quotes. Recorded when you mark a quote won."
+        />
+        <QuoteStat label="Collected" value={formatGBP(referralCollectedPence)} sub="marked paid to you" />
+        <QuoteStat
+          label="Outstanding"
+          value={formatGBP(referralOutstandingPence)}
+          sub="won, not yet collected"
+          tone={referralOutstandingPence > 0 ? "warn" : "default"}
+          tip="Referral fees you've earned but not yet marked collected."
+        />
+        <QuoteStat
+          label="Funnel"
+          value={`${totalN} → ${bookedN + wonN} → ${wonN}`}
+          sub="submitted → booked → won"
+          tip="How many requests reached each stage. Booked+ counts anything that got booked, including those later won."
+        />
+      </div>
+
+      {staleCount > 0 && (
+        <div className="mb-4 px-3 py-2 rounded-md border border-[#3a2a10] bg-[#1a1305] text-[12px] text-[#fcd34d]">
+          {staleCount} pending quote{staleCount === 1 ? "" : "s"} {staleCount === 1 ? "has" : "have"} gone quiet ({STALE_PENDING_DAYS}+ days). Chase the firm or update the status.
+        </div>
+      )}
 
       {/* Status tabs */}
       <div className="flex gap-1 mb-4 border-b border-[#1f1f1f]">
@@ -171,8 +233,17 @@ export default async function QuoteInboxPage({
                       )}
                     </td>
                     <td className="px-3 py-2 text-[11px] text-[#a3a3a3] capitalize">{r.urgency.replace("_", " ")}</td>
-                    <td className="px-3 py-2 text-[11px] text-[#737373] text-right tabular-nums">
-                      {r.submittedAt.toISOString().slice(0, 10)}
+                    <td className="px-3 py-2 text-[11px] text-right tabular-nums">
+                      {(() => {
+                        const isStale = r.status === "pending" && r.submittedAt < staleBefore;
+                        const days = Math.floor((Date.now() - r.submittedAt.getTime()) / 86_400_000);
+                        return (
+                          <span className={isStale ? "text-[#fcd34d]" : "text-[#737373]"}>
+                            {r.submittedAt.toISOString().slice(0, 10)}
+                            {isStale && <span className="ml-1.5">· {days}d cold</span>}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-right"><StatusBadge status={r.status} /></td>
                   </tr>
@@ -186,6 +257,31 @@ export default async function QuoteInboxPage({
       {rows.length === 100 && (
         <p className="text-[11px] text-[#525252] mt-2 text-center">Showing latest 100. Refine with filters.</p>
       )}
+    </div>
+  );
+}
+
+function QuoteStat({
+  label,
+  value,
+  sub,
+  tone = "default",
+  tip,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  tone?: "default" | "warn";
+  tip?: string;
+}) {
+  return (
+    <div className="px-3 py-2.5 rounded-md border border-[#262626] bg-[#0f0f0f]">
+      <p className="text-[10px] font-bold text-[#525252] uppercase tracking-widest mb-1 flex items-center gap-1">
+        {label}
+        {tip && <InfoTip label={label}>{tip}</InfoTip>}
+      </p>
+      <p className={`text-[18px] font-semibold tabular-nums leading-none ${tone === "warn" && value !== "£0" ? "text-[#fcd34d]" : "text-[#fafafa]"}`}>{value}</p>
+      <p className="text-[10px] text-[#525252] mt-1">{sub}</p>
     </div>
   );
 }

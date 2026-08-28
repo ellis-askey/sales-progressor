@@ -159,6 +159,26 @@ export default async function RevenuePage({
         </div>
       </section>
 
+      {/* ── Other income: provider referrals ─────────────────────── */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          Other income · provider referrals
+          <InfoTip label="Referral income">
+            Your cut on surveyor/broker quotes clients win through us. A separate stream from your sale fees. Tracked in
+            the Quote inbox.
+          </InfoTip>
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <ReferralCell label="Earned (all time)" pence={data.referralIncome.earnedPence} sub={`${data.referralIncome.wonCount} won quote${data.referralIncome.wonCount === 1 ? "" : "s"}`} />
+          <ReferralCell label="Collected" pence={data.referralIncome.collectedPence} sub="marked paid" />
+          <ReferralCell label="Outstanding" pence={data.referralIncome.outstandingPence} sub="not yet collected" tone={data.referralIncome.outstandingPence > 0 ? "warn" : "default"} />
+          <Link href="/command/providers/quotes?status=won" className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 hover:border-neutral-700 transition-colors flex flex-col justify-center">
+            <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider">Quote inbox</p>
+            <p className="mt-1 text-sm text-blue-400">Manage referrals →</p>
+          </Link>
+        </div>
+      </section>
+
       {/* ── Per-agency bible ──────────────────────────────────────── */}
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -289,6 +309,19 @@ function PipelineCell({
       <p className="text-[11px] text-neutral-600">
         {bucket.fileCount} file{bucket.fileCount === 1 ? "" : "s"}
       </p>
+    </div>
+  );
+}
+
+// ─── Referral income cell ─────────────────────────────────────────────────────
+
+function ReferralCell({ label, pence, sub, tone = "default" }: { label: string; pence: number; sub: string; tone?: "default" | "warn" }) {
+  const valueClass = tone === "warn" && pence > 0 ? "text-amber-400" : "text-neutral-100";
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+      <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider">{label}</p>
+      <p className={`mt-1.5 text-xl font-semibold tabular-nums ${valueClass}`}>{formatGBP(pence)}</p>
+      <p className="text-[11px] text-neutral-600">{sub}</p>
     </div>
   );
 }
