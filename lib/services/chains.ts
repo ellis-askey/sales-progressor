@@ -553,13 +553,27 @@ export async function getChainV2(
   // pointer to the already-built onward tracker (lib/services/onward.ts). Hidden
   // once superseded (the agent above claimed) or abandoned. Fetched only for own
   // files, so usually a single extra read.
-  const ownTxIds = viewerUserId
+  // Own-side = the whole owning agency (+ internal staff), the SAME rule the node
+  // intel uses (canViewNodeIntel). So a director / assigned neg / colleague sees
+  // their agency's onward; another agency never does (a claimed node requires
+  // txAgencyId === viewer.agencyId). Legacy callers without viewer context fall
+  // back to the per-claimer check. Deliberately NOT createdByUserId — the
+  // originator of a now-claimed stub must not get the neighbour's onward.
+  const ownTxIds = (viewer || viewerUserId)
     ? chain.links
-        .filter(
-          (l) =>
-            l.transactionId != null &&
-            (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId),
-        )
+        .filter((l) => {
+          if (l.transactionId == null) return false;
+          if (viewer) {
+            return canViewNodeIntel(viewer, {
+              transactionId: l.transactionId,
+              linkCreatedByUserId: l.createdByUserId,
+              txAgencyId: l.transaction?.agencyId ?? null,
+              txAssignedUserId: l.transaction?.assignedUserId ?? null,
+              txAgentUserId: l.transaction?.agentUserId ?? null,
+            });
+          }
+          return l.claimedByUserId === viewerUserId;
+        })
         .map((l) => l.transactionId as string)
     : [];
   const onwardByTx = new Map<string, ChainOnwardSummary>();
@@ -619,16 +633,21 @@ export async function getChainV2(
         txAgentUserId: rawTx?.agentUserId ?? null,
       };
       const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
-      const intel: ChainNodeIntel | null =
-        viewer && canViewNodeIntel(viewer, ownership)
-          ? {
-              breakChainStance: breakChainStance ?? null,
-              breakChainConditions: breakChainConditions ?? null,
-              expectedTimescale: expectedTimescale ?? null,
-              chainNotes: chainNotes ?? null,
-              lastChainCheckAt: lastChainCheckAt ?? null,
-            }
-          : null;
+      const intelVisible = viewer ? canViewNodeIntel(viewer, ownership) : false;
+      const intel: ChainNodeIntel | null = intelVisible
+        ? {
+            breakChainStance: breakChainStance ?? null,
+            breakChainConditions: breakChainConditions ?? null,
+            expectedTimescale: expectedTimescale ?? null,
+            chainNotes: chainNotes ?? null,
+            lastChainCheckAt: lastChainCheckAt ?? null,
+          }
+        : null;
+      // Own-side gate for price / onward / stuck-step: the SAME rule as intel, so
+      // the whole owning agency (creator, assigned neg, director) + internal staff
+      // see them; another agency never does. Legacy callers without viewer context
+      // fall back to the per-claimer check.
+      const canSeeOwn = viewer ? intelVisible : (viewerUserId != null && l.claimedByUserId === viewerUserId);
 
       if (!rawTx) {
         return {
@@ -661,18 +680,17 @@ export async function getChainV2(
         isShareOfFreehold,
         overridePredictedDate,
       });
-      // Privacy: stuck-milestone detail is the link owner's private
-      // operational state. Only surface it for the viewer's own link.
-      // Every other link gets null at the trust boundary.
-      const isViewer = viewerUserId != null && l.claimedByUserId === viewerUserId;
-      const stuckCode = isViewer ? computeStuckMilestoneCode(milestoneCompletions) : null;
+      // Privacy: stuck-milestone detail is the owning side's private operational
+      // state. Surfaced to the owning agency + internal staff (canSeeOwn), never
+      // another agency.
+      const stuckCode = canSeeOwn ? computeStuckMilestoneCode(milestoneCompletions) : null;
       const stuckMilestoneLabel = stuckCode ? getMilestoneShortLabel(stuckCode) : null;
-      // Price privacy: an agent sees only their OWN sale price. Strip
-      // purchasePrice to null on every other link (own = claimed by, or the
-      // originator of, this file). The shared figure is valuePence above.
-      const isOwnFile =
-        viewerUserId != null &&
-        (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId);
+      // Price privacy: shown to the owning agency + internal staff only (canSeeOwn),
+      // stripped to null for every other agency. NOT createdByUserId — the
+      // originator of a stub does not own the neighbour's file once another agency
+      // claims it, and must not see that agency's price (cross-agency leak fixed
+      // 2026-08-28: the claim flow never resets createdByUserId). The shared figure
+      // is the valuePence aggregate above.
       return {
         ...linkRest,
         // Explicit public allowlist — id, address, status, agencyId, price, photo,
@@ -683,7 +701,7 @@ export async function getChainV2(
           propertyAddress: txnPublic.propertyAddress,
           status: txnPublic.status,
           agencyId: txnPublic.agencyId,
-          purchasePrice: isOwnFile ? txnPublic.purchasePrice : null,
+          purchasePrice: canSeeOwn ? txnPublic.purchasePrice : null,
           photoUrl,
           buyerPosition: computeBuyerPosition(purchaseType, txnPublic.clientFirstTimeBuyer),
         },

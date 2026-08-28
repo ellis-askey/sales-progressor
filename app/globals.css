@@ -1248,7 +1248,7 @@ select {
 .chain-actempty { font-size: 11.5px; color: var(--agent-text-muted); margin-top: 12px; line-height: 1.5; }
 
 .chain-addbtn { width: 100%; font-size: 12px; font-weight: 600; color: var(--agent-text-muted);
-  background: var(--agent-surface-elevated); border: 1px dashed var(--agent-border-strong);
+  background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-strong);
   border-radius: 12px; padding: 9px; cursor: pointer;
   transition: background .15s var(--agent-ease), color .15s var(--agent-ease), border-color .15s var(--agent-ease); }
 .chain-addbtn:hover { color: var(--agent-text-primary); background: var(--agent-hover-tint);

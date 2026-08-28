@@ -228,10 +228,13 @@ export function AddNodeDrawer({
 
   function helperText(): string {
     if (!requiredFilled) return "Add a property address and agency name to continue.";
-    if (!form.stubAgentEmail.trim()) return "No invite sent — you can add an email later";
-    if (!hasValidEmail) return "Enter a valid email address";
-    if (isExistingChain) return "Invite sent on save";
-    return "Invite sent when you save the chain";
+    if (form.stubAgentEmail.trim() && !hasValidEmail) return "Enter a valid email address";
+    // Editing never sends an invite (sendInviteNow is false in edit mode) — say so
+    // honestly rather than promising an invite that won't go out.
+    if (isEditMode) return "Changes saved. To invite them, use Send invite on their card.";
+    if (!form.stubAgentEmail.trim()) return "No invite sent yet. You can add an email later.";
+    if (isExistingChain) return "Invite sent on save.";
+    return "Invite sent when you save the chain.";
   }
 
   async function handleSave() {
@@ -272,7 +275,7 @@ export function AddNodeDrawer({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        setServerError(data.error ?? "Something went wrong — try again.");
+        setServerError(data.error ?? "Something went wrong. Try again.");
         return;
       }
 
