@@ -275,7 +275,7 @@ export function AddNodeDrawer({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        setServerError(data.error ?? "Something went wrong — try again.");
+        setServerError(data.error ?? "Something went wrong. Try again.");
         return;
       }
 
