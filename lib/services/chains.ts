@@ -12,6 +12,12 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { getMilestoneShortLabel } from "@/lib/chase/milestone-glossary";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import {
+  canViewNodeIntel,
+  canEditNodeIntel,
+  type IntelViewer,
+  type ChainNodeOwnership,
+} from "@/lib/chain/intel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE 1 commit 4d — chains.ts disposition.
@@ -68,6 +74,17 @@ export type ChainData = {
 };
 
 // ─── v2 types (new drawer, API routes) ───────────────────────────────────────
+
+// Private own-side chain-node intel, surfaced only to viewers allowed by
+// lib/chain/intel.ts. Null on a link when the viewer may not see it (another
+// agency's node, or no viewer context passed).
+export type ChainNodeIntel = {
+  breakChainStance: string | null;
+  breakChainConditions: string | null;
+  expectedTimescale: string | null;
+  chainNotes: string | null;
+  lastChainCheckAt: Date | null;
+};
 
 export type ChainLinkV2 = {
   id: string;
@@ -136,6 +153,13 @@ export type ChainLinkV2 = {
     id: string;
     name: string;
   } | null;
+  // Private own-side chain-node intel. Populated only for viewers allowed to see
+  // it (lib/chain/intel.ts); null otherwise. Optional so demo/dev callers that
+  // build links by hand and callers that pass no viewer are unaffected.
+  intel?: ChainNodeIntel | null;
+  // Whether the current viewer may edit this node's intel. False when no viewer
+  // context is passed.
+  canEditIntel?: boolean;
 };
 
 export type ChainV2 = {
@@ -253,12 +277,22 @@ const LINK_V2_SELECT = {
   inviteResendCount: true,
   withdrawalStatus: true,
   withdrawalRespondedAt: true,
+  // Chain-node intel (own-side private) — gated per viewer in getChainV2.
+  breakChainStance: true,
+  breakChainConditions: true,
+  expectedTimescale: true,
+  chainNotes: true,
+  lastChainCheckAt: true,
   transaction: {
     select: {
       id: true,
       propertyAddress: true,
       status: true,
       agencyId: true,
+      // Ownership facts for the intel edit-permission check — stripped from the
+      // wire in getChainV2 (never exposed to the client).
+      assignedUserId: true,
+      agentUserId: true,
       purchasePrice: true,
       photoStoragePath: true,
       createdAt: true,
@@ -408,7 +442,11 @@ function computeStuckMilestoneCode(completions: CompletionForChain[]): string | 
   return stuckCode;
 }
 
-export async function getChainV2(chainId: string, viewerUserId?: string): Promise<ChainV2 | null> {
+export async function getChainV2(
+  chainId: string,
+  viewerUserId?: string,
+  viewer?: IntelViewer,
+): Promise<ChainV2 | null> {
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
     select: {
@@ -484,14 +522,50 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
     valuePence,
     pricedCount,
     links: chain.links.map((l) => {
-      if (!l.transaction) {
+      // Pull the raw intel fields + the raw transaction off the link so neither
+      // leaks via the `...linkRest` spread below. Intel is re-added gated per
+      // viewer; the transaction is rebuilt as an explicit public allowlist so
+      // ownership fields (assignedUserId / agentUserId) never reach the wire.
+      const {
+        breakChainStance,
+        breakChainConditions,
+        expectedTimescale,
+        chainNotes,
+        lastChainCheckAt,
+        transaction: rawTx,
+        ...linkRest
+      } = l;
+
+      // Intel trust boundary (own-side only) — see lib/chain/intel.ts.
+      const ownership: ChainNodeOwnership = {
+        transactionId: l.transactionId,
+        linkCreatedByUserId: l.createdByUserId,
+        txAgencyId: rawTx?.agencyId ?? null,
+        txAssignedUserId: rawTx?.assignedUserId ?? null,
+        txAgentUserId: rawTx?.agentUserId ?? null,
+      };
+      const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
+      const intel: ChainNodeIntel | null =
+        viewer && canViewNodeIntel(viewer, ownership)
+          ? {
+              breakChainStance: breakChainStance ?? null,
+              breakChainConditions: breakChainConditions ?? null,
+              expectedTimescale: expectedTimescale ?? null,
+              chainNotes: chainNotes ?? null,
+              lastChainCheckAt: lastChainCheckAt ?? null,
+            }
+          : null;
+
+      if (!rawTx) {
         return {
-          ...l,
+          ...linkRest,
           transaction: null,
           progressPercent: null,
           predictedExchangeDate: null,
           isEarlyEstimate: false,
           stuckMilestoneLabel: null,
+          intel,
+          canEditIntel,
         };
       }
       const {
@@ -503,7 +577,7 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
         overridePredictedDate,
         photoStoragePath,
         ...txnPublic
-      } = l.transaction;
+      } = rawTx;
       const photoUrl = photoStoragePath ? photoMap.get(photoStoragePath) ?? null : null;
       const prediction = computeChainLinkPrediction(milestoneCompletions, {
         createdAt,
@@ -525,9 +599,14 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
         viewerUserId != null &&
         (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId);
       return {
-        ...l,
+        ...linkRest,
+        // Explicit public allowlist — id, address, status, agencyId, price, photo.
+        // assignedUserId / agentUserId stay in txnPublic and are intentionally dropped.
         transaction: {
-          ...txnPublic,
+          id: txnPublic.id,
+          propertyAddress: txnPublic.propertyAddress,
+          status: txnPublic.status,
+          agencyId: txnPublic.agencyId,
           purchasePrice: isOwnFile ? txnPublic.purchasePrice : null,
           photoUrl,
         },
@@ -535,6 +614,8 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
         predictedExchangeDate: prediction.predictedExchangeDate,
         isEarlyEstimate: prediction.isEarlyEstimate,
         stuckMilestoneLabel,
+        intel,
+        canEditIntel,
       };
     }),
   };
@@ -547,6 +628,7 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
 export async function getChainForTransactionV2(
   transactionId: string,
   viewerUserId?: string,
+  viewer?: IntelViewer,
 ): Promise<ChainV2 | null> {
   const txn = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
@@ -559,7 +641,7 @@ export async function getChainForTransactionV2(
     },
   });
   if (!txn?.chainLink) return null;
-  return getChainV2(txn.chainLink.chainId, viewerUserId);
+  return getChainV2(txn.chainLink.chainId, viewerUserId, viewer);
 }
 
 // Count of neighbours in this file's chain that could be invited but haven't

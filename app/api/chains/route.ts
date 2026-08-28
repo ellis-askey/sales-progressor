@@ -32,7 +32,15 @@ export async function GET(req: NextRequest) {
   // session.user.id flows through so stuckMilestoneLabel is populated only
   // on the viewer's own link (privacy: full detail for self, summary only
   // for other links).
-  const chain = await getChainForTransactionV2(transactionId, session.user.id);
+  // Viewer context for the own-side chain-node intel gate (lib/chain/intel.ts):
+  // intel is surfaced only to internal staff + the node's owning agency, and the
+  // per-link canEditIntel flag drives the card's edit affordance.
+  const chain = await getChainForTransactionV2(transactionId, session.user.id, {
+    userId: session.user.id,
+    role: session.user.role,
+    agencyId: session.user.agencyId ?? null,
+    scope,
+  });
   if (chain) {
     const allLinks = chain.links.map((l) => ({
       claimedByUserId: l.claimedByUserId,
