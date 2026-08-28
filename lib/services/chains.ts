@@ -555,11 +555,10 @@ export async function getChainV2(
   // files, so usually a single extra read.
   const ownTxIds = viewerUserId
     ? chain.links
-        .filter(
-          (l) =>
-            l.transactionId != null &&
-            (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId),
-        )
+        // Own = claimed by the viewer (their own file). Deliberately NOT
+        // createdByUserId — see the price-privacy note below; the originator of a
+        // now-claimed stub must not get the neighbour's onward summary either.
+        .filter((l) => l.transactionId != null && l.claimedByUserId === viewerUserId)
         .map((l) => l.transactionId as string)
     : [];
   const onwardByTx = new Map<string, ChainOnwardSummary>();
@@ -667,12 +666,14 @@ export async function getChainV2(
       const isViewer = viewerUserId != null && l.claimedByUserId === viewerUserId;
       const stuckCode = isViewer ? computeStuckMilestoneCode(milestoneCompletions) : null;
       const stuckMilestoneLabel = stuckCode ? getMilestoneShortLabel(stuckCode) : null;
-      // Price privacy: an agent sees only their OWN sale price. Strip
-      // purchasePrice to null on every other link (own = claimed by, or the
-      // originator of, this file). The shared figure is valuePence above.
-      const isOwnFile =
-        viewerUserId != null &&
-        (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId);
+      // Price privacy: an agent sees only their OWN sale price. Own = the file
+      // they CLAIMED (their own origin file is claimed by them at chain creation;
+      // an invited file is claimed by whoever claimed it). NOT createdByUserId —
+      // the originator of a stub does not own the neighbour's file once another
+      // agency claims it, and must not see that agency's price (cross-agency leak
+      // fixed 2026-08-28: the claim flow never resets createdByUserId). The shared
+      // figure is valuePence above.
+      const isOwnFile = viewerUserId != null && l.claimedByUserId === viewerUserId;
       return {
         ...linkRest,
         // Explicit public allowlist — id, address, status, agencyId, price, photo,
