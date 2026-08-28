@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { FileText, CalendarBlank, X } from "@phosphor-icons/react/dist/ssr";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { solicitorConfirmStepAction, solicitorUpdateStepAction } from "./actions";
@@ -166,13 +167,23 @@ function AddUpdateDrawer({
   onSend: () => void;
   onClose: () => void;
 }) {
+  // Portal to the .portal-scope root so the sheet escapes the glass card's
+  // containing block (PortalGlassCard's backdrop-filter otherwise traps a
+  // position:fixed child inside the card, per the reported bug). Staying inside
+  // .portal-scope keeps the reduced-motion CSS applying to it.
+  const [host] = useState<HTMLElement | null>(() =>
+    typeof document !== "undefined" ? ((document.querySelector(".portal-scope") as HTMLElement) ?? document.body) : null,
+  );
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  if (!host) return null;
+
+  return createPortal(
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(9,20,40,0.34)", backdropFilter: "blur(3px)", opacity: entered ? 1 : 0, transition: "opacity 240ms ease" }} />
       <div
@@ -213,7 +224,8 @@ function AddUpdateDrawer({
           {pending ? "Sending…" : "Send update"}
         </button>
       </div>
-    </>
+    </>,
+    host,
   );
 }
 
@@ -252,4 +264,5 @@ function secondaryBtn(active: boolean): React.CSSProperties {
 }
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 };
 const optional: React.CSSProperties = { color: S.faint, fontWeight: 400, textTransform: "none", letterSpacing: 0 };
-const inputStyle: React.CSSProperties = { fontSize: 14, padding: "10px 12px", border: "1px solid #d5deea", borderRadius: 9, color: S.ink, fontFamily: "inherit", background: "#fff" };
+// Softer fill than pure white so the field reads as an input on the white drawer.
+const inputStyle: React.CSSProperties = { fontSize: 14, padding: "10px 12px", border: "1px solid #d9e2ef", borderRadius: 9, color: S.ink, fontFamily: "inherit", background: "#eef3fb" };
