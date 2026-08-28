@@ -42,6 +42,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/agencies", label: "Agencies & agents", Icon: Users },
       { href: "/command/files", label: "Files", Icon: FolderOpen },
       { href: "/command/outbound", label: "Messages", Icon: Send },
+      { href: "/command/proposals", label: "Proposed updates", Icon: Inbox },
       { href: "/command/whatsapp", label: "WhatsApp", Icon: MessageSquare },
     ],
   },

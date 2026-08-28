@@ -536,6 +536,7 @@ model PropertyTransaction {
   quoteRequests QuoteRequest[]
   whatsAppGroupMappings WhatsAppGroupMapping[]
   hubCardDismissals HubCardDismissal[]
+  milestoneProposals MilestoneProposal[]
 
   @@index([serviceType, createdAt])
 }
@@ -1460,6 +1461,10 @@ model OutboundMessage {
   // Null for normal single-comm rows. Enables undo by deleteMany on this batch.
   importBatchId String?
 
+  // Tier 3 stage 2: stamped once an inbound email has been run through the AI
+  // interpreter (whatever the outcome), so it isn't re-read on every sync.
+  aiInterpretedAt DateTime?
+
   // Phase 0 shadow attribution. Stamped only when EVERY contactId on
   // the row resolves to a purchaser-role Contact (and at least one
   // exists). Mixed-side, vendor-only, or solicitor-only rows stay
@@ -2079,6 +2084,35 @@ model HubCardDismissal {
 
   @@unique([transactionId, cardKind, signature])
   @@index([cardKind, dismissedUntil])
+}
+
+// Tier 3 stage 2: a proposed file update derived from an inbound email by the
+// AI interpreter, awaiting human approval. NOTHING acts until approved. On
+// approve, a "confirm" runs completeMilestone (+ the client emails) exactly
+// like a solicitor confirm; a "note" logs an internal note. Dismiss closes it.
+model MilestoneProposal {
+  id                    String    @id @default(cuid())
+  transactionId         String
+  agencyId              String?
+  sourceMessageId       String? // the inbound OutboundMessage it came from
+  actionType            String // "confirm" | "note"
+  milestoneCode         String?
+  milestoneDefinitionId String?
+  noteText              String?
+  summary               String // one-line "why" from the interpreter
+  confidence            String // "high" | "medium" | "low"
+  emailFrom             String?
+  emailSubject          String?
+  emailSnippet          String?
+  status                String    @default("pending") // pending | approved | dismissed
+  decidedAt             DateTime?
+  decidedById           String?
+  createdAt             DateTime  @default(now())
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([transactionId])
 }
 
 // â”€â”€â”€ NextAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
