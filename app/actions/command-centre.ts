@@ -24,6 +24,44 @@ export async function acknowledgeSignalAction(signalId: string) {
   revalidatePath("/command/overview");
 }
 
+// Mark every live, unacknowledged signal from one detector as dealt with in a
+// single click — the escape hatch for a detector that fired a batch of the same
+// kind of thing.
+export async function acknowledgeDetectorSignalsAction(detectorName: string) {
+  await requireSuperAdmin();
+  await commandDb.signal.updateMany({
+    where: { detectorName, acknowledged: false, resolvedAt: null },
+    data: { acknowledged: true, acknowledgedAt: new Date() },
+  });
+  revalidatePath("/command/insights");
+  revalidatePath("/command/overview");
+}
+
+// Snooze a signal for a number of days. It drops out of the feed and the briefs
+// until then; if the situation is still live when it wakes, it resurfaces.
+export async function snoozeSignalAction(signalId: string, days: number) {
+  await requireSuperAdmin();
+  const until = new Date();
+  until.setUTCDate(until.getUTCDate() + Math.max(1, days));
+  await commandDb.signal.update({
+    where: { id: signalId },
+    data: { snoozedUntil: until },
+  });
+  revalidatePath("/command/insights");
+  revalidatePath("/command/overview");
+}
+
+// "Not useful" — clear it and resolve it so this instance stops surfacing.
+export async function dismissSignalAction(signalId: string) {
+  await requireSuperAdmin();
+  await commandDb.signal.update({
+    where: { id: signalId },
+    data: { acknowledged: true, acknowledgedAt: new Date(), resolvedAt: new Date() },
+  });
+  revalidatePath("/command/insights");
+  revalidatePath("/command/overview");
+}
+
 export async function startExperimentAction(experimentId: string) {
   await requireSuperAdmin();
   await startExperiment(experimentId);

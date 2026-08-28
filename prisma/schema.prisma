@@ -2520,9 +2520,23 @@ model Signal {
   windowStart    DateTime
   windowEnd      DateTime
 
+  // Living-signal lifecycle. A signal is one ongoing situation, not one nightly
+  // row. dedupeKey is the stable identity (detectorName + dedupeKey). Each run
+  // that still sees the situation bumps lastSeenAt + occurrences and refreshes
+  // the payload; a run where the situation no longer fires stamps resolvedAt.
+  // detectedAt stays the FIRST-seen time. snoozedUntil hides a signal from the
+  // feed and the briefs until it passes.
+  dedupeKey      String?
+  lastSeenAt     DateTime       @default(now())
+  occurrences    Int            @default(1)
+  resolvedAt     DateTime?
+  snoozedUntil   DateTime?
+
   @@index([detectedAt])
   @@index([severity, detectedAt])
   @@index([acknowledged, detectedAt])
+  @@index([detectorName, dedupeKey])
+  @@index([resolvedAt])
 }
 
 // â”€â”€â”€ Command Centre: Experiment Lab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

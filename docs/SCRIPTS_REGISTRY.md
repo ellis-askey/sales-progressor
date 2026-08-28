@@ -32,6 +32,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** permanent. Re-run during the quarterly catalog review.
 - **Justification:** generates a docs artifact that powers the catalog acceptance gate. Not a feature, not a test, not user-facing. Belongs in `scripts/` as a maintenance tool.
 
+### scripts/flag-test-agencies-internal.ts
+
+- **Purpose:** Flag test/experiment agencies (e.g. "EXP - DB") as `isInternal = true` so they stop tripping Command Centre signal detectors and polluting metrics.
+- **Lifetime:** `one-shot`
+- **Author:** CC (Command Centre review — Briefing page), 2026-08-28
+- **Deletion criteria:** delete once the target test agencies are flagged internal on both staging and production (tracked in ELLIS_MANUAL_TODO).
+- **Justification:** a rare data-hygiene correction, dry-run-guarded, run by the founder against the chosen env. Not a recurring feature; an admin toggle would be over-engineering for a one-off.
+
 ### scripts/inventory/scripts.ts
 
 - **Purpose:** Walks `scripts/` and emits `docs/inventory/SCRIPTS.md` classifying each script per the cull categories (`archive-delete` / `promote-feature` / `promote-test` / `promote-npm-script` / `keep-as-is`).
