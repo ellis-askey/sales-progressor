@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
+import { saveChainIntelAction } from "@/app/actions/chain-intel";
+import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2 } from "@/lib/services/chains";
 import { computeChainSummary, formatChainValueShort } from "@/lib/chain/summary";
@@ -247,6 +249,13 @@ export function ChainDrawer({
     } finally {
       setSendingInvites(null);
     }
+  }
+
+  async function handleSaveIntel(linkId: string, input: ChainNodeIntelInput) {
+    // Server action re-checks edit permission (lib/chain/intel.ts); throws on
+    // failure so LinkCard surfaces the inline error. Refetch to show saved values.
+    await saveChainIntelAction(linkId, input);
+    await fetchChain();
   }
 
   async function doDeleteConfirmed(linkId: string) {
@@ -716,6 +725,7 @@ export function ChainDrawer({
                           ? (id) => setConfirmingDeleteId(id)
                           : undefined
                       }
+                      onSaveIntel={handleSaveIntel}
                     />
                   )}
                   {i < links.length - 1 && <ChainConnector />}

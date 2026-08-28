@@ -12,6 +12,12 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { getMilestoneShortLabel } from "@/lib/chase/milestone-glossary";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import {
+  canViewNodeIntel,
+  canEditNodeIntel,
+  type IntelViewer,
+  type ChainNodeOwnership,
+} from "@/lib/chain/intel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE 1 commit 4d — chains.ts disposition.
@@ -69,6 +75,29 @@ export type ChainData = {
 
 // ─── v2 types (new drawer, API routes) ───────────────────────────────────────
 
+// Private own-side chain-node intel, surfaced only to viewers allowed by
+// lib/chain/intel.ts. Null on a link when the viewer may not see it (another
+// agency's node, or no viewer context passed).
+export type ChainNodeIntel = {
+  breakChainStance: string | null;
+  breakChainConditions: string | null;
+  expectedTimescale: string | null;
+  chainNotes: string | null;
+  lastChainCheckAt: Date | null;
+};
+
+// Compact pointer to the (already-built) onward tracker, shown only on the
+// viewer's OWN sale node and only while the onward is still ours to report
+// (hidden once superseded = the agent above claimed, or abandoned). The full
+// editable onward card lives on the file overview; this is a summary + link-in.
+export type ChainOnwardSummary = {
+  onwardAddress: string | null;
+  status: string | null; // OnwardTrackerStatus or null when no tracker opened yet
+  typeFactsSet: boolean;
+  completeCount: number;
+  applicableCount: number;
+};
+
 export type ChainLinkV2 = {
   id: string;
   position: number;
@@ -104,6 +133,12 @@ export type ChainLinkV2 = {
     // getChainV2 via a single batch round-trip. Null when the file has no
     // photo — the card falls back to the house illustration.
     photoUrl: string | null;
+    // Short buyer-position label shared across the chain (cash buyer /
+    // first-time buyer), derived from purchaseType + clientFirstTimeBuyer. Not
+    // private — this is the one buyer signal we share with other agencies to help
+    // them judge chain strength. Null when neither applies. Optional so hand-built
+    // demo/dev link objects are unaffected.
+    buyerPosition?: string | null;
   } | null;
   // Weighted progress 0–100 computed at query time from the claimed transaction's
   // milestone weights + completion states. Pooled across vendor + purchaser,
@@ -136,6 +171,17 @@ export type ChainLinkV2 = {
     id: string;
     name: string;
   } | null;
+  // Private own-side chain-node intel. Populated only for viewers allowed to see
+  // it (lib/chain/intel.ts); null otherwise. Optional so demo/dev callers that
+  // build links by hand and callers that pass no viewer are unaffected.
+  intel?: ChainNodeIntel | null;
+  // Whether the current viewer may edit this node's intel. False when no viewer
+  // context is passed.
+  canEditIntel?: boolean;
+  // Compact onward summary — populated only on the viewer's own sale node, and
+  // only while the onward is still a reported stand-in (not superseded/abandoned).
+  // Null everywhere else. Optional so hand-built demo links are unaffected.
+  onwardSummary?: ChainOnwardSummary | null;
 };
 
 export type ChainV2 = {
@@ -253,16 +299,29 @@ const LINK_V2_SELECT = {
   inviteResendCount: true,
   withdrawalStatus: true,
   withdrawalRespondedAt: true,
+  // Chain-node intel (own-side private) — gated per viewer in getChainV2.
+  breakChainStance: true,
+  breakChainConditions: true,
+  expectedTimescale: true,
+  chainNotes: true,
+  lastChainCheckAt: true,
   transaction: {
     select: {
       id: true,
       propertyAddress: true,
       status: true,
       agencyId: true,
+      // Ownership facts for the intel edit-permission check — stripped from the
+      // wire in getChainV2 (never exposed to the client).
+      assignedUserId: true,
+      agentUserId: true,
       purchasePrice: true,
       photoStoragePath: true,
       createdAt: true,
       purchaseType: true,
+      // Buyer-position signal shared across the chain (chain-free / cash / FTB).
+      // Derived to a short label in the map; the raw fields are not exposed.
+      clientFirstTimeBuyer: true,
       tenure: true,
       isShareOfFreehold: true,
       overridePredictedDate: true,
@@ -408,7 +467,25 @@ function computeStuckMilestoneCode(completions: CompletionForChain[]): string | 
   return stuckCode;
 }
 
-export async function getChainV2(chainId: string, viewerUserId?: string): Promise<ChainV2 | null> {
+// The one buyer-position signal shared across the chain (Decision 5, 2026-08-28):
+// cash buyers and first-time buyers are the positions we can state with certainty
+// and that genuinely help other agents judge chain strength. Everything else
+// (mortgage / selling-to-buy) is left to the chain structure itself. Cash wins
+// over FTB when both are true.
+function computeBuyerPosition(
+  purchaseType: string | null,
+  firstTimeBuyer: boolean | null,
+): string | null {
+  if (purchaseType === "cash_buyer") return "Cash buyer";
+  if (firstTimeBuyer === true) return "First-time buyer";
+  return null;
+}
+
+export async function getChainV2(
+  chainId: string,
+  viewerUserId?: string,
+  viewer?: IntelViewer,
+): Promise<ChainV2 | null> {
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
     select: {
@@ -472,6 +549,41 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
     ? chain.links.reduce((sum, l) => sum + (l.transaction?.purchasePrice ?? 0), 0)
     : null;
 
+  // Onward summary for the viewer's OWN sale node(s) only — a compact, own-side
+  // pointer to the already-built onward tracker (lib/services/onward.ts). Hidden
+  // once superseded (the agent above claimed) or abandoned. Fetched only for own
+  // files, so usually a single extra read.
+  const ownTxIds = viewerUserId
+    ? chain.links
+        .filter(
+          (l) =>
+            l.transactionId != null &&
+            (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId),
+        )
+        .map((l) => l.transactionId as string)
+    : [];
+  const onwardByTx = new Map<string, ChainOnwardSummary>();
+  if (ownTxIds.length) {
+    const { getOnwardTrackerView, getOnwardSignalForFile } = await import("@/lib/services/onward");
+    await Promise.all(
+      ownTxIds.map(async (txId) => {
+        const [sig, view] = await Promise.all([
+          getOnwardSignalForFile(txId).catch(() => ({ buyingOnward: false, onwardAddress: null })),
+          getOnwardTrackerView(txId).catch(() => null),
+        ]);
+        if (!sig.buyingOnward) return;
+        if (view && (view.status === "superseded" || view.status === "abandoned")) return;
+        onwardByTx.set(txId, {
+          onwardAddress: sig.onwardAddress,
+          status: view?.status ?? null,
+          typeFactsSet: view?.typeFactsSet ?? false,
+          completeCount: view?.completeCount ?? 0,
+          applicableCount: view?.applicableCount ?? 0,
+        });
+      }),
+    );
+  }
+
   // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
   // Strip the raw completions array AND the prediction inputs (createdAt /
   // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
@@ -484,14 +596,51 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
     valuePence,
     pricedCount,
     links: chain.links.map((l) => {
-      if (!l.transaction) {
+      // Pull the raw intel fields + the raw transaction off the link so neither
+      // leaks via the `...linkRest` spread below. Intel is re-added gated per
+      // viewer; the transaction is rebuilt as an explicit public allowlist so
+      // ownership fields (assignedUserId / agentUserId) never reach the wire.
+      const {
+        breakChainStance,
+        breakChainConditions,
+        expectedTimescale,
+        chainNotes,
+        lastChainCheckAt,
+        transaction: rawTx,
+        ...linkRest
+      } = l;
+
+      // Intel trust boundary (own-side only) — see lib/chain/intel.ts.
+      const ownership: ChainNodeOwnership = {
+        transactionId: l.transactionId,
+        linkCreatedByUserId: l.createdByUserId,
+        txAgencyId: rawTx?.agencyId ?? null,
+        txAssignedUserId: rawTx?.assignedUserId ?? null,
+        txAgentUserId: rawTx?.agentUserId ?? null,
+      };
+      const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
+      const intel: ChainNodeIntel | null =
+        viewer && canViewNodeIntel(viewer, ownership)
+          ? {
+              breakChainStance: breakChainStance ?? null,
+              breakChainConditions: breakChainConditions ?? null,
+              expectedTimescale: expectedTimescale ?? null,
+              chainNotes: chainNotes ?? null,
+              lastChainCheckAt: lastChainCheckAt ?? null,
+            }
+          : null;
+
+      if (!rawTx) {
         return {
-          ...l,
+          ...linkRest,
           transaction: null,
           progressPercent: null,
           predictedExchangeDate: null,
           isEarlyEstimate: false,
           stuckMilestoneLabel: null,
+          intel,
+          canEditIntel,
+          onwardSummary: null,
         };
       }
       const {
@@ -503,7 +652,7 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
         overridePredictedDate,
         photoStoragePath,
         ...txnPublic
-      } = l.transaction;
+      } = rawTx;
       const photoUrl = photoStoragePath ? photoMap.get(photoStoragePath) ?? null : null;
       const prediction = computeChainLinkPrediction(milestoneCompletions, {
         createdAt,
@@ -525,16 +674,26 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
         viewerUserId != null &&
         (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId);
       return {
-        ...l,
+        ...linkRest,
+        // Explicit public allowlist — id, address, status, agencyId, price, photo,
+        // buyer-position label. assignedUserId / agentUserId / clientFirstTimeBuyer
+        // stay in txnPublic and are intentionally dropped (only the derived label ships).
         transaction: {
-          ...txnPublic,
+          id: txnPublic.id,
+          propertyAddress: txnPublic.propertyAddress,
+          status: txnPublic.status,
+          agencyId: txnPublic.agencyId,
           purchasePrice: isOwnFile ? txnPublic.purchasePrice : null,
           photoUrl,
+          buyerPosition: computeBuyerPosition(purchaseType, txnPublic.clientFirstTimeBuyer),
         },
         progressPercent: computeWeightedProgress(milestoneCompletions),
         predictedExchangeDate: prediction.predictedExchangeDate,
         isEarlyEstimate: prediction.isEarlyEstimate,
         stuckMilestoneLabel,
+        intel,
+        canEditIntel,
+        onwardSummary: l.transactionId ? onwardByTx.get(l.transactionId) ?? null : null,
       };
     }),
   };
@@ -547,6 +706,7 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
 export async function getChainForTransactionV2(
   transactionId: string,
   viewerUserId?: string,
+  viewer?: IntelViewer,
 ): Promise<ChainV2 | null> {
   const txn = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
@@ -559,7 +719,7 @@ export async function getChainForTransactionV2(
     },
   });
   if (!txn?.chainLink) return null;
-  return getChainV2(txn.chainLink.chainId, viewerUserId);
+  return getChainV2(txn.chainLink.chainId, viewerUserId, viewer);
 }
 
 // Count of neighbours in this file's chain that could be invited but haven't

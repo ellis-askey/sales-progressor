@@ -1757,6 +1757,18 @@ model PropertyChain {
   notifications ChainNotificationQueue[]
 }
 
+// Chain-node intel (2026-08-28): a seller's willingness to break the chain, the
+// single most sensitive negotiating fact we hold. PREPARED = actively willing to
+// break (e.g. move into rented); IF_REQUIRED = only if the chain demands it;
+// UNWILLING = will not. Null = not established. Private to our team + the owning
+// agency of that node ONLY (gated in lib/chain/intel.ts); never other agencies in
+// the chain, never the client.
+enum BreakChainStance {
+  PREPARED
+  IF_REQUIRED
+  UNWILLING
+}
+
 model ChainLink {
   id              String  @id @default(cuid())
   chainId         String
@@ -1816,6 +1828,16 @@ model ChainLink {
   // audit + the highest-link CHAIN_DETACHED notification recipient.
   detachedAt          DateTime?
   detachedFromChainId String?
+
+  // Chain-node intel (2026-08-28) — private own-side operational notes about this
+  // link. Surfaced only to internal staff + the owning agency (lib/chain/intel.ts):
+  // never another agency in the chain, never the client. breakChain* are the
+  // sensitive negotiating facts; the rest are our working notes on the node.
+  breakChainStance     BreakChainStance?
+  breakChainConditions String?
+  expectedTimescale    String?
+  chainNotes           String?
+  lastChainCheckAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
