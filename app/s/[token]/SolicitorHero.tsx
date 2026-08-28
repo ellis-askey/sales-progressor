@@ -106,12 +106,15 @@ export function SolicitorHero(p: HeroProps) {
             </div>
           </div>
           {p.lastUpdated && (
-            <div style={{ borderTop: "1px solid rgba(15,39,64,0.08)", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: S.inkSoft }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: S.successRing, flexShrink: 0 }} />
-                Last updated <strong style={{ color: S.ink, fontWeight: 600 }}>{p.lastUpdated}</strong>
-              </span>
-              <span style={{ fontSize: 12, color: S.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>by {p.agencyName}</span>
+            <div style={{ borderTop: "1px solid rgba(15,39,64,0.08)", padding: "10px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ minWidth: 0, flexShrink: 0 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: S.inkSoft }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: S.successRing, flexShrink: 0 }} />
+                  Last updated
+                </span>
+                <p style={{ margin: "2px 0 0 14px", fontSize: 12.5, fontWeight: 600, color: S.ink, lineHeight: 1.3 }}>{p.lastUpdated}</p>
+              </div>
+              <span style={{ fontSize: 12, color: S.muted, textAlign: "right", lineHeight: 1.35, minWidth: 0 }}>by {p.agencyName}</span>
             </div>
           )}
         </div>
