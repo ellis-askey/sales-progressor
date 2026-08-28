@@ -1,4 +1,5 @@
 import { S } from "./ui";
+import { SolicitorHeroRing } from "./SolicitorHeroRing";
 
 // The hero: the supplied blue image with content over it and a distinct frosted
 // white CARD floating near the foot (a card, not a blend — per Ellis). The ring
@@ -12,45 +13,12 @@ export type HeroProps = {
   tenure: string | null;
   purchaseType: string | null;
   actingForNames: string;
-  actingForRole: string; // "Seller" / "Buyer"
   firmName: string | null;
   ringPercent: number; // 0-100
   ringStep: number; // 1-6
   lastUpdated: string | null;
   agencyName: string;
 };
-
-function HeroRing({ percent, step }: { percent: number; step: number }) {
-  const size = 92;
-  const stroke = 6;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const clamped = Math.min(100, Math.max(0, percent));
-  const offset = c * (1 - clamped / 100);
-  return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.4,0,0.2,1)" }}
-        />
-      </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: S.heroText }}>{step}</span>
-        <span style={{ fontSize: 10, fontWeight: 500, color: S.heroTextSoft, marginTop: 2 }}>of 6</span>
-      </div>
-    </div>
-  );
-}
 
 function HeroPill({ children, filled }: { children: React.ReactNode; filled?: boolean }) {
   return (
@@ -100,7 +68,7 @@ export function SolicitorHero(p: HeroProps) {
               {p.purchaseType && <HeroPill>{p.purchaseType}</HeroPill>}
             </div>
           </div>
-          <HeroRing percent={p.ringPercent} step={p.ringStep} />
+          <SolicitorHeroRing percent={p.ringPercent} step={p.ringStep} />
         </div>
 
         {/* Frosted white card */}
@@ -119,7 +87,7 @@ export function SolicitorHero(p: HeroProps) {
             <div style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
               <p style={{ margin: "0 0 3px", fontSize: 12, color: S.muted }}>You are acting for</p>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: S.ink, lineHeight: 1.35 }}>
-                {p.actingForNames || "your client"} <span style={{ fontWeight: 400, color: S.muted }}>({p.actingForRole})</span>
+                {p.actingForNames || "your client"}
               </p>
             </div>
             <div style={{ width: 1, background: "rgba(15,39,64,0.10)", flexShrink: 0 }} />

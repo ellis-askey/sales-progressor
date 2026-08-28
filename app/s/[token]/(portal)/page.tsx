@@ -204,7 +204,6 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
           tenure={tenureLabel(tx.tenure, tx.isShareOfFreehold)}
           purchaseType={purchaseTypeLabel(tx.purchaseType)}
           actingForNames={side === "vendor" ? sellerNames : buyerNames}
-          actingForRole={side === "vendor" ? "Seller" : "Buyer"}
           firmName={firmName}
           ringPercent={ringPercent}
           ringStep={ringStep}
