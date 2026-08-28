@@ -66,7 +66,7 @@ export default async function SolicitorUpdatesPage({ params }: { params: Promise
       <UpdatesFeed entries={feed} otherSideTag={otherSideTag} />
 
       {!hasAnything && feed.length === 0 && (
-        <PortalCard style={{ textAlign: "center", padding: "26px 22px" }}>
+        <PortalCard glassId="sol-nothing-yet" label="Nothing yet" style={{ textAlign: "center", padding: "26px 22px" }}>
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: S.ink }}>Nothing yet</p>
           <p style={{ margin: 0, fontSize: 13.5, color: S.muted, lineHeight: 1.6 }}>Updates on this matter will appear here as things happen.</p>
         </PortalCard>

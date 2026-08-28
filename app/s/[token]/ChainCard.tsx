@@ -9,7 +9,7 @@ export type ChainNode = { key: string; label: string; percent: number | null; is
 
 export function ChainCard({ nodes }: { nodes: ChainNode[] }) {
   return (
-    <PortalCard style={{ padding: "18px 14px 16px" }}>
+    <PortalCard glassId="sol-chain" label="Chain summary" style={{ padding: "18px 14px 16px" }}>
       <div style={{ padding: "0 4px" }}>
         <CardKicker>Chain summary</CardKicker>
       </div>

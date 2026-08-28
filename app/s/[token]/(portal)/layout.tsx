@@ -1,9 +1,17 @@
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrl } from "@/lib/supabase-storage";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { authOptions } from "@/lib/auth";
+import { isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
+import { getPortalGlassPicks } from "@/lib/glass/portal-picks";
+import { PortalGlassProvider } from "@/lib/glass/portal-context";
 import { SolicitorPortalShell } from "../SolicitorPortalShell";
 import { S } from "../ui";
+// Glass variant classes for the founder-only Design Lab (light-theme tokens are
+// re-declared on .portal-scope, which the shell carries).
+import "@/app/styles/glass.css";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +49,17 @@ export default async function SolicitorPortalLayout({
   });
   const mosUrl = mosDoc ? await getSignedUrl(mosDoc.storagePath).catch(() => null) : null;
 
+  // Design Lab: load the global glass picks (applied for every viewer) + decide
+  // if this viewer may edit them (a founder superadmin logged in on the domain).
+  const [glassPicks, session] = await Promise.all([getPortalGlassPicks(), getServerSession(authOptions)]);
+  const canEditLab = !!session?.user?.email && isHybridSuperadminEmail(session.user.email);
+
   return (
-    <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null}>
-      {children}
-    </SolicitorPortalShell>
+    <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
+      <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null}>
+        {children}
+      </SolicitorPortalShell>
+    </PortalGlassProvider>
   );
 }
 

@@ -21,7 +21,7 @@ function initials(name: string): string {
 export function UpdatesFeed({ entries, otherSideTag }: { entries: SolicitorFeedEntry[]; otherSideTag: string }) {
   if (!entries.length) return null;
   return (
-    <PortalCard>
+    <PortalCard glassId="sol-recent-updates" label="Recent updates">
       <CardKicker>Recent updates</CardKicker>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {entries.map((e, i) => (

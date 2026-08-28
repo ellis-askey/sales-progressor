@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { FileText } from "@phosphor-icons/react/dist/ssr";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { solicitorConfirmStepAction, solicitorUpdateStepAction } from "./actions";
 import { S } from "./ui";
 
@@ -21,7 +22,7 @@ function fmtUk(iso: string): string {
 
 export function OpenUpdatesCard({ token, steps }: { token: string; steps: Step[] }) {
   return (
-    <div style={{ background: S.cardFrostBg, backdropFilter: S.cardFrostBlur, WebkitBackdropFilter: S.cardFrostBlur, border: `1px solid ${S.cardFrostBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "18px" }}>
+    <PortalGlassCard glassId="sol-open-updates" label="Open updates" defaultVariant="v03" radius={16} style={{ padding: "18px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: S.muted }}>Open updates</p>
         <span style={{ fontSize: 11, fontWeight: 700, color: S.accent, background: S.accentBg, borderRadius: 999, padding: "1px 8px", minWidth: 20, textAlign: "center" }}>{steps.length}</span>
@@ -34,7 +35,7 @@ export function OpenUpdatesCard({ token, steps }: { token: string; steps: Step[]
       <p style={{ margin: "14px 2px 0", fontSize: 12, lineHeight: 1.55, color: S.faint }}>
         Nothing here is binding; it simply keeps our file up to date so everyone can see progress.
       </p>
-    </div>
+    </PortalGlassCard>
   );
 }
 

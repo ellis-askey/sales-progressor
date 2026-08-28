@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { List, House, ClockCounterClockwise, ChatCircle, X, FileArrowDown, Prohibit } from "@phosphor-icons/react/dist/ssr";
+import { PortalDesignLab } from "@/components/portal/PortalDesignLab";
 import { S } from "./ui";
 import { GreetingText } from "./GreetingText";
 
@@ -47,7 +48,10 @@ export function SolicitorPortalShell({
 
   return (
     <div
+      className="portal-scope"
       style={{
+        // Blue accent for any accent-tinted glass variant + the nav glow.
+        "--portal-primary": "#2f5fd0",
         minHeight: "100svh",
         backgroundColor: "#eef2f8",
         backgroundImage:
@@ -57,7 +61,7 @@ export function SolicitorPortalShell({
           "radial-gradient(90% 62% at 50% 102%, rgba(176,200,255,0.16), transparent 76%)",
         backgroundAttachment: "fixed",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif",
-      }}
+      } as React.CSSProperties}
     >
       {/* Top bar */}
       <header
@@ -84,7 +88,9 @@ export function SolicitorPortalShell({
           <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: S.ink, textAlign: "center", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             <GreetingText key={greetingLabel} text={greetingLabel} />
           </p>
-          <span aria-hidden style={{ width: 36, height: 36, flexShrink: 0 }} />
+          <span style={{ width: 36, height: 36, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <PortalDesignLab />
+          </span>
         </div>
       </header>
 

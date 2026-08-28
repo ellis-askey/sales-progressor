@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { Check, House, FileText, MagnifyingGlass, ChatText, ArrowsLeftRight, Key, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import type { ResolvedStage, DisplayStageKey } from "@/lib/milestones/display-stages";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { S } from "./ui";
 
-// Shared white card matching the client portal's card feel (radius + soft
-// shadow), in the professional blue palette.
-export function PortalCard({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
+// Shared card, tagged as a Design-Lab surface (glassId/label) so the founder can
+// swap its glass variant live. Default is a light frost over the cool gradient.
+export function PortalCard({ glassId, label, children, style, className }: { glassId: string; label: string; children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
   return (
-    <div
-      className={className}
-      style={{ background: S.cardFrostBg, backdropFilter: S.cardFrostBlur, WebkitBackdropFilter: S.cardFrostBlur, border: `1px solid ${S.cardFrostBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "18px", ...style }}
-    >
+    <PortalGlassCard glassId={glassId} label={label} defaultVariant="v03" radius={16} className={className} style={{ padding: "18px", ...style }}>
       {children}
-    </div>
+    </PortalGlassCard>
   );
 }
 
@@ -42,7 +40,7 @@ function fmtShort(d: Date): string {
 // connectors, scrollable on narrow screens. Clones the portal's ProgressTile.
 export function ProgressOverviewCard({ stages, timelineHref }: { stages: ResolvedStage[]; timelineHref: string }) {
   return (
-    <PortalCard>
+    <PortalCard glassId="sol-progress-overview" label="Progress overview">
       <CardKicker
         right={
           <Link href={timelineHref} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: S.accent, textDecoration: "none", background: S.accentBg, padding: "5px 10px", borderRadius: 999 }}>

@@ -179,7 +179,7 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
       {chainNodes.length > 1 && <ChainCard nodes={chainNodes} />}
 
       {!hasAnything && (
-        <PortalCard style={{ textAlign: "center", padding: "26px 22px" }}>
+        <PortalCard glassId="sol-caught-up" label="Caught up" style={{ textAlign: "center", padding: "26px 22px" }}>
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: S.ink }}>You&rsquo;re all caught up</p>
           <p style={{ margin: 0, fontSize: 13.5, color: S.muted, lineHeight: 1.6 }}>There&rsquo;s nothing outstanding from your side right now. Thank you for helping keep things moving.</p>
         </PortalCard>

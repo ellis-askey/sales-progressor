@@ -34,7 +34,7 @@ export function otherSideConfig(otherSide: "vendor" | "purchaser"): { title: str
 
 export function OtherSideCard({ title, rows }: { title: string; rows: OtherSideRow[] }) {
   return (
-    <PortalCard>
+    <PortalCard glassId="sol-other-side" label="Other side">
       <CardKicker>{title}</CardKicker>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {rows.map((r, i) => (
