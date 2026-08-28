@@ -3,6 +3,7 @@ import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
+import { buildClientNarrative } from "@/lib/services/client-narrative";
 
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
@@ -21,6 +22,9 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       id: true,
       propertyAddress: true,
       serviceType: true,
+      expectedExchangeDate: true,
+      overridePredictedDate: true,
+      completionDate: true,
       agentUser: { select: { name: true } },
       assignedUser: { select: { name: true } },
       agency: { select: { name: true } },
@@ -50,7 +54,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       if (!contact.email) continue;
 
       const roleLabel = contact.roleType === "purchaser" ? "purchase" : "sale";
-      const subject = `Your ${roleLabel} at ${tx.propertyAddress} — all on track`;
+      const subject = `An update on your ${roleLabel} at ${tx.propertyAddress}`;
 
       const portalLink = contact.portalToken
         ? `\n\nYou can view your progress at any time here:\n${base}/portal/${contact.portalToken}`
@@ -58,26 +62,39 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
 
       const { from: fromAddr, replyTo, canReply } = await resolveAgencySenderForTransaction(tx.id);
 
-      const text = [
-        buildGreeting(contact.name),
-        ``,
-        `Quick check-in on your ${roleLabel} at ${tx.propertyAddress} — everything's progressing as it should.`,
-        ``,
-        `No news at this stage is genuinely good news. It means nothing unexpected is holding things up. Behind the scenes we're chasing solicitors, watching the process, and keeping everything moving.`,
-        ``,
-        `If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}${portalLink}`,
-      ].join("\n");
+      // Piece 1: a real per-file narrative drafted from the file's actual state.
+      // Falls back to the safe generic reassurance if the draft can't be built.
+      const narrative = await buildClientNarrative({
+        transactionId: tx.id,
+        agencyId,
+        side: contact.roleType === "purchaser" ? "purchaser" : "vendor",
+        address: tx.propertyAddress,
+        clientFirstName: contact.name.trim().split(/\s+/)[0] || contact.name,
+        expectedExchangeDate: tx.expectedExchangeDate ?? null,
+        overridePredictedDate: tx.overridePredictedDate ?? null,
+        completionDate: tx.completionDate ?? null,
+      }).catch(() => null);
+
+      const bodyParas = narrative
+        ? narrative.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+        : [
+            `Quick check-in on your ${roleLabel} at ${tx.propertyAddress}. Everything is progressing as it should.`,
+            `No news at this stage is genuinely good news. It means nothing unexpected is holding things up. Behind the scenes we're chasing solicitors, watching the process, and keeping everything moving.`,
+          ];
+
+      const closing = `If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}`;
+
+      const text = [buildGreeting(contact.name), ``, ...bodyParas.flatMap((p) => [p, ``]), closing + portalLink].join("\n");
 
       const portalSection = contact.portalToken
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
         : "";
 
-      const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("Nothing needed from you, just a quick note that things are moving.")}
+      const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A quick update on where your move is up to.")}
 <p style="margin:0 0 4px;color:#6b7280;font-size:13px">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${buildGreeting(contact.name)}</h1>
-<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Quick check-in on your <strong>${roleLabel}</strong> at <strong>${tx.propertyAddress}</strong> — everything's progressing as it should.</p>
-<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">No news at this stage is genuinely good news. It means nothing unexpected is holding things up. Behind the scenes we're chasing solicitors, watching the process, and keeping everything moving.</p>
-<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}</p>
+${bodyParas.map((p) => `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${p}</p>`).join("\n")}
+<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">${closing}</p>
 ${portalSection}
 <p style="margin:0;font-size:12px;color:#8b91a3">${tx.agency.name}</p>
 </body></html>`;
