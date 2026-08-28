@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getRevenueDashboard, formatGBP, formatShortDate, formatMonthLabel } from "@/lib/command/revenue";
 import { parseMode, parseAgencies } from "@/lib/command/scope";
 import type { AgencyRevenueRow, ExchangeRow, LegacyAgencyRef, PipelineBucket, SimpleAgencyRef } from "@/lib/command/revenue";
+import InfoTip from "@/components/command/shared/InfoTip";
+import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +33,25 @@ export default async function RevenuePage({
       {/* ── Headline: total fee in pipeline (all active sales) ────── */}
       <section>
         <div className="bg-gradient-to-br from-blue-950/40 to-neutral-900 border border-blue-900/50 rounded-xl px-6 py-5">
-          <p className="text-[11px] font-semibold text-blue-300 uppercase tracking-wider">
+          <p className="text-[11px] font-semibold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
             Total fee in pipeline · all active sales
+            <InfoTip label="What the book is">
+              Expected fees across every active file, whenever it&rsquo;s predicted to exchange. An estimate (fees only
+              firm up at exchange), and it excludes on-hold files, which sit in their own paused bucket below.
+            </InfoTip>
           </p>
           <p className="mt-2 text-5xl font-semibold tabular-nums text-blue-300">
             {formatGBP(data.pipelineAllActive.totalPence)}
           </p>
           <p className="mt-1.5 text-sm text-neutral-400">
-            Expected fees across {data.pipelineAllActive.fileCount} active file{data.pipelineAllActive.fileCount === 1 ? "" : "s"}, regardless of when they&apos;re predicted to exchange. The full book.
+            Expected fees across {data.pipelineAllActive.fileCount} active file{data.pipelineAllActive.fileCount === 1 ? "" : "s"}, regardless of when they&apos;re predicted to exchange.
+            {data.paused.fileCount > 0 && <> Plus <span className="text-neutral-300">{formatGBP(data.paused.totalPence)}</span> paused ({data.paused.fileCount} on hold).</>}
           </p>
+          {data.priceEstimatedCount > 0 && (
+            <p className="mt-1 text-[11px] text-amber-400/80">
+              {data.priceEstimatedCount} file{data.priceEstimatedCount === 1 ? " has" : "s have"} no price entered yet, so the fee is estimated at the £250 band.
+            </p>
+          )}
         </div>
       </section>
 
@@ -51,44 +63,110 @@ export default async function RevenuePage({
             value={formatGBP(data.banked.totalPence)}
             sub={`${data.banked.fileCount} file${data.banked.fileCount === 1 ? "" : "s"} · ${data.banked.agencyCount} agenc${data.banked.agencyCount === 1 ? "y" : "ies"}`}
             tone="primary"
+            tip="The amount actually invoiced this month (frozen at exchange), not a live recompute. Won't change if you edit a fee later."
+            trend={(() => {
+              const diff = data.banked.totalPence - data.bankedLastMonthPence;
+              const cls = diff > 0 ? "text-emerald-400" : diff < 0 ? "text-red-400" : "text-neutral-600";
+              return <span className={cls}>{diff >= 0 ? "+" : "−"}{formatGBP(Math.abs(diff))} vs last month ({formatGBP(data.bankedLastMonthPence)})</span>;
+            })()}
           />
           <Kpi
             label="Pipeline this month"
             value={formatGBP(data.pipelineThisMonth.totalPence)}
             sub={`${data.pipelineThisMonth.fileCount} file${data.pipelineThisMonth.fileCount === 1 ? "" : "s"} predicted to exchange in ${monthLabel}`}
+            tip="Estimated fees on active files whose predicted exchange date falls in this month. An estimate, not yet billed."
           />
           <Kpi
             label="Forecast total"
             value={formatGBP(data.forecastTotalThisMonth.totalPence)}
             sub="Banked + pipeline, if everything predicted lands"
             tone="forecast"
+            tip="This month's banked (actual) plus this month's pipeline (estimate). The most this month could reach if every predicted exchange lands."
           />
           <Kpi
             label="Trial given away"
             value={formatGBP(data.trialValueThisMonth.totalPence)}
             sub={`${data.trialValueThisMonth.fileCount} trial exchange${data.trialValueThisMonth.fileCount === 1 ? "" : "s"} this month`}
             tone="muted"
+            tip="What a trial file's first free exchange would have been worth at the normal fee. Given away, not banked."
           />
         </div>
       </section>
 
       {/* ── Pipeline outlook ─────────────────────────────────────── */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           Pipeline outlook
+          <InfoTip label="How the outlook works">
+            Every active file, placed by its predicted exchange date. This month, next, the one after, later (beyond
+            that), and at-risk (predicted date already passed but not exchanged). These five add up to the whole book.
+            Paused files sit outside it.
+          </InfoTip>
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <PipelineCell label={`${monthLabel} (with banked)`} bucket={{ totalPence: data.banked.totalPence + data.pipelineThisMonth.totalPence, fileCount: data.banked.fileCount + data.pipelineThisMonth.fileCount }} />
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          <PipelineCell label={`${monthLabel} (pipeline)`} bucket={data.pipelineThisMonth} />
           <PipelineCell label={nextMonthLabel} bucket={data.pipelineNextMonth} />
           <PipelineCell label={monthAfterLabel} bucket={data.pipelineMonthAfter} />
-          <PipelineCell label="At risk in pipeline" bucket={data.pipelineAtRisk} tone="warn" />
+          <PipelineCell label="Later" bucket={data.pipelineLater} />
+          <PipelineCell label="At risk" bucket={data.pipelineAtRisk} tone="warn" />
+          <PipelineCell label="Paused (on hold)" bucket={data.paused} tone="muted" />
+        </div>
+        <p className="mt-3 text-[11.5px] text-neutral-500 leading-relaxed">
+          Ties out: {formatGBP(data.pipelineThisMonth.totalPence)} + {formatGBP(data.pipelineNextMonth.totalPence)} + {formatGBP(data.pipelineMonthAfter.totalPence)} + {formatGBP(data.pipelineLater.totalPence)} + {formatGBP(data.pipelineAtRisk.totalPence)} = <span className="text-neutral-300 font-semibold">{formatGBP(data.pipelineAllActive.totalPence)}</span> the full book.
+          {" "}Next 3 months (this + next + after): <span className="text-blue-300 font-semibold">{formatGBP(data.threeMonthForecastPence)}</span>.
+        </p>
+      </section>
+
+      {/* ── Where the money comes from ───────────────────────────── */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          Where the money comes from
+          <InfoTip label="How to read this">
+            The active book ({formatGBP(data.pipelineAllActive.totalPence)}) split three ways, plus how this month&rsquo;s
+            banked breaks down. Bars are share of the total.
+          </InfoTip>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <BreakdownCard
+            title="Pipeline by service type"
+            rows={[
+              { label: "Outsourced", pence: data.breakdown.pipelineByServiceType.outsourcedPence, color: "#3b82f6" },
+              { label: "In-house (£59)", pence: data.breakdown.pipelineByServiceType.inHousePence, color: "#8b9dff" },
+            ]}
+          />
+          <BreakdownCard
+            title="Pipeline by fee tier"
+            rows={[
+              { label: "Legacy (flat)", pence: data.breakdown.pipelineByTier.legacyPence, color: "#e0a44a" },
+              { label: "Standard (sliding)", pence: data.breakdown.pipelineByTier.standardPence, color: "#34d399" },
+            ]}
+          />
+          <BreakdownCard
+            title="Pipeline by agency mode"
+            rows={[
+              { label: "Progressor-managed", pence: data.breakdown.pipelineByMode.pmPence, color: "#3b82f6" },
+              { label: "Self-progressed", pence: data.breakdown.pipelineByMode.spPence, color: "#8b9dff" },
+              { label: "Mixed", pence: data.breakdown.pipelineByMode.mixedPence, color: "#71717a" },
+            ]}
+          />
+          <BreakdownCard
+            title="Banked this month by service type"
+            rows={[
+              { label: "Outsourced", pence: data.breakdown.bankedByServiceType.outsourcedPence, color: "#10b981" },
+              { label: "In-house (£59)", pence: data.breakdown.bankedByServiceType.inHousePence, color: "#6ee7b7" },
+            ]}
+          />
         </div>
       </section>
 
       {/* ── Per-agency bible ──────────────────────────────────────── */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           Per-agency revenue · fee tier check
+          <InfoTip label="Reading the columns">
+            Banked MTD and Lifetime are what was actually invoiced. Pipeline MTD is an estimate of what&rsquo;s predicted
+            to exchange this month. Fee shows the agency&rsquo;s legacy flat fee, or the standard sliding scale.
+          </InfoTip>
         </h2>
         {data.perAgency.length === 0 ? (
           <p className="text-sm text-neutral-600">No agencies in scope.</p>
@@ -100,8 +178,11 @@ export default async function RevenuePage({
       {/* ── Two-up: Recent exchanges + Outstanding/risks ──────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             Recent exchanges
+            <InfoTip label="Fee charged">
+              The amount actually invoiced for each exchange (frozen at billing), not a live recompute.
+            </InfoTip>
           </h2>
           {data.recentExchanges.length === 0 ? (
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
@@ -155,11 +236,15 @@ function Kpi({
   value,
   sub,
   tone = "default",
+  tip,
+  trend,
 }: {
   label: string;
   value: string;
   sub: string;
   tone?: "default" | "primary" | "forecast" | "muted";
+  tip?: ReactNode;
+  trend?: ReactNode;
 }) {
   const valueClass =
     tone === "primary" ? "text-emerald-400" :
@@ -168,9 +253,13 @@ function Kpi({
     "text-neutral-100";
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
-      <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">{label}</p>
+      <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+        {label}
+        {tip && <InfoTip label={label}>{tip}</InfoTip>}
+      </p>
       <p className={`mt-2 text-3xl font-semibold tabular-nums ${valueClass}`}>{value}</p>
       <p className="mt-1 text-xs text-neutral-500">{sub}</p>
+      {trend && <p className="mt-1 text-[11px] tabular-nums">{trend}</p>}
     </div>
   );
 }
@@ -184,10 +273,12 @@ function PipelineCell({
 }: {
   label: string;
   bucket: PipelineBucket;
-  tone?: "default" | "warn";
+  tone?: "default" | "warn" | "muted";
 }) {
   const valueClass = tone === "warn" && bucket.totalPence > 0
     ? "text-amber-400"
+    : tone === "muted"
+    ? "text-neutral-400"
     : "text-neutral-100";
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
@@ -198,6 +289,37 @@ function PipelineCell({
       <p className="text-[11px] text-neutral-600">
         {bucket.fileCount} file{bucket.fileCount === 1 ? "" : "s"}
       </p>
+    </div>
+  );
+}
+
+// ─── Breakdown card (where the money comes from) ──────────────────────────────
+
+function BreakdownCard({ title, rows }: { title: string; rows: Array<{ label: string; pence: number; color: string }> }) {
+  const total = rows.reduce((s, r) => s + r.pence, 0);
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+      <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-3">{title}</p>
+      {total === 0 ? (
+        <p className="text-xs text-neutral-600">Nothing here yet.</p>
+      ) : (
+        <div className="space-y-2.5">
+          {rows.map((r) => {
+            const pct = total > 0 ? Math.round((r.pence / total) * 100) : 0;
+            return (
+              <div key={r.label}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-neutral-300">{r.label}</span>
+                  <span className="tabular-nums text-neutral-200 font-medium">{formatGBP(r.pence)} <span className="text-neutral-600">· {pct}%</span></span>
+                </div>
+                <div className="h-1.5 rounded bg-neutral-800 overflow-hidden">
+                  <div className="h-full rounded" style={{ width: `${pct}%`, background: r.color }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

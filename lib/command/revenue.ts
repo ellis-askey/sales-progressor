@@ -99,8 +99,12 @@ export type RevenueDashboardData = {
   monthStart: Date;
   monthEnd: Date;
   scope: RevenueScope;
-  /** Hero KPIs (cross-agency, scope-aware). */
+  /** Hero KPIs (cross-agency, scope-aware). banked = ACTUAL invoiced amount
+   *  (frozen InvoiceLine), not a live recompute, so it can't drift if a fee
+   *  changes after exchange. */
   banked: { totalPence: number; fileCount: number; agencyCount: number };
+  /** Actual invoiced total for the PREVIOUS billing month — powers the trend. */
+  bankedLastMonthPence: number;
   /** Sum of expected fees across EVERY active (non-exchanged, non-withdrawn)
    *  file in scope, regardless of predicted exchange date. The "total fee in
    *  pipeline" headline number. Includes files in this-month/next/after/later
@@ -117,6 +121,27 @@ export type RevenueDashboardData = {
    *  cleaner signal than the multi-tier on_track/at_risk/off_track from
    *  calculateProgress, and doesn't need full milestone weight data. */
   pipelineAtRisk: PipelineBucket;
+  /** Active files predicted to exchange beyond the +2-month window. Closes the
+   *  gap between the headline book and the visible outlook cells. */
+  pipelineLater: PipelineBucket;
+  /** On-hold (paused) files' expected fees — kept out of the timed pipeline
+   *  but part of the total book, in their own clearly-labelled bucket. */
+  paused: PipelineBucket;
+  /** Expected fees on active files predicted to exchange over the next 3 months
+   *  (this + next + after). A rolling forecast, distinct from the this-month one. */
+  threeMonthForecastPence: number;
+  /** Active standard-agency files with no price entered, so their fee is
+   *  estimated at the bottom (£250) band. Surfaced so the pipeline's assumptions
+   *  are visible. */
+  priceEstimatedCount: number;
+  /** Where the money comes from — banked (actual) and pipeline (estimate) split
+   *  by service type, fee tier, and agency mode. */
+  breakdown: {
+    bankedByServiceType: { inHousePence: number; outsourcedPence: number };
+    pipelineByServiceType: { inHousePence: number; outsourcedPence: number };
+    pipelineByTier: { legacyPence: number; standardPence: number };
+    pipelineByMode: { spPence: number; pmPence: number; mixedPence: number };
+  };
   /** Per-agency table (the bible). */
   perAgency: AgencyRevenueRow[];
   /** Last 20 billed exchanges across the scope, with the fee label that
@@ -235,8 +260,18 @@ export async function getRevenueDashboard(
   const nextMonthStart = monthEnd;
   const monthAfterStart = billingMonthRange(new Date(nextMonthStart.getTime() + 32 * 86_400_000)).start;
   const monthAfterEnd = billingMonthRange(new Date(monthAfterStart.getTime() + 32 * 86_400_000)).start;
+  const lastMonthStart = billingMonthStart(new Date(monthStart.getTime() - 2 * 86_400_000));
 
   const agencyWhere = agencyWhereFromScope(scope);
+
+  // Actual invoiced fee lines for a billing month (frozen amounts — the truth
+  // of what was billed, unlike a live recompute). Excludes credit lines.
+  const feeLineSelect = {
+    totalPence: true,
+    transactionId: true,
+    invoice: { select: { agencyId: true } },
+    transaction: { select: { serviceType: true, billedAtExchange: true } },
+  } as const;
 
   // Single fan-out of all reads. Each is independent.
   const [
@@ -250,6 +285,8 @@ export async function getRevenueDashboard(
     blockedRows,
     lifetimePerAgency,
     legacyAgencyRows,
+    feeLinesThisMonth,
+    feeLinesLastMonth,
   ] = await Promise.all([
     // All agencies in scope — drives the per-agency table.
     commandDb.agency.findMany({
@@ -315,18 +352,19 @@ export async function getRevenueDashboard(
         },
       },
     }),
-    // Active (not yet exchanged) files for pipeline + at-risk math.
+    // Active + on-hold (not yet exchanged) files for pipeline + paused + at-risk.
     // Pulls just enough milestone state for calculatePhaseAwarePrediction.
     commandDb.propertyTransaction.findMany({
       where: {
         agency: agencyWhere,
-        status: "active",
+        status: { in: ["active", "on_hold"] },
         billedAtExchange: null,
         isDemo: false,
       },
       select: {
         id: true,
         propertyAddress: true,
+        status: true,
         serviceType: true,
         purchasePrice: true,
         purchaseType: true,
@@ -339,6 +377,7 @@ export async function getRevenueDashboard(
           select: {
             id: true,
             feeTier: true,
+            modeProfile: true,
             legacyOutsourcedFeePence: true,
             vatRegisteredAt: true,
             vatRateBps: true,
@@ -418,24 +457,63 @@ export async function getRevenueDashboard(
       select: { id: true, name: true, legacyOutsourcedFeePence: true },
       orderBy: { name: "asc" },
     }),
+    // Actual invoiced fees this billing month (the truth for "banked").
+    commandDb.invoiceLine.findMany({
+      where: {
+        kind: { in: ["in_house_fee", "outsourced_fee"] },
+        invoice: { monthStart, agency: agencyWhere },
+      },
+      select: feeLineSelect,
+    }),
+    // Actual invoiced fees the previous billing month (trend baseline).
+    commandDb.invoiceLine.findMany({
+      where: {
+        kind: { in: ["in_house_fee", "outsourced_fee"] },
+        invoice: { monthStart: lastMonthStart, agency: agencyWhere },
+      },
+      select: { totalPence: true },
+    }),
   ]);
 
-  // ── Cross-agency banked + per-agency banked rollups ─────────────────────────
+  // ── Banked = ACTUAL invoiced amounts (frozen InvoiceLine), not a recompute ──
+  // so it can never drift if a fee/VAT changes after a file exchanged. Matches
+  // the Lifetime column and the building-invoice totals.
   let bankedTotalPence = 0;
+  let bankedInHousePence = 0, bankedOutsourcedPence = 0;
   const bankedByAgency = new Map<string, { sum: number; count: number; lastExchange: Date | null }>();
+  const accruedTxIds = new Set<string>();
+  for (const l of feeLinesThisMonth) {
+    bankedTotalPence += l.totalPence;
+    if (l.transaction?.serviceType === "self_managed") bankedInHousePence += l.totalPence;
+    else bankedOutsourcedPence += l.totalPence;
+    if (l.transactionId) accruedTxIds.add(l.transactionId);
+    const aId = l.invoice.agencyId;
+    const cur = bankedByAgency.get(aId) ?? { sum: 0, count: 0, lastExchange: null };
+    cur.sum += l.totalPence;
+    cur.count += 1;
+    const bx = l.transaction?.billedAtExchange ?? null;
+    if (bx && (!cur.lastExchange || bx > cur.lastExchange)) cur.lastExchange = bx;
+    bankedByAgency.set(aId, cur);
+  }
+  // Fallback: a file that exchanged this month but the nightly accrual cron
+  // hasn't invoiced yet — recompute so it isn't missing until tomorrow.
+  let bankedFallbackCount = 0;
   for (const r of bankedRows) {
+    if (accruedTxIds.has(r.id)) continue;
     const fee = computeFee(r.serviceType, r.priceAtExchange, vatOf(r.agency), feeOverrideOf(r.agency));
     bankedTotalPence += fee.totalPence;
+    if (r.serviceType === "self_managed") bankedInHousePence += fee.totalPence;
+    else bankedOutsourcedPence += fee.totalPence;
+    bankedFallbackCount += 1;
     const cur = bankedByAgency.get(r.agencyId) ?? { sum: 0, count: 0, lastExchange: null };
     cur.sum += fee.totalPence;
     cur.count += 1;
-    if (!cur.lastExchange || (r.billedAtExchange && r.billedAtExchange > cur.lastExchange)) {
-      cur.lastExchange = r.billedAtExchange ?? cur.lastExchange;
-    }
+    if (r.billedAtExchange && (!cur.lastExchange || r.billedAtExchange > cur.lastExchange)) cur.lastExchange = r.billedAtExchange;
     bankedByAgency.set(r.agencyId, cur);
   }
   const bankedAgencyCount = bankedByAgency.size;
-  const bankedFileCount = bankedRows.length;
+  const bankedFileCount = feeLinesThisMonth.length + bankedFallbackCount;
+  const bankedLastMonthPence = feeLinesLastMonth.reduce((s, l) => s + l.totalPence, 0);
 
   // ── Trial value this month ──────────────────────────────────────────────────
   let trialValuePence = 0;
@@ -450,14 +528,47 @@ export async function getRevenueDashboard(
   }
 
   // ── Pipeline + at-risk (per-file prediction) ────────────────────────────────
-  let pipelineThis = 0, pipelineNext = 0, pipelineAfter = 0, pipelineRisk = 0;
-  let pipelineThisCount = 0, pipelineNextCount = 0, pipelineAfterCount = 0, pipelineRiskCount = 0;
+  let pipelineThis = 0, pipelineNext = 0, pipelineAfter = 0, pipelineRisk = 0, pipelineLater = 0;
+  let pipelineThisCount = 0, pipelineNextCount = 0, pipelineAfterCount = 0, pipelineRiskCount = 0, pipelineLaterCount = 0;
   let pipelineAllSum = 0, pipelineAllCount = 0;
+  let pausedSum = 0, pausedCount = 0;
+  let priceEstimatedCount = 0;
+  let pipeInHouse = 0, pipeOutsourced = 0;
+  let pipeTierLegacy = 0, pipeTierStandard = 0;
+  let pipeModeSp = 0, pipeModePm = 0, pipeModeMixed = 0;
   const pipelineThisByAgency = new Map<string, { sum: number; count: number }>();
   const activeCountByAgency = new Map<string, number>();
 
   for (const f of activeFiles) {
+    const fee = computeFee(
+      f.serviceType as ServiceType,
+      f.purchasePrice,
+      vatOf(f.agency),
+      feeOverrideOf(f.agency),
+    );
+
+    // On-hold files are paused: kept in their own bucket, out of the timed
+    // pipeline and the active-book headline.
+    if (f.status === "on_hold") {
+      pausedSum += fee.totalPence;
+      pausedCount += 1;
+      continue;
+    }
+
     activeCountByAgency.set(f.agencyId, (activeCountByAgency.get(f.agencyId) ?? 0) + 1);
+
+    // Silent-estimate flag: a standard (non-legacy) outsourced file with no
+    // price falls to the bottom band by computeFee's defensive default.
+    if (f.serviceType === "outsourced" && f.agency.feeTier !== "legacy" && f.purchasePrice == null) {
+      priceEstimatedCount += 1;
+    }
+
+    // Where the money comes from (active book).
+    if (f.serviceType === "self_managed") pipeInHouse += fee.totalPence; else pipeOutsourced += fee.totalPence;
+    if (f.agency.feeTier === "legacy") pipeTierLegacy += fee.totalPence; else pipeTierStandard += fee.totalPence;
+    if (f.agency.modeProfile === "self_progressed") pipeModeSp += fee.totalPence;
+    else if (f.agency.modeProfile === "progressor_managed") pipeModePm += fee.totalPence;
+    else pipeModeMixed += fee.totalPence;
 
     const completedCodes = f.milestoneCompletions.map((c) => c.milestoneDefinition.code);
     const effectiveStart = computeEffectiveStartDate(f.createdAt, f.milestoneCompletions);
@@ -470,17 +581,7 @@ export async function getRevenueDashboard(
     };
     const predicted = calculatePhaseAwarePrediction(phaseInput, f.createdAt, f.overridePredictedDate);
 
-    // Expected fee: same legacy-aware calc, using purchasePrice as the
-    // pre-exchange proxy for priceAtExchange.
-    const fee = computeFee(
-      f.serviceType as ServiceType,
-      f.purchasePrice,
-      vatOf(f.agency),
-      feeOverrideOf(f.agency),
-    );
-
-    // Headline total: every active file counts, regardless of bucket
-    // (including "later" rows, which we drop from the timed buckets below).
+    // Headline total: every active file counts (this/next/after/later/at-risk).
     pipelineAllSum += fee.totalPence;
     pipelineAllCount += 1;
 
@@ -501,11 +602,26 @@ export async function getRevenueDashboard(
     } else if (bucket === "after") {
       pipelineAfter += fee.totalPence;
       pipelineAfterCount += 1;
+    } else {
+      // "later" — predicted beyond the +2-month window.
+      pipelineLater += fee.totalPence;
+      pipelineLaterCount += 1;
     }
-    // "later" rows aren't surfaced in any of the bench cells.
   }
 
-  // ── Recent exchanges (forensic strip) ───────────────────────────────────────
+  // ── Recent exchanges (forensic strip) — show the ACTUAL invoiced amount. ─────
+  const recentLines = recentExchangeRows.length
+    ? await commandDb.invoiceLine.findMany({
+        where: {
+          transactionId: { in: recentExchangeRows.map((r) => r.id) },
+          kind: { in: ["in_house_fee", "outsourced_fee"] },
+        },
+        select: { transactionId: true, totalPence: true },
+      })
+    : [];
+  const billedByTx = new Map<string, number>();
+  for (const l of recentLines) if (l.transactionId) billedByTx.set(l.transactionId, l.totalPence);
+
   const recentExchanges: ExchangeRow[] = recentExchangeRows.map((r) => {
     const fee = computeFee(r.serviceType, r.priceAtExchange, vatOf(r.agency), feeOverrideOf(r.agency));
     return {
@@ -516,7 +632,8 @@ export async function getRevenueDashboard(
       agencyFeeTier: r.agency.feeTier,
       serviceType: r.serviceType,
       priceAtExchangePence: r.priceAtExchange,
-      feeTotalPence: fee.totalPence,
+      // Actual billed amount when invoiced; recompute only as a same-day fallback.
+      feeTotalPence: billedByTx.get(r.id) ?? fee.totalPence,
       feeBandLabel: fee.bandLabel,
       exchangedAt: r.billedAtExchange!,
     };
@@ -567,6 +684,7 @@ export async function getRevenueDashboard(
       fileCount: bankedFileCount,
       agencyCount: bankedAgencyCount,
     },
+    bankedLastMonthPence,
     pipelineAllActive: { totalPence: pipelineAllSum, fileCount: pipelineAllCount },
     pipelineThisMonth: { totalPence: pipelineThis, fileCount: pipelineThisCount },
     forecastTotalThisMonth: { totalPence: bankedTotalPence + pipelineThis },
@@ -574,6 +692,16 @@ export async function getRevenueDashboard(
     pipelineNextMonth: { totalPence: pipelineNext, fileCount: pipelineNextCount },
     pipelineMonthAfter: { totalPence: pipelineAfter, fileCount: pipelineAfterCount },
     pipelineAtRisk: { totalPence: pipelineRisk, fileCount: pipelineRiskCount },
+    pipelineLater: { totalPence: pipelineLater, fileCount: pipelineLaterCount },
+    paused: { totalPence: pausedSum, fileCount: pausedCount },
+    threeMonthForecastPence: pipelineThis + pipelineNext + pipelineAfter,
+    priceEstimatedCount,
+    breakdown: {
+      bankedByServiceType: { inHousePence: bankedInHousePence, outsourcedPence: bankedOutsourcedPence },
+      pipelineByServiceType: { inHousePence: pipeInHouse, outsourcedPence: pipeOutsourced },
+      pipelineByTier: { legacyPence: pipeTierLegacy, standardPence: pipeTierStandard },
+      pipelineByMode: { spPence: pipeModeSp, pmPence: pipeModePm, mixedPence: pipeModeMixed },
+    },
     perAgency,
     recentExchanges,
     buildingInvoices: {
@@ -629,7 +757,7 @@ export async function getAgencyRevenueDetail(
   });
   if (!agency || agency.isInternal) return null;
 
-  const [bankedRows, activeFiles, recentExchangeRows, trialRows, lifetimeRow] = await Promise.all([
+  const [bankedRows, activeFiles, recentExchangeRows, trialRows, lifetimeRow, feeLinesThisMonth] = await Promise.all([
     commandDb.propertyTransaction.findMany({
       where: { agencyId, billedAtExchange: { gte: monthStart, lt: monthEnd } },
       select: {
@@ -685,6 +813,14 @@ export async function getAgencyRevenueDetail(
        WHERE i."agencyId" = ${agencyId}
          AND i.status IN ('issued', 'paid', 'failed')
     `,
+    // Actual invoiced fees this month for this agency (banked truth).
+    commandDb.invoiceLine.findMany({
+      where: {
+        kind: { in: ["in_house_fee", "outsourced_fee"] },
+        invoice: { agencyId, monthStart },
+      },
+      select: { totalPence: true, transactionId: true },
+    }),
   ]);
 
   const agencyForFee: AgencyForFee = {
@@ -696,10 +832,20 @@ export async function getAgencyRevenueDetail(
   const fee = (svc: ServiceType, price: number | null) =>
     computeFee(svc, price, vatOf(agencyForFee), feeOverrideOf(agencyForFee));
 
-  // Banked
+  // Banked = actual invoiced (frozen InvoiceLine) + a recompute fallback for a
+  // same-day exchange the nightly accrual hasn't invoiced yet.
   let bankedSum = 0;
+  let bankedCount = 0;
+  const accruedTxIds = new Set<string>();
+  for (const l of feeLinesThisMonth) {
+    bankedSum += l.totalPence;
+    bankedCount += 1;
+    if (l.transactionId) accruedTxIds.add(l.transactionId);
+  }
   for (const r of bankedRows) {
+    if (accruedTxIds.has(r.id)) continue;
     bankedSum += fee(r.serviceType, r.priceAtExchange).totalPence;
+    bankedCount += 1;
   }
 
   // Trial lifetime
@@ -745,6 +891,18 @@ export async function getAgencyRevenueDetail(
   }
   activeFileRows.sort((a, b) => a.predictedExchangeDate.getTime() - b.predictedExchangeDate.getTime());
 
+  const recentLines = recentExchangeRows.length
+    ? await commandDb.invoiceLine.findMany({
+        where: {
+          transactionId: { in: recentExchangeRows.map((r) => r.id) },
+          kind: { in: ["in_house_fee", "outsourced_fee"] },
+        },
+        select: { transactionId: true, totalPence: true },
+      })
+    : [];
+  const billedByTx = new Map<string, number>();
+  for (const l of recentLines) if (l.transactionId) billedByTx.set(l.transactionId, l.totalPence);
+
   const recentExchanges: ExchangeRow[] = recentExchangeRows.map((r) => {
     const f = fee(r.serviceType, r.priceAtExchange);
     return {
@@ -755,7 +913,7 @@ export async function getAgencyRevenueDetail(
       agencyFeeTier: agency.feeTier,
       serviceType: r.serviceType,
       priceAtExchangePence: r.priceAtExchange,
-      feeTotalPence: f.totalPence,
+      feeTotalPence: billedByTx.get(r.id) ?? f.totalPence,
       feeBandLabel: f.bandLabel,
       exchangedAt: r.billedAtExchange!,
     };
@@ -779,7 +937,7 @@ export async function getAgencyRevenueDetail(
       stripeCustomerId: agency.stripeCustomerId,
       createdAt: agency.createdAt,
     },
-    banked: { totalPence: bankedSum, fileCount: bankedRows.length },
+    banked: { totalPence: bankedSum, fileCount: bankedCount },
     pipelineAllActive: { totalPence: pipeAllSum, fileCount: pipeAllCount },
     pipelineThisMonth: { totalPence: pipeThis, fileCount: pipeThisC },
     pipelineNextMonth: { totalPence: pipeNext, fileCount: pipeNextC },
