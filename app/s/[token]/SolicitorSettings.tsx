@@ -120,7 +120,7 @@ export function SolicitorSettings({ token, firmName, details }: { token: string;
         <div style={{ minWidth: 0 }}>
           {firmName && <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: S.ink, lineHeight: 1.25 }}>{firmName}</p>}
           <button type="button" onClick={pick} disabled={uploading} style={{ margin: "3px 0 0", padding: 0, border: "none", background: "transparent", fontSize: 12.5, fontWeight: 600, color: S.accent, cursor: uploading ? "wait" : "pointer" }}>
-            {uploading ? "Uploading…" : image ? "Change your picture" : "Upload your picture"}
+            {uploading ? "Uploading…" : image ? "Change profile photo" : "Upload profile photo"}
           </button>
           {uploadError && <p style={{ margin: "4px 0 0", fontSize: 11.5, color: S.danger }}>{uploadError}</p>}
         </div>
