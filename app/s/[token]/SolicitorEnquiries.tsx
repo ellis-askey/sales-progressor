@@ -136,8 +136,10 @@ export function formatUk(iso: string): string {
 }
 
 export const cardStyle: React.CSSProperties = {
-  background: S.card,
-  border: `1px solid ${S.cardBorder}`,
+  background: S.cardFrostBg,
+  backdropFilter: S.cardFrostBlur,
+  WebkitBackdropFilter: S.cardFrostBlur,
+  border: `1px solid ${S.cardFrostBorder}`,
   borderRadius: 14,
   boxShadow: S.cardShadow,
   padding: "16px 18px",

@@ -37,8 +37,9 @@ function Row({ entry, otherSideTag, first }: { entry: SolicitorFeedEntry; otherS
     <div style={{ display: "flex", gap: 12, padding: "12px 0", borderTop: first ? "none" : `1px solid ${S.line}`, alignItems: "flex-start" }}>
       <Avatar entry={entry} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: entry.ownSide ? 600 : 500, color: entry.ownSide ? S.ink : S.inkSoft, lineHeight: 1.4 }}>{entry.title}</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: entry.ownSide ? S.ink : S.inkSoft, lineHeight: 1.45 }}>{entry.title}</p>
+        {entry.sub && <p style={{ margin: "3px 0 0", fontSize: 12.5, color: S.muted, lineHeight: 1.4 }}>{entry.sub}</p>}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
           {entry.eventDate && <span style={{ fontSize: 12, fontWeight: 600, color: S.accent }}>{fmtEvent(entry.eventDate)}</span>}
           {entry.eventDate && entry.shownDate && <span style={{ color: S.faint, fontSize: 12 }}>|</span>}
           {entry.shownDate && <span style={{ fontSize: 12, color: S.muted }}>{fmtDateTime(entry.shownDate)}</span>}

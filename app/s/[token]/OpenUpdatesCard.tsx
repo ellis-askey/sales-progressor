@@ -21,7 +21,7 @@ function fmtUk(iso: string): string {
 
 export function OpenUpdatesCard({ token, steps }: { token: string; steps: Step[] }) {
   return (
-    <div style={{ background: S.card, border: `1px solid ${S.cardBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "18px" }}>
+    <div style={{ background: S.cardFrostBg, backdropFilter: S.cardFrostBlur, WebkitBackdropFilter: S.cardFrostBlur, border: `1px solid ${S.cardFrostBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "18px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: S.muted }}>Open updates</p>
         <span style={{ fontSize: 11, fontWeight: 700, color: S.accent, background: S.accentBg, borderRadius: 999, padding: "1px 8px", minWidth: 20, textAlign: "center" }}>{steps.length}</span>

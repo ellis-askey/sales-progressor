@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
-import { getMilestoneCopy } from "@/lib/portal-copy";
+import { getMilestoneCopy, getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
 import { getSignedUrl } from "@/lib/supabase-storage";
 
 // A chronological "what's happened" feed for the solicitor portal. Own-side
@@ -14,7 +14,8 @@ export type SolicitorFeedEntry = {
   at: number; // sort key (ms) — never rendered for other-side rows
   kind: "milestone" | "document";
   ownSide: boolean;
-  title: string;
+  title: string; // the fluent sentence
+  sub: string | null; // attribution / secondary line
   actorName: string | null;
   actorImage: string | null;
   actorRole: "firm" | "agent" | "client" | null;
@@ -54,31 +55,31 @@ export async function getSolicitorUpdates(
     const copy = getMilestoneCopy(code);
     const when = c.completedAt ?? c.createdAt;
 
-    let title: string;
+    // Fluent sentence (founder-authored copy), not the raw milestone label.
+    const title = ownSide
+      ? getMilestoneUpdateSubtext(code) ?? copy.label
+      : getMilestoneUpdateSubtextOther(code) ?? copy.labelOther ?? copy.label;
+
+    let sub: string | null = null;
     let actorName: string | null = null;
     let actorImage: string | null = null;
     let actorRole: SolicitorFeedEntry["actorRole"] = null;
 
-    if (!ownSide) {
-      // Other side — generic third-person fact, no attribution, no date.
-      title = copy.labelOther ?? copy.label;
-    } else if (c.confirmedBySolicitorFirm) {
-      actorName = c.confirmedBySolicitorFirm.name;
-      actorRole = "firm";
-      title = `${actorName} confirmed: ${copy.label}`;
-    } else if (c.confirmedByContactId) {
-      const ct = contactById.get(c.confirmedByContactId);
-      actorName = ct?.name ?? "The client";
-      actorImage = ct?.image ?? null;
-      actorRole = "client";
-      title = `${actorName} confirmed: ${copy.label}`;
-    } else if (c.completedBy) {
-      actorName = c.completedBy.name;
-      actorImage = c.completedBy.image;
-      actorRole = "agent";
-      title = `${actorName} confirmed: ${copy.label}`;
-    } else {
-      title = `Confirmed: ${copy.label}`;
+    if (ownSide) {
+      if (c.confirmedBySolicitorFirm) {
+        actorName = c.confirmedBySolicitorFirm.name;
+        actorRole = "firm";
+      } else if (c.confirmedByContactId) {
+        const ct = contactById.get(c.confirmedByContactId);
+        actorName = ct?.name ?? "The client";
+        actorImage = ct?.image ?? null;
+        actorRole = "client";
+      } else if (c.completedBy) {
+        actorName = c.completedBy.name;
+        actorImage = c.completedBy.image;
+        actorRole = "agent";
+      }
+      sub = actorName ? `Confirmed by ${actorName}` : "Confirmed";
     }
 
     return {
@@ -87,6 +88,7 @@ export async function getSolicitorUpdates(
       kind: "milestone",
       ownSide,
       title,
+      sub,
       actorName,
       actorImage,
       actorRole,
@@ -109,6 +111,7 @@ export async function getSolicitorUpdates(
       kind: "document" as const,
       ownSide: true,
       title: d.filename,
+      sub: "Shared document",
       actorName: null,
       actorImage: null,
       actorRole: null,

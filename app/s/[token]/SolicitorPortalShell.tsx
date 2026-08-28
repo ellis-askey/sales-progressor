@@ -49,7 +49,13 @@ export function SolicitorPortalShell({
     <div
       style={{
         minHeight: "100svh",
-        background: `linear-gradient(180deg, ${S.bgTop} 0%, ${S.bgBottom} 30%)`,
+        backgroundColor: "#eef2f8",
+        backgroundImage:
+          "radial-gradient(42% 28% at 50% -4%, rgba(56,120,255,0.10), transparent 70%)," +
+          "radial-gradient(78% 55% at 6% 3%, rgba(120,160,255,0.13), transparent 72%)," +
+          "radial-gradient(72% 52% at 96% 8%, rgba(150,180,255,0.13), transparent 72%)," +
+          "radial-gradient(90% 62% at 50% 102%, rgba(176,200,255,0.16), transparent 76%)",
+        backgroundAttachment: "fixed",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif",
       }}
     >

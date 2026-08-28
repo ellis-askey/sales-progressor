@@ -42,7 +42,7 @@ export function ProgressMirror({ side, ownRows, otherRows }: { side: "vendor" | 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Own side */}
-      <div style={{ background: S.card, border: `1px solid ${S.cardBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "6px 4px" }}>
+      <div style={{ background: S.cardFrostBg, backdropFilter: S.cardFrostBlur, WebkitBackdropFilter: S.cardFrostBlur, border: `1px solid ${S.cardFrostBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "6px 4px" }}>
         {GROUPS[side].map((g) => {
           const rows = g.codes.map((c) => ownByCode.get(c)).filter((r): r is MRow => !!r && !r.isNotRequired);
           if (!rows.length) return null;
@@ -51,7 +51,7 @@ export function ProgressMirror({ side, ownRows, otherRows }: { side: "vendor" | 
       </div>
 
       {/* Other side — view only */}
-      <div style={{ background: S.card, border: `1px solid ${S.cardBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "16px 18px 6px", borderLeft: `3px solid ${S.line}` }}>
+      <div style={{ background: S.cardFrostBg, backdropFilter: S.cardFrostBlur, WebkitBackdropFilter: S.cardFrostBlur, border: `1px solid ${S.cardFrostBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "16px 18px 6px", borderLeft: `3px solid ${S.line}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: S.muted }}>
             {otherSide === "purchaser" ? "The buyer's side" : "The seller's side"}

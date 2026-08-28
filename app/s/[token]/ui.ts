@@ -42,6 +42,10 @@ export const S = {
   navBg: "rgba(255,255,255,0.72)",
   navBlur: "blur(14px) saturate(160%)",
   navBorder: "rgba(15,39,64,0.08)",
+  // Frosted card surface — floats over the cool gradient (client-portal feel).
+  cardFrostBg: "rgba(255,255,255,0.74)",
+  cardFrostBlur: "blur(18px) saturate(150%)",
+  cardFrostBorder: "rgba(255,255,255,0.7)",
   // Hero — content sits over the blue image; the inner card is a distinct
   // frosted-white card (a card, not a blend).
   heroText: "#ffffff",

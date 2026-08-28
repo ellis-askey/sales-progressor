@@ -9,7 +9,7 @@ export function PortalCard({ children, style, className }: { children: React.Rea
   return (
     <div
       className={className}
-      style={{ background: S.card, border: `1px solid ${S.cardBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "18px", ...style }}
+      style={{ background: S.cardFrostBg, backdropFilter: S.cardFrostBlur, WebkitBackdropFilter: S.cardFrostBlur, border: `1px solid ${S.cardFrostBorder}`, borderRadius: S.radiusMd, boxShadow: S.shadowCard, padding: "18px", ...style }}
     >
       {children}
     </div>
