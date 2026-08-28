@@ -21,6 +21,7 @@ import { GreetingText } from "./GreetingText";
 export function SolicitorPortalShell({
   token,
   firstName,
+  side,
   emailsPaused,
   pausedUntil,
   firmName,
@@ -29,6 +30,7 @@ export function SolicitorPortalShell({
 }: {
   token: string;
   firstName: string;
+  side: "vendor" | "purchaser";
   emailsPaused: boolean;
   pausedUntil: string | null;
   firmName: string | null;
@@ -134,7 +136,7 @@ export function SolicitorPortalShell({
         <MenuSheet token={token} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails} onClose={() => setMenuOpen(false)} />
       )}
 
-      <SolicitorWelcome firstName={firstName} />
+      <SolicitorWelcome firstName={firstName} side={side} />
       <PortalAutoRefresh />
       <FeedbackWidget portalToken={token} />
     </div>

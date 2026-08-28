@@ -77,7 +77,7 @@ export default async function SolicitorPortalLayout({
         }}
       />
       <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
-        <SolicitorPortalShell token={token} firstName={firstName} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails}>
+        <SolicitorPortalShell token={token} firstName={firstName} side={decoded.side} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails}>
           {children}
         </SolicitorPortalShell>
       </PortalGlassProvider>
