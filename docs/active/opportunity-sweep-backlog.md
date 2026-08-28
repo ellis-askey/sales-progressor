@@ -111,6 +111,25 @@ Confirmed by code inspection on 2026-05-23. Mentioned here for the record so the
 
 ---
 
+## 🔭 Tier 4 — deferred (from the Automation Audit, 2026-08-17)
+
+Source: [`docs/audits/AUTOMATION_AUDIT_2026-08-17.md`](../audits/AUTOMATION_AUDIT_2026-08-17.md). We worked that audit tier by tier: **Tier 1** (mortgage-expiry alerts, gone-quiet queue, attention re-rank, per-agency chase control) and **Tier 3** (auto Outlook capture + AI-drafted approval-first proposals) are live on prod; **Tier 2** (weekly client narrative off by default + "draft for everyone") is built. Tier 4 is the heavier remainder: bigger builds or new infrastructure. Parked here, not started, decided 2026-08-28. Section references below point into the audit.
+
+- [ ] **T4-1 — Chain date alignment + conflict detection** (audit §5.8, §5.9)
+  We rank chain bottlenecks but never check whether the dates agree. If our file targets exchange on the 14th and the link above targets the 21st, nothing flags it. Deterministic once the dates exist (no AI). Cleanest of the four. Caveat: stub links (off-platform agents) hold dates as free text, so alignment is reliable only across claimed links.
+  - **Ellis:** deferred 2026-08-28. My steer: strongest next candidate when we return to Tier 4.
+
+- [ ] **T4-2 — Phone-call capture into structured actions** (audit §5.5)
+  Calls are free-text prose today: no outcome, no follow-up, no "promised X by Friday" that becomes a task. Needs recording plus transcription infrastructure that does not exist yet, then AI extraction. Biggest lift in the tier. New third-party dependency (call provider + transcription): add to `ELLIS_MANUAL_TODO.md` when picked up. Overlaps the open **E2 — voice note to activity entry**.
+
+- [ ] **T4-3 — WhatsApp Business API (two-way)** (audit §6, §5.14)
+  Today WhatsApp is `wa.me` deep links plus a paste-importer. A real Business API integration would let the app send and hear WhatsApp replies the way Tier 3 now hears email. Third-party integration with its own approval, message templates, and cost. Overlaps the parked Baileys WhatsApp bridge experiment.
+
+- [ ] **T4-4 — Decision-support leftovers** (audit §5.12, §5.13)
+  Two lighter items that could be pulled forward on their own: auto-classify an agent's free-text to-do request and link it to a milestone (§5.12); rank the worklist by deal value and exchange proximity beyond the current top-6 buckets (§5.13). Both are rules or light AI over signals we already hold.
+
+---
+
 ## How to use this file
 
 - Pick any item in **Yes** or **Queue** when ready. They don't have to be sequential.
