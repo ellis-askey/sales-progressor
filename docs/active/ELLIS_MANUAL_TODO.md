@@ -8,6 +8,15 @@ Last updated: 2026-08-26
 
 ---
 
+## Command Centre Briefing — signal lifecycle migration + test-agency exclusion (2026-08-28)
+
+The Briefing-page rework adds a Prisma migration (`20260828180000_signal_living_lifecycle`) that turns signals into living rows and collapses the accumulated duplicates. It applies automatically via `prisma migrate deploy` on deploy.
+- [ ] Deploy to **staging** first and confirm the migration ran (Vercel build GREEN) and the Briefing feed collapses to a handful. Law 3: staging before prod.
+- [ ] Then promote to prod (merge staging to master) and confirm the prod deploy is GREEN.
+- [ ] Run the test-agency exclusion so "EXP - DB" stops tripping the silent-agency alarm. From your own shell against each env:
+  - `APPLY=1 npx tsx scripts/flag-test-agencies-internal.ts` (dry-run first without `APPLY=1`). Run against staging, then prod. Add more names via `NAMES="EXP - DB,Other Test"` if there are other test agencies.
+  - Delete the script once done (registered as one-shot in SCRIPTS_REGISTRY).
+
 ## Demo showcase file — prod house image (2026-08-27)
 
 The "Add a demo" showcase file points every demo at two shared storage objects in the `transaction-documents` bucket. Both are uploaded to **staging**. Before the demo feature goes to prod, upload the same two to **prod** Supabase (one-off; the app reads them via signed URL). Until then, demo files on prod fall back to the gradient hero and have no MOS.

@@ -116,13 +116,15 @@ export default async function OverviewPage({
     // Today, computed live from the main DB (the nightly rollup only writes
     // yesterday, so a "today" rollup row never exists during the day).
     computeTodayLive(mode, agencyIds),
+    // Signal health = situations open right now (living signals: unresolved,
+    // not snoozed), not a rolling count of nightly rows.
     commandDb.signal.groupBy({
       by: ["severity"],
-      where: { detectedAt: { gte: sevenCompletedStart } },
+      where: { resolvedAt: null, OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] },
       _count: { id: true },
     }),
     commandDb.signal.findMany({
-      where: { acknowledged: false },
+      where: { acknowledged: false, resolvedAt: null, OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] },
       orderBy: [{ severity: "desc" }, { confidence: "desc" }],
       take: 5,
     }),
@@ -663,7 +665,7 @@ export default async function OverviewPage({
 
       {/* Signal health */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal health — last 7 days</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal health — open now</h2>
         <div className="flex items-center gap-3 flex-wrap mb-5">
           {(["critical", "leak", "opportunity", "info"] as const).map((sev) => (
             <div key={sev} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium ${SEVERITY_BADGE[sev]}`}>
