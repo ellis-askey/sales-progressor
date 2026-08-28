@@ -3,7 +3,9 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
+import { getSolicitorUpdates } from "@/lib/services/solicitor-updates";
 import { OpenUpdatesCard } from "../../OpenUpdatesCard";
+import { UpdatesFeed } from "../../UpdatesFeed";
 import { SolicitorEnquiries } from "../../SolicitorEnquiries";
 import { SolicitorRaisePanel } from "../../SolicitorRaisePanel";
 import { PortalCard } from "../../portal-cards";
@@ -48,6 +50,11 @@ export default async function SolicitorUpdatesPage({ params }: { params: Promise
       : null;
   const raiseOpen = !!raiseChase && !raiseChase.closedAt && !enquiriesOpen;
 
+  // The chronological feed: own-side events dated + attributed, other side
+  // dateless (still in order, so recency reads without a shown date).
+  const feed = await getSolicitorUpdates(tx.id, side, scope);
+  const otherSideTag = side === "vendor" ? "Buyer's side" : "Seller's side";
+
   const hasAnything = steps.length > 0 || enquiriesOpen || raiseOpen;
 
   return (
@@ -55,10 +62,13 @@ export default async function SolicitorUpdatesPage({ params }: { params: Promise
       {steps.length > 0 && <OpenUpdatesCard token={token} steps={steps} />}
       {enquiriesOpen && <SolicitorEnquiries token={token} side={side} courtLine={courtLine} outstandingNote={enquiries?.outstandingNote ?? null} />}
       {raiseOpen && <SolicitorRaisePanel token={token} />}
-      {!hasAnything && (
+
+      <UpdatesFeed entries={feed} otherSideTag={otherSideTag} />
+
+      {!hasAnything && feed.length === 0 && (
         <PortalCard style={{ textAlign: "center", padding: "26px 22px" }}>
-          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: S.ink }}>Nothing outstanding</p>
-          <p style={{ margin: 0, fontSize: 13.5, color: S.muted, lineHeight: 1.6 }}>There are no updates needed from your side right now.</p>
+          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: S.ink }}>Nothing yet</p>
+          <p style={{ margin: 0, fontSize: 13.5, color: S.muted, lineHeight: 1.6 }}>Updates on this matter will appear here as things happen.</p>
         </PortalCard>
       )}
     </div>
