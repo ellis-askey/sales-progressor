@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
-import { getSignedUrl } from "@/lib/supabase-storage";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { authOptions } from "@/lib/auth";
@@ -59,24 +58,28 @@ export default async function SolicitorPortalLayout({
   const pausedUntilRaw = decoded.side === "vendor" ? tx.vendorSolicitorEmailsPausedUntil : tx.purchaserSolicitorEmailsPausedUntil;
   const pausedUntil = pausedUntilRaw && pausedUntilRaw > new Date() ? pausedUntilRaw.toISOString() : null;
 
-  const mosDoc = await prisma.transactionDocument.findFirst({
-    where: { transactionId: tx.id, source: "mos" },
-    select: { filename: true, storagePath: true },
-    orderBy: { createdAt: "desc" },
-  });
-  const mosUrl = mosDoc ? await getSignedUrl(mosDoc.storagePath).catch(() => null) : null;
-
   // Design Lab: load the global glass picks (applied for every viewer) + decide
   // if this viewer may edit them (a founder superadmin logged in on the domain).
   const [glassPicks, session] = await Promise.all([getPortalGlassPicks(), getServerSession(authOptions)]);
   const canEditLab = !!session?.user?.email && isHybridSuperadminEmail(session.user.email);
 
   return (
-    <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
-      <SolicitorPortalShell token={token} firstName={firstName} mosUrl={mosUrl} mosFilename={mosDoc?.filename ?? null} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails}>
-        {children}
-      </SolicitorPortalShell>
-    </PortalGlassProvider>
+    <>
+      {/* No-flash accessibility boot: apply this device's saved text-size / font /
+          motion prefs to <html> before first paint (SolicitorAppearance keys off
+          these same attributes, which the global portal CSS already honours). */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{var p=JSON.parse(localStorage.getItem('sol_a11y')||'{}');var d=document.documentElement;if(p.textSize&&p.textSize!=='default')d.setAttribute('data-portal-textsize',p.textSize);if(p.dyslexic)d.setAttribute('data-portal-font','dyslexic');if(p.reduceMotion)d.setAttribute('data-portal-motion','reduced');}catch(e){}",
+        }}
+      />
+      <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
+        <SolicitorPortalShell token={token} firstName={firstName} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails}>
+          {children}
+        </SolicitorPortalShell>
+      </PortalGlassProvider>
+    </>
   );
 }
 

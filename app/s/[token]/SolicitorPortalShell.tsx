@@ -3,12 +3,13 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, House, ClockCounterClockwise, ChatCircle, X, FileArrowDown, BellSlash } from "@phosphor-icons/react/dist/ssr";
+import { List, House, ClockCounterClockwise, ChatCircle, X, BellSlash } from "@phosphor-icons/react/dist/ssr";
 import { PortalDesignLab } from "@/components/portal/PortalDesignLab";
 import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { solicitorSetEmailsPausedAction, solicitorPauseUntilAction } from "./actions";
 import { SolicitorSettings, type MyDetails } from "./SolicitorSettings";
+import { SolicitorAppearance } from "./SolicitorAppearance";
 import { SolicitorWelcome } from "./SolicitorWelcome";
 import { S } from "./ui";
 import { GreetingText } from "./GreetingText";
@@ -20,8 +21,6 @@ import { GreetingText } from "./GreetingText";
 export function SolicitorPortalShell({
   token,
   firstName,
-  mosUrl,
-  mosFilename,
   emailsPaused,
   pausedUntil,
   firmName,
@@ -30,8 +29,6 @@ export function SolicitorPortalShell({
 }: {
   token: string;
   firstName: string;
-  mosUrl: string | null;
-  mosFilename: string | null;
   emailsPaused: boolean;
   pausedUntil: string | null;
   firmName: string | null;
@@ -134,7 +131,7 @@ export function SolicitorPortalShell({
       </nav>
 
       {menuOpen && (
-        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails} onClose={() => setMenuOpen(false)} />
+        <MenuSheet token={token} emailsPaused={emailsPaused} pausedUntil={pausedUntil} firmName={firmName} myDetails={myDetails} onClose={() => setMenuOpen(false)} />
       )}
 
       <SolicitorWelcome firstName={firstName} />
@@ -172,7 +169,7 @@ function TabItem({ href, label, active, icon }: { href: string; label: string; a
   );
 }
 
-function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, firmName, myDetails, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; emailsPaused: boolean; pausedUntil: string | null; firmName: string | null; myDetails: MyDetails; onClose: () => void }) {
+function MenuSheet({ token, emailsPaused, pausedUntil, firmName, myDetails, onClose }: { token: string; emailsPaused: boolean; pausedUntil: string | null; firmName: string | null; myDetails: MyDetails; onClose: () => void }) {
   const [paused, setPaused] = useState(emailsPaused);
   const [until, setUntil] = useState<string | null>(pausedUntil);
   const [pending, start] = useTransition();
@@ -239,25 +236,7 @@ function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, firm
 
         <SolicitorSettings token={token} firmName={firmName} details={myDetails} />
 
-        {mosUrl && <p style={{ margin: "16px 2px 8px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.muted }}>Documents</p>}
-        {mosUrl && (
-          <a
-            href={mosUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", background: S.nested, border: `1px solid ${S.nestedBorder}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}
-          >
-            <span style={{ width: 36, height: 36, borderRadius: 9, background: S.accentBg, display: "inline-flex", alignItems: "center", justifyContent: "center", color: S.accent, flexShrink: 0 }}>
-              <FileArrowDown size={18} weight="regular" />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: S.ink }}>Memorandum of sale</span>
-              <span style={{ display: "block", fontSize: 12, color: S.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mosFilename ?? "Download"}</span>
-            </span>
-          </a>
-        )}
-
-        <p style={{ margin: "12px 2px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.muted }}>Notifications</p>
+        <p style={{ margin: "16px 2px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.muted }}>Notifications</p>
         <div style={{ display: "flex", alignItems: "center", gap: 12, background: S.nested, border: `1px solid ${S.nestedBorder}`, borderRadius: 12, padding: "12px 14px" }}>
           <span style={{ width: 36, height: 36, borderRadius: 9, background: "rgba(15,39,64,0.06)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: S.muted, flexShrink: 0 }}>
             <BellSlash size={18} weight="regular" />
@@ -285,6 +264,8 @@ function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, pausedUntil, firm
           </div>
         )}
         <p style={{ margin: "8px 2px 0", fontSize: 11.5, color: S.faint, lineHeight: 1.5 }}>Turn off to stop chasing emails on this matter, or pause them for a while. You can turn them back on any time.</p>
+
+        <SolicitorAppearance />
       </aside>
     </>
   );
