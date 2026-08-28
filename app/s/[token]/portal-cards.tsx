@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check, House, FileText, MagnifyingGlass, ChatText, ArrowsLeftRight, Key, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import type { ResolvedStage, DisplayStageKey } from "@/lib/milestones/display-stages";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { ProgressStripScroller } from "./ProgressStripScroller";
 import { S } from "./ui";
 
 // Shared card, tagged as a Design-Lab surface (glassId/label) so the founder can
@@ -91,7 +92,7 @@ export function ProgressOverviewCard({ stages, timelineHref }: { stages: Resolve
       >
         Progress overview
       </CardKicker>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 2 }}>
+      <ProgressStripScroller>
         {stages.map((s, i) => (
           <div key={s.key} style={{ display: "flex", alignItems: "flex-start", flex: "1 0 auto" }}>
             <StageNode stage={s} />
@@ -100,7 +101,7 @@ export function ProgressOverviewCard({ stages, timelineHref }: { stages: Resolve
             )}
           </div>
         ))}
-      </div>
+      </ProgressStripScroller>
     </PortalCard>
   );
 }
