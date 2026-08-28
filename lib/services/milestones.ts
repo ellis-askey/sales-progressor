@@ -1108,6 +1108,23 @@ export async function completeMilestone(
     console.error("[completeMilestone] maybeUnlockExchangeGate failed:", err);
   }
 
+  // Command Centre → Proposed updates: any pending "confirm" proposal for this
+  // step is now moot (the step just completed — here, or anywhere else). Mark it
+  // superseded so it doesn't sit stale in the review inbox or get re-approved.
+  try {
+    await db.milestoneProposal.updateMany({
+      where: {
+        transactionId: input.transactionId,
+        milestoneCode: def.code,
+        status: "pending",
+        actionType: "confirm",
+      },
+      data: { status: "superseded", decidedAt: new Date() },
+    });
+  } catch (err) {
+    console.error("[completeMilestone] supersede pending proposals failed:", err);
+  }
+
   // Enquiries rework: open the enquiries tracker when enquiries are raised /
   // received, close it when satisfied.
   try {

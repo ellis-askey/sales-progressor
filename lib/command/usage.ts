@@ -12,7 +12,9 @@ const AGENT_ROLES = ["director", "negotiator"];
 const DAY_MS = 86_400_000;
 const WEEKS = 12;
 
-export type UsageStatus = "active" | "quiet" | "dormant";
+// "never" = invited but no activity ever (needs onboarding), kept distinct from
+// "dormant" = was active then went dark 14+ days (needs winning back).
+export type UsageStatus = "active" | "quiet" | "dormant" | "never";
 
 export type AgentUsage = {
   userId: string;
@@ -47,7 +49,10 @@ export type UsageSummary = {
   activeAgents7d: number;
   hoursSeconds7d: number;
   logins7d: number;
-  goneQuiet: number; // not seen in 14+ days (dormant)
+  quiet: number;          // 7-14 days silent
+  dormant: number;        // 14+ days silent (was active before)
+  goneQuiet: number;      // quiet + dormant (agents who started then went 7+ days silent)
+  neverActivated: number; // invited but never any activity
 };
 
 export type UsageOverview = {
@@ -57,7 +62,7 @@ export type UsageOverview = {
 };
 
 function statusFor(lastActive: Date | null, now: number): UsageStatus {
-  if (!lastActive) return "dormant";
+  if (!lastActive) return "never";
   const days = (now - lastActive.getTime()) / DAY_MS;
   if (days < 7) return "active";
   if (days < 14) return "quiet";
@@ -70,7 +75,9 @@ export async function getUsageOverview(): Promise<UsageOverview> {
   const since12w = new Date(now - WEEKS * 7 * DAY_MS);
 
   const users = await commandDb.user.findMany({
-    where: { role: { in: AGENT_ROLES as never }, agencyId: { not: null } },
+    // Exclude internal/test agencies (e.g. EXP-DB) so the activity view matches
+    // the fee/chase/weekly sections and the rest of the Command Centre.
+    where: { role: { in: AGENT_ROLES as never }, agencyId: { not: null }, agency: { isInternal: false } },
     select: {
       id: true, name: true, role: true, agencyId: true,
       image: true, imageFocusX: true, imageFocusY: true,
@@ -79,7 +86,7 @@ export async function getUsageOverview(): Promise<UsageOverview> {
   });
   const userIds = users.map((u) => u.id);
   if (userIds.length === 0) {
-    return { agents: [], agencies: [], summary: { activeAgents7d: 0, hoursSeconds7d: 0, logins7d: 0, goneQuiet: 0 } };
+    return { agents: [], agencies: [], summary: { activeAgents7d: 0, hoursSeconds7d: 0, logins7d: 0, quiet: 0, dormant: 0, goneQuiet: 0, neverActivated: 0 } };
   }
 
   const [loginGroups, lastEventGroups, sessions] = await Promise.all([
@@ -172,11 +179,16 @@ export async function getUsageOverview(): Promise<UsageOverview> {
     (x, y) => y.seconds7d - x.seconds7d || (y.lastActive?.getTime() ?? 0) - (x.lastActive?.getTime() ?? 0),
   );
 
+  const quiet = agents.filter((a) => a.status === "quiet").length;
+  const dormant = agents.filter((a) => a.status === "dormant").length;
   const summary: UsageSummary = {
     activeAgents7d: agents.filter((a) => a.status === "active").length,
     hoursSeconds7d: agents.reduce((s, a) => s + a.seconds7d, 0),
     logins7d: agents.reduce((s, a) => s + a.logins7d, 0),
-    goneQuiet: agents.filter((a) => a.status === "dormant").length,
+    quiet,
+    dormant,
+    goneQuiet: quiet + dormant,
+    neverActivated: agents.filter((a) => a.status === "never").length,
   };
 
   return { agents, agencies, summary };

@@ -11,6 +11,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateAgencyChaseStreamAction, type ChaseStream } from "@/app/actions/agency-chase";
+import InfoTip from "@/components/command/shared/InfoTip";
 
 export type AgencyChaseRow = {
   id: string;
@@ -105,8 +106,11 @@ export function AgencyChaseControl({
             <tr className="bg-neutral-950/60">
               <th className="text-left px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Agency</th>
               {STREAMS.map((s) => (
-                <th key={s.key} className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500" title={s.help}>
-                  {s.label}
+                <th key={s.key} className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">
+                  <span className="inline-flex items-center gap-1 justify-center">
+                    {s.label}
+                    <InfoTip label={s.label} align="right">{s.help}</InfoTip>
+                  </span>
                 </th>
               ))}
             </tr>

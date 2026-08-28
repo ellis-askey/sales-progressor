@@ -56,6 +56,43 @@ export async function storageObjectExists(path: string): Promise<boolean> {
   return data.some((o) => o.name === name);
 }
 
+// Lists the `property-photos/` folder and returns the set of transaction IDs
+// that actually have an uploaded image (filename is `{transactionId}.{ext}`).
+// Used by the Command Centre Files view to detect drift: a file can have an
+// image in storage while its DB photoStoragePath was never persisted (the agent
+// upload is a two-step flow). Degrades to an empty set if storage is
+// unconfigured or errors, so callers simply fall back to the DB field.
+// Returns a map of transactionId -> full storage path for every image in the
+// `property-photos/` folder. Degrades to an empty map on any storage error.
+export async function listStoredPhotos(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  try {
+    const client = getClient();
+    const pageSize = 1000;
+    let offset = 0;
+    for (let page = 0; page < 25; page++) {
+      const { data, error } = await client.storage
+        .from(BUCKET)
+        .list("property-photos", { limit: pageSize, offset });
+      if (error || !data || data.length === 0) break;
+      for (const o of data) {
+        const dot = o.name.lastIndexOf(".");
+        const id = dot === -1 ? o.name : o.name.slice(0, dot);
+        if (id) map.set(id, `property-photos/${o.name}`);
+      }
+      if (data.length < pageSize) break;
+      offset += pageSize;
+    }
+  } catch {
+    // storage unconfigured / transient error — caller falls back to DB field
+  }
+  return map;
+}
+
+export async function listStoredPhotoTxIds(): Promise<Set<string>> {
+  return new Set((await listStoredPhotos()).keys());
+}
+
 export function getStorageUrl(path: string): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return `${url}/storage/v1/object/sign/${BUCKET}/${path}`;

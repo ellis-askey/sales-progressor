@@ -22,7 +22,7 @@ import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 
 export async function approveProposalAction(
   proposalId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; error: string; cleared?: boolean }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
@@ -36,6 +36,24 @@ export async function approveProposalAction(
   if (!tx || !canReadTransaction(scope, tx)) return { ok: false, error: "Forbidden" };
 
   if (p.actionType === "confirm" && p.milestoneDefinitionId && p.milestoneCode) {
+    // Guard: if the step was completed elsewhere since this proposal was made,
+    // don't re-complete or re-email. Mark the proposal superseded and say so.
+    const already = await prisma.milestoneCompletion.findFirst({
+      where: {
+        transactionId: p.transactionId,
+        milestoneDefinition: { code: p.milestoneCode },
+        state: { in: ["complete", "not_required"] },
+      },
+      select: { id: true },
+    });
+    if (already) {
+      await prisma.milestoneProposal.update({
+        where: { id: p.id },
+        data: { status: "superseded", decidedAt: new Date(), decidedById: session.user.id },
+      });
+      revalidatePath("/command/proposals");
+      return { ok: false, cleared: true, error: "That step was already confirmed on the file, so nothing was sent. Cleared from your list." };
+    }
     const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true } });
     await completeMilestone({
       transactionId: p.transactionId,
