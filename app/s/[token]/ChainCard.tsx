@@ -1,5 +1,6 @@
 import { House } from "@phosphor-icons/react/dist/ssr";
 import { PortalCard, CardKicker } from "./portal-cards";
+import { ProgressStripScroller } from "./ProgressStripScroller";
 import { S } from "./ui";
 
 // The chain — SHAPE + rolled-up % + address ONLY (decision B2). No per-link
@@ -13,7 +14,7 @@ export function ChainCard({ nodes }: { nodes: ChainNode[] }) {
       <div style={{ padding: "0 4px" }}>
         <CardKicker>Chain summary</CardKicker>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-start", overflowX: "auto", paddingBottom: 2 }}>
+      <ProgressStripScroller>
         {nodes.map((n, i) => (
           <div key={n.key} style={{ display: "flex", alignItems: "flex-start", flex: "1 0 auto" }}>
             <Node node={n} />
@@ -22,7 +23,7 @@ export function ChainCard({ nodes }: { nodes: ChainNode[] }) {
             )}
           </div>
         ))}
-      </div>
+      </ProgressStripScroller>
     </PortalCard>
   );
 }
