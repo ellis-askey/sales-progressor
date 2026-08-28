@@ -181,7 +181,9 @@ function intelToForm(intel: ChainNodeIntel | null): ChainNodeIntelInput {
     breakChainConditions: intel?.breakChainConditions ?? null,
     expectedTimescale: intel?.expectedTimescale ?? null,
     chainNotes: intel?.chainNotes ?? null,
-    lastChainCheckAt: toDateInput(intel?.lastChainCheckAt ?? null) || null,
+    // Default the last-check date to today when none is set (first entry). When a
+    // date already exists, keep it (editable).
+    lastChainCheckAt: toDateInput(intel?.lastChainCheckAt ?? null) || new Date().toISOString().slice(0, 10),
   };
 }
 
@@ -378,13 +380,13 @@ function ChainIntelBody({
           </p>
         )}
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
           <button
             type="button"
             onClick={() => void save()}
-            className="chain-act-link chain-act-primary"
+            className="agent-btn-color-primary"
             disabled={saving}
-            style={{ fontWeight: 600 }}
+            style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -394,8 +396,9 @@ function ChainIntelBody({
               setEditing(false);
               setError(null);
             }}
-            className="chain-act-link"
+            className="agent-btn-ghost-bordered"
             disabled={saving}
+            style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600 }}
           >
             Cancel
           </button>
@@ -601,7 +604,41 @@ export function LinkCard({
             {priceLabel && (
               <div className={`chain-price${price == null ? " chain-price-tbc" : ""}`}>{priceLabel}</div>
             )}
-            <ChainStatusBadge status={status} label={label} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+              <ChainStatusBadge status={status} label={label} />
+              {expandable && (
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-label={expanded ? "Hide chain details" : "Show chain details"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded((v) => !v);
+                  }}
+                  className="chain-act-link"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 22,
+                    height: 22,
+                    color: "var(--agent-text-muted)",
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      display: "inline-block",
+                      transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.22s ease",
+                      fontSize: 12,
+                    }}
+                  >
+                    ▾
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -660,43 +697,11 @@ export function LinkCard({
           )}
         </div>
 
-        {/* Expand: onward summary + own-side chain intel. Bottom-right chevron
-         *  spins; the panel draws up/down. Only present when there's something to
-         *  show (own sale with details/onward). */}
+        {/* Expand: onward summary + own-side chain intel. The chevron lives top-right
+         *  (next to the status pill); this is just the panel that draws up/down.
+         *  Only present when there's something to show (own sale with details/onward). */}
         {expandable && (
           <div className="chain-expand">
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                aria-expanded={expanded}
-                aria-label={expanded ? "Hide chain details" : "Show chain details"}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpanded((v) => !v);
-                }}
-                className="chain-act-link"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 24,
-                  height: 24,
-                  color: "var(--agent-text-muted)",
-                }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    display: "inline-block",
-                    transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.22s ease",
-                    fontSize: 12,
-                  }}
-                >
-                  ▾
-                </span>
-              </button>
-            </div>
             <div
               className="chain-expand-panel"
               style={{
