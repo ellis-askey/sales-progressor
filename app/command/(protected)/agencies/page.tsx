@@ -3,6 +3,7 @@ import { getUsageOverview, type AgentUsage, type AgencyUsage, type UsageStatus }
 import { commandDb } from "@/lib/command/prisma";
 import { AgencyFeeManager, type AgencyFeeRow } from "@/components/command/agencies/AgencyFeeManager";
 import { AgencyChaseControl, type AgencyChaseRow } from "@/components/command/agencies/AgencyChaseControl";
+import { WeeklyUpdateControl, type WeeklyUpdateRow } from "@/components/command/agencies/WeeklyUpdateControl";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "—";
@@ -96,7 +97,27 @@ export default async function AgenciesPage({
       solicitorChaseEnabled: true,
       enquiryReplyChaseEnabled: true,
       enquiryRaiseChaseEnabled: true,
+      weeklyClientUpdatesEnabled: true,
       _count: { select: { transactions: true } },
+    },
+  });
+  const weeklyRows: WeeklyUpdateRow[] = feeAgencies.map((a) => ({
+    id: a.id,
+    name: a.name,
+    weeklyClientUpdatesEnabled: a.weeklyClientUpdatesEnabled,
+  }));
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000);
+  const eligibleThisWeek = await commandDb.contact.count({
+    where: {
+      roleType: { in: ["purchaser", "vendor"] },
+      email: { not: null },
+      unsubscribedAt: null,
+      portalEligible: true,
+      transaction: {
+        status: "active",
+        agency: { isInternal: false, weeklyClientUpdatesEnabled: true },
+        communications: { none: { type: "outbound", createdAt: { gte: sevenDaysAgo } } },
+      },
     },
   });
   const chaseRows: AgencyChaseRow[] = feeAgencies.map((a) => ({
@@ -251,6 +272,11 @@ export default async function AgenciesPage({
       {/* Per-agency chase control */}
       <div className="pt-2">
         <AgencyChaseControl agencies={chaseRows} globalMasterOn={chaseSettings?.enabledByDefault ?? false} />
+      </div>
+
+      {/* Weekly client update control */}
+      <div className="pt-2">
+        <WeeklyUpdateControl agencies={weeklyRows} eligibleThisWeek={eligibleThisWeek} />
       </div>
     </div>
   );

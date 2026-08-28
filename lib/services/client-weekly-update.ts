@@ -83,6 +83,27 @@ ${portalSection}
 </body></html>`;
 
       await sendEmail({ to: contact.email, subject, text, html, from: fromAddr, replyTo }).catch(() => {});
+
+      // Log the send so it shows in the Command Centre Outbound list and on the
+      // file's activity feed — a client should never be emailed without a record.
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: tx.id,
+          agencyId,
+          type: "outbound",
+          method: "email",
+          channel: "email",
+          purpose: "notification",
+          status: "sent",
+          subject,
+          content: text,
+          contactIds: [contact.id],
+          recipientEmail: contact.email,
+          isAutomated: true,
+          visibleToClient: true,
+          sentAt: new Date(),
+        },
+      }).catch(() => {});
       sent++;
     }
   }
