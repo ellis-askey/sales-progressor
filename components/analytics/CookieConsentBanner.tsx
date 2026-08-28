@@ -61,17 +61,37 @@ function Toggle({
 export function CookieConsentBanner() {
   const [visible, setVisible]     = useState(false);
   const [mounted, setMounted]     = useState(false);
+  const [held, setHeld]           = useState(false);
+  const [leaving, setLeaving]     = useState(false);
   const [showManage, setShowManage] = useState(false);
   const [analyticsOn, setAnalyticsOn] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    if (!hasDecided()) setVisible(true);
+    if (hasDecided()) return;
+    // The solicitor portal's first-visit welcome flags itself pre-paint; hold the
+    // banner back so the two never share the screen, then fade in once it closes.
+    const welcomeOpen = document.documentElement.getAttribute("data-welcome-open") === "1";
+    setHeld(welcomeOpen);
+    setVisible(true);
+    if (!welcomeOpen) return;
+    const onClosed = () => setHeld(false);
+    window.addEventListener("welcome:closed", onClosed);
+    return () => window.removeEventListener("welcome:closed", onClosed);
   }, []);
 
-  function acceptAll()      { setConsent(true);       setVisible(false); }
-  function essentialOnly()  { setConsent(false);      setVisible(false); }
-  function savePreferences(){ setConsent(analyticsOn); setVisible(false); setShowManage(false); }
+  // Fade in once we're clear to show (drives opacity/transform from 0).
+  useEffect(() => {
+    if (visible && !held) {
+      const t = window.setTimeout(() => setMounted(true), 20);
+      return () => window.clearTimeout(t);
+    }
+  }, [visible, held]);
+
+  // Record the choice, then fade the card out before unmounting.
+  function close() { setLeaving(true); window.setTimeout(() => setVisible(false), 300); }
+  function acceptAll()      { setConsent(true);        close(); }
+  function essentialOnly()  { setConsent(false);       close(); }
+  function savePreferences(){ setConsent(analyticsOn); setShowManage(false); close(); }
 
   function openManage() {
     const { analytics } = getConsent();
@@ -79,7 +99,7 @@ export function CookieConsentBanner() {
     setShowManage(true);
   }
 
-  if (!visible) return null;
+  if (!visible || held) return null;
 
   return (
     <>
@@ -163,8 +183,8 @@ export function CookieConsentBanner() {
           borderRadius: 16,
           boxShadow: "0 8px 40px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.80) inset",
           padding: "18px 20px 16px",
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? "translateY(0)" : "translateY(16px)",
+          opacity: leaving ? 0 : mounted ? 1 : 0,
+          transform: leaving || !mounted ? "translateY(16px)" : "translateY(0)",
           transition: "opacity 300ms ease, transform 300ms ease",
         }}
       >

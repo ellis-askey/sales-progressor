@@ -21,6 +21,10 @@ export function SolicitorWelcome({ firstName }: { firstName: string }) {
   function dismiss() {
     setEntered(false);
     localStorage.setItem("sol_welcome_seen", "1");
+    // Release the cookie banner (which held back while this was open) so it can
+    // fade in now, and never share the screen with us.
+    document.documentElement.removeAttribute("data-welcome-open");
+    window.dispatchEvent(new Event("welcome:closed"));
     setTimeout(() => setShow(false), 260);
   }
 
@@ -28,7 +32,8 @@ export function SolicitorWelcome({ firstName }: { firstName: string }) {
 
   return (
     <>
-      <div onClick={dismiss} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(9,20,40,0.36)", backdropFilter: "blur(3px)", opacity: entered ? 1 : 0, transition: "opacity 240ms ease" }} />
+      {/* Above the cookie banner (z 10000) + its manage modal (10001). */}
+      <div onClick={dismiss} style={{ position: "fixed", inset: 0, zIndex: 10002, background: "rgba(9,20,40,0.36)", backdropFilter: "blur(3px)", opacity: entered ? 1 : 0, transition: "opacity 240ms ease" }} />
       <div
         role="dialog"
         aria-label="Welcome"
@@ -37,7 +42,7 @@ export function SolicitorWelcome({ firstName }: { firstName: string }) {
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 61,
+          zIndex: 10003,
           maxWidth: 620,
           margin: "0 auto",
           background: S.card,

@@ -65,13 +65,15 @@ export default async function SolicitorPortalLayout({
 
   return (
     <>
-      {/* No-flash accessibility boot: apply this device's saved text-size / font /
-          motion prefs to <html> before first paint (SolicitorAppearance keys off
-          these same attributes, which the global portal CSS already honours). */}
+      {/* No-flash boot: (a) apply this device's saved accessibility prefs to
+          <html> before first paint (SolicitorAppearance keys off these same
+          attributes, which the global portal CSS honours), and (b) flag whether
+          the first-visit welcome will show, so the cookie banner can hold back
+          until it closes (set pre-paint to avoid a mount-order race). */}
       <script
         dangerouslySetInnerHTML={{
           __html:
-            "try{var p=JSON.parse(localStorage.getItem('sol_a11y')||'{}');var d=document.documentElement;if(p.textSize&&p.textSize!=='default')d.setAttribute('data-portal-textsize',p.textSize);if(p.dyslexic)d.setAttribute('data-portal-font','dyslexic');if(p.reduceMotion)d.setAttribute('data-portal-motion','reduced');}catch(e){}",
+            "try{var p=JSON.parse(localStorage.getItem('sol_a11y')||'{}');var d=document.documentElement;if(p.textSize&&p.textSize!=='default')d.setAttribute('data-portal-textsize',p.textSize);if(p.dyslexic)d.setAttribute('data-portal-font','dyslexic');if(p.reduceMotion)d.setAttribute('data-portal-motion','reduced');if(localStorage.getItem('sol_welcome_seen')!=='1')d.setAttribute('data-welcome-open','1');}catch(e){}",
         }}
       />
       <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
