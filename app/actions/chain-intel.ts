@@ -24,6 +24,7 @@ export async function saveChainIntelAction(linkId: string, input: ChainNodeIntel
       id: true,
       createdByUserId: true,
       transactionId: true,
+      createdBy: { select: { agencyId: true } },
       transaction: {
         select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true },
       },
@@ -41,6 +42,7 @@ export async function saveChainIntelAction(linkId: string, input: ChainNodeIntel
   const ownership: ChainNodeOwnership = {
     transactionId: link.transactionId,
     linkCreatedByUserId: link.createdByUserId,
+    linkCreatedByAgencyId: link.createdBy?.agencyId ?? null,
     txAgencyId: link.transaction?.agencyId ?? null,
     txAssignedUserId: link.transaction?.assignedUserId ?? null,
     txAgentUserId: link.transaction?.agentUserId ?? null,

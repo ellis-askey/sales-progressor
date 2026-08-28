@@ -340,7 +340,9 @@ const LINK_V2_SELECT = {
     select: { id: true, name: true, firmName: true },
   },
   createdBy: {
-    select: { id: true, name: true },
+    // agencyId scopes an unclaimed placeholder's intel to the agency that added
+    // it (lib/chain/intel.ts). Stripped from the wire in getChainV2.
+    select: { id: true, name: true, agencyId: true },
   },
 } as const;
 
@@ -567,6 +569,7 @@ export async function getChainV2(
             return canViewNodeIntel(viewer, {
               transactionId: l.transactionId,
               linkCreatedByUserId: l.createdByUserId,
+              linkCreatedByAgencyId: l.createdBy?.agencyId ?? null,
               txAgencyId: l.transaction?.agencyId ?? null,
               txAssignedUserId: l.transaction?.assignedUserId ?? null,
               txAgentUserId: l.transaction?.agentUserId ?? null,
@@ -621,13 +624,18 @@ export async function getChainV2(
         chainNotes,
         lastChainCheckAt,
         transaction: rawTx,
+        createdBy: rawCreatedBy,
         ...linkRest
       } = l;
+      // Rebuild createdBy as {id, name} — the raw row also carries agencyId (for
+      // the intel gate below), which must not reach the wire.
+      const createdBy = rawCreatedBy ? { id: rawCreatedBy.id, name: rawCreatedBy.name } : null;
 
       // Intel trust boundary (own-side only) — see lib/chain/intel.ts.
       const ownership: ChainNodeOwnership = {
         transactionId: l.transactionId,
         linkCreatedByUserId: l.createdByUserId,
+        linkCreatedByAgencyId: rawCreatedBy?.agencyId ?? null,
         txAgencyId: rawTx?.agencyId ?? null,
         txAssignedUserId: rawTx?.assignedUserId ?? null,
         txAgentUserId: rawTx?.agentUserId ?? null,
@@ -652,6 +660,7 @@ export async function getChainV2(
       if (!rawTx) {
         return {
           ...linkRest,
+          createdBy,
           transaction: null,
           progressPercent: null,
           predictedExchangeDate: null,
@@ -705,6 +714,7 @@ export async function getChainV2(
           photoUrl,
           buyerPosition: computeBuyerPosition(purchaseType, txnPublic.clientFirstTimeBuyer),
         },
+        createdBy,
         progressPercent: computeWeightedProgress(milestoneCompletions),
         predictedExchangeDate: prediction.predictedExchangeDate,
         isEarlyEstimate: prediction.isEarlyEstimate,
