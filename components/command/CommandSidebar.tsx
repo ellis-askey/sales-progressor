@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, AtSign, Smartphone, Link2,
+  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, AtSign, Smartphone, Link2, BarChart3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -60,7 +60,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/activation", label: "Getting started", Icon: Zap },
       { href: "/command/chain-invites", label: "Chain invites", Icon: Link2 },
       { href: "/command/adoption", label: "App adoption", Icon: Smartphone },
-      { href: "/command/followup-usage", label: "Follow-up usage", Icon: MailCheck },
+      { href: "/command/followup-usage", label: "Feature usage", Icon: BarChart3 },
       { href: "/command/retention", label: "Repeat use", Icon: RefreshCw },
       { href: "/command/growth", label: "Trends", Icon: TrendingUp },
       { href: "/command/experiments", label: "Growth tests", Icon: FlaskConical },
