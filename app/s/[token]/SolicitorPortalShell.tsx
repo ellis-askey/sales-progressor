@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, House, ClockCounterClockwise, ChatCircle, X, FileArrowDown, Prohibit } from "@phosphor-icons/react/dist/ssr";
+import { List, House, ClockCounterClockwise, ChatCircle, X, FileArrowDown, BellSlash } from "@phosphor-icons/react/dist/ssr";
 import { PortalDesignLab } from "@/components/portal/PortalDesignLab";
+import { solicitorSetEmailsPausedAction } from "./actions";
 import { S } from "./ui";
 import { GreetingText } from "./GreetingText";
 
@@ -17,12 +18,14 @@ export function SolicitorPortalShell({
   firstName,
   mosUrl,
   mosFilename,
+  emailsPaused,
   children,
 }: {
   token: string;
   firstName: string;
   mosUrl: string | null;
   mosFilename: string | null;
+  emailsPaused: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -121,7 +124,7 @@ export function SolicitorPortalShell({
       </nav>
 
       {menuOpen && (
-        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} onClose={() => setMenuOpen(false)} />
+        <MenuSheet token={token} mosUrl={mosUrl} mosFilename={mosFilename} emailsPaused={emailsPaused} onClose={() => setMenuOpen(false)} />
       )}
     </div>
   );
@@ -155,7 +158,22 @@ function TabItem({ href, label, active, icon }: { href: string; label: string; a
   );
 }
 
-function MenuSheet({ token, mosUrl, mosFilename, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; onClose: () => void }) {
+function MenuSheet({ token, mosUrl, mosFilename, emailsPaused, onClose }: { token: string; mosUrl: string | null; mosFilename: string | null; emailsPaused: boolean; onClose: () => void }) {
+  const [paused, setPaused] = useState(emailsPaused);
+  const [pending, start] = useTransition();
+
+  function toggle() {
+    const next = !paused;
+    setPaused(next);
+    start(async () => {
+      try {
+        await solicitorSetEmailsPausedAction(token, next);
+      } catch {
+        setPaused(!next); // revert on failure
+      }
+    });
+  }
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -209,18 +227,28 @@ function MenuSheet({ token, mosUrl, mosFilename, onClose }: { token: string; mos
           </a>
         )}
 
-        <Link
-          href={`/s/${token}/stop`}
-          style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", background: S.nested, border: `1px solid ${S.nestedBorder}`, borderRadius: 12, padding: "12px 14px" }}
-        >
+        <p style={{ margin: "12px 2px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.muted }}>Notifications</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, background: S.nested, border: `1px solid ${S.nestedBorder}`, borderRadius: 12, padding: "12px 14px" }}>
           <span style={{ width: 36, height: 36, borderRadius: 9, background: "rgba(15,39,64,0.06)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: S.muted, flexShrink: 0 }}>
-            <Prohibit size={18} weight="regular" />
+            <BellSlash size={18} weight="regular" />
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: S.ink }}>Stop these emails</span>
-            <span style={{ display: "block", fontSize: 12, color: S.muted }}>For this matter only</span>
+            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: S.ink }}>Reminder emails</span>
+            <span style={{ display: "block", fontSize: 12, color: S.muted }}>{paused ? "Paused for this matter" : "On for this matter"}</span>
           </span>
-        </Link>
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={pending}
+            role="switch"
+            aria-checked={!paused}
+            aria-label="Reminder emails for this matter"
+            style={{ width: 44, height: 26, borderRadius: 13, border: "none", padding: 0, position: "relative", cursor: pending ? "default" : "pointer", background: !paused ? S.accent : "rgba(15,39,64,0.18)", transition: "background 180ms ease", flexShrink: 0 }}
+          >
+            <span style={{ position: "absolute", top: 3, left: 3, width: 20, height: 20, borderRadius: 10, background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.2)", transform: !paused ? "translateX(18px)" : "translateX(0)", transition: "transform 180ms cubic-bezier(0.16,1,0.3,1)" }} />
+          </button>
+        </div>
+        <p style={{ margin: "8px 2px 0", fontSize: 11.5, color: S.faint, lineHeight: 1.5 }}>Turn off to stop chasing emails on this matter. You can turn them back on any time.</p>
       </aside>
     </>
   );

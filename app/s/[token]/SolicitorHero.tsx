@@ -10,6 +10,7 @@ export type HeroProps = {
   addressLine2: string;
   price: string | null;
   tenure: string | null;
+  purchaseType: string | null;
   actingForNames: string;
   actingForRole: string; // "Seller" / "Buyer"
   firmName: string | null;
@@ -96,6 +97,7 @@ export function SolicitorHero(p: HeroProps) {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 }}>
               {p.price && <HeroPill>{p.price}</HeroPill>}
               {p.tenure && <HeroPill>{p.tenure}</HeroPill>}
+              {p.purchaseType && <HeroPill>{p.purchaseType}</HeroPill>}
             </div>
           </div>
           <HeroRing percent={p.ringPercent} step={p.ringStep} />

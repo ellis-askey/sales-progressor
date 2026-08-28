@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
+import { getPortalMilestones } from "@/lib/services/portal";
+import { getMilestoneCopy } from "@/lib/portal-copy";
 import { verifySolicitorToken } from "@/lib/solicitor-confirm/token";
 import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
@@ -10,7 +12,7 @@ import { getSignedUrl } from "@/lib/supabase-storage";
 import { SolicitorHero } from "../SolicitorHero";
 import { PointOfContactCard } from "../PointOfContactCard";
 import { DocumentsCard } from "../DocumentsCard";
-import { ProgressOverviewCard, PortalCard } from "../portal-cards";
+import { ProgressOverviewCard, PortalCard, StatusBanner, ComingUpCard } from "../portal-cards";
 import { OpenUpdatesCard } from "../OpenUpdatesCard";
 import { OtherSideCard, otherSideConfig } from "../OtherSideCard";
 import { ChainCard, type ChainNode } from "../ChainCard";
@@ -35,6 +37,12 @@ function joinNames(names: string[]): string {
   if (names.length === 1) return names[0];
   return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
 }
+function purchaseTypeLabel(t: string | null): string | null {
+  if (t === "mortgage") return "Mortgage";
+  if (t === "cash_buyer") return "Cash buyer";
+  if (t === "cash_from_proceeds") return "Cash (from sale)";
+  return null;
+}
 function fmtLastUpdated(d: Date): string {
   const dd = new Date(d);
   const same = dd.toDateString() === new Date().toDateString();
@@ -55,6 +63,7 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
       purchasePrice: true,
       tenure: true,
       isShareOfFreehold: true,
+      purchaseType: true,
       activeBuyerRoundId: true,
       expectedExchangeDate: true,
       overridePredictedDate: true,
@@ -163,6 +172,17 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
     })),
   );
 
+  // Status banner (exchanged / completed).
+  const completedNow = displayStages.find((s) => s.key === "completion")?.status === "complete";
+  const exchangedNow = displayStages.find((s) => s.key === "exchange")?.status === "complete";
+
+  // "Coming up" — the next 2-3 own-side steps that aren't due yet (a look-ahead).
+  const ownMilestones = await getPortalMilestones(tx.id, side, scope);
+  const comingUp = ownMilestones
+    .filter((m) => !m.isComplete && !m.isNotRequired && !m.isAvailable)
+    .slice(0, 3)
+    .map((m) => getMilestoneCopy(m.code).label);
+
   // Hero data.
   const [line1, ...rest] = tx.propertyAddress.split(",");
   const completedCount = displayStages.filter((s) => s.status === "complete" || s.status === "skipped").length;
@@ -173,6 +193,8 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
 
   return (
     <div className="portal-reveal-stack" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <StatusBanner exchanged={exchangedNow} completed={completedNow} completionDate={tx.completionDate ?? null} />
+
       <div className="portal-reveal-host">
         <SolicitorHero
           matterTypeLabel={side === "vendor" ? "Seller matter" : "Buyer matter"}
@@ -180,6 +202,7 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
           addressLine2={rest.join(",").trim()}
           price={formatPrice(tx.purchasePrice)}
           tenure={tenureLabel(tx.tenure, tx.isShareOfFreehold)}
+          purchaseType={purchaseTypeLabel(tx.purchaseType)}
           actingForNames={side === "vendor" ? sellerNames : buyerNames}
           actingForRole={side === "vendor" ? "Seller" : "Buyer"}
           firmName={firmName}
@@ -195,6 +218,8 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
       <ProgressOverviewCard stages={displayStages} timelineHref={`/s/${token}/progress`} />
 
       {steps.length > 0 && <OpenUpdatesCard token={token} steps={steps} />}
+
+      <ComingUpCard labels={comingUp} />
 
       {enquiriesOpen && <SolicitorEnquiries token={token} side={side} courtLine={courtLine} outstandingNote={enquiries?.outstandingNote ?? null} />}
 

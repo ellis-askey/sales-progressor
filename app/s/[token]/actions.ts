@@ -265,6 +265,13 @@ export async function solicitorUpdateStepAction(
 // stops sending; the confirm links themselves keep working. Reversible via the
 // file's 4-toggle pause menu.
 export async function solicitorStopEmailsAction(token: string): Promise<{ ok: true }> {
+  return solicitorSetEmailsPausedAction(token, true);
+}
+
+// Toggle the per-side solicitor reminder pause (portal Notifications control).
+// paused=true pauses this side's chases; false resumes them. Reversible either
+// way from the portal (the old stop-link was one-directional).
+export async function solicitorSetEmailsPausedAction(token: string, paused: boolean): Promise<{ ok: true }> {
   const decoded = verifySolicitorToken(token);
   if (!decoded) throw new Error("This link is not valid.");
   const limit = await checkSolicitorConfirmLimit(token);
@@ -273,8 +280,8 @@ export async function solicitorStopEmailsAction(token: string): Promise<{ ok: tr
     where: { id: decoded.transactionId },
     data:
       decoded.side === "vendor"
-        ? { vendorSolicitorEmailsPaused: true }
-        : { purchaserSolicitorEmailsPaused: true },
+        ? { vendorSolicitorEmailsPaused: paused }
+        : { purchaserSolicitorEmailsPaused: paused },
   });
   return { ok: true };
 }
