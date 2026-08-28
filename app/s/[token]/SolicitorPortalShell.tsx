@@ -86,6 +86,12 @@ export function SolicitorPortalShell({
         }}
       >
         <div style={{ maxWidth: 620, margin: "0 auto", padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ width: 36, height: 36, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <PortalDesignLab />
+          </span>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: S.ink, textAlign: "center", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <GreetingText key={greetingLabel} text={greetingLabel} />
+          </p>
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -95,12 +101,6 @@ export function SolicitorPortalShell({
           >
             <List size={20} weight="regular" />
           </button>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: S.ink, textAlign: "center", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            <GreetingText key={greetingLabel} text={greetingLabel} />
-          </p>
-          <span style={{ width: 36, height: 36, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            <PortalDesignLab />
-          </span>
         </div>
       </header>
 
@@ -173,7 +173,19 @@ function MenuSheet({ token, emailsPaused, pausedUntil, firmName, myDetails, onCl
   const [paused, setPaused] = useState(emailsPaused);
   const [until, setUntil] = useState<string | null>(pausedUntil);
   const [pending, start] = useTransition();
+  const [entered, setEntered] = useState(false);
   const isPaused = paused || !!until;
+
+  // Slide up on mount, slide down before unmounting (matches the welcome +
+  // add-update drawers).
+  useEffect(() => {
+    const t = setTimeout(() => setEntered(true), 20);
+    return () => clearTimeout(t);
+  }, []);
+  function requestClose() {
+    setEntered(false);
+    setTimeout(onClose, 260);
+  }
 
   function toggle() {
     if (isPaused) {
@@ -198,15 +210,16 @@ function MenuSheet({ token, emailsPaused, pausedUntil, firmName, myDetails, onCl
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(9,20,40,0.34)", backdropFilter: "blur(3px)" }} />
+      <div onClick={requestClose} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(9,20,40,0.34)", backdropFilter: "blur(3px)", opacity: entered ? 1 : 0, transition: "opacity 240ms ease" }} />
       <aside
         role="dialog"
         aria-label="Menu"
@@ -224,12 +237,14 @@ function MenuSheet({ token, emailsPaused, pausedUntil, firmName, myDetails, onCl
           padding: "10px 18px calc(20px + env(safe-area-inset-bottom))",
           maxHeight: "88svh",
           overflowY: "auto",
+          transform: entered ? "translateY(0)" : "translateY(100%)",
+          transition: "transform 300ms cubic-bezier(0.16,1,0.3,1)",
         }}
       >
         <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(15,39,64,0.14)", margin: "4px auto 6px" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: S.ink }}>Menu</p>
-          <button type="button" onClick={onClose} aria-label="Close menu" style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: S.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" onClick={requestClose} aria-label="Close menu" style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: S.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             <X size={16} weight="bold" />
           </button>
         </div>
