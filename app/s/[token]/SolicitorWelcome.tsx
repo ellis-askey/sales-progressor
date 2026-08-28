@@ -10,7 +10,7 @@ import { S } from "./ui";
 // footer beneath it. Slides up once per device, sits above the cookie banner,
 // and releases it on close.
 
-const ORANGE = "#FF6B4A"; // the pulsing in-progress node (matches the client)
+const PROGRESS_BLUE = "#2f5fd0"; // the pulsing in-progress node (solicitor accent)
 const PURPLE = "#7c5cf0";
 const BTN_GRADIENT = "linear-gradient(135deg, #3a6fd8 0%, #2f5fd0 100%)";
 
@@ -128,8 +128,8 @@ function Stepper({ side }: { side: "vendor" | "purchaser" }) {
       {/* In progress (pulsing) */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
         <div style={{ position: "relative", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span className="portal-inprogress-pulse" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: ORANGE }} />
-          <span style={{ position: "relative", width: 28, height: 28, borderRadius: "50%", background: ORANGE }} />
+          <span className="portal-inprogress-pulse" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: PROGRESS_BLUE }} />
+          <span style={{ position: "relative", width: 28, height: 28, borderRadius: "50%", background: PROGRESS_BLUE }} />
         </div>
         <span style={{ fontSize: 12, marginTop: 8, fontWeight: 700, whiteSpace: "nowrap", color: S.ink }}>In progress</span>
       </div>
