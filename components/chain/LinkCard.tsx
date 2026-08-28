@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, Fragment, type CSSProperties } from "react";
+import { useState, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import { getChainLinkStatus, chainLinkStatusLabel } from "@/lib/chain/status";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
@@ -152,9 +152,6 @@ const STANCE_OPTIONS: {
 function stanceLabel(v: string | null): string | null {
   return STANCE_OPTIONS.find((o) => o.value === v)?.label ?? null;
 }
-function stanceShort(v: string | null): string | null {
-  return STANCE_OPTIONS.find((o) => o.value === v)?.short ?? null;
-}
 function formatCheckDate(d: Date | string | null): string {
   if (!d) return "";
   const date = new Date(d);
@@ -211,7 +208,63 @@ function IntelReadRows({ intel }: { intel: ChainNodeIntel }) {
   );
 }
 
-function ChainIntelPanel({
+export function hasIntelValues(intel: ChainNodeIntel | null): boolean {
+  return Boolean(
+    intel &&
+      (intel.breakChainStance ||
+        intel.breakChainConditions ||
+        intel.expectedTimescale ||
+        intel.chainNotes ||
+        intel.lastChainCheckAt),
+  );
+}
+
+// ── Onward summary line ──────────────────────────────────────────────────────
+// A compact, read-only pointer to the (already-built) onward tracker, shown only
+// on the viewer's own sale node. Links to the full editable card on the file
+// overview (id="onward-section"); we never re-render that card here.
+function onwardStatusLabel(s: NonNullable<ChainLinkV2["onwardSummary"]>): string {
+  if (s.status === "exchanged") return "Exchanged";
+  if (s.status === "completed") return "Completed";
+  if (!s.typeFactsSet) return "Not set up yet";
+  if (s.applicableCount > 0) return `${s.completeCount} of ${s.applicableCount} steps`;
+  return "In progress";
+}
+
+function OnwardSummaryLine({
+  summary,
+  fileId,
+}: {
+  summary: NonNullable<ChainLinkV2["onwardSummary"]>;
+  fileId: string | null;
+}) {
+  return (
+    <div style={{ fontSize: 12 }}>
+      <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Onward purchase · reported</div>
+      <div style={{ color: "var(--agent-text)", marginTop: 2 }}>
+        {summary.onwardAddress ? `${summary.onwardAddress} · ` : ""}
+        {onwardStatusLabel(summary)}
+      </div>
+      {fileId && (
+        <Link
+          href={`/agent/transactions/${fileId}#onward-section`}
+          className="chain-act-link chain-act-primary"
+          style={{ display: "inline-block", marginTop: 4, fontWeight: 600 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          View onward →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// ── Chain-intel body ─────────────────────────────────────────────────────────
+// Read rows or the inline edit form. No toggle of its own — the whole card owns
+// the expand. Caller only renders this when there's something to show or the
+// viewer may edit. Trust boundary enforced server-side (getChainV2 nulls intel
+// for anyone not allowed to see it), so this never leaks.
+function ChainIntelBody({
   link,
   onSaveIntel,
 }: {
@@ -220,35 +273,17 @@ function ChainIntelPanel({
 }) {
   const intel = link.intel ?? null;
   const canEdit = (link.canEditIntel ?? false) && !!onSaveIntel;
-  const hasAny = Boolean(
-    intel &&
-      (intel.breakChainStance ||
-        intel.breakChainConditions ||
-        intel.expectedTimescale ||
-        intel.chainNotes ||
-        intel.lastChainCheckAt),
-  );
+  const hasAny = hasIntelValues(intel);
 
-  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<ChainNodeIntelInput>(() => intelToForm(intel));
 
-  // Nothing recorded and can't add → don't render the affordance at all.
-  if (!canEdit && !hasAny) return null;
-
-  const summaryBits: string[] = [];
-  const ss = stanceShort(intel?.breakChainStance ?? null);
-  if (ss) summaryBits.push(ss);
-  if (intel?.lastChainCheckAt) summaryBits.push(`checked ${formatCheckDate(intel.lastChainCheckAt)}`);
-  const summary = summaryBits.join(" · ");
-
   function startEditing() {
     setForm(intelToForm(intel));
     setError(null);
     setEditing(true);
-    setExpanded(true);
   }
 
   async function save() {
@@ -265,152 +300,131 @@ function ChainIntelPanel({
     }
   }
 
-  return (
-    <div
-      className="chain-intel"
-      style={{ marginTop: 8, borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 8 }}
-    >
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="chain-act-link"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: "var(--agent-text-muted)" }}
-      >
-        <span aria-hidden style={{ display: "inline-block", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
-          ▸
-        </span>
-        Chain details
-        {!expanded && summary && <span style={{ fontWeight: 400 }}>· {summary}</span>}
-      </button>
+  if (editing) {
+    return (
+      <div style={{ display: "grid", gap: 10 }}>
+        <label style={intelLabelStyle}>
+          Breaking the chain
+          <select
+            value={form.breakChainStance ?? ""}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, breakChainStance: (e.target.value || null) as ChainNodeIntelInput["breakChainStance"] }))
+            }
+            style={intelInputStyle}
+            disabled={saving}
+          >
+            <option value="">Not established</option>
+            {STANCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      {expanded && (
-        <div style={{ marginTop: 8 }}>
-          {editing ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <label style={intelLabelStyle}>
-                Breaking the chain
-                <select
-                  value={form.breakChainStance ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, breakChainStance: (e.target.value || null) as ChainNodeIntelInput["breakChainStance"] }))
-                  }
-                  style={intelInputStyle}
-                  disabled={saving}
-                >
-                  <option value="">Not established</option>
-                  {STANCE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+        <label style={intelLabelStyle}>
+          Conditions around breaking
+          <textarea
+            value={form.breakChainConditions ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, breakChainConditions: e.target.value }))}
+            rows={2}
+            style={intelInputStyle}
+            disabled={saving}
+          />
+        </label>
 
-              <label style={intelLabelStyle}>
-                Conditions around breaking
-                <textarea
-                  value={form.breakChainConditions ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, breakChainConditions: e.target.value }))}
-                  rows={2}
-                  style={intelInputStyle}
-                  disabled={saving}
-                />
-              </label>
+        <label style={intelLabelStyle}>
+          Expected timescale / delays
+          <input
+            value={form.expectedTimescale ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, expectedTimescale: e.target.value }))}
+            style={intelInputStyle}
+            disabled={saving}
+          />
+        </label>
 
-              <label style={intelLabelStyle}>
-                Expected timescale / delays
-                <input
-                  value={form.expectedTimescale ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, expectedTimescale: e.target.value }))}
-                  style={intelInputStyle}
-                  disabled={saving}
-                />
-              </label>
+        <label style={intelLabelStyle}>
+          Chain notes
+          <textarea
+            value={form.chainNotes ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, chainNotes: e.target.value }))}
+            rows={3}
+            style={intelInputStyle}
+            disabled={saving}
+          />
+        </label>
 
-              <label style={intelLabelStyle}>
-                Chain notes
-                <textarea
-                  value={form.chainNotes ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, chainNotes: e.target.value }))}
-                  rows={3}
-                  style={intelInputStyle}
-                  disabled={saving}
-                />
-              </label>
+        <label style={intelLabelStyle}>
+          Last chain check
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="date"
+              value={form.lastChainCheckAt ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, lastChainCheckAt: e.target.value || null }))}
+              style={{ ...intelInputStyle, flex: 1 }}
+              disabled={saving}
+            />
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, lastChainCheckAt: new Date().toISOString().slice(0, 10) }))}
+              className="chain-act-link"
+              disabled={saving}
+            >
+              Today
+            </button>
+          </div>
+        </label>
 
-              <label style={intelLabelStyle}>
-                Last chain check
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    type="date"
-                    value={form.lastChainCheckAt ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, lastChainCheckAt: e.target.value || null }))}
-                    style={{ ...intelInputStyle, flex: 1 }}
-                    disabled={saving}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, lastChainCheckAt: new Date().toISOString().slice(0, 10) }))}
-                    className="chain-act-link"
-                    disabled={saving}
-                  >
-                    Today
-                  </button>
-                </div>
-              </label>
+        {error && (
+          <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>
+            {error}
+          </p>
+        )}
 
-              {error && (
-                <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>
-                  {error}
-                </p>
-              )}
-
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => void save()}
-                  className="chain-act-link chain-act-primary"
-                  disabled={saving}
-                  style={{ fontWeight: 600 }}
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    setError(null);
-                  }}
-                  className="chain-act-link"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {hasAny && intel ? (
-                <IntelReadRows intel={intel} />
-              ) : (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>No chain details recorded yet.</p>
-              )}
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={startEditing}
-                  className="chain-act-link chain-act-primary"
-                  style={{ marginTop: 6, fontWeight: 600 }}
-                >
-                  {hasAny ? "Edit details" : "Add details"}
-                </button>
-              )}
-            </>
-          )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => void save()}
+            className="chain-act-link chain-act-primary"
+            disabled={saving}
+            style={{ fontWeight: 600 }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditing(false);
+              setError(null);
+            }}
+            className="chain-act-link"
+            disabled={saving}
+          >
+            Cancel
+          </button>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {hasAny && intel ? (
+        <IntelReadRows intel={intel} />
+      ) : (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>No chain details recorded yet.</p>
       )}
-    </div>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={startEditing}
+          className="chain-act-link chain-act-primary"
+          style={{ marginTop: 6, fontWeight: 600 }}
+        >
+          {hasAny ? "Edit details" : "Add details"}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -443,6 +457,24 @@ export function LinkCard({
   const label = chainLinkStatusLabel(status);
   const isOriginator = link.createdByUserId === currentUserId;
   const isUnclaimed = link.transactionId === null;
+
+  // The card's expand: chain details (own-side intel) + onward summary. Only
+  // offered when there's something to show — otherwise the card isn't tappable
+  // and shows no chevron ("neither if it's not available").
+  const intelForCard = link.intel ?? null;
+  const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
+  const onwardForCard = link.onwardSummary ?? null;
+  const expandable = showIntel || !!onwardForCard;
+  const [expanded, setExpanded] = useState(false);
+
+  // Whole card toggles, but never when the tap lands on an interactive control
+  // or inside the open panel (so editing the form / tapping a link doesn't
+  // collapse it). The chevron button handles its own toggle.
+  function handleCardToggle(e: ReactMouseEvent<HTMLDivElement>) {
+    const el = e.target as HTMLElement;
+    if (el.closest("button, a, input, select, textarea, label, .chain-expand-panel")) return;
+    setExpanded((v) => !v);
+  }
 
   const addressRaw = link.transaction?.propertyAddress ?? link.stubPropertyAddress ?? "";
   const agencyName = link.claimedBy?.firmName ?? link.stubAgencyName ?? "";
@@ -478,7 +510,11 @@ export function LinkCard({
   else if (status.kind === "claimed_own" || status.kind === "your_transaction") meta = "Your file";
 
   return (
-    <div className={`chain-card${isYourFile ? " chain-card-you" : ""}`}>
+    <div
+      className={`chain-card${isYourFile ? " chain-card-you" : ""}`}
+      onClick={expandable ? handleCardToggle : undefined}
+      style={expandable ? { cursor: "pointer" } : undefined}
+    >
       {/* Property photo / illustration */}
       <div className={`chain-photo${photoUrl ? "" : " chain-photo-illus"}`}>
         {photoUrl && (
@@ -501,6 +537,25 @@ export function LinkCard({
                 {address2 && agencyName && " · "}
                 {agencyName && <b>{agencyName}</b>}
               </p>
+            )}
+
+            {/* Buyer-position signal — shared across the chain (cash / first-time). */}
+            {link.transaction?.buyerPosition && (
+              <span
+                style={{
+                  display: "inline-block",
+                  marginTop: 4,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "var(--agent-success)",
+                  background: "var(--agent-success-bg)",
+                  border: "0.5px solid var(--agent-success-border)",
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                }}
+              >
+                {link.transaction.buyerPosition}
+              </span>
             )}
 
             {link.transaction && (
@@ -618,8 +673,70 @@ export function LinkCard({
           )}
         </div>
 
-        {/* Private own-side chain intel — expands inside the card. */}
-        <ChainIntelPanel link={link} onSaveIntel={onSaveIntel} />
+        {/* Expand: onward summary + own-side chain intel. Bottom-right chevron
+         *  spins; the panel draws up/down. Only present when there's something to
+         *  show (own sale with details/onward). */}
+        {expandable && (
+          <div className="chain-expand">
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                aria-expanded={expanded}
+                aria-label={expanded ? "Hide chain details" : "Show chain details"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded((v) => !v);
+                }}
+                className="chain-act-link"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 24,
+                  height: 24,
+                  color: "var(--agent-text-muted)",
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    display: "inline-block",
+                    transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.22s ease",
+                    fontSize: 12,
+                  }}
+                >
+                  ▾
+                </span>
+              </button>
+            </div>
+            <div
+              className="chain-expand-panel"
+              style={{
+                display: "grid",
+                gridTemplateRows: expanded ? "1fr" : "0fr",
+                transition: "grid-template-rows 0.22s ease",
+              }}
+            >
+              <div style={{ overflow: "hidden", minHeight: 0 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 10,
+                    paddingTop: 8,
+                    marginTop: 4,
+                    borderTop: "0.5px solid var(--agent-border-subtle)",
+                  }}
+                >
+                  {onwardForCard && (
+                    <OnwardSummaryLine summary={onwardForCard} fileId={link.transaction?.id ?? null} />
+                  )}
+                  {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

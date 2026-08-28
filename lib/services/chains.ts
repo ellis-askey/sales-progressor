@@ -86,6 +86,18 @@ export type ChainNodeIntel = {
   lastChainCheckAt: Date | null;
 };
 
+// Compact pointer to the (already-built) onward tracker, shown only on the
+// viewer's OWN sale node and only while the onward is still ours to report
+// (hidden once superseded = the agent above claimed, or abandoned). The full
+// editable onward card lives on the file overview; this is a summary + link-in.
+export type ChainOnwardSummary = {
+  onwardAddress: string | null;
+  status: string | null; // OnwardTrackerStatus or null when no tracker opened yet
+  typeFactsSet: boolean;
+  completeCount: number;
+  applicableCount: number;
+};
+
 export type ChainLinkV2 = {
   id: string;
   position: number;
@@ -121,6 +133,12 @@ export type ChainLinkV2 = {
     // getChainV2 via a single batch round-trip. Null when the file has no
     // photo — the card falls back to the house illustration.
     photoUrl: string | null;
+    // Short buyer-position label shared across the chain (cash buyer /
+    // first-time buyer), derived from purchaseType + clientFirstTimeBuyer. Not
+    // private — this is the one buyer signal we share with other agencies to help
+    // them judge chain strength. Null when neither applies. Optional so hand-built
+    // demo/dev link objects are unaffected.
+    buyerPosition?: string | null;
   } | null;
   // Weighted progress 0–100 computed at query time from the claimed transaction's
   // milestone weights + completion states. Pooled across vendor + purchaser,
@@ -160,6 +178,10 @@ export type ChainLinkV2 = {
   // Whether the current viewer may edit this node's intel. False when no viewer
   // context is passed.
   canEditIntel?: boolean;
+  // Compact onward summary — populated only on the viewer's own sale node, and
+  // only while the onward is still a reported stand-in (not superseded/abandoned).
+  // Null everywhere else. Optional so hand-built demo links are unaffected.
+  onwardSummary?: ChainOnwardSummary | null;
 };
 
 export type ChainV2 = {
@@ -297,6 +319,9 @@ const LINK_V2_SELECT = {
       photoStoragePath: true,
       createdAt: true,
       purchaseType: true,
+      // Buyer-position signal shared across the chain (chain-free / cash / FTB).
+      // Derived to a short label in the map; the raw fields are not exposed.
+      clientFirstTimeBuyer: true,
       tenure: true,
       isShareOfFreehold: true,
       overridePredictedDate: true,
@@ -442,6 +467,20 @@ function computeStuckMilestoneCode(completions: CompletionForChain[]): string | 
   return stuckCode;
 }
 
+// The one buyer-position signal shared across the chain (Decision 5, 2026-08-28):
+// cash buyers and first-time buyers are the positions we can state with certainty
+// and that genuinely help other agents judge chain strength. Everything else
+// (mortgage / selling-to-buy) is left to the chain structure itself. Cash wins
+// over FTB when both are true.
+function computeBuyerPosition(
+  purchaseType: string | null,
+  firstTimeBuyer: boolean | null,
+): string | null {
+  if (purchaseType === "cash_buyer") return "Cash buyer";
+  if (firstTimeBuyer === true) return "First-time buyer";
+  return null;
+}
+
 export async function getChainV2(
   chainId: string,
   viewerUserId?: string,
@@ -510,6 +549,41 @@ export async function getChainV2(
     ? chain.links.reduce((sum, l) => sum + (l.transaction?.purchasePrice ?? 0), 0)
     : null;
 
+  // Onward summary for the viewer's OWN sale node(s) only — a compact, own-side
+  // pointer to the already-built onward tracker (lib/services/onward.ts). Hidden
+  // once superseded (the agent above claimed) or abandoned. Fetched only for own
+  // files, so usually a single extra read.
+  const ownTxIds = viewerUserId
+    ? chain.links
+        .filter(
+          (l) =>
+            l.transactionId != null &&
+            (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId),
+        )
+        .map((l) => l.transactionId as string)
+    : [];
+  const onwardByTx = new Map<string, ChainOnwardSummary>();
+  if (ownTxIds.length) {
+    const { getOnwardTrackerView, getOnwardSignalForFile } = await import("@/lib/services/onward");
+    await Promise.all(
+      ownTxIds.map(async (txId) => {
+        const [sig, view] = await Promise.all([
+          getOnwardSignalForFile(txId).catch(() => ({ buyingOnward: false, onwardAddress: null })),
+          getOnwardTrackerView(txId).catch(() => null),
+        ]);
+        if (!sig.buyingOnward) return;
+        if (view && (view.status === "superseded" || view.status === "abandoned")) return;
+        onwardByTx.set(txId, {
+          onwardAddress: sig.onwardAddress,
+          status: view?.status ?? null,
+          typeFactsSet: view?.typeFactsSet ?? false,
+          completeCount: view?.completeCount ?? 0,
+          applicableCount: view?.applicableCount ?? 0,
+        });
+      }),
+    );
+  }
+
   // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
   // Strip the raw completions array AND the prediction inputs (createdAt /
   // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
@@ -566,6 +640,7 @@ export async function getChainV2(
           stuckMilestoneLabel: null,
           intel,
           canEditIntel,
+          onwardSummary: null,
         };
       }
       const {
@@ -600,8 +675,9 @@ export async function getChainV2(
         (l.claimedByUserId === viewerUserId || l.createdByUserId === viewerUserId);
       return {
         ...linkRest,
-        // Explicit public allowlist — id, address, status, agencyId, price, photo.
-        // assignedUserId / agentUserId stay in txnPublic and are intentionally dropped.
+        // Explicit public allowlist — id, address, status, agencyId, price, photo,
+        // buyer-position label. assignedUserId / agentUserId / clientFirstTimeBuyer
+        // stay in txnPublic and are intentionally dropped (only the derived label ships).
         transaction: {
           id: txnPublic.id,
           propertyAddress: txnPublic.propertyAddress,
@@ -609,6 +685,7 @@ export async function getChainV2(
           agencyId: txnPublic.agencyId,
           purchasePrice: isOwnFile ? txnPublic.purchasePrice : null,
           photoUrl,
+          buyerPosition: computeBuyerPosition(purchaseType, txnPublic.clientFirstTimeBuyer),
         },
         progressPercent: computeWeightedProgress(milestoneCompletions),
         predictedExchangeDate: prediction.predictedExchangeDate,
@@ -616,6 +693,7 @@ export async function getChainV2(
         stuckMilestoneLabel,
         intel,
         canEditIntel,
+        onwardSummary: l.transactionId ? onwardByTx.get(l.transactionId) ?? null : null,
       };
     }),
   };

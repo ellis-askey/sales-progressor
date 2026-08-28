@@ -180,13 +180,29 @@ drawer.**
 
 1. **Chain intel fields + real edit surface** (break-chain, notes, last-checked,
    timescale) with the ownership editing rules. All private own-side. Fixes "I
-   can't edit the chain."
-2. **Show chain-free / FTB / cash status** across the chain; read onward info onto
-   the card.
-3. **The onward tracker** (the agreed onward-visibility build) that step 2 reads.
+   can't edit the chain." — **DONE 2026-08-28, on staging (commit f251fcec).**
+2. **Show chain-free / FTB / cash status** across the chain (Part 1, buyer-position
+   badge — **DONE 2026-08-28**), and surface a compact onward summary on the card
+   (Part 2 — see correction below).
+3. ~~The onward tracker~~ — **CORRECTION (2026-08-28): the onward-visibility tracker
+   is ALREADY BUILT AND SHIPPED to staging + prod (stages 1-3, 2026-08-22, no
+   feature flag).** Full service `lib/services/onward.ts`, agent card
+   `components/transaction/OnwardPurchaseCard.tsx` already rendered on the file
+   OverviewPanel, seller portal panel, and all event wiring live. So step 3 is not
+   a build — it collapses into step 2 Part 2 as "read the existing tracker". The
+   discovery doc header still wrongly says "nothing built"; trust the code + git.
 4. **Intro-call checklist + "introduction complete" note** (internal-only).
 5. **Self-linking your own files.**
 6. **Branching tree** — separate arc.
+
+### Part 2 duplication note
+
+Because the onward card already lives on the file overview, showing the full onward
+card again inside the chain drawer would duplicate it on effectively the same
+screen (the drawer opens over the file). So Part 2 must be a compact *summary +
+link-in*, not a second editable card — either a one-line reported status on the
+viewer's own node, or on the link directly above (which IS their onward). Placement
+to confirm with Ellis before building.
 
 ## Part 11 — Deferred / open
 
