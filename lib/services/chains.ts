@@ -801,7 +801,7 @@ export async function getChainActivity(
           inviteDeclinedAt: true,
           stubPropertyAddress: true,
           withdrawalRespondedAt: true,
-          claimedBy: { select: { name: true, firmName: true } },
+          claimedBy: { select: { name: true, firmName: true, chainActivityOptIn: true } },
           transaction: {
             select: {
               propertyAddress: true,
@@ -831,18 +831,24 @@ export async function getChainActivity(
     const addr = addrFull.split(",")[0].trim() || "A sale in the chain";
     const isViewer = l.claimedByUserId === viewerUserId;
     const who = l.claimedBy?.firmName?.trim() || l.claimedBy?.name?.trim() || "The agent";
+    // Reciprocal sharing: another agent's confirmed steps only appear if THEY are
+    // also sharing (chainActivityOptIn). Your own steps always show. Withdrew /
+    // joined below are chain facts and are never gated this way.
+    const sharesSteps = isViewer || l.claimedBy?.chainActivityOptIn === true;
 
-    for (const c of l.transaction?.milestoneCompletions ?? []) {
-      const at = c.completedAt ?? c.eventDate;
-      if (!at) continue;
-      const step = getMilestoneShortLabel(c.milestoneDefinition?.code ?? "") ?? "a step";
-      events.push({
-        id: `mc_${c.id}`,
-        linkAddress: addr,
-        message: isViewer ? `You confirmed ${step}` : `${who} confirmed ${step}`,
-        at: at.toISOString(),
-        tone: "success",
-      });
+    if (sharesSteps) {
+      for (const c of l.transaction?.milestoneCompletions ?? []) {
+        const at = c.completedAt ?? c.eventDate;
+        if (!at) continue;
+        const step = getMilestoneShortLabel(c.milestoneDefinition?.code ?? "") ?? "a step";
+        events.push({
+          id: `mc_${c.id}`,
+          linkAddress: addr,
+          message: isViewer ? `You confirmed ${step}` : `${who} confirmed ${step}`,
+          at: at.toISOString(),
+          tone: "success",
+        });
+      }
     }
 
     if (l.transaction?.status === "withdrawn") {
@@ -858,15 +864,10 @@ export async function getChainActivity(
       }
     }
 
-    if (l.inviteStatus === "DECLINED" && l.inviteDeclinedAt) {
-      events.push({
-        id: `dec_${l.id}`,
-        linkAddress: addr,
-        message: "An agent declined the chain invite",
-        at: l.inviteDeclinedAt.toISOString(),
-        tone: "danger",
-      });
-    }
+    // A declined invite is deliberately NOT surfaced here — we never broadcast to
+    // the whole chain that an agent turned an invite down. The originator still
+    // gets their private decline banner (ChainDeclineBanner). "joined" + "withdrew"
+    // below are fine to show; a decline is not.
 
     if (l.claimedAt && !isViewer && l.transactionId) {
       events.push({

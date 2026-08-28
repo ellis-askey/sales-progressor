@@ -154,6 +154,9 @@ export type RevenueDashboardData = {
   blockedAgencies: SimpleAgencyRef[];
   /** Legend at the bottom of the page — generated live from feeTier=legacy. */
   legacyAgencies: LegacyAgencyRef[];
+  /** Provider referral income (surveyors/brokers) — a separate stream from our
+   *  own sale fees. Earned on won quotes; collected when marked paid. */
+  referralIncome: { earnedPence: number; collectedPence: number; outstandingPence: number; wonCount: number };
 };
 
 export type AgencyRevenueDetailData = {
@@ -287,6 +290,8 @@ export async function getRevenueDashboard(
     legacyAgencyRows,
     feeLinesThisMonth,
     feeLinesLastMonth,
+    referralWonAgg,
+    referralCollectedAgg,
   ] = await Promise.all([
     // All agencies in scope — drives the per-agency table.
     commandDb.agency.findMany({
@@ -473,7 +478,20 @@ export async function getRevenueDashboard(
       },
       select: { totalPence: true },
     }),
+    // Provider referral income (won quotes) — separate from our sale fees.
+    commandDb.quoteRequest.aggregate({
+      where: { status: "won", transaction: { agency: agencyWhere } },
+      _sum: { referralFeePence: true },
+      _count: { _all: true },
+    }),
+    commandDb.quoteRequest.aggregate({
+      where: { status: "won", referralFeeCollected: true, transaction: { agency: agencyWhere } },
+      _sum: { referralFeePence: true },
+    }),
   ]);
+
+  const referralEarnedPence = referralWonAgg._sum.referralFeePence ?? 0;
+  const referralCollectedPence = referralCollectedAgg._sum.referralFeePence ?? 0;
 
   // ── Banked = ACTUAL invoiced amounts (frozen InvoiceLine), not a recompute ──
   // so it can never drift if a fee/VAT changes after a file exchanged. Matches
@@ -723,6 +741,12 @@ export async function getRevenueDashboard(
       name: a.name,
       legacyOutsourcedFeePence: a.legacyOutsourcedFeePence!,
     })),
+    referralIncome: {
+      earnedPence: referralEarnedPence,
+      collectedPence: referralCollectedPence,
+      outstandingPence: referralEarnedPence - referralCollectedPence,
+      wonCount: referralWonAgg._count._all,
+    },
   };
 }
 
