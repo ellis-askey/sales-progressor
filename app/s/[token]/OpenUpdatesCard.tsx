@@ -109,10 +109,10 @@ function UpdateRow({ token, step }: { token: string; step: Step }) {
       ) : (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-            <button type="button" disabled={pending} onClick={confirm} style={primaryBtn(pending && !open)}>
+            <button type="button" className="pbtn pbtn-press" disabled={pending} onClick={confirm} style={primaryBtn(pending && !open)}>
               {pending && !open ? "Saving…" : primaryLabel(step.label)}
             </button>
-            <button type="button" disabled={pending} onClick={() => setOpen((o) => !o)} style={secondaryBtn(open)}>
+            <button type="button" className="pbtn pbtn-press" disabled={pending} onClick={() => setOpen((o) => !o)} style={secondaryBtn(open)}>
               {open ? "Close" : "Add update"}
             </button>
           </div>
@@ -128,7 +128,7 @@ function UpdateRow({ token, step }: { token: string; step: Step }) {
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="A short note on where this stands…" style={{ ...inputStyle, width: "100%", resize: "vertical", boxSizing: "border-box" }} />
               </div>
               <div>
-                <button type="button" disabled={pending || noInput} onClick={sendUpdate} style={{ ...primaryBtn(pending || noInput), width: "auto", display: "inline-block" }}>
+                <button type="button" className="pbtn pbtn-press" disabled={pending || noInput} onClick={sendUpdate} style={{ ...primaryBtn(pending || noInput), width: "auto", display: "inline-block" }}>
                   {pending ? "Sending…" : "Send update"}
                 </button>
               </div>
@@ -142,11 +142,14 @@ function UpdateRow({ token, step }: { token: string; step: Step }) {
   );
 }
 
+// Shape + press-down borrowed from the client portal's PortalButton (sm), kept in
+// the solicitor blue rather than coral. The .pbtn/.pbtn-press classes carry the
+// tactile scale-on-press (globals.css); this owns the colour and sizing.
 function primaryBtn(disabled: boolean): React.CSSProperties {
-  return { background: S.primary, color: "#fff", border: "none", fontSize: 13.5, fontWeight: 600, padding: "10px 16px", borderRadius: 9, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1 };
+  return { background: S.primary, color: "#fff", border: "none", fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em", padding: "8px 15px", borderRadius: 11, boxShadow: "0 1px 2px rgba(23,58,128,0.28), 0 6px 16px -6px rgba(23,58,128,0.5)", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1 };
 }
 function secondaryBtn(active: boolean): React.CSSProperties {
-  return { background: active ? S.accentTint : "#fff", color: active ? S.accent : S.inkSoft, border: `1px solid ${active ? S.accentBorder : "#d5deea"}`, fontSize: 13.5, fontWeight: 600, padding: "10px 14px", borderRadius: 9, cursor: "pointer" };
+  return { background: active ? S.accentTint : "#fff", color: active ? S.accent : S.inkSoft, border: `1px solid ${active ? S.accentBorder : "#d5deea"}`, fontSize: 13, fontWeight: 700, padding: "8px 15px", borderRadius: 11, cursor: "pointer" };
 }
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 };
 const optional: React.CSSProperties = { color: S.faint, fontWeight: 400, textTransform: "none", letterSpacing: 0 };

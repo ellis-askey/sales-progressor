@@ -38,10 +38,10 @@ function Action({ href, icon, label, external }: { href: string; icon: React.Rea
     <a
       href={href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      style={{ flex: 1, minWidth: 0, display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", padding: "10px 4px", borderRadius: 12, background: "rgba(15,39,64,0.04)", color: S.inkSoft }}
+      style={{ flex: 1, minWidth: 0, display: "inline-flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", padding: "8px 6px", borderRadius: 10, background: "rgba(15,39,64,0.04)", color: S.inkSoft }}
     >
-      <span style={{ color: S.accent }}>{icon}</span>
-      <span style={{ fontSize: 11, fontWeight: 600 }}>{label}</span>
+      <span style={{ color: S.accent, display: "inline-flex", flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </a>
   );
 }
@@ -62,11 +62,11 @@ export function PointOfContactCard({ person, agencyName }: { person: ContactPers
           <p style={{ margin: "2px 0 0", fontSize: 13, color: S.muted }}>Progressing this sale · {agencyName}</p>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-        {person.phone && <Action href={`tel:${person.phone}`} icon={<Phone size={18} weight="regular" />} label="Call" />}
-        {person.email && <Action href={`mailto:${person.email}`} icon={<EnvelopeSimple size={18} weight="regular" />} label="Email" />}
-        {person.phone && <Action href={whatsappHref(person.phone)} icon={<WhatsappLogo size={18} weight="regular" />} label="WhatsApp" external />}
-        <Action href={vcardHref(person, agencyName)} icon={<DownloadSimple size={18} weight="regular" />} label="Save" />
+      <div style={{ display: "flex", gap: 7, marginTop: 14 }}>
+        {person.phone && <Action href={`tel:${person.phone}`} icon={<Phone size={15} weight="regular" />} label="Call" />}
+        {person.email && <Action href={`mailto:${person.email}`} icon={<EnvelopeSimple size={15} weight="regular" />} label="Email" />}
+        {person.phone && <Action href={whatsappHref(person.phone)} icon={<WhatsappLogo size={15} weight="regular" />} label="WhatsApp" external />}
+        <Action href={vcardHref(person, agencyName)} icon={<DownloadSimple size={15} weight="regular" />} label="Save" />
       </div>
     </PortalCard>
   );
