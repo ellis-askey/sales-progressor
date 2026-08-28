@@ -1,5 +1,5 @@
 import { Check, House, MagnifyingGlass, ClipboardText, ChatText, ArrowsLeftRight } from "@phosphor-icons/react/dist/ssr";
-import { PortalCard, CardKicker } from "./portal-cards";
+import { PortalCard } from "./portal-cards";
 import { S } from "./ui";
 
 // The counterparty's progress — STATES ONLY, NO DATES (decision A2). We show the
@@ -32,10 +32,13 @@ export function otherSideConfig(otherSide: "vendor" | "purchaser"): { title: str
   };
 }
 
-export function OtherSideCard({ title, rows }: { title: string; rows: OtherSideRow[] }) {
+export function OtherSideCard({ title, rows, firmName }: { title: string; rows: OtherSideRow[]; firmName: string | null }) {
   return (
     <PortalCard glassId="sol-other-side" label="Other side">
-      <CardKicker>{title}</CardKicker>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+        <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: S.muted }}>{title}</p>
+        {firmName && <p style={{ margin: 0, fontSize: 12.5, color: S.muted, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>Solicitor: <strong style={{ color: S.inkSoft, fontWeight: 600 }}>{firmName}</strong></p>}
+      </div>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {rows.map((r, i) => (
           <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: i === 0 ? "none" : `1px solid ${S.line}` }}>

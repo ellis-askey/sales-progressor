@@ -6,8 +6,10 @@ import { solicitorCodesForSide, solicitorStepLabel } from "@/lib/solicitor-confi
 import { getEnquiryTrackerView } from "@/lib/enquiries/tracker";
 import { markChaseOpened, recipientForSide } from "@/lib/enquiries/chase-log";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
+import { getSignedUrl } from "@/lib/supabase-storage";
 import { SolicitorHero } from "../SolicitorHero";
 import { PointOfContactCard } from "../PointOfContactCard";
+import { DocumentsCard } from "../DocumentsCard";
 import { ProgressOverviewCard, PortalCard } from "../portal-cards";
 import { OpenUpdatesCard } from "../OpenUpdatesCard";
 import { OtherSideCard, otherSideConfig } from "../OtherSideCard";
@@ -77,6 +79,7 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
   const sellerNames = joinNames(tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name));
   const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name));
   const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
+  const otherFirmName = side === "vendor" ? tx.purchaserSolicitorFirm?.name ?? null : tx.vendorSolicitorFirm?.name ?? null;
 
   // Own-side open solicitor steps.
   const scope = forRound(tx.activeBuyerRoundId, tx.id);
@@ -144,6 +147,22 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
       });
   }
 
+  // Documents shared with this matter (MOS + anything shared cross-side) —
+  // view/download only.
+  const sharedDocs = await prisma.transactionDocument.findMany({
+    where: { transactionId: tx.id, OR: [{ source: "mos" }, { sharedWithOtherSide: true }] },
+    select: { id: true, filename: true, storagePath: true, source: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const docsForCard = await Promise.all(
+    sharedDocs.map(async (d) => ({
+      id: d.id,
+      filename: d.filename,
+      url: await getSignedUrl(d.storagePath).catch(() => null),
+      label: d.source === "mos" ? "Memorandum of sale" : "Shared document",
+    })),
+  );
+
   // Hero data.
   const [line1, ...rest] = tx.propertyAddress.split(",");
   const completedCount = displayStages.filter((s) => s.status === "complete" || s.status === "skipped").length;
@@ -181,9 +200,11 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
 
       {raiseOpen && <SolicitorRaisePanel token={token} />}
 
-      <OtherSideCard title={osConfig.title} rows={otherSideRows} />
+      <OtherSideCard title={osConfig.title} rows={otherSideRows} firmName={otherFirmName} />
 
       {chainNodes.length > 1 && <ChainCard nodes={chainNodes} />}
+
+      <DocumentsCard docs={docsForCard} />
 
       {!hasAnything && (
         <PortalCard glassId="sol-caught-up" label="Caught up" style={{ textAlign: "center", padding: "26px 22px" }}>
