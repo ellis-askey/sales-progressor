@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { solicitorRaisedConfirmAction, solicitorRaisedExpectedDateAction } from "./actions";
 import { S } from "./ui";
-import { DoneBox, formatUk, cardStyle, revealStyle, primaryBtn, secondaryBtn, inputStyle } from "./SolicitorEnquiries";
+import { DoneBox, formatUk, revealStyle, primaryBtn, secondaryBtn, inputStyle } from "./SolicitorEnquiries";
 
 type Done = null | "raised" | "date";
 
@@ -31,7 +32,7 @@ export function SolicitorRaisePanel({ token }: { token: string }) {
   }
 
   return (
-    <div style={cardStyle}>
+    <PortalGlassCard glassId="sol-raise" label="Enquiries to raise" defaultVariant="v03" radius={16} style={{ padding: "18px" }}>
       <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: S.ink, lineHeight: 1.4 }}>Enquiries</p>
       <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: S.inkSoft }}>
         Have you been able to raise your enquiries with the seller&rsquo;s solicitor yet?
@@ -70,6 +71,6 @@ export function SolicitorRaisePanel({ token }: { token: string }) {
           {error && <p style={{ margin: "10px 0 0", fontSize: 13, color: S.danger }}>{error}</p>}
         </>
       )}
-    </div>
+    </PortalGlassCard>
   );
 }

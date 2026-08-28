@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import {
   solicitorEnquiriesSatisfiedAction,
   solicitorEnquiriesUpdateAction,
@@ -48,7 +49,7 @@ export function SolicitorEnquiries({
   }
 
   return (
-    <div style={cardStyle}>
+    <PortalGlassCard glassId="sol-enquiries" label="Enquiries" defaultVariant="v03" radius={16} style={{ padding: "18px" }}>
       <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: S.ink, lineHeight: 1.4 }}>Enquiries</p>
       <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: S.inkSoft }}>{courtLine}</p>
       {outstandingNote && (
@@ -114,7 +115,7 @@ export function SolicitorEnquiries({
           {error && <p style={{ margin: "10px 0 0", fontSize: 13, color: S.danger }}>{error}</p>}
         </>
       )}
-    </div>
+    </PortalGlassCard>
   );
 }
 
@@ -134,16 +135,6 @@ export function formatUk(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
-
-export const cardStyle: React.CSSProperties = {
-  background: S.cardFrostBg,
-  backdropFilter: S.cardFrostBlur,
-  WebkitBackdropFilter: S.cardFrostBlur,
-  border: `1px solid ${S.cardFrostBorder}`,
-  borderRadius: 14,
-  boxShadow: S.cardShadow,
-  padding: "16px 18px",
-};
 
 export const revealStyle: React.CSSProperties = {
   marginTop: 14,
