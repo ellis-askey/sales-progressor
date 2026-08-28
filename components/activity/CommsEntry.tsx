@@ -9,6 +9,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PasteWhatsAppPanel, type ImportableContact } from "@/components/activity/PasteWhatsAppPanel";
+import { DraftForEveryonePanel } from "@/components/activity/DraftForEveryonePanel";
 import { GlassCard } from "@/components/glass/GlassCard";
 
 type Contact = { id: string; name: string; roleType: string; phone?: string | null };
@@ -58,6 +59,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
   const [showOverflow, setShowOverflow] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [isPasteMode, setIsPasteMode] = useState(false);
+  const [isDraftMode, setIsDraftMode] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -97,6 +99,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setVisibleToClient(false);
     setShowOverflow(false);
     setIsPasteMode(false);
+    setIsDraftMode(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
@@ -108,6 +111,18 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setVisibleToClient(false);
     setShowOverflow(false);
     setIsPasteMode(true);
+    setIsDraftMode(false);
+  }
+
+  function openDraftMode() {
+    setChannel(null);
+    setDirection("outbound");
+    setSelected([]);
+    setContent("");
+    setVisibleToClient(false);
+    setShowOverflow(false);
+    setIsPasteMode(false);
+    setIsDraftMode(true);
   }
 
   function toggleContact(id: string) {
@@ -122,6 +137,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setVisibleToClient(false);
     setShowOverflow(false);
     setIsPasteMode(false);
+    setIsDraftMode(false);
   }
 
   function submit() {
@@ -162,6 +178,23 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
           borderBottom: hasChannel ? "0.5px solid var(--agent-border-default)" : "none",
         }}
       >
+        {/* Draft for everyone — type one fact, get a client message + file note */}
+        <button
+          onClick={openDraftMode}
+          onMouseEnter={(e) => { if (!isDraftMode) { e.currentTarget.style.color = "var(--agent-coral)"; e.currentTarget.style.background = "rgba(255,107,74,0.08)"; } }}
+          onMouseLeave={(e) => { if (!isDraftMode) { e.currentTarget.style.color = "var(--agent-text-muted)"; e.currentTarget.style.background = "var(--agent-surface-glass)"; } }}
+          style={{
+            fontSize: 12, fontWeight: 600, padding: "4px 11px", borderRadius: 7,
+            border: "none", cursor: "pointer",
+            background: isDraftMode ? "rgba(255,107,74,0.14)" : "var(--agent-surface-glass)",
+            color: isDraftMode ? "var(--agent-coral)" : "var(--agent-text-muted)",
+            transition: "background 100ms, color 100ms",
+          }}
+        >
+          ✨ Draft for everyone
+        </button>
+        <div style={{ width: 1, height: 18, background: "var(--agent-border-default)", flexShrink: 0 }} />
+
         {/* Note */}
         <button
           onClick={() => selectChannel("note")}
@@ -284,6 +317,15 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         <PasteWhatsAppPanel
           transactionId={transactionId}
           contacts={importableContacts}
+          onClose={cancel}
+        />
+      )}
+
+      {/* ── Draft-for-everyone panel — replaces standard body when active ── */}
+      {isDraftMode && (
+        <DraftForEveryonePanel
+          transactionId={transactionId}
+          contacts={contacts}
           onClose={cancel}
         />
       )}
