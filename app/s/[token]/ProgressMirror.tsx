@@ -38,6 +38,16 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
+// Honour the appearance toggle (data-portal-motion) and the OS preference for
+// the programmatic swipe-scroll: no smooth animation when motion is reduced.
+function scrollBehavior(): ScrollBehavior {
+  if (typeof document === "undefined") return "smooth";
+  const reduced =
+    document.documentElement.getAttribute("data-portal-motion") === "reduced" ||
+    (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  return reduced ? "auto" : "smooth";
+}
+
 export function ProgressMirror({ side, ownRows, otherRows }: { side: "vendor" | "purchaser"; ownRows: MRow[]; otherRows: MRow[] }) {
   const otherSide = side === "vendor" ? "purchaser" : "vendor";
   const ownByCode = new Map(ownRows.map((r) => [r.code, r]));
@@ -61,7 +71,7 @@ export function ProgressMirror({ side, ownRows, otherRows }: { side: "vendor" | 
   function scrollToSide(s: string) {
     setActiveSide(s);
     const el = swipeRef.current;
-    if (el) el.scrollTo({ left: indexOfKey(s) * el.clientWidth, behavior: "smooth" });
+    if (el) el.scrollTo({ left: indexOfKey(s) * el.clientWidth, behavior: scrollBehavior() });
   }
 
   function onSwipeScroll() {
@@ -75,7 +85,7 @@ export function ProgressMirror({ side, ownRows, otherRows }: { side: "vendor" | 
       const e2 = swipeRef.current;
       if (!e2) return;
       const target = indexOfKey(next) * e2.clientWidth;
-      if (Math.abs(e2.scrollLeft - target) > 2) e2.scrollTo({ left: target, behavior: "smooth" });
+      if (Math.abs(e2.scrollLeft - target) > 2) e2.scrollTo({ left: target, behavior: scrollBehavior() });
     }, 140);
   }
 

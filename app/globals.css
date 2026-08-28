@@ -817,6 +817,13 @@ body {
   .portal-sheet-backdrop,
   .portal-panel,
   .portal-inprogress-pulse { animation: none; }
+  /* Mirror the explicit reduce-motion toggle: also still inline transitions on
+     portal descendants (drawers, toggles, rings) for OS-level reduced motion. */
+  .portal-scope *,
+  .portal-sheet * {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+  }
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
