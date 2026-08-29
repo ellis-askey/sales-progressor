@@ -5,28 +5,44 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
-import { titleCase } from "@/lib/utils";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { titleCase, titleCaseKeepAcronyms } from "@/lib/utils";
 
 type Step = 1 | 2;
 
-// Same brand mark as login page
-function BrandMark() {
+// Password strength — only ever shown once they're at 8+ characters (the minimum).
+// Score from character variety + length, mapped to four warm-palette bars.
+function scorePassword(pw: string): 1 | 2 | 3 | 4 {
+  const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].reduce((n, re) => n + (re.test(pw) ? 1 : 0), 0);
+  let s = 1; // Weak — meets the 8-char minimum
+  if (classes >= 2 && pw.length >= 8) s = 2; // Fair
+  if (classes >= 3 && pw.length >= 10) s = 3; // Good
+  if (classes >= 4 && pw.length >= 12) s = 4; // Strong
+  return s as 1 | 2 | 3 | 4;
+}
+
+const STRENGTH = {
+  1: { label: "Weak", color: "#D9682F" },
+  2: { label: "Fair", color: "#E0942E" },
+  3: { label: "Good", color: "#6FA03A" },
+  4: { label: "Strong", color: "#2F9E6B" },
+} as const;
+
+function PasswordStrength({ password }: { password: string }) {
+  if (password.length < 8) return null;
+  const score = scorePassword(password);
+  const meta = STRENGTH[score];
   return (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="44" height="44" rx="12" fill="url(#bm-grad-r)" />
-      <defs>
-        <linearGradient id="bm-grad-r" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FFAA7A" />
-          <stop offset="100%" stopColor="#FF6B4A" />
-        </linearGradient>
-      </defs>
-      <circle cx="10" cy="22" r="3" fill="white" fillOpacity="0.55" />
-      <line x1="13" y1="22" x2="18" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
-      <circle cx="21" cy="22" r="3" fill="white" fillOpacity="0.78" />
-      <line x1="24" y1="22" x2="29" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
-      <circle cx="34" cy="22" r="4" fill="white" />
-      <path d="M32.2 22l1.5 1.5 2.8-2.8" stroke="#FF7A54" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div style={{ marginTop: "8px" }} aria-live="polite">
+      <div style={{ display: "flex", gap: "4px" }}>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} style={{ flex: 1, height: "4px", borderRadius: "2px", background: i <= score ? meta.color : "rgba(61,31,14,0.12)", transition: "background 0.2s ease" }} />
+        ))}
+      </div>
+      <p style={{ fontSize: "11px", color: meta.color, margin: "5px 0 0", fontWeight: 500 }}>
+        Password strength: {meta.label}
+      </p>
+    </div>
   );
 }
 
@@ -227,12 +243,14 @@ export default function RegisterPage() {
                 <div>
                   <label style={labelStyle}>Full name</label>
                   <input className="ri" type="text" value={name} onChange={e => setName(e.target.value)}
+                    onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
                     placeholder="Sarah Jones" required autoComplete="name" autoFocus style={inputStyle} />
                 </div>
 
                 <div>
                   <label style={labelStyle}>Work email</label>
                   <input className="ri" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    onBlur={e => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
                     placeholder="sarah@youragency.co.uk" required autoComplete="email" style={inputStyle} />
                 </div>
 
@@ -259,6 +277,7 @@ export default function RegisterPage() {
                   {password.length > 0 && password.length < 8 && (
                     <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 8 characters required</p>
                   )}
+                  <PasswordStrength password={password} />
                 </div>
 
                 {/* Terms checkbox */}
