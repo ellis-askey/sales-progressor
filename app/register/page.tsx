@@ -6,44 +6,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { titleCase, titleCaseKeepAcronyms } from "@/lib/utils";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 type Step = 1 | 2;
 
-// Password strength — only ever shown once they're at 8+ characters (the minimum).
-// Score from character variety + length, mapped to four warm-palette bars.
-function scorePassword(pw: string): 1 | 2 | 3 | 4 {
-  const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].reduce((n, re) => n + (re.test(pw) ? 1 : 0), 0);
-  let s = 1; // Weak — meets the 8-char minimum
-  if (classes >= 2 && pw.length >= 8) s = 2; // Fair
-  if (classes >= 3 && pw.length >= 10) s = 3; // Good
-  if (classes >= 4 && pw.length >= 12) s = 4; // Strong
-  return s as 1 | 2 | 3 | 4;
-}
-
-const STRENGTH = {
-  1: { label: "Weak", color: "#D9682F" },
-  2: { label: "Fair", color: "#E0942E" },
-  3: { label: "Good", color: "#6FA03A" },
-  4: { label: "Strong", color: "#2F9E6B" },
-} as const;
-
-function PasswordStrength({ password }: { password: string }) {
-  if (password.length < 8) return null;
-  const score = scorePassword(password);
-  const meta = STRENGTH[score];
-  return (
-    <div style={{ marginTop: "8px" }} aria-live="polite">
-      <div style={{ display: "flex", gap: "4px" }}>
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} style={{ flex: 1, height: "4px", borderRadius: "2px", background: i <= score ? meta.color : "rgba(61,31,14,0.12)", transition: "background 0.2s ease" }} />
-        ))}
-      </div>
-      <p style={{ fontSize: "11px", color: meta.color, margin: "5px 0 0", fontWeight: 500 }}>
-        Password strength: {meta.label}
-      </p>
-    </div>
-  );
+// Names: letters, numbers and spaces only, plus the hyphen and apostrophe real
+// names use (Anne-Marie, O'Brien). Anything else just doesn't register as they
+// type. Unicode-aware so accented names (José, Łukasz) still work.
+function stripNameChars(v: string): string {
+  return v.replace(/[^\p{L}\p{N} '’-]/gu, "");
 }
 
 const inputStyle: React.CSSProperties = {
@@ -205,7 +177,7 @@ export default function RegisterPage() {
             Create your account
           </h1>
           <p style={{ margin: "0.35rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
-            {step === 1 ? "Step 1 of 2: your details" : "Step 2 of 2: your workspace"}
+            {step === 1 ? "Step 1 of 2: your details" : "Step 2 of 2: Set up your agency"}
           </p>
         </div>
 
@@ -242,7 +214,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label style={labelStyle}>Full name</label>
-                  <input className="ri" type="text" value={name} onChange={e => setName(e.target.value)}
+                  <input className="ri" type="text" value={name} onChange={e => setName(stripNameChars(e.target.value))}
                     onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
                     placeholder="Sarah Jones" required autoComplete="name" autoFocus style={inputStyle} />
                 </div>
@@ -340,17 +312,17 @@ export default function RegisterPage() {
                       restarts on every disabled-submit hover. */}
                   <div key={agencyNudgeKey} className={agencyNudgeKey > 0 ? "ri-nudge" : undefined}>
                     <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
-                      onBlur={e => { if (e.target.value.trim()) setFirmName(titleCase(e.target.value)); }}
+                      onBlur={e => { if (e.target.value.trim()) setFirmName(titleCaseKeepAcronyms(e.target.value)); }}
                       placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus required style={inputStyle} />
                   </div>
                 </div>
 
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: "10px" }}>I am a…</p>
+                  <p style={{ ...labelStyle, marginBottom: "10px" }}>What&apos;s your role?</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {([
-                      { value: "director" as const, label: "Director", sub: "Manage your agency, see all files, and oversee your pipeline" },
-                      { value: "negotiator" as const, label: "Negotiator", sub: "View your files and pipeline, flag requests to your progressor" },
+                      { value: "director" as const, label: "Director", sub: "Manage your agency, view all sales and oversee your team." },
+                      { value: "negotiator" as const, label: "Negotiator", sub: "View your sales and request support from your sales progressor." },
                     ] as const).map(({ value, label, sub }) => (
                       <label key={value} style={{
                         display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
@@ -416,8 +388,8 @@ export default function RegisterPage() {
 
         {/* Footer note */}
         <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(61,31,14,0.45)", marginTop: "1.25rem" }}>
-          Internal team member?{" "}
-          <span style={{ color: "rgba(61,31,14,0.60)" }}>Contact your administrator for access.</span>
+          Already part of an existing agency?{" "}
+          <span style={{ color: "rgba(61,31,14,0.60)" }}>Ask your administrator to invite you.</span>
         </p>
 
       </div>
