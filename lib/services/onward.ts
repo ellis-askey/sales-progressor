@@ -19,12 +19,44 @@
 import { prisma } from "@/lib/prisma";
 import { DIRECT_PREREQUISITES, RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
-import type { Tenure, PurchaseType, OnwardConfirmSource, OnwardTrackerStatus } from "@prisma/client";
+import type { Tenure, PurchaseType, OnwardConfirmSource, OnwardTrackerStatus, OnwardTrackerKind, MilestoneSide } from "@prisma/client";
 
-// The purchaser-side exchange gate. Starts locked and unlocks only when every
-// applicable purchaser blocksExchange step is reported complete — mirrors
-// EXCHANGE_GATE_CODES / maybeUnlockExchangeGate in lib/services/milestones.ts.
-const EXCHANGE_GATE_PURCHASER = "PM25";
+// Direction config — the ONE tracker runs in two directions (Law 4, reuse not
+// duplicate): a seller's onward PURCHASE (the link ABOVE, purchaser/PM steps)
+// and a buyer's related SALE (the link BELOW, vendor/VM steps). Everything that
+// differs between the two directions lives here; the rest of the module reads
+// `dir`. Defaulting every function to `onward_purchase` keeps the seller flow
+// byte-for-byte unchanged.
+type Direction = {
+  side: MilestoneSide;              // which milestone side's steps we track
+  prefix: "PM" | "VM";             // in-scope prereq prefix (others = out of scope)
+  gateCode: string;                 // the exchange gate step (starts locked)
+  exchangeCode: string;             // the "exchanged" step
+  completionCode: string;           // the "completed" step
+  surveyCodes: readonly string[];   // opt-out survey pair (purchaser only)
+  mortgageCodes: readonly string[]; // mortgage back-fill trio (purchaser only)
+  requiresPurchaseType: boolean;    // onward has a buying axis; a related SALE has only tenure
+  // Our own milestone that must complete before the tracked sale's completion
+  // can be reported. Onward: our own completion (VM20) funds the chain upward, so
+  // the onward can't complete before us. Related sale: none — Option A, it
+  // completes before/with our purchase and we don't gate it.
+  completionGateOurCode: string | null;
+};
+
+const DIRECTION: Record<OnwardTrackerKind, Direction> = {
+  onward_purchase: {
+    side: "purchaser", prefix: "PM",
+    gateCode: "PM25", exchangeCode: "PM26", completionCode: "PM27",
+    surveyCodes: ["PM9", "PM10"], mortgageCodes: ["PM5", "PM6", "PM11"],
+    completionGateOurCode: "VM20", requiresPurchaseType: true,
+  },
+  related_sale: {
+    side: "vendor", prefix: "VM",
+    gateCode: "VM18", exchangeCode: "VM19", completionCode: "VM20",
+    surveyCodes: [], mortgageCodes: [],
+    completionGateOurCode: null, requiresPurchaseType: false,
+  },
+};
 
 export type OnwardStepView = {
   code: string;
@@ -63,13 +95,14 @@ type PurchaserDef = {
   eventDateRequired: boolean;
 };
 
-// A prereq is satisfied for the onward tracker if: it's a confirmed onward step,
-// it's auto-not-required for this onward's type facts, OR it's a vendor-side (VM)
-// code — the tracker only holds the purchaser side, so the onward's own vendor
-// steps (e.g. VM9 gating PM12) are outside our scope and treated as satisfied.
-function makeIsSatisfied(confirmed: Set<string>, autoNr: Set<string>) {
+// A prereq is satisfied for the tracker if: it's a confirmed in-scope step, it's
+// auto-not-required for this tracker's type facts, OR it's an out-of-scope code
+// (the other milestone side). The tracker only holds ONE side, so the tracked
+// sale's other-side steps (e.g. onward VM9 gating PM12, or a related sale's PM
+// steps) are outside our scope and treated as satisfied.
+function makeIsSatisfied(confirmed: Set<string>, autoNr: Set<string>, prefix: string) {
   return (prereqCode: string): boolean => {
-    if (!prereqCode.startsWith("PM")) return true;
+    if (!prereqCode.startsWith(prefix)) return true;
     if (autoNr.has(prereqCode)) return true;
     return confirmed.has(prereqCode);
   };
@@ -81,12 +114,13 @@ export function computeOnwardStepAvailability(
   defs: PurchaserDef[],
   autoNr: Set<string>,
   confirmed: Set<string>,
+  dir: Direction = DIRECTION.onward_purchase,
 ): Map<string, boolean> {
   const applicable = defs.filter((d) => !autoNr.has(d.code));
   const isComplete = (code: string) => confirmed.has(code);
-  const isSatisfied = makeIsSatisfied(confirmed, autoNr);
+  const isSatisfied = makeIsSatisfied(confirmed, autoNr, dir.prefix);
   const gateBlockers = applicable.filter(
-    (d) => d.blocksExchange && d.code !== EXCHANGE_GATE_PURCHASER,
+    (d) => d.blocksExchange && d.code !== dir.gateCode,
   );
 
   const out = new Map<string, boolean>();
@@ -95,7 +129,7 @@ export function computeOnwardStepAvailability(
       out.set(d.code, true);
       continue;
     }
-    if (d.code === EXCHANGE_GATE_PURCHASER) {
+    if (d.code === dir.gateCode) {
       out.set(d.code, gateBlockers.every((b) => isComplete(b.code)));
       continue;
     }
@@ -105,9 +139,9 @@ export function computeOnwardStepAvailability(
   return out;
 }
 
-async function loadPurchaserDefs(): Promise<PurchaserDef[]> {
+async function loadDefs(side: MilestoneSide): Promise<PurchaserDef[]> {
   const defs = await prisma.milestoneDefinition.findMany({
-    where: { side: "purchaser" },
+    where: { side },
     orderBy: { orderIndex: "asc" },
     select: { code: true, name: true, orderIndex: true, blocksExchange: true, eventDateRequired: true },
   });
@@ -121,9 +155,15 @@ const toISODate = (d: Date | null): string | null =>
  * Build the full onward-tracker view for a transaction. Returns `exists: false`
  * when no tracker has been opened. Caller must have already scope-checked the tx.
  */
-export async function getOnwardTrackerView(transactionId: string): Promise<OnwardTrackerView> {
+export async function getOnwardTrackerView(
+  transactionId: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<OnwardTrackerView> {
+  const dir = DIRECTION[kind];
+  const surveyOptOut = (codes: string[]) =>
+    dir.surveyCodes.length > 0 && codes.includes(dir.surveyCodes[0]);
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
+    where: { transactionId_kind: { transactionId, kind } },
     include: { steps: true },
   });
 
@@ -142,7 +182,8 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
     };
   }
 
-  const typeFactsSet = tracker.tenure != null && tracker.purchaseType != null;
+  const typeFactsSet =
+    tracker.tenure != null && (!dir.requiresPurchaseType || tracker.purchaseType != null);
 
   if (!typeFactsSet) {
     return {
@@ -155,11 +196,11 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
       steps: [],
       completeCount: 0,
       applicableCount: 0,
-      surveySkipped: tracker.manualNrCodes.includes("PM9"),
+      surveySkipped: surveyOptOut(tracker.manualNrCodes),
     };
   }
 
-  const defs = await loadPurchaserDefs();
+  const defs = await loadDefs(dir.side);
   // Auto-not-required (from tenure + how they're buying) plus anything the
   // seller manually opted out of (e.g. the survey).
   const autoNr = new Set<string>([
@@ -168,7 +209,7 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
   ]);
   const confirmedByCode = new Map(tracker.steps.map((s) => [s.milestoneCode, s]));
   const confirmedSet = new Set(confirmedByCode.keys());
-  const availability = computeOnwardStepAvailability(defs, autoNr, confirmedSet);
+  const availability = computeOnwardStepAvailability(defs, autoNr, confirmedSet, dir);
 
   // Resolve confirmer display names (agent = User.name, seller = Contact.name).
   const userIds = [...new Set(tracker.steps.map((s) => s.confirmedByUserId).filter(Boolean) as string[])];
@@ -210,7 +251,7 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
     steps,
     completeCount: steps.filter((s) => s.isComplete).length,
     applicableCount: steps.length,
-    surveySkipped: tracker.manualNrCodes.includes("PM9"),
+    surveySkipped: surveyOptOut(tracker.manualNrCodes),
   };
 }
 
@@ -219,18 +260,24 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
  * buyer's manual survey skip: marks the survey pair (PM9 + PM10) not-required
  * and clears any confirmations for them; passing skipped=false restores them.
  */
-export async function setOnwardSurveySkipped(transactionId: string, skipped: boolean): Promise<void> {
+export async function setOnwardSurveySkipped(
+  transactionId: string,
+  skipped: boolean,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<void> {
+  const dir = DIRECTION[kind];
+  if (dir.surveyCodes.length === 0) return; // a related sale has no survey step
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
+    where: { transactionId_kind: { transactionId, kind } },
     select: { id: true, status: true, manualNrCodes: true },
   });
   if (!tracker || tracker.status === "superseded") return;
   const set = new Set(tracker.manualNrCodes);
-  for (const c of ONWARD_SURVEY_CODES) { if (skipped) set.add(c); else set.delete(c); }
+  for (const c of dir.surveyCodes) { if (skipped) set.add(c); else set.delete(c); }
   await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { manualNrCodes: [...set] } });
   if (skipped) {
     await prisma.onwardStepConfirmation.deleteMany({
-      where: { trackerId: tracker.id, milestoneCode: { in: [...ONWARD_SURVEY_CODES] } },
+      where: { trackerId: tracker.id, milestoneCode: { in: [...dir.surveyCodes] } },
     });
   }
 }
@@ -242,17 +289,23 @@ export async function setOnwardSurveySkipped(transactionId: string, skipped: boo
  * accidental tap can be undone with reactivate. Never touches a superseded
  * tracker (the agent above already claimed).
  */
-export async function abandonOnwardTracker(transactionId: string): Promise<void> {
+export async function abandonOnwardTracker(
+  transactionId: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<void> {
   await prisma.onwardTracker.updateMany({
-    where: { transactionId, kind: "onward_purchase", status: { notIn: ["superseded"] } },
+    where: { transactionId, kind, status: { notIn: ["superseded"] } },
     data: { status: "abandoned" },
   });
 }
 
 /** Undo an abandon — back to where they were, data intact. */
-export async function reactivateOnwardTracker(transactionId: string): Promise<void> {
+export async function reactivateOnwardTracker(
+  transactionId: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<void> {
   await prisma.onwardTracker.updateMany({
-    where: { transactionId, kind: "onward_purchase", status: "abandoned" },
+    where: { transactionId, kind, status: "abandoned" },
     data: { status: "active" },
   });
 }
@@ -262,9 +315,12 @@ export async function reactivateOnwardTracker(transactionId: string): Promise<vo
  * two type facts, so the seller re-confirms from scratch against the new
  * property. Keeps the tracker (active) so the panel drops back to setup.
  */
-export async function resetOnwardTracker(transactionId: string): Promise<void> {
+export async function resetOnwardTracker(
+  transactionId: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<void> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
+    where: { transactionId_kind: { transactionId, kind } },
     select: { id: true, status: true },
   });
   if (!tracker || tracker.status === "superseded") return;
@@ -318,10 +374,13 @@ export async function getOnwardSignalForFile(
 }
 
 /** Create an empty tracker (status active) if one doesn't already exist. */
-export async function openOnwardTracker(transactionId: string): Promise<void> {
+export async function openOnwardTracker(
+  transactionId: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<void> {
   await prisma.onwardTracker.upsert({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
-    create: { transactionId },
+    where: { transactionId_kind: { transactionId, kind } },
+    create: { transactionId, kind },
     update: {},
   });
 }
@@ -335,16 +394,23 @@ export async function openOnwardTracker(transactionId: string): Promise<void> {
  */
 export async function setOnwardTypeFacts(
   transactionId: string,
-  facts: { tenure: Tenure; purchaseType: PurchaseType; isShareOfFreehold: boolean },
+  // A related SALE has no buying axis, so purchaseType is optional (stored null).
+  facts: { tenure: Tenure; purchaseType?: PurchaseType | null; isShareOfFreehold: boolean },
+  kind: OnwardTrackerKind = "onward_purchase",
 ): Promise<void> {
+  const data = {
+    tenure: facts.tenure,
+    purchaseType: facts.purchaseType ?? null,
+    isShareOfFreehold: facts.isShareOfFreehold,
+  };
   const tracker = await prisma.onwardTracker.upsert({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
-    create: { transactionId, ...facts },
-    update: { ...facts },
+    where: { transactionId_kind: { transactionId, kind } },
+    create: { transactionId, kind, ...data },
+    update: { ...data },
     include: { steps: true },
   });
 
-  const nowNr = computeAutoNrCodes(facts.purchaseType, facts.tenure);
+  const nowNr = computeAutoNrCodes(data.purchaseType, data.tenure);
   const strandedCodes = tracker.steps.filter((s) => nowNr.has(s.milestoneCode)).map((s) => s.milestoneCode);
   if (strandedCodes.length) {
     await prisma.onwardStepConfirmation.deleteMany({
@@ -375,20 +441,24 @@ export async function confirmOnwardStep(
   transactionId: string,
   milestoneCode: string,
   eventDate: string | null,
-  confirmer: { source: "agent"; userId: string } | { source: "seller"; contactId: string },
+  confirmer: { source: "agent"; userId: string } | { source: "seller" | "buyer"; contactId: string },
+  kind: OnwardTrackerKind = "onward_purchase",
 ): Promise<ConfirmOnwardResult> {
+  const dir = DIRECTION[kind];
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
+    where: { transactionId_kind: { transactionId, kind } },
     include: { steps: true },
   });
   if (!tracker) return { ok: false, reason: "no_tracker" };
   // A superseded tracker (the agent above now owns the onward) or an abandoned
-  // one (seller said they're no longer buying) accepts no more updates — and
-  // must never have its status overwritten by a reported exchange/completion.
+  // one (the client said they're no longer buying/selling) accepts no more
+  // updates — and must never have its status overwritten by a reported step.
   if (tracker.status === "superseded" || tracker.status === "abandoned") return { ok: false, reason: "retired" };
-  if (tracker.tenure == null || tracker.purchaseType == null) return { ok: false, reason: "type_facts_missing" };
+  if (tracker.tenure == null || (dir.requiresPurchaseType && tracker.purchaseType == null)) {
+    return { ok: false, reason: "type_facts_missing" };
+  }
 
-  const defs = await loadPurchaserDefs();
+  const defs = await loadDefs(dir.side);
   const autoNr = new Set<string>([
     ...computeAutoNrCodes(tracker.purchaseType, tracker.tenure),
     ...tracker.manualNrCodes,
@@ -399,15 +469,15 @@ export async function confirmOnwardStep(
   const confirmedSet = new Set(tracker.steps.map((s) => s.milestoneCode));
   if (confirmedSet.has(milestoneCode)) return { ok: false, reason: "already_done" };
 
-  const availability = computeOnwardStepAvailability(defs, autoNr, confirmedSet);
+  const availability = computeOnwardStepAvailability(defs, autoNr, confirmedSet, dir);
   if (!availability.get(milestoneCode)) return { ok: false, reason: "locked" };
 
-  // Completion gate (3a): the onward purchase cannot complete before OUR sale
-  // completes, because completion funds flow up the chain. Block reporting the
-  // onward "completed" (PM27) until this file's own completion (VM20) is done.
-  if (milestoneCode === "PM27") {
+  // Completion gate (3a): only the onward purchase is gated — it can't complete
+  // before OUR sale completes, because completion funds flow up the chain. A
+  // related sale (Option A) has no gate: it completes before/with our purchase.
+  if (dir.completionGateOurCode && milestoneCode === dir.completionCode) {
     const ourCompletion = await prisma.milestoneCompletion.findFirst({
-      where: { transactionId, state: "complete", milestoneDefinition: { code: "VM20" } },
+      where: { transactionId, state: "complete", milestoneDefinition: { code: dir.completionGateOurCode } },
       select: { id: true },
     });
     if (!ourCompletion) return { ok: false, reason: "awaiting_our_completion" };
@@ -421,14 +491,14 @@ export async function confirmOnwardStep(
       eventDate: eventDateObj,
       source: confirmer.source,
       confirmedByUserId: confirmer.source === "agent" ? confirmer.userId : null,
-      confirmedByContactId: confirmer.source === "seller" ? confirmer.contactId : null,
+      confirmedByContactId: confirmer.source === "agent" ? null : confirmer.contactId,
     },
   });
 
   // Reported exchange / completion move the tracker's own status along.
-  if (milestoneCode === "PM26") {
+  if (milestoneCode === dir.exchangeCode) {
     await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "exchanged" } });
-  } else if (milestoneCode === "PM27") {
+  } else if (milestoneCode === dir.completionCode) {
     await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "completed" } });
   }
 
@@ -444,9 +514,14 @@ export type UndoOnwardResult =
  * (undo the dependent first) — keeps the reported chain internally consistent,
  * the same guard the real undo applies.
  */
-export async function undoOnwardStep(transactionId: string, milestoneCode: string): Promise<UndoOnwardResult> {
+export async function undoOnwardStep(
+  transactionId: string,
+  milestoneCode: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<UndoOnwardResult> {
+  const dir = DIRECTION[kind];
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
+    where: { transactionId_kind: { transactionId, kind } },
     include: { steps: true },
   });
   if (!tracker) return { ok: false, reason: "not_found" };
@@ -461,9 +536,9 @@ export async function undoOnwardStep(transactionId: string, milestoneCode: strin
   await prisma.onwardStepConfirmation.delete({ where: { id: row.id } });
 
   // Roll the tracker status back if we removed the exchange/completion marker.
-  if (milestoneCode === "PM27" && tracker.status === "completed") {
+  if (milestoneCode === dir.completionCode && tracker.status === "completed") {
     await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "exchanged" } });
-  } else if (milestoneCode === "PM26" && tracker.status === "exchanged") {
+  } else if (milestoneCode === dir.exchangeCode && tracker.status === "exchanged") {
     await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "active" } });
   }
 
@@ -607,13 +682,17 @@ export async function backfillOnwardMortgageOffer(
   }
 }
 
-export async function cascadeOnwardExchange(transactionId: string): Promise<void> {
+export async function cascadeOnwardExchange(
+  transactionId: string,
+  kind: OnwardTrackerKind = "onward_purchase",
+): Promise<void> {
+  const dir = DIRECTION[kind];
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
+    where: { transactionId_kind: { transactionId, kind } },
     select: {
       id: true,
       status: true,
-      steps: { where: { milestoneCode: "PM26" }, select: { id: true } },
+      steps: { where: { milestoneCode: dir.exchangeCode }, select: { id: true } },
     },
   });
   if (!tracker) return;
@@ -621,7 +700,7 @@ export async function cascadeOnwardExchange(transactionId: string): Promise<void
 
   if (tracker.steps.length === 0) {
     await prisma.onwardStepConfirmation.create({
-      data: { trackerId: tracker.id, milestoneCode: "PM26", source: "agent" },
+      data: { trackerId: tracker.id, milestoneCode: dir.exchangeCode, source: "agent" },
     });
   }
   if (tracker.status !== "completed") {
