@@ -1621,6 +1621,15 @@ model ClientMoveInfo {
   // who are selling; cash_from_proceeds / a chain link below are also signals.
   sellingRelated Boolean?
 
+  // Client's own mortgage broker. Captured only when NO broker resolves on the
+  // file (no agency in-house broker, no TSP default): the client names their own
+  // instead. Additive and separate from the file's brokerFirmId resolution.
+  // Purchaser-side for mortgage buyers; vendor-side for sellers buying onward.
+  ownBrokerName        String? // the firm or broker name
+  ownBrokerContactName String? // the person they deal with (optional)
+  ownBrokerContact     String? // phone or email (optional)
+  ownBrokerAddedByName String? // the client who added it (for "Added by ...")
+
   // Moving plans
   removalStatus  String? // "not_started" | "getting_quotes" | "provisional" | "confirmed"
   removalCompany String?
