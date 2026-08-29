@@ -7,14 +7,14 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
 import {
-  getProspectDetail, getConvertedAgencyStats, searchAgenciesForConversion, searchProspectGroups,
+  getProspectDetail, getConvertedAgencyStats, searchAgenciesForConversion, searchProspectGroups, getImportBatch,
   type ProspectDetail, type ConvertedAgencyStats, type AgencyMatch, type GroupMatch,
 } from "@/lib/command/prospects";
 import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/prospect-labels";
 import { anthropic } from "@/lib/anthropic";
 import { buildTemplate } from "@/lib/prospects/templates";
 import { sendProspectOutreach } from "@/lib/prospects/send";
-import { researchAgency, type ResearchField } from "@/lib/prospects/research";
+import { researchAgency, type ResearchField, type ResearchResult } from "@/lib/prospects/research";
 import { randomUUID } from "crypto";
 import type { Prisma, ProspectStatus, ProspectSource, ProspectLostReason } from "@prisma/client";
 
@@ -569,23 +569,16 @@ function metaFrom(rf: ResearchField, at: string) {
   return { state: rf.state, sourceName: rf.sourceName, sourceUrl: rf.sourceUrl, confidence: rf.confidence, note: rf.note, researchedAt: at };
 }
 
-// Research one prospect and apply the result. Fill-blanks-only + never overwrite
-// a MANUALLY_CONFIRMED field, so this is safe to re-run (the later Companies-House
-// sweep). Existing values are left alone; only empty fields get filled.
-export async function researchProspectAction(prospectId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await requireSuperAdmin();
+// Apply a research result to a prospect: fill-blanks-only, never overwrite a
+// confirmed field. Creates the primary contact from the researched decision-maker
+// if none exists, else fills blanks on the existing primary. Shared by the
+// single-prospect research action and the batch importer.
+async function applyResearchToProspect(prospectId: string, result: ResearchResult): Promise<void> {
   const p = await commandDb.prospect.findUnique({
     where: { id: prospectId },
     include: { contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] } },
   });
-  if (!p) return { ok: false, error: "Prospect not found." };
-
-  let result;
-  try {
-    result = await researchAgency(p.agencyName, p.location);
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message.slice(0, 160) : "Research failed." };
-  }
+  if (!p) return;
 
   const at = new Date().toISOString();
   const research = { ...((p.research as Record<string, Record<string, unknown>> | null) ?? {}) };
@@ -606,8 +599,6 @@ export async function researchProspectAction(prospectId: string): Promise<{ ok: 
   data.research = research;
   await commandDb.prospect.update({ where: { id: prospectId }, data: data as Prisma.ProspectUpdateInput });
 
-  // Contact: create the primary from the researched decision-maker if none yet;
-  // otherwise fill blanks on the existing primary.
   const c = result.contact;
   if (c?.name?.value) {
     if (p.contacts.length === 0) {
@@ -640,8 +631,157 @@ export async function researchProspectAction(prospectId: string): Promise<{ ok: 
       await commandDb.prospectContact.update({ where: { id: primary.id }, data: cdata as Prisma.ProspectContactUpdateInput });
     }
   }
+}
 
+// Research one existing prospect and apply the result. Safe to re-run.
+export async function researchProspectAction(prospectId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const p = await commandDb.prospect.findUnique({ where: { id: prospectId }, select: { agencyName: true, location: true } });
+  if (!p) return { ok: false, error: "Prospect not found." };
+
+  let result: ResearchResult;
+  try {
+    result = await researchAgency(p.agencyName, p.location);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message.slice(0, 160) : "Research failed." };
+  }
+  await applyResearchToProspect(prospectId, result);
   await logActivity(prospectId, session.user.id, "note", `Auto-researched${result.companyNumber ? ` (Companies House ${result.companyNumber})` : ""}`);
   revalidatePath("/command/prospects");
   return { ok: true };
+}
+
+// ─── Batch import (Phase C) ──────────────────────────────────────────────────
+
+const IMPORT_MAX = 15; // tuned for ~10; a single number to lift later.
+
+const normName = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/\b(ltd|limited|llp|plc)\b/g, "").replace(/[^a-z0-9]/g, "");
+const normLoc = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const normDomain = (url: string | null | undefined) => (url ? url.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].trim() : "");
+
+function parseImportLines(raw: string): Array<{ agency: string; location: string | null }> {
+  const out: Array<{ agency: string; location: string | null }> = [];
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t) continue;
+    const parts = t.split("|").map((s) => s.trim());
+    if (!parts[0]) continue;
+    out.push({ agency: parts[0], location: parts[1] || null });
+    if (out.length >= IMPORT_MAX) break;
+  }
+  return out;
+}
+
+function importReviewNeeded(result: ResearchResult): boolean {
+  const fields = [result.agency.website, result.agency.phone, result.agency.generalEmail, result.agency.location, result.agency.postcode, result.contact?.name, result.contact?.role, result.contact?.email, result.contact?.phone];
+  const anyNeedsCheck = fields.some((f) => f?.state === "needs_check");
+  const missingKey = !result.agency.website || !result.agency.phone || !result.contact;
+  return anyNeedsCheck || missingKey;
+}
+
+// Research + dedupe + create one agency. Returns its final import status.
+async function importOne(agency: string, location: string | null, createdById: string): Promise<{ status: "imported" | "needs_review" | "exists"; prospectId?: string }> {
+  const candidates = await commandDb.prospect.findMany({
+    where: { archivedAt: null },
+    select: { id: true, agencyName: true, location: true, website: true, groupId: true },
+  });
+  const nName = normName(agency);
+  const nLoc = normLoc(location);
+
+  // Cheap pre-check: an exact branch (same name + same location) already exists.
+  const preMatch = candidates.find((c) => nName && normName(c.agencyName) === nName && normLoc(c.location) === nLoc);
+  if (preMatch) return { status: "exists", prospectId: preMatch.id };
+
+  const result = await researchAgency(agency, location);
+  const domain = normDomain(result.agency.website?.value ?? null);
+  const tradingName = result.agency.tradingName?.value || agency;
+  const nTrade = normName(tradingName);
+  const effLoc = normLoc(location || result.agency.location?.value || "");
+
+  // Same-company candidates: matched by domain or by (trading) name.
+  const sameCompany = candidates.filter((c) =>
+    (domain && normDomain(c.website) === domain) ||
+    (nTrade && normName(c.agencyName) === nTrade) ||
+    (nName && normName(c.agencyName) === nName),
+  );
+  const sameBranch = sameCompany.find((c) => normLoc(c.location) === effLoc);
+  if (sameBranch) return { status: "exists", prospectId: sameBranch.id };
+
+  const created = await commandDb.prospect.create({
+    data: {
+      agencyName: tradingName,
+      location: location || result.agency.location?.value || null,
+      source: "cold",
+      ownerUserId: createdById, createdById,
+    },
+  });
+
+  // Different branch of a company we already have → put them in one business.
+  if (sameCompany.length > 0) {
+    const sibling = sameCompany[0];
+    if (sibling.groupId) {
+      await commandDb.prospect.update({ where: { id: created.id }, data: { groupId: sibling.groupId } });
+    } else {
+      await commandDb.prospectGroup.create({
+        data: { name: tradingName, ownerUserId: createdById, createdById, prospects: { connect: [{ id: sibling.id }, { id: created.id }] } },
+      });
+    }
+  }
+
+  await applyResearchToProspect(created.id, result);
+  await logActivity(created.id, createdById, "created", `Imported via research${result.companyNumber ? ` (Companies House ${result.companyNumber})` : ""}`);
+  return { status: importReviewNeeded(result) ? "needs_review" : "imported", prospectId: created.id };
+}
+
+export async function createImportBatchAction(raw: string): Promise<{ ok: true; batchId: string; count: number } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const lines = parseImportLines(raw);
+  if (lines.length === 0) return { ok: false, error: "Paste at least one agency, one per line." };
+  const batch = await commandDb.prospectImportBatch.create({
+    data: {
+      createdById: session.user.id, total: lines.length, status: "processing",
+      items: { create: lines.map((l) => ({ inputAgency: l.agency, inputLocation: l.location })) },
+    },
+  });
+  return { ok: true, batchId: batch.id, count: lines.length };
+}
+
+// Claim + process the next pending item. One item per call keeps each request
+// within the serverless timeout; the client loops until done.
+export async function processNextImportItemAction(batchId: string): Promise<{ done: boolean; remaining: number }> {
+  const session = await requireSuperAdmin();
+  const item = await commandDb.prospectImportItem.findFirst({ where: { batchId, status: "pending" }, orderBy: { createdAt: "asc" } });
+  if (!item) {
+    await commandDb.prospectImportBatch.update({ where: { id: batchId }, data: { status: "done" } });
+    revalidatePath("/command/prospects");
+    return { done: true, remaining: 0 };
+  }
+  await commandDb.prospectImportItem.update({ where: { id: item.id }, data: { status: "researching" } });
+
+  let status = "imported";
+  let prospectId: string | null = null;
+  let error: string | null = null;
+  try {
+    const res = await importOne(item.inputAgency, item.inputLocation, session.user.id);
+    status = res.status; prospectId = res.prospectId ?? null;
+  } catch (err) {
+    status = "failed"; error = err instanceof Error ? err.message.slice(0, 200) : "Research failed.";
+  }
+  await commandDb.prospectImportItem.update({ where: { id: item.id }, data: { status, prospectId, error } });
+  const remaining = await commandDb.prospectImportItem.count({ where: { batchId, status: "pending" } });
+  revalidatePath("/command/prospects");
+  return { done: false, remaining };
+}
+
+export async function retryImportItemAction(itemId: string): Promise<{ ok: true }> {
+  await requireSuperAdmin();
+  const item = await commandDb.prospectImportItem.update({ where: { id: itemId }, data: { status: "pending", error: null } });
+  await commandDb.prospectImportBatch.update({ where: { id: item.batchId }, data: { status: "processing" } });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+export async function getImportBatchAction(batchId: string) {
+  await requireSuperAdmin();
+  return getImportBatch(batchId);
 }

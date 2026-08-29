@@ -3641,6 +3641,40 @@ model ProspectGroup {
   @@index([archivedAt])
 }
 
+// A pasted batch of agencies to research + import. Processed incrementally (one
+// item at a time, client-driven) so it stays within serverless timeouts and is
+// resumable/idempotent — an interrupted run picks up its remaining pending items.
+model ProspectImportBatch {
+  id          String   @id @default(cuid())
+  createdById String?
+  status      String   @default("processing") // processing | done
+  total       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items ProspectImportItem[]
+
+  @@index([status])
+}
+
+model ProspectImportItem {
+  id            String   @id @default(cuid())
+  batchId       String
+  inputAgency   String
+  inputLocation String?
+  // pending | researching | imported | needs_review | exists | failed
+  status        String   @default("pending")
+  prospectId    String? // the created/matched prospect (loose ref, not a FK)
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  batch ProspectImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([status])
+}
+
 model ProspectContact {
   id               String   @id @default(cuid())
   // A contact belongs to EITHER one branch prospect (prospectId) OR a group
