@@ -213,6 +213,20 @@ type FeatureDef = {
 const agOf = (ctx: Ctx, txId: string | null | undefined) =>
   txId ? ctx.txAgency.get(txId) ?? null : null;
 
+// Helper: fetch a feature that lives on the unified FeatureEvent stream (for
+// features that leave no other durable row — downloads, view-only surfaces).
+const featureEventFetch = (featureId: string) => async (ctx: Ctx): Promise<UsageRow[]> => {
+  const rows = await commandDb.featureEvent.findMany({
+    where: { feature: featureId, transactionId: { in: ctx.txIds } },
+    select: { occurredAt: true, actorId: true, transactionId: true, agencyId: true },
+  });
+  return rows.map((r) => ({
+    at: r.occurredAt,
+    actor: r.actorId ?? r.transactionId ?? "unknown",
+    agencyId: agOf(ctx, r.transactionId) ?? r.agencyId,
+  }));
+};
+
 export const FEATURES: FeatureDef[] = [
   // ── CLIENT PORTAL ──────────────────────────────────────────────────────────
   {
@@ -498,6 +512,24 @@ export const FEATURES: FeatureDef[] = [
       });
       return rows.map((r) => ({ at: null, actor: r.id, agencyId: agOf(ctx, r.propertyTransactionId) }));
     },
+  },
+  {
+    id: "calendar_export",
+    name: "Add a key date to calendar",
+    surface: "portal",
+    category: "Onboarding",
+    adopterUnit: "client",
+    blurb: "Client saves the exchange or completion date to their calendar.",
+    fetch: featureEventFetch("calendar_export"),
+  },
+  {
+    id: "contact_card",
+    name: "Save a contact card",
+    surface: "portal",
+    category: "Onboarding",
+    adopterUnit: "client",
+    blurb: "Client saves the team's contact card (vCard) to their phone.",
+    fetch: featureEventFetch("contact_card"),
   },
 
   // ── SOLICITOR ────────────────────────────────────────────────────────────────

@@ -3486,3 +3486,29 @@ model AgentEmailLog {
   @@index([kind])
   @@index([agencyId])
 }
+
+// ─── FeatureEvent ─────────────────────────────────────────────────────────────
+// The unified feature-usage stream (Command Centre → Feature usage). Most
+// features leave a durable row in their own table (a message, a document, a
+// confirm) and the registry reads those directly. FeatureEvent is for features
+// that otherwise leave NO first-party trace — downloads, view-only surfaces,
+// anything that today only reports to the (dormant) PostHog. Written best-effort
+// via recordFeatureUse (lib/command/feature-usage-write.ts); never blocks the
+// user action. Loose scalar keys (no relations), mirroring the Event table, so a
+// write can never fail on a missing FK. Each `feature` maps to a registry id.
+model FeatureEvent {
+  id            String   @id @default(cuid())
+  occurredAt    DateTime @default(now())
+  feature       String // registry feature id, e.g. "calendar_export"
+  surface       String // "portal" | "agent" | "solicitor" | "internal"
+  actorType     String // "client" | "agent" | "firm" | "file"
+  actorId       String? // contactId / userId / firmId — resolved on read
+  transactionId String?
+  agencyId      String?
+  metadata      Json?
+
+  @@index([feature, occurredAt])
+  @@index([occurredAt])
+  @@index([transactionId])
+  @@index([agencyId, occurredAt])
+}

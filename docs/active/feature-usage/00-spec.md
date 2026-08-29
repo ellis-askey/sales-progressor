@@ -58,12 +58,18 @@ raw portal visits / engaged-time (links to App adoption instead).
 
 ## Two builds, one arc
 
-- **Build 1** — registry + page + nav rename over features that already record
-  usage. Honest "not yet tracked" list for the blind features.
-- **Build 2** — a unified `FeatureEvent` stream (one table, one `recordFeatureUse`
-  writer) + instrument the blind features (calendar / vCard downloads, portal
-  reading pages, any PostHog-only signal) so the hub becomes complete. Migration
-  staging-first (Law 3).
+- **Build 1 (shipped, commit c37890a2)** — registry + page + nav rename over
+  features that already record usage. 24 features across the four surfaces.
+- **Build 2 (built)** — a unified `FeatureEvent` stream (one table, one
+  `recordFeatureUse` writer, migration `20260829130000_feature_event`) so any
+  future feature reports the same way. Instrumented the genuinely-blind
+  downloads: calendar `.ics` export (`calendar_export`) and vCard contact card
+  (`contact_card`), both now registry features. Migration is staging-first (Law
+  3): it applies on the next deploy via `prisma migrate deploy`. Portal
+  reading-pages and agent page-views are deliberately left to App adoption /
+  Activity / PostHog, not duplicated here. Theme turned out already-tracked via
+  `Contact.portalSettings` (the `appearance_settings` feature), so it wasn't
+  blind.
 
 ## Adopter units by surface
 
