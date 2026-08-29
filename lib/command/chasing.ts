@@ -1,0 +1,330 @@
+import { commandDb } from "@/lib/command/prisma";
+
+// Command Centre → Chasing hub. Effectiveness of every automated chase we send,
+// across three systems, each on its own tab:
+//   - enquiries  (ChaseSend: raise + reply-loop)   — full sent→opened→acted
+//   - solicitor  (SolicitorChaseState)             — sent + outcome
+//   - client     (OutboundEmailQueue CLIENT_CHASE) — sent + delivery + engagement
+// Rows are clickable to show what was actually sent (getChaseDetail).
+// Excludes internal/test/demo files everywhere.
+
+const WINDOW_DAYS = 56;
+const realFile = { isDemo: false, agency: { isInternal: false } } as const;
+
+export type ChaseType = "enquiries" | "solicitor" | "client";
+export type OutcomeTone = "good" | "warn" | "muted";
+
+export type ChaseRow = {
+  id: string;
+  type: ChaseType;
+  transactionId: string;
+  address: string;
+  sentAt: Date | null;
+  chasedLabel: string;
+  chasedSub: string | null;
+  openedAt: Date | null;
+  opensTracked: boolean;
+  outcome: string;
+  outcomeTone: OutcomeTone;
+  canEmailTick: boolean;
+  repliedByEmail: boolean;
+};
+
+export type ChaseSummary = {
+  sent: number;
+  responded: number;
+  responseRate: number | null; // null when opens/acted not tracked
+  opened: number;
+  opensTracked: boolean;
+  extraLabel: string; // right-hand context stat label
+  extra: number;
+};
+
+export type ChaseTabData = {
+  type: ChaseType;
+  title: string;
+  blurb: string;
+  summary: ChaseSummary;
+  rows: ChaseRow[];
+  sinceLabel: string | null;
+};
+
+const RECIPIENT_LABEL: Record<string, string> = {
+  seller_solicitor: "Seller's solicitor",
+  buyer_solicitor: "Buyer's solicitor",
+  buyer: "Buyer",
+};
+const KIND_LABEL: Record<string, string> = { raise: "Raise chase", reply_loop: "Reply chase", milestone: "Milestone chase" };
+const RESPONSE_LABEL: Record<string, string> = { update: "Left an update", date: "Gave a date", confirm: "Confirmed" };
+
+function fmtSince(d: Date | null): string | null {
+  if (!d) return null;
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// ── Enquiries (full effectiveness, from ChaseSend) ────────────────────────────
+async function getEnquiriesTab(): Promise<ChaseTabData> {
+  const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
+  const sends = await commandDb.chaseSend.findMany({
+    where: { sentAt: { gte: since }, transaction: realFile },
+    orderBy: { sentAt: "desc" },
+    select: {
+      id: true, kind: true, recipient: true, recipientName: true, sentAt: true, transactionId: true,
+      openedAt: true, respondedAt: true, responseType: true, repliedByEmailAt: true,
+      transaction: { select: { propertyAddress: true } },
+    },
+  });
+
+  const solicitor = sends.filter((s) => s.recipient !== "buyer");
+  const respondedFn = (s: (typeof sends)[number]) => !!s.respondedAt || !!s.repliedByEmailAt;
+  const respondedCount = solicitor.filter(respondedFn).length;
+  const opened = solicitor.filter((s) => s.openedAt && !respondedFn(s)).length;
+  const rate = solicitor.length ? Math.round((respondedCount / solicitor.length) * 100) : 0;
+
+  const rows: ChaseRow[] = sends.map((s) => {
+    const responded = respondedFn(s);
+    const outcome = s.respondedAt
+      ? RESPONSE_LABEL[s.responseType ?? ""] ?? "Responded"
+      : s.repliedByEmailAt ? "Replied by email"
+      : s.openedAt ? "Opened, no action"
+      : "No response yet";
+    return {
+      id: s.id,
+      type: "enquiries",
+      transactionId: s.transactionId,
+      address: s.transaction.propertyAddress ?? "—",
+      sentAt: s.sentAt,
+      chasedLabel: `${RECIPIENT_LABEL[s.recipient] ?? s.recipient} · ${KIND_LABEL[s.kind] ?? s.kind}`,
+      chasedSub: s.recipientName ?? null,
+      openedAt: s.openedAt,
+      opensTracked: true,
+      outcome,
+      outcomeTone: responded ? "good" : s.openedAt ? "warn" : "muted",
+      canEmailTick: s.recipient !== "buyer",
+      repliedByEmail: !!s.repliedByEmailAt,
+    };
+  });
+
+  return {
+    type: "enquiries",
+    title: "Enquiries chase",
+    blurb: "Getting enquiries raised, then getting the solicitor holding the ball to reply. We know when they opened the link and what they did.",
+    summary: {
+      sent: solicitor.length, responded: respondedCount, responseRate: rate,
+      opened, opensTracked: true, extraLabel: "Opened, no action", extra: opened,
+    },
+    rows,
+    sinceLabel: fmtSince(sends.length ? sends[sends.length - 1].sentAt : null),
+  };
+}
+
+// ── Solicitor milestone chase (sent + outcome, from SolicitorChaseState) ───────
+async function getSolicitorTab(): Promise<ChaseTabData> {
+  const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
+  const states = await commandDb.solicitorChaseState.findMany({
+    where: { lastChasedAt: { gte: since }, chaseCount: { gt: 0 }, transaction: realFile },
+    orderBy: { lastChasedAt: "desc" },
+    select: {
+      id: true, side: true, milestoneCode: true, chaseCount: true, lastChasedAt: true,
+      resolvedAt: true, status: true, transactionId: true,
+      transaction: { select: { propertyAddress: true } },
+    },
+  });
+
+  const resolved = states.filter((s) => s.resolvedAt != null).length;
+  const rate = states.length ? Math.round((resolved / states.length) * 100) : 0;
+
+  const rows: ChaseRow[] = states.map((s) => {
+    const done = s.resolvedAt != null;
+    return {
+      id: s.id,
+      type: "solicitor",
+      transactionId: s.transactionId,
+      address: s.transaction.propertyAddress ?? "—",
+      sentAt: s.lastChasedAt,
+      chasedLabel: `${s.side === "vendor" ? "Seller's" : "Buyer's"} solicitor · ${s.milestoneCode}`,
+      chasedSub: s.chaseCount > 1 ? `Chased ${s.chaseCount} times` : "Chased once",
+      openedAt: null,
+      opensTracked: false,
+      outcome: done ? "Confirmed the step" : s.status === "escalated" ? "Escalated to the team" : "Still chasing",
+      outcomeTone: done ? "good" : s.status === "escalated" ? "warn" : "muted",
+      canEmailTick: false,
+      repliedByEmail: false,
+    };
+  });
+
+  return {
+    type: "solicitor",
+    title: "Solicitor chase",
+    blurb: "Chasing solicitors to confirm the steps they own. We can see whether the step got confirmed, but not yet whether the email was opened.",
+    summary: {
+      sent: states.length, responded: resolved, responseRate: rate,
+      opened: 0, opensTracked: false, extraLabel: "Still chasing", extra: states.length - resolved,
+    },
+    rows,
+    sinceLabel: fmtSince(states.length ? states[states.length - 1].lastChasedAt : null),
+  };
+}
+
+// ── Client chase (sent + delivery + engagement, from OutboundEmailQueue) ───────
+async function getClientTab(): Promise<ChaseTabData> {
+  const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
+  const queued = await commandDb.outboundEmailQueue.findMany({
+    where: { emailType: "CLIENT_CHASE", sentAt: { gte: since }, recipientContact: { transaction: realFile } },
+    orderBy: { sentAt: "desc" },
+    select: {
+      id: true, sentAt: true, deliveredAt: true, bouncedAt: true, payload: true,
+      recipientContact: { select: { name: true, propertyTransactionId: true, transaction: { select: { propertyAddress: true } } } },
+    },
+  });
+
+  const delivered = queued.filter((q) => q.deliveredAt != null).length;
+  const bounced = queued.filter((q) => q.bouncedAt != null).length;
+
+  const rows: ChaseRow[] = queued.map((q) => {
+    const subject = (q.payload as { subject?: string } | null)?.subject ?? "Client chase";
+    return {
+      id: q.id,
+      type: "client",
+      transactionId: q.recipientContact?.propertyTransactionId ?? "",
+      address: q.recipientContact?.transaction.propertyAddress ?? "—",
+      sentAt: q.sentAt,
+      chasedLabel: q.recipientContact?.name ?? "Client",
+      chasedSub: subject,
+      openedAt: null,
+      opensTracked: false,
+      outcome: q.bouncedAt ? "Bounced" : q.deliveredAt ? "Delivered" : "Sent",
+      outcomeTone: q.bouncedAt ? "warn" : q.deliveredAt ? "good" : "muted",
+      canEmailTick: false,
+      repliedByEmail: false,
+    };
+  });
+
+  return {
+    type: "client",
+    title: "Client chase",
+    blurb: "Nudging buyers and sellers to do their bit. We can see it was delivered, but not yet whether they opened it (that needs email open-tracking).",
+    summary: {
+      sent: queued.length, responded: delivered, responseRate: null,
+      opened: 0, opensTracked: false, extraLabel: "Bounced", extra: bounced,
+    },
+    rows,
+    sinceLabel: fmtSince(queued.length ? queued[queued.length - 1].sentAt : null),
+  };
+}
+
+export async function getChasingData(type: ChaseType): Promise<ChaseTabData> {
+  if (type === "solicitor") return getSolicitorTab();
+  if (type === "client") return getClientTab();
+  return getEnquiriesTab();
+}
+
+// Tab counts for the header, cheap.
+export async function getChaseTabCounts(): Promise<Record<ChaseType, number>> {
+  const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
+  const [enquiries, solicitor, client] = await Promise.all([
+    commandDb.chaseSend.count({ where: { sentAt: { gte: since }, recipient: { not: "buyer" }, transaction: realFile } }),
+    commandDb.solicitorChaseState.count({ where: { lastChasedAt: { gte: since }, chaseCount: { gt: 0 }, transaction: realFile } }),
+    commandDb.outboundEmailQueue.count({ where: { emailType: "CLIENT_CHASE", sentAt: { gte: since }, recipientContact: { transaction: realFile } } }),
+  ]);
+  return { enquiries, solicitor, client };
+}
+
+// ── Row detail: what was actually sent ────────────────────────────────────────
+export type ChaseDetail = {
+  subject: string;
+  body: string | null;
+  bodyNote: string | null;
+  meta: { label: string; value: string }[];
+  transactionId: string | null;
+};
+
+function fmtDateTime(d: Date | null): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+export async function getChaseDetail(type: ChaseType, id: string): Promise<ChaseDetail | null> {
+  if (type === "enquiries") {
+    const send = await commandDb.chaseSend.findUnique({
+      where: { id },
+      select: {
+        transactionId: true, kind: true, recipient: true, recipientName: true, sentAt: true,
+        openedAt: true, respondedAt: true, responseType: true, repliedByEmailAt: true,
+      },
+    });
+    if (!send) return null;
+    // Correlate to the paired activity record written by the same cron iteration:
+    // the automated chase OutboundMessage for this file, nearest in time.
+    const candidates = await commandDb.outboundMessage.findMany({
+      where: { transactionId: send.transactionId, purpose: "chase", isAutomated: true },
+      orderBy: { sentAt: "desc" },
+      select: { subject: true, content: true, sentAt: true, recipientName: true },
+      take: 40,
+    });
+    const target = send.sentAt ? send.sentAt.getTime() : 0;
+    const nearest = candidates
+      .map((c) => ({ c, d: Math.abs((c.sentAt?.getTime() ?? 0) - target) }))
+      .sort((a, b) => a.d - b.d)[0]?.c ?? null;
+    return {
+      subject: nearest?.subject ?? `${KIND_LABEL[send.kind] ?? send.kind} to ${RECIPIENT_LABEL[send.recipient] ?? send.recipient}`,
+      body: nearest?.content ?? null,
+      bodyNote: nearest ? null : "The exact copy wasn't stored for this send.",
+      meta: [
+        { label: "Chased", value: `${RECIPIENT_LABEL[send.recipient] ?? send.recipient}${send.recipientName ? ` · ${send.recipientName}` : ""}` },
+        { label: "Sent", value: fmtDateTime(send.sentAt) },
+        { label: "Opened", value: fmtDateTime(send.openedAt) },
+        { label: "Responded", value: send.respondedAt ? `${fmtDateTime(send.respondedAt)} (${RESPONSE_LABEL[send.responseType ?? ""] ?? "action"})` : send.repliedByEmailAt ? `By email (${fmtDateTime(send.repliedByEmailAt)})` : "—" },
+      ],
+      transactionId: send.transactionId,
+    };
+  }
+
+  if (type === "solicitor") {
+    const state = await commandDb.solicitorChaseState.findUnique({
+      where: { id },
+      select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, resolvedAt: true, status: true },
+    });
+    if (!state) return null;
+    // The chase cron mirrors an OutboundMessage with the real subject (the body
+    // it stores is a summary line, so we show that and flag it).
+    const msg = await commandDb.outboundMessage.findFirst({
+      where: { transactionId: state.transactionId, purpose: "chase", isAutomated: true },
+      orderBy: { sentAt: "desc" },
+      select: { subject: true, content: true },
+    });
+    return {
+      subject: msg?.subject ?? `Confirmation request · ${state.milestoneCode}`,
+      body: msg?.content ?? null,
+      bodyNote: "Only a summary of this chase was stored, not the full email body.",
+      meta: [
+        { label: "Chased", value: `${state.side === "vendor" ? "Seller's" : "Buyer's"} solicitor · ${state.milestoneCode}` },
+        { label: "Times chased", value: String(state.chaseCount) },
+        { label: "First chased", value: fmtDateTime(state.firstChasedAt) },
+        { label: "Last chased", value: fmtDateTime(state.lastChasedAt) },
+        { label: "Outcome", value: state.resolvedAt ? `Confirmed (${fmtDateTime(state.resolvedAt)})` : state.status },
+      ],
+      transactionId: state.transactionId,
+    };
+  }
+
+  // client
+  const q = await commandDb.outboundEmailQueue.findUnique({
+    where: { id },
+    select: { payload: true, sentAt: true, deliveredAt: true, bouncedAt: true, bouncedReason: true, recipientContact: { select: { name: true, propertyTransactionId: true } } },
+  });
+  if (!q) return null;
+  const p = q.payload as { subject?: string; text?: string } | null;
+  return {
+    subject: p?.subject ?? "Client chase",
+    body: p?.text ?? null,
+    bodyNote: p?.text ? null : "The email body wasn't stored for this send.",
+    meta: [
+      { label: "To", value: q.recipientContact?.name ?? "Client" },
+      { label: "Sent", value: fmtDateTime(q.sentAt) },
+      { label: "Delivered", value: fmtDateTime(q.deliveredAt) },
+      { label: "Bounced", value: q.bouncedAt ? `${fmtDateTime(q.bouncedAt)}${q.bouncedReason ? ` · ${q.bouncedReason}` : ""}` : "—" },
+    ],
+    transactionId: q.recipientContact?.propertyTransactionId ?? null,
+  };
+}
