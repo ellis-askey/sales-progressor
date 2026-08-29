@@ -1616,6 +1616,11 @@ model ClientMoveInfo {
   onwardReadyToExchange     String? // "yes" | "no" | "not_sure"
   onwardMortgageOfferExpiry DateTime?
 
+  // Related sale (buyers who are also selling a property to fund their purchase,
+  // the mirror of buyingOnward, on the purchaser side). Catches mortgage buyers
+  // who are selling; cash_from_proceeds / a chain link below are also signals.
+  sellingRelated Boolean?
+
   // Moving plans
   removalStatus  String? // "not_started" | "getting_quotes" | "provisional" | "confirmed"
   removalCompany String?

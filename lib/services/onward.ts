@@ -373,6 +373,58 @@ export async function getOnwardSignalForFile(
   return { buyingOnward: hasChainAbove || info?.buyingOnward === true, onwardAddress };
 }
 
+/**
+ * Related-sale signal (mirror of getOnwardSignalForFile, on the buyer side). Is
+ * this file's buyer also SELLING a property to fund their purchase, and if so
+ * what's the address? A buyer is "selling" when any of these hold:
+ *   - a chain link exists BELOW them (position+1) — we know the property,
+ *   - they're buying `cash_from_proceeds` (their deposit comes from a sale),
+ *   - their funds come from a sale (fundsSource = "sale"), OR
+ *   - they've answered "yes, also selling" in their portal (sellingRelated).
+ * Used to turn the agent-side related-sale card from passive to a definitive
+ * "this buyer is selling, set it up" prompt. Address comes from the link below.
+ */
+export async function getRelatedSaleSignalForFile(
+  transactionId: string,
+): Promise<{ selling: boolean; relatedAddress: string | null }> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chainLinkId: true, purchaseType: true },
+  });
+
+  let hasChainBelow = false;
+  let relatedAddress: string | null = null;
+  if (tx?.chainLinkId) {
+    const link = await prisma.chainLink.findUnique({
+      where: { id: tx.chainLinkId },
+      select: { position: true, chainId: true },
+    });
+    if (link) {
+      const below = await prisma.chainLink.findFirst({
+        where: { chainId: link.chainId, position: link.position + 1 },
+        select: { stubPropertyAddress: true, transaction: { select: { propertyAddress: true } } },
+      });
+      if (below) {
+        hasChainBelow = true;
+        relatedAddress = below.transaction?.propertyAddress ?? below.stubPropertyAddress ?? null;
+      }
+    }
+  }
+
+  const info = await prisma.clientMoveInfo.findUnique({
+    where: { transactionId_side: { transactionId, side: "purchaser" } },
+    select: { sellingRelated: true, fundsSource: true },
+  });
+
+  const selling =
+    hasChainBelow ||
+    tx?.purchaseType === "cash_from_proceeds" ||
+    info?.fundsSource === "sale" ||
+    info?.sellingRelated === true;
+
+  return { selling, relatedAddress };
+}
+
 /** Create an empty tracker (status active) if one doesn't already exist. */
 export async function openOnwardTracker(
   transactionId: string,
