@@ -525,7 +525,7 @@ model PropertyTransaction {
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
   enquiryRaiseChase                EnquiryRaiseChase?
-  onwardTracker                    OnwardTracker?
+  onwardTrackers                   OnwardTracker[]
   followupTaps                     FollowupTap[]
   followupNudgesDisabled           Boolean                @default(false)
   chaseSends                       ChaseSend[]
@@ -3123,7 +3123,12 @@ enum EnquiryMovementStatus {
 // Full spec: docs/active/onward-visibility/00-discovery.md.
 model OnwardTracker {
   id                String              @id @default(cuid())
-  transactionId     String              @unique // the seller's own sale file
+  transactionId     String              // the client's own sale file (one tracker per kind)
+  // Direction (2026-08-29): onward_purchase = the SELLER buying the property above
+  // them in the chain (purchaser/PM steps); related_sale = the BUYER selling the
+  // property below them (vendor/VM steps). One file can carry BOTH (its seller's
+  // onward + its buyer's related sale), hence @@unique([transactionId, kind]).
+  kind              OnwardTrackerKind   @default(onward_purchase)
   // The two facts that decide which purchaser steps apply — same axes the real
   // engine uses via computeAutoNrCodes (lib/milestone-auto-nr.ts). Nullable
   // until the seller/agent tells us; the step list stays gated until both set.
@@ -3140,6 +3145,13 @@ model OnwardTracker {
 
   transaction PropertyTransaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   steps       OnwardStepConfirmation[]
+
+  @@unique([transactionId, kind])
+}
+
+enum OnwardTrackerKind {
+  onward_purchase // seller buying the property above (PM steps)
+  related_sale    // buyer selling the property below (VM steps)
 }
 
 enum OnwardTrackerStatus {
@@ -3178,6 +3190,7 @@ model OnwardStepConfirmation {
 
 enum OnwardConfirmSource {
   seller
+  buyer
   agent
 }
 

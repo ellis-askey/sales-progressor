@@ -123,7 +123,7 @@ const toISODate = (d: Date | null): string | null =>
  */
 export async function getOnwardTrackerView(transactionId: string): Promise<OnwardTrackerView> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     include: { steps: true },
   });
 
@@ -221,7 +221,7 @@ export async function getOnwardTrackerView(transactionId: string): Promise<Onwar
  */
 export async function setOnwardSurveySkipped(transactionId: string, skipped: boolean): Promise<void> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     select: { id: true, status: true, manualNrCodes: true },
   });
   if (!tracker || tracker.status === "superseded") return;
@@ -244,7 +244,7 @@ export async function setOnwardSurveySkipped(transactionId: string, skipped: boo
  */
 export async function abandonOnwardTracker(transactionId: string): Promise<void> {
   await prisma.onwardTracker.updateMany({
-    where: { transactionId, status: { notIn: ["superseded"] } },
+    where: { transactionId, kind: "onward_purchase", status: { notIn: ["superseded"] } },
     data: { status: "abandoned" },
   });
 }
@@ -252,7 +252,7 @@ export async function abandonOnwardTracker(transactionId: string): Promise<void>
 /** Undo an abandon — back to where they were, data intact. */
 export async function reactivateOnwardTracker(transactionId: string): Promise<void> {
   await prisma.onwardTracker.updateMany({
-    where: { transactionId, status: "abandoned" },
+    where: { transactionId, kind: "onward_purchase", status: "abandoned" },
     data: { status: "active" },
   });
 }
@@ -264,7 +264,7 @@ export async function reactivateOnwardTracker(transactionId: string): Promise<vo
  */
 export async function resetOnwardTracker(transactionId: string): Promise<void> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     select: { id: true, status: true },
   });
   if (!tracker || tracker.status === "superseded") return;
@@ -320,7 +320,7 @@ export async function getOnwardSignalForFile(
 /** Create an empty tracker (status active) if one doesn't already exist. */
 export async function openOnwardTracker(transactionId: string): Promise<void> {
   await prisma.onwardTracker.upsert({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     create: { transactionId },
     update: {},
   });
@@ -338,7 +338,7 @@ export async function setOnwardTypeFacts(
   facts: { tenure: Tenure; purchaseType: PurchaseType; isShareOfFreehold: boolean },
 ): Promise<void> {
   const tracker = await prisma.onwardTracker.upsert({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     create: { transactionId, ...facts },
     update: { ...facts },
     include: { steps: true },
@@ -378,7 +378,7 @@ export async function confirmOnwardStep(
   confirmer: { source: "agent"; userId: string } | { source: "seller"; contactId: string },
 ): Promise<ConfirmOnwardResult> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     include: { steps: true },
   });
   if (!tracker) return { ok: false, reason: "no_tracker" };
@@ -446,7 +446,7 @@ export type UndoOnwardResult =
  */
 export async function undoOnwardStep(transactionId: string, milestoneCode: string): Promise<UndoOnwardResult> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     include: { steps: true },
   });
   if (!tracker) return { ok: false, reason: "not_found" };
@@ -509,7 +509,7 @@ export async function getOnwardInheritanceForLink(claimedLinkId: string): Promis
   const txId = await sellerBelowTransactionId(claimedLinkId);
   if (!txId) return null;
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId: txId },
+    where: { transactionId_kind: { transactionId: txId, kind: "onward_purchase" } },
     include: { steps: true },
   });
   if (!tracker) return null;
@@ -544,7 +544,7 @@ export async function supersedeOnwardTrackerForLink(claimedLinkId: string): Prom
   const txId = await sellerBelowTransactionId(claimedLinkId);
   if (!txId) return;
   await prisma.onwardTracker.updateMany({
-    where: { transactionId: txId, status: { notIn: ["superseded", "abandoned"] } },
+    where: { transactionId: txId, kind: "onward_purchase", status: { notIn: ["superseded", "abandoned"] } },
     data: { status: "superseded" },
   });
 }
@@ -570,7 +570,7 @@ export async function supersedeOnwardTrackerForLink(claimedLinkId: string): Prom
  */
 export async function onwardMortgageNeedsConfirm(transactionId: string): Promise<boolean> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     select: { purchaseType: true, steps: { where: { milestoneCode: "PM11" }, select: { id: true } } },
   });
   if (!tracker || tracker.purchaseType !== "mortgage") return false;
@@ -588,7 +588,7 @@ export async function backfillOnwardMortgageOffer(
   confirmer: { source: "agent"; userId: string } | { source: "seller"; contactId: string },
 ): Promise<void> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     select: { id: true, purchaseType: true, steps: { select: { milestoneCode: true } } },
   });
   if (!tracker || tracker.purchaseType !== "mortgage") return;
@@ -609,7 +609,7 @@ export async function backfillOnwardMortgageOffer(
 
 export async function cascadeOnwardExchange(transactionId: string): Promise<void> {
   const tracker = await prisma.onwardTracker.findUnique({
-    where: { transactionId },
+    where: { transactionId_kind: { transactionId, kind: "onward_purchase" } },
     select: {
       id: true,
       status: true,
