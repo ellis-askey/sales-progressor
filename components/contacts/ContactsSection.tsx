@@ -36,6 +36,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
+import { IntroCallLauncher } from "@/components/transaction/IntroCallDrawer";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -386,9 +387,13 @@ export function ContactsSection({
   whatsappGroupInviteUrl = null,
   photoUrl = null,
   embedded = false,
+  isInternalStaff = false,
 }: {
   transactionId: string;
   contacts: Contact[];
+  // Internal team only: shows the "Start intro call" opener until the file's
+  // introduction is done (the launcher fetches that state itself).
+  isInternalStaff?: boolean;
   // When true, render without the outer GlassCard shell (the PeoplePanel
   // wrapper provides the card + toggle). 2026-08-10.
   embedded?: boolean;
@@ -628,6 +633,7 @@ export function ContactsSection({
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, flexShrink: 0 }}>
+          {isInternalStaff && <IntroCallLauncher transactionId={transactionId} />}
           {!showForm && (
             <button
               type="button"

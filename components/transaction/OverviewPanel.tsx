@@ -379,6 +379,7 @@ export async function OverviewPanel({
           <ContactsSection
             transactionId={transaction.id}
             contacts={transaction.contacts}
+            isInternalStaff={isInternalStaff}
             address={transaction.propertyAddress}
             portalViewDates={Object.fromEntries(
               transaction.contacts

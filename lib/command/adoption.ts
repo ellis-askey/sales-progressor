@@ -76,6 +76,7 @@ export type AdoptionClientDetail = {
 export type AdoptionClient = {
   id: string;
   name: string;
+  agencyId: string;
   agencyName: string;
   address: string;
   role: "Buyer" | "Seller";
@@ -88,15 +89,39 @@ export type AdoptionClient = {
   detail: AdoptionClientDetail;
 };
 
-// The adoption ladder, most-inclusive first. Each stage is a count of clients
-// who have reached it. Not strictly nested (a client can have notifications on
-// without installing), but read top-to-bottom it shows where people drop off.
+// A REAL nested engagement funnel: each stage is a strict subset of the one
+// above, so bars only ever shrink and the fall between them is genuine drop-off.
+// Install + notifications are NOT stages (you can engage without either) — they
+// live in AdoptionCapabilities instead.
 export type AdoptionFunnel = {
   invited: number; // has portal access at all
-  visited: number; // opened the portal at least once
-  installed: number; // added it to their home screen
+  visited: number; // opened the portal at least once (subset of invited)
+  engaged: number; // came back or spent real time (subset of visited)
+};
+
+// Parallel "how equipped is this client" signals — not funnel stages.
+export type AdoptionCapabilities = {
+  installed: number;     // added the app to their home screen
   notifications: number; // turned on push notifications
-  engaged: number; // came back or spent real time (see isDeeplyEngaged)
+  cantReach: number;     // no email, opted out, or bouncing
+};
+
+// Per-agency adoption rollup — the lever for "who drives adoption, who needs help".
+export type AgencyAdoptionRow = {
+  agencyId: string;
+  agencyName: string;
+  total: number;
+  visited: number;
+  engaged: number;
+  notifications: number;
+};
+
+// Actionable segments — the "what to do next" behind the numbers. All restricted
+// to clients we can actually email right now (kind === "reachable").
+export type AdoptionPriority = {
+  notificationsOff: number;   // reachable, push off — the nudge lever
+  neverVisited: number;       // reachable, never opened the portal
+  visitedNotEngaged: number;  // reachable, glanced once but didn't come back
 };
 
 // "Deeply engaged" = more than a single glance: two or more tracked visits, or
@@ -124,6 +149,9 @@ export type PortalAdoption = {
   visitedCount: number;
   cantReachCount: number;
   funnel: AdoptionFunnel;
+  capabilities: AdoptionCapabilities;
+  priority: AdoptionPriority;
+  byAgency: AgencyAdoptionRow[];
   growth: GrowthWeek[];
   clients: AdoptionClient[];
 };
@@ -133,9 +161,9 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     where: {
       portalToken: { not: null },
       roleType: { in: ["purchaser", "vendor"] },
-      // Exclude demo showcase files so their fake clients don't inflate the
-      // portal-adoption funnel.
-      transaction: { status: { in: [...LIVE_STATUSES] }, isDemo: false },
+      // Exclude demo showcase files and internal/test agencies so their fake
+      // clients don't inflate the portal-adoption funnel.
+      transaction: { status: { in: [...LIVE_STATUSES] }, isDemo: false, agency: { isInternal: false } },
     },
     select: {
       id: true,
@@ -155,7 +183,7 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
       brokerCallbackRequestedAt: true,
       exchangeAuthorityGivenAt: true,
       transaction: {
-        select: { status: true, propertyAddress: true, agency: { select: { name: true } } },
+        select: { status: true, propertyAddress: true, agencyId: true, agency: { select: { name: true } } },
       },
       createdAt: true,
       pushSubscriptions: { select: { id: true }, take: 1 },
@@ -176,6 +204,7 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     return {
       id: c.id,
       name: c.name,
+      agencyId: c.transaction.agencyId,
       agencyName: c.transaction.agency?.name ?? "—",
       address: c.transaction.propertyAddress ?? "—",
       role: c.roleType === "vendor" ? "Seller" : "Buyer",
@@ -219,6 +248,31 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
   const notificationsCount = clients.filter((c) => c.notifications).length;
   const installedCount = clients.filter((c) => c.installed).length;
   const visitedCount = clients.filter((c) => c.lastVisited != null).length;
+  const engagedCount = clients.filter(isDeeplyEngaged).length;
+
+  // Actionable segments — only clients we can email right now.
+  const reachable = clients.filter((c) => c.comms.kind === "reachable");
+  const priority: AdoptionPriority = {
+    notificationsOff: reachable.filter((c) => !c.notifications).length,
+    neverVisited: reachable.filter((c) => c.lastVisited == null).length,
+    visitedNotEngaged: reachable.filter((c) => c.lastVisited != null && !isDeeplyEngaged(c)).length,
+  };
+
+  // Per-agency rollup — the lever for "who drives adoption".
+  const byAgencyMap = new Map<string, AgencyAdoptionRow>();
+  for (const c of clients) {
+    const row = byAgencyMap.get(c.agencyId) ?? { agencyId: c.agencyId, agencyName: c.agencyName, total: 0, visited: 0, engaged: 0, notifications: 0 };
+    row.total += 1;
+    if (c.lastVisited != null) row.visited += 1;
+    if (isDeeplyEngaged(c)) row.engaged += 1;
+    if (c.notifications) row.notifications += 1;
+    byAgencyMap.set(c.agencyId, row);
+  }
+  // Worst engagement first (most clients but fewest engaged), so the agencies
+  // that need help rise to the top.
+  const byAgency = [...byAgencyMap.values()].sort(
+    (a, b) => (a.engaged / a.total) - (b.engaged / b.total) || b.total - a.total,
+  );
 
   const firstVisitById = new Map(clients.map((c) => [c.id, c.detail.firstVisitAt]));
   const growth = computeWeeklyGrowth(
@@ -235,10 +289,15 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     funnel: {
       invited: clients.length,
       visited: visitedCount,
+      engaged: engagedCount,
+    },
+    capabilities: {
       installed: installedCount,
       notifications: notificationsCount,
-      engaged: clients.filter(isDeeplyEngaged).length,
+      cantReach: clients.filter((c) => isUnreachable(c.comms.kind)).length,
     },
+    priority,
+    byAgency,
     growth,
     clients,
   };

@@ -28,6 +28,10 @@ export type IntelViewer = {
 export type ChainNodeOwnership = {
   transactionId: string | null;
   linkCreatedByUserId: string | null;
+  // Agency of whoever ADDED this link (the stub creator). Used to scope an
+  // unclaimed placeholder's intel to that agency — never the chain's agency,
+  // which would leak to a different agency that added its own stubs.
+  linkCreatedByAgencyId: string | null;
   txAgencyId: string | null;
   txAssignedUserId: string | null;
   txAgentUserId: string | null;
@@ -49,8 +53,12 @@ export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
   // Internal staff see the chains they can already access.
   if (isInternalStaff(v.role)) return true;
   if (o.transactionId === null) {
-    // Unclaimed stub: only whoever added it (internal already returned above).
-    return o.linkCreatedByUserId === v.userId;
+    // Unclaimed placeholder: the whole agency that ADDED it (a director /
+    // colleague), not just the person who typed it. Never another agency.
+    return (
+      o.linkCreatedByUserId === v.userId ||
+      (!!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId)
+    );
   }
   // Claimed node: anyone in the owning agency.
   return !!o.txAgencyId && o.txAgencyId === v.agencyId;
@@ -58,8 +66,11 @@ export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
 
 export function canEditNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean {
   if (o.transactionId === null) {
-    // Unclaimed stub: the originator, or internal team.
-    return isInternalStaff(v.role) || o.linkCreatedByUserId === v.userId;
+    // Unclaimed placeholder: internal team, whoever added it, or a director in
+    // the same agency (mirrors the claimed-node rule: creator / director / us).
+    if (isInternalStaff(v.role)) return true;
+    if (o.linkCreatedByUserId === v.userId) return true;
+    return v.role === "director" && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId;
   }
   // Claimed node.
   if (v.scope.kind === "all") return true; // admin / superadmin / hybrid

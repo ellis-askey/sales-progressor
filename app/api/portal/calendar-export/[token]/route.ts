@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPortalData } from "@/lib/services/portal";
+import { recordFeatureUse } from "@/lib/command/feature-usage-write";
 
 function fmtICS(d: Date) {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -101,6 +102,17 @@ export async function GET(
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
+
+  // Feature-usage: a client added a key date to their calendar. This download is
+  // otherwise invisible (no DB row), so record it on the unified stream.
+  await recordFeatureUse({
+    feature: "calendar_export",
+    surface: "portal",
+    actorType: "client",
+    actorId: contact.id,
+    transactionId: transaction.id,
+    metadata: { event },
+  });
 
   return new NextResponse(ics, {
     headers: {
