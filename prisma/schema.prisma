@@ -115,6 +115,7 @@ model Agency {
   pricingAcknowledgements PricingAcknowledgement[]
   creditNotes             CreditNote[]
   agentEmailLogs          AgentEmailLog[]
+  prospect                Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -1871,6 +1872,7 @@ model ChainLink {
   triggeredNotifications ChainNotificationQueue[] @relation("CascadeTrigger")
   receivedNotifications  ChainNotificationQueue[] @relation("CascadeRecipient")
   neighbourUpdates       ChainNeighbourUpdate[]
+  prospects              Prospect[] // acquisition prospects sourced from this chain invite (Command Centre → Prospects)
 
   @@unique([chainId, position])
   @@index([transactionId])
@@ -3545,4 +3547,166 @@ model FeatureEvent {
   @@index([occurredAt])
   @@index([transactionId])
   @@index([agencyId, occurredAt])
+}
+
+// ─── Prospects (Command Centre → acquisition CRM) ─────────────────────────────
+// A prospective estate agency/branch we want to acquire. Superadmin-only. Keeps
+// a hard link to the Agency it becomes (convertedAgencyId) so acquisition
+// attribution survives conversion; everything downstream (transactions, revenue)
+// is derived by joining Agency -> PropertyTransaction, never duplicated here.
+// See docs/active/prospects/00-implementation-plan.md.
+model Prospect {
+  id           String  @id @default(cuid())
+  agencyName   String
+  branch       String?
+  website      String?
+  location     String?
+  postcode     String?
+  phone        String?
+  generalEmail String?
+  branchCount  Int?
+  sizeNote     String? // approx listings / size, freeform
+
+  source ProspectSource @default(other)
+  status ProspectStatus @default(new)
+
+  ownerUserId String? // internal owner (defaults to creator)
+  notes       String? // rolling context (latest note also lives in the timeline)
+
+  lastContactedAt DateTime?
+  nextFollowUpAt  DateTime?
+  followUpCount   Int       @default(0)
+
+  convertedAt       DateTime?
+  convertedAgencyId String?             @unique // the durable attribution link
+  lostAt            DateTime?
+  lostReason        ProspectLostReason?
+  revisitAt         DateTime? // reappears in the follow-up queue
+
+  // Provenance when this prospect came from a chain invite (warm lead).
+  sourceChainLinkId String?
+
+  // GDPR / deliverability
+  optedOutAt DateTime?
+  bouncedAt  DateTime?
+  archivedAt DateTime?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  convertedAgency Agency?            @relation(fields: [convertedAgencyId], references: [id], onDelete: SetNull)
+  sourceChainLink ChainLink?         @relation(fields: [sourceChainLinkId], references: [id], onDelete: SetNull)
+  contacts        ProspectContact[]
+  activities      ProspectActivity[]
+  emails          ProspectEmail[]
+
+  @@index([status, nextFollowUpAt])
+  @@index([nextFollowUpAt])
+  @@index([source])
+  @@index([convertedAgencyId])
+  @@index([archivedAt])
+}
+
+model ProspectContact {
+  id               String   @id @default(cuid())
+  prospectId       String
+  name             String
+  jobTitle         String?
+  email            String?
+  phone            String?
+  linkedinUrl      String?
+  isDecisionMaker  Boolean  @default(false)
+  isPrimary        Boolean  @default(false)
+  preferredContact String? // "email" | "phone" | "linkedin"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@index([prospectId])
+  @@index([email])
+}
+
+// One row per meaningful interaction. Free-string `type` (no enum migration for
+// new activity kinds), mirroring FeatureEvent. Doubles as the analytics source.
+model ProspectActivity {
+  id          String   @id @default(cuid())
+  prospectId  String
+  type        String // "created" | "email_sent" | "email_received" | "call_logged" | "note" | "status_changed" | "follow_up_scheduled" | "follow_up_completed" | "contact_added" | "converted" | "lost"
+  occurredAt  DateTime @default(now())
+  actorUserId String?
+  summary     String? // one-line headline
+  body        String? // note text / call notes / email snapshot
+  metadata    Json? // { fromStatus, toStatus, callOutcome, contactId, ... }
+
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@index([prospectId, occurredAt])
+  @@index([type, occurredAt])
+}
+
+// One outreach email sent to a prospect. Full-fidelity tracking: delivered /
+// opened / clicked / bounced (via the SendGrid Event Webhook, joined by the
+// customArg prospectEmailId) and replied (via SendGrid Inbound Parse, matched by
+// replyToken in the Reply-To address). Sent from ellis@thesalesprogressor.co.uk.
+model ProspectEmail {
+  id            String    @id @default(cuid())
+  prospectId    String
+  contactId     String? // the ProspectContact it went to, if known
+  toEmail       String
+  subject       String
+  body          String // plain text
+  html          String?
+  templateKey   String?
+  aiGenerated   Boolean   @default(false)
+  replyToken    String?   @unique // embedded in Reply-To for inbound matching
+  sgMessageId   String?
+  sentAt        DateTime  @default(now())
+  deliveredAt   DateTime?
+  openedAt      DateTime?
+  clickedAt     DateTime?
+  bouncedAt     DateTime?
+  bouncedReason String?
+  repliedAt     DateTime?
+  createdById   String?
+
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@index([prospectId, sentAt])
+  @@index([replyToken])
+  @@index([sgMessageId])
+}
+
+enum ProspectStatus {
+  new
+  contacted
+  replied
+  interested
+  trial
+  active
+  lost
+}
+
+enum ProspectSource {
+  cold
+  google
+  linkedin
+  referral
+  chain
+  solicitor
+  existing_contact
+  inbound
+  other
+}
+
+enum ProspectLostReason {
+  not_interested
+  existing_solution
+  price
+  no_response
+  timing
+  corporate_decision
+  doesnt_outsource
+  other
 }

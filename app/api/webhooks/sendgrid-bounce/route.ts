@@ -123,6 +123,16 @@ export async function POST(req: NextRequest) {
       await suppressUserByEmail(event.email).catch(console.error);
       bounceSideEffects++;
     }
+
+    // (3) Prospect outreach tracking — events for prospect emails carry
+    // customArgs.prospectEmailId. Stamp delivered / opened / clicked / bounced
+    // on the ProspectEmail; a bounce also flags the prospect so we stop emailing.
+    const prospectEmailId = typeof event.prospectEmailId === "string" ? event.prospectEmailId : null;
+    if (prospectEmailId) {
+      await applyProspectEmailEvent(prospectEmailId, event).catch((err) =>
+        console.error("[sendgrid-webhook] prospect-email update failed", err),
+      );
+    }
   }
 
   return NextResponse.json({ ok: true, eventsProcessed: events.length, updated, bounceSideEffects });
@@ -195,6 +205,31 @@ async function applyUpdate(queueIds: string[], update: QueueUpdate): Promise<num
         data: { blockedAt: update.blockedAt, blockedReason: update.blockedReason },
       });
       return res.count;
+    }
+  }
+}
+
+// Stamp a ProspectEmail from its SendGrid event (open/click first-only; a bounce
+// also flags the prospect so future sends are blocked).
+async function applyProspectEmailEvent(id: string, event: SendGridEvent): Promise<void> {
+  const at = typeof event.timestamp === "number" && Number.isFinite(event.timestamp) ? new Date(event.timestamp * 1000) : new Date();
+  switch (event.event) {
+    case "delivered":
+      await prisma.prospectEmail.updateMany({ where: { id }, data: { deliveredAt: at } });
+      return;
+    case "open":
+      await prisma.prospectEmail.updateMany({ where: { id, openedAt: null }, data: { openedAt: at } });
+      return;
+    case "click":
+      await prisma.prospectEmail.updateMany({ where: { id, clickedAt: null }, data: { clickedAt: at } });
+      return;
+    case "bounce":
+    case "dropped":
+    case "blocked": {
+      await prisma.prospectEmail.updateMany({ where: { id }, data: { bouncedAt: at, bouncedReason: event.reason ?? event.status ?? null } });
+      const pe = await prisma.prospectEmail.findUnique({ where: { id }, select: { prospectId: true } });
+      if (pe) await prisma.prospect.update({ where: { id: pe.prospectId }, data: { bouncedAt: at } }).catch(() => {});
+      return;
     }
   }
 }

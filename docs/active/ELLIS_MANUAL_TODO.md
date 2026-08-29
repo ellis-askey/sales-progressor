@@ -8,6 +8,21 @@ Last updated: 2026-08-29
 
 ---
 
+## Prospects — email + reply tracking setup (2026-08-29)
+
+Phase 3 of the Command Centre → Prospects feature can send outreach from you and track opens/clicks/replies. The code is live but needs these one-time setup steps before sends and reply-capture work. Until they're done, sending still works if the sender is verified, but replies won't be captured and the signature image won't render.
+
+- [ ] **Send me your signature image** so I can place it at `public/prospect-signature.png` (served at `https://portal.thesalesprogressor.co.uk/prospect-signature.png`, which the email footer references). That's the "last bit" I'll implement once you send it. (Or set env `PROSPECT_SIGNATURE_URL` to a hosted image.)
+- [ ] **Confirm `ellis@thesalesprogressor.co.uk` is a verified SendGrid sender** (you said it's set up — just confirming it can send via the API).
+- [ ] **Enable "click" on the SendGrid Event Webhook** (the one at `/api/webhooks/sendgrid-bounce`). "Opened" was added for client chase; add **Clicked** too so prospect click-tracking lands. Delivered/bounce already on.
+- [ ] **Set up SendGrid Inbound Parse for replies:**
+  - Add an MX record for a subdomain, e.g. `reply.thesalesprogressor.co.uk` → `mx.sendgrid.net` (priority 10).
+  - SendGrid → Settings → Inbound Parse → Add Host & URL: host `reply.thesalesprogressor.co.uk`, destination URL `https://portal.thesalesprogressor.co.uk/api/webhooks/sendgrid-inbound`.
+  - If your reply subdomain differs, set env `PROSPECT_INBOUND_DOMAIN` to it. Replies route to `reply+<token>@<that domain>` and get matched to the prospect automatically.
+- [ ] **Privacy note (your call):** outreach emails carry an open/click tracking pixel + link rewriting. It's B2B and scoped to prospect outreach, but if your privacy policy needs a line, add it.
+- Migration `20260829210000_prospect_email` (the ProspectEmail table) applies via `prisma migrate deploy`, staging-first.
+- Staging note: prospect sends respect `EMAIL_SANDBOX_MODE` — on staging they validate but don't actually deliver, so you can test the flow safely.
+
 ## Chasing hub — client-email open-tracking (SendGrid) (2026-08-29)
 
 Phase 3 of the Chasing hub adds open-tracking for **client chase** emails only, so the Client tab can show an (approximate) open rate. The code is harmless until you enable two things in SendGrid — until then it just receives no open events and the Client tab shows 0% opened.
