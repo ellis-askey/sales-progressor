@@ -1,6 +1,20 @@
+import Link from "next/link";
 import { commandDb } from "@/lib/command/prisma";
 import { parseMode, parseAgencies, serviceTypeScope, cohortModeFilter } from "@/lib/command/scope";
+import { internalAgencyFilter } from "@/lib/security/internal-accounts";
 import WhatChanged from "@/components/command/shared/WhatChanged";
+import InfoTip from "@/components/command/shared/InfoTip";
+
+// Command Centre → Trends. Platform-level trends over time, segment breakdowns,
+// acquisition, and signup cohorts. The activation funnel lives on Getting
+// started (it owns the real cohort funnel); we point there rather than repeat a
+// broken copy.
+
+export const dynamic = "force-dynamic";
+
+// Cohorts below this size can only ever read 0% or 100%, so we show them muted
+// rather than alarming red/green.
+const MIN_RELIABLE_COHORT = 3;
 
 function weekLabel(d: Date): string {
   const day = new Date(d);
@@ -28,8 +42,17 @@ function pct(n: number, base: number): string {
   return `${Math.round((n / base) * 100)}%`;
 }
 
-function cohortPctColor(n: number, base: number): string {
-  if (base === 0) return "text-neutral-600";
+// Has the week-N measurement window for this cohort actually arrived yet? The
+// rollup writes 0 for future windows; without this we'd render "not yet
+// measured" as a red 0% retained.
+function intervalReached(signupWeek: Date, weeks: number, now: Date): boolean {
+  const d = new Date(signupWeek);
+  d.setUTCDate(d.getUTCDate() + weeks * 7);
+  return d <= now;
+}
+
+function cohortPctColor(n: number, base: number, reliable: boolean): string {
+  if (base === 0 || !reliable) return "text-neutral-500";
   const r = n / base;
   if (r >= 0.6) return "text-emerald-400";
   if (r >= 0.3) return "text-amber-400";
@@ -59,8 +82,7 @@ export default async function GrowthPage({
     globalRows,
     byServiceType,
     byModeProfile,
-    funnelData,
-    agencyLeaderboard,
+    leaderboardRaw,
     acquisitionSources,
     cohorts,
   ] = await Promise.all([
@@ -76,26 +98,24 @@ export default async function GrowthPage({
       where: { date: { gte: since30 }, agencyId: null, serviceType: null, modeProfile: { not: null } },
       orderBy: { date: "asc" },
     }),
-    // Funnel totals for last 30 days (global roll-up rows)
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: since30 }, agencyId: null, serviceType: null, modeProfile: null },
-      _sum: { signups: true, logins: true, uniqueActiveUsers: true, transactionsCreated: true, milestonesConfirmed: true },
-    }),
-    // Agency leaderboard — per-agency metric sums for last 30 days
+    // Agency leaderboard — per-agency metric sums for last 30 days. Take extra so
+    // that after we drop deleted/internal/zero-activity rows we still have a full
+    // top 20.
     commandDb.dailyMetric.groupBy({
       by: ["agencyId"],
       where: { date: { gte: since30 }, agencyId: { not: null } },
       _sum: { milestonesConfirmed: true, transactionsCreated: true, chasesSent: true, signups: true },
       orderBy: { _sum: { milestonesConfirmed: "desc" } },
-      take: 20,
+      take: 40,
     }),
-    // Acquisition source breakdown from Agency table
+    // Acquisition source breakdown — real customer agencies only.
     commandDb.agency.groupBy({
       by: ["signupSource"],
+      where: internalAgencyFilter,
       _count: { id: true },
       orderBy: { _count: { id: "desc" } },
     }),
-    // Cohort data (moved from Retention)
+    // Signup cohorts (owned here; Repeat use points at this).
     commandDb.weeklyCohort.findMany({
       where: cohortFilter,
       orderBy: { signupWeek: "desc" },
@@ -103,17 +123,26 @@ export default async function GrowthPage({
     }),
   ]);
 
-  // Fetch agency names for leaderboard
-  const leaderboardAgencyIds = agencyLeaderboard
+  // Resolve which leaderboard agencyIds are REAL, non-internal agencies. Anything
+  // not in this map is a deleted-agency orphan or an internal/test account, and
+  // is dropped. We also drop rows with no activity in the window.
+  const leaderboardIds = leaderboardRaw
     .map((r) => r.agencyId)
     .filter((id): id is string => id !== null);
-  const agencyList = leaderboardAgencyIds.length > 0
+  const realAgencies = leaderboardIds.length > 0
     ? await commandDb.agency.findMany({
-        where: { id: { in: leaderboardAgencyIds } },
+        where: { id: { in: leaderboardIds }, ...internalAgencyFilter },
         select: { id: true, name: true },
       })
     : [];
-  const agencyNameMap = Object.fromEntries(agencyList.map((a) => [a.id, a.name]));
+  const agencyNameMap = Object.fromEntries(realAgencies.map((a) => [a.id, a.name]));
+  const agencyLeaderboard = leaderboardRaw
+    .filter((r) => {
+      if (!r.agencyId || !agencyNameMap[r.agencyId]) return false; // orphan / internal
+      const s = r._sum;
+      return (s.milestonesConfirmed ?? 0) + (s.transactionsCreated ?? 0) + (s.chasesSent ?? 0) + (s.signups ?? 0) > 0;
+    })
+    .slice(0, 20);
 
   // Weekly trend bucketing
   type WeekBucket = { week: string; signups: number; txns: number; milestones: number; chases: number };
@@ -147,63 +176,24 @@ export default async function GrowthPage({
     mpMap.set(key, arr);
   }
 
-  // Funnel steps
-  const fs = funnelData._sum;
-  const funnelSignups = fs.signups ?? 0;
-  const funnelSteps = [
-    { label: "Signups",                n: funnelSignups },
-    { label: "Logged in",              n: fs.logins ?? 0 },
-    { label: "Unique active users",    n: fs.uniqueActiveUsers ?? 0 },
-    { label: "Created a transaction",  n: fs.transactionsCreated ?? 0 },
-    { label: "Confirmed a milestone",  n: fs.milestonesConfirmed ?? 0 },
-  ];
-
   const latestCohorts = cohorts.slice(0, 4);
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold text-neutral-100">Trends</h1>
 
-      {/* Activation funnel */}
+      {/* Activation funnel now lives on Getting started — point, don't duplicate */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Activation funnel — last 30 days
-        </h2>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-          <div className="divide-y divide-neutral-800">
-            {funnelSteps.map((step, i) => {
-              const barPct = funnelSignups > 0 ? (step.n / funnelSignups) * 100 : 0;
-              const dropFromPrev = i > 0 && funnelSteps[i - 1].n > 0
-                ? Math.round(((step.n - funnelSteps[i - 1].n) / funnelSteps[i - 1].n) * 100)
-                : null;
-              return (
-                <div key={step.label} className="px-5 py-3 flex items-center gap-4">
-                  <div className="w-40 shrink-0">
-                    <p className="text-xs text-neutral-300">{step.label}</p>
-                  </div>
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="flex-1 bg-neutral-800 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-[#FF6B4A]/70"
-                        style={{ width: `${barPct.toFixed(1)}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-bold text-white tabular-nums w-12 text-right shrink-0">
-                      {step.n.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-neutral-500 tabular-nums w-10 text-right shrink-0">
-                      {funnelSignups > 0 ? `${Math.round(barPct)}%` : "—"}
-                    </span>
-                    {dropFromPrev !== null && (
-                      <span className={`text-[11px] tabular-nums w-12 text-right shrink-0 ${dropFromPrev < 0 ? "text-red-400" : "text-neutral-600"}`}>
-                        {dropFromPrev < 0 ? `${dropFromPrev}%` : ""}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 flex items-center gap-3">
+          <div className="flex-1">
+            <p className="text-xs font-medium text-neutral-300">Activation funnel</p>
+            <p className="text-[11px] text-neutral-500 mt-0.5">
+              Where new sign-ups reach their first sale and first milestone, and where they drop off, lives on Getting started.
+            </p>
           </div>
+          <Link href="/command/activation" className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors shrink-0">
+            Go to Getting started →
+          </Link>
         </div>
       </section>
 
@@ -251,9 +241,10 @@ export default async function GrowthPage({
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
           Agency leaderboard — last 30 days (by milestones)
+          <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="Agency leaderboard">Customer agencies ranked by milestones confirmed in the last 30 days. Excludes internal, test, and deleted accounts, and agencies with no activity in the window. Click an agency for its detail.</InfoTip></span>
         </h2>
         {agencyLeaderboard.length === 0 ? (
-          <p className="text-sm text-neutral-600">No per-agency data yet.</p>
+          <p className="text-sm text-neutral-600">No agency activity in the last 30 days.</p>
         ) : (
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
@@ -273,7 +264,11 @@ export default async function GrowthPage({
                     <tr key={row.agencyId ?? i} className="hover:bg-neutral-800/50 transition-colors">
                       <td className="px-5 py-2.5 text-xs text-neutral-600 tabular-nums">{i + 1}</td>
                       <td className="px-4 py-2.5 text-xs text-neutral-200">
-                        {row.agencyId ? (agencyNameMap[row.agencyId] ?? row.agencyId.slice(0, 8)) : "—"}
+                        {row.agencyId ? (
+                          <Link href={`/command/revenue/${row.agencyId}`} className="hover:text-white underline decoration-neutral-700">
+                            {agencyNameMap[row.agencyId]}
+                          </Link>
+                        ) : "—"}
                       </td>
                       <td className="px-4 py-2.5 text-right text-xs tabular-nums text-white font-medium">
                         {(row._sum.milestonesConfirmed ?? 0).toLocaleString()}
@@ -300,9 +295,10 @@ export default async function GrowthPage({
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
           Acquisition sources — all time
+          <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="Acquisition sources">How customer agencies found us, from the signup source captured at registration. Internal and test accounts are excluded. &ldquo;direct / unknown&rdquo; is anyone with no source recorded.</InfoTip></span>
         </h2>
         {acquisitionSources.length === 0 ? (
-          <p className="text-sm text-neutral-600">No UTM source data captured yet.</p>
+          <p className="text-sm text-neutral-600">No source data captured yet.</p>
         ) : (
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
@@ -334,6 +330,7 @@ export default async function GrowthPage({
         <section>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
             By service type — last 30 days
+            <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="By service type">How the file is billed: self-managed (£59, the agency runs it) vs outsourced (£250+, we run it). Distinct from mode profile, which is about who progresses the work.</InfoTip></span>
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
@@ -366,6 +363,7 @@ export default async function GrowthPage({
         <section>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
             By mode profile — last 30 days
+            <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="By mode profile">Who progresses the work: self-progressed (the agency), progressor-managed (our team), or mixed. Derived from actual activity, so it can differ from how the file is billed.</InfoTip></span>
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
@@ -396,44 +394,54 @@ export default async function GrowthPage({
         </section>
       </div>
 
-      {/* Weekly cohorts (moved from Retention) */}
+      {/* Weekly cohorts */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
           Signup cohorts — retention at each interval
+          <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="Signup cohorts">Of the agencies that joined in a given week, the share still active 1, 2, 4, 8, and 12 weeks later. A dash means that week hasn&rsquo;t arrived yet. Cohorts of fewer than {MIN_RELIABLE_COHORT} are shown muted because a single agency can only read 0% or 100%.</InfoTip></span>
         </h2>
+        <p className="text-[11px] text-neutral-600 mb-4">
+          Most cohorts here are one or two agencies, so treat the percentages as directional. A dash is a window that hasn&rsquo;t been reached yet, not a zero.
+        </p>
 
         {latestCohorts.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {latestCohorts.map((c) => (
-              <div key={c.id} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-neutral-200">w/c {fmtWeek(c.signupWeek)}</p>
-                    <p className="text-[11px] text-neutral-600 capitalize">{c.modeProfile.replace(/_/g, " ")}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-white">{c.cohortSize}</p>
-                    <p className="text-[10px] text-neutral-600">cohort size</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {[
-                    { label: "Wk 1", n: c.activeWeek1 },
-                    { label: "Wk 2", n: c.activeWeek2 },
-                    { label: "Wk 4", n: c.activeWeek4 },
-                    { label: "Wk 8", n: c.activeWeek8 },
-                    { label: "Wk 12", n: c.activeWeek12 },
-                  ].map(({ label, n }) => (
-                    <div key={label} className="text-center">
-                      <p className="text-[10px] text-neutral-600 mb-0.5">{label}</p>
-                      <p className={`text-sm font-semibold tabular-nums ${cohortPctColor(n, c.cohortSize)}`}>
-                        {pct(n, c.cohortSize)}
-                      </p>
+            {latestCohorts.map((c) => {
+              const reliable = c.cohortSize >= MIN_RELIABLE_COHORT;
+              return (
+                <div key={c.id} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-neutral-200">w/c {fmtWeek(c.signupWeek)}</p>
+                      <p className="text-[11px] text-neutral-600 capitalize">{c.modeProfile.replace(/_/g, " ")}</p>
                     </div>
-                  ))}
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-white">{c.cohortSize}</p>
+                      <p className="text-[10px] text-neutral-600">cohort size</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { label: "Wk 1", n: c.activeWeek1, w: 1 },
+                      { label: "Wk 2", n: c.activeWeek2, w: 2 },
+                      { label: "Wk 4", n: c.activeWeek4, w: 4 },
+                      { label: "Wk 8", n: c.activeWeek8, w: 8 },
+                      { label: "Wk 12", n: c.activeWeek12, w: 12 },
+                    ].map(({ label, n, w }) => {
+                      const reached = intervalReached(c.signupWeek, w, now);
+                      return (
+                        <div key={label} className="text-center">
+                          <p className="text-[10px] text-neutral-600 mb-0.5">{label}</p>
+                          <p className={`text-sm font-semibold tabular-nums ${reached ? cohortPctColor(n, c.cohortSize, reliable) : "text-neutral-700"}`}>
+                            {reached ? pct(n, c.cohortSize) : "—"}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -456,18 +464,31 @@ export default async function GrowthPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800">
-                  {cohorts.map((c) => (
-                    <tr key={c.id} className="hover:bg-neutral-800/50 transition-colors">
-                      <td className="px-4 py-2.5 text-xs text-neutral-400 whitespace-nowrap">{fmtWeek(c.signupWeek)}</td>
-                      <td className="px-4 py-2.5 text-xs text-neutral-500 capitalize">{c.modeProfile.replace(/_/g, " ")}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-200">{c.cohortSize}</td>
-                      <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${cohortPctColor(c.activeWeek1, c.cohortSize)}`}>{pct(c.activeWeek1, c.cohortSize)}</td>
-                      <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${cohortPctColor(c.activeWeek2, c.cohortSize)}`}>{pct(c.activeWeek2, c.cohortSize)}</td>
-                      <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${cohortPctColor(c.activeWeek4, c.cohortSize)}`}>{pct(c.activeWeek4, c.cohortSize)}</td>
-                      <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${cohortPctColor(c.activeWeek8, c.cohortSize)}`}>{pct(c.activeWeek8, c.cohortSize)}</td>
-                      <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${cohortPctColor(c.activeWeek12, c.cohortSize)}`}>{pct(c.activeWeek12, c.cohortSize)}</td>
-                    </tr>
-                  ))}
+                  {cohorts.map((c) => {
+                    const reliable = c.cohortSize >= MIN_RELIABLE_COHORT;
+                    const cells = [
+                      { n: c.activeWeek1, w: 1 },
+                      { n: c.activeWeek2, w: 2 },
+                      { n: c.activeWeek4, w: 4 },
+                      { n: c.activeWeek8, w: 8 },
+                      { n: c.activeWeek12, w: 12 },
+                    ];
+                    return (
+                      <tr key={c.id} className="hover:bg-neutral-800/50 transition-colors">
+                        <td className="px-4 py-2.5 text-xs text-neutral-400 whitespace-nowrap">{fmtWeek(c.signupWeek)}</td>
+                        <td className="px-4 py-2.5 text-xs text-neutral-500 capitalize">{c.modeProfile.replace(/_/g, " ")}</td>
+                        <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-200">{c.cohortSize}</td>
+                        {cells.map(({ n, w }) => {
+                          const reached = intervalReached(c.signupWeek, w, now);
+                          return (
+                            <td key={w} className={`px-4 py-2.5 text-right text-xs tabular-nums ${reached ? cohortPctColor(n, c.cohortSize, reliable) : "text-neutral-700"}`}>
+                              {reached ? pct(n, c.cohortSize) : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

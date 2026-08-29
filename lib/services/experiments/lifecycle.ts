@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { ExperimentOutcome } from "@prisma/client";
+import { computeExperimentMetrics } from "@/lib/command/experiment-metrics";
 
 type MetricSnapshot = {
   capturedAt: string;
@@ -19,47 +20,12 @@ async function captureMetricSnapshot(
   const windowStart = new Date(anchorDate);
   windowStart.setUTCDate(windowStart.getUTCDate() - windowDays);
 
-  // Global rows: all scope keys null
-  const rows = await prisma.dailyMetric.findMany({
-    where: {
-      agencyId: null,
-      serviceType: null,
-      modeProfile: null,
-      date: { gte: windowStart, lte: anchorDate },
-    },
-    select: {
-      signups: true,
-      uniqueActiveUsers: true,
-      transactionsCreated: true,
-      milestonesConfirmed: true,
-      chasesSent: true,
-      aiDraftsGenerated: true,
-      aiSpendCents: true,
-    },
-  });
-
-  if (rows.length === 0) {
-    return { capturedAt: anchorDate.toISOString(), metrics: {} };
-  }
-
-  const sum = (key: keyof typeof rows[0]) =>
-    rows.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
-
-  const avg = (key: keyof typeof rows[0]) =>
-    rows.length > 0 ? sum(key) / rows.length : null;
+  // Shared vocabulary: platform metrics + feature metrics, all over the window.
+  const metrics = await computeExperimentMetrics(windowStart, anchorDate);
 
   return {
     capturedAt: anchorDate.toISOString(),
-    metrics: {
-      signups: sum("signups"),
-      uniqueActiveUsersAvg: avg("uniqueActiveUsers"),
-      transactionsCreated: sum("transactionsCreated"),
-      milestonesConfirmed: sum("milestonesConfirmed"),
-      chasesSent: sum("chasesSent"),
-      aiDraftsGenerated: sum("aiDraftsGenerated"),
-      aiSpendCents: sum("aiSpendCents"),
-      windowDays,
-    },
+    metrics: { ...metrics, windowDays },
   };
 }
 
