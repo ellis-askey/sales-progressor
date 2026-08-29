@@ -6,13 +6,14 @@ import {
   getProspectDetailAction, changeProspectStatusAction, addProspectNoteAction,
   addProspectContactAction, setPrimaryContactAction, updateProspectAction,
   logProspectCallAction, scheduleFollowUpAction, completeFollowUpAction, markProspectLostAction,
+  convertProspectAction, unlinkProspectAction, searchAgenciesAction, getConvertedAgencyStatsAction,
 } from "@/app/actions/prospects";
 import {
   PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
   CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS, LOST_REASON_LABEL,
 } from "@/lib/command/prospect-labels";
 import { FollowUpCompose } from "./FollowUpCompose";
-import type { ProspectDetail } from "@/lib/command/prospects";
+import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats } from "@/lib/command/prospects";
 import type { ProspectStatus } from "@prisma/client";
 
 function fmtDateTime(d: Date | null): string {
@@ -32,7 +33,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
   const [d, setD] = useState<ProspectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email">(null);
+  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert">(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,9 +69,13 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
         {d && (
           <div className="p-6 space-y-6">
             {d.convertedAgency && (
-              <div className="bg-emerald-950/30 border border-emerald-900/70 rounded-lg px-4 py-2.5 text-xs text-emerald-300">
-                Converted to <span className="font-medium">{d.convertedAgency.name}</span>{d.convertedAt ? ` · ${fmtDateTime(d.convertedAt)}` : ""}.
-              </div>
+              <ConvertedBanner
+                agencyId={d.convertedAgency.id}
+                agencyName={d.convertedAgency.name}
+                convertedAt={d.convertedAt}
+                onUnlink={() => startTransition(async () => { await unlinkProspectAction(id); after(); })}
+                pending={pending}
+              />
             )}
 
             {/* Next follow-up */}
@@ -97,6 +102,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
               <ActionBtn onClick={() => setPanel(panel === "note" ? null : "note")} active={panel === "note"}>Add note</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "contact" ? null : "contact")} active={panel === "contact"}>Add contact</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "edit" ? null : "edit")} active={panel === "edit"}>Edit details</ActionBtn>
+              {!d.convertedAgency && <ActionBtn onClick={() => setPanel(panel === "convert" ? null : "convert")} active={panel === "convert"}>Won / convert</ActionBtn>}
               <ActionBtn onClick={() => setPanel(panel === "lost" ? null : "lost")} active={panel === "lost"}>Mark lost</ActionBtn>
             </div>
 
@@ -107,6 +113,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
             {panel === "note" && <NotePanel onSave={(text) => startTransition(async () => { await addProspectNoteAction(id, text); after(); })} pending={pending} />}
             {panel === "contact" && <ContactPanel onSave={(input) => startTransition(async () => { await addProspectContactAction(id, input); after(); })} pending={pending} />}
             {panel === "edit" && <EditPanel d={d} onSave={(patch) => startTransition(async () => { await updateProspectAction(id, patch); after(); })} pending={pending} />}
+            {panel === "convert" && <ConvertPanel onConvert={async (agencyId) => { const r = await convertProspectAction(id, agencyId); if (r.ok) after(); return r; }} />}
 
             {/* Agency info */}
             <Section title="Agency">
@@ -236,6 +243,100 @@ function Field({ label, value }: { label: string; value: string | null }) {
     <div className="flex justify-between gap-3 border-b border-neutral-900 pb-1">
       <dt className="text-neutral-600 shrink-0">{label}</dt>
       <dd className="text-neutral-300 text-right truncate">{value ?? "—"}</dd>
+    </div>
+  );
+}
+
+const fmtDay = (d: Date | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" }) : "—");
+
+// Shown once a prospect is linked to a real agency: the win banner + a live
+// rollup of what that agency is now worth (files on the platform + revenue).
+function ConvertedBanner({ agencyId, agencyName, convertedAt, onUnlink, pending }: {
+  agencyId: string; agencyName: string; convertedAt: Date | null; onUnlink: () => void; pending: boolean;
+}) {
+  const [stats, setStats] = useState<ConvertedAgencyStats | null>(null);
+  useEffect(() => { getConvertedAgencyStatsAction(agencyId).then(setStats).catch(() => {}); }, [agencyId]);
+  return (
+    <div className="bg-emerald-950/30 border border-emerald-900/70 rounded-lg px-4 py-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-emerald-300">Won: now the agency <span className="font-medium">{agencyName}</span>{convertedAt ? ` · ${fmtDay(convertedAt)}` : ""}.</p>
+        <button onClick={onUnlink} disabled={pending} className="text-[10px] text-emerald-500/70 hover:text-emerald-200 shrink-0">Unlink</button>
+      </div>
+      {stats && (
+        <div className="grid grid-cols-3 gap-2">
+          <MiniStat label="Files" value={String(stats.transactions)} />
+          <MiniStat label="Billed sales" value={String(stats.billedSales)} />
+          <MiniStat label="Revenue" value={`£${Math.round(stats.bankedPence / 100).toLocaleString("en-GB")}`} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-emerald-950/40 border border-emerald-900/50 px-2 py-1.5 text-center">
+      <div className="text-sm font-semibold text-emerald-200 tabular-nums">{value}</div>
+      <div className="text-[9px] uppercase tracking-wider text-emerald-500/70">{label}</div>
+    </div>
+  );
+}
+
+// Suggest-and-confirm conversion: search real agency accounts, pick the one this
+// prospect became, confirm. Debounced live search; already-linked agencies are
+// shown but not selectable.
+function ConvertPanel({ onConvert }: { onConvert: (agencyId: string) => Promise<{ ok: boolean; error?: string }> }) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<AgencyMatch[]>([]);
+  const [searching, setSearching] = useState(true);
+  const [picked, setPicked] = useState<AgencyMatch | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try { const r = await searchAgenciesAction(q); if (live) setResults(r); }
+      finally { if (live) setSearching(false); }
+    }, 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [q]);
+
+  async function confirm() {
+    if (!picked) return;
+    setSaving(true); setError(null);
+    const r = await onConvert(picked.id);
+    if (!r.ok) { setError(r.error ?? "Couldn't convert."); setSaving(false); }
+  }
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2.5">
+      <p className="text-[11px] text-neutral-500">Link this prospect to the real agency account it became. This records the win and starts tracking their files and revenue here.</p>
+      <input value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} placeholder="Search agency accounts by name…" className={inputCls} autoFocus />
+      <div className="max-h-56 overflow-y-auto space-y-1">
+        {searching ? <p className="text-[11px] text-neutral-600 px-1">Searching…</p>
+          : results.length === 0 ? <p className="text-[11px] text-neutral-600 px-1">No matching agency accounts.</p>
+          : results.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => !r.alreadyLinked && setPicked(r)}
+              disabled={r.alreadyLinked}
+              className={`w-full text-left px-2.5 py-1.5 rounded-md border text-xs transition-colors ${
+                picked?.id === r.id ? "bg-emerald-950 text-emerald-200 border-emerald-800"
+                : r.alreadyLinked ? "bg-neutral-900 text-neutral-600 border-neutral-800 cursor-not-allowed"
+                : "bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-600"}`}
+            >
+              <span className="font-medium">{r.name}</span>
+              <span className="text-neutral-600"> · created {fmtDay(r.createdAt)}</span>
+              {r.alreadyLinked && <span className="text-neutral-600"> · already linked</span>}
+            </button>
+          ))}
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <button onClick={confirm} disabled={!picked || saving} className="text-xs px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 disabled:opacity-40">
+        {saving ? "Converting…" : picked ? `Confirm: ${picked.name} won` : "Pick an agency"}
+      </button>
     </div>
   );
 }

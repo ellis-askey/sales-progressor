@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
   getProspects, getProspectSummary, getPipeline, getFollowUpQueue, getFollowUpCounts,
+  getAcquisitionFunnel, getChainLeads,
   PROSPECT_STATUSES, PROSPECT_SOURCES, STATUS_LABEL, SOURCE_LABEL, type ProspectFilter, type FollowUpBucket,
 } from "@/lib/command/prospects";
 import { ProspectsBoard } from "@/components/command/prospects/ProspectsBoard";
 import { ProspectPipeline } from "@/components/command/prospects/ProspectPipeline";
 import { FollowUpQueue } from "@/components/command/prospects/FollowUpQueue";
+import { ProspectInsights } from "@/components/command/prospects/ProspectInsights";
 import InfoTip from "@/components/command/shared/InfoTip";
 import type { ProspectStatus, ProspectSource } from "@prisma/client";
 
@@ -14,10 +16,10 @@ import type { ProspectStatus, ProspectSource } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-type View = "all" | "pipeline" | "followups";
+type View = "all" | "pipeline" | "followups" | "insights";
 type SP = { q?: string; status?: string; source?: string; view?: string; bucket?: string };
 
-const parseView = (v: string | undefined): View => (v === "pipeline" || v === "followups" ? v : "all");
+const parseView = (v: string | undefined): View => (v === "pipeline" || v === "followups" || v === "insights" ? v : "all");
 const parseBucket = (b: string | undefined): FollowUpBucket => (b === "overdue" || b === "upcoming" || b === "all" ? b : "today");
 const parseStatus = (r: string | undefined): ProspectStatus | null => (PROSPECT_STATUSES.includes(r as ProspectStatus) ? (r as ProspectStatus) : null);
 const parseSource = (r: string | undefined): ProspectSource | null => (PROSPECT_SOURCES.includes(r as ProspectSource) ? (r as ProspectSource) : null);
@@ -59,9 +61,9 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
 
       {/* View tabs */}
       <div className="flex flex-wrap gap-1.5">
-        {(["all", "pipeline", "followups"] as View[]).map((v) => (
+        {(["all", "pipeline", "followups", "insights"] as View[]).map((v) => (
           <Link key={v} href={href({ view: v === "all" ? undefined : v })} className={pill(v === view)}>
-            {v === "all" ? "All prospects" : v === "pipeline" ? "Pipeline" : "Follow-ups"}
+            {v === "all" ? "All prospects" : v === "pipeline" ? "Pipeline" : v === "followups" ? "Follow-ups" : "Insights"}
           </Link>
         ))}
       </div>
@@ -95,6 +97,8 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
           <FollowUpQueue rows={await getFollowUpQueue(bucket)} />
         </>
       )}
+
+      {view === "insights" && <ProspectInsights funnel={await getAcquisitionFunnel()} chainLeads={await getChainLeads()} />}
     </div>
   );
 }

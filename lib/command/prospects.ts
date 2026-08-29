@@ -266,3 +266,170 @@ export async function getFollowUpCounts(): Promise<{ today: number; overdue: num
   ]);
   return { today: today.length, overdue: overdue.length, upcoming: upcoming.length };
 }
+
+// ─── Phase 4: acquisition analytics, chain leads, conversion ─────────────────
+
+// Stage order for the acquisition funnel. "lost" is terminal, not a stage, so
+// it ranks -1 and never counts toward reached-stage totals.
+const STAGE_RANK: Record<ProspectStatus, number> = {
+  new: 0, contacted: 1, replied: 2, interested: 3, trial: 4, active: 5, lost: -1,
+};
+
+export type AcquisitionFunnel = {
+  added: number;
+  contacted: number;
+  replied: number;
+  interested: number;
+  firstSale: number; // reached trial/active — an actual sale started
+  active: number; // converted + still active TSP customer
+  contactRate: number | null; // % of added we actually reached
+  replyRate: number | null; // % of contacted who replied
+  interestedRate: number | null; // % of replied who showed interest
+  firstSaleRate: number | null; // % of interested who ran a sale
+  activeRate: number | null; // % of first-sale who became active customers
+  avgDaysToFirstSale: number | null;
+  avgFollowUpsToConvert: number | null;
+  bySource: Array<{ source: ProspectSource; added: number; converted: number }>;
+  lostReasons: Array<{ reason: string; count: number }>;
+};
+
+// Funnel counts prospects by the FURTHEST stage they ever reached, derived from
+// status_changed activities (not just current status) so a prospect who reached
+// "interested" then went "lost" still counts at the interested stage.
+export async function getAcquisitionFunnel(): Promise<AcquisitionFunnel> {
+  const prospects = await commandDb.prospect.findMany({
+    where: { archivedAt: null },
+    select: {
+      status: true, source: true, createdAt: true, convertedAt: true,
+      lastContactedAt: true, followUpCount: true, lostReason: true,
+      activities: { where: { type: "status_changed" }, select: { metadata: true } },
+    },
+  });
+
+  let added = prospects.length, contacted = 0, replied = 0, interested = 0, firstSale = 0, active = 0;
+  const daysToSale: number[] = [];
+  const followUpsToConvert: number[] = [];
+  const bySource = new Map<ProspectSource, { added: number; converted: number }>();
+  const lost = new Map<string, number>();
+
+  for (const p of prospects) {
+    const reached = new Set<string>([p.status]);
+    for (const a of p.activities) {
+      const to = (a.metadata as { toStatus?: unknown } | null)?.toStatus;
+      if (typeof to === "string") reached.add(to);
+    }
+    const maxRank = Math.max(-1, ...[...reached].map((s) => STAGE_RANK[s as ProspectStatus] ?? -1));
+
+    if (p.lastContactedAt || maxRank >= 1) contacted++;
+    if (maxRank >= 2) replied++;
+    if (maxRank >= 3) interested++;
+    if (maxRank >= 4) firstSale++;
+    if (p.status === "active") active++;
+
+    const b = bySource.get(p.source) ?? { added: 0, converted: 0 };
+    b.added++;
+    if (p.convertedAt) {
+      b.converted++;
+      daysToSale.push(Math.max(0, dayFloor(p.convertedAt.getTime(), p.createdAt.getTime())));
+      followUpsToConvert.push(p.followUpCount);
+    }
+    bySource.set(p.source, b);
+
+    if (p.status === "lost" && p.lostReason) lost.set(p.lostReason, (lost.get(p.lostReason) ?? 0) + 1);
+  }
+
+  const rate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : null);
+  const avg = (arr: number[]) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null);
+
+  return {
+    added, contacted, replied, interested, firstSale, active,
+    contactRate: rate(contacted, added),
+    replyRate: rate(replied, contacted),
+    interestedRate: rate(interested, replied),
+    firstSaleRate: rate(firstSale, interested),
+    activeRate: rate(active, firstSale),
+    avgDaysToFirstSale: avg(daysToSale),
+    avgFollowUpsToConvert: avg(followUpsToConvert),
+    bySource: [...bySource.entries()].map(([source, v]) => ({ source, added: v.added, converted: v.converted })).sort((a, b) => b.added - a.added),
+    lostReasons: [...lost.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
+  };
+}
+
+// Warm leads: agents invited into a chain who never claimed. These are people
+// who already touched the product, so they're the highest-intent prospects. We
+// exclude any chain link already pulled in as a prospect (by sourceChainLinkId).
+export type ChainLead = {
+  chainLinkId: string;
+  agencyName: string | null;
+  agentName: string | null;
+  agentEmail: string;
+  inviteStatus: string;
+  invitedAt: Date | null;
+  propertyAddress: string | null;
+};
+
+export async function getChainLeads(): Promise<ChainLead[]> {
+  const used = await commandDb.prospect.findMany({
+    where: { sourceChainLinkId: { not: null } },
+    select: { sourceChainLinkId: true },
+  });
+  const usedIds = new Set(used.map((u) => u.sourceChainLinkId));
+
+  const links = await commandDb.chainLink.findMany({
+    where: {
+      transactionId: null,
+      claimedByUserId: null,
+      stubAgentEmail: { contains: "@" },
+      inviteStatus: { in: ["NOT_SENT", "SENT", "BOUNCED"] },
+    },
+    select: {
+      id: true, stubAgencyName: true, stubAgentName: true, stubAgentEmail: true,
+      inviteStatus: true, inviteSentAt: true, createdAt: true, stubPropertyAddress: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+
+  return links
+    .filter((l) => !usedIds.has(l.id) && l.stubAgentEmail)
+    .map((l) => ({
+      chainLinkId: l.id,
+      agencyName: l.stubAgencyName,
+      agentName: l.stubAgentName,
+      agentEmail: l.stubAgentEmail as string,
+      inviteStatus: l.inviteStatus,
+      invitedAt: l.inviteSentAt ?? l.createdAt,
+      propertyAddress: l.stubPropertyAddress,
+    }));
+}
+
+// Once a prospect converts, this is the "was it worth it" rollup for the agency
+// they became: real files on the platform + revenue banked at exchange.
+export type ConvertedAgencyStats = { transactions: number; billedSales: number; bankedPence: number };
+
+export async function getConvertedAgencyStats(agencyId: string): Promise<ConvertedAgencyStats> {
+  const [transactions, billedSales, banked] = await Promise.all([
+    commandDb.propertyTransaction.count({ where: { agencyId, isDemo: false } }),
+    commandDb.invoiceLine.count({ where: { invoice: { agencyId } } }),
+    commandDb.invoiceLine.aggregate({ where: { invoice: { agencyId } }, _sum: { totalPence: true } }),
+  ]);
+  return { transactions, billedSales, bankedPence: banked._sum.totalPence ?? 0 };
+}
+
+// Agency search for the manual "convert to agency" picker. Only real (non-internal)
+// agencies not already linked to another prospect are eligible.
+export type AgencyMatch = { id: string; name: string; createdAt: Date; alreadyLinked: boolean };
+
+export async function searchAgenciesForConversion(q: string): Promise<AgencyMatch[]> {
+  const term = q.trim();
+  const rows = await commandDb.agency.findMany({
+    where: {
+      isInternal: false,
+      ...(term ? { name: { contains: term, mode: "insensitive" } } : {}),
+    },
+    select: { id: true, name: true, createdAt: true, prospect: { select: { id: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 12,
+  });
+  return rows.map((a) => ({ id: a.id, name: a.name, createdAt: a.createdAt, alreadyLinked: !!a.prospect }));
+}

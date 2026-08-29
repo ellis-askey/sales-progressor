@@ -6,7 +6,10 @@ import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
-import { getProspectDetail, type ProspectDetail } from "@/lib/command/prospects";
+import {
+  getProspectDetail, getConvertedAgencyStats, searchAgenciesForConversion,
+  type ProspectDetail, type ConvertedAgencyStats, type AgencyMatch,
+} from "@/lib/command/prospects";
 import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/prospect-labels";
 import { anthropic } from "@/lib/anthropic";
 import { buildTemplate } from "@/lib/prospects/templates";
@@ -329,4 +332,90 @@ export async function sendProspectEmailAction(prospectId: string, input: {
   });
   revalidatePath("/command/prospects");
   return { ok: true };
+}
+
+// ─── Phase 4: conversion + chain leads + acquisition stats ───────────────────
+
+// Link a prospect to the real agency it became. Sets the durable attribution
+// (convertedAgencyId is @unique), flips status to active, and stamps the agency's
+// signupSource for attribution if it isn't already set. Suggest-and-confirm: the
+// UI proposes a match, this action does the linking once confirmed.
+export async function convertProspectAction(prospectId: string, agencyId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const agency = await commandDb.agency.findUnique({
+    where: { id: agencyId },
+    select: { id: true, name: true, isInternal: true, signupSource: true, prospect: { select: { id: true } } },
+  });
+  if (!agency) return { ok: false, error: "That agency wasn't found." };
+  if (agency.isInternal) return { ok: false, error: "That's an internal agency, not a customer." };
+  if (agency.prospect && agency.prospect.id !== prospectId) return { ok: false, error: "That agency is already linked to another prospect." };
+
+  const p = await commandDb.prospect.findUnique({ where: { id: prospectId }, select: { source: true } });
+  if (!p) return { ok: false, error: "Prospect not found." };
+
+  await commandDb.prospect.update({
+    where: { id: prospectId },
+    data: { convertedAgencyId: agencyId, convertedAt: new Date(), status: "active", lostAt: null, lostReason: null, nextFollowUpAt: null },
+  });
+  if (!agency.signupSource) {
+    await commandDb.agency.update({ where: { id: agencyId }, data: { signupSource: `prospect:${p.source}` } }).catch(() => {});
+  }
+  await logActivity(prospectId, session.user.id, "converted", `Won: now the agency ${agency.name}`, null, { agencyId, agencyName: agency.name });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// Undo a conversion (mis-linked agency). Clears the attribution and drops the
+// prospect back to interested so it re-enters the working set.
+export async function unlinkProspectAction(prospectId: string): Promise<{ ok: true }> {
+  const session = await requireSuperAdmin();
+  await commandDb.prospect.update({
+    where: { id: prospectId },
+    data: { convertedAgencyId: null, convertedAt: null, status: "interested" },
+  });
+  await logActivity(prospectId, session.user.id, "note", "Conversion unlinked");
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// Pull a warm chain-invite lead into the prospects list as a real, workable
+// prospect. sourceChainLinkId keeps the provenance so it never gets pulled twice.
+export async function addChainStubAsProspectAction(chainLinkId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const existing = await commandDb.prospect.findFirst({ where: { sourceChainLinkId: chainLinkId }, select: { id: true } });
+  if (existing) return { ok: false, error: "This chain lead is already a prospect." };
+
+  const link = await commandDb.chainLink.findUnique({
+    where: { id: chainLinkId },
+    select: { stubAgencyName: true, stubAgentName: true, stubAgentEmail: true, stubAgentPhone: true, stubPropertyAddress: true },
+  });
+  if (!link?.stubAgentEmail) return { ok: false, error: "That chain lead has no email to work from." };
+
+  const contactName = link.stubAgentName?.trim() || link.stubAgentEmail;
+  const prospect = await commandDb.prospect.create({
+    data: {
+      agencyName: link.stubAgencyName?.trim() || link.stubAgentEmail,
+      generalEmail: link.stubAgentEmail,
+      phone: link.stubAgentPhone?.trim() || null,
+      source: "chain",
+      sourceChainLinkId: chainLinkId,
+      ownerUserId: session.user.id,
+      createdById: session.user.id,
+      notes: link.stubPropertyAddress ? `Came in as a chain invite on ${link.stubPropertyAddress}.` : null,
+      contacts: { create: { name: contactName, email: link.stubAgentEmail, phone: link.stubAgentPhone?.trim() || null, isPrimary: true } },
+    },
+  });
+  await logActivity(prospect.id, session.user.id, "created", `Added from a chain invite${link.stubAgencyName ? ` (${link.stubAgencyName.trim()})` : ""}`);
+  revalidatePath("/command/prospects");
+  return { ok: true, id: prospect.id };
+}
+
+export async function searchAgenciesAction(q: string): Promise<AgencyMatch[]> {
+  await requireSuperAdmin();
+  return searchAgenciesForConversion(q);
+}
+
+export async function getConvertedAgencyStatsAction(agencyId: string): Promise<ConvertedAgencyStats> {
+  await requireSuperAdmin();
+  return getConvertedAgencyStats(agencyId);
 }
