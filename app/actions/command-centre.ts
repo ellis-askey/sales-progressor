@@ -7,6 +7,13 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
 import { startExperiment, abandonExperiment, concludeExperiment } from "@/lib/services/experiments/lifecycle";
+import { anthropic } from "@/lib/anthropic";
+import { METRIC_KEYS, METRIC_DEFS, type MetricKey } from "@/lib/command/experiment-metrics";
+import { getSuggestionDataSummary, type ExperimentSuggestion } from "@/lib/command/experiment-suggestions";
+
+const clampWindow = (d: number, fallback: number) => Math.min(60, Math.max(7, Math.round(d || fallback)));
+const validMetric = (k: string): MetricKey => (METRIC_KEYS.includes(k as MetricKey) ? (k as MetricKey) : "milestonesConfirmed");
+const validGuardrails = (ks: string[] | undefined): string[] => (ks ?? []).filter((k) => METRIC_KEYS.includes(k as MetricKey));
 
 async function requireSuperAdmin() {
   const session = await getServerSession(authOptions);
@@ -131,4 +138,124 @@ export async function promoteSignalToExperimentAction(signalId: string): Promise
   revalidatePath("/command/insights");
 
   return { experimentId: experiment.id };
+}
+
+// Create a proposed experiment from a test idea (catalogue or AI wildcard).
+export async function createExperimentFromSuggestionAction(input: {
+  title: string;
+  change: string;
+  why: string;
+  metricKey: string;
+  guardrailKeys: string[];
+  durationDays: number;
+  source: string;
+}): Promise<{ experimentId: string }> {
+  const session = await requireSuperAdmin();
+  const days = clampWindow(input.durationDays, 21);
+  const experiment = await commandDb.experiment.create({
+    data: {
+      name: input.title.slice(0, 200),
+      hypothesis: input.change || input.title,
+      notes: input.why || null,
+      primaryMetric: validMetric(input.metricKey),
+      guardrailMetrics: validGuardrails(input.guardrailKeys),
+      baselineWindowDays: days,
+      resultWindowDays: days,
+      sourceType: input.source === "ai" ? "ai_suggestion" : "suggestion",
+      createdByUserId: session.user.id,
+    },
+  });
+  revalidatePath("/command/experiments");
+  return { experimentId: experiment.id };
+}
+
+// Create a proposed experiment from scratch (the manual "New test" form).
+export async function createManualExperimentAction(input: {
+  name: string;
+  hypothesis: string;
+  primaryMetric: string;
+  guardrailMetrics: string[];
+  windowDays: number;
+}): Promise<{ experimentId: string }> {
+  const session = await requireSuperAdmin();
+  if (!input.name.trim() || !input.hypothesis.trim()) {
+    throw new Error("A name and a hypothesis are both required.");
+  }
+  const days = clampWindow(input.windowDays, 14);
+  const experiment = await commandDb.experiment.create({
+    data: {
+      name: input.name.trim().slice(0, 200),
+      hypothesis: input.hypothesis.trim(),
+      primaryMetric: validMetric(input.primaryMetric),
+      guardrailMetrics: validGuardrails(input.guardrailMetrics),
+      baselineWindowDays: days,
+      resultWindowDays: days,
+      sourceType: "intuition",
+      createdByUserId: session.user.id,
+    },
+  });
+  revalidatePath("/command/experiments");
+  return { experimentId: experiment.id };
+}
+
+// Edit a proposed experiment's hypothesis (fills the "Add hypothesis here"
+// placeholder that signal-promoted experiments start with).
+export async function updateExperimentHypothesisAction(id: string, hypothesis: string): Promise<void> {
+  await requireSuperAdmin();
+  if (!hypothesis.trim()) throw new Error("The hypothesis can't be empty.");
+  await commandDb.experiment.update({ where: { id }, data: { hypothesis: hypothesis.trim() } });
+  revalidatePath("/command/experiments");
+}
+
+// AI wildcard ideas — grounded in the same live numbers as the catalogue, but
+// generated on demand by Claude. Returns unsaved suggestions (the founder
+// proposes the ones worth running). Best-effort: returns [] on any failure.
+export async function generateAiExperimentIdeasAction(): Promise<ExperimentSuggestion[]> {
+  await requireSuperAdmin();
+  const summary = await getSuggestionDataSummary();
+  const metricList = METRIC_KEYS.map((k) => `"${k}" (${METRIC_DEFS[k].label})`).join(", ");
+  const prompt = `You advise the founder of a UK estate-agency sales-progression SaaS on what to test to grow usage and revenue.
+
+Current live data:
+${summary}
+
+Propose 2 sharp, specific growth experiments grounded in these numbers. Each must name one thing in the product to change and one metric to watch. Keep every field plain English with no jargon and no em dashes.
+
+Return ONLY a JSON array (no prose) of objects with exactly these fields:
+- "title": short plain-English name
+- "change": one sentence on what we would change
+- "why": one sentence rationale that refers to the data above
+- "metricKey": one of ${metricList}
+- "guardrailKeys": array of 0 to 2 of those metric keys
+- "durationDays": integer between 14 and 28`;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 800,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = msg.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("");
+    const start = text.indexOf("[");
+    const end = text.lastIndexOf("]");
+    if (start === -1 || end === -1) return [];
+    const parsed = JSON.parse(text.slice(start, end + 1)) as Array<Record<string, unknown>>;
+    return parsed.slice(0, 3).map((p, i) => ({
+      id: `ai-${i}`,
+      source: "ai" as const,
+      category: "AI idea",
+      title: String(p.title ?? "Untitled idea"),
+      change: String(p.change ?? ""),
+      why: String(p.why ?? ""),
+      metricKey: validMetric(String(p.metricKey ?? "")) ,
+      guardrailKeys: Array.isArray(p.guardrailKeys) ? validGuardrails(p.guardrailKeys as string[]) as MetricKey[] : [],
+      durationDays: Math.min(28, Math.max(14, Number(p.durationDays) || 21)),
+      expectedDirection: "up" as const,
+      opportunity: 0,
+    }));
+  } catch {
+    return [];
+  }
 }
