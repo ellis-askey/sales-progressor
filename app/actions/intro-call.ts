@@ -18,6 +18,12 @@ type Side = "vendor" | "purchaser";
 
 export type IntroCallContact = { id: string; name: string; phone: string | null; email: string | null };
 
+// Matches the SolicitorInfo shape components/solicitors/SolicitorSection expects.
+export type IntroCallSolicitor = {
+  firm: { id: string; name: string } | null;
+  contact: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail: string | null } | null;
+};
+
 export type IntroCallData = {
   transactionId: string;
   introDone: boolean;
@@ -39,6 +45,7 @@ export type IntroCallData = {
   moveVendor: MoveInfo;
   movePurchaser: MoveInfo;
   chainLinkId: string | null;
+  chainId: string | null;
   chainIntel: {
     breakChainStance: string | null;
     breakChainConditions: string | null;
@@ -47,6 +54,13 @@ export type IntroCallData = {
     lastChainCheckAt: string | null;
   } | null;
   onward: { trackerExists: boolean; typeFactsSet: boolean };
+  // Solicitor management (embedded SolicitorSection at the foot of the drawer).
+  address: string;
+  solVendor: IntroCallSolicitor;
+  solPurchaser: IntroCallSolicitor;
+  referredFirmId: string | null;
+  referralFee: number | null;
+  contactRoles: { name: string; roleType: string }[];
 };
 
 const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
@@ -85,10 +99,13 @@ function rowToMoveInfo(row: {
 export async function getIntroCallDataAction(transactionId: string): Promise<IntroCallData> {
   const session = await requireSession();
   const scope = getAccessScope(session);
+  const solFirmSelect = { select: { id: true, name: true } };
+  const solContactSelect = { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } };
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
     select: {
       id: true,
+      propertyAddress: true,
       purchaseType: true,
       tenure: true,
       isShareOfFreehold: true,
@@ -99,6 +116,13 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
       clientFirstTimeBuyer: true,
       clientAdditionalProperty: true,
       chainLinkId: true,
+      chainLink: { select: { chainId: true } },
+      referredFirmId: true,
+      referralFee: true,
+      vendorSolicitorFirm: solFirmSelect,
+      vendorSolicitorContact: solContactSelect,
+      purchaserSolicitorFirm: solFirmSelect,
+      purchaserSolicitorContact: solContactSelect,
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, isPrincipal: true } },
     },
   });
@@ -151,8 +175,15 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
     moveVendor: rowToMoveInfo(moveRows.find((r) => r.side === "vendor")),
     movePurchaser: rowToMoveInfo(moveRows.find((r) => r.side === "purchaser")),
     chainLinkId: tx.chainLinkId,
+    chainId: tx.chainLink?.chainId ?? null,
     chainIntel,
     onward: { trackerExists: tracker?.exists ?? false, typeFactsSet: tracker?.typeFactsSet ?? false },
+    address: tx.propertyAddress,
+    solVendor: { firm: tx.vendorSolicitorFirm ?? null, contact: tx.vendorSolicitorContact ?? null },
+    solPurchaser: { firm: tx.purchaserSolicitorFirm ?? null, contact: tx.purchaserSolicitorContact ?? null },
+    referredFirmId: tx.referredFirmId,
+    referralFee: tx.referralFee,
+    contactRoles: tx.contacts.map((c) => ({ name: c.name, roleType: c.roleType })),
   };
 }
 
