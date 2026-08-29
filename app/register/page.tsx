@@ -5,29 +5,17 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
-import { titleCase } from "@/lib/utils";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 type Step = 1 | 2;
 
-// Same brand mark as login page
-function BrandMark() {
-  return (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="44" height="44" rx="12" fill="url(#bm-grad-r)" />
-      <defs>
-        <linearGradient id="bm-grad-r" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FFAA7A" />
-          <stop offset="100%" stopColor="#FF6B4A" />
-        </linearGradient>
-      </defs>
-      <circle cx="10" cy="22" r="3" fill="white" fillOpacity="0.55" />
-      <line x1="13" y1="22" x2="18" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
-      <circle cx="21" cy="22" r="3" fill="white" fillOpacity="0.78" />
-      <line x1="24" y1="22" x2="29" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
-      <circle cx="34" cy="22" r="4" fill="white" />
-      <path d="M32.2 22l1.5 1.5 2.8-2.8" stroke="#FF7A54" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+// Names: letters, numbers and spaces only, plus the hyphen and apostrophe real
+// names use (Anne-Marie, O'Brien). Anything else just doesn't register as they
+// type. Unicode-aware so accented names (José, Łukasz) still work.
+function stripNameChars(v: string): string {
+  return v.replace(/[^\p{L}\p{N} '’-]/gu, "");
 }
 
 const inputStyle: React.CSSProperties = {
@@ -189,7 +177,7 @@ export default function RegisterPage() {
             Create your account
           </h1>
           <p style={{ margin: "0.35rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
-            {step === 1 ? "Step 1 of 2: your details" : "Step 2 of 2: your workspace"}
+            {step === 1 ? "Step 1 of 2: your details" : "Step 2 of 2: Set up your agency"}
           </p>
         </div>
 
@@ -226,13 +214,15 @@ export default function RegisterPage() {
 
                 <div>
                   <label style={labelStyle}>Full name</label>
-                  <input className="ri" type="text" value={name} onChange={e => setName(e.target.value)}
+                  <input className="ri" type="text" value={name} onChange={e => setName(stripNameChars(e.target.value))}
+                    onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
                     placeholder="Sarah Jones" required autoComplete="name" autoFocus style={inputStyle} />
                 </div>
 
                 <div>
                   <label style={labelStyle}>Work email</label>
                   <input className="ri" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    onBlur={e => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
                     placeholder="sarah@youragency.co.uk" required autoComplete="email" style={inputStyle} />
                 </div>
 
@@ -259,6 +249,7 @@ export default function RegisterPage() {
                   {password.length > 0 && password.length < 8 && (
                     <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 8 characters required</p>
                   )}
+                  <PasswordStrength password={password} />
                 </div>
 
                 {/* Terms checkbox */}
@@ -321,17 +312,17 @@ export default function RegisterPage() {
                       restarts on every disabled-submit hover. */}
                   <div key={agencyNudgeKey} className={agencyNudgeKey > 0 ? "ri-nudge" : undefined}>
                     <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
-                      onBlur={e => { if (e.target.value.trim()) setFirmName(titleCase(e.target.value)); }}
+                      onBlur={e => { if (e.target.value.trim()) setFirmName(titleCaseKeepAcronyms(e.target.value)); }}
                       placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus required style={inputStyle} />
                   </div>
                 </div>
 
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: "10px" }}>I am a…</p>
+                  <p style={{ ...labelStyle, marginBottom: "10px" }}>What&apos;s your role?</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {([
-                      { value: "director" as const, label: "Director", sub: "Manage your agency, see all files, and oversee your pipeline" },
-                      { value: "negotiator" as const, label: "Negotiator", sub: "View your files and pipeline, flag requests to your progressor" },
+                      { value: "director" as const, label: "Director", sub: "Manage your agency, view all sales and oversee your team." },
+                      { value: "negotiator" as const, label: "Negotiator", sub: "View your sales and request support from your sales progressor." },
                     ] as const).map(({ value, label, sub }) => (
                       <label key={value} style={{
                         display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
@@ -397,8 +388,8 @@ export default function RegisterPage() {
 
         {/* Footer note */}
         <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(61,31,14,0.45)", marginTop: "1.25rem" }}>
-          Internal team member?{" "}
-          <span style={{ color: "rgba(61,31,14,0.60)" }}>Contact your administrator for access.</span>
+          Already part of an existing agency?{" "}
+          <span style={{ color: "rgba(61,31,14,0.60)" }}>Ask your administrator to invite you.</span>
         </p>
 
       </div>

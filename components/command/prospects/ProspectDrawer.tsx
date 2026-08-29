@@ -7,13 +7,18 @@ import {
   addProspectContactAction, setPrimaryContactAction, updateProspectAction,
   logProspectCallAction, scheduleFollowUpAction, completeFollowUpAction, markProspectLostAction,
   convertProspectAction, unlinkProspectAction, searchAgenciesAction, getConvertedAgencyStatsAction,
+  createGroupAndLinkAction, linkProspectToGroupAction, unlinkProspectFromGroupAction, searchGroupsAction,
+  confirmFieldAction, editFieldAction, updateProspectContactAction, deleteProspectContactAction,
+  researchProspectAction,
 } from "@/app/actions/prospects";
 import {
   PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
   CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS, LOST_REASON_LABEL,
 } from "@/lib/command/prospect-labels";
 import { FollowUpCompose } from "./FollowUpCompose";
-import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats } from "@/lib/command/prospects";
+import { VerifiedField } from "./VerifiedField";
+import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats, GroupMatch } from "@/lib/command/prospects";
+import type { ResearchMeta } from "@/lib/command/prospect-labels";
 import type { ProspectStatus } from "@prisma/client";
 
 function fmtDateTime(d: Date | null): string {
@@ -28,12 +33,17 @@ const ACTIVITY_LABEL: Record<string, string> = {
 };
 const inputCls = "w-full text-xs bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb]";
 
-export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => void }) {
+export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose: () => void }) {
   const router = useRouter();
+  // Local current id so sibling branches within a group can be opened in place.
+  const [id, setId] = useState(initialId);
+  useEffect(() => { setId(initialId); }, [initialId]);
   const [d, setD] = useState<ProspectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert">(null);
+  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert" | "group">(null);
+  const [researching, setResearching] = useState(false);
+  const [researchErr, setResearchErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,8 +52,23 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
   useEffect(() => { load(); }, [load]);
 
   function after() { setPanel(null); load(); router.refresh(); }
+  function openBranch(branchId: string) { setPanel(null); setId(branchId); }
 
-  const primaryEmail = d ? (d.contacts.find((c) => c.isPrimary)?.email ?? d.contacts[0]?.email ?? d.generalEmail ?? null) : null;
+  // Field confirm/edit closures for the verification UI. Reload on success so
+  // the flag clears and the new value shows.
+  async function pConfirm(field: string) { const r = await confirmFieldAction({ target: "prospect", id, field }); if (r.ok) { load(); router.refresh(); } return r; }
+  async function pEdit(field: string, value: string) { const r = await editFieldAction({ target: "prospect", id, field, value }); if (r.ok) { load(); router.refresh(); } return r; }
+  async function cConfirm(contactId: string, field: string) { const r = await confirmFieldAction({ target: "contact", id: contactId, field }); if (r.ok) { load(); router.refresh(); } return r; }
+  async function cEdit(contactId: string, field: string, value: string) { const r = await editFieldAction({ target: "contact", id: contactId, field, value }); if (r.ok) { load(); router.refresh(); } return r; }
+
+  async function runResearch() {
+    setResearching(true); setResearchErr(null);
+    const r = await researchProspectAction(id);
+    setResearching(false);
+    if (r.ok) { load(); router.refresh(); } else setResearchErr(r.error);
+  }
+
+  const primaryEmail = d ? (d.contacts.find((c) => c.isPrimary)?.email ?? d.contacts[0]?.email ?? d.sharedContacts[0]?.email ?? d.generalEmail ?? null) : null;
   const canEmail = d ? !d.optedOutAt && !d.bouncedAt : false;
   const emailDisabledReason = d?.optedOutAt ? "they've opted out" : d?.bouncedAt ? "a previous email bounced" : "";
 
@@ -78,6 +103,16 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
               />
             )}
 
+            {d.group && (
+              <GroupBanner
+                group={d.group}
+                branches={d.groupBranches}
+                onOpenBranch={openBranch}
+                onUnlink={() => startTransition(async () => { await unlinkProspectFromGroupAction(id); after(); })}
+                pending={pending}
+              />
+            )}
+
             {/* Next follow-up */}
             <div className="flex items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2.5">
               <div className="text-xs">
@@ -96,58 +131,76 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
               <StatusChanger current={d.status} onChange={(s) => startTransition(async () => { await changeProspectStatusAction(id, s); after(); })} disabled={pending} />
+              <button onClick={runResearch} disabled={researching} title="Research this agency from the web and fill gaps" className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 transition-colors disabled:opacity-40">
+                {researching ? "Researching…" : "Research"}
+              </button>
               <ActionBtn onClick={() => setPanel(panel === "email" ? null : "email")} active={panel === "email"}>Email</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "call" ? null : "call")} active={panel === "call"}>Log call</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "followup" ? null : "followup")} active={panel === "followup"}>Follow up</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "note" ? null : "note")} active={panel === "note"}>Add note</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "contact" ? null : "contact")} active={panel === "contact"}>Add contact</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "edit" ? null : "edit")} active={panel === "edit"}>Edit details</ActionBtn>
+              {!d.group && <ActionBtn onClick={() => setPanel(panel === "group" ? null : "group")} active={panel === "group"}>Part of a business</ActionBtn>}
               {!d.convertedAgency && <ActionBtn onClick={() => setPanel(panel === "convert" ? null : "convert")} active={panel === "convert"}>Won / convert</ActionBtn>}
               <ActionBtn onClick={() => setPanel(panel === "lost" ? null : "lost")} active={panel === "lost"}>Mark lost</ActionBtn>
             </div>
+
+            {researching && <p className="text-[11px] text-violet-300/80">Searching the web and cross-checking sources. This can take up to a minute.</p>}
+            {researchErr && <p className="text-xs text-red-400">Research: {researchErr}</p>}
 
             {panel === "email" && <FollowUpCompose prospectId={id} defaultTo={primaryEmail} disabled={!canEmail} disabledReason={emailDisabledReason} onSent={after} />}
             {panel === "call" && <CallPanel onSave={(input) => startTransition(async () => { await logProspectCallAction(id, input); after(); })} pending={pending} />}
             {panel === "followup" && <FollowUpPanel onSave={(iso) => startTransition(async () => { await scheduleFollowUpAction(id, iso); after(); })} pending={pending} />}
             {panel === "lost" && <LostPanel onSave={(reason, revisit) => startTransition(async () => { await markProspectLostAction(id, reason, revisit); after(); })} pending={pending} />}
             {panel === "note" && <NotePanel onSave={(text) => startTransition(async () => { await addProspectNoteAction(id, text); after(); })} pending={pending} />}
-            {panel === "contact" && <ContactPanel onSave={(input) => startTransition(async () => { await addProspectContactAction(id, input); after(); })} pending={pending} />}
+            {panel === "contact" && <ContactPanel canShare={!!d.group} groupName={d.group?.name ?? null} onSave={(input) => startTransition(async () => { await addProspectContactAction(id, input); after(); })} pending={pending} />}
             {panel === "edit" && <EditPanel d={d} onSave={(patch) => startTransition(async () => { await updateProspectAction(id, patch); after(); })} pending={pending} />}
             {panel === "convert" && <ConvertPanel onConvert={async (agencyId) => { const r = await convertProspectAction(id, agencyId); if (r.ok) after(); return r; }} />}
+            {panel === "group" && <GroupPanel
+              onLink={async (groupId) => { const r = await linkProspectToGroupAction(id, groupId); if (r.ok) after(); return r; }}
+              onCreate={async (name) => { const r = await createGroupAndLinkAction(id, name); if (r.ok) after(); return r; }}
+            />}
 
-            {/* Agency info */}
+            {/* Agency info — verified fields look normal, NEEDS_CHECK flags, gaps highlighted */}
             <Section title="Agency">
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                <Field label="Location" value={d.location} />
-                <Field label="Postcode" value={d.postcode} />
-                <Field label="Website" value={d.website} />
-                <Field label="Phone" value={d.phone} />
-                <Field label="General email" value={d.generalEmail} />
-                <Field label="Branches" value={d.branchCount != null ? String(d.branchCount) : null} />
-                <Field label="Size" value={d.sizeNote} />
-                <Field label="Follow-ups sent" value={String(d.followUpCount)} />
-              </dl>
+              <div className="grid grid-cols-2 gap-2">
+                <VerifiedField label="Location" value={d.location} meta={d.research?.location} expected onConfirm={() => pConfirm("location")} onEdit={(v) => pEdit("location", v)} />
+                <VerifiedField label="Postcode" value={d.postcode} meta={d.research?.postcode} expected onConfirm={() => pConfirm("postcode")} onEdit={(v) => pEdit("postcode", v)} />
+                <VerifiedField label="Website" value={d.website} meta={d.research?.website} expected onConfirm={() => pConfirm("website")} onEdit={(v) => pEdit("website", v)} />
+                <VerifiedField label="Phone" value={d.phone} meta={d.research?.phone} expected onConfirm={() => pConfirm("phone")} onEdit={(v) => pEdit("phone", v)} />
+                <VerifiedField label="General email" value={d.generalEmail} meta={d.research?.generalEmail} expected onConfirm={() => pConfirm("generalEmail")} onEdit={(v) => pEdit("generalEmail", v)} />
+                <VerifiedField label="Size" value={d.sizeNote} meta={d.research?.sizeNote} expected onConfirm={() => pConfirm("sizeNote")} onEdit={(v) => pEdit("sizeNote", v)} />
+                <VerifiedField label="Branches" value={String(d.branchesInGroup)} editable={false} />
+                <VerifiedField label="Follow-ups sent" value={String(d.followUpCount)} editable={false} />
+              </div>
             </Section>
 
             {/* Contacts */}
-            <Section title={`Contacts · ${d.contacts.length}`}>
-              {d.contacts.length === 0 ? <p className="text-xs text-neutral-600">No contacts yet.</p> : (
-                <div className="space-y-2">
+            <Section title={`Contacts · ${d.contacts.length + d.sharedContacts.length}`}>
+              {d.contacts.length === 0 && d.sharedContacts.length === 0 ? <p className="text-xs text-neutral-600">No contacts yet.</p> : (
+                <div className="space-y-3">
                   {d.contacts.map((c) => (
-                    <div key={c.id} className="flex items-start justify-between gap-3 border-b border-neutral-900 pb-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-neutral-200">{c.name}</span>
-                          {c.isPrimary && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-900">primary</span>}
-                          {c.isDecisionMaker && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400">decision-maker</span>}
-                        </div>
-                        <div className="text-[11px] text-neutral-500">{[c.jobTitle, c.email, c.phone].filter(Boolean).join(" · ") || "—"}</div>
-                      </div>
-                      {!c.isPrimary && (
-                        <button onClick={() => startTransition(async () => { await setPrimaryContactAction(id, c.id); after(); })} disabled={pending} className="text-[10px] text-neutral-500 hover:text-neutral-300 shrink-0">Make primary</button>
-                      )}
-                    </div>
+                    <ContactCard key={c.id} c={c} shared={false}
+                      onConfirmField={(field) => cConfirm(c.id, field)}
+                      onEditField={(field, v) => cEdit(c.id, field, v)}
+                      onMakePrimary={() => startTransition(async () => { await setPrimaryContactAction(id, c.id); after(); })}
+                      onUpdate={(patch) => startTransition(async () => { await updateProspectContactAction(c.id, patch); after(); })}
+                      onDelete={() => startTransition(async () => { await deleteProspectContactAction(c.id); after(); })}
+                      pending={pending} />
                   ))}
+                  {d.sharedContacts.length > 0 && (
+                    <>
+                      <p className="text-[10px] uppercase tracking-wider text-violet-400/70 pt-1">Shared across {d.group?.name ?? "the business"}</p>
+                      {d.sharedContacts.map((c) => (
+                        <ContactCard key={c.id} c={c} shared
+                          onConfirmField={(field) => cConfirm(c.id, field)}
+                          onEditField={(field, v) => cEdit(c.id, field, v)}
+                          onUpdate={(patch) => startTransition(async () => { await updateProspectContactAction(c.id, patch); after(); })}
+                          onDelete={() => startTransition(async () => { await deleteProspectContactAction(c.id); after(); })}
+                          pending={pending} />
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </Section>
@@ -238,11 +291,56 @@ function EmailChip({ label, tone }: { label: string; tone: "emerald" | "blue" | 
   return <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full border ${cls[tone]}`}>{label}</span>;
 }
 
-function Field({ label, value }: { label: string; value: string | null }) {
+function ContactCard({ c, shared, onConfirmField, onEditField, onMakePrimary, onUpdate, onDelete, pending }: {
+  c: { id: string; name: string; jobTitle: string | null; email: string | null; phone: string | null; isDecisionMaker: boolean; isPrimary?: boolean; research: ResearchMeta | null };
+  shared: boolean;
+  onConfirmField: (field: string) => Promise<{ ok: boolean; error?: string }>;
+  onEditField: (field: string, value: string) => Promise<{ ok: boolean; error?: string }>;
+  onMakePrimary?: () => void;
+  onUpdate: (patch: { name?: string; isDecisionMaker?: boolean }) => void;
+  onDelete: () => void;
+  pending: boolean;
+}) {
+  const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
+  const [name, setName] = useState(c.name);
+  const [dm, setDm] = useState(c.isDecisionMaker);
   return (
-    <div className="flex justify-between gap-3 border-b border-neutral-900 pb-1">
-      <dt className="text-neutral-600 shrink-0">{label}</dt>
-      <dd className="text-neutral-300 text-right truncate">{value ?? "—"}</dd>
+    <div className="border border-neutral-800/70 rounded-lg p-2.5 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="text-xs text-neutral-100 font-medium">{c.name}</span>
+          {c.isPrimary && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-900">primary</span>}
+          {shared && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-950 text-violet-300 border border-violet-900">shared</span>}
+          {c.isDecisionMaker && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400">decision-maker</span>}
+        </div>
+        <div className="flex items-center gap-2 shrink-0 text-[10px]">
+          {!shared && !c.isPrimary && onMakePrimary && <button onClick={onMakePrimary} disabled={pending} className="text-neutral-500 hover:text-neutral-300">Make primary</button>}
+          <button onClick={() => { setName(c.name); setDm(c.isDecisionMaker); setMode(mode === "edit" ? "view" : "edit"); }} className="text-neutral-500 hover:text-neutral-300">Edit</button>
+          <button onClick={() => setMode("delete")} className="text-red-400/70 hover:text-red-300">Remove</button>
+        </div>
+      </div>
+
+      {mode === "delete" && (
+        <div className="flex items-center gap-2 text-[11px] bg-red-950/20 border border-red-950/60 rounded px-2 py-1.5">
+          <span className="text-neutral-300">Remove {c.name}?</span>
+          <button onClick={onDelete} disabled={pending} className="text-red-400 hover:text-red-300 font-medium">Yes, remove</button>
+          <button onClick={() => setMode("view")} className="text-neutral-500 hover:text-neutral-300">Cancel</button>
+        </div>
+      )}
+
+      {mode === "edit" && (
+        <div className="space-y-2 bg-neutral-900 border border-neutral-800 rounded p-2">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={inputCls} />
+          <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={dm} onChange={(e) => setDm(e.target.checked)} /> Decision-maker</label>
+          <button onClick={() => { onUpdate({ name, isDecisionMaker: dm }); setMode("view"); }} disabled={pending || !name.trim()} className="text-[11px] px-2 py-1 rounded bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">Save</button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <VerifiedField label="Role" value={c.jobTitle} meta={c.research?.jobTitle} expected onConfirm={() => onConfirmField("jobTitle")} onEdit={(v) => onEditField("jobTitle", v)} />
+        <VerifiedField label="Email" value={c.email} meta={c.research?.email} expected onConfirm={() => onConfirmField("email")} onEdit={(v) => onEditField("email", v)} />
+        <VerifiedField label="Phone" value={c.phone} meta={c.research?.phone} expected onConfirm={() => onConfirmField("phone")} onEdit={(v) => onEditField("phone", v)} />
+      </div>
     </div>
   );
 }
@@ -341,6 +439,91 @@ function ConvertPanel({ onConvert }: { onConvert: (agencyId: string) => Promise<
   );
 }
 
+// Shown when a prospect belongs to a multi-branch business: names the business,
+// lists its other branches (click to open in place), and lets you detach.
+function GroupBanner({ group, branches, onOpenBranch, onUnlink, pending }: {
+  group: { id: string; name: string; website: string | null; notes: string | null };
+  branches: Array<{ id: string; agencyName: string; status: ProspectStatus }>;
+  onOpenBranch: (id: string) => void; onUnlink: () => void; pending: boolean;
+}) {
+  return (
+    <div className="bg-violet-950/20 border border-violet-900/60 rounded-lg px-4 py-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-violet-200">Part of <span className="font-medium">{group.name}</span>{branches.length > 0 ? ` · ${branches.length} other branch${branches.length === 1 ? "" : "es"}` : " · only branch so far"}.</p>
+        <button onClick={onUnlink} disabled={pending} className="text-[10px] text-violet-400/70 hover:text-violet-200 shrink-0">Remove</button>
+      </div>
+      {branches.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {branches.map((b) => (
+            <button key={b.id} onClick={() => onOpenBranch(b.id)} className="flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition-colors">
+              {b.agencyName}
+              <span className={`text-[9px] px-1 py-0.5 rounded-full border ${STATUS_TONE[b.status]}`}>{STATUS_LABEL[b.status]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Link this branch to an existing business, or name a new one to create it and
+// attach this branch in one step. Debounced live search.
+function GroupPanel({ onLink, onCreate }: {
+  onLink: (groupId: string) => Promise<{ ok: boolean; error?: string }>;
+  onCreate: (name: string) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<GroupMatch[]>([]);
+  const [searching, setSearching] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try { const r = await searchGroupsAction(q); if (live) setResults(r); }
+      finally { if (live) setSearching(false); }
+    }, 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [q]);
+
+  async function link(groupId: string) {
+    setSaving(true); setError(null);
+    const r = await onLink(groupId);
+    if (!r.ok) { setError(r.error ?? "Couldn't link that business."); setSaving(false); }
+  }
+  async function create() {
+    const name = q.trim();
+    if (!name) return;
+    setSaving(true); setError(null);
+    const r = await onCreate(name);
+    if (!r.ok) { setError(r.error ?? "Couldn't create that business."); setSaving(false); }
+  }
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2.5">
+      <p className="text-[11px] text-neutral-500">Group this branch under a business, so its branches sit together and you can share contacts across them.</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search or name a business (e.g. Foo Estates)…" className={inputCls} autoFocus />
+      {(searching || results.length > 0) && (
+        <div className="max-h-48 overflow-y-auto space-y-1">
+          {searching ? <p className="text-[11px] text-neutral-600 px-1">Searching…</p> : results.map((g) => (
+            <button key={g.id} onClick={() => link(g.id)} disabled={saving} className="w-full text-left px-2.5 py-1.5 rounded-md border text-xs bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-600 disabled:opacity-40">
+              <span className="font-medium">{g.name}</span><span className="text-neutral-600"> · {g.branchCount} branch{g.branchCount === 1 ? "" : "es"}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {q.trim() && (
+        <button onClick={create} disabled={saving} className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 disabled:opacity-40">
+          {saving ? "…" : `Create "${q.trim()}" and add this branch`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NotePanel({ onSave, pending }: { onSave: (t: string) => void; pending: boolean }) {
   const [t, setT] = useState("");
   return (
@@ -351,8 +534,12 @@ function NotePanel({ onSave, pending }: { onSave: (t: string) => void; pending: 
   );
 }
 
-function ContactPanel({ onSave, pending }: { onSave: (i: { name: string; jobTitle?: string; email?: string; phone?: string; isDecisionMaker?: boolean }) => void; pending: boolean }) {
+function ContactPanel({ onSave, pending, canShare, groupName }: {
+  onSave: (i: { name: string; jobTitle?: string; email?: string; phone?: string; isDecisionMaker?: boolean; shared?: boolean }) => void;
+  pending: boolean; canShare: boolean; groupName: string | null;
+}) {
   const [f, setF] = useState({ name: "", jobTitle: "", email: "", phone: "", isDecisionMaker: false });
+  const [shared, setShared] = useState(false);
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -362,7 +549,10 @@ function ContactPanel({ onSave, pending }: { onSave: (i: { name: string; jobTitl
         <input value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} placeholder="Phone" className={inputCls} />
       </div>
       <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={f.isDecisionMaker} onChange={(e) => setF((p) => ({ ...p, isDecisionMaker: e.target.checked }))} /> Decision-maker</label>
-      <button onClick={() => onSave(f)} disabled={pending || !f.name.trim()} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Add contact"}</button>
+      {canShare && (
+        <label className="flex items-center gap-2 text-[11px] text-violet-300/90"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Shared across {groupName} (shows on every branch)</label>
+      )}
+      <button onClick={() => onSave({ ...f, shared })} disabled={pending || !f.name.trim()} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Add contact"}</button>
     </div>
   );
 }

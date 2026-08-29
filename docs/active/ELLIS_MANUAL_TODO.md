@@ -8,6 +8,20 @@ Last updated: 2026-08-29
 
 ---
 
+## Prospects — automated research engine (2026-08-30)
+
+The "Research" button on a prospect researches the agency from the web (Claude + web search), cross-checks sources, and fills gaps with per-field verification states. For it to run:
+
+- [ ] **Enable web search on the Anthropic account.** The engine uses Claude's `web_search` tool, which is usage-billed and may need enabling on your Anthropic org. If research errors with a tool/permission message, that's this. (Uses the existing `ANTHROPIC_API_KEY`.)
+- [ ] **Companies House API key — OPTIONAL, add later.** Not required: the engine already reads Companies House's public site via web search. A free developer key (developer.company-information.service.gov.uk — doesn't require you to be incorporated) would make company/director matching more reliable and enable a deterministic clean-up sweep. When you have it, we set an env var and can re-run research to backfill; it never overwrites anything you've Confirmed.
+- [ ] Model override (optional): defaults to Sonnet (`claude-sonnet-5`); set env `PROSPECT_RESEARCH_MODEL` to change it.
+- Note: research is fill-blanks-only and never overwrites a Confirmed field, so re-running (or a later Companies-House sweep) is safe.
+
+## Prospects — daily follow-up reminder + outreach subdomain (2026-08-29)
+
+- **Daily reminder is live** (cron `prospect-followup-digest`, 07:30 weekdays). It emails you when prospect follow-ups are due to be actioned, and stays silent on empty days. Uses the existing `CRON_SECRET` (no new setup). Change the recipient with env `PROSPECT_DIGEST_TO` if you ever want it somewhere other than ellis@thesalesprogressor.co.uk.
+- **Protecting your main domain (do before real cold volume, not urgent at test scale):** cold outreach currently sends from `ellis@thesalesprogressor.co.uk` — your *root* domain, the same one your client/solicitor mail uses. `reply.thesalesprogressor.co.uk` does NOT protect this: it only *receives* replies, it has nothing to do with sending reputation. To firewall your main mail, authenticate a dedicated sending subdomain in SendGrid (e.g. `outreach.thesalesprogressor.co.uk` — Sender Authentication → Authenticate a Domain, add the CNAME/DKIM records it gives you), then set env `PROSPECT_FROM_EMAIL=ellis@outreach.thesalesprogressor.co.uk`. That's a one-line env change on our side once your DNS is done; no code change.
+
 ## Prospects — email + reply tracking setup (2026-08-29)
 
 Phase 3 of the Command Centre → Prospects feature can send outreach from you and track opens/clicks/replies. The code is live but needs these one-time setup steps before sends and reply-capture work. Until they're done, sending still works if the sender is verified, but replies won't be captured and the signature image won't render.

@@ -6,27 +6,11 @@ export const runtime = "edge";
 const W = 1200;
 const H = 628;
 
-// Brand mark SVG path data — circle chain icon
-function BrandMark({ dark }: { dark: boolean }) {
-  const fg = dark ? "white" : "#FF6B4A";
-  const fgOp = dark ? 0.9 : 1;
-  return (
-    <svg width="32" height="32" viewBox="0 0 44 44" fill="none">
-      <rect width="44" height="44" rx="10" fill="url(#bm)" />
-      <defs>
-        <linearGradient id="bm" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FFAA7A" />
-          <stop offset="100%" stopColor="#FF6B4A" />
-        </linearGradient>
-      </defs>
-      <circle cx="10" cy="22" r="3" fill={fg} fillOpacity={fgOp * 0.55} />
-      <line x1="13" y1="22" x2="18" y2="22" stroke={fg} strokeWidth="1.5" strokeOpacity={fgOp * 0.4} strokeLinecap="round" />
-      <circle cx="21" cy="22" r="3" fill={fg} fillOpacity={fgOp * 0.78} />
-      <line x1="24" y1="22" x2="29" y2="22" stroke={fg} strokeWidth="1.5" strokeOpacity={fgOp * 0.4} strokeLinecap="round" />
-      <circle cx="34" cy="22" r="4" fill={fg} />
-      <path d="M32.2 22l1.5 1.5 2.8-2.8" stroke="#FF7A54" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+// The real brand icon (coral C mark). next/og fetches the asset by absolute URL
+// (edge-safe — no file reads); the src is built from the request origin in GET.
+function BrandMark({ src }: { src: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} width={32} height={32} alt="" style={{ display: "block" }} />;
 }
 
 const DARK_BACKGROUNDS = [
@@ -52,6 +36,7 @@ export async function GET(req: NextRequest) {
   const text = searchParams.get("text") ?? "The silence ends at offer accepted.";
   const variant = searchParams.get("variant") ?? "dark";
   const logoStyle = searchParams.get("logo") ?? "icon-text"; // "icon-text" | "text-only" | "icon-only"
+  const logoUrl = new URL("/brand-icon.png", req.url).toString();
   // Rotate through backgrounds for variety
   const bgIndex = Math.abs(text.length) % 3;
 
@@ -137,7 +122,7 @@ export async function GET(req: NextRequest) {
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {(logoStyle === "icon-text" || logoStyle === "icon-only") && (
-              <BrandMark dark={isDark} />
+              <BrandMark src={logoUrl} />
             )}
             {(logoStyle === "icon-text" || logoStyle === "text-only") && (
               <span

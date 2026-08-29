@@ -1,32 +1,6 @@
 import { SunriseBackground } from "@/components/login/SunriseBackground"
 import { WarmLoginForm } from "@/components/login/WarmLoginForm"
-
-// Custom brand mark — three milestone nodes in a chain, last one checked.
-// Represents the product: structured progression from offer to keys.
-function BrandMark() {
-  return (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="44" height="44" rx="12" fill="url(#bm-grad)" />
-      <defs>
-        <linearGradient id="bm-grad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FFAA7A" />
-          <stop offset="100%" stopColor="#FF6B4A" />
-        </linearGradient>
-      </defs>
-      {/* Node 1 */}
-      <circle cx="10" cy="22" r="3" fill="white" fillOpacity="0.55" />
-      {/* Connector */}
-      <line x1="13" y1="22" x2="18" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
-      {/* Node 2 */}
-      <circle cx="21" cy="22" r="3" fill="white" fillOpacity="0.78" />
-      {/* Connector */}
-      <line x1="24" y1="22" x2="29" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
-      {/* Node 3 — complete, with check */}
-      <circle cx="34" cy="22" r="4" fill="white" />
-      <path d="M32.2 22l1.5 1.5 2.8-2.8" stroke="#FF7A54" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
+import { BrandMark } from "@/components/brand/BrandMark"
 
 export default function LoginPreviewPage() {
   return (

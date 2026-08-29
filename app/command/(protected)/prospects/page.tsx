@@ -15,6 +15,9 @@ import type { ProspectStatus, ProspectSource } from "@prisma/client";
 // prospects (list), Pipeline (status columns), Follow-ups (the work queue).
 
 export const dynamic = "force-dynamic";
+// Web research (Sonnet + web search) can take up to ~a minute; give server
+// actions triggered from this page room to finish.
+export const maxDuration = 60;
 
 type View = "all" | "pipeline" | "followups" | "insights";
 type SP = { q?: string; status?: string; source?: string; view?: string; bucket?: string };

@@ -39,3 +39,34 @@ export const STATUS_TONE: Record<ProspectStatus, string> = {
   active: "bg-emerald-950 text-emerald-300 border-emerald-900",
   lost: "bg-red-950 text-red-400 border-red-900",
 };
+
+// ─── Research provenance + per-field verification ────────────────────────────
+
+// verified = strong authoritative evidence. needs_check = probably right but not
+// conclusive (single weaker source, conflict, or an inferred value). confirmed =
+// Ellis personally reviewed and confirmed it (never overwritten by re-research).
+export type FieldState = "verified" | "needs_check" | "confirmed";
+export type FieldMeta = {
+  state: FieldState;
+  sourceUrl?: string;
+  sourceName?: string; // "Companies House", "Official website", ...
+  confidence?: "high" | "medium" | "low";
+  researchedAt?: string; // ISO
+  note?: string; // conflict / inference explanation
+};
+export type ResearchMeta = Record<string, FieldMeta>;
+
+// Fields whose EMPTINESS should draw the eye — a genuine gap worth filling.
+export const EXPECTED_PROSPECT_FIELDS = ["website", "phone", "generalEmail", "postcode", "location", "sizeNote"] as const;
+export const EXPECTED_CONTACT_FIELDS = ["email", "phone", "jobTitle"] as const;
+
+export type FieldVerdict = "normal" | "flag" | "missing";
+
+// Visual verdict for one field: "missing" (empty + expected → highlight), "flag"
+// (has a value but NEEDS_CHECK → warning), or "normal" (verified/confirmed/plain).
+export function fieldVerdict(value: string | null | undefined, meta: FieldMeta | undefined, expected: boolean): FieldVerdict {
+  const empty = value == null || String(value).trim() === "";
+  if (empty) return expected ? "missing" : "normal";
+  if (meta?.state === "needs_check") return "flag";
+  return "normal";
+}
