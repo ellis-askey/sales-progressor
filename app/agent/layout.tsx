@@ -7,6 +7,7 @@ import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
+import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
@@ -49,6 +50,11 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       {/* Inline script runs BEFORE React hydrates — sets data-theme +
           elevra-bg on <html> so first paint has the right background. */}
       <ThemeModeBoot initialMode={themeMode} initialAuroraOpacity={backgroundOpacity} />
+      {/* Client companion to the boot script: re-establishes <html> theme + bg
+          state on client-side navigation into the agent app (the inline boot
+          script only runs on a hard load), fixing the dimmed nav when returning
+          from the Command Centre. */}
+      <ThemeModeReapply initialMode={themeMode} initialAuroraOpacity={backgroundOpacity} />
       {/* WebGL backdrop: SoftAurora on dark, Iridescence on light,
           CSS fallback on iOS. Reads data-theme on <html> and swaps live. */}
       <AppBackground />
