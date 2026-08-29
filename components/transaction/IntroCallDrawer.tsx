@@ -123,6 +123,28 @@ function AreaField({ label, initial, onSave, placeholder }: { label: string; ini
   );
 }
 
+type Range = { start: string; end?: string | null };
+function AvailabilityField({ label, initial, onSave }: { label: string; initial: Range[]; onSave: (v: Range[]) => void }) {
+  const [ranges, setRanges] = useState<Range[]>(initial);
+  const commit = (next: Range[]) => { setRanges(next); onSave(next.filter((r) => r.start)); };
+  return (
+    <div style={labelStyle}>
+      {label}
+      <div style={{ display: "grid", gap: 8 }}>
+        {ranges.map((r, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="date" value={r.start} style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
+            <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>to</span>
+            <input type="date" value={r.end ?? ""} style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, end: e.target.value || null } : x)))} />
+            <button type="button" aria-label="Remove" onClick={() => commit(ranges.filter((_, j) => j !== i))} className="chain-act-link chain-act-danger" style={{ fontSize: 18, lineHeight: 1 }}>×</button>
+          </div>
+        ))}
+        <button type="button" onClick={() => commit([...ranges, { start: "", end: null }])} className="chain-act-link chain-act-primary" style={{ fontWeight: 600, justifySelf: "start" }}>+ Add dates they can&rsquo;t do</button>
+      </div>
+    </div>
+  );
+}
+
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -130,6 +152,22 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+// Rough completeness gauge for the footer: of the questions that apply to this
+// file, how many already have an answer. Computed from the loaded snapshot.
+function computeProgress(d: IntroCallData): { filled: number; total: number } {
+  const items: (unknown | null | undefined)[] = [];
+  if (d.hasPurchaser) {
+    items.push(d.purchaseType, d.costs.depositGBP, d.movePurchaser.fundsSource, d.movePurchaser.fundsInPlace, d.costs.firstTimeBuyer, d.costs.additionalProperty, d.movePurchaser.preferredCompletionDate, d.movePurchaser.flexibility, d.movePurchaser.noticePeriod, d.movePurchaser.removalStatus);
+    if (d.purchaseType !== "cash_buyer") items.push(d.costs.mortgageGBP, d.movePurchaser.mortgageOfferExpiry);
+  }
+  if (d.hasVendor) {
+    items.push(d.moveVendor.buyingOnward, d.moveVendor.vacantBeforeCompletion, d.moveVendor.preferredCompletionDate, d.moveVendor.flexibility, d.moveVendor.noticePeriod, d.moveVendor.removalStatus);
+  }
+  if (d.chainLinkId) items.push(d.chainIntel?.breakChainStance);
+  const filled = items.filter((v) => v !== null && v !== undefined && v !== "").length;
+  return { filled, total: items.length };
 }
 
 // ── option sets ──────────────────────────────────────────────────────────────
@@ -218,6 +256,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
   const showBuyer = data.hasPurchaser;
   const showSeller = data.hasVendor;
   const isCashBuyer = data.purchaseType === "cash_buyer";
+  const prog = computeProgress(data);
 
   return createPortal(
     <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
@@ -343,34 +382,52 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
                     ) : (
                       <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>Onward tracker is set up. Manage its steps from the file.</p>
                     )}
+                    <Row>
+                      <SelectField label="Onward ready to exchange?" initial={data.moveVendor.onwardReadyToExchange} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("vendor", { onwardReadyToExchange: v })} />
+                      <TextField label="Onward mortgage offer expiry" initial={data.moveVendor.onwardMortgageOfferExpiry ?? ""} type="date" onSave={(v) => saveMove("vendor", { onwardMortgageOfferExpiry: v || null })} />
+                    </Row>
                     <SelectField label="Vacant before completion?" initial={data.moveVendor.vacantBeforeCompletion} options={VACANT_OPTS} onSave={(v) => saveMove("vendor", { vacantBeforeCompletion: v })} />
                   </Group>
                 )}
 
                 {/* Timescales & logistics — per present side */}
                 {showSeller && (
-                  <Group title="Seller — timing & logistics">
+                  <Group title="Seller: timing & logistics">
                     <Row>
                       <TextField label="Preferred completion date" initial={data.moveVendor.preferredCompletionDate ?? ""} type="date" onSave={(v) => saveMove("vendor", { preferredCompletionDate: v || null })} />
                       <SelectField label="How flexible?" initial={data.moveVendor.flexibility} options={FLEX_OPTS} onSave={(v) => saveMove("vendor", { flexibility: v })} />
                     </Row>
+                    <ToggleField label="No completion preference yet?" initial={data.moveVendor.noCompletionPreference} onSave={(v) => saveMove("vendor", { noCompletionPreference: v })} />
                     <Row>
                       <SelectField label="Notice to give?" initial={data.moveVendor.noticePeriod} options={NOTICE_OPTS} onSave={(v) => saveMove("vendor", { noticePeriod: v, needsNotice: v ? true : null })} />
                       <SelectField label="Removals" initial={data.moveVendor.removalStatus} options={REMOVAL_OPTS} onSave={(v) => saveMove("vendor", { removalStatus: v })} />
                     </Row>
+                    <Row>
+                      <ToggleField label="Notice given?" initial={data.moveVendor.noticeGiven} onSave={(v) => saveMove("vendor", { noticeGiven: v })} />
+                      <TextField label="Notice ends" initial={data.moveVendor.noticeEndDate ?? ""} type="date" onSave={(v) => saveMove("vendor", { noticeEndDate: v || null })} />
+                    </Row>
+                    <TextField label="Removal company" initial={data.moveVendor.removalCompany ?? ""} onSave={(v) => saveMove("vendor", { removalCompany: v || null })} />
+                    <AvailabilityField label="Dates they can't do" initial={data.moveVendor.unavailableDates} onSave={(v) => saveMove("vendor", { unavailableDates: v })} />
                     <AreaField label="Anything else about the seller" initial={data.moveVendor.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("vendor", { progressorNote: v || null })} />
                   </Group>
                 )}
                 {showBuyer && (
-                  <Group title="Buyer — timing & logistics">
+                  <Group title="Buyer: timing & logistics">
                     <Row>
                       <TextField label="Preferred completion date" initial={data.movePurchaser.preferredCompletionDate ?? ""} type="date" onSave={(v) => saveMove("purchaser", { preferredCompletionDate: v || null })} />
                       <SelectField label="How flexible?" initial={data.movePurchaser.flexibility} options={FLEX_OPTS} onSave={(v) => saveMove("purchaser", { flexibility: v })} />
                     </Row>
+                    <ToggleField label="No completion preference yet?" initial={data.movePurchaser.noCompletionPreference} onSave={(v) => saveMove("purchaser", { noCompletionPreference: v })} />
                     <Row>
                       <SelectField label="Notice to give?" initial={data.movePurchaser.noticePeriod} options={NOTICE_OPTS} onSave={(v) => saveMove("purchaser", { noticePeriod: v, needsNotice: v ? true : null })} />
                       <SelectField label="Removals" initial={data.movePurchaser.removalStatus} options={REMOVAL_OPTS} onSave={(v) => saveMove("purchaser", { removalStatus: v })} />
                     </Row>
+                    <Row>
+                      <ToggleField label="Notice given?" initial={data.movePurchaser.noticeGiven} onSave={(v) => saveMove("purchaser", { noticeGiven: v })} />
+                      <TextField label="Notice ends" initial={data.movePurchaser.noticeEndDate ?? ""} type="date" onSave={(v) => saveMove("purchaser", { noticeEndDate: v || null })} />
+                    </Row>
+                    <TextField label="Removal company" initial={data.movePurchaser.removalCompany ?? ""} onSave={(v) => saveMove("purchaser", { removalCompany: v || null })} />
+                    <AvailabilityField label="Dates they can't do" initial={data.movePurchaser.unavailableDates} onSave={(v) => saveMove("purchaser", { unavailableDates: v })} />
                     <AreaField label="Anything else about the buyer" initial={data.movePurchaser.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("purchaser", { progressorNote: v || null })} />
                   </Group>
                 )}
@@ -393,7 +450,10 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
         <div style={{ flexShrink: 0, padding: "14px 20px", borderTop: "1px solid rgba(0,0,0,0.08)", background: "var(--agent-surface)" }}>
           {err && <p role="alert" style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", flex: 1 }}>Answers save as you go. Complete when you've had the conversation.</p>
+            <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", flex: 1 }}>
+              {prog.total > 0 && <strong style={{ color: "var(--agent-text-secondary)" }}>Captured {prog.filled} of {prog.total}. </strong>}
+              Answers save as you go.
+            </p>
             <button type="button" onClick={() => void complete()} disabled={completing} className="agent-btn-color-primary"
               style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, opacity: completing ? 0.6 : 1, cursor: completing ? "wait" : "pointer" }}>
               <CheckCircle size={16} weight="fill" />
