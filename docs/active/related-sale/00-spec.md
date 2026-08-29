@@ -103,3 +103,28 @@ solicitor.") so the "issued" is implied without a separate step.
 ## Copy status: SIGNED OFF (Ellis, 2026-08-29)
 VM6 corrected (no premature buyer-questions reference); VM9 subtext hints hand-off.
 Build may proceed. Ellis re-reviews if any wording surfaces wrong during build.
+
+## Build status: ALL STAGES SHIPPED to staging (2026-08-29), NOT pushed to prod
+
+Stages 1-6 + the signal writers committed on the staging branch (unpushed):
+- Stage 1: schema `kind` + `@@unique([transactionId, kind])` + `related_sale` enum
+  + `buyer` source; migration `20260829140000_related_sale_tracker_kind` (applied
+  to staging DB). Every onward query scoped to `onward_purchase` (seller flow
+  byte-for-byte unchanged).
+- Stage 2: lib/services/onward.ts direction-aware via a DIRECTION config + trailing
+  `kind` param.
+- Stage 3: lib/related-sale-copy.ts (signed-off VM voice) + getRelatedSaleSignalForFile
+  + ClientMoveInfo.sellingRelated (migration `20260829150000`, applied to staging).
+- Stage 4: app/actions/portal-related-sale.ts + PortalOnwardPanel `direction` prop
+  + purchaser Progress-tab "Your sale" panel.
+- Stage 5: OnwardPurchaseCard `direction` prop + related agent actions +
+  OverviewPanel renders both cards.
+- Stage 6: PM26 -> related VM19 exchange cascade; getRelatedSaleInheritanceForLink
+  (link above, vendor steps) merged into the claim wizard head-start;
+  supersede/withdraw twins wired in claim route + withdrawal cascade.
+- Signal writers: portal "Are you also selling?" question + intro-call toggle.
+
+Remaining: push staging -> prod (Vercel runs `migrate deploy` for the two
+migrations); Ellis eyeballs the buyer portal "Your sale" panel + the file's
+"Related sale" card on a real staging file. Neighbour-update (chain activity feed)
+for the related sale is NOT wired (onward-only) - a possible follow-up.
