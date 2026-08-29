@@ -3567,6 +3567,12 @@ model Prospect {
   branchCount  Int?
   sizeNote     String? // approx listings / size, freeform
 
+  // Per-field research provenance + verification state. JSON map keyed by field
+  // name -> { state: verified|needs_check|confirmed, sourceUrl, sourceName,
+  // confidence, researchedAt, note }. Written by the research importer; read by
+  // the drawer to flag NEEDS_CHECK fields. Absent key = no research on that field.
+  research Json?
+
   source ProspectSource @default(other)
   status ProspectStatus @default(new)
 
@@ -3649,6 +3655,8 @@ model ProspectContact {
   isDecisionMaker  Boolean  @default(false)
   isPrimary        Boolean  @default(false)
   preferredContact String? // "email" | "phone" | "linkedin"
+  // Per-field research provenance + verification state (same shape as Prospect.research).
+  research         Json?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

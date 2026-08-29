@@ -1,5 +1,6 @@
 import { commandDb } from "@/lib/command/prisma";
 import { PROSPECT_STATUSES as STATUS_ORDER } from "@/lib/command/prospect-labels";
+import type { ResearchMeta } from "@/lib/command/prospect-labels";
 import type { ProspectStatus, ProspectSource } from "@prisma/client";
 
 // Command Centre → Prospects. Read helpers for the acquisition-CRM list, detail
@@ -101,16 +102,20 @@ export type ProspectDetail = {
   lostReason: string | null;
   optedOutAt: Date | null;
   bouncedAt: Date | null;
+  // Per-field research/verification map (null when never researched).
+  research: ResearchMeta | null;
   contacts: Array<{
     id: string; name: string; jobTitle: string | null; email: string | null;
     phone: string | null; linkedinUrl: string | null; isDecisionMaker: boolean;
-    isPrimary: boolean; preferredContact: string | null;
+    isPrimary: boolean; preferredContact: string | null; research: ResearchMeta | null;
   }>;
   // Brand/business this branch belongs to, its shared contacts, and its other branches.
   group: { id: string; name: string; website: string | null; notes: string | null } | null;
+  // Live count of our records in this business (branch grouping) — 1 if standalone.
+  branchesInGroup: number;
   sharedContacts: Array<{
     id: string; name: string; jobTitle: string | null; email: string | null;
-    phone: string | null; linkedinUrl: string | null; isDecisionMaker: boolean;
+    phone: string | null; linkedinUrl: string | null; isDecisionMaker: boolean; research: ResearchMeta | null;
   }>;
   groupBranches: Array<{ id: string; agencyName: string; status: ProspectStatus }>;
   activities: Array<{ id: string; type: string; occurredAt: Date; summary: string | null; body: string | null; metadata: unknown }>;
@@ -161,15 +166,17 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
     lostReason: p.lostReason,
     optedOutAt: p.optedOutAt,
     bouncedAt: p.bouncedAt,
+    research: (p.research as ResearchMeta | null) ?? null,
     contacts: p.contacts.map((c) => ({
       id: c.id, name: c.name, jobTitle: c.jobTitle, email: c.email, phone: c.phone,
       linkedinUrl: c.linkedinUrl, isDecisionMaker: c.isDecisionMaker, isPrimary: c.isPrimary,
-      preferredContact: c.preferredContact,
+      preferredContact: c.preferredContact, research: (c.research as ResearchMeta | null) ?? null,
     })),
     group: p.group ? { id: p.group.id, name: p.group.name, website: p.group.website, notes: p.group.notes } : null,
+    branchesInGroup: p.group ? p.group.prospects.length : 1,
     sharedContacts: (p.group?.contacts ?? []).map((c) => ({
       id: c.id, name: c.name, jobTitle: c.jobTitle, email: c.email, phone: c.phone,
-      linkedinUrl: c.linkedinUrl, isDecisionMaker: c.isDecisionMaker,
+      linkedinUrl: c.linkedinUrl, isDecisionMaker: c.isDecisionMaker, research: (c.research as ResearchMeta | null) ?? null,
     })),
     groupBranches: (p.group?.prospects ?? []).filter((b) => b.id !== p.id).map((b) => ({ id: b.id, agencyName: b.agencyName, status: b.status })),
     activities: p.activities.map((a) => ({ id: a.id, type: a.type, occurredAt: a.occurredAt, summary: a.summary, body: a.body, metadata: a.metadata })),

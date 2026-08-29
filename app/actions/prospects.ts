@@ -476,3 +476,88 @@ export async function unlinkProspectFromGroupAction(prospectId: string): Promise
   revalidatePath("/command/prospects");
   return { ok: true };
 }
+
+// ─── Field verification (confirm / edit a researched field) ──────────────────
+
+type FieldTarget = { target: "prospect" | "contact"; id: string; field: string };
+
+const PROSPECT_EDITABLE = new Set(["agencyName", "branch", "website", "location", "postcode", "phone", "generalEmail", "sizeNote", "notes"]);
+const CONTACT_EDITABLE = new Set(["name", "jobTitle", "email", "phone"]);
+const REQUIRED_FIELDS = new Set(["agencyName", "name"]);
+
+function setFieldState(research: unknown, field: string, state: "confirmed"): Record<string, unknown> {
+  const map = { ...((research as Record<string, Record<string, unknown>> | null) ?? {}) };
+  map[field] = { ...(map[field] ?? {}), state };
+  return map;
+}
+
+// Confirm a NEEDS_CHECK field as personally reviewed — flips it to MANUALLY_CONFIRMED
+// so it stops flagging and is never overwritten by later automated research.
+export async function confirmFieldAction(input: FieldTarget): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  const { target, id, field } = input;
+  if (target === "prospect") {
+    const p = await commandDb.prospect.findUnique({ where: { id }, select: { research: true } });
+    if (!p) return { ok: false, error: "Prospect not found." };
+    await commandDb.prospect.update({ where: { id }, data: { research: setFieldState(p.research, field, "confirmed") as Prisma.InputJsonValue } });
+  } else {
+    const c = await commandDb.prospectContact.findUnique({ where: { id }, select: { research: true } });
+    if (!c) return { ok: false, error: "Contact not found." };
+    await commandDb.prospectContact.update({ where: { id }, data: { research: setFieldState(c.research, field, "confirmed") as Prisma.InputJsonValue } });
+  }
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// Correct a field's value and confirm it in one step.
+export async function editFieldAction(input: FieldTarget & { value: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  const { target, id, field } = input;
+  const value = input.value.trim();
+  if (REQUIRED_FIELDS.has(field) && !value) return { ok: false, error: "That field can't be empty." };
+  const dataValue = REQUIRED_FIELDS.has(field) ? value : value || null;
+
+  if (target === "prospect") {
+    if (!PROSPECT_EDITABLE.has(field)) return { ok: false, error: "That field can't be edited here." };
+    const p = await commandDb.prospect.findUnique({ where: { id }, select: { research: true } });
+    if (!p) return { ok: false, error: "Prospect not found." };
+    await commandDb.prospect.update({ where: { id }, data: { [field]: dataValue, research: setFieldState(p.research, field, "confirmed") as Prisma.InputJsonValue } as Prisma.ProspectUpdateInput });
+  } else {
+    if (!CONTACT_EDITABLE.has(field)) return { ok: false, error: "That field can't be edited here." };
+    const c = await commandDb.prospectContact.findUnique({ where: { id }, select: { research: true } });
+    if (!c) return { ok: false, error: "Contact not found." };
+    await commandDb.prospectContact.update({ where: { id }, data: { [field]: dataValue, research: setFieldState(c.research, field, "confirmed") as Prisma.InputJsonValue } as Prisma.ProspectContactUpdateInput });
+  }
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// ─── Contact edit / delete ───────────────────────────────────────────────────
+
+export async function updateProspectContactAction(contactId: string, patch: {
+  name?: string; jobTitle?: string; email?: string; phone?: string; linkedinUrl?: string; isDecisionMaker?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  const name = patch.name?.trim();
+  if (patch.name !== undefined && !name) return { ok: false, error: "Contact name can't be empty." };
+  await commandDb.prospectContact.update({
+    where: { id: contactId },
+    data: {
+      ...(name ? { name } : {}),
+      ...(patch.jobTitle !== undefined ? { jobTitle: trimOrNull(patch.jobTitle) } : {}),
+      ...(patch.email !== undefined ? { email: trimOrNull(patch.email) } : {}),
+      ...(patch.phone !== undefined ? { phone: trimOrNull(patch.phone) } : {}),
+      ...(patch.linkedinUrl !== undefined ? { linkedinUrl: trimOrNull(patch.linkedinUrl) } : {}),
+      ...(patch.isDecisionMaker !== undefined ? { isDecisionMaker: patch.isDecisionMaker } : {}),
+    },
+  });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+export async function deleteProspectContactAction(contactId: string): Promise<{ ok: true }> {
+  await requireSuperAdmin();
+  await commandDb.prospectContact.delete({ where: { id: contactId } });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
