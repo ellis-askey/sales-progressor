@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, PhoneCall, ClipboardText, CheckCircle } from "@phosphor-icons/react";
+import { X, PhoneCall, ClipboardText, CheckCircle, Plus } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import {
   getIntroCallDataAction,
@@ -15,6 +15,8 @@ import { savePurchaseTypeAction } from "@/app/actions/transactions";
 import { updateContactAction } from "@/app/actions/contacts";
 import { setOnwardTypeFactsAction } from "@/app/actions/onward";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
+import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
+import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import type { MoveInfo } from "@/lib/services/portal-info";
 import type { PurchaseType, Tenure } from "@prisma/client";
@@ -258,6 +260,39 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
   const isCashBuyer = data.purchaseType === "cash_buyer";
   const prog = computeProgress(data);
 
+  // Add a sale into the chain (onward above / related sale below), reusing the
+  // exact chain flow. Creates a chain first if the file isn't in one yet.
+  const [addNode, setAddNode] = useState<{ chainId: string; direction: "above" | "below" } | null>(null);
+  const [preparingChain, setPreparingChain] = useState(false);
+  async function openAddSale(direction: "above" | "below") {
+    setPreparingChain(true);
+    setErr(null);
+    try {
+      let chainId = data.chainId;
+      if (!chainId) {
+        const res = await fetch("/api/chains", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionId: tx }),
+        });
+        const body = await res.json().catch(() => ({}));
+        chainId = body?.chain?.id ?? null;
+      }
+      if (!chainId) { setErr("Couldn't set up the chain. Try again."); return; }
+      setAddNode({ chainId, direction });
+    } catch {
+      setErr("Couldn't set up the chain. Try again.");
+    } finally {
+      setPreparingChain(false);
+    }
+  }
+  const addSaleBtnStyle: CSSProperties = {
+    display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8,
+    fontSize: 12.5, fontWeight: 600, cursor: preparingChain ? "wait" : "pointer",
+    border: "1px solid var(--agent-border-default)", background: "var(--agent-surface)", color: "var(--agent-text-secondary)",
+    justifySelf: "start",
+  };
+
   return createPortal(
     <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
@@ -365,6 +400,11 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
                       <TextField label="Mortgage offer expiry (if they have one)" initial={data.movePurchaser.mortgageOfferExpiry ?? ""} type="date"
                         onSave={(v) => saveMove("purchaser", { mortgageOfferExpiry: v || null })} />
                     )}
+                    {!isCashBuyer && (
+                      <button type="button" onClick={() => void openAddSale("below")} disabled={preparingChain} style={addSaleBtnStyle}>
+                        <Plus size={13} weight="bold" /> Add their related sale to the chain
+                      </button>
+                    )}
                   </Group>
                 )}
 
@@ -382,6 +422,9 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
                     ) : (
                       <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>Onward tracker is set up. Manage its steps from the file.</p>
                     )}
+                    <button type="button" onClick={() => void openAddSale("above")} disabled={preparingChain} style={addSaleBtnStyle}>
+                      <Plus size={13} weight="bold" /> Add the onward property to the chain
+                    </button>
                     <Row>
                       <SelectField label="Onward ready to exchange?" initial={data.moveVendor.onwardReadyToExchange} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("vendor", { onwardReadyToExchange: v })} />
                       <TextField label="Onward mortgage offer expiry" initial={data.moveVendor.onwardMortgageOfferExpiry ?? ""} type="date" onSave={(v) => saveMove("vendor", { onwardMortgageOfferExpiry: v || null })} />
@@ -441,6 +484,23 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
                     <AreaField label="Chain notes" initial={intel.chainNotes ?? ""} onSave={(v) => saveIntel({ ...intel, chainNotes: v || null })} />
                   </Group>
                 )}
+
+                {/* Solicitors — the full manager (change firm / edit / add), so this
+                 *  is the one place everything gets verified accurate. */}
+                {(data.hasVendor || data.hasPurchaser) && (
+                  <Group title="Solicitors">
+                    <SolicitorSection
+                      transactionId={tx}
+                      vendor={data.solVendor}
+                      purchaser={data.solPurchaser}
+                      referredFirmId={data.referredFirmId}
+                      referralFee={data.referralFee}
+                      address={data.address}
+                      contacts={data.contactRoles}
+                      embedded
+                    />
+                  </Group>
+                )}
               </div>
             </div>
           </div>
@@ -462,6 +522,17 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
           </div>
         </div>
       </div>
+
+      {/* Add-sale reuses the exact chain flow; it portals over this drawer. */}
+      {addNode && (
+        <AddNodeDrawer
+          chainId={addNode.chainId}
+          transactionId={tx}
+          direction={addNode.direction}
+          onClose={() => setAddNode(null)}
+          onSaved={() => setAddNode(null)}
+        />
+      )}
     </div>,
     document.body,
   );
