@@ -5,7 +5,7 @@ import { calculateProgress } from "@/lib/services/fees";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { PortalOnwardPanel } from "@/components/portal/PortalOnwardPanel";
-import { getOnwardTrackerView } from "@/lib/services/onward";
+import { getOnwardTrackerView, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { prisma } from "@/lib/prisma";
 import { P } from "@/components/portal/portal-ui";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
@@ -73,10 +73,14 @@ export default async function PortalProgressPage({
   const portalMilestones      = toPortalShape(milestones);
   const otherPortalMilestones = toPortalShape(otherSideMilestones);
 
-  // Onward panel (sellers only): show as a third swipe panel when the seller has
-  // started their onward tracker, said they're buying onward, or a chain link
-  // already exists above them.
+  // Extra swipe panel on the Progress tab:
+  //   - sellers (vendor): their onward purchase (the link above), when they've
+  //     started tracking, said they're buying onward, or a chain link exists above.
+  //   - buyers (purchaser): their related sale (the link below, the property they're
+  //     selling to fund the purchase), when they've started tracking, we've detected
+  //     they're selling, or a chain link exists below.
   let onwardPanel: ReactNode = undefined;
+  let onwardLabel = "Your onward";
   if (side === "vendor") {
     const [onwardView, moveInfo, chainAgent] = await Promise.all([
       getOnwardTrackerView(transaction.id),
@@ -93,6 +97,22 @@ export default async function PortalProgressPage({
     const onwardAddress = ca?.propertyAddress ?? null;
     if (onwardView.exists || moveInfo?.buyingOnward === true || onwardLinkKnown) {
       onwardPanel = <PortalOnwardPanel token={token} initialView={onwardView} onwardAddress={onwardAddress} />;
+    }
+  } else {
+    const [relatedView, signal, chainAgent] = await Promise.all([
+      getOnwardTrackerView(transaction.id, "related_sale"),
+      getRelatedSaleSignalForFile(transaction.id),
+      getPortalChainAgent(transaction.id, "purchaser").catch(() => null),
+    ]);
+    const ca = chainAgent as { present?: boolean; propertyAddress?: string | null } | null;
+    const relatedLinkKnown = !!ca?.present;
+    // Address of the property they're selling (the link below), if known.
+    const relatedAddress = ca?.propertyAddress ?? signal.relatedAddress ?? null;
+    if (relatedView.exists || signal.selling || relatedLinkKnown) {
+      onwardLabel = "Your sale";
+      onwardPanel = (
+        <PortalOnwardPanel token={token} initialView={relatedView} onwardAddress={relatedAddress} direction="related" />
+      );
     }
   }
 
@@ -134,7 +154,7 @@ export default async function PortalProgressPage({
         hasExchanged={hasExchanged}
         side={side}
         onwardPanel={onwardPanel}
-        onwardLabel="Your onward"
+        onwardLabel={onwardLabel}
       />
     </div>
   );
