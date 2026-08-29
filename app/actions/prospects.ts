@@ -8,6 +8,10 @@ import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
 import { getProspectDetail, type ProspectDetail } from "@/lib/command/prospects";
 import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/prospect-labels";
+import { anthropic } from "@/lib/anthropic";
+import { buildTemplate } from "@/lib/prospects/templates";
+import { sendProspectOutreach } from "@/lib/prospects/send";
+import { randomUUID } from "crypto";
 import type { Prisma, ProspectStatus, ProspectSource, ProspectLostReason } from "@prisma/client";
 
 // Command Centre → Prospects server actions. Every action is superadmin-gated
@@ -241,6 +245,88 @@ export async function markProspectLostAction(id: string, reason: string, revisit
     data: { status: "lost", lostAt: new Date(), lostReason, revisitAt: revisit, nextFollowUpAt: null },
   });
   await logActivity(id, session.user.id, "lost", `Marked lost: ${reason}${revisit ? ` (revisit ${revisit.toLocaleDateString("en-GB", { day: "numeric", month: "short" })})` : ""}`, null, { reason, ...(revisit ? { revisitAt: revisit.toISOString() } : {}) });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// ─── Phase 3: AI draft + send ────────────────────────────────────────────────
+
+export async function draftFollowUpAction(prospectId: string, templateKey?: string): Promise<{ to: string | null; subject: string; body: string; aiGenerated: boolean }> {
+  await requireSuperAdmin();
+  const p = await commandDb.prospect.findUnique({
+    where: { id: prospectId },
+    include: { contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] }, activities: { orderBy: { occurredAt: "desc" }, take: 8 } },
+  });
+  if (!p) throw new Error("Prospect not found.");
+  const primary = p.contacts[0] ?? null;
+  const to = primary?.email ?? p.generalEmail ?? null;
+  const firstName = (primary?.name ?? "").trim().split(/\s+/)[0] ?? "";
+  const ctx = { firstName, agencyName: p.agencyName, senderName: "Ellis" };
+
+  if (templateKey) {
+    const t = buildTemplate(templateKey, ctx);
+    if (t) return { to, subject: t.subject, body: t.body, aiGenerated: false };
+  }
+
+  try {
+    const context = [
+      `Agency: ${p.agencyName}${p.location ? ` (${p.location})` : ""}`,
+      `Contact: ${primary?.name ?? "unknown"}${primary?.jobTitle ? `, ${primary.jobTitle}` : ""}`,
+      `Current status: ${p.status}`,
+      `Follow-ups sent so far: ${p.followUpCount}`,
+      p.notes ? `Notes: ${p.notes}` : "",
+      `Recent history: ${p.activities.map((a) => a.summary).filter(Boolean).slice(0, 6).join("; ") || "none"}`,
+    ].filter(Boolean).join("\n");
+    const system = `You draft short, warm B2B follow-up emails from Ellis at The Sales Progressor, a UK service that runs estate agents' sales progression and chasing for them (charged only when a sale exchanges). Write to the contact by first name. Be specific to the context, friendly, and brief (under 120 words). Do NOT include a signature (it is added automatically). No em dashes. Return ONLY JSON: {"subject": "...", "body": "..."}.`;
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
+      system,
+      messages: [{ role: "user", content: context }],
+    });
+    const text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    const s = text.indexOf("{");
+    const e = text.lastIndexOf("}");
+    if (s !== -1 && e !== -1) {
+      const parsed = JSON.parse(text.slice(s, e + 1)) as { subject?: string; body?: string };
+      if (parsed.subject && parsed.body) return { to, subject: String(parsed.subject), body: String(parsed.body), aiGenerated: true };
+    }
+  } catch {
+    // fall through to template
+  }
+  const fb = buildTemplate("cold_intro", ctx)!;
+  return { to, subject: fb.subject, body: fb.body, aiGenerated: false };
+}
+
+export async function sendProspectEmailAction(prospectId: string, input: {
+  contactId?: string; to: string; subject: string; body: string; aiGenerated?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const to = input.to.trim(), subject = input.subject.trim(), body = input.body.trim();
+  if (!to || !subject || !body) return { ok: false, error: "To, subject and body are all required." };
+
+  const p = await commandDb.prospect.findUnique({ where: { id: prospectId }, select: { optedOutAt: true, bouncedAt: true, status: true } });
+  if (!p) return { ok: false, error: "Prospect not found." };
+  if (p.optedOutAt) return { ok: false, error: "This prospect has opted out of email." };
+  if (p.bouncedAt) return { ok: false, error: "A previous email to this prospect bounced." };
+
+  const replyToken = randomUUID().replace(/-/g, "");
+  const pe = await commandDb.prospectEmail.create({
+    data: { prospectId, contactId: input.contactId ?? null, toEmail: to, subject, body, replyToken, aiGenerated: !!input.aiGenerated, createdById: session.user.id },
+  });
+  try {
+    const { sgMessageId } = await sendProspectOutreach({ to, subject, text: body, replyToken, prospectEmailId: pe.id });
+    await commandDb.prospectEmail.update({ where: { id: pe.id }, data: { sgMessageId } });
+  } catch (err) {
+    await commandDb.prospectEmail.delete({ where: { id: pe.id } }).catch(() => {});
+    return { ok: false, error: err instanceof Error ? err.message.slice(0, 140) : "The email failed to send." };
+  }
+
+  await logActivity(prospectId, session.user.id, "email_sent", `Email: ${subject}`, body, { prospectEmailId: pe.id });
+  await commandDb.prospect.update({
+    where: { id: prospectId },
+    data: { lastContactedAt: new Date(), followUpCount: { increment: 1 }, nextFollowUpAt: null, ...(p.status === "new" ? { status: "contacted" as ProspectStatus } : {}) },
+  });
   revalidatePath("/command/prospects");
   return { ok: true };
 }

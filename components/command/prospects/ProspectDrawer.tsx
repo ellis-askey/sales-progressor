@@ -11,6 +11,7 @@ import {
   PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
   CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS, LOST_REASON_LABEL,
 } from "@/lib/command/prospect-labels";
+import { FollowUpCompose } from "./FollowUpCompose";
 import type { ProspectDetail } from "@/lib/command/prospects";
 import type { ProspectStatus } from "@prisma/client";
 
@@ -31,7 +32,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
   const [d, setD] = useState<ProspectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost">(null);
+  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email">(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +41,10 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
   useEffect(() => { load(); }, [load]);
 
   function after() { setPanel(null); load(); router.refresh(); }
+
+  const primaryEmail = d ? (d.contacts.find((c) => c.isPrimary)?.email ?? d.contacts[0]?.email ?? d.generalEmail ?? null) : null;
+  const canEmail = d ? !d.optedOutAt && !d.bouncedAt : false;
+  const emailDisabledReason = d?.optedOutAt ? "they've opted out" : d?.bouncedAt ? "a previous email bounced" : "";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -86,6 +91,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
               <StatusChanger current={d.status} onChange={(s) => startTransition(async () => { await changeProspectStatusAction(id, s); after(); })} disabled={pending} />
+              <ActionBtn onClick={() => setPanel(panel === "email" ? null : "email")} active={panel === "email"}>Email</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "call" ? null : "call")} active={panel === "call"}>Log call</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "followup" ? null : "followup")} active={panel === "followup"}>Follow up</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "note" ? null : "note")} active={panel === "note"}>Add note</ActionBtn>
@@ -94,6 +100,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
               <ActionBtn onClick={() => setPanel(panel === "lost" ? null : "lost")} active={panel === "lost"}>Mark lost</ActionBtn>
             </div>
 
+            {panel === "email" && <FollowUpCompose prospectId={id} defaultTo={primaryEmail} disabled={!canEmail} disabledReason={emailDisabledReason} onSent={after} />}
             {panel === "call" && <CallPanel onSave={(input) => startTransition(async () => { await logProspectCallAction(id, input); after(); })} pending={pending} />}
             {panel === "followup" && <FollowUpPanel onSave={(iso) => startTransition(async () => { await scheduleFollowUpAction(id, iso); after(); })} pending={pending} />}
             {panel === "lost" && <LostPanel onSave={(reason, revisit) => startTransition(async () => { await markProspectLostAction(id, reason, revisit); after(); })} pending={pending} />}
@@ -137,6 +144,29 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
                 </div>
               )}
             </Section>
+
+            {/* Emails */}
+            {d.emails.length > 0 && (
+              <Section title={`Emails · ${d.emails.length}`}>
+                <div className="space-y-2">
+                  {d.emails.map((e) => (
+                    <div key={e.id} className="border-b border-neutral-900 pb-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-neutral-200 truncate">{e.subject}</span>
+                        <span className="text-[10px] text-neutral-600 shrink-0">{fmtDateTime(e.sentAt)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {e.repliedAt && <EmailChip label="Replied" tone="emerald" />}
+                        {e.openedAt && <EmailChip label="Opened" tone="blue" />}
+                        {e.clickedAt && <EmailChip label="Clicked" tone="cyan" />}
+                        {e.bouncedAt ? <EmailChip label="Bounced" tone="red" /> : e.deliveredAt && <EmailChip label="Delivered" tone="neutral" />}
+                        {e.aiGenerated && <EmailChip label="AI" tone="violet" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
 
             {/* Notes */}
             {d.notes && (
@@ -189,6 +219,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   );
 }
+function EmailChip({ label, tone }: { label: string; tone: "emerald" | "blue" | "cyan" | "red" | "neutral" | "violet" }) {
+  const cls: Record<string, string> = {
+    emerald: "bg-emerald-950 text-emerald-300 border-emerald-900",
+    blue: "bg-blue-950 text-blue-300 border-blue-900",
+    cyan: "bg-cyan-950 text-cyan-300 border-cyan-900",
+    red: "bg-red-950 text-red-400 border-red-900",
+    neutral: "bg-neutral-800 text-neutral-400 border-neutral-700",
+    violet: "bg-violet-950 text-violet-300 border-violet-900",
+  };
+  return <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full border ${cls[tone]}`}>{label}</span>;
+}
+
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex justify-between gap-3 border-b border-neutral-900 pb-1">

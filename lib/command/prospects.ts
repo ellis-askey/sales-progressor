@@ -107,6 +107,10 @@ export type ProspectDetail = {
     isPrimary: boolean; preferredContact: string | null;
   }>;
   activities: Array<{ id: string; type: string; occurredAt: Date; summary: string | null; body: string | null; metadata: unknown }>;
+  emails: Array<{
+    id: string; subject: string; toEmail: string; sentAt: Date; deliveredAt: Date | null;
+    openedAt: Date | null; clickedAt: Date | null; bouncedAt: Date | null; repliedAt: Date | null; aiGenerated: boolean;
+  }>;
 };
 
 export async function getProspectDetail(id: string): Promise<ProspectDetail | null> {
@@ -115,6 +119,7 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
     include: {
       contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       activities: { orderBy: { occurredAt: "desc" }, take: 100 },
+      emails: { orderBy: { sentAt: "desc" }, take: 50 },
       convertedAgency: { select: { id: true, name: true } },
     },
   });
@@ -148,6 +153,10 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
       preferredContact: c.preferredContact,
     })),
     activities: p.activities.map((a) => ({ id: a.id, type: a.type, occurredAt: a.occurredAt, summary: a.summary, body: a.body, metadata: a.metadata })),
+    emails: p.emails.map((e) => ({
+      id: e.id, subject: e.subject, toEmail: e.toEmail, sentAt: e.sentAt, deliveredAt: e.deliveredAt,
+      openedAt: e.openedAt, clickedAt: e.clickedAt, bouncedAt: e.bouncedAt, repliedAt: e.repliedAt, aiGenerated: e.aiGenerated,
+    })),
   };
 }
 

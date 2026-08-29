@@ -3599,6 +3599,7 @@ model Prospect {
   sourceChainLink ChainLink?         @relation(fields: [sourceChainLinkId], references: [id], onDelete: SetNull)
   contacts        ProspectContact[]
   activities      ProspectActivity[]
+  emails          ProspectEmail[]
 
   @@index([status, nextFollowUpAt])
   @@index([nextFollowUpAt])
@@ -3643,6 +3644,38 @@ model ProspectActivity {
 
   @@index([prospectId, occurredAt])
   @@index([type, occurredAt])
+}
+
+// One outreach email sent to a prospect. Full-fidelity tracking: delivered /
+// opened / clicked / bounced (via the SendGrid Event Webhook, joined by the
+// customArg prospectEmailId) and replied (via SendGrid Inbound Parse, matched by
+// replyToken in the Reply-To address). Sent from ellis@thesalesprogressor.co.uk.
+model ProspectEmail {
+  id            String    @id @default(cuid())
+  prospectId    String
+  contactId     String? // the ProspectContact it went to, if known
+  toEmail       String
+  subject       String
+  body          String // plain text
+  html          String?
+  templateKey   String?
+  aiGenerated   Boolean   @default(false)
+  replyToken    String?   @unique // embedded in Reply-To for inbound matching
+  sgMessageId   String?
+  sentAt        DateTime  @default(now())
+  deliveredAt   DateTime?
+  openedAt      DateTime?
+  clickedAt     DateTime?
+  bouncedAt     DateTime?
+  bouncedReason String?
+  repliedAt     DateTime?
+  createdById   String?
+
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@index([prospectId, sentAt])
+  @@index([replyToken])
+  @@index([sgMessageId])
 }
 
 enum ProspectStatus {
