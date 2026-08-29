@@ -676,6 +676,74 @@ export async function supersedeOnwardTrackerForLink(claimedLinkId: string): Prom
   });
 }
 
+// ── Related-sale twins (buyer side) ──────────────────────────────────────────
+//
+// Mirror of the onward inheritance/supersede/withdraw, in the other direction.
+// A related_sale tracker on the transaction at position X-1 (the link ABOVE the
+// claimed link X) describes property X: that file's BUYER is selling X, acting as
+// its vendor. So claiming X inherits/supersedes THAT tracker, and its VENDOR-side
+// steps map onto the claiming agent's VENDOR side (their seller IS that buyer).
+
+async function relatedSaleAboveTransactionId(linkId: string): Promise<string | null> {
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: { position: true, chainId: true },
+  });
+  if (!link) return null;
+  const above = await prisma.chainLink.findFirst({
+    where: { chainId: link.chainId, position: link.position - 1 },
+    select: { transactionId: true },
+  });
+  return above?.transactionId ?? null;
+}
+
+/**
+ * Pre-fill data for the reconciliation wizard when claiming `claimedLinkId`: the
+ * related-sale progress reported on the link above (whose buyer is selling the
+ * claimed property). Null when there's no link above, no tracker, or it's retired.
+ * stepCodes are VENDOR-side codes.
+ */
+export async function getRelatedSaleInheritanceForLink(claimedLinkId: string): Promise<OnwardInheritance | null> {
+  const txId = await relatedSaleAboveTransactionId(claimedLinkId);
+  if (!txId) return null;
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId_kind: { transactionId: txId, kind: "related_sale" } },
+    include: { steps: true },
+  });
+  if (!tracker) return null;
+  if (tracker.status === "superseded" || tracker.status === "abandoned") return null;
+  return {
+    tenure: tracker.tenure,
+    purchaseType: tracker.purchaseType,
+    isShareOfFreehold: tracker.isShareOfFreehold,
+    stepCodes: tracker.steps.map((s) => s.milestoneCode),
+  };
+}
+
+/**
+ * Auto-retire twin: when a chain link is withdrawn, the buyer on the link above
+ * it was selling that property as their related sale, so their related-sale
+ * tracker is retired (abandoned). No-op when there's no link above or no tracker.
+ */
+export async function retireRelatedSaleTrackerForWithdrawnLink(withdrawnLinkId: string): Promise<void> {
+  const txId = await relatedSaleAboveTransactionId(withdrawnLinkId);
+  if (!txId) return;
+  await abandonOnwardTracker(txId, "related_sale");
+}
+
+/**
+ * Supersede twin: once the claimed property becomes a real file, the link-above's
+ * reported related-sale stand-in is superseded (the real file now owns the truth).
+ */
+export async function supersedeRelatedSaleTrackerForLink(claimedLinkId: string): Promise<void> {
+  const txId = await relatedSaleAboveTransactionId(claimedLinkId);
+  if (!txId) return;
+  await prisma.onwardTracker.updateMany({
+    where: { transactionId: txId, kind: "related_sale", status: { notIn: ["superseded", "abandoned"] } },
+    data: { status: "superseded" },
+  });
+}
+
 /**
  * Cascade (3a): our own sale exchanging (VM19) means the whole chain exchanged
  * on the same day, so the seller's onward purchase has exchanged too. If a

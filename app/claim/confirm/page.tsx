@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { findDuplicateTransactions } from "@/lib/chain/duplicate-detection";
 import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
-import { getOnwardInheritanceForLink } from "@/lib/services/onward";
+import { getOnwardInheritanceForLink, getRelatedSaleInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordClaimStarted } from "@/lib/chain/funnel";
@@ -168,19 +168,28 @@ export default async function ClaimConfirmPage({
     select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
   });
 
-  // Onward inheritance (Stage 3): if the seller below this link reported their
-  // onward-purchase progress, offer it as a pre-filled head-start for the
-  // reconciliation wizard. Their reported steps are purchaser-side; map the
-  // codes onto this file's purchaser milestone definition ids.
-  const onwardInheritance = await getOnwardInheritanceForLink(link.id).catch(() => null);
-  const inheritance = onwardInheritance
+  // Inheritance (Stage 3 + related-sale twin): both neighbours may have reported
+  // progress on the property being claimed, from opposite sides.
+  //   - the seller BELOW reported their onward purchase of it → purchaser-side steps
+  //   - the buyer ABOVE reported their related sale of it → vendor-side steps
+  // Offer the union as a pre-filled head-start for the reconciliation wizard.
+  const [onwardInheritance, relatedInheritance] = await Promise.all([
+    getOnwardInheritanceForLink(link.id).catch(() => null),
+    getRelatedSaleInheritanceForLink(link.id).catch(() => null),
+  ]);
+  const inheritance = onwardInheritance || relatedInheritance
     ? {
-        tenure: onwardInheritance.tenure,
-        purchaseType: onwardInheritance.purchaseType,
-        isShareOfFreehold: onwardInheritance.isShareOfFreehold,
-        stepDefIds: milestoneDefinitions
-          .filter((d) => d.side === "purchaser" && onwardInheritance.stepCodes.includes(d.code))
-          .map((d) => d.id),
+        tenure: onwardInheritance?.tenure ?? relatedInheritance?.tenure ?? null,
+        purchaseType: onwardInheritance?.purchaseType ?? null,
+        isShareOfFreehold: onwardInheritance?.isShareOfFreehold ?? relatedInheritance?.isShareOfFreehold ?? false,
+        stepDefIds: [
+          ...milestoneDefinitions
+            .filter((d) => d.side === "purchaser" && (onwardInheritance?.stepCodes.includes(d.code) ?? false))
+            .map((d) => d.id),
+          ...milestoneDefinitions
+            .filter((d) => d.side === "vendor" && (relatedInheritance?.stepCodes.includes(d.code) ?? false))
+            .map((d) => d.id),
+        ],
       }
     : null;
 

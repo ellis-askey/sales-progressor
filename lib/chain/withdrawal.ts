@@ -23,7 +23,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { fireChainCascadeNotifications } from "@/lib/email/chainNotifications";
-import { retireOnwardTrackerForWithdrawnLink } from "@/lib/services/onward";
+import { retireOnwardTrackerForWithdrawnLink, retireRelatedSaleTrackerForWithdrawnLink } from "@/lib/services/onward";
 import type { ChainDirection, ChainNotificationType, ChainWithdrawalStatus } from "@prisma/client";
 
 type NearestClaimed = {
@@ -138,6 +138,11 @@ export async function cascadeChainWithdrawal(
     // onward, so auto-retire their reported onward tracker. Best-effort.
     retireOnwardTrackerForWithdrawnLink(withdrawingLinkId).catch((err) =>
       console.error(`[onward retire] failed for withdrawn link ${withdrawingLinkId}:`, err),
+    );
+    // Related-sale twin: the buyer on the link above was selling this property as
+    // their related sale, so auto-retire their reported related-sale tracker too.
+    retireRelatedSaleTrackerForWithdrawnLink(withdrawingLinkId).catch((err) =>
+      console.error(`[related-sale retire] failed for withdrawn link ${withdrawingLinkId}:`, err),
     );
   }
 
