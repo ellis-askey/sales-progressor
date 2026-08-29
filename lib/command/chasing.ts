@@ -66,7 +66,7 @@ function fmtSince(d: Date | null): string | null {
 async function getEnquiriesTab(): Promise<ChaseTabData> {
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
   const sends = await commandDb.chaseSend.findMany({
-    where: { sentAt: { gte: since }, transaction: realFile },
+    where: { sentAt: { gte: since }, kind: { in: ["raise", "reply_loop"] }, transaction: realFile },
     orderBy: { sentAt: "desc" },
     select: {
       id: true, kind: true, recipient: true, recipientName: true, sentAt: true, transactionId: true,
@@ -118,51 +118,53 @@ async function getEnquiriesTab(): Promise<ChaseTabData> {
   };
 }
 
-// ── Solicitor milestone chase (sent + outcome, from SolicitorChaseState) ───────
+// ── Solicitor milestone chase (full funnel, from ChaseSend kind=milestone) ─────
 async function getSolicitorTab(): Promise<ChaseTabData> {
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
-  const states = await commandDb.solicitorChaseState.findMany({
-    where: { lastChasedAt: { gte: since }, chaseCount: { gt: 0 }, transaction: realFile },
-    orderBy: { lastChasedAt: "desc" },
+  const sends = await commandDb.chaseSend.findMany({
+    where: { sentAt: { gte: since }, kind: "milestone", transaction: realFile },
+    orderBy: { sentAt: "desc" },
     select: {
-      id: true, side: true, milestoneCode: true, chaseCount: true, lastChasedAt: true,
-      resolvedAt: true, status: true, transactionId: true,
+      id: true, recipient: true, recipientName: true, sentAt: true, transactionId: true,
+      openedAt: true, respondedAt: true, responseType: true, repliedByEmailAt: true,
       transaction: { select: { propertyAddress: true } },
     },
   });
 
-  const resolved = states.filter((s) => s.resolvedAt != null).length;
-  const rate = states.length ? Math.round((resolved / states.length) * 100) : 0;
+  const respondedFn = (s: (typeof sends)[number]) => !!s.respondedAt || !!s.repliedByEmailAt;
+  const respondedCount = sends.filter(respondedFn).length;
+  const opened = sends.filter((s) => s.openedAt && !respondedFn(s)).length;
+  const rate = sends.length ? Math.round((respondedCount / sends.length) * 100) : 0;
 
-  const rows: ChaseRow[] = states.map((s) => {
-    const done = s.resolvedAt != null;
+  const rows: ChaseRow[] = sends.map((s) => {
+    const responded = respondedFn(s);
     return {
       id: s.id,
       type: "solicitor",
       transactionId: s.transactionId,
       address: s.transaction.propertyAddress ?? "—",
-      sentAt: s.lastChasedAt,
-      chasedLabel: `${s.side === "vendor" ? "Seller's" : "Buyer's"} solicitor · ${s.milestoneCode}`,
-      chasedSub: s.chaseCount > 1 ? `Chased ${s.chaseCount} times` : "Chased once",
-      openedAt: null,
-      opensTracked: false,
-      outcome: done ? "Confirmed the step" : s.status === "escalated" ? "Escalated to the team" : "Still chasing",
-      outcomeTone: done ? "good" : s.status === "escalated" ? "warn" : "muted",
+      sentAt: s.sentAt,
+      chasedLabel: `${RECIPIENT_LABEL[s.recipient] ?? s.recipient} · Milestone chase`,
+      chasedSub: s.recipientName ?? null,
+      openedAt: s.openedAt,
+      opensTracked: true,
+      outcome: s.respondedAt ? "Confirmed the step" : s.repliedByEmailAt ? "Replied by email" : s.openedAt ? "Opened, no action" : "No response yet",
+      outcomeTone: responded ? "good" : s.openedAt ? "warn" : "muted",
       canEmailTick: false,
-      repliedByEmail: false,
+      repliedByEmail: !!s.repliedByEmailAt,
     };
   });
 
   return {
     type: "solicitor",
     title: "Solicitor chase",
-    blurb: "Chasing solicitors to confirm the steps they own. We can see whether the step got confirmed, but not yet whether the email was opened.",
+    blurb: "Chasing solicitors to confirm the steps they own. We know when they opened the link and whether they confirmed. Rows appear from when chasing was switched on.",
     summary: {
-      sent: states.length, responded: resolved, responseRate: rate,
-      opened: 0, opensTracked: false, extraLabel: "Still chasing", extra: states.length - resolved,
+      sent: sends.length, responded: respondedCount, responseRate: rate,
+      opened, opensTracked: true, extraLabel: "Opened, no action", extra: opened,
     },
     rows,
-    sinceLabel: fmtSince(states.length ? states[states.length - 1].lastChasedAt : null),
+    sinceLabel: fmtSince(sends.length ? sends[sends.length - 1].sentAt : null),
   };
 }
 
@@ -223,8 +225,8 @@ export async function getChasingData(type: ChaseType): Promise<ChaseTabData> {
 export async function getChaseTabCounts(): Promise<Record<ChaseType, number>> {
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
   const [enquiries, solicitor, client] = await Promise.all([
-    commandDb.chaseSend.count({ where: { sentAt: { gte: since }, recipient: { not: "buyer" }, transaction: realFile } }),
-    commandDb.solicitorChaseState.count({ where: { lastChasedAt: { gte: since }, chaseCount: { gt: 0 }, transaction: realFile } }),
+    commandDb.chaseSend.count({ where: { sentAt: { gte: since }, kind: { in: ["raise", "reply_loop"] }, recipient: { not: "buyer" }, transaction: realFile } }),
+    commandDb.chaseSend.count({ where: { sentAt: { gte: since }, kind: "milestone", transaction: realFile } }),
     commandDb.outboundEmailQueue.count({ where: { emailType: "CLIENT_CHASE", sentAt: { gte: since }, recipientContact: { transaction: realFile } } }),
   ]);
   return { enquiries, solicitor, client };
@@ -281,30 +283,32 @@ export async function getChaseDetail(type: ChaseType, id: string): Promise<Chase
   }
 
   if (type === "solicitor") {
-    const state = await commandDb.solicitorChaseState.findUnique({
+    const send = await commandDb.chaseSend.findUnique({
       where: { id },
-      select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, resolvedAt: true, status: true },
+      select: { transactionId: true, recipient: true, recipientName: true, sentAt: true, openedAt: true, respondedAt: true, repliedByEmailAt: true },
     });
-    if (!state) return null;
+    if (!send) return null;
     // The chase cron mirrors an OutboundMessage with the real subject (the body
     // it stores is a summary line, so we show that and flag it).
-    const msg = await commandDb.outboundMessage.findFirst({
-      where: { transactionId: state.transactionId, purpose: "chase", isAutomated: true },
+    const candidates = await commandDb.outboundMessage.findMany({
+      where: { transactionId: send.transactionId, purpose: "chase", isAutomated: true },
       orderBy: { sentAt: "desc" },
-      select: { subject: true, content: true },
+      select: { subject: true, content: true, sentAt: true },
+      take: 40,
     });
+    const target = send.sentAt ? send.sentAt.getTime() : 0;
+    const msg = candidates.map((c) => ({ c, d: Math.abs((c.sentAt?.getTime() ?? 0) - target) })).sort((a, b) => a.d - b.d)[0]?.c ?? null;
     return {
-      subject: msg?.subject ?? `Confirmation request · ${state.milestoneCode}`,
+      subject: msg?.subject ?? "Confirmation request",
       body: msg?.content ?? null,
       bodyNote: "Only a summary of this chase was stored, not the full email body.",
       meta: [
-        { label: "Chased", value: `${state.side === "vendor" ? "Seller's" : "Buyer's"} solicitor · ${state.milestoneCode}` },
-        { label: "Times chased", value: String(state.chaseCount) },
-        { label: "First chased", value: fmtDateTime(state.firstChasedAt) },
-        { label: "Last chased", value: fmtDateTime(state.lastChasedAt) },
-        { label: "Outcome", value: state.resolvedAt ? `Confirmed (${fmtDateTime(state.resolvedAt)})` : state.status },
+        { label: "Chased", value: `${RECIPIENT_LABEL[send.recipient] ?? send.recipient}${send.recipientName ? ` · ${send.recipientName}` : ""}` },
+        { label: "Sent", value: fmtDateTime(send.sentAt) },
+        { label: "Opened", value: fmtDateTime(send.openedAt) },
+        { label: "Outcome", value: send.respondedAt ? `Confirmed (${fmtDateTime(send.respondedAt)})` : send.repliedByEmailAt ? `Replied by email (${fmtDateTime(send.repliedByEmailAt)})` : "—" },
       ],
-      transactionId: state.transactionId,
+      transactionId: send.transactionId,
     };
   }
 

@@ -3285,6 +3285,7 @@ model FollowupTap {
 enum ChaseSendKind {
   raise // "get enquiries raised" chase
   reply_loop // enquiries reply-loop tracker chase
+  milestone // solicitor milestone-confirmation chase (digest per side)
 }
 
 enum ChaseSendRecipient {
