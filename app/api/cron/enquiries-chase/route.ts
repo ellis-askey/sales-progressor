@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { runEnquiryChaseCron } from "@/lib/enquiries/chase";
+import { runJob } from "@/lib/cron/run-job";
 
 export const maxDuration = 120;
 
@@ -17,11 +18,13 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const result = await runEnquiryChaseCron(new Date());
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Enquiry chase error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("enquiries-chase", async () => {
+    try {
+      const result = await runEnquiryChaseCron(new Date());
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Enquiry chase error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

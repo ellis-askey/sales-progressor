@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildWeeklyWindow, runAllDetectors } from "@/lib/services/signals";
+import { runJob } from "@/lib/cron/run-job";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -10,8 +11,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const window = buildWeeklyWindow();
-  const result = await runAllDetectors(window);
-
-  return NextResponse.json({ ok: true, ...result });
+  return runJob("signals", async () => {
+    const window = buildWeeklyWindow();
+    const result = await runAllDetectors(window);
+    return NextResponse.json({ ok: true, ...result });
+  });
 }

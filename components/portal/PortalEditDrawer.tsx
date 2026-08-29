@@ -16,21 +16,22 @@ import { P } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
 import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { formatPostcode, isValidUKPostcode, normaliseAddressString } from "@/lib/utils/address";
-import { updateMyContactAction, updateMyChainAgentAction, switchMySolicitorFirmAction } from "@/app/actions/portal-menu";
+import { updateMyContactAction, updateMyChainAgentAction, switchMySolicitorFirmAction, saveMyBrokerAction } from "@/app/actions/portal-menu";
 import { portalChangeOnwardPlaceAction, portalAbandonOnwardAction } from "@/app/actions/portal-onward";
 import type { Tenure, PurchaseType } from "@prisma/client";
 
 export type EditDrawerConfig = {
   // "onward-change" = the seller's onward moved to a different place (address +
   // agent + tenure + method, resets the reported steps). "onward-stop" = a
-  // confirm that they're no longer buying onward.
-  kind: "details" | "agent" | "solicitor" | "onward-change" | "onward-stop";
+  // confirm that they're no longer buying onward. "broker" = the client names
+  // their own mortgage broker (only offered when no in-house/TSP broker resolved).
+  kind: "details" | "agent" | "solicitor" | "onward-change" | "onward-stop" | "broker";
   mode: "add" | "edit" | "switch" | "change" | "stop";
   direction?: "above" | "below"; // agent copy: above = seller's onward, below = buyer's selling agent
   initial: {
     name?: string; email?: string; phone?: string;
     agency?: string; agentName?: string; propertyAddress?: string;
-    firmName?: string; contactName?: string;
+    firmName?: string; contactName?: string; brokerContact?: string;
   };
 };
 
@@ -54,6 +55,7 @@ function headerFor(config: EditDrawerConfig): { title: string; sub: string } {
   if (config.kind === "solicitor") return { title: "Your solicitor", sub: "Add the firm and case handler looking after your file." };
   if (config.kind === "onward-change") return { title: "Moving somewhere new?", sub: "Tell us about the property you're buying so we can show you the right steps." };
   if (config.kind === "onward-stop") return { title: "No longer buying onward?", sub: "We'll let your team know and pause your onward steps. You can pick it back up anytime." };
+  if (config.kind === "broker") return { title: "Your mortgage broker", sub: config.direction === "above" ? "Using your own broker for your onward purchase? Add their details." : "Using your own broker? Add their details so we can keep in touch." };
   // agent
   return config.direction === "below"
     ? { title: "Your selling agent", sub: "Add the estate agent handling your sale so we can keep in touch and help keep the chain moving." }
@@ -83,6 +85,7 @@ export function PortalEditDrawer({
       agency: i.agency ?? "", agentName: i.agentName ?? "",
       street: addr.street, city: addr.city, postcode: addr.postcode,
       firmName: i.firmName ?? "", contactName: i.contactName ?? "",
+      brokerContact: i.brokerContact ?? "",
       tenure: "", purchaseType: "", shareOfFreehold: "",
     });
     setShowErrors(false); setPostcodeError(""); setError(null);
@@ -120,6 +123,7 @@ export function PortalEditDrawer({
   else if (config?.kind === "agent") canSave = !!f.agency?.trim() && !!f.street?.trim() && !!f.city?.trim() && postcodeOk;
   else if (config?.kind === "onward-change") canSave = !!f.agency?.trim() && !!f.street?.trim() && !!f.city?.trim() && postcodeOk && !!f.tenure && !!f.purchaseType;
   else if (config?.kind === "onward-stop") canSave = true;
+  else if (config?.kind === "broker") canSave = !!f.firmName?.trim();
   else if (config?.kind === "solicitor") {
     const base = !!f.firmName?.trim() && !!f.contactName?.trim();
     // Add / switch require every field; editing an existing one needs only firm + handler.
@@ -167,6 +171,14 @@ export function PortalEditDrawer({
         const r = await portalAbandonOnwardAction(token);
         res = r == null ? { ok: false, error: "We couldn't save that. Try again." } : { ok: true };
         onwardChanged = res.ok;
+      } else if (config.kind === "broker") {
+        const r = await saveMyBrokerAction({
+          token,
+          name: titleCaseKeepAcronyms(f.firmName!),
+          contactName: f.contactName?.trim() ? titleCaseKeepAcronyms(f.contactName) : null,
+          contact: f.brokerContact?.trim() || null,
+        });
+        res = r == null ? { ok: false, error: "We couldn't save that. Try again." } : r;
       } else {
         res = await switchMySolicitorFirmAction({
           token,
@@ -189,6 +201,7 @@ export function PortalEditDrawer({
   const ctaLabel =
     config?.kind === "onward-change" ? "Start my new purchase"
     : config?.kind === "onward-stop" ? "Yes, I'm no longer buying onward"
+    : config?.kind === "broker" ? "Save broker"
     : config?.mode === "edit" ? "Save changes"
     : config?.mode === "switch" ? "Switch firm"
     : "Confirm";
@@ -257,6 +270,14 @@ export function PortalEditDrawer({
                   <LabeledInput label="Handler name" value={f.contactName ?? ""} onChange={set("contactName")} onBlur={blurName("contactName")} required error={showErrors && !f.contactName?.trim() ? "Enter the handler's name" : ""} />
                   <LabeledInput label="Email" value={f.email ?? ""} onChange={set("email")} onBlur={blurEmail("email")} type="email" required={config.mode !== "edit"} error={showErrors && config.mode !== "edit" && !f.email?.trim() ? "Enter the email" : ""} />
                   <LabeledInput label="Phone" value={f.phone ?? ""} onChange={set("phone")} onBlur={blurPhone("phone")} type="tel" required={config.mode !== "edit"} error={showErrors && config.mode !== "edit" && !f.phone?.trim() ? "Enter the phone number" : ""} />
+                </>
+              )}
+
+              {config.kind === "broker" && (
+                <>
+                  <LabeledInput label="Broker name or firm" value={f.firmName ?? ""} onChange={set("firmName")} onBlur={blurName("firmName")} required error={showErrors && !f.firmName?.trim() ? "Enter the broker name" : ""} />
+                  <LabeledInput label="Contact name (optional)" value={f.contactName ?? ""} onChange={set("contactName")} onBlur={blurName("contactName")} />
+                  <LabeledInput label="Phone or email (optional)" value={f.brokerContact ?? ""} onChange={set("brokerContact")} />
                 </>
               )}
 

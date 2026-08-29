@@ -19,20 +19,23 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { accrueInvoicesForCurrentMonth } from "@/lib/billing/accrual";
+import { runJob } from "@/lib/cron/run-job";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await accrueInvoicesForCurrentMonth();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("[accrue-invoices] failed:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "unknown" },
-      { status: 500 },
-    );
-  }
+  return runJob("accrue-invoices", async () => {
+    try {
+      const result = await accrueInvoicesForCurrentMonth();
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      console.error("[accrue-invoices] failed:", err);
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "unknown" },
+        { status: 500 },
+      );
+    }
+  });
 }

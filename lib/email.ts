@@ -100,6 +100,7 @@ export async function sendChainEmail({
   replyTo,
   emailType,
   templateVersion,
+  trackOpens,
 }: {
   to: string;
   // Optional CC — used to copy a solicitor handler's assistant/secretary on
@@ -116,6 +117,12 @@ export async function sendChainEmail({
   // Analytics tags (audit #17) — see sendEmail for the full note.
   emailType?: string;
   templateVersion?: string;
+  // Per-send open tracking. When true, SendGrid embeds a tracking pixel and
+  // fires "open" events to the webhook (which stamps OutboundEmailQueue.openedAt).
+  // Scoped deliberately (client chase only) rather than enabled account-wide, to
+  // keep the tracking footprint small. Open-tracking is a privacy choice + an
+  // unreliable signal; see the Chasing hub notes.
+  trackOpens?: boolean;
 }): Promise<void> {
   const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
   const asmGroupId = process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID
@@ -147,6 +154,7 @@ export async function sendChainEmail({
     ...(asmGroupId ? { asm: { groupId: asmGroupId } } : {}),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
+    ...(trackOpens ? { trackingSettings: { openTracking: { enable: true } } } : {}),
     mailSettings: { sandboxMode: { enable: isSandbox } },
   });
 }

@@ -4,6 +4,7 @@
 
 import { commandDb } from "@/lib/command/prisma";
 import { listStoredPhotoTxIds } from "@/lib/supabase-storage";
+import { activitySecondsByFile } from "@/lib/command/activity-time";
 
 const INTERNAL_ROLES = new Set(["superadmin", "admin", "sales_progressor"]);
 
@@ -162,6 +163,8 @@ export async function getFilesList(opts: {
     : [[], []];
   const lastMap = new Map(lastAgg.map((g) => [g.transactionId, g._max.lastActivityAt ?? null]));
   const secMap = new Map(secAgg.map((g) => [g.transactionId, g._sum.totalEngagedSeconds ?? 0]));
+  // Weighted comms effort (WhatsApp/email/calls/notes) added on top of measured time.
+  const activityMap = await activitySecondsByFile(commandDb, ids);
 
   const now = Date.now();
   let rows: FileListRow[] = files.map((f) => {
@@ -182,7 +185,7 @@ export async function getFilesList(opts: {
       status: f.status,
       hasPhoto,
       lastTeamActivityAt,
-      teamSeconds: secMap.get(f.id) ?? 0,
+      teamSeconds: (secMap.get(f.id) ?? 0) + (activityMap.get(f.id) ?? 0),
       exchangeDate,
       daysToExchange,
       attention,
@@ -214,7 +217,8 @@ export type FileOperational = {
   status: string;
   hasPhoto: boolean;
   photoUrl: string | null;
-  team: { totalSeconds: number; lastActiveAt: Date | null; members: TeamMember[] };
+  // totalSeconds = measured focus-time + commsSeconds (weighted comms effort).
+  team: { totalSeconds: number; commsSeconds: number; lastActiveAt: Date | null; members: TeamMember[] };
   clients: ClientEngagement[];
 };
 
@@ -257,7 +261,11 @@ export async function getFileOperational(txId: string): Promise<FileOperational 
       return { name: u?.name ?? "Unknown", role, internal: INTERNAL_ROLES.has(role), seconds: byUser.get(id)! };
     })
     .sort((a, b) => b.seconds - a.seconds);
-  const totalSeconds = members.reduce((a, m) => a + m.seconds, 0);
+  const measuredSeconds = members.reduce((a, m) => a + m.seconds, 0);
+  // Weighted comms effort on the file (WhatsApp/email/calls/notes), added on top
+  // of the measured focus-time. File-level: includes inbound, which has no author.
+  const commsSeconds = (await activitySecondsByFile(commandDb, [txId])).get(txId) ?? 0;
+  const totalSeconds = measuredSeconds + commsSeconds;
 
   // ── Client engagement — vendor + active-round purchaser contacts only.
   const contacts = await commandDb.contact.findMany({
@@ -330,7 +338,7 @@ export async function getFileOperational(txId: string): Promise<FileOperational 
     status: tx.status,
     hasPhoto: !!tx.photoStoragePath,
     photoUrl,
-    team: { totalSeconds, lastActiveAt, members },
+    team: { totalSeconds, commsSeconds, lastActiveAt, members },
     clients,
   };
 }

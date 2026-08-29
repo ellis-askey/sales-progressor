@@ -8,6 +8,7 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from "./codes";
 import { signSolicitorToken } from "./token";
 import { buildSolicitorDigestEmail, solicitorDigestSubject } from "./digest-email";
+import { logChaseSend } from "@/lib/enquiries/chase-log";
 
 // ── The solicitor confirmation chase engine ──────────────────────────────────
 // Mirrors the client chase (lib/services/client-chase-cron.ts) but keyed by
@@ -389,6 +390,16 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
   await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject, text, html, from, replyTo });
+
+  // Effectiveness log for the Chasing hub — one ChaseSend per digest send,
+  // stamped opened/responded when the solicitor uses their /s/ link (opens via
+  // the /s/ page load, responded via solicitorConfirmStepAction). Fire-and-forget.
+  void logChaseSend({
+    transactionId: tx.id,
+    kind: "milestone",
+    recipient: side === "vendor" ? "seller_solicitor" : "buyer_solicitor",
+    recipientName: firmName,
+  }).catch(() => {});
 
   // Bookkeeping: bump SolicitorChaseState per step + mirror an activity record.
   for (const step of group.steps) {

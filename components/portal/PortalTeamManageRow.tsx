@@ -37,7 +37,7 @@ export function PortalTeamManageRow({
       aria-label={label}
       onClick={() =>
         window.dispatchEvent(
-          section === "agents" && agentConfig
+          agentConfig
             ? new CustomEvent("portal:open-edit-drawer", { detail: agentConfig })
             : new CustomEvent("portal:open-menu", { detail: { section } }),
         )

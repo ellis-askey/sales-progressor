@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { backfillModeProfiles } from "@/scripts/backfill-mode-profile";
+import { runJob } from "@/lib/cron/run-job";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,11 +11,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await backfillModeProfiles();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("[cron] backfill-mode-profile error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
-  }
+  return runJob("backfill-mode-profile", async () => {
+    try {
+      const result = await backfillModeProfiles();
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      console.error("[cron] backfill-mode-profile error:", err);
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
+  });
 }

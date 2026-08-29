@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
 type Db = Prisma.TransactionClient | PrismaClient;
-type Kind = "raise" | "reply_loop";
+type Kind = "raise" | "reply_loop" | "milestone";
 type Recipient = "buyer" | "seller_solicitor" | "buyer_solicitor";
 type SolicitorRecipient = "seller_solicitor" | "buyer_solicitor";
 type ResponseType = "update" | "date" | "confirm";

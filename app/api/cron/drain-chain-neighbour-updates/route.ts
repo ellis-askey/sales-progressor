@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { drainChainNeighbourUpdates } from "@/lib/services/chain-neighbour-updates";
+import { runJob } from "@/lib/cron/run-job";
 
 // Sends queued onward-neighbour updates (Note A). Runs every 10 min via Vercel
 // Cron (see vercel.json), so several confirmations in the batching window drain
@@ -10,11 +11,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await drainChainNeighbourUpdates();
-    return NextResponse.json({ success: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Drain error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("drain-chain-neighbour-updates", async () => {
+    try {
+      const result = await drainChainNeighbourUpdates();
+      return NextResponse.json({ success: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Drain error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

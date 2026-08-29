@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runRetentionEmailSweep } from "@/lib/services/retention";
+import { runJob } from "@/lib/cron/run-job";
 
 // Runs 09:00 UTC daily via Vercel Cron (see vercel.json).
 // Protected by CRON_SECRET header.
@@ -9,11 +10,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await runRetentionEmailSweep();
-    return NextResponse.json({ success: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Sweep error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("retention-sweep", async () => {
+    try {
+      const result = await runRetentionEmailSweep();
+      return NextResponse.json({ success: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Sweep error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

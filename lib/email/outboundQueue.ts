@@ -270,6 +270,10 @@ export async function drainOutboundQueue(): Promise<{
         text: payload.text as string,
         html: payload.html as string | undefined,
         queueId: record.id,
+        // Client chase is the only tab with no /s/ link, so open-tracking is
+        // the only "did they read it" signal available for it. Scoped here
+        // rather than enabled account-wide. The webhook stamps openedAt.
+        trackOpens: record.emailType === "CLIENT_CHASE",
         // Analytics tags (audit #17): every queued email carries its type
         // (CLIENT_CHASE / EXCHANGE / COMPLETION / …) so SendGrid can break
         // opens down by type. A template that stamps `templateVersion` on its

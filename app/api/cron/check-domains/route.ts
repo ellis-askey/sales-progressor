@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
+import { runJob } from "@/lib/cron/run-job";
 
 // Called nightly by Vercel Cron. Protected by CRON_SECRET header.
 export async function GET(req: NextRequest) {
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("check-domains", async () => {
   const domains = await prisma.verifiedDomain.findMany({
     where: { status: { in: ["verified", "pending"] } },
     include: {
@@ -82,4 +84,5 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ checked: results.length, results });
+  });
 }

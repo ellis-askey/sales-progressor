@@ -17,8 +17,8 @@
 //                  (treat as bounce — same consequence for the UI)
 //   - blocked    : separate event in some SendGrid versions → blockedAt
 //
-// processed / open / click / spam_report / unsubscribe / group_*
-// events are ignored — out of scope for the delivery-truth surface.
+// processed / click / spam_report / unsubscribe / group_* events are ignored.
+// "open" is handled for open-tracked sends (client chase) → openedAt.
 
 export type SendGridEvent = {
   event: string;
@@ -34,12 +34,13 @@ export type SendGridEvent = {
 };
 
 // What the webhook should write back to OutboundEmailQueue for one row.
-// Returns null when the event is one we ignore (processed, open, click, etc.).
+// Returns null when the event is one we ignore (processed, click, etc.).
 export type QueueUpdate =
   | { kind: "delivered"; deliveredAt: Date }
   | { kind: "deferred"; deferredAt: Date; deferredReason: string | null }
   | { kind: "bounced"; bouncedAt: Date; bouncedReason: string | null }
-  | { kind: "blocked"; blockedAt: Date; blockedReason: string | null };
+  | { kind: "blocked"; blockedAt: Date; blockedReason: string | null }
+  | { kind: "opened"; openedAt: Date };
 
 function tsToDate(timestamp: number | undefined): Date {
   if (typeof timestamp === "number" && Number.isFinite(timestamp)) {
@@ -55,6 +56,10 @@ function reasonOf(event: SendGridEvent): string | null {
 export function classifyEvent(event: SendGridEvent): QueueUpdate | null {
   const at = tsToDate(event.timestamp);
   switch (event.event) {
+    case "open":
+      // Only emails sent with open-tracking (client chase) fire this. The
+      // route stamps openedAt on first open. Note: unreliable signal.
+      return { kind: "opened", openedAt: at };
     case "delivered":
       return { kind: "delivered", deliveredAt: at };
     case "deferred":

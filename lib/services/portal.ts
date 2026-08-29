@@ -375,6 +375,12 @@ export type PortalTeam = {
   // for the TSP broker, when a mortgage_broker QuoteRequest is marked "won" in
   // the Command Centre. Null otherwise (incl. all vendor-side views).
   broker: { firmName: string; contactName: string | null; logoUrl: string | null } | null;
+  // The client's OWN mortgage broker, when they've named one (shown only when no
+  // in-house/TSP broker resolved above). Separate from `broker`.
+  ownBroker: { name: string; contactName: string | null; contact: string | null } | null;
+  // True when we should offer the "add your broker" card: a mortgage buyer, or a
+  // seller buying onward, with no broker resolved and none of their own yet.
+  brokerAdd: boolean;
   // The client's neighbouring chain agent (phase 3) — drives the buyer's
   // "add your selling agent" row on the card.
   chainAgent: PortalChainAgent;
@@ -502,6 +508,7 @@ export async function getPortalTeam(
         purchaserSolicitorContact: { select: { email: true, secondaryEmail: true } },
         agency: { select: { quoteSenderEmail: true } },
         contacts: { where: { roleType: side }, select: { name: true } },
+        purchaseType: true,
         purchaserBrokerReferral: true,
         brokerFirm: { select: { name: true } },
         brokerContact: { select: { name: true } },
@@ -513,6 +520,8 @@ export async function getPortalTeam(
         solicitorFirmName: null,
         solicitorMailto: null,
         broker: null,
+        ownBroker: null,
+        brokerAdd: false,
         chainAgent: {
           label: side === "vendor" ? "Your onward-purchase agent" : "Your selling agent",
           direction: side === "vendor" ? "above" : "below",
@@ -582,12 +591,28 @@ export async function getPortalTeam(
       }
     }
 
+    // The client's own broker + whether to offer the add-card. Only when NO
+    // in-house/TSP broker resolved above: mortgage buyers, and sellers buying
+    // onward (their onward broker). Reads the side's move-info row.
+    const moveInfo = await prisma.clientMoveInfo.findUnique({
+      where: { transactionId_side: { transactionId, side } },
+      select: { ownBrokerName: true, ownBrokerContactName: true, ownBrokerContact: true, buyingOnward: true },
+    });
+    let ownBroker: PortalTeam["ownBroker"] = null;
+    if (moveInfo?.ownBrokerName) {
+      ownBroker = { name: moveInfo.ownBrokerName, contactName: moveInfo.ownBrokerContactName, contact: moveInfo.ownBrokerContact };
+    }
+    const brokerRelevant =
+      (side === "purchaser" && tx.purchaseType === "mortgage") ||
+      (side === "vendor" && moveInfo?.buyingOnward === true);
+    const brokerAdd = brokerRelevant && !broker && !ownBroker;
+
     const chainAgent = await getPortalChainAgent(transactionId, side);
 
     // Shared subject for the client emailing their team about this file.
     const emailSubject = `${side === "purchaser" ? "Purchase" : "Sale"} of ${tx.propertyAddress}`;
 
-    return { managing, solicitorFirmName, solicitorMailto, broker, chainAgent, emailSubject };
+    return { managing, solicitorFirmName, solicitorMailto, broker, ownBroker, brokerAdd, chainAgent, emailSubject };
   });
 }
 

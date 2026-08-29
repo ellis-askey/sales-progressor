@@ -140,6 +140,15 @@ async function applyUpdate(queueIds: string[], update: QueueUpdate): Promise<num
       });
       return res.count;
     }
+    case "opened": {
+      // Stamp FIRST open only (SendGrid fires "open" on every open, and Apple
+      // Mail Privacy can fire it immediately) — only rows not already opened.
+      const res = await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: queueIds }, openedAt: null },
+        data: { openedAt: update.openedAt },
+      });
+      return res.count;
+    }
     case "deferred": {
       // Increment deferredCount on every matching row, stamp deferredAt
       // + reason. updateMany doesn't support per-row increments

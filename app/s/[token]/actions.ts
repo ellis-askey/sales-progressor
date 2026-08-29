@@ -93,7 +93,7 @@ export async function solicitorConfirmStepAction(
   token: string,
   milestoneDefinitionId: string,
 ): Promise<{ ok: true }> {
-  const { decoded, def, firmName, solicitorFirmId, solicitorContactId } = await resolveStep(
+  const { decoded, def, side, firmName, solicitorFirmId, solicitorContactId } = await resolveStep(
     token,
     milestoneDefinitionId,
   );
@@ -108,6 +108,10 @@ export async function solicitorConfirmStepAction(
       firmName,
     },
   });
+
+  // Chasing hub: stamp the milestone-chase ChaseSend for this solicitor as
+  // responded (confirm). Opens are already stamped on /s/ page load.
+  void markChaseResponded(decoded.transactionId, recipientForSide(side), "confirm").catch(() => {});
 
   // Fire the client-facing milestone-confirmed emails, same as when the
   // agent ticks in-app. Without this, buyer/seller silently miss updates

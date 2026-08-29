@@ -23,6 +23,7 @@ import {
   renderMediansReadyHtml,
   type PerMilestoneRow,
 } from "@/lib/email/medians-ready";
+import { runJob } from "@/lib/cron/run-job";
 
 const SYSTEM_NOTIFICATION_KEY = "medians_ready";
 const TRANSACTION_THRESHOLD = 50;
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("medians-ready-check", async () => {
   // 1. One-shot gate — exit immediately if already fired.
   const existing = await prisma.systemNotification.findUnique({
     where: { key: SYSTEM_NOTIFICATION_KEY },
@@ -211,5 +213,6 @@ export async function GET(req: NextRequest) {
     rowCount: rows.length,
     enqueued,
     recipients: superadmins.length,
+  });
   });
 }

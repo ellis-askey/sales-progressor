@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { maybeAutoCompleteTransaction } from "@/lib/services/milestones";
+import { runJob } from "@/lib/cron/run-job";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("completion-safety-net", async () => {
   // Candidate files: currently "active" AND carrying at least one confirmed
   // completion milestone (VM20 / PM27). Two plain queries — no relation-name
   // assumptions. The helper applies the real gate (BOTH sides, round-scoped)
@@ -66,5 +68,6 @@ export async function GET(req: NextRequest) {
     candidatesChecked: candidates.length,
     flipped: flippedIds.length,
     flippedIds,
+  });
   });
 }
