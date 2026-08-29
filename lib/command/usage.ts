@@ -7,6 +7,7 @@
 
 import { commandDb } from "@/lib/command/prisma";
 import { eventLabel } from "@/lib/command/event-labels";
+import { activitySecondsForUser } from "@/lib/command/activity-time";
 
 const AGENT_ROLES = ["director", "negotiator"];
 const DAY_MS = 86_400_000;
@@ -284,6 +285,11 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
       if (idx >= 0 && idx < WEEKS) weeksSeconds[idx] += secs;
     }
   }
+
+  // Weighted comms effort this user put in (messages they sent + notes they
+  // wrote), added on top of their measured focus-time. Attributed per-user by
+  // author, so inbound (no author) stays file-level only, not here.
+  totalSeconds += await activitySecondsForUser(commandDb, userId);
 
   // Resolve addresses for the files worked + the transaction-scoped activity.
   const txIds = new Set<string>(byTx.keys());

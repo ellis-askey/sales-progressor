@@ -299,7 +299,7 @@ function BrowsableList({
                 <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 4 && i <= 5 ? "text-right" : "text-left"}`}>
                   <span className="inline-flex items-center gap-1">
                     {h}
-                    {h === "Team time" && <InfoTip label="What Team time means">Total engaged time on this file from completed work sessions.</InfoTip>}
+                    {h === "Team time" && <InfoTip label="What Team time means">Measured engaged time from completed work sessions, plus weighted time for calls, emails and WhatsApp logged on the file.</InfoTip>}
                     {h === "Last worked" && <InfoTip label="What Last worked means">When anyone on the team last had this file open.</InfoTip>}
                   </span>
                 </th>
@@ -408,6 +408,15 @@ function FilePanel({ file }: { file: FileOperational }) {
                   <span className="tabular-nums text-neutral-100 font-semibold min-w-[52px] text-right">{fmtDuration(m.seconds)}</span>
                 </div>
               ))}
+              {file.team.commsSeconds > 0 && (
+                <div className="flex items-center gap-2.5 text-[13px] pt-2 mt-0.5 border-t border-neutral-800">
+                  <span className="flex items-center gap-2 min-w-0 flex-1 text-neutral-300">
+                    <span className="w-[22px] h-[22px] rounded-full shrink-0 flex items-center justify-center text-[11px] bg-neutral-800 text-neutral-300">✉</span>
+                    <span className="truncate">Communications <span className="text-neutral-500 text-[11.5px]">calls · email · WhatsApp</span></span>
+                  </span>
+                  <span className="tabular-nums text-neutral-100 font-semibold min-w-[52px] text-right">{fmtDuration(file.team.commsSeconds)}</span>
+                </div>
+              )}
             </div>
           </>
         )}
