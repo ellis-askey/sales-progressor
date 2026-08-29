@@ -6,7 +6,8 @@
 // never severs card backdrop-filter the way a page-level opacity would.
 // 2026-08-11.
 
-export const DEFAULT_AURORA_OPACITY = 100;
+// Default 25% (Ellis, 2026-08-30) — a calmer moving background out of the box.
+export const DEFAULT_AURORA_OPACITY = 25;
 
 export function clampAuroraOpacity(v: unknown): number {
   const n = typeof v === "number" ? v : Number(v);
