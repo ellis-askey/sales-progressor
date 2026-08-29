@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -139,6 +140,7 @@ function ResetForm() {
               )}
             </button>
           </div>
+          <PasswordStrength password={password} />
         </div>
 
         <div>

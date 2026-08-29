@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { acceptInvitationPassword } from "@/app/actions/accept-invitation-password";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
 
 interface Props {
   token: string;
@@ -119,6 +120,7 @@ export function InvitedPasswordSignupForm({ token, directorEmail, directorName }
             placeholder="At least 8 characters"
             style={inputStyle}
           />
+          <PasswordStrength password={password} />
         </div>
 
         {/* Confirm password */}

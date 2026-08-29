@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { acceptNegotiatorInvitationPassword } from "@/app/actions/accept-negotiator-invitation-password";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
 
 interface Props {
   token: string;
@@ -117,6 +118,7 @@ export function InvitedNegotiatorPasswordSignupForm({ token, negotiatorEmail, ne
             placeholder="At least 8 characters"
             style={inputStyle}
           />
+          <PasswordStrength password={password} />
         </div>
 
         <div>
