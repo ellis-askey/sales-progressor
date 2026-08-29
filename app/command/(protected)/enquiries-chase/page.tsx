@@ -1,25 +1,32 @@
 import Link from "next/link";
 import { getChasingData, getChaseTabCounts, type ChaseType } from "@/lib/command/chasing";
+import { getOptedOutClients, getOptedOutCount } from "@/lib/command/opted-out";
 import { ChaseHubTable } from "@/components/command/ChaseHubTable";
+import { OptedOutTable } from "@/components/command/OptedOutTable";
 import InfoTip from "@/components/command/shared/InfoTip";
 
 export const dynamic = "force-dynamic";
 
-const TABS: { key: ChaseType; label: string }[] = [
+// The 4th tab ("Opted out") is the inverse of chasing: clients who can't be
+// auto-chased and so need a human nudge. It doesn't go through getChasingData.
+type HubTab = ChaseType | "opted_out";
+
+const TABS: { key: HubTab; label: string }[] = [
   { key: "enquiries", label: "Enquiries chase" },
   { key: "solicitor", label: "Solicitor chase" },
   { key: "client", label: "Client chase" },
+  { key: "opted_out", label: "Opted out" },
 ];
 
-function parseTab(raw: string | undefined): ChaseType {
-  return raw === "solicitor" || raw === "client" ? raw : "enquiries";
+function parseTab(raw: string | undefined): HubTab {
+  return raw === "solicitor" || raw === "client" || raw === "opted_out" ? raw : "enquiries";
 }
 
 export default async function ChasingHubPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const sp = await searchParams;
   const tab = parseTab(sp.tab);
-  const [data, counts] = await Promise.all([getChasingData(tab), getChaseTabCounts()]);
-  const s = data.summary;
+  const [counts, optedOutCount] = await Promise.all([getChaseTabCounts(), getOptedOutCount()]);
+  const allCounts: Record<HubTab, number> = { ...counts, opted_out: optedOutCount };
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
@@ -27,7 +34,7 @@ export default async function ChasingHubPage({ searchParams }: { searchParams: P
       <h1 className="text-2xl font-semibold text-neutral-100">Is our chasing working?</h1>
       <p className="mt-2 text-sm text-neutral-400 max-w-2xl leading-relaxed">
         Every automated chase we send, across all three systems, and what came back. Click any row to see exactly what
-        was sent.
+        was sent. The last tab lists clients who have opted out, so they can be chased by hand.
       </p>
 
       {/* Tabs */}
@@ -43,11 +50,21 @@ export default async function ChasingHubPage({ searchParams }: { searchParams: P
             }`}
           >
             {t.label}
-            <span className="ml-1.5 text-[10px] opacity-70 tabular-nums">{counts[t.key]}</span>
+            <span className="ml-1.5 text-[10px] opacity-70 tabular-nums">{allCounts[t.key]}</span>
           </Link>
         ))}
       </div>
 
+      {tab === "opted_out" ? <OptedOutBody /> : <ChaseBody tab={tab} />}
+    </div>
+  );
+}
+
+async function ChaseBody({ tab }: { tab: ChaseType }) {
+  const data = await getChasingData(tab);
+  const s = data.summary;
+  return (
+    <>
       {/* Tab intro */}
       <p className="mt-4 text-[13px] text-neutral-400 max-w-2xl leading-relaxed">
         {data.blurb}
@@ -76,7 +93,22 @@ export default async function ChasingHubPage({ searchParams }: { searchParams: P
       <div className="mt-8">
         <ChaseHubTable type={data.type} rows={data.rows} />
       </div>
-    </div>
+    </>
+  );
+}
+
+async function OptedOutBody() {
+  const rows = await getOptedOutClients();
+  return (
+    <>
+      <p className="mt-4 text-[13px] text-neutral-400 max-w-2xl leading-relaxed">
+        Clients on active files who have opted out of emails or paused their chases. Automated chasing skips them, so
+        these are the ones to nudge personally.
+      </p>
+      <div className="mt-8">
+        <OptedOutTable rows={rows} />
+      </div>
+    </>
   );
 }
 
