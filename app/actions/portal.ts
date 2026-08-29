@@ -482,6 +482,7 @@ export async function portalSaveMoveInfoAction(input: {
   if (p.buyingOnward !== undefined) data.buyingOnward = p.buyingOnward;
   if (p.onwardReadyToExchange !== undefined) data.onwardReadyToExchange = p.onwardReadyToExchange;
   if (p.onwardMortgageOfferExpiry !== undefined) data.onwardMortgageOfferExpiry = d(p.onwardMortgageOfferExpiry);
+  if (p.sellingRelated !== undefined) data.sellingRelated = p.sellingRelated;
   if (p.removalStatus !== undefined) data.removalStatus = p.removalStatus;
   if (p.removalCompany !== undefined) data.removalCompany = p.removalCompany;
   if (p.vacantBeforeCompletion !== undefined) data.vacantBeforeCompletion = p.vacantBeforeCompletion;

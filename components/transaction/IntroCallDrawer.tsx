@@ -161,7 +161,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 function computeProgress(d: IntroCallData): { filled: number; total: number } {
   const items: (unknown | null | undefined)[] = [];
   if (d.hasPurchaser) {
-    items.push(d.purchaseType, d.costs.depositGBP, d.movePurchaser.fundsSource, d.movePurchaser.fundsInPlace, d.costs.firstTimeBuyer, d.costs.additionalProperty, d.movePurchaser.preferredCompletionDate, d.movePurchaser.flexibility, d.movePurchaser.noticePeriod, d.movePurchaser.removalStatus);
+    items.push(d.purchaseType, d.costs.depositGBP, d.movePurchaser.fundsSource, d.movePurchaser.fundsInPlace, d.costs.firstTimeBuyer, d.costs.additionalProperty, d.movePurchaser.preferredCompletionDate, d.movePurchaser.flexibility, d.movePurchaser.noticePeriod, d.movePurchaser.removalStatus, d.movePurchaser.sellingRelated);
     if (d.purchaseType !== "cash_buyer") items.push(d.costs.mortgageGBP, d.movePurchaser.mortgageOfferExpiry);
   }
   if (d.hasVendor) {
@@ -400,6 +400,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
                       <TextField label="Mortgage offer expiry (if they have one)" initial={data.movePurchaser.mortgageOfferExpiry ?? ""} type="date"
                         onSave={(v) => saveMove("purchaser", { mortgageOfferExpiry: v || null })} />
                     )}
+                    <ToggleField label="Are they also selling?" initial={data.movePurchaser.sellingRelated} onSave={(v) => saveMove("purchaser", { sellingRelated: v })} />
                     {!isCashBuyer && (
                       <button type="button" onClick={() => void openAddSale("below")} disabled={preparingChain} style={addSaleBtnStyle}>
                         <Plus size={13} weight="bold" /> Add their related sale to the chain
