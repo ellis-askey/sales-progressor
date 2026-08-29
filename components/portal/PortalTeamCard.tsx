@@ -9,6 +9,7 @@
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import type { PortalTeam } from "@/lib/services/portal";
 import { PortalTeamManageRow, PortalManagePencil } from "@/components/portal/PortalTeamManageRow";
+import { PortalAddSlot } from "@/components/portal/PortalAddSlot";
 import { PortalEditPencilButton } from "@/components/portal/PortalEditPencilButton";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { PortalFollowupButton, PortalAddConveyancerEmail } from "@/components/portal/PortalFollowupButton";
@@ -342,16 +343,7 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
               },
             }}
           >
-            <div
-              style={{
-                width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 22, color: P.textMuted,
-                background: P.pageBg, border: `1.5px dashed ${P.border}`,
-              }}
-            >
-              +
-            </div>
+            <PortalAddSlot />
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
                 {`Your ${agentNoun}`}
