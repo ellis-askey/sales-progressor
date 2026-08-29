@@ -9,6 +9,7 @@ import {
   convertProspectAction, unlinkProspectAction, searchAgenciesAction, getConvertedAgencyStatsAction,
   createGroupAndLinkAction, linkProspectToGroupAction, unlinkProspectFromGroupAction, searchGroupsAction,
   confirmFieldAction, editFieldAction, updateProspectContactAction, deleteProspectContactAction,
+  researchProspectAction,
 } from "@/app/actions/prospects";
 import {
   PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
@@ -41,6 +42,8 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
   const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert" | "group">(null);
+  const [researching, setResearching] = useState(false);
+  const [researchErr, setResearchErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +60,13 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
   async function pEdit(field: string, value: string) { const r = await editFieldAction({ target: "prospect", id, field, value }); if (r.ok) { load(); router.refresh(); } return r; }
   async function cConfirm(contactId: string, field: string) { const r = await confirmFieldAction({ target: "contact", id: contactId, field }); if (r.ok) { load(); router.refresh(); } return r; }
   async function cEdit(contactId: string, field: string, value: string) { const r = await editFieldAction({ target: "contact", id: contactId, field, value }); if (r.ok) { load(); router.refresh(); } return r; }
+
+  async function runResearch() {
+    setResearching(true); setResearchErr(null);
+    const r = await researchProspectAction(id);
+    setResearching(false);
+    if (r.ok) { load(); router.refresh(); } else setResearchErr(r.error);
+  }
 
   const primaryEmail = d ? (d.contacts.find((c) => c.isPrimary)?.email ?? d.contacts[0]?.email ?? d.sharedContacts[0]?.email ?? d.generalEmail ?? null) : null;
   const canEmail = d ? !d.optedOutAt && !d.bouncedAt : false;
@@ -121,6 +131,9 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
               <StatusChanger current={d.status} onChange={(s) => startTransition(async () => { await changeProspectStatusAction(id, s); after(); })} disabled={pending} />
+              <button onClick={runResearch} disabled={researching} title="Research this agency from the web and fill gaps" className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 transition-colors disabled:opacity-40">
+                {researching ? "Researching…" : "Research"}
+              </button>
               <ActionBtn onClick={() => setPanel(panel === "email" ? null : "email")} active={panel === "email"}>Email</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "call" ? null : "call")} active={panel === "call"}>Log call</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "followup" ? null : "followup")} active={panel === "followup"}>Follow up</ActionBtn>
@@ -131,6 +144,9 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
               {!d.convertedAgency && <ActionBtn onClick={() => setPanel(panel === "convert" ? null : "convert")} active={panel === "convert"}>Won / convert</ActionBtn>}
               <ActionBtn onClick={() => setPanel(panel === "lost" ? null : "lost")} active={panel === "lost"}>Mark lost</ActionBtn>
             </div>
+
+            {researching && <p className="text-[11px] text-violet-300/80">Searching the web and cross-checking sources. This can take up to a minute.</p>}
+            {researchErr && <p className="text-xs text-red-400">Research: {researchErr}</p>}
 
             {panel === "email" && <FollowUpCompose prospectId={id} defaultTo={primaryEmail} disabled={!canEmail} disabledReason={emailDisabledReason} onSent={after} />}
             {panel === "call" && <CallPanel onSave={(input) => startTransition(async () => { await logProspectCallAction(id, input); after(); })} pending={pending} />}
