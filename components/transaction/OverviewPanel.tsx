@@ -38,6 +38,7 @@ import { UninvitedNeighboursNote } from "@/components/chain/UninvitedNeighboursN
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
 import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
+import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
@@ -372,6 +373,20 @@ export async function OverviewPanel({
   const relatedView = await getOnwardTrackerView(transaction.id, "related_sale");
   const relatedSignal = await getRelatedSaleSignalForFile(transaction.id);
 
+  // Client's own broker (portal-entered), shown in the Professionals tab beside
+  // the solicitors. Both sides: purchaser for buyers, vendor for a seller's onward.
+  const ownBrokerRows = await prisma.clientMoveInfo.findMany({
+    where: { transactionId: transaction.id, ownBrokerName: { not: null } },
+    select: { side: true, ownBrokerName: true, ownBrokerContactName: true, ownBrokerContact: true, ownBrokerAddedByName: true },
+  });
+  const ownBrokers = ownBrokerRows.map((r) => ({
+    side: r.side as "vendor" | "purchaser",
+    name: r.ownBrokerName!,
+    contactName: r.ownBrokerContactName,
+    contact: r.ownBrokerContact,
+    addedByName: r.ownBrokerAddedByName,
+  }));
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} slip={slip} />
@@ -398,23 +413,26 @@ export async function OverviewPanel({
           />
         }
         professionals={
-          <SolicitorSection
-            transactionId={transaction.id}
-            vendor={{
-              firm: transaction.vendorSolicitorFirm ?? null,
-              contact: transaction.vendorSolicitorContact ?? null,
-            }}
-            purchaser={{
-              firm: transaction.purchaserSolicitorFirm ?? null,
-              contact: transaction.purchaserSolicitorContact ?? null,
-            }}
-            recommendedFirms={recommendedFirms ?? undefined}
-            referredFirmId={transaction.referredFirmId ?? null}
-            referralFee={transaction.referralFee ?? null}
-            address={transaction.propertyAddress}
-            contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
-            embedded
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <SolicitorSection
+              transactionId={transaction.id}
+              vendor={{
+                firm: transaction.vendorSolicitorFirm ?? null,
+                contact: transaction.vendorSolicitorContact ?? null,
+              }}
+              purchaser={{
+                firm: transaction.purchaserSolicitorFirm ?? null,
+                contact: transaction.purchaserSolicitorContact ?? null,
+              }}
+              recommendedFirms={recommendedFirms ?? undefined}
+              referredFirmId={transaction.referredFirmId ?? null}
+              referralFee={transaction.referralFee ?? null}
+              address={transaction.propertyAddress}
+              contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
+              embedded
+            />
+            <ClientOwnBrokerRow brokers={ownBrokers} />
+          </div>
         }
       />
 

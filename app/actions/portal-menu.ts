@@ -147,6 +147,36 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
 // sent — the managing agent is notified (Updates feed + a bell notification)
 // and decides whether to invite. All chain writes are attributed to the
 // managing user (the client is a Contact, not a User).
+// Save the client's OWN mortgage broker (only offered when no in-house/TSP broker
+// resolves on the file). Stored on the side's ClientMoveInfo, stamped with the
+// client who added it so the agent sees "Added by ...". Additive; never touches
+// the file's brokerFirmId resolution.
+export async function saveMyBrokerAction(input: {
+  token: string;
+  name: string;
+  contactName: string | null;
+  contact: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const contact = await requirePortalContact(input.token);
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const name = input.name?.trim();
+  if (!name) return { ok: false, error: "Add the broker's name." };
+
+  const data = {
+    ownBrokerName: name,
+    ownBrokerContactName: input.contactName?.trim() || null,
+    ownBrokerContact: input.contact?.trim() || null,
+    ownBrokerAddedByName: contact.name,
+  };
+  await prisma.clientMoveInfo.upsert({
+    where: { transactionId_side: { transactionId: contact.propertyTransactionId, side } },
+    create: { transactionId: contact.propertyTransactionId, side, ...data },
+    update: data,
+  });
+  revalidatePath(`/portal/${input.token}`, "page");
+  return { ok: true };
+}
+
 export async function updateMyChainAgentAction(input: {
   token: string;
   agentName: string | null;

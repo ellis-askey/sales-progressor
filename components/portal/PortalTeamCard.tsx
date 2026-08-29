@@ -73,13 +73,18 @@ function SaveContactButton({ token, who }: { token: string; who: "progressor" | 
 }
 
 export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; token: string; followup?: FollowupNudge | null }) {
-  const { managing, solicitorFirmName, solicitorMailto, broker, chainAgent, emailSubject } = team;
+  const { managing, solicitorFirmName, solicitorMailto, broker, ownBroker, brokerAdd, chainAgent, emailSubject } = team;
   // Symmetric for both sides (2026-08-17): a buyer records their selling agent
   // (chain link below them), a seller their onward-purchase agent (link above).
   const showAgentRow = chainAgent.canManage && chainAgent.applicable;
   const agentNoun = chainAgent.direction === "below" ? "selling agent" : "onward agent";
   const agentHas = chainAgent.present && !!(chainAgent.agentName || chainAgent.agencyName);
-  if (!managing && !solicitorFirmName && !showAgentRow && !broker) return null;
+  // The broker drawer copy tracks the same direction as the chain agent: a seller
+  // (above) is asked about their onward broker, a buyer (below) about theirs.
+  const brokerAddSubtitle = chainAgent.direction === "above"
+    ? "Using your own broker for your onward purchase? Add their details."
+    : "Using your own broker? Add their details.";
+  if (!managing && !solicitorFirmName && !showAgentRow && !broker && !ownBroker && !brokerAdd) return null;
 
   // Order (Founder, 2026-08-16): solicitor first, the person managing the file
   // second, the client's chain agent last. Only the first shown row skips the
@@ -386,6 +391,66 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
             </p>
           </div>
         </div>
+      )}
+
+      {/* The client's OWN broker (only when no in-house/TSP broker resolved). Whole
+          row taps through to the broker drawer, prefilled, to edit. */}
+      {!broker && ownBroker && (
+        <PortalTeamManageRow
+          section="agents"
+          icon="edit"
+          label="Edit your mortgage broker"
+          agentConfig={{
+            kind: "broker",
+            mode: "edit",
+            direction: chainAgent.direction === "below" ? "below" : "above",
+            initial: { firmName: ownBroker.name, contactName: ownBroker.contactName ?? "", brokerContact: ownBroker.contact ?? "" },
+          }}
+        >
+          <div
+            style={{
+              width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontWeight: 700, fontSize: 15, color: "#fff",
+              background: P.heroGradient, boxShadow: "0 2px 6px rgba(255,107,74,0.28)",
+            }}
+          >
+            {initials(ownBroker.name)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+              {ownBroker.name}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>
+              {ownBroker.contactName ? `${ownBroker.contactName}, your mortgage broker` : "Your mortgage broker"}
+            </p>
+          </div>
+        </PortalTeamManageRow>
+      )}
+
+      {/* Add-your-own-broker card — only when no broker resolved and none set. */}
+      {!broker && !ownBroker && brokerAdd && (
+        <PortalTeamManageRow
+          section="agents"
+          icon="add"
+          label="Add your mortgage broker"
+          agentConfig={{
+            kind: "broker",
+            mode: "add",
+            direction: chainAgent.direction === "below" ? "below" : "above",
+            initial: {},
+          }}
+        >
+          <PortalAddSlot />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+              Your mortgage broker
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary, lineHeight: 1.4 }}>
+              {brokerAddSubtitle}
+            </p>
+          </div>
+        </PortalTeamManageRow>
       )}
     </PortalGlassCard>
   );
