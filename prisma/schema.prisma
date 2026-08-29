@@ -1972,6 +1972,12 @@ model OutboundEmailQueue {
   bouncedReason  String?
   blockedAt      DateTime?
   blockedReason  String?
+  // First-open time from the SendGrid "open" event, for emails sent with
+  // open-tracking enabled (currently CLIENT_CHASE only — see the Chasing hub).
+  // Null on rows never opened OR sent without open-tracking. Open-tracking is
+  // unreliable (image-blocking undercounts, Apple Mail Privacy overcounts), so
+  // treat as a rough indicator.
+  openedAt       DateTime?
 
   // Audit: when an agent edits the pending payload via the email preview
   // modal, these track who/when. Null on rows that were never edited.

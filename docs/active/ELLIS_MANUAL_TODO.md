@@ -4,9 +4,18 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-08-26
+Last updated: 2026-08-29
 
 ---
+
+## Chasing hub — client-email open-tracking (SendGrid) (2026-08-29)
+
+Phase 3 of the Chasing hub adds open-tracking for **client chase** emails only, so the Client tab can show an (approximate) open rate. The code is harmless until you enable two things in SendGrid — until then it just receives no open events and the Client tab shows 0% opened.
+
+- [ ] **Enable the "open" event on the Event Webhook.** SendGrid → Settings → Mail Settings → Event Webhook (the one already pointed at `/api/webhooks/sendgrid-bounce`). Add **Opened** to the enabled events (currently only delivered/deferred/bounce/blocked/dropped are on). Leave the signed-webhook verification on.
+- [ ] **Confirm Open Tracking isn't force-disabled at the account level.** SendGrid → Settings → Tracking → Open Tracking. The code enables it per-send for client chase, but an account-level "off" can override it. Leave click-tracking alone.
+- [ ] **Privacy note (your call):** this embeds a tracking pixel in client chase emails. It's scoped to chase emails only, but if your privacy policy / DPA needs a line about email open-tracking, add it. Nothing else in the platform tracks opens.
+- Migration `20260829150000_outbound_queue_opened_at` (adds `openedAt`) applies automatically via `prisma migrate deploy`. Staging first (Law 3), then prod.
 
 ## Command Centre Briefing — signal lifecycle migration + test-agency exclusion (2026-08-28)
 

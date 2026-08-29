@@ -36,6 +36,8 @@ export type ChaseSummary = {
   responseRate: number | null; // null when opens/acted not tracked
   opened: number;
   opensTracked: boolean;
+  rateLabel: string; // headline rate card title ("Response rate" / "Open rate")
+  respondedVerb: string; // what "responded" means here ("acted" / "opened")
   extraLabel: string; // right-hand context stat label
   extra: number;
 };
@@ -111,7 +113,8 @@ async function getEnquiriesTab(): Promise<ChaseTabData> {
     blurb: "Getting enquiries raised, then getting the solicitor holding the ball to reply. We know when they opened the link and what they did.",
     summary: {
       sent: solicitor.length, responded: respondedCount, responseRate: rate,
-      opened, opensTracked: true, extraLabel: "Opened, no action", extra: opened,
+      opened, opensTracked: true, rateLabel: "Response rate", respondedVerb: "acted",
+      extraLabel: "Opened, no action", extra: opened,
     },
     rows,
     sinceLabel: fmtSince(sends.length ? sends[sends.length - 1].sentAt : null),
@@ -161,27 +164,29 @@ async function getSolicitorTab(): Promise<ChaseTabData> {
     blurb: "Chasing solicitors to confirm the steps they own. We know when they opened the link and whether they confirmed. Rows appear from when chasing was switched on.",
     summary: {
       sent: sends.length, responded: respondedCount, responseRate: rate,
-      opened, opensTracked: true, extraLabel: "Opened, no action", extra: opened,
+      opened, opensTracked: true, rateLabel: "Response rate", respondedVerb: "acted",
+      extraLabel: "Opened, no action", extra: opened,
     },
     rows,
     sinceLabel: fmtSince(sends.length ? sends[sends.length - 1].sentAt : null),
   };
 }
 
-// ── Client chase (sent + delivery + engagement, from OutboundEmailQueue) ───────
+// ── Client chase (sent + delivery + opens, from OutboundEmailQueue) ────────────
 async function getClientTab(): Promise<ChaseTabData> {
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
   const queued = await commandDb.outboundEmailQueue.findMany({
     where: { emailType: "CLIENT_CHASE", sentAt: { gte: since }, recipientContact: { transaction: realFile } },
     orderBy: { sentAt: "desc" },
     select: {
-      id: true, sentAt: true, deliveredAt: true, bouncedAt: true, payload: true,
+      id: true, sentAt: true, deliveredAt: true, bouncedAt: true, openedAt: true, payload: true,
       recipientContact: { select: { name: true, propertyTransactionId: true, transaction: { select: { propertyAddress: true } } } },
     },
   });
 
-  const delivered = queued.filter((q) => q.deliveredAt != null).length;
+  const openedCount = queued.filter((q) => q.openedAt != null).length;
   const bounced = queued.filter((q) => q.bouncedAt != null).length;
+  const rate = queued.length ? Math.round((openedCount / queued.length) * 100) : 0;
 
   const rows: ChaseRow[] = queued.map((q) => {
     const subject = (q.payload as { subject?: string } | null)?.subject ?? "Client chase";
@@ -193,10 +198,10 @@ async function getClientTab(): Promise<ChaseTabData> {
       sentAt: q.sentAt,
       chasedLabel: q.recipientContact?.name ?? "Client",
       chasedSub: subject,
-      openedAt: null,
-      opensTracked: false,
-      outcome: q.bouncedAt ? "Bounced" : q.deliveredAt ? "Delivered" : "Sent",
-      outcomeTone: q.bouncedAt ? "warn" : q.deliveredAt ? "good" : "muted",
+      openedAt: q.openedAt,
+      opensTracked: true,
+      outcome: q.bouncedAt ? "Bounced" : q.openedAt ? "Opened" : q.deliveredAt ? "Delivered, not opened" : "Sent",
+      outcomeTone: q.bouncedAt ? "warn" : q.openedAt ? "good" : "muted",
       canEmailTick: false,
       repliedByEmail: false,
     };
@@ -205,10 +210,11 @@ async function getClientTab(): Promise<ChaseTabData> {
   return {
     type: "client",
     title: "Client chase",
-    blurb: "Nudging buyers and sellers to do their bit. We can see it was delivered, but not yet whether they opened it (that needs email open-tracking).",
+    blurb: "Nudging buyers and sellers to do their bit. Opens are tracked (from when tracking was switched on) but approximate: some mail apps block the signal and Apple Mail can inflate it.",
     summary: {
-      sent: queued.length, responded: delivered, responseRate: null,
-      opened: 0, opensTracked: false, extraLabel: "Bounced", extra: bounced,
+      sent: queued.length, responded: openedCount, responseRate: rate,
+      opened: openedCount, opensTracked: true, rateLabel: "Open rate", respondedVerb: "opened",
+      extraLabel: "Bounced", extra: bounced,
     },
     rows,
     sinceLabel: fmtSince(queued.length ? queued[queued.length - 1].sentAt : null),
@@ -315,7 +321,7 @@ export async function getChaseDetail(type: ChaseType, id: string): Promise<Chase
   // client
   const q = await commandDb.outboundEmailQueue.findUnique({
     where: { id },
-    select: { payload: true, sentAt: true, deliveredAt: true, bouncedAt: true, bouncedReason: true, recipientContact: { select: { name: true, propertyTransactionId: true } } },
+    select: { payload: true, sentAt: true, deliveredAt: true, openedAt: true, bouncedAt: true, bouncedReason: true, recipientContact: { select: { name: true, propertyTransactionId: true } } },
   });
   if (!q) return null;
   const p = q.payload as { subject?: string; text?: string } | null;
@@ -327,6 +333,7 @@ export async function getChaseDetail(type: ChaseType, id: string): Promise<Chase
       { label: "To", value: q.recipientContact?.name ?? "Client" },
       { label: "Sent", value: fmtDateTime(q.sentAt) },
       { label: "Delivered", value: fmtDateTime(q.deliveredAt) },
+      { label: "Opened", value: q.openedAt ? `${fmtDateTime(q.openedAt)} (approx)` : "—" },
       { label: "Bounced", value: q.bouncedAt ? `${fmtDateTime(q.bouncedAt)}${q.bouncedReason ? ` · ${q.bouncedReason}` : ""}` : "—" },
     ],
     transactionId: q.recipientContact?.propertyTransactionId ?? null,

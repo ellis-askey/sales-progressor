@@ -57,19 +57,19 @@ export default async function ChasingHubPage({ searchParams }: { searchParams: P
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
         <Stat label="Chases sent" value={s.sent} sub="in the last 8 weeks" />
-        {s.opensTracked ? (
-          <Stat label="Response rate" value={`${s.responseRate ?? 0}%`} sub={`${s.responded} of ${s.sent} acted`} accent />
-        ) : (
-          <Stat
-            label={data.type === "client" ? "Delivered" : "Confirmed"}
-            value={s.responded}
-            sub={`of ${s.sent}`}
-            accent
-            tip={data.type === "client" ? "We can confirm delivery, but opens aren't tracked yet." : "The step was confirmed after chasing. Whether the email was opened isn't tracked yet."}
-          />
-        )}
+        <Stat
+          label={s.rateLabel}
+          value={`${s.responseRate ?? 0}%`}
+          sub={`${s.responded} of ${s.sent} ${s.respondedVerb}`}
+          accent
+          tip={data.type === "client" ? "Approximate: some mail apps block open-tracking and Apple Mail can inflate it." : undefined}
+        />
         <Stat label={s.extraLabel} value={s.extra} sub="" />
-        <Stat label="Opens tracked" value={s.opensTracked ? "Yes" : "Not yet"} sub={s.opensTracked ? "via the link" : "coming soon"} />
+        <Stat
+          label="Opens tracked"
+          value={data.type === "client" ? "Approx" : "Yes"}
+          sub={data.type === "client" ? "some blocked, some inflated" : "via the link"}
+        />
       </div>
 
       {/* Table */}
