@@ -70,6 +70,7 @@ function rowToMoveInfo(row: {
   mortgageOfferExpiry: Date | null; fundsInPlace: string | null; fundsSource: string | null;
   needsNotice: boolean | null; noticePeriod: string | null; noticeGiven: boolean | null; noticeEndDate: Date | null;
   buyingOnward: boolean | null; onwardReadyToExchange: string | null; onwardMortgageOfferExpiry: Date | null;
+  sellingRelated: boolean | null;
   removalStatus: string | null; removalCompany: string | null; vacantBeforeCompletion: string | null;
   unavailableDates: unknown; progressorNote: string | null;
 } | null | undefined): MoveInfo {
@@ -87,6 +88,7 @@ function rowToMoveInfo(row: {
     buyingOnward: row?.buyingOnward ?? null,
     onwardReadyToExchange: row?.onwardReadyToExchange ?? null,
     onwardMortgageOfferExpiry: isoDate(row?.onwardMortgageOfferExpiry ?? null),
+    sellingRelated: row?.sellingRelated ?? null,
     removalStatus: row?.removalStatus ?? null,
     removalCompany: row?.removalCompany ?? null,
     vacantBeforeCompletion: row?.vacantBeforeCompletion ?? null,
@@ -248,6 +250,7 @@ export async function saveMoveInfoAgentAction(
   if (p.noticeGiven !== undefined) data.noticeGiven = p.noticeGiven;
   if (p.noticeEndDate !== undefined) data.noticeEndDate = d(p.noticeEndDate);
   if (p.buyingOnward !== undefined) data.buyingOnward = p.buyingOnward;
+  if (p.sellingRelated !== undefined) data.sellingRelated = p.sellingRelated;
   if (p.removalStatus !== undefined) data.removalStatus = p.removalStatus;
   if (p.removalCompany !== undefined) data.removalCompany = p.removalCompany;
   if (p.vacantBeforeCompletion !== undefined) data.vacantBeforeCompletion = p.vacantBeforeCompletion;

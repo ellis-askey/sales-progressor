@@ -41,6 +41,7 @@ export type MoveInfo = {
   buyingOnward: boolean | null;
   onwardReadyToExchange: string | null;
   onwardMortgageOfferExpiry: string | null;
+  sellingRelated: boolean | null;
   removalStatus: string | null;
   removalCompany: string | null;
   vacantBeforeCompletion: string | null;
@@ -53,6 +54,7 @@ const EMPTY: MoveInfo = {
   mortgageOfferExpiry: null, fundsInPlace: null, fundsSource: null,
   needsNotice: null, noticePeriod: null, noticeGiven: null, noticeEndDate: null,
   buyingOnward: null, onwardReadyToExchange: null, onwardMortgageOfferExpiry: null,
+  sellingRelated: null,
   removalStatus: null, removalCompany: null, vacantBeforeCompletion: null,
   unavailableDates: [], progressorNote: null,
 };
@@ -158,6 +160,7 @@ export async function getClientMoveInfo(
         buyingOnward: row.buyingOnward,
         onwardReadyToExchange: row.onwardReadyToExchange,
         onwardMortgageOfferExpiry: isoDate(row.onwardMortgageOfferExpiry),
+        sellingRelated: row.sellingRelated,
         removalStatus: row.removalStatus,
         removalCompany: row.removalCompany,
         vacantBeforeCompletion: row.vacantBeforeCompletion,

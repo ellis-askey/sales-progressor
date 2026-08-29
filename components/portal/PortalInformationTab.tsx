@@ -223,6 +223,23 @@ export function PortalInformationTab({
         </Section>
       )}
 
+      {/* RELATED SALE (buyers, pre-exchange only) — the soft "are you also
+          selling?" question. A yes surfaces the "Your sale" step tracker on the
+          Progress tab; the chain link below and cash-from-a-sale funding also
+          surface it on their own. */}
+      {ctx.role === "buyer" && !ctx.hasExchanged && (
+        <Section id="related-sale" label="Your sale" saved={savedSection}>
+          <Field label="Are you also selling a property?">
+            <YesNo value={info.sellingRelated} disabled={readOnly} onChange={(v) => patch("related-sale", { sellingRelated: v })} />
+          </Field>
+          {info.sellingRelated === true && (
+            <p className="text-[11px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted }}>
+              Track the steps on your sale under Progress. You can add your selling agent under Your agents in Settings.
+            </p>
+          )}
+        </Section>
+      )}
+
       {/* Mortgage-offer shortcut sheet */}
       <PortalSheet open={mortgageModal} onClose={() => setMortgageModal(false)} closeDisabled={mortgageBusy} showClose={false} maxWidthClass="max-w-md">
         <div className="px-6 pt-2 pb-6">

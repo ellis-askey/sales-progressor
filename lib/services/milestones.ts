@@ -1243,10 +1243,14 @@ export async function completeMilestone(
   // Chain milestone notifications (fire-and-forget; deduped via OutboundEmailQueue)
   if (def.code === "VM19" || def.code === "PM26") {
     enqueueChainMilestoneNotifications(input.transactionId, "EXCHANGE").catch(console.error);
-    // Onward-visibility (3a): our exchange means the seller's onward purchase
-    // exchanged too. Mark it on their reported onward tracker if one exists.
+    // Onward-visibility (3a): our exchange means the whole chain exchanged on the
+    // same day. Cascade to the matching reported shadow tracker if one exists:
+    //   - our sale exchanging (VM19) -> the seller's onward purchase exchanged (PM26)
+    //   - our purchase exchanging (PM26) -> the buyer's related sale exchanged (VM19)
     if (def.code === "VM19") {
-      cascadeOnwardExchange(input.transactionId).catch(console.error);
+      cascadeOnwardExchange(input.transactionId, "onward_purchase").catch(console.error);
+    } else {
+      cascadeOnwardExchange(input.transactionId, "related_sale").catch(console.error);
     }
   } else if (def.code === "VM20" || def.code === "PM27") {
     enqueueChainMilestoneNotifications(input.transactionId, "COMPLETION").catch(console.error);

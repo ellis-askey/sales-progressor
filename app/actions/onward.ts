@@ -98,3 +98,64 @@ export async function undoOnwardStepAction(input: {
   const view = await getOnwardTrackerView(input.transactionId);
   return { result, view };
 }
+
+// ── Related sale (buyer side, the link below) ────────────────────────────────
+// Same guards as the onward actions; kind="related_sale" tracks the SELLING (VM)
+// steps of the property this file's buyer is selling. A related sale has only
+// tenure (no buying axis), so setTypeFacts takes no purchaseType.
+
+export async function getRelatedSaleViewAction(transactionId: string): Promise<OnwardTrackerView> {
+  await requireTxInScope(transactionId);
+  return getOnwardTrackerView(transactionId, "related_sale");
+}
+
+export async function openRelatedSaleAction(transactionId: string): Promise<OnwardTrackerView> {
+  await requireTxInScope(transactionId);
+  await openOnwardTracker(transactionId, "related_sale");
+  revalidateTx(transactionId);
+  return getOnwardTrackerView(transactionId, "related_sale");
+}
+
+export async function setRelatedSaleTypeFactsAction(input: {
+  transactionId: string;
+  tenure: Tenure;
+  isShareOfFreehold: boolean;
+}): Promise<OnwardTrackerView> {
+  await requireTxInScope(input.transactionId);
+  await setOnwardTypeFacts(
+    input.transactionId,
+    { tenure: input.tenure, isShareOfFreehold: input.isShareOfFreehold },
+    "related_sale",
+  );
+  revalidateTx(input.transactionId);
+  return getOnwardTrackerView(input.transactionId, "related_sale");
+}
+
+export async function confirmRelatedSaleStepAction(input: {
+  transactionId: string;
+  milestoneCode: string;
+  eventDate?: string | null;
+}): Promise<{ result: ConfirmOnwardResult; view: OnwardTrackerView }> {
+  const { session } = await requireTxInScope(input.transactionId);
+  const result = await confirmOnwardStep(
+    input.transactionId,
+    input.milestoneCode,
+    input.eventDate ?? null,
+    { source: "agent", userId: session.user.id },
+    "related_sale",
+  );
+  revalidateTx(input.transactionId);
+  const view = await getOnwardTrackerView(input.transactionId, "related_sale");
+  return { result, view };
+}
+
+export async function undoRelatedSaleStepAction(input: {
+  transactionId: string;
+  milestoneCode: string;
+}): Promise<{ result: UndoOnwardResult; view: OnwardTrackerView }> {
+  await requireTxInScope(input.transactionId);
+  const result = await undoOnwardStep(input.transactionId, input.milestoneCode, "related_sale");
+  revalidateTx(input.transactionId);
+  const view = await getOnwardTrackerView(input.transactionId, "related_sale");
+  return { result, view };
+}

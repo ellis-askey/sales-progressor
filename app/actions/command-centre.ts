@@ -10,6 +10,12 @@ import { startExperiment, abandonExperiment, concludeExperiment } from "@/lib/se
 import { anthropic } from "@/lib/anthropic";
 import { METRIC_KEYS, METRIC_DEFS, type MetricKey } from "@/lib/command/experiment-metrics";
 import { getSuggestionDataSummary, type ExperimentSuggestion } from "@/lib/command/experiment-suggestions";
+import { getChaseDetail, type ChaseType, type ChaseDetail } from "@/lib/command/chasing";
+
+export async function getChaseDetailAction(type: ChaseType, id: string): Promise<ChaseDetail | null> {
+  await requireSuperAdmin();
+  return getChaseDetail(type, id);
+}
 
 const clampWindow = (d: number, fallback: number) => Math.min(60, Math.max(7, Math.round(d || fallback)));
 const validMetric = (k: string): MetricKey => (METRIC_KEYS.includes(k as MetricKey) ? (k as MetricKey) : "milestonesConfirmed");
