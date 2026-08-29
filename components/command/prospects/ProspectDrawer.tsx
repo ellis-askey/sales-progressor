@@ -7,13 +7,14 @@ import {
   addProspectContactAction, setPrimaryContactAction, updateProspectAction,
   logProspectCallAction, scheduleFollowUpAction, completeFollowUpAction, markProspectLostAction,
   convertProspectAction, unlinkProspectAction, searchAgenciesAction, getConvertedAgencyStatsAction,
+  createGroupAndLinkAction, linkProspectToGroupAction, unlinkProspectFromGroupAction, searchGroupsAction,
 } from "@/app/actions/prospects";
 import {
   PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
   CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS, LOST_REASON_LABEL,
 } from "@/lib/command/prospect-labels";
 import { FollowUpCompose } from "./FollowUpCompose";
-import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats } from "@/lib/command/prospects";
+import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats, GroupMatch } from "@/lib/command/prospects";
 import type { ProspectStatus } from "@prisma/client";
 
 function fmtDateTime(d: Date | null): string {
@@ -28,12 +29,15 @@ const ACTIVITY_LABEL: Record<string, string> = {
 };
 const inputCls = "w-full text-xs bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb]";
 
-export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => void }) {
+export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose: () => void }) {
   const router = useRouter();
+  // Local current id so sibling branches within a group can be opened in place.
+  const [id, setId] = useState(initialId);
+  useEffect(() => { setId(initialId); }, [initialId]);
   const [d, setD] = useState<ProspectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert">(null);
+  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert" | "group">(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,8 +46,9 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
   useEffect(() => { load(); }, [load]);
 
   function after() { setPanel(null); load(); router.refresh(); }
+  function openBranch(branchId: string) { setPanel(null); setId(branchId); }
 
-  const primaryEmail = d ? (d.contacts.find((c) => c.isPrimary)?.email ?? d.contacts[0]?.email ?? d.generalEmail ?? null) : null;
+  const primaryEmail = d ? (d.contacts.find((c) => c.isPrimary)?.email ?? d.contacts[0]?.email ?? d.sharedContacts[0]?.email ?? d.generalEmail ?? null) : null;
   const canEmail = d ? !d.optedOutAt && !d.bouncedAt : false;
   const emailDisabledReason = d?.optedOutAt ? "they've opted out" : d?.bouncedAt ? "a previous email bounced" : "";
 
@@ -78,6 +83,16 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
               />
             )}
 
+            {d.group && (
+              <GroupBanner
+                group={d.group}
+                branches={d.groupBranches}
+                onOpenBranch={openBranch}
+                onUnlink={() => startTransition(async () => { await unlinkProspectFromGroupAction(id); after(); })}
+                pending={pending}
+              />
+            )}
+
             {/* Next follow-up */}
             <div className="flex items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2.5">
               <div className="text-xs">
@@ -102,6 +117,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
               <ActionBtn onClick={() => setPanel(panel === "note" ? null : "note")} active={panel === "note"}>Add note</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "contact" ? null : "contact")} active={panel === "contact"}>Add contact</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "edit" ? null : "edit")} active={panel === "edit"}>Edit details</ActionBtn>
+              {!d.group && <ActionBtn onClick={() => setPanel(panel === "group" ? null : "group")} active={panel === "group"}>Part of a business</ActionBtn>}
               {!d.convertedAgency && <ActionBtn onClick={() => setPanel(panel === "convert" ? null : "convert")} active={panel === "convert"}>Won / convert</ActionBtn>}
               <ActionBtn onClick={() => setPanel(panel === "lost" ? null : "lost")} active={panel === "lost"}>Mark lost</ActionBtn>
             </div>
@@ -111,9 +127,13 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
             {panel === "followup" && <FollowUpPanel onSave={(iso) => startTransition(async () => { await scheduleFollowUpAction(id, iso); after(); })} pending={pending} />}
             {panel === "lost" && <LostPanel onSave={(reason, revisit) => startTransition(async () => { await markProspectLostAction(id, reason, revisit); after(); })} pending={pending} />}
             {panel === "note" && <NotePanel onSave={(text) => startTransition(async () => { await addProspectNoteAction(id, text); after(); })} pending={pending} />}
-            {panel === "contact" && <ContactPanel onSave={(input) => startTransition(async () => { await addProspectContactAction(id, input); after(); })} pending={pending} />}
+            {panel === "contact" && <ContactPanel canShare={!!d.group} groupName={d.group?.name ?? null} onSave={(input) => startTransition(async () => { await addProspectContactAction(id, input); after(); })} pending={pending} />}
             {panel === "edit" && <EditPanel d={d} onSave={(patch) => startTransition(async () => { await updateProspectAction(id, patch); after(); })} pending={pending} />}
             {panel === "convert" && <ConvertPanel onConvert={async (agencyId) => { const r = await convertProspectAction(id, agencyId); if (r.ok) after(); return r; }} />}
+            {panel === "group" && <GroupPanel
+              onLink={async (groupId) => { const r = await linkProspectToGroupAction(id, groupId); if (r.ok) after(); return r; }}
+              onCreate={async (name) => { const r = await createGroupAndLinkAction(id, name); if (r.ok) after(); return r; }}
+            />}
 
             {/* Agency info */}
             <Section title="Agency">
@@ -130,8 +150,8 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
             </Section>
 
             {/* Contacts */}
-            <Section title={`Contacts · ${d.contacts.length}`}>
-              {d.contacts.length === 0 ? <p className="text-xs text-neutral-600">No contacts yet.</p> : (
+            <Section title={`Contacts · ${d.contacts.length + d.sharedContacts.length}`}>
+              {d.contacts.length === 0 && d.sharedContacts.length === 0 ? <p className="text-xs text-neutral-600">No contacts yet.</p> : (
                 <div className="space-y-2">
                   {d.contacts.map((c) => (
                     <div key={c.id} className="flex items-start justify-between gap-3 border-b border-neutral-900 pb-2">
@@ -148,6 +168,23 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
                       )}
                     </div>
                   ))}
+                  {d.sharedContacts.length > 0 && (
+                    <>
+                      <p className="text-[10px] uppercase tracking-wider text-violet-400/70 pt-1">Shared across {d.group?.name ?? "the business"}</p>
+                      {d.sharedContacts.map((c) => (
+                        <div key={c.id} className="flex items-start justify-between gap-3 border-b border-neutral-900 pb-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-neutral-200">{c.name}</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-950 text-violet-300 border border-violet-900">shared</span>
+                              {c.isDecisionMaker && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400">decision-maker</span>}
+                            </div>
+                            <div className="text-[11px] text-neutral-500">{[c.jobTitle, c.email, c.phone].filter(Boolean).join(" · ") || "—"}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </Section>
@@ -341,6 +378,91 @@ function ConvertPanel({ onConvert }: { onConvert: (agencyId: string) => Promise<
   );
 }
 
+// Shown when a prospect belongs to a multi-branch business: names the business,
+// lists its other branches (click to open in place), and lets you detach.
+function GroupBanner({ group, branches, onOpenBranch, onUnlink, pending }: {
+  group: { id: string; name: string; website: string | null; notes: string | null };
+  branches: Array<{ id: string; agencyName: string; status: ProspectStatus }>;
+  onOpenBranch: (id: string) => void; onUnlink: () => void; pending: boolean;
+}) {
+  return (
+    <div className="bg-violet-950/20 border border-violet-900/60 rounded-lg px-4 py-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-violet-200">Part of <span className="font-medium">{group.name}</span>{branches.length > 0 ? ` · ${branches.length} other branch${branches.length === 1 ? "" : "es"}` : " · only branch so far"}.</p>
+        <button onClick={onUnlink} disabled={pending} className="text-[10px] text-violet-400/70 hover:text-violet-200 shrink-0">Remove</button>
+      </div>
+      {branches.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {branches.map((b) => (
+            <button key={b.id} onClick={() => onOpenBranch(b.id)} className="flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition-colors">
+              {b.agencyName}
+              <span className={`text-[9px] px-1 py-0.5 rounded-full border ${STATUS_TONE[b.status]}`}>{STATUS_LABEL[b.status]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Link this branch to an existing business, or name a new one to create it and
+// attach this branch in one step. Debounced live search.
+function GroupPanel({ onLink, onCreate }: {
+  onLink: (groupId: string) => Promise<{ ok: boolean; error?: string }>;
+  onCreate: (name: string) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<GroupMatch[]>([]);
+  const [searching, setSearching] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try { const r = await searchGroupsAction(q); if (live) setResults(r); }
+      finally { if (live) setSearching(false); }
+    }, 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [q]);
+
+  async function link(groupId: string) {
+    setSaving(true); setError(null);
+    const r = await onLink(groupId);
+    if (!r.ok) { setError(r.error ?? "Couldn't link that business."); setSaving(false); }
+  }
+  async function create() {
+    const name = q.trim();
+    if (!name) return;
+    setSaving(true); setError(null);
+    const r = await onCreate(name);
+    if (!r.ok) { setError(r.error ?? "Couldn't create that business."); setSaving(false); }
+  }
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2.5">
+      <p className="text-[11px] text-neutral-500">Group this branch under a business, so its branches sit together and you can share contacts across them.</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search or name a business (e.g. Foo Estates)…" className={inputCls} autoFocus />
+      {(searching || results.length > 0) && (
+        <div className="max-h-48 overflow-y-auto space-y-1">
+          {searching ? <p className="text-[11px] text-neutral-600 px-1">Searching…</p> : results.map((g) => (
+            <button key={g.id} onClick={() => link(g.id)} disabled={saving} className="w-full text-left px-2.5 py-1.5 rounded-md border text-xs bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-600 disabled:opacity-40">
+              <span className="font-medium">{g.name}</span><span className="text-neutral-600"> · {g.branchCount} branch{g.branchCount === 1 ? "" : "es"}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {q.trim() && (
+        <button onClick={create} disabled={saving} className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 disabled:opacity-40">
+          {saving ? "…" : `Create "${q.trim()}" and add this branch`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NotePanel({ onSave, pending }: { onSave: (t: string) => void; pending: boolean }) {
   const [t, setT] = useState("");
   return (
@@ -351,8 +473,12 @@ function NotePanel({ onSave, pending }: { onSave: (t: string) => void; pending: 
   );
 }
 
-function ContactPanel({ onSave, pending }: { onSave: (i: { name: string; jobTitle?: string; email?: string; phone?: string; isDecisionMaker?: boolean }) => void; pending: boolean }) {
+function ContactPanel({ onSave, pending, canShare, groupName }: {
+  onSave: (i: { name: string; jobTitle?: string; email?: string; phone?: string; isDecisionMaker?: boolean; shared?: boolean }) => void;
+  pending: boolean; canShare: boolean; groupName: string | null;
+}) {
   const [f, setF] = useState({ name: "", jobTitle: "", email: "", phone: "", isDecisionMaker: false });
+  const [shared, setShared] = useState(false);
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -362,7 +488,10 @@ function ContactPanel({ onSave, pending }: { onSave: (i: { name: string; jobTitl
         <input value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} placeholder="Phone" className={inputCls} />
       </div>
       <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={f.isDecisionMaker} onChange={(e) => setF((p) => ({ ...p, isDecisionMaker: e.target.checked }))} /> Decision-maker</label>
-      <button onClick={() => onSave(f)} disabled={pending || !f.name.trim()} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Add contact"}</button>
+      {canShare && (
+        <label className="flex items-center gap-2 text-[11px] text-violet-300/90"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Shared across {groupName} (shows on every branch)</label>
+      )}
+      <button onClick={() => onSave({ ...f, shared })} disabled={pending || !f.name.trim()} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Add contact"}</button>
     </div>
   );
 }

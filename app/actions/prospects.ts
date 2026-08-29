@@ -7,8 +7,8 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
 import {
-  getProspectDetail, getConvertedAgencyStats, searchAgenciesForConversion,
-  type ProspectDetail, type ConvertedAgencyStats, type AgencyMatch,
+  getProspectDetail, getConvertedAgencyStats, searchAgenciesForConversion, searchProspectGroups,
+  type ProspectDetail, type ConvertedAgencyStats, type AgencyMatch, type GroupMatch,
 } from "@/lib/command/prospects";
 import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/prospect-labels";
 import { anthropic } from "@/lib/anthropic";
@@ -153,11 +153,28 @@ export async function addProspectNoteAction(id: string, body: string): Promise<{
 }
 
 export async function addProspectContactAction(prospectId: string, input: {
-  name: string; jobTitle?: string; email?: string; phone?: string; linkedinUrl?: string; isDecisionMaker?: boolean; makePrimary?: boolean;
+  name: string; jobTitle?: string; email?: string; phone?: string; linkedinUrl?: string; isDecisionMaker?: boolean; makePrimary?: boolean; shared?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSuperAdmin();
   const name = input.name.trim();
   if (!name) return { ok: false, error: "Contact name is required." };
+
+  // Shared contact: lives on the business group, so it shows on every branch.
+  if (input.shared) {
+    const p = await commandDb.prospect.findUnique({ where: { id: prospectId }, select: { groupId: true } });
+    if (!p?.groupId) return { ok: false, error: "Add this prospect to a business first, then you can share a contact across its branches." };
+    await commandDb.prospectContact.create({
+      data: {
+        groupId: p.groupId, name, jobTitle: trimOrNull(input.jobTitle), email: trimOrNull(input.email),
+        phone: trimOrNull(input.phone), linkedinUrl: trimOrNull(input.linkedinUrl),
+        isDecisionMaker: !!input.isDecisionMaker, isPrimary: false,
+      },
+    });
+    await logActivity(prospectId, session.user.id, "contact_added", `Added shared contact ${name}`);
+    revalidatePath("/command/prospects");
+    return { ok: true };
+  }
+
   const existingPrimary = await commandDb.prospectContact.count({ where: { prospectId, isPrimary: true } });
   const makePrimary = input.makePrimary || existingPrimary === 0;
   if (makePrimary) {
@@ -418,4 +435,44 @@ export async function searchAgenciesAction(q: string): Promise<AgencyMatch[]> {
 export async function getConvertedAgencyStatsAction(agencyId: string): Promise<ConvertedAgencyStats> {
   await requireSuperAdmin();
   return getConvertedAgencyStats(agencyId);
+}
+
+// ─── Groups (multi-branch businesses) ────────────────────────────────────────
+
+export async function searchGroupsAction(q: string): Promise<GroupMatch[]> {
+  await requireSuperAdmin();
+  return searchProspectGroups(q);
+}
+
+// Create a business/brand and put this prospect (branch) under it in one step.
+export async function createGroupAndLinkAction(prospectId: string, name: string): Promise<{ ok: true; groupId: string } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const groupName = name.trim();
+  if (!groupName) return { ok: false, error: "A business name is required." };
+  const prospect = await commandDb.prospect.findUnique({ where: { id: prospectId }, select: { id: true } });
+  if (!prospect) return { ok: false, error: "Prospect not found." };
+  const group = await commandDb.prospectGroup.create({
+    data: { name: groupName, ownerUserId: session.user.id, createdById: session.user.id, prospects: { connect: { id: prospectId } } },
+  });
+  await logActivity(prospectId, session.user.id, "note", `Grouped under ${groupName}`);
+  revalidatePath("/command/prospects");
+  return { ok: true, groupId: group.id };
+}
+
+export async function linkProspectToGroupAction(prospectId: string, groupId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const group = await commandDb.prospectGroup.findUnique({ where: { id: groupId }, select: { name: true } });
+  if (!group) return { ok: false, error: "That business wasn't found." };
+  await commandDb.prospect.update({ where: { id: prospectId }, data: { groupId } });
+  await logActivity(prospectId, session.user.id, "note", `Grouped under ${group.name}`);
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+export async function unlinkProspectFromGroupAction(prospectId: string): Promise<{ ok: true }> {
+  const session = await requireSuperAdmin();
+  await commandDb.prospect.update({ where: { id: prospectId }, data: { groupId: null } });
+  await logActivity(prospectId, session.user.id, "note", "Removed from its business");
+  revalidatePath("/command/prospects");
+  return { ok: true };
 }

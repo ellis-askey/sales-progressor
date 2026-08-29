@@ -3586,6 +3586,9 @@ model Prospect {
   // Provenance when this prospect came from a chain invite (warm lead).
   sourceChainLinkId String?
 
+  // Brand/business this branch belongs to (null = standalone single-branch agency).
+  groupId String?
+
   // GDPR / deliverability
   optedOutAt DateTime?
   bouncedAt  DateTime?
@@ -3597,6 +3600,7 @@ model Prospect {
 
   convertedAgency Agency?            @relation(fields: [convertedAgencyId], references: [id], onDelete: SetNull)
   sourceChainLink ChainLink?         @relation(fields: [sourceChainLinkId], references: [id], onDelete: SetNull)
+  group           ProspectGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
   contacts        ProspectContact[]
   activities      ProspectActivity[]
   emails          ProspectEmail[]
@@ -3605,12 +3609,38 @@ model Prospect {
   @@index([nextFollowUpAt])
   @@index([source])
   @@index([convertedAgencyId])
+  @@index([groupId])
+  @@index([archivedAt])
+}
+
+// A brand / business that several branch prospects belong to. Lightweight: it
+// holds shared contacts (a regional director relevant to every branch) and
+// groups the branches together. It carries NO pipeline status of its own —
+// status lives on each branch prospect. Standalone single-branch agencies
+// don't use this at all.
+model ProspectGroup {
+  id          String    @id @default(cuid())
+  name        String
+  website     String?
+  notes       String?
+  ownerUserId String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+
+  prospects Prospect[]
+  contacts  ProspectContact[] // group-level (shared) contacts
+
   @@index([archivedAt])
 }
 
 model ProspectContact {
   id               String   @id @default(cuid())
-  prospectId       String
+  // A contact belongs to EITHER one branch prospect (prospectId) OR a group
+  // (groupId, a shared contact seen on every branch). Exactly one is set.
+  prospectId       String?
+  groupId          String?
   name             String
   jobTitle         String?
   email            String?
@@ -3622,9 +3652,11 @@ model ProspectContact {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  prospect Prospect?      @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  group    ProspectGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([prospectId])
+  @@index([groupId])
   @@index([email])
 }
 
