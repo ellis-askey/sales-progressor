@@ -8,6 +8,11 @@ Last updated: 2026-08-29
 
 ---
 
+## Prospects — daily follow-up reminder + outreach subdomain (2026-08-29)
+
+- **Daily reminder is live** (cron `prospect-followup-digest`, 07:30 weekdays). It emails you when prospect follow-ups are due to be actioned, and stays silent on empty days. Uses the existing `CRON_SECRET` (no new setup). Change the recipient with env `PROSPECT_DIGEST_TO` if you ever want it somewhere other than ellis@thesalesprogressor.co.uk.
+- **Protecting your main domain (do before real cold volume, not urgent at test scale):** cold outreach currently sends from `ellis@thesalesprogressor.co.uk` — your *root* domain, the same one your client/solicitor mail uses. `reply.thesalesprogressor.co.uk` does NOT protect this: it only *receives* replies, it has nothing to do with sending reputation. To firewall your main mail, authenticate a dedicated sending subdomain in SendGrid (e.g. `outreach.thesalesprogressor.co.uk` — Sender Authentication → Authenticate a Domain, add the CNAME/DKIM records it gives you), then set env `PROSPECT_FROM_EMAIL=ellis@outreach.thesalesprogressor.co.uk`. That's a one-line env change on our side once your DNS is done; no code change.
+
 ## Prospects — email + reply tracking setup (2026-08-29)
 
 Phase 3 of the Command Centre → Prospects feature can send outreach from you and track opens/clicks/replies. The code is live but needs these one-time setup steps before sends and reply-capture work. Until they're done, sending still works if the sender is verified, but replies won't be captured and the signature image won't render.
