@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { ClockCountdown, Plus, ArrowRight, UserCircle, Storefront, UsersThree, ListChecks } from "@phosphor-icons/react/dist/ssr";
+import { ClockCountdown, Plus, ArrowRight, ListChecks } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, getAgentCompletedFiles, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
@@ -59,8 +58,9 @@ const SETUP_TINTS = {
 
 // One "While you're getting set up" card: tinted icon, title, description, and a
 // glass button (our shape) with a coral arrow. Hover lift comes from agent-btn-secondary.
-function SetupCard({ icon, tint, title, desc, cta, href }: {
-  icon: ReactNode;
+// The icon is a line-art PNG masked to the tint colour so it matches the palette.
+function SetupCard({ iconSrc, tint, title, desc, cta, href }: {
+  iconSrc: string;
   tint: keyof typeof SETUP_TINTS;
   title: string;
   desc: string;
@@ -71,8 +71,14 @@ function SetupCard({ icon, tint, title, desc, cta, href }: {
   return (
     <div className="agent-glass" style={{ padding: "18px 18px 16px", borderRadius: "var(--agent-radius-lg)", display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
-        <span style={{ width: 40, height: 40, borderRadius: "50%", background: t.bg, color: t.fg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
+        <span style={{ width: 40, height: 40, borderRadius: "50%", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span aria-hidden style={{
+            width: 22, height: 22, display: "block", background: t.fg,
+            WebkitMaskImage: `url(${iconSrc})`, maskImage: `url(${iconSrc})`,
+            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center", maskPosition: "center",
+            WebkitMaskSize: "contain", maskSize: "contain",
+          }} />
         </span>
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>{title}</p>
@@ -207,7 +213,7 @@ export default async function AgentCompletionsPage() {
               <p className="agent-eyebrow" style={{ marginBottom: 12 }}>While you&apos;re getting set up</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                 <SetupCard
-                  icon={<UserCircle size={22} weight="regular" />}
+                  iconSrc="/setup-profile.png"
                   tint="coral"
                   title="Complete your profile"
                   desc="Add your contact details and photo so clients know who they're dealing with."
@@ -215,7 +221,7 @@ export default async function AgentCompletionsPage() {
                   href="/agent/account/profile"
                 />
                 <SetupCard
-                  icon={<Storefront size={22} weight="regular" />}
+                  iconSrc="/setup-agency.png"
                   tint="blue"
                   title="Set up your agency"
                   desc="Add your branding and contact details to personalise the client experience."
@@ -223,7 +229,7 @@ export default async function AgentCompletionsPage() {
                   href="/agent/account/profile"
                 />
                 <SetupCard
-                  icon={<UsersThree size={22} weight="regular" />}
+                  iconSrc="/setup-invite.png"
                   tint="green"
                   title="Invite your team"
                   desc="Add your negotiators so they're ready when your first sales come in."
