@@ -1,5 +1,8 @@
 import { commandDb } from "@/lib/command/prisma";
 import vercelConfig from "@/vercel.json";
+import { cronInfo, CRON_GROUP_ORDER, type CronGroup } from "@/lib/command/cron-info";
+import { nextRun } from "@/lib/cron/next-run";
+import InfoTip from "@/components/command/shared/InfoTip";
 
 function fmtTs(d: Date | null): string {
   if (!d) return "—";
@@ -89,56 +92,90 @@ export default async function HealthPage() {
   const findStat = (name: string) =>
     allJobs.find((j) => j.jobName === name || j.jobName.includes(name) || name.includes(j.jobName)) ?? null;
 
-  const scheduled = SCHEDULED_JOBS.map((job) => ({ ...job, stat: findStat(job.name) }));
+  const now = new Date();
+  const scheduled = SCHEDULED_JOBS.map((job) => {
+    const info = cronInfo(job.name);
+    return { ...job, stat: findStat(job.name), info, nextRunAt: nextRun(job.schedule, now) };
+  });
   const reportingCount = scheduled.filter((s) => s.stat).length;
+  const failing = scheduled.filter((s) => s.stat?.lastSuccess === false).length;
+
+  // Group jobs by category, preserving the defined group order.
+  const byGroup = new Map<CronGroup, typeof scheduled>();
+  for (const g of CRON_GROUP_ORDER) byGroup.set(g, []);
+  for (const s of scheduled) {
+    const arr = byGroup.get(s.info.group) ?? [];
+    arr.push(s);
+    byGroup.set(s.info.group, arr);
+  }
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-100">System status</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          {reportingCount} of {scheduled.length} scheduled jobs report their status here. The rest run on schedule but don&rsquo;t report in yet, so their last run shows as untracked.
+          The {scheduled.length} background jobs that keep the platform running, what each one does, when it last ran, and when it&rsquo;s next due.
+        </p>
+        <p className="text-[12px] text-neutral-600 mt-1">
+          {failing > 0 ? (
+            <span className="text-red-400">{failing} job{failing > 1 ? "s" : ""} failed on its last run. </span>
+          ) : (
+            <span className="text-emerald-400/80">No failures on the last run. </span>
+          )}
+          {reportingCount} of {scheduled.length} report a live status; the rest run on schedule but don&rsquo;t log a result yet.
         </p>
       </div>
 
-      {/* Scheduled jobs */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Scheduled jobs
-        </h2>
-        <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="bg-neutral-950/60">
-                <th className="text-left px-5 py-3 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Job</th>
-                <th className="text-left px-4 py-3 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Schedule</th>
-                <th className="text-center px-4 py-3 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Last status</th>
-                <th className="text-right px-4 py-3 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Last run</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {scheduled.map((j) => (
-                <tr key={j.name} className="hover:bg-neutral-950/40 transition-colors">
-                  <td className="px-5 py-2.5 text-xs text-neutral-300">{j.name}</td>
-                  <td className="px-4 py-2.5 text-xs text-neutral-400 whitespace-nowrap">{cronToHuman(j.schedule)}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    {!j.stat ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-500">not reporting</span>
-                    ) : j.stat.lastSuccess === false ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-900">failed</span>
-                    ) : (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-900">ok</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-xs text-neutral-400 whitespace-nowrap">
-                    {j.stat ? fmtTs(j.stat.lastRunAt) : <span className="text-neutral-600">—</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {/* Scheduled jobs, grouped */}
+      {CRON_GROUP_ORDER.map((group) => {
+        const jobs = byGroup.get(group) ?? [];
+        if (jobs.length === 0) return null;
+        return (
+          <section key={group}>
+            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">{group}</h2>
+            <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead>
+                  <tr className="bg-neutral-950/60">
+                    <th className="text-left px-5 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Job</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Schedule</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Last status</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Last run</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Next run</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {jobs.map((j) => (
+                    <tr key={j.name} className="hover:bg-neutral-950/40 transition-colors align-top">
+                      <td className="px-5 py-3">
+                        <div className="text-xs text-neutral-200 font-medium">{j.info.label}</div>
+                        {j.info.desc && <div className="text-[11px] text-neutral-500 mt-0.5 max-w-md leading-relaxed">{j.info.desc}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">{cronToHuman(j.schedule)}</td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        {!j.stat ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-500">
+                            not logged
+                            <span className="ml-1 inline-block align-middle"><InfoTip label="Not logged">This job runs on schedule, but it doesn&rsquo;t record whether it succeeded yet, so we can&rsquo;t show a status.</InfoTip></span>
+                          </span>
+                        ) : j.stat.lastSuccess === false ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-900">failed</span>
+                        ) : (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-900">ok</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-neutral-400 whitespace-nowrap">
+                        {j.stat ? fmtTs(j.stat.lastRunAt) : <span className="text-neutral-600">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-neutral-500 whitespace-nowrap">{fmtTs(j.nextRunAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })}
 
       {/* Recent individual runs */}
       <section>
