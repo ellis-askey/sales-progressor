@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
@@ -64,7 +66,15 @@ function SectionHeader({ label }: { label: string }) {
   );
 }
 
-export function OnboardingChecklist({ userId }: { userId: string }) {
+// The onboarding checklist. Two shapes off the same state:
+//   - variant="floating" (default): the bottom-right drawer that follows the
+//     agent around. Hidden on the hub while there are no sales, because the hub
+//     shows the inline version there instead (Option B).
+//   - variant="inline": rendered in the hub's empty state (top-right). Steps
+//     drive the agent to add their first sale + finish account setup. Once a
+//     sale exists, the inline one steps aside and the floating one takes over.
+export function OnboardingChecklist({ userId, variant = "floating" }: { userId: string; variant?: "floating" | "inline" }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [emailSkipped, setEmailSkipped] = useState(false);
@@ -79,7 +89,8 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
       setDismissed(true);
       return;
     }
-    if (window.innerWidth >= 768) setOpen(true);
+    // Inline always opens; the floating one opens on desktop only.
+    if (variant === "inline" || window.innerWidth >= 768) setOpen(true);
     fetchProgress();
 
     const interval = setInterval(fetchProgress, 15_000);
@@ -155,16 +166,103 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
     .filter((s) => s.progressKey !== "hasVerifiedEmail")
     .every((s) => effectiveProgress[s.progressKey]);
 
-  const counterBadge = (
-    <span style={{
-      fontSize: 10, fontWeight: 700, padding: "1px 6px",
-      borderRadius: 99,
-      background: "rgba(var(--agent-coral-rgb), 0.12)",
-      color: "var(--agent-coral-deep)",
-    }}>
-      {completedCount}/{totalCount}
-    </span>
+  const counterBadge = <Pill tone="brand" size="sm" style={{ fontWeight: 700 }}>{completedCount}/{totalCount}</Pill>;
+
+  // Step list — shared by both variants.
+  const stepList = (
+    <div style={{ padding: "4px 0 8px" }}>
+      {STEPS.map((step, i) => {
+        const done = effectiveProgress[step.progressKey];
+        const href = step.hrefDynamic ? step.hrefDynamic(firstTxId) : step.href;
+        const showSkip = step.progressKey === "hasVerifiedEmail" && !done && allOthersComplete;
+        const header = i === 0 ? "Get going" : i === FINISH_SETUP_START ? "Finish setup" : null;
+        return (
+          <div key={step.label}>
+            {header && <SectionHeader label={header} />}
+            <Link
+              href={href}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "9px 16px",
+                textDecoration: "none",
+                transition: "background 120ms",
+                opacity: done ? 0.55 : 1,
+              }}
+              className="hover:bg-white/40"
+            >
+              {done
+                ? <CheckCircle size={18} weight="fill" style={{ color: "#10b981", flexShrink: 0 }} />
+                : <Circle size={18} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+              }
+              <span style={{
+                fontSize: 13,
+                fontWeight: done ? 400 : 500,
+                color: done ? "var(--agent-text-muted)" : "var(--agent-text-primary)",
+                textDecoration: done ? "line-through" : "none",
+                flex: 1,
+              }}>
+                {step.label}
+              </span>
+              {showSkip && (
+                <button
+                  onClick={skipEmail}
+                  style={{
+                    fontSize: 11, fontWeight: 500,
+                    color: "var(--agent-text-muted)",
+                    padding: "2px 7px", borderRadius: 5,
+                    border: "0.5px solid var(--agent-border-default)",
+                    background: "var(--agent-surface-glass)",
+                    cursor: "pointer", flexShrink: 0,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Skip
+                </button>
+              )}
+            </Link>
+          </div>
+        );
+      })}
+    </div>
   );
+
+  // ── Inline (hub empty state) ──────────────────────────────────────────────
+  if (variant === "inline") {
+    // Once a sale exists the floating drawer takes over, so the inline one bows out.
+    if (effectiveProgress.hasSale) return null;
+    return (
+      <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden", padding: 0 }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 16px",
+          borderBottom: open ? "0.5px solid var(--agent-border-subtle)" : "none",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ListChecks size={16} weight="bold" style={{ color: "var(--agent-coral-deep)" }} />
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+              Getting started
+            </p>
+            {counterBadge}
+          </div>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            style={{ padding: 4, borderRadius: 6, border: "none", background: "none", cursor: "pointer", color: "var(--agent-text-muted)", display: "flex" }}
+            aria-label={open ? "Collapse" : "Expand"}
+          >
+            {open ? <CaretUp size={14} /> : <CaretDown size={14} />}
+          </button>
+        </div>
+        {open && stepList}
+      </div>
+    );
+  }
+
+  // ── Floating (default) ────────────────────────────────────────────────────
+  // Option B: on the hub, while there are no sales, the inline version shows
+  // instead — so hide the floating one there. Everywhere else it floats.
+  if (pathname === "/agent/hub" && !effectiveProgress.hasSale) return null;
 
   return (
     <div style={{
@@ -218,63 +316,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
             </div>
           </div>
 
-          {/* Step list */}
-          <div style={{ padding: "4px 0 8px" }}>
-            {STEPS.map((step, i) => {
-              const done = effectiveProgress[step.progressKey];
-              const href = step.hrefDynamic ? step.hrefDynamic(firstTxId) : step.href;
-              const showSkip = step.progressKey === "hasVerifiedEmail" && !done && allOthersComplete;
-              const header = i === 0 ? "Get going" : i === FINISH_SETUP_START ? "Finish setup" : null;
-              return (
-                <div key={step.label}>
-                  {header && <SectionHeader label={header} />}
-                <Link
-                  href={href}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "9px 16px",
-                    textDecoration: "none",
-                    transition: "background 120ms",
-                    opacity: done ? 0.55 : 1,
-                  }}
-                  className="hover:bg-white/40"
-                >
-                  {done
-                    ? <CheckCircle size={18} weight="fill" style={{ color: "#10b981", flexShrink: 0 }} />
-                    : <Circle size={18} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                  }
-                  <span style={{
-                    fontSize: 13,
-                    fontWeight: done ? 400 : 500,
-                    color: done ? "var(--agent-text-muted)" : "var(--agent-text-primary)",
-                    textDecoration: done ? "line-through" : "none",
-                    flex: 1,
-                  }}>
-                    {step.label}
-                  </span>
-                  {showSkip && (
-                    <button
-                      onClick={skipEmail}
-                      style={{
-                        fontSize: 11, fontWeight: 500,
-                        color: "var(--agent-text-muted)",
-                        padding: "2px 7px", borderRadius: 5,
-                        border: "0.5px solid var(--agent-border-default)",
-                        background: "var(--agent-surface-glass)",
-                        cursor: "pointer", flexShrink: 0,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      Skip
-                    </button>
-                  )}
-                </Link>
-                </div>
-              );
-            })}
-          </div>
+          {stepList}
         </div>
       ) : (
         /* Collapsed */

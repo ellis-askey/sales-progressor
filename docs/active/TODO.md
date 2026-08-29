@@ -2,6 +2,19 @@
 
 ---
 
+## Completions "View all steps" setup modal (filed 2026-08-30)
+
+The Completions empty state for brand-new agency users has a "Track your setup
+progress" guide card. It's BUILT BUT HIDDEN behind `SHOW_SETUP_GUIDE = false` in
+`app/agent/completions/page.tsx`. Its "View all steps" button should open a modal
+that lists the full Getting-started checklist (the 6 onboarding steps) with each
+step's done/undone state and a link, so the agent sees the whole setup in one
+place. Reuse the onboarding progress source (`/api/agent/onboarding-progress`,
+same as `components/agent/OnboardingChecklist.tsx`). When the modal exists, flip
+`SHOW_SETUP_GUIDE = true`.
+
+---
+
 ## Phase-2 arc — BuyerRound per-sale scoping for remaining models
 
 Filed 2026-06-05 as part of the Section 2 Contact-scoping PR. Branch

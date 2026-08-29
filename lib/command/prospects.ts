@@ -475,3 +475,31 @@ export async function searchProspectGroups(q: string): Promise<GroupMatch[]> {
   });
   return rows.map((g) => ({ id: g.id, name: g.name, branchCount: g._count.prospects }));
 }
+
+// ─── Batch import ────────────────────────────────────────────────────────────
+
+export type ImportItemRow = {
+  id: string; inputAgency: string; inputLocation: string | null;
+  status: string; prospectId: string | null; agencyName: string | null; error: string | null;
+};
+export type ImportBatchView = { id: string; status: string; total: number; items: ImportItemRow[] };
+
+export async function getImportBatch(batchId: string): Promise<ImportBatchView | null> {
+  const b = await commandDb.prospectImportBatch.findUnique({
+    where: { id: batchId },
+    include: { items: { orderBy: { createdAt: "asc" } } },
+  });
+  if (!b) return null;
+  const pids = b.items.map((i) => i.prospectId).filter((x): x is string => !!x);
+  const names = pids.length
+    ? await commandDb.prospect.findMany({ where: { id: { in: pids } }, select: { id: true, agencyName: true } })
+    : [];
+  const nameById = new Map(names.map((n) => [n.id, n.agencyName]));
+  return {
+    id: b.id, status: b.status, total: b.total,
+    items: b.items.map((i) => ({
+      id: i.id, inputAgency: i.inputAgency, inputLocation: i.inputLocation, status: i.status,
+      prospectId: i.prospectId, agencyName: i.prospectId ? nameById.get(i.prospectId) ?? null : null, error: i.error,
+    })),
+  };
+}

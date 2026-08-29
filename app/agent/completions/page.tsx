@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClockCountdown } from "@phosphor-icons/react/dist/ssr";
+import { ClockCountdown, Plus, ArrowRight, ListChecks } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, getAgentCompletedFiles, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
@@ -13,29 +13,8 @@ import { CompletedSection } from "@/components/completions/CompletedSection";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
-import { Card } from "@/components/ui/Card";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { toUKDateStr } from "@/lib/utils";
-
-// Bespoke composer per Skeleton.tsx's contract — encodes the
-// completions ghost layout. Inner pulses wrap canonical Skeleton.
-function Bar({ width, height, mt = 0, mb = 0, radius = 4 }: {
-  width: string | number;
-  height: number;
-  mt?: number;
-  mb?: number;
-  radius?: number | string;
-}) {
-  return (
-    <Skeleton
-      variant="block"
-      width={width}
-      height={height}
-      style={{ borderRadius: radius, marginTop: mt, marginBottom: mb, display: "block" }}
-    />
-  );
-}
 
 function fmtCompact(pence: number) {
   const pounds = pence / 100;
@@ -66,6 +45,53 @@ const ALL_GROUPS = [
   { key: "later"     as const, label: "Later" },
   { key: "no_date"   as const, label: "No completion date set" },
 ];
+
+// The bottom "Track your setup progress" guide card is built below but hidden
+// until its "View all steps" modal exists (logged in docs/active/TODO.md).
+const SHOW_SETUP_GUIDE = false;
+
+const SETUP_TINTS = {
+  coral: { bg: "rgba(var(--agent-coral-rgb), 0.12)", fg: "var(--agent-coral-deep)" },
+  blue:  { bg: "rgba(59,130,246,0.12)",  fg: "#2f74e0" },
+  green: { bg: "rgba(16,185,129,0.14)",  fg: "#0f9d6b" },
+} as const;
+
+// One "While you're getting set up" card: tinted icon, title, description, and a
+// glass button (our shape) with a coral arrow. Hover lift comes from agent-btn-secondary.
+// The icon is a line-art PNG masked to the tint colour so it matches the palette.
+function SetupCard({ iconSrc, tint, title, desc, cta, href }: {
+  iconSrc: string;
+  tint: keyof typeof SETUP_TINTS;
+  title: string;
+  desc: string;
+  cta: string;
+  href: string;
+}) {
+  const t = SETUP_TINTS[tint];
+  return (
+    <div className="agent-glass" style={{ padding: "18px 18px 16px", borderRadius: "var(--agent-radius-lg)", display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
+        <span style={{ width: 40, height: 40, borderRadius: "50%", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span aria-hidden style={{
+            width: 22, height: 22, display: "block", background: t.fg,
+            WebkitMaskImage: `url(${iconSrc})`, maskImage: `url(${iconSrc})`,
+            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center", maskPosition: "center",
+            WebkitMaskSize: "contain", maskSize: "contain",
+          }} />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>{title}</p>
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{desc}</p>
+        </div>
+      </div>
+      <Link href={href} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ textDecoration: "none", width: "100%", justifyContent: "space-between" }}>
+        {cta}
+        <ArrowRight size={14} weight="bold" style={{ color: "var(--agent-coral-deep)" }} />
+      </Link>
+    </div>
+  );
+}
 
 export default async function AgentCompletionsPage() {
   const session = await requireSession();
@@ -112,6 +138,10 @@ export default async function AgentCompletionsPage() {
   const filesWithPrice = files.filter((f) => f.purchasePrice).length;
   const totalFees     = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
   const filesWithFee  = files.filter((f) => f.agentFeeAmount).length;
+
+  // Brand-new agency user (no pending, no completed history): show the onboarding
+  // empty state (hero + "getting set up" cards). Internal staff never see it.
+  const isBrandNew = files.length === 0 && completedFiles.length === 0 && !isInternalStaff;
 
   // Pre-compute groups with serialisable per-file data for the client component
   const completionGroups: CompletionGroup[] = ALL_GROUPS.flatMap(({ key, label }) => {
@@ -161,70 +191,94 @@ export default async function AgentCompletionsPage() {
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-7">
 
-        {/* Empty state */}
-        {files.length === 0 && (
+        {/* Empty state — brand-new agency users get the onboarding layout. */}
+        {files.length === 0 && isBrandNew && (
           <>
-            <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-              <ClockCountdown
-                size={32}
-                weight="regular"
-                style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }}
-              />
-              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                {completedFiles.length > 0 ? "Nothing heading to completion right now" : "No completions"}
+            {/* Hero (tightened to sit with the cards below; no watermark). */}
+            <div className="agent-glass-strong" style={{ padding: "28px 30px", borderRadius: "var(--agent-radius-xl)" }}>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
+                No completions yet
               </p>
-              <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                {completedFiles.length > 0
-                  ? "Files appear here once they exchange. Your completed files are below."
-                  : "Files appear here once they exchange."}
+              <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 430 }}>
+                Once files are exchanged, they&apos;ll appear here and you&apos;ll be able to track them all the way to completion.
               </p>
+              <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
+                <Plus size={16} weight="bold" />
+                Add your first sale
+              </Link>
             </div>
 
-            {/* Ghost skeleton only when the page is genuinely empty (no completed history below). */}
-            {completedFiles.length === 0 && (
-            <div style={{ opacity: 0.35, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Ghost group 1 — overdue shape */}
-              <div className="agent-glass" style={{ overflow: "hidden" }}>
-                <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <Skeleton variant="circle" width={10} style={{ display: "block" }} />
-                    <Bar width={80} height={11} />
-                  </div>
-                  <Bar width={64} height={11} />
-                </div>
-                <div className="agent-acc open">
-                  <div className="agent-acc-in">
-                    <div className="agent-acc-body">
-                      <div className="space-y-2">
-                        {[200, 240].map((w, i) => (
-                          <Card key={i} padding="none">
-                            <div className="px-5 py-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-                              <div>
-                                <Bar width={w} height={13} radius={6} mb={5} />
-                                <Bar width={110} height={11} radius={6} />
-                              </div>
-                              <Bar width={52} height={22} radius={99} />
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Ghost group 2 — this-week shape (collapsed) */}
-              <div className="agent-glass" style={{ overflow: "hidden" }}>
-                <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <Skeleton variant="circle" width={10} style={{ display: "block" }} />
-                    <Bar width={140} height={11} />
-                  </div>
-                  <Bar width={56} height={11} />
-                </div>
+            {/* While you're getting set up */}
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 12 }}>While you&apos;re getting set up</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+                <SetupCard
+                  iconSrc="/setup-profile.png"
+                  tint="coral"
+                  title="Complete your profile"
+                  desc="Add your contact details and photo so clients know who they're dealing with."
+                  cta="Set up profile"
+                  href="/agent/account/profile"
+                />
+                <SetupCard
+                  iconSrc="/setup-agency.png"
+                  tint="blue"
+                  title="Set up your agency"
+                  desc="Add your branding and contact details to personalise the client experience."
+                  cta="Agency settings"
+                  href="/agent/account/profile"
+                />
+                <SetupCard
+                  iconSrc="/setup-invite.png"
+                  tint="green"
+                  title="Invite your team"
+                  desc="Add your negotiators so they're ready when your first sales come in."
+                  cta="Invite team"
+                  href="/agent/account/team"
+                />
               </div>
             </div>
+
+            {/* Bottom guide card — built, hidden until its "View all steps" modal
+                exists (docs/active/TODO.md). Flip SHOW_SETUP_GUIDE to reveal. */}
+            {SHOW_SETUP_GUIDE && (
+              <div className="agent-glass" style={{ padding: "18px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb), 0.12)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <ListChecks size={20} weight="regular" />
+                  </span>
+                  <div>
+                    <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Track your setup progress</p>
+                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Follow the Getting started guide to make sure you&apos;re ready to go.</p>
+                  </div>
+                </div>
+                {/* TODO: opens the "View all steps" modal (see docs/active/TODO.md). */}
+                <button type="button" className="agent-btn agent-btn-secondary agent-btn-sm" style={{ gap: 8, flexShrink: 0 }}>
+                  <ListChecks size={14} weight="bold" />
+                  View all steps
+                </button>
+              </div>
             )}
           </>
+        )}
+
+        {/* Empty state — has completed history, or internal staff: the simpler card. */}
+        {files.length === 0 && !isBrandNew && (
+          <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <ClockCountdown
+              size={32}
+              weight="regular"
+              style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }}
+            />
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              {completedFiles.length > 0 ? "Nothing heading to completion right now" : "No completions"}
+            </p>
+            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+              {completedFiles.length > 0
+                ? "Files appear here once they exchange. Your completed files are below."
+                : "Files appear here once they exchange."}
+            </p>
+          </div>
         )}
 
         {/* Headed summary tiles */}

@@ -8,6 +8,7 @@ import { ProspectsBoard } from "@/components/command/prospects/ProspectsBoard";
 import { ProspectPipeline } from "@/components/command/prospects/ProspectPipeline";
 import { FollowUpQueue } from "@/components/command/prospects/FollowUpQueue";
 import { ProspectInsights } from "@/components/command/prospects/ProspectInsights";
+import { ProspectImport } from "@/components/command/prospects/ProspectImport";
 import InfoTip from "@/components/command/shared/InfoTip";
 import type { ProspectStatus, ProspectSource } from "@prisma/client";
 
@@ -19,10 +20,10 @@ export const dynamic = "force-dynamic";
 // actions triggered from this page room to finish.
 export const maxDuration = 60;
 
-type View = "all" | "pipeline" | "followups" | "insights";
+type View = "all" | "pipeline" | "followups" | "insights" | "import";
 type SP = { q?: string; status?: string; source?: string; view?: string; bucket?: string };
 
-const parseView = (v: string | undefined): View => (v === "pipeline" || v === "followups" || v === "insights" ? v : "all");
+const parseView = (v: string | undefined): View => (v === "pipeline" || v === "followups" || v === "insights" || v === "import" ? v : "all");
 const parseBucket = (b: string | undefined): FollowUpBucket => (b === "overdue" || b === "upcoming" || b === "all" ? b : "today");
 const parseStatus = (r: string | undefined): ProspectStatus | null => (PROSPECT_STATUSES.includes(r as ProspectStatus) ? (r as ProspectStatus) : null);
 const parseSource = (r: string | undefined): ProspectSource | null => (PROSPECT_SOURCES.includes(r as ProspectSource) ? (r as ProspectSource) : null);
@@ -64,9 +65,9 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
 
       {/* View tabs */}
       <div className="flex flex-wrap gap-1.5">
-        {(["all", "pipeline", "followups", "insights"] as View[]).map((v) => (
+        {(["all", "pipeline", "followups", "insights", "import"] as View[]).map((v) => (
           <Link key={v} href={href({ view: v === "all" ? undefined : v })} className={pill(v === view)}>
-            {v === "all" ? "All prospects" : v === "pipeline" ? "Pipeline" : v === "followups" ? "Follow-ups" : "Insights"}
+            {v === "all" ? "All prospects" : v === "pipeline" ? "Pipeline" : v === "followups" ? "Follow-ups" : v === "insights" ? "Insights" : "Import"}
           </Link>
         ))}
       </div>
@@ -102,6 +103,8 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
       )}
 
       {view === "insights" && <ProspectInsights funnel={await getAcquisitionFunnel()} chainLeads={await getChainLeads()} />}
+
+      {view === "import" && <ProspectImport />}
     </div>
   );
 }
