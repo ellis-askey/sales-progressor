@@ -16,6 +16,19 @@ export const SOURCE_LABEL: Record<ProspectSource, string> = {
   inbound: "Inbound", other: "Other",
 };
 
+export const CALL_OUTCOMES = ["no_answer", "spoke", "interested", "call_back", "not_interested", "other"] as const;
+export const CALL_OUTCOME_LABEL: Record<string, string> = {
+  no_answer: "No answer", spoke: "Spoke", interested: "Interested", call_back: "Call back",
+  not_interested: "Not interested", other: "Other",
+};
+
+export const LOST_REASONS = ["not_interested", "existing_solution", "price", "no_response", "timing", "corporate_decision", "doesnt_outsource", "other"] as const;
+export const LOST_REASON_LABEL: Record<string, string> = {
+  not_interested: "Not interested", existing_solution: "Has a solution", price: "Price",
+  no_response: "No response", timing: "Timing", corporate_decision: "Corporate decision",
+  doesnt_outsource: "Doesn't outsource", other: "Other",
+};
+
 // Status pill colours for the list + drawer.
 export const STATUS_TONE: Record<ProspectStatus, string> = {
   new: "bg-neutral-800 text-neutral-300 border-neutral-700",

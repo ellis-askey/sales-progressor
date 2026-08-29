@@ -7,7 +7,8 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
 import { getProspectDetail, type ProspectDetail } from "@/lib/command/prospects";
-import type { Prisma, ProspectStatus, ProspectSource } from "@prisma/client";
+import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/prospect-labels";
+import type { Prisma, ProspectStatus, ProspectSource, ProspectLostReason } from "@prisma/client";
 
 // Command Centre → Prospects server actions. Every action is superadmin-gated
 // and writes through commandDb. Meaningful changes also append a ProspectActivity
@@ -173,6 +174,73 @@ export async function setPrimaryContactAction(prospectId: string, contactId: str
     commandDb.prospectContact.updateMany({ where: { prospectId, isPrimary: true }, data: { isPrimary: false } }),
     commandDb.prospectContact.update({ where: { id: contactId }, data: { isPrimary: true } }),
   ]);
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// ─── Phase 2: calls, follow-ups, lost ────────────────────────────────────────
+
+function parseDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export async function logProspectCallAction(id: string, input: {
+  outcome: string; notes?: string; nextFollowUpAt?: string | null; newStatus?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const outcome = (CALL_OUTCOMES as readonly string[]).includes(input.outcome) ? input.outcome : "other";
+  const current = await commandDb.prospect.findUnique({ where: { id }, select: { status: true } });
+  if (!current) return { ok: false, error: "Prospect not found." };
+
+  const validStatuses: ProspectStatus[] = ["new", "contacted", "replied", "interested", "trial", "active", "lost"];
+  const newStatus = input.newStatus && validStatuses.includes(input.newStatus as ProspectStatus) ? (input.newStatus as ProspectStatus) : null;
+  const followUp = input.nextFollowUpAt !== undefined ? parseDate(input.nextFollowUpAt) : undefined;
+
+  await commandDb.prospect.update({
+    where: { id },
+    data: {
+      lastContactedAt: new Date(),
+      ...(followUp !== undefined ? { nextFollowUpAt: followUp } : {}),
+      ...(newStatus ? { status: newStatus } : {}),
+    },
+  });
+  await logActivity(id, session.user.id, "call_logged", `Call: ${CALL_OUTCOME_LABEL[outcome]}`, input.notes?.trim() || null, { outcome, ...(followUp ? { nextFollowUpAt: followUp.toISOString() } : {}) });
+  if (newStatus && newStatus !== current.status) {
+    await logActivity(id, session.user.id, "status_changed", `${current.status} → ${newStatus}`, null, { fromStatus: current.status, toStatus: newStatus });
+  }
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+export async function scheduleFollowUpAction(id: string, whenISO: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const when = parseDate(whenISO);
+  if (!when) return { ok: false, error: "Pick a valid date." };
+  await commandDb.prospect.update({ where: { id }, data: { nextFollowUpAt: when } });
+  await logActivity(id, session.user.id, "follow_up_scheduled", `Follow-up set for ${when.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, null, { when: when.toISOString() });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+export async function completeFollowUpAction(id: string): Promise<{ ok: true }> {
+  const session = await requireSuperAdmin();
+  await commandDb.prospect.update({ where: { id }, data: { nextFollowUpAt: null } });
+  await logActivity(id, session.user.id, "follow_up_completed", "Follow-up cleared");
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+export async function markProspectLostAction(id: string, reason: string, revisitISO?: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const lostReason = ((LOST_REASONS as readonly string[]).includes(reason) ? reason : "other") as ProspectLostReason;
+  const revisit = parseDate(revisitISO);
+  await commandDb.prospect.update({
+    where: { id },
+    data: { status: "lost", lostAt: new Date(), lostReason, revisitAt: revisit, nextFollowUpAt: null },
+  });
+  await logActivity(id, session.user.id, "lost", `Marked lost: ${reason}${revisit ? ` (revisit ${revisit.toLocaleDateString("en-GB", { day: "numeric", month: "short" })})` : ""}`, null, { reason, ...(revisit ? { revisitAt: revisit.toISOString() } : {}) });
   revalidatePath("/command/prospects");
   return { ok: true };
 }

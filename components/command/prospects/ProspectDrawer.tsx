@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   getProspectDetailAction, changeProspectStatusAction, addProspectNoteAction,
   addProspectContactAction, setPrimaryContactAction, updateProspectAction,
+  logProspectCallAction, scheduleFollowUpAction, completeFollowUpAction, markProspectLostAction,
 } from "@/app/actions/prospects";
-import { PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL } from "@/lib/command/prospect-labels";
+import {
+  PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
+  CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS, LOST_REASON_LABEL,
+} from "@/lib/command/prospect-labels";
 import type { ProspectDetail } from "@/lib/command/prospects";
 import type { ProspectStatus } from "@prisma/client";
 
@@ -27,7 +31,7 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
   const [d, setD] = useState<ProspectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "note" | "contact" | "edit">(null);
+  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost">(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,14 +68,35 @@ export function ProspectDrawer({ id, onClose }: { id: string; onClose: () => voi
               </div>
             )}
 
+            {/* Next follow-up */}
+            <div className="flex items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2.5">
+              <div className="text-xs">
+                <span className="text-neutral-500">Next follow-up: </span>
+                {d.nextFollowUpAt ? (
+                  <span className={new Date(d.nextFollowUpAt).getTime() <= Date.now() ? "text-amber-400" : "text-neutral-200"}>{fmtDateTime(d.nextFollowUpAt)}</span>
+                ) : (
+                  <span className="text-neutral-600">none set</span>
+                )}
+              </div>
+              {d.nextFollowUpAt && (
+                <button onClick={() => startTransition(async () => { await completeFollowUpAction(id); after(); })} disabled={pending} className="text-[11px] text-neutral-500 hover:text-neutral-300">Mark done</button>
+              )}
+            </div>
+
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
               <StatusChanger current={d.status} onChange={(s) => startTransition(async () => { await changeProspectStatusAction(id, s); after(); })} disabled={pending} />
+              <ActionBtn onClick={() => setPanel(panel === "call" ? null : "call")} active={panel === "call"}>Log call</ActionBtn>
+              <ActionBtn onClick={() => setPanel(panel === "followup" ? null : "followup")} active={panel === "followup"}>Follow up</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "note" ? null : "note")} active={panel === "note"}>Add note</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "contact" ? null : "contact")} active={panel === "contact"}>Add contact</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "edit" ? null : "edit")} active={panel === "edit"}>Edit details</ActionBtn>
+              <ActionBtn onClick={() => setPanel(panel === "lost" ? null : "lost")} active={panel === "lost"}>Mark lost</ActionBtn>
             </div>
 
+            {panel === "call" && <CallPanel onSave={(input) => startTransition(async () => { await logProspectCallAction(id, input); after(); })} pending={pending} />}
+            {panel === "followup" && <FollowUpPanel onSave={(iso) => startTransition(async () => { await scheduleFollowUpAction(id, iso); after(); })} pending={pending} />}
+            {panel === "lost" && <LostPanel onSave={(reason, revisit) => startTransition(async () => { await markProspectLostAction(id, reason, revisit); after(); })} pending={pending} />}
             {panel === "note" && <NotePanel onSave={(text) => startTransition(async () => { await addProspectNoteAction(id, text); after(); })} pending={pending} />}
             {panel === "contact" && <ContactPanel onSave={(input) => startTransition(async () => { await addProspectContactAction(id, input); after(); })} pending={pending} />}
             {panel === "edit" && <EditPanel d={d} onSave={(patch) => startTransition(async () => { await updateProspectAction(id, patch); after(); })} pending={pending} />}
@@ -219,6 +244,76 @@ function EditPanel({ d, onSave, pending }: { d: ProspectDetail; onSave: (patch: 
       </div>
       <textarea value={f.notes} onChange={set("notes")} rows={2} placeholder="Notes" className={inputCls} />
       <button onClick={() => onSave(f)} disabled={pending || !f.agencyName.trim()} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Save"}</button>
+    </div>
+  );
+}
+
+function isoInDays(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+const QUICK_DAYS: [string, number][] = [["+2d", 2], ["+5d", 5], ["+1w", 7], ["+2w", 14]];
+
+function CallPanel({ onSave, pending }: { onSave: (i: { outcome: string; notes?: string; nextFollowUpAt?: string; newStatus?: string }) => void; pending: boolean }) {
+  const [outcome, setOutcome] = useState("spoke");
+  const [notes, setNotes] = useState("");
+  const [date, setDate] = useState("");
+  const [status, setStatus] = useState("");
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2.5">
+      <div className="flex flex-wrap gap-1.5">
+        {CALL_OUTCOMES.map((o) => (
+          <button key={o} onClick={() => setOutcome(o)} className={`text-[11px] px-2 py-0.5 rounded-md border ${outcome === o ? "bg-neutral-100 text-neutral-900 border-neutral-100" : "bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-neutral-200"}`}>{CALL_OUTCOME_LABEL[o]}</button>
+        ))}
+      </div>
+      <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes (optional)…" className={inputCls} />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] text-neutral-500">Next follow-up</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} w-auto`} />
+        {QUICK_DAYS.map(([lbl, n]) => <button key={lbl} onClick={() => setDate(isoInDays(n))} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 hover:text-neutral-200">{lbl}</button>)}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-neutral-500">Set status</span>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className={`${inputCls} w-auto`}>
+          <option value="" className="bg-neutral-900">No change</option>
+          {PROSPECT_STATUSES.map((s) => <option key={s} value={s} className="bg-neutral-900">{STATUS_LABEL[s]}</option>)}
+        </select>
+      </div>
+      <button onClick={() => onSave({ outcome, notes: notes.trim() || undefined, nextFollowUpAt: date || undefined, newStatus: status || undefined })} disabled={pending} className="text-xs px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 disabled:opacity-40">{pending ? "…" : "Log call"}</button>
+    </div>
+  );
+}
+
+function FollowUpPanel({ onSave, pending }: { onSave: (iso: string) => void; pending: boolean }) {
+  const [date, setDate] = useState(isoInDays(5));
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} w-auto`} />
+        {QUICK_DAYS.map(([lbl, n]) => <button key={lbl} onClick={() => setDate(isoInDays(n))} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 hover:text-neutral-200">{lbl}</button>)}
+      </div>
+      <button onClick={() => onSave(date)} disabled={pending || !date} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Schedule follow-up"}</button>
+    </div>
+  );
+}
+
+function LostPanel({ onSave, pending }: { onSave: (reason: string, revisit: string | null) => void; pending: boolean }) {
+  const [reason, setReason] = useState("no_response");
+  const [revisit, setRevisit] = useState("");
+  return (
+    <div className="bg-neutral-900 border border-red-950/60 rounded-lg p-3 space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <select value={reason} onChange={(e) => setReason(e.target.value)} className={inputCls}>
+          {LOST_REASONS.map((r) => <option key={r} value={r} className="bg-neutral-900">{LOST_REASON_LABEL[r]}</option>)}
+        </select>
+        <select value={revisit} onChange={(e) => setRevisit(e.target.value)} className={inputCls}>
+          <option value="" className="bg-neutral-900">Never revisit</option>
+          <option value={isoInDays(90)} className="bg-neutral-900">Revisit in 3 months</option>
+          <option value={isoInDays(180)} className="bg-neutral-900">Revisit in 6 months</option>
+        </select>
+      </div>
+      <button onClick={() => onSave(reason, revisit || null)} disabled={pending} className="text-xs px-2.5 py-1 rounded-md bg-red-950 text-red-400 border border-red-900 hover:bg-red-900 disabled:opacity-40">{pending ? "…" : "Mark lost"}</button>
     </div>
   );
 }
