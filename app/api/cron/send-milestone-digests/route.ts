@@ -11,16 +11,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { drainMilestoneDigests } from "@/lib/email/milestone-digest-drain";
+import { runJob } from "@/lib/cron/run-job";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const result = await drainMilestoneDigests();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Drain error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("send-milestone-digests", async () => {
+    try {
+      const result = await drainMilestoneDigests();
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Drain error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

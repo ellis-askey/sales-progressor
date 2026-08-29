@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { runSolicitorChaseCron } from "@/lib/solicitor-confirm/chase";
+import { runJob } from "@/lib/cron/run-job";
 
 export const maxDuration = 120;
 
@@ -26,11 +27,13 @@ export async function GET(req: NextRequest) {
   // On/off is controlled by the SolicitorChaseSettings row (Settings →
   // Automation), not an env var — runSolicitorChaseCron returns enabled:false
   // and does nothing when the admin switch is off.
-  try {
-    const result = await runSolicitorChaseCron(new Date());
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Solicitor chase error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("solicitor-chase", async () => {
+    try {
+      const result = await runSolicitorChaseCron(new Date());
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Solicitor chase error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

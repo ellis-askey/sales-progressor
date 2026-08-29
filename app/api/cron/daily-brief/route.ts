@@ -3,6 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { runDailyBrief } from "@/lib/services/insight/daily-brief";
+import { runJob } from "@/lib/cron/run-job";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -13,11 +14,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await runDailyBrief();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("[cron/daily-brief] failed:", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
-  }
+  return runJob("daily-brief", async () => {
+    try {
+      const result = await runDailyBrief();
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      console.error("[cron/daily-brief] failed:", err);
+      return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    }
+  });
 }

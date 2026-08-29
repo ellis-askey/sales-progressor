@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendDueExchangeDayEmails } from "@/lib/exchange-day/send";
 import { sendDueExchangeDayClientEmails } from "@/lib/exchange-day/client-send";
+import { runJob } from "@/lib/cron/run-job";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,6 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("exchange-day-emails", async () => {
   const now = new Date();
   // Solicitor emails (08:45 / 12:30 / 15:30) and client emails (09:00 info +
   // 11:00 authority) both run off the same active-state pass. Client failure
@@ -30,4 +32,5 @@ export async function GET(req: NextRequest) {
     return { files: 0, emails: 0 };
   });
   return NextResponse.json({ ok: true, solicitor, client });
+  });
 }

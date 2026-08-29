@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendAgentWeeklyBriefs } from "@/lib/services/agent-weekly-brief";
+import { runJob } from "@/lib/cron/run-job";
 
 // Runs Monday 07:00 UTC via Vercel Cron (see vercel.json).
 // Protected by CRON_SECRET header.
@@ -10,13 +11,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const agencies = await prisma.agency.findMany({ select: { id: true } });
+  return runJob("agent-weekly-brief", async () => {
+    const agencies = await prisma.agency.findMany({ select: { id: true } });
 
-  let totalSent = 0;
-  for (const agency of agencies) {
-    const sent = await sendAgentWeeklyBriefs(agency.id).catch(() => 0);
-    totalSent += sent;
-  }
+    let totalSent = 0;
+    for (const agency of agencies) {
+      const sent = await sendAgentWeeklyBriefs(agency.id).catch(() => 0);
+      totalSent += sent;
+    }
 
-  return NextResponse.json({ sent: totalSent });
+    return NextResponse.json({ sent: totalSent });
+  });
 }

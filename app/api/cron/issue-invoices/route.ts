@@ -10,19 +10,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { issuePriorMonthInvoices } from "@/lib/billing/issuance";
+import { runJob } from "@/lib/cron/run-job";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const result = await issuePriorMonthInvoices();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("[issue-invoices] failed:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "unknown" },
-      { status: 500 },
-    );
-  }
+  return runJob("issue-invoices", async () => {
+    try {
+      const result = await issuePriorMonthInvoices();
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      console.error("[issue-invoices] failed:", err);
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "unknown" },
+        { status: 500 },
+      );
+    }
+  });
 }

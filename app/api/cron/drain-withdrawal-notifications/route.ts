@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fireChainCascadeNotifications, sendChainWaitNudges } from "@/lib/email/chainNotifications";
+import { runJob } from "@/lib/cron/run-job";
 
 // Daily fallback drain via Vercel Cron (see vercel.json: 0 9 * * 1-6).
 // Two passes:
@@ -14,12 +15,14 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const cascade = await fireChainCascadeNotifications();
-    const nudges = await sendChainWaitNudges();
-    return NextResponse.json({ ok: true, cascade, nudges });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Drain error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("drain-withdrawal-notifications", async () => {
+    try {
+      const cascade = await fireChainCascadeNotifications();
+      const nudges = await sendChainWaitNudges();
+      return NextResponse.json({ ok: true, cascade, nudges });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Drain error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

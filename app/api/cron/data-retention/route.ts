@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runJob } from "@/lib/cron/run-job";
 
 /**
  * GDPR data retention sweep — runs weekly (Sunday 01:00 UTC via vercel.json).
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("data-retention", async () => {
   const dryRun = req.nextUrl.searchParams.get("dryRun") === "true";
 
   const cutoff = new Date();
@@ -116,5 +118,6 @@ export async function GET(req: NextRequest) {
     anonymised,
     skipped: skippedCount,
     errors: errors.length > 0 ? errors : undefined,
+  });
   });
 }

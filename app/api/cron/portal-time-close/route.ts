@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runJob } from "@/lib/cron/run-job";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("portal-time-close", async () => {
   const cutoff = new Date(Date.now() - 5 * 60 * 1000);
 
   const staleSessions = await prisma.portalTimeSession.findMany({
@@ -50,4 +52,5 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, closed, discarded });
+  });
 }

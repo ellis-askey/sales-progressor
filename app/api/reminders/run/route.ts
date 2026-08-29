@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runReminderEngine } from "@/lib/services/reminders";
+import { runJob } from "@/lib/cron/run-job";
 
 export const maxDuration = 120;
 
@@ -26,11 +27,13 @@ export async function POST(req: NextRequest) {
 }
 
 async function runEngine() {
-  try {
-    const result = await runReminderEngine();
-    return NextResponse.json({ success: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Engine error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("run", async () => {
+    try {
+      const result = await runReminderEngine();
+      return NextResponse.json({ success: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Engine error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

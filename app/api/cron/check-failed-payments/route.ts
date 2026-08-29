@@ -14,19 +14,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { markOverdueAgenciesBlocked } from "@/lib/billing/payment-block";
+import { runJob } from "@/lib/cron/run-job";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const result = await markOverdueAgenciesBlocked();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("[check-failed-payments] failed:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "unknown" },
-      { status: 500 },
-    );
-  }
+  return runJob("check-failed-payments", async () => {
+    try {
+      const result = await markOverdueAgenciesBlocked();
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      console.error("[check-failed-payments] failed:", err);
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "unknown" },
+        { status: 500 },
+      );
+    }
+  });
 }

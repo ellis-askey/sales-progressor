@@ -3,6 +3,7 @@ import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { syncOutlookMailbox } from "@/lib/integrations/outlook/sync";
 import { interpretNewInboundEmails } from "@/lib/services/email-interpret";
+import { runJob } from "@/lib/cron/run-job";
 
 // Tier 3, Stage 1 — automatic capture. Runs the existing Outlook sync on a
 // schedule for every connected mailbox, so replies land on the right file by
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  return runJob("outlook-sync", async () => {
   const connections = await prisma.outlookConnection.findMany({
     select: {
       id: true, email: true, accessToken: true, refreshToken: true, tokenExpiresAt: true, scope: true,
@@ -55,4 +57,5 @@ export async function GET(req: NextRequest) {
   const interp = await interpretNewInboundEmails(30).catch(() => ({ interpreted: 0, proposed: 0 }));
 
   return NextResponse.json({ mailboxes, logged, unmatched, interpreted: interp.interpreted, proposed: interp.proposed });
+  });
 }

@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { runRaiseChaseCron } from "@/lib/enquiries/raise-chase";
+import { runJob } from "@/lib/cron/run-job";
 
 export const maxDuration = 120;
 
@@ -18,11 +19,13 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const result = await runRaiseChaseCron(new Date());
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Raise chase error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return runJob("enquiries-raise-chase", async () => {
+    try {
+      const result = await runRaiseChaseCron(new Date());
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Raise chase error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }
