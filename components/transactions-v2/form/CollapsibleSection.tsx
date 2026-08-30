@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 type Props = {
   title: string;
   summary?: string;
   defaultOpen?: boolean;
+  // Design Lab tagging — when set, this card appears in the picker.
+  glassId?: string;
+  glassLabel?: string;
   children: React.ReactNode;
 };
 
-export function CollapsibleSection({ title, summary, defaultOpen = false, children }: Props) {
+export function CollapsibleSection({ title, summary, defaultOpen = false, glassId, glassLabel, children }: Props) {
   const [open, setOpen] = useState(defaultOpen);
+  const { surfaceClass, tag } = useCardSurface(glassId ?? "", glassLabel ?? title, "agent-glass-strong");
+  const glass = glassId ? tag : {};
 
   return (
-    <div className="agent-glass-strong overflow-hidden">
+    <div className={`${glassId ? surfaceClass : "agent-glass-strong"} overflow-hidden`} {...glass}>
       <button
         type="button"
         className="agent-acc-hdr w-full"

@@ -20,6 +20,7 @@ import { Pill } from "@/components/ui/Pill";
 import { AddPhotoCircle } from "@/components/transaction/HeroPhotoUpload";
 import { AddressFields } from "@/components/transactions-v2/form/AddressFields";
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
 const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
@@ -140,8 +141,10 @@ export function SaleHeroEditable({
     onUpdate({ photoStoragePath: null });
   }
 
+  const { surfaceClass, tag } = useCardSurface("new-sale-hero", "New sale · Sale hero", "agent-glass-strong");
+
   return (
-    <div className="agent-glass-strong" style={{ position: "relative", overflow: "hidden", borderRadius: "var(--agent-radius-xl)", display: "flex", flexWrap: "wrap", animation: "agent-section-in 320ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) both" }}>
+    <div className={surfaceClass} {...tag} style={{ position: "relative", overflow: "hidden", borderRadius: "var(--agent-radius-xl)", display: "flex", flexWrap: "wrap", animation: "agent-section-in 320ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) both" }}>
       <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
 
       {/* Photo zone — exact property-file treatment: narrow zone widens on upload,

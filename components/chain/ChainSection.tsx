@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { LinkSimple, Plus } from "@phosphor-icons/react";
 import { AddNodeDrawer, type StubFormData, type EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { Pill } from "@/components/ui/Pill";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 export type InMemoryStub = StubFormData & {
   id: string;
@@ -42,9 +43,10 @@ function StubCard({
   const address1 = parts[0]?.trim() || stub.stubPropertyAddress;
   const address2 = parts.slice(1).join(",").trim();
   const hasValidEmail = stub.stubAgentEmail && EMAIL_RE.test(stub.stubAgentEmail);
+  const { surfaceClass, tag } = useCardSurface("new-sale-chain-link", "New sale · Chain link", "glass-card");
 
   return (
-    <div className="glass-card px-4 py-3">
+    <div className={`${surfaceClass} px-4 py-3`} {...tag}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900/90 truncate">{address1}</p>
@@ -82,14 +84,19 @@ function OriginatorCard({ address }: { address: string }) {
   const parts = address.split(",");
   const address1 = parts[0]?.trim() || "Your sale";
   const address2 = parts.slice(1).join(",").trim();
+  const { surfaceClass, tag, picked } = useCardSurface("new-sale-chain-yourfile", "New sale · Chain (your file)", "");
 
   return (
     <div
-      className="px-4 py-3"
+      className={`${surfaceClass} px-4 py-3`.trim()}
+      {...tag}
       style={{
         borderRadius: 13,
-        background: "rgba(var(--agent-coral-rgb), 0.06)",
-        boxShadow: "inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.30)",
+        // Coral-tinted "your file" node by default; a Design Lab pick takes over.
+        ...(picked ? {} : {
+          background: "rgba(var(--agent-coral-rgb), 0.06)",
+          boxShadow: "inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.30)",
+        }),
       }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -189,6 +196,7 @@ export function ChainSection({
     : undefined;
 
   const cardRadius = "var(--agent-radius-lg, 16px)";
+  const chainSurface = useCardSurface("new-sale-chain", "New sale · Chain", "agent-glass-strong");
 
   // Position options + the selected index, which slides the segmented pill.
   const POSITIONS: [ChainPosition, string][] = [
@@ -201,7 +209,7 @@ export function ChainSection({
 
   // ── Collapsed prompt (Option D — decisive question + quick chips) ─────────
   const collapsedCard = (
-    <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "16px 18px" }}>
+    <div className={chainSurface.surfaceClass} {...chainSurface.tag} style={{ borderRadius: cardRadius, padding: "16px 18px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 13 }}>
         <span style={{
           flexShrink: 0, width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center",
@@ -229,7 +237,7 @@ export function ChainSection({
 
   // ── Answered "no" — a compact resolved row that stays out of the way ──────
   const dismissedRow = (
-    <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+    <div className={chainSurface.surfaceClass} {...chainSurface.tag} style={{ borderRadius: cardRadius, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
         <span style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--agent-text-muted)", background: "rgba(var(--agent-coral-rgb), 0.06)" }}>
           <LinkSimple size={15} weight="regular" />
@@ -248,7 +256,7 @@ export function ChainSection({
 
   // ── Expanded builder — now wrapped in its own white card ──────────────────
   const expandedCard = (
-    <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "18px 20px" }}>
+    <div className={chainSurface.surfaceClass} {...chainSurface.tag} style={{ borderRadius: cardRadius, padding: "18px 20px" }}>
       {/* Header. When the section opened itself (audit #5) it leads with the
           question + the reason; a manual open keeps the plain "Chain" label. */}
       <div className="mb-3">

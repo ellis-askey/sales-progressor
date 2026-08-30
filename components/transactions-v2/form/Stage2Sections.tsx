@@ -154,7 +154,7 @@ export function Stage2Sections({
 
       {/* 2 — Solicitors & Broker (expanded by default) */}
       <Section delayMs={ms(2)} zIndex={10}>
-        <SectionAccordion title="Solicitors & Broker" defaultExpanded>
+        <SectionAccordion title="Solicitors & Broker" defaultExpanded glassId="new-sale-solicitors" glassLabel="New sale · Solicitors & Broker">
           <SolicitorSection
             vendorSolicitor={fields.vendorSolicitor}
             purchaserSolicitor={fields.purchaserSolicitor}

@@ -1278,6 +1278,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 key={notesOpenByDefault ? "notes-open" : "notes-shut"}
                 title="Notes"
                 defaultOpen={notesOpenByDefault}
+                glassId="new-sale-notes"
+                glassLabel="New sale · Notes"
               >
                 <NotesSection
                   notes={formFields.notes}

@@ -3,6 +3,7 @@
 import { ArrowRight, X } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { PropertyIntel } from "@/lib/hooks/usePropertyIntel";
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -131,9 +132,10 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
 
   const hasPropertyData = !!(data.lastSold || data.epc || data.tenure);
   const hasRecentSales = (data.recentLocalSales?.length ?? 0) > 0;
+  const { surfaceClass, tag } = useCardSurface("new-sale-sold-prices", "New sale · Sold prices", "agent-glass-subtle");
 
   return (
-    <div className="agent-glass-subtle" style={{ padding: "20px", borderRadius: 16 }}>
+    <div className={surfaceClass} {...tag} style={{ padding: "20px", borderRadius: 16 }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14, gap: 8 }}>

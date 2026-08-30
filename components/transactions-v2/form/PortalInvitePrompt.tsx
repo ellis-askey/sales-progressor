@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { Link as LinkIcon } from "@phosphor-icons/react";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 const STORAGE_KEY = "portal-invite-prompt-dismissed";
 
 export function PortalInvitePrompt() {
   const isSolid = useSolidMode();
+  const surface = useCardSurface("new-sale-portal-invite", "New sale · Portal invite", "");
   const [dismissed, setDismissed] = useState(false);
   const [exiting, setExiting] = useState(false);
 
@@ -29,15 +31,22 @@ export function PortalInvitePrompt() {
   if (dismissed) return null;
 
   return (
-    <div className={`v2-portal-invite${exiting ? " agent-reveal-out" : " agent-reveal-in"}`} style={{
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 12,
-      background: isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
-      border: isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
-      borderRadius: 14,
-      padding: "12px 16px",
-    }}>
+    <div
+      className={`v2-portal-invite${exiting ? " agent-reveal-out" : " agent-reveal-in"}${surface.picked ? ` ${surface.surfaceClass}` : ""}`}
+      {...surface.tag}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        borderRadius: 14,
+        padding: "12px 16px",
+        // Default surface; a Design Lab pick takes over.
+        ...(surface.picked ? {} : {
+          background: isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
+          border: isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+        }),
+      }}
+    >
       <div style={{
         width: 28,
         height: 28,

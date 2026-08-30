@@ -13,6 +13,7 @@ import type { ClientType } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { calculateOurFee } from "@/lib/services/fees";
 import { getVisibleMilestones, type MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
 function fmt(pence: number): string {
@@ -64,6 +65,7 @@ export function EarningsBuilder({
   allMilestoneDefinitions: MilestoneDefinitionSlim[];
 }) {
   const [showMs, setShowMs] = useState(false);
+  const { surfaceClass, tag } = useCardSurface("new-sale-file-worth", "New sale · File worth", "agent-glass");
   const price = fields.purchasePricePence;
 
   // ── Commission ──
@@ -92,7 +94,7 @@ export function EarningsBuilder({
   const milestones = getVisibleMilestones(allMilestoneDefinitions, fields);
 
   return (
-    <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-xl)", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
+    <div className={surfaceClass} {...tag} style={{ borderRadius: "var(--agent-radius-xl)", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
       {/* No card title — the "File worth" tab above already names this. */}
 
       {/* Commission editor */}
