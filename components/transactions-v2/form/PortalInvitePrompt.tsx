@@ -56,7 +56,7 @@ export function PortalInvitePrompt() {
           Want to invite the buyer or seller to the client portal?
         </p>
         <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--nv2-text-secondary)", lineHeight: 1.55 }}>
-          Add their contact details below and you can send portal invites once the file&apos;s created.
+          Add their contact details below and you can send the invite once the file is created.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button
@@ -64,7 +64,7 @@ export function PortalInvitePrompt() {
             onClick={handleDismiss}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 500, color: "var(--nv2-text-muted)", padding: 0 }}
           >
-            I won&apos;t be using the portal
+            I won&apos;t be using the client portal
           </button>
         </div>
       </div>
