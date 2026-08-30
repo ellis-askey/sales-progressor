@@ -9,6 +9,8 @@ import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
 import { recordEvent } from "@/lib/command/events/write";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { normaliseAddressString } from "@/lib/utils/address";
 
@@ -970,10 +972,11 @@ export async function createTransaction(input: CreateTransactionInput) {
   // Command Centre event log — fires after the $transaction commits. Demo
   // showcase files are not real activity, so they emit no activation event.
   if (!newTx.isDemo) {
+    const distinctId = input.agentUserId ?? input.assignedUserId ?? undefined;
     await recordEvent({
       type: "transaction_created",
       agencyId: input.agencyId,
-      userId: input.agentUserId ?? input.assignedUserId ?? undefined,
+      userId: distinctId,
       entityType: "PropertyTransaction",
       entityId: newTx.id,
       metadata: {
@@ -982,6 +985,27 @@ export async function createTransaction(input: CreateTransactionInput) {
         isMigrated: newTx.isMigrated,
       },
     });
+    // PostHog parity for the onboarding funnel detector.
+    if (distinctId) void trackServerEvent(distinctId, ANALYTICS_EVENTS.TRANSACTION_CREATED, { agencyId: input.agencyId, serviceType: newTx.serviceType });
+
+    // Activation = the agency's FIRST real (non-demo, non-migrated) sale. Fired
+    // once, when no prior real transaction exists for the agency.
+    if (!newTx.isMigrated) {
+      const priorReal = await prisma.propertyTransaction.count({
+        where: { agencyId: input.agencyId, isDemo: false, isMigrated: false, id: { not: newTx.id } },
+      });
+      if (priorReal === 0) {
+        await recordEvent({
+          type: "activated",
+          agencyId: input.agencyId,
+          userId: distinctId,
+          entityType: "Agency",
+          entityId: input.agencyId,
+          metadata: { firstTransactionId: newTx.id, serviceType: newTx.serviceType },
+        });
+        if (distinctId) void trackServerEvent(distinctId, ANALYTICS_EVENTS.ACTIVATED, { agencyId: input.agencyId });
+      }
+    }
   }
 
   return newTx;

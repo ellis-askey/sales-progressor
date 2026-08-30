@@ -8,6 +8,9 @@ import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { attributionFromParams, hasAttribution, ATTRIBUTION_COOKIE, ATTRIBUTION_COOKIE_MAX_AGE } from "@/lib/analytics/attribution";
+import * as analytics from "@/lib/analytics/posthog";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 type Step = 1 | 2;
 
@@ -42,6 +45,19 @@ const labelStyle: React.CSSProperties = {
 
 export default function RegisterPage() {
   const router = useRouter();
+
+  // First-touch attribution handoff from the marketing site: the /register URL
+  // carries utm_*/sp_* params. Persist them to a short-lived first-party cookie
+  // so they survive both the password POST and the Google OAuth round-trip; the
+  // server signup paths read the cookie and write it onto the new Agency.
+  useEffect(() => {
+    try {
+      const attribution = attributionFromParams(new URLSearchParams(window.location.search));
+      if (hasAttribution(attribution)) {
+        document.cookie = `${ATTRIBUTION_COOKIE}=${encodeURIComponent(JSON.stringify(attribution))}; path=/; max-age=${ATTRIBUTION_COOKIE_MAX_AGE}; SameSite=Lax`;
+      }
+    } catch { /* storage/URL unavailable — attribution simply won't be captured */ }
+  }, []);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -87,6 +103,7 @@ export default function RegisterPage() {
   function advanceToStep2() {
     if (!step1Valid) return;
     setError("");
+    analytics.track(ANALYTICS_EVENTS.SIGNUP_STARTED, {}); // top of the onboarding funnel
     setAnimating(true);
     setTimeout(() => { setStep(2); setAnimating(false); }, 180);
   }

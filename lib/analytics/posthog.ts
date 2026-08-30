@@ -23,6 +23,7 @@ export const ALLOWED_EVENT_NAMES = new Set([
 
   // R2 — auth & onboarding
   "user_signed_up",
+  "signup_started",
   "user_signed_in",
   "user_signed_out",
   "onboarding_step_completed",

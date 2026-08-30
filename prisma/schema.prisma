@@ -73,6 +73,12 @@ model Agency {
   signupCampaign    String?
   signupReferrer    String?
   signupLandingPage String?
+  // First-touch attribution captured at registration from the marketing-site
+  // handoff (utm term/content + the CTA's tier interest + CTA location label).
+  signupTerm        String?
+  signupContent     String?
+  signupTier        String? // "self" | "outsourced" — tier the clicked CTA was for
+  signupCtaLocation String? // e.g. hero_primary, pricing_page_self
   signupAt          DateTime?
 
   // Payments — frozen trial flag anchor.
@@ -2429,6 +2435,7 @@ enum EventType {
   agency_created
   agency_mode_changed
   agency_archived
+  activated // first real (non-demo, non-migrated) sale created
 
   // Transaction lifecycle
   transaction_created

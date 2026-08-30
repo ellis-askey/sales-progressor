@@ -6,6 +6,7 @@ import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -44,12 +45,15 @@ export async function POST(req: NextRequest) {
     const agencyName = toTitleCase(firmName);
     const hashedPassword = await hash(password, 12);
 
+    const attribution = parseAttributionCookie(req.cookies.get(ATTRIBUTION_COOKIE)?.value);
+
     const { userId } = await createDirectorWithAgency({
       name: toTitleCase(name),
       email,
       password: hashedPassword,
       role: role === "director" ? "director" : "negotiator",
       agencyName,
+      attribution,
     });
 
     console.log(`[AUDIT] user_registered userId=${userId}`);
@@ -69,7 +73,9 @@ export async function POST(req: NextRequest) {
     if (!claimSignup) {
       void sendWelcomeEmailIfNotSent(userId);
     }
-    return NextResponse.json({ ok: true, id: userId }, { status: 201 });
+    const res = NextResponse.json({ ok: true, id: userId }, { status: 201 });
+    res.cookies.set(ATTRIBUTION_COOKIE, "", { path: "/", maxAge: 0 }); // consumed — clear it
+    return res;
   } catch (e: unknown) {
     // Prisma unique constraint on email — race between two simultaneous signups
     if (
