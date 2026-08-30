@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { AgentVisibility } from "./agent";
-import type { TransactionStatus } from "@prisma/client";
+import type { Prisma, TransactionStatus } from "@prisma/client";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 
 export type SolicitorContactWithFiles = {
   id: string;
@@ -21,13 +22,23 @@ export type SolicitorFirmWithStats = {
 /** Returns solicitor firms scoped to the agent's visible transactions. */
 export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promise<SolicitorFirmWithStats[]> {
   const activeStatuses = ["active", "on_hold"] as TransactionStatus[];
-
   const txFilter = vis.seeAll
     ? vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName }, status: { in: activeStatuses } }
       : { agencyId: vis.agencyId, status: { in: activeStatuses } }
     : { agentUserId: vis.userId, status: { in: activeStatuses } };
+  return solicitorDirectoryFromWhere(txFilter);
+}
 
+/** Returns solicitor firms scoped for internal staff (access-scope aware). */
+export async function getSolicitorDirectoryForScope(scope: AccessScope): Promise<SolicitorFirmWithStats[]> {
+  const activeStatuses = ["active", "on_hold"] as TransactionStatus[];
+  return solicitorDirectoryFromWhere({ ...scopeTransactionWhere(scope), status: { in: activeStatuses } });
+}
+
+async function solicitorDirectoryFromWhere(
+  txFilter: Prisma.PropertyTransactionWhereInput,
+): Promise<SolicitorFirmWithStats[]> {
   const transactions = await prisma.propertyTransaction.findMany({
     where: txFilter,
     select: {
@@ -104,6 +115,94 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
       })),
     })),
   }));
+}
+
+export type FirmFileRow = {
+  id: string;
+  propertyAddress: string;
+  status: string;
+  role: "vendor" | "purchaser" | "both";
+  isReferral: boolean;
+  createdAt: Date;
+};
+
+export type SolicitorFirmDetail = {
+  id: string;
+  name: string;
+  contacts: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail: string | null }[];
+  files: FirmFileRow[];
+};
+
+/**
+ * Full detail for one solicitor firm, scoped to the agent's visible files
+ * (all statuses except draft, so completed files show too). Returns null when
+ * the firm has no file the agent can see — which doubles as the access guard.
+ */
+export async function getSolicitorFirmDetail(vis: AgentVisibility, firmId: string): Promise<SolicitorFirmDetail | null> {
+  const baseWhere = vis.seeAll
+    ? vis.firmName
+      ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { agencyId: vis.agencyId }
+    : { agentUserId: vis.userId };
+  return solicitorFirmDetailFromWhere(baseWhere, firmId);
+}
+
+/** Solicitor firm detail scoped for internal staff (access-scope aware). */
+export async function getSolicitorFirmDetailForScope(scope: AccessScope, firmId: string): Promise<SolicitorFirmDetail | null> {
+  return solicitorFirmDetailFromWhere(scopeTransactionWhere(scope), firmId);
+}
+
+async function solicitorFirmDetailFromWhere(
+  baseWhere: Prisma.PropertyTransactionWhereInput,
+  firmId: string,
+): Promise<SolicitorFirmDetail | null> {
+  const [firm, transactions] = await Promise.all([
+    prisma.solicitorFirm.findUnique({
+      where: { id: firmId },
+      select: {
+        id: true,
+        name: true,
+        handlers: {
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, phone: true, email: true, secondaryEmail: true },
+        },
+      },
+    }),
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...baseWhere,
+        status: { not: "draft" as TransactionStatus },
+        OR: [{ vendorSolicitorFirmId: firmId }, { purchaserSolicitorFirmId: firmId }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        propertyAddress: true,
+        status: true,
+        createdAt: true,
+        referredFirmId: true,
+        vendorSolicitorFirmId: true,
+        purchaserSolicitorFirmId: true,
+      },
+    }),
+  ]);
+
+  if (!firm || transactions.length === 0) return null;
+
+  const files: FirmFileRow[] = transactions.map((tx) => {
+    const isVendor = tx.vendorSolicitorFirmId === firmId;
+    const isPurchaser = tx.purchaserSolicitorFirmId === firmId;
+    return {
+      id: tx.id,
+      propertyAddress: tx.propertyAddress,
+      status: tx.status,
+      role: isVendor && isPurchaser ? "both" : isVendor ? "vendor" : "purchaser",
+      isReferral: tx.referredFirmId === firmId,
+      createdAt: tx.createdAt,
+    };
+  });
+
+  return { id: firm.id, name: firm.name, contacts: firm.handlers, files };
 }
 
 export async function getSolicitorDirectory(agencyId: string): Promise<SolicitorFirmWithStats[]> {

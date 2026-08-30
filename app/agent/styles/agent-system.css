@@ -1474,6 +1474,12 @@
   /* ── Solicitor file chip hover ──────────────────────────────────────────── */
   .solicitor-file-chip:hover { background: var(--agent-hover-tint) !important; color: var(--agent-coral-deep) !important; }
 
+  /* ── Partners: firm link + file row hover ───────────────────────────────── */
+  .partner-firm-link { transition: opacity 120ms, background 120ms; }
+  .partner-firm-link:hover { opacity: 0.82; }
+  .partner-file-row { transition: background 120ms; }
+  .partner-file-row:hover { background: var(--agent-hover-tint) !important; }
+
   /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
   .coming-up-link { text-underline-offset: 2px; }
   .coming-up-link:hover { text-decoration: underline; color: var(--agent-text-primary); }

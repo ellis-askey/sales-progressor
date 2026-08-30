@@ -1,25 +1,133 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/session";
+import { getAccessScope } from "@/lib/security/access-scope";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { getSolicitorDirectoryForAgent } from "@/lib/services/solicitors";
+import {
+  getSolicitorDirectoryForAgent,
+  getSolicitorDirectoryForScope,
+} from "@/lib/services/solicitors";
 import type { SolicitorFirmWithStats } from "@/lib/services/solicitors";
+import {
+  getBrokerDirectoryForAgent,
+  getBrokerDirectoryForScope,
+} from "@/lib/services/brokers";
+import type { BrokerFirmWithStats } from "@/lib/services/brokers";
+import {
+  getSolicitorExchangeStats,
+  getSolicitorExchangeStatsForScope,
+  getReferralStats,
+  getReferralStatsForScope,
+  getBrokerReferralStats,
+  getBrokerReferralStatsForScope,
+} from "@/lib/services/analytics";
+import type { SolicitorExchangeStat, ReferralStat, BrokerReferralStat } from "@/lib/services/analytics";
 import { Buildings } from "@phosphor-icons/react/dist/ssr";
 import { prisma } from "@/lib/prisma";
 import { RecommendedSolicitorsSettings } from "@/components/agent/RecommendedSolicitorsSettings";
 import { PreferredBrokerSettings } from "@/components/agent/PreferredBrokerSettings";
+import { PartnersDirectory } from "@/components/agent/PartnersDirectory";
+import type { DirectoryFirm, FirmIntel } from "@/components/agent/PartnersDirectory";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
+/** Attach per-firm intelligence to the raw directory rows. */
+function buildDirectories(
+  solicitorFirms: SolicitorFirmWithStats[],
+  brokerFirms: BrokerFirmWithStats[],
+  exchangeStats: SolicitorExchangeStat[],
+  solicitorReferrals: ReferralStat[],
+  brokerReferrals: BrokerReferralStat[],
+): { solicitor: DirectoryFirm[]; broker: DirectoryFirm[] } {
+  const exchangeByFirm = new Map(exchangeStats.map((s) => [s.firmId, s]));
+  const solicitorIncomeByFirm = new Map(solicitorReferrals.map((s) => [s.firmId, s]));
+  const brokerIncomeByFirm = new Map(brokerReferrals.map((s) => [s.firmId, s]));
+
+  const solicitorIntel = (firmId: string): FirmIntel => {
+    const ex = exchangeByFirm.get(firmId);
+    const inc = solicitorIncomeByFirm.get(firmId);
+    return {
+      avgDaysToExchange: ex && ex.exchangeCount > 0 ? ex.avgDaysToExchange : null,
+      income: inc
+        ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence, pendingCount: inc.pendingCount }
+        : null,
+    };
+  };
+  const brokerIntel = (firmId: string): FirmIntel => {
+    const inc = brokerIncomeByFirm.get(firmId);
+    return {
+      avgDaysToExchange: null,
+      income: inc
+        ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence, pendingCount: inc.pendingCount }
+        : null,
+    };
+  };
+
+  return {
+    solicitor: solicitorFirms.map((f) => ({ ...f, intel: solicitorIntel(f.id) })),
+    broker: brokerFirms.map((f) => ({ ...f, intel: brokerIntel(f.id) })),
+  };
+}
+
 export default async function AgentPartnersPage() {
   const session = await requireSession();
+  const scope = getAccessScope(session);
+  const isAgent = scope.kind === "agency";
   const isDirector = session.user.role === "director";
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [firms, recommendedSolicitors, allSolicitorFirms, preferredBrokerRow] = await Promise.all([
+  // Internal staff (sales_progressor / admin / superadmin) — access-scope aware,
+  // cross-agency for admin powers, own assigned files for a plain progressor.
+  // Referral income (commercial data) follows hasAdminPowers: shown to admin /
+  // superadmin and the hybrid founder account, hidden from a plain progressor.
+  if (!isAgent) {
+    const showIncome = hasAdminPowers(session);
+    const [firms, brokerFirms, exchangeStats, solicitorReferrals, brokerReferrals] = await Promise.all([
+      getSolicitorDirectoryForScope(scope),
+      getBrokerDirectoryForScope(scope),
+      getSolicitorExchangeStatsForScope(scope).catch(() => []),
+      showIncome ? getReferralStatsForScope(scope).catch(() => []) : Promise.resolve([]),
+      showIncome ? getBrokerReferralStatsForScope(scope).catch(() => []) : Promise.resolve([]),
+    ]);
+    const { solicitor, broker } = buildDirectories(firms, brokerFirms, exchangeStats, solicitorReferrals, brokerReferrals);
+    const empty = solicitor.length === 0 && broker.length === 0;
+
+    return (
+      <>
+        <PageHeader
+          title="Partners"
+          subtitle={scope.kind === "all" ? "Solicitors and brokers across every file on the platform." : "Solicitors and brokers on the files assigned to you."}
+        />
+        <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
+          {empty ? (
+            <EmptyDirectory internal />
+          ) : (
+            <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={showIncome} />
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // Agent path (director / negotiator) — agency-scoped, director-only settings.
+  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const [
+    firms,
+    brokerFirms,
+    exchangeStats,
+    solicitorReferrals,
+    brokerReferrals,
+    recommendedSolicitors,
+    allSolicitorFirms,
+    preferredBrokerRow,
+  ] = await Promise.all([
     getSolicitorDirectoryForAgent(vis),
+    getBrokerDirectoryForAgent(vis),
+    getSolicitorExchangeStats(vis).catch(() => []),
+    // Referral income is commercial data — directors only.
+    isDirector ? getReferralStats(session.user.agencyId).catch(() => []) : Promise.resolve([]),
+    isDirector ? getBrokerReferralStats(session.user.agencyId).catch(() => []) : Promise.resolve([]),
     isDirector
       ? db.agencyRecommendedSolicitor.findMany({
           where: { agencyId: session.user.agencyId },
@@ -55,7 +163,8 @@ export default async function AgentPartnersPage() {
       : Promise.resolve(null),
   ]);
 
-  const totalContacts = firms.reduce((n: number, f: SolicitorFirmWithStats) => n + f.contacts.length, 0);
+  const { solicitor, broker } = buildDirectories(firms, brokerFirms, exchangeStats, solicitorReferrals, brokerReferrals);
+  const directoryEmpty = solicitor.length === 0 && broker.length === 0;
 
   const preferredBroker = preferredBrokerRow?.brokerFirm
     ? {
@@ -119,157 +228,32 @@ export default async function AgentPartnersPage() {
           </div>
         )}
 
-        {/* Solicitor directory */}
-        {firms.length === 0 ? (
-          <div
-            className="agent-glass-strong agent-empty-card"
-            style={{ padding: "48px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
-          >
-            <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              No solicitor firms yet
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-              Solicitors appear here once assigned to a transaction.
-            </p>
-          </div>
+        {/* Directory */}
+        {directoryEmpty ? (
+          <EmptyDirectory />
         ) : (
-          firms.map((firm: SolicitorFirmWithStats) => <FirmCard key={firm.id} firm={firm} />)
+          <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={isDirector} />
         )}
       </div>
     </>
   );
 }
 
-function StatChip({ value, label }: { value: number; label: string }) {
+function EmptyDirectory({ internal = false }: { internal?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-      <span style={{ fontSize: 22, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-        {value}
-      </span>
-      <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{label}</span>
+    <div
+      className="agent-glass-strong agent-empty-card"
+      style={{ padding: "48px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
+    >
+      <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+        No partners yet
+      </p>
+      <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
+        {internal
+          ? "Solicitors and brokers appear here once they're on a file in your view."
+          : "Solicitors and brokers appear here once they're on one of your files."}
+      </p>
     </div>
-  );
-}
-
-function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
-  return (
-    <Card padding="none">
-      {/* Firm header */}
-      <div style={{
-        padding: "14px 20px",
-        borderBottom: "0.5px solid var(--agent-border-default)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: "rgba(99,102,241,0.10)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Buildings weight="regular" style={{ width: 15, height: 15, color: "#6366f1" }} />
-          </div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-            {firm.name}
-          </p>
-        </div>
-        {firm.totalActiveFiles > 0 && (
-          <span style={{
-            fontSize: 11, fontWeight: 600,
-            padding: "3px 10px", borderRadius: 20,
-            color: "var(--agent-success)",
-            background: "var(--agent-success-bg)",
-            border: "1px solid var(--agent-success-border)",
-          }}>
-            {firm.totalActiveFiles} active
-            {firm.referralActiveFiles > 0
-              ? ` · ${firm.referralActiveFiles} referral${firm.referralActiveFiles !== 1 ? "s" : ""}`
-              : ` file${firm.totalActiveFiles !== 1 ? "s" : ""}`}
-          </span>
-        )}
-      </div>
-
-      {/* Contacts */}
-      {firm.contacts.length === 0 ? (
-        <p style={{ margin: 0, padding: "14px 20px", fontSize: 13, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>
-          No contacts recorded
-        </p>
-      ) : (
-        <div>
-          {firm.contacts.map((contact, i) => (
-            <div key={contact.id} style={{
-              padding: "14px 20px",
-              borderBottom: i < firm.contacts.length - 1 ? "0.5px solid var(--agent-border-default)" : "none",
-            }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                    {contact.name}
-                  </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px 12px", marginTop: 3 }}>
-                    {contact.email && (
-                      <a
-                        href={`mailto:${contact.email}`}
-                        style={{ fontSize: 12, color: "var(--agent-info)", textDecoration: "none" }}
-                      >
-                        {contact.email}
-                      </a>
-                    )}
-                    {contact.phone && (
-                      <a
-                        href={`tel:${contact.phone}`}
-                        style={{ fontSize: 12, color: "var(--agent-text-muted)", textDecoration: "none" }}
-                      >
-                        {contact.phone}
-                      </a>
-                    )}
-                    {!contact.email && !contact.phone && (
-                      <span style={{ fontSize: 12, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>
-                        No contact details
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Files this contact handles */}
-              {contact.activeFiles.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                  {contact.activeFiles.map((f) => (
-                    <Link
-                      key={`${f.id}-${f.role}`}
-                      href={`/agent/transactions/${f.id}`}
-                      style={{ textDecoration: "none" }}
-                    >
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        padding: "3px 9px", borderRadius: 6,
-                        fontSize: 11, color: "var(--agent-text-secondary)",
-                        background: "var(--agent-surface-glass)",
-                        border: "1px solid var(--agent-border-default)",
-                        transition: "background 120ms",
-                      }}
-                        className="solicitor-file-chip"
-                      >
-                        <span style={{
-                          width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                          background: f.isReferral ? "#f59e0b" : f.role === "vendor" ? "#a78bfa" : "#60a5fa",
-                        }} />
-                        <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {f.propertyAddress}
-                        </span>
-                        <span style={{ color: "var(--agent-text-disabled)", textTransform: "capitalize" }}>
-                          ({f.role})
-                        </span>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
   );
 }

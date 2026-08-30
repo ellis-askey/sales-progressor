@@ -8,7 +8,10 @@ export const ANALYTICS_EVENTS = {
   USER_SIGNED_UP:              "user_signed_up",
   USER_SIGNED_IN:              "user_signed_in",
   USER_SIGNED_OUT:             "user_signed_out",
+  SIGNUP_STARTED:              "signup_started",
   ONBOARDING_STEP_COMPLETED:   "onboarding_step_completed",
+  // Activation: an agency creates its first real (non-demo, non-migrated) sale.
+  ACTIVATED:                   "activated",
 
   // Theme
   THEME_CHANGED: "theme_changed",

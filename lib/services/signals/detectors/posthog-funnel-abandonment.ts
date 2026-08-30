@@ -1,8 +1,12 @@
 // Detector: posthog_funnel_abandonment
 // Checks PostHog funnel conversion rates for the onboarding flow:
-//   signup_started → signup_completed → transaction_created → milestone_progressed
+//   signup_started → user_signed_up → transaction_created → milestone_confirmed
 // Fires when any step drops below DROP_THRESHOLD vs the previous window.
 // Requires POSTHOG_API_KEY + POSTHOG_PROJECT_ID; returns [] when not configured.
+//
+// Event names aligned to the real emitted taxonomy (lib/analytics/events.ts) on
+// 2026-08-30 — previously queried signup_completed/milestone_progressed which the
+// app never emits, so the detector was permanently dead.
 
 import type { Detector, SignalResult } from "../types";
 
@@ -11,9 +15,9 @@ const MIN_STEP_ENTRIES = 20;  // min events at step 1 to be meaningful
 
 const FUNNEL_STEPS = [
   "signup_started",
-  "signup_completed",
+  "user_signed_up",
   "transaction_created",
-  "milestone_progressed",
+  "milestone_confirmed",
 ];
 
 type FunnelRates = {

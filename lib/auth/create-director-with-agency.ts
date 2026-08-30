@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@prisma/client";
 import { recordEvent } from "@/lib/command/events/write";
+import type { SignupAttribution } from "@/lib/analytics/attribution";
 
 interface CreateDirectorWithAgencyInput {
   userId?: string;       // if provided, updates existing user (OAuth path)
@@ -10,6 +11,9 @@ interface CreateDirectorWithAgencyInput {
   role: "director" | "negotiator";
   agencyName: string;
   firmName?: string;
+  // First-touch marketing attribution captured at registration. Written once,
+  // at agency creation, onto the Agency.signup* columns.
+  attribution?: SignupAttribution | null;
 }
 
 interface CreateDirectorWithAgencyResult {
@@ -31,10 +35,21 @@ export async function createDirectorWithAgency(
   input: CreateDirectorWithAgencyInput
 ): Promise<CreateDirectorWithAgencyResult> {
   const result = await prisma.$transaction(async (tx) => {
+    const a = input.attribution;
     const agency = await tx.agency.create({
       data: {
         name: input.agencyName,
         signupAt: new Date(),
+        // First-touch attribution (raw values; classified at read time).
+        signupSource: a?.source ?? null,
+        signupMedium: a?.medium ?? null,
+        signupCampaign: a?.campaign ?? null,
+        signupTerm: a?.term ?? null,
+        signupContent: a?.content ?? null,
+        signupReferrer: a?.referrer ?? null,
+        signupLandingPage: a?.landingPage ?? null,
+        signupTier: a?.tier ?? null,
+        signupCtaLocation: a?.ctaLocation ?? null,
       },
     });
 
@@ -85,7 +100,7 @@ export async function createDirectorWithAgency(
     isInternalUser: false,
     entityType: "Agency",
     entityId: result.agencyId,
-    metadata: { role: input.role, via: input.userId ? "oauth" : "password" },
+    metadata: { role: input.role, via: input.userId ? "oauth" : "password", source: input.attribution?.source ?? null },
   });
 
   return result;
