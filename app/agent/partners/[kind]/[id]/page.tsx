@@ -137,11 +137,15 @@ export default async function PartnerFirmDetailPage({
         <StatTile value={String(activeCount)} label="Active files" />
         <StatTile value={String(files.length)} label="Files all time" />
         {kind === "solicitor" && (
-          <StatTile
-            value={avgDaysToExchange != null ? String(avgDaysToExchange) : "—"}
-            label={avgDaysToExchange != null ? "Days avg to exchange" : "No exchange history"}
-            sub={exchangeCount > 0 ? `over ${exchangeCount} exchange${exchangeCount !== 1 ? "s" : ""}` : undefined}
-          />
+          avgDaysToExchange != null ? (
+            <StatTile
+              value={String(avgDaysToExchange)}
+              label="Days avg to exchange"
+              sub={`over ${exchangeCount} exchange${exchangeCount !== 1 ? "s" : ""}`}
+            />
+          ) : (
+            <StatTile value="0" label="Exchanges tracked" sub="No exchange history yet" />
+          )
         )}
         {isDirector && income && (
           <StatTile
