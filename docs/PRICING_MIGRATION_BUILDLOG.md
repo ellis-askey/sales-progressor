@@ -83,3 +83,23 @@ Every code/schema/copy change gets an entry here: what changed (plain English), 
 All four increments committed on staging. Net effect: self-progress is free by type; outsourced bills its band; the first outsourced file per new agency is free (visible credit); the 14-day trial is gone from the engine; every sale is labelled (`freeReason`) and version-stamped (`pricingVersion`). Nothing is on prod.
 
 **→ Phase 1 verification:** see the verification section at the bottom of this file.
+
+---
+
+## Phase 1 verification (how to see it)
+
+**What to check** (on the director billing page `/agent/billing` and a file's sidebar):
+
+| Scenario | Expected after exchange |
+|---|---|
+| A self-progress sale exchanges | **£0** — no invoice line, nothing on the billing total. `freeReason = permanent_free_self`. |
+| A new agency's **first** outsourced sale exchanges | Bills its band fee **and** a full-value credit — billing page shows the fee in the total and the same amount in pending credits, netting **£0**. `firstOutsourcedFree = true`, `freeReason = first_outsourced_free`. |
+| That agency's **second** outsourced sale exchanges | Bills its band (£250/£300/£350) normally, no credit. |
+| Any sale created | Carries a `pricingVersion` stamp. |
+
+**Blocker on producing the live link:** the increment-2 migration must be applied to whatever DB the app runs against, and the code reads/writes the new columns. The local `.env` contains **both a staging and a production `DATABASE_URL`**, so self-applying the migration or a seed is unsafe (could hit prod). Safe options, pick one:
+
+1. **Push Phase 1 to `staging`.** Vercel runs `prisma migrate deploy` against the **staging** DB (Law 3, no prod risk), then a seed script sets up the three sales above and I give you the **staging** verification URL.
+2. **Local:** confirm the dev server's active `DATABASE_URL` is the **staging** one; I apply the migration to it and seed, then give you the **localhost:3001** link.
+
+Either way the seed uses the real create + exchange paths so it genuinely exercises the new billing code, not faked rows.
