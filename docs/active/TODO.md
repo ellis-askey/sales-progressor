@@ -21,6 +21,18 @@ about to-dos" guide card, BUILT BUT HIDDEN behind `SHOW_TODO_GUIDE = false`. Its
 explainer of notes vs sale-linked tasks vs progressor requests. Flip
 `SHOW_TODO_GUIDE = true` once it exists.
 
+## Demo file "Show me around" contextual tour (filed 2026-08-30)
+
+The demo-file first-arrival popover (`components/transaction/DemoFileMarker.tsx`)
+currently has one action, "Explore myself" (dismiss). The spec also called for a
+"Show me around" button that kicks off a short contextual product tour of the
+demo file (progress, updates, tasks, activity). That contextual tour does not
+exist yet, so the button is deliberately omitted for now (no dead control). When
+a tour exists, add "Show me around" alongside "Explore myself" and wire it up.
+A generic slide tour already lives at `components/agent/TourSlides.tsx`, but it's
+not file-contextual and ends by routing to /agent/transactions/new, so it's not a
+drop-in — the contextual tour is separate work.
+
 ## Updates "Learn more about Updates" guide + card "Learn more" links (filed 2026-08-30)
 
 The Updates empty state (`components/agent/CommsEmptyState.tsx`) has a "Learn more
