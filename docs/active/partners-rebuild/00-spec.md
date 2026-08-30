@@ -56,11 +56,15 @@ CRUD already live (reuse, do not rebuild — Law 4):
 
 ## Phasing (one concern per PR — Law 5)
 
-- **PR0 — this spec.** No code.
-- **PR1 — agent directory: brokers + intelligence on cards.** Bring brokers into the directory as a section; surface avg-days-to-exchange, active file count, and (director-only) referral income on each firm card by routing the existing analytics services here. No new computation.
-- **PR2 — search / sort / filter + firm detail surface.** Name search, sort (most-active / fastest-exchange), and the click-through firm detail view.
-- **PR3 — internal cross-agency view.** Access-scope-aware directory + intelligence for internal staff; commercial-data policy from decision 4. Requires a new internal-aware directory query (the current `getSolicitorDirectoryForAgent` cannot serve this).
-- **PR4 — motion / voice / polish pass.** Staggered entrance, loading/empty/first-time states, voice pass (Law 21), migrate ad-hoc inline styles toward canonical primitives where safe (grandfather anything risky — Law 19).
+- **PR0 — this spec.** No code. ✅ shipped (17f88c95).
+- **PR1 — agent directory: brokers + intelligence on cards.** Bring brokers into the directory as a section; surface avg-days-to-exchange, active file count, and (director-only) referral income on each firm card by routing the existing analytics services here. No new computation. ✅ shipped (129a0947).
+- **PR2 — search / sort / filter + firm detail surface.** Name search, sort (most-active / fastest-exchange), and the click-through firm detail view. ✅ shipped (47e91a9a + voice fix 9dd0f232).
+- **PR3 — internal cross-agency view.** Access-scope-aware directory + intelligence for internal staff; commercial-data policy from decision 4. ✅ shipped (d02db234). Added `getSolicitorDirectoryForScope` / `getBrokerDirectoryForScope` / `*FirmDetailForScope` and `getSolicitorExchangeStatsForScope` / `getReferralStatsForScope` / `getBrokerReferralStatsForScope` (where-parameterised cores; agent callers delegate). Referral income gated on `hasAdminPowers`.
+- **PR4 — motion / voice / polish pass.** Staggered entrance, loading/empty/first-time states, voice pass (Law 21), migrate ad-hoc inline styles toward canonical primitives where safe (grandfather anything risky — Law 19). Not started.
+
+## Verification debt (open)
+
+Visual verification is outstanding for PR1–PR3: the dev server on :3001 went down mid-arc and there are no test credentials on this machine, so nothing has been rendered live. tsc is clean throughout. Needs a browser pass as (a) director, (b) admin/superadmin, (c) plain sales_progressor, plus an out-of-scope deep-link 404 check.
 
 ## Open risks
 
