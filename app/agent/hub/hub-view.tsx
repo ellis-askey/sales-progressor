@@ -255,10 +255,11 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
             <img
               src="/brand-c-tick.png" alt="" aria-hidden
               style={{
-                position: "absolute", top: -14, right: 8, width: 164, height: 164,
+                position: "absolute", top: "50%", right: 22, width: 115, height: 115,
+                transform: "translateY(-50%)",
                 opacity: 0.07, pointerEvents: "none",
-                WebkitMaskImage: "radial-gradient(circle at 62% 40%, #000 32%, transparent 72%)",
-                maskImage: "radial-gradient(circle at 62% 40%, #000 32%, transparent 72%)",
+                WebkitMaskImage: "radial-gradient(circle at 55% 50%, #000 40%, transparent 78%)",
+                maskImage: "radial-gradient(circle at 55% 50%, #000 40%, transparent 78%)",
               }}
             />
             <div style={{ position: "relative" }}>

@@ -23,6 +23,7 @@ import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
@@ -369,14 +370,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         {/* Brand */}
         <div style={{ padding: "16px 20px 14px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-              background: "linear-gradient(135deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%)",
-              boxShadow: "0 2px 8px rgba(var(--agent-coral-rgb), 0.35)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <FolderOpen weight="fill" style={{ width: 16, height: 16, color: "var(--agent-text-on-coral)" }} />
-            </div>
+            <BrandMark size={32} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>
                 Sales Progressor
