@@ -67,6 +67,7 @@ export async function completeOAuthSignup(formData: FormData): Promise<
     void trackServerEvent(session.user.id, ANALYTICS_EVENTS.USER_SIGNED_UP, {
       provider: "oauth",
       source: attribution?.source ?? null,
+      marketing_distinct_id: attribution?.marketingDistinctId ?? null,
     });
     // Fire-and-forget instant welcome — parallel path to /api/register's
     // synchronous send. The helper dedupes via welcomeEmailSentAt so a

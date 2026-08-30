@@ -20,6 +20,7 @@ export type SignupAttribution = {
   landingPage?: string;
   tier?: string; // "self" | "outsourced"
   ctaLocation?: string;
+  marketingDistinctId?: string; // PostHog anon distinct_id from the marketing site (cross-domain stitch)
 };
 
 // Short-lived first-party cookie carrying the normalised attribution across the
@@ -42,6 +43,7 @@ export function attributionFromParams(params: URLSearchParams): SignupAttributio
     landingPage: g("sp_landing"),
     tier: g("sp_tier"),
     ctaLocation: g("sp_cta"),
+    marketingDistinctId: g("sp_did"),
   };
 }
 

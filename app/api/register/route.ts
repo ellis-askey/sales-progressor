@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
     void trackServerEvent(userId, ANALYTICS_EVENTS.USER_SIGNED_UP, {
       provider: "credentials",
       agencyId: undefined,
+      source: attribution?.source ?? null,
+      marketing_distinct_id: attribution?.marketingDistinctId ?? null,
     });
     // Fire-and-forget instant welcome. Helper handles its own errors so a
     // SendGrid hiccup never fails the signup response.

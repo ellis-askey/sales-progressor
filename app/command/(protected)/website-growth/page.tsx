@@ -6,6 +6,20 @@ import {
   Section, KpiCard, DeltaPill, FunnelBars, ParamTabs, TableShell, Tr, Td,
   CardEmpty, TrackingDisabled, InsightCard, fmtGBP, fmtInt, fmtPct,
 } from "@/components/command/ui/primitives";
+import { getWebsiteBehaviour, getHomepageSectionReach } from "@/lib/command/posthog-read";
+
+// Homepage sections in visual order (matches marketing-site SectionView ids).
+const HOMEPAGE_SECTIONS: Array<{ id: string; label: string }> = [
+  { id: "hero", label: "Hero" },
+  { id: "tier_choice", label: "Tier choice" },
+  { id: "intelligence_layer", label: "Intelligence" },
+  { id: "outsourced_service", label: "Service" },
+  { id: "client_portal", label: "Client portal" },
+  { id: "social_proof", label: "Social proof" },
+  { id: "faq", label: "FAQ" },
+  { id: "pricing_preview", label: "Pricing" },
+  { id: "final_cta", label: "Final CTA" },
+];
 
 // Command Centre → Growth → Website & Growth. ONE page telling the whole
 // journey: find us → behaviour → intent → signup/demo → first sale → repeat →
@@ -27,6 +41,11 @@ export default async function WebsiteGrowthPage({ searchParams }: { searchParams
   const periodKey = parsePeriod(sp.period);
   const tierKey = parseTier(sp.tier);
   const d = await getGrowthDashboard(periodKey, tierKey);
+  // Website-behaviour half (PostHog). null when not configured → TrackingDisabled.
+  const [behaviour, sectionReach] = await Promise.all([
+    getWebsiteBehaviour(d.period.start, d.period.end),
+    getHomepageSectionReach(d.period.start, d.period.end),
+  ]);
 
   function href(over: { period?: string; tier?: string }): string {
     const period = over.period ?? periodKey;
@@ -141,12 +160,48 @@ export default async function WebsiteGrowthPage({ searchParams }: { searchParams
         </div>
       </Section>
 
-      {/* D + E. Website behaviour + homepage — tracking-disabled until PostHog */}
-      <Section title="Website behaviour" subtitle="Pages, paths, scroll, sections, CTA clicks — owned by PostHog once connected.">
-        <TrackingDisabled
-          what="Website behaviour"
-          why="This half of the journey (visitors, landing pages, where they go/leave, homepage section reach, CTA clicks) is captured by PostHog on the marketing site. It lights up once the PostHog key is set and the marketing site is instrumented."
-        />
+      {/* D. Website behaviour (PostHog read layer) */}
+      <Section title="Website behaviour" subtitle="Visitors, top pages and sources from the marketing site.">
+        {behaviour ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <KpiCard label="Visitors" value={fmtInt(behaviour.visitors)} />
+              <KpiCard label="Pageviews" value={fmtInt(behaviour.pageviews)} />
+              <KpiCard label="Views / visitor" value={behaviour.visitors ? (behaviour.pageviews / behaviour.visitors).toFixed(1) : "—"} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-neutral-500 mb-2">Top pages</p>
+                {behaviour.topPages.length === 0 ? <CardEmpty>No pageviews yet.</CardEmpty> : (
+                  <TableShell head={["Page", "Views"]}>
+                    {behaviour.topPages.map((p) => <Tr key={p.path}><Td first>{p.path}</Td><Td>{fmtInt(p.views)}</Td></Tr>)}
+                  </TableShell>
+                )}
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-neutral-500 mb-2">Top sources</p>
+                {behaviour.topSources.length === 0 ? <CardEmpty>No sources yet.</CardEmpty> : (
+                  <TableShell head={["Referrer", "Visitors"]}>
+                    {behaviour.topSources.map((s) => <Tr key={s.source}><Td first>{s.source}</Td><Td>{fmtInt(s.visitors)}</Td></Tr>)}
+                  </TableShell>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <TrackingDisabled what="Website behaviour" why="Visitors, pages, sources, scroll and CTA clicks come from PostHog on the marketing site. This lights up once the PostHog key is set (both repos) and the marketing site is deployed with instrumentation." />
+        )}
+      </Section>
+
+      {/* E. Homepage performance — section reach funnel (PostHog mkt_section_viewed) */}
+      <Section title="Homepage performance" subtitle="How far down the homepage visitors actually get.">
+        {sectionReach && sectionReach.length > 0 ? (
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+            <FunnelBars stages={HOMEPAGE_SECTIONS.map((s) => ({ label: s.label, value: sectionReach.find((r) => r.section === s.id)?.views ?? 0 }))} />
+          </div>
+        ) : (
+          <TrackingDisabled what="Homepage section reach" why="Each homepage section fires mkt_section_viewed via an IntersectionObserver on the marketing site. Once PostHog is live you'll see the scroll funnel (hero → … → final CTA)." />
+        )}
       </Section>
 
       {/* K. Tracking health */}

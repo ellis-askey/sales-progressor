@@ -12,8 +12,22 @@ Started 2026-08-30. Two repos: `full` (portal + Command Centre), `marketing-site
 | 2. Product analytics event gaps | **DONE** |
 | 3. Shared Command Centre UI primitive kit | **DONE** (`components/command/ui/primitives.tsx`) |
 | 4. Website & Growth page — DB-authoritative sections | **DONE** (`/command/website-growth`) |
-| 5. marketing-site PostHog + `mkt_` taxonomy + section instrumentation + cross-domain id | not started |
-| 6. PostHog read layer + web-behaviour/homepage/CTA sections + tracking-health | not started |
+| 5. marketing-site PostHog + `mkt_` taxonomy + section instrumentation + cross-domain id | **DONE** (marketing-site) |
+| 6. PostHog read layer + web-behaviour/homepage sections + tracking-health | **DONE** (portal) |
+
+## Slice 5 — marketing-site PostHog (DONE; deploys via Vercel CLI)
+- `posthog-js` added; `lib/posthog.ts` — consent-gated EU init (no-ops without `NEXT_PUBLIC_POSTHOG_KEY`), `mktTrack`, `posthogDistinctId`, manual pageviews. Runs ALONGSIDE GA4 (GA not removed).
+- `components/_internal/PostHogInit.tsx` — inits after `sp-consent` grant (hooks the new `CONSENT_CHANGED_EVENT` dispatched from `lib/analytics.ts` grant/deny), captures `$pageview` on route change.
+- `components/_internal/SectionView.tsx` — IntersectionObserver, fires `mkt_section_viewed` once per section; the 9 homepage sections wrapped in `app/page.tsx` with stable ids (hero…final_cta).
+- Events: `mkt_cta_clicked` + `mkt_outbound_to_portal` (signup CTAs via `trackSignupClick`), `mkt_demo_form_started/submitted`, `mkt_contact_form_started/submitted`, `mkt_calendly_booked`. No form VALUES captured.
+- Cross-domain: `appendUtms` now appends `sp_did` (PostHog anon distinct_id) to the outbound signup URL.
+
+## Slice 6 — PostHog read layer + portal wiring (DONE)
+- `lib/command/posthog-read.ts` — server-side HogQL queries (auth pattern from the signal detectors; host `POSTHOG_QUERY_HOST` default `https://eu.posthog.com`). `getWebsiteBehaviour` (visitors, pageviews, top pages, top sources, last event), `getHomepageSectionReach` (mkt_section_viewed funnel), `getCtaClicks`. **All return null when `POSTHOG_API_KEY`/`POSTHOG_PROJECT_ID` unset** — the page shows TrackingDisabled, never a fake 0. Credentials server-only.
+- Growth page wires Website behaviour + Homepage performance sections to the read layer (data when live, TrackingDisabled when off).
+- Cross-domain stitch: the portal captures `sp_did` at register and attaches it as `marketing_distinct_id` on the `user_signed_up` PostHog event (both password + OAuth). Full auto-merge of the two person profiles is a documented later refinement — the DB `signup*` attribution remains the resilient source of truth.
+
+**Everything typechecks (both repos). Two Growth commits on `full` staging (`3602dac3`, `a0a274c9`) + this slice; marketing-site edits on disk (Vercel-CLI deploy).**
 
 ## Slice 3 — Shared CC UI primitives (DONE)
 `components/command/ui/primitives.tsx`: `Section`, `KpiCard`, `DeltaPill`, `FunnelBars`, `ParamTabs` (URL-param tabs), `TableShell`/`Tr`/`Td`, `CardEmpty`, `TrackingDisabled` (the intentional not-connected state, never a fake 0), `InsightCard`, `fmtGBP/fmtInt/fmtPct`. Server-safe, CC dark styling. Existing Growth pages untouched (they keep their local copies).
