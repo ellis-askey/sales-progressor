@@ -62,6 +62,129 @@ function scopeLabel(mode: CommandMode, agencyIds: string[]): string {
   return "All agencies";
 }
 
+// ── Second sale and beyond ────────────────────────────────────────────────────
+// Agency-level transaction retention. The first sale can be a trial; a second is
+// the real signal they found TSP useful enough to use again. Then 2 → 5 → 10
+// shows where usage turns habitual. Migrated (bulk-imported) files and drafts
+// are excluded — neither represents an agency choosing to start a new sale here.
+
+export type TxMilestone = {
+  threshold: number;                  // 1, 2, 5, 10 sales
+  agencies: number;                   // agencies reaching >= threshold
+  pctOfStarters: number | null;       // agencies>=threshold / agencies>=1
+  stepPct: number | null;             // conversion from the previous milestone
+  medianDaysFromFirst: number | null; // median days from first sale to reach it
+};
+
+export type SecondSaleCrosser = {
+  agencyId: string;
+  agencyName: string;
+  secondAt: Date;
+  daysFromFirst: number;
+};
+
+export type TxRetentionData = {
+  starters: number;                   // agencies with >= 1 real sale
+  milestones: TxMilestone[];
+  timeToSecond: { p25: number | null; median: number | null; p75: number | null; n: number };
+  recentSecond: SecondSaleCrosser[];  // reached their second in the last 90 days
+};
+
+const TX_THRESHOLDS = [1, 2, 5, 10];
+
+function daysPercentiles(values: number[]): { p25: number | null; median: number | null; p75: number | null; n: number } {
+  const n = values.length;
+  if (n === 0) return { p25: null, median: null, p75: null, n: 0 };
+  const s = [...values].sort((a, b) => a - b);
+  const q = (p: number): number => {
+    if (s.length === 1) return s[0];
+    const idx = p * (s.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    return lo === hi ? s[lo] : s[lo] + (s[hi] - s[lo]) * (idx - lo);
+  };
+  return { p25: q(0.25), median: q(0.5), p75: q(0.75), n };
+}
+
+export async function getTransactionRetention(mode: CommandMode, agencyIds: string[]): Promise<TxRetentionData> {
+  const scopeIds = await scopeAgencyIds(mode, agencyIds);
+  const empty: TxRetentionData = {
+    starters: 0,
+    milestones: TX_THRESHOLDS.map((t) => ({ threshold: t, agencies: 0, pctOfStarters: null, stepPct: null, medianDaysFromFirst: null })),
+    timeToSecond: { p25: null, median: null, p75: null, n: 0 },
+    recentSecond: [],
+  };
+  if (scopeIds.length === 0) return empty;
+
+  const txs = await commandDb.propertyTransaction.findMany({
+    where: { agencyId: { in: scopeIds }, status: { not: "draft" }, isMigrated: false },
+    select: { agencyId: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // agencyId → ascending sale createdAts.
+  const byAgency = new Map<string, Date[]>();
+  for (const t of txs) {
+    const arr = byAgency.get(t.agencyId);
+    if (arr) arr.push(t.createdAt);
+    else byAgency.set(t.agencyId, [t.createdAt]);
+  }
+
+  const starters = byAgency.size;
+  if (starters === 0) return empty;
+
+  const DAY = 86_400_000;
+  const countAtLeast = (t: number): number => {
+    let c = 0;
+    for (const arr of byAgency.values()) if (arr.length >= t) c++;
+    return c;
+  };
+  const daysToReach = (t: number): number[] => {
+    const out: number[] = [];
+    for (const arr of byAgency.values()) {
+      if (arr.length >= t) out.push((arr[t - 1].getTime() - arr[0].getTime()) / DAY);
+    }
+    return out;
+  };
+
+  const milestones: TxMilestone[] = TX_THRESHOLDS.map((t, i) => {
+    const agencies = countAtLeast(t);
+    const prev = i === 0 ? starters : countAtLeast(TX_THRESHOLDS[i - 1]);
+    const median = t === 1 ? null : daysPercentiles(daysToReach(t)).median;
+    return {
+      threshold: t,
+      agencies,
+      pctOfStarters: starters ? Math.round((agencies / starters) * 100) : null,
+      stepPct: i === 0 ? null : prev ? Math.round((agencies / prev) * 100) : null,
+      medianDaysFromFirst: median == null ? null : Math.round(median),
+    };
+  });
+
+  const timeToSecond = daysPercentiles(daysToReach(2));
+
+  // Recently activated — agencies whose SECOND sale landed in the last 90 days.
+  const now = new Date();
+  const since90 = new Date(now);
+  since90.setUTCDate(since90.getUTCDate() - 90);
+  const recent = [...byAgency.entries()]
+    .filter(([, arr]) => arr.length >= 2 && arr[1] >= since90)
+    .map(([agencyId, arr]) => ({ agencyId, secondAt: arr[1], daysFromFirst: Math.round((arr[1].getTime() - arr[0].getTime()) / DAY) }));
+
+  let recentSecond: SecondSaleCrosser[] = [];
+  if (recent.length > 0) {
+    const names = await commandDb.agency.findMany({
+      where: { id: { in: recent.map((r) => r.agencyId) } },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(names.map((a) => [a.id, a.name] as const));
+    recentSecond = recent
+      .map((r) => ({ agencyId: r.agencyId, agencyName: nameById.get(r.agencyId) ?? "—", secondAt: r.secondAt, daysFromFirst: r.daysFromFirst }))
+      .sort((a, b) => b.secondAt.getTime() - a.secondAt.getTime());
+  }
+
+  return { starters, milestones, timeToSecond, recentSecond };
+}
+
 export async function getRetention(mode: CommandMode, agencyIds: string[]): Promise<RetentionData> {
   const now = new Date();
   const since30 = new Date(now); since30.setUTCDate(since30.getUTCDate() - 30);
