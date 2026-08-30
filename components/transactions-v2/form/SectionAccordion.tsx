@@ -20,7 +20,10 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, glassId
   const glass = glassId ? tag : {};
 
   return (
-    <div className={glassId ? surfaceClass : "agent-glass-strong"} {...glass}>
+    // Explicit radius + clip: a picked glass-vNN variant carries no border-radius
+    // of its own, so without this the card squares off (and the header tint
+    // would bleed past the corners).
+    <div className={glassId ? surfaceClass : "agent-glass-strong"} {...glass} style={{ borderRadius: "var(--agent-radius-lg)", overflow: "hidden" }}>
       <button
         type="button"
         className="agent-acc-hdr w-full"

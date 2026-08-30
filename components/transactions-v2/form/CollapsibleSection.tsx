@@ -20,7 +20,9 @@ export function CollapsibleSection({ title, summary, defaultOpen = false, glassI
   const glass = glassId ? tag : {};
 
   return (
-    <div className={`${glassId ? surfaceClass : "agent-glass-strong"} overflow-hidden`} {...glass}>
+    // Explicit radius: a picked glass-vNN variant carries no border-radius, so
+    // without this the card squares off once a Design Lab pick applies.
+    <div className={`${glassId ? surfaceClass : "agent-glass-strong"} overflow-hidden`} {...glass} style={{ borderRadius: "var(--agent-radius-lg)" }}>
       <button
         type="button"
         className="agent-acc-hdr w-full"

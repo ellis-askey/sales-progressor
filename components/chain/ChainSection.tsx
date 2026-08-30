@@ -46,7 +46,7 @@ function StubCard({
   const { surfaceClass, tag } = useCardSurface("new-sale-chain-link", "New sale · Chain link", "glass-card");
 
   return (
-    <div className={`${surfaceClass} px-4 py-3`} {...tag}>
+    <div className={`${surfaceClass} px-4 py-3`} {...tag} style={{ borderRadius: 13 }}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900/90 truncate">{address1}</p>
