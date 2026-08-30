@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { getAccessScope } from "@/lib/security/access-scope";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { getSolicitorFirmDetail } from "@/lib/services/solicitors";
+import { getSolicitorFirmDetail, getSolicitorFirmDetailForScope } from "@/lib/services/solicitors";
 import type { FirmFileRow } from "@/lib/services/solicitors";
-import { getBrokerFirmDetail } from "@/lib/services/brokers";
+import { getBrokerFirmDetail, getBrokerFirmDetailForScope } from "@/lib/services/brokers";
 import type { BrokerFirmFileRow } from "@/lib/services/brokers";
 import {
   getSolicitorExchangeStats,
+  getSolicitorExchangeStatsForScope,
   getReferralStats,
+  getReferralStatsForScope,
   getBrokerReferralStats,
+  getBrokerReferralStatsForScope,
 } from "@/lib/services/analytics";
 import { CaretLeft, ArrowSquareOut, Scales, Bank } from "@phosphor-icons/react/dist/ssr";
 
@@ -44,8 +49,13 @@ export default async function PartnerFirmDetailPage({
   if (kind !== "solicitor" && kind !== "broker") notFound();
 
   const session = await requireSession();
-  const isDirector = session.user.role === "director";
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const scope = getAccessScope(session);
+  const isAgent = scope.kind === "agency";
+  // Referral income: agents gate on director; internal staff gate on admin
+  // powers (so a plain sales_progressor never sees fees, but admin / superadmin
+  // and the hybrid founder account do).
+  const showIncome = isAgent ? session.user.role === "director" : hasAdminPowers(session);
+  const vis = isAgent ? await resolveAgentVisibility(session.user.id, session.user.agencyId) : null;
 
   let firmName: string;
   let website: string | null = null;
@@ -57,9 +67,11 @@ export default async function PartnerFirmDetailPage({
 
   if (kind === "solicitor") {
     const [detail, exchangeStats, referrals] = await Promise.all([
-      getSolicitorFirmDetail(vis, id),
-      getSolicitorExchangeStats(vis).catch(() => []),
-      isDirector ? getReferralStats(session.user.agencyId).catch(() => []) : Promise.resolve([]),
+      isAgent ? getSolicitorFirmDetail(vis!, id) : getSolicitorFirmDetailForScope(scope, id),
+      (isAgent ? getSolicitorExchangeStats(vis!) : getSolicitorExchangeStatsForScope(scope)).catch(() => []),
+      showIncome
+        ? (isAgent ? getReferralStats(session.user.agencyId) : getReferralStatsForScope(scope)).catch(() => [])
+        : Promise.resolve([]),
     ]);
     if (!detail) notFound();
     firmName = detail.name;
@@ -74,8 +86,10 @@ export default async function PartnerFirmDetailPage({
     if (inc) income = { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence };
   } else {
     const [detail, referrals] = await Promise.all([
-      getBrokerFirmDetail(vis, id),
-      isDirector ? getBrokerReferralStats(session.user.agencyId).catch(() => []) : Promise.resolve([]),
+      isAgent ? getBrokerFirmDetail(vis!, id) : getBrokerFirmDetailForScope(scope, id),
+      showIncome
+        ? (isAgent ? getBrokerReferralStats(session.user.agencyId) : getBrokerReferralStatsForScope(scope)).catch(() => [])
+        : Promise.resolve([]),
     ]);
     if (!detail) notFound();
     firmName = detail.name;
@@ -147,7 +161,7 @@ export default async function PartnerFirmDetailPage({
             <StatTile value="0" label="Exchanges tracked" sub="No exchange history yet" />
           )
         )}
-        {isDirector && income && (
+        {showIncome && income && (
           <StatTile
             value={formatGBP(income.receivedPence)}
             label="Referral income in"

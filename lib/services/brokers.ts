@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { AgentVisibility } from "./agent";
-import type { TransactionStatus } from "@prisma/client";
+import type { Prisma, TransactionStatus } from "@prisma/client";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 
 // Broker directory, mirror of lib/services/solicitors.ts. Brokers only ever
 // attach on the purchaser side (mortgage files), so — unlike solicitors —
@@ -26,13 +27,23 @@ export type BrokerFirmWithStats = {
 /** Returns broker firms scoped to the agent's visible active transactions. */
 export async function getBrokerDirectoryForAgent(vis: AgentVisibility): Promise<BrokerFirmWithStats[]> {
   const activeStatuses = ["active", "on_hold"] as TransactionStatus[];
-
   const txFilter = vis.seeAll
     ? vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName }, status: { in: activeStatuses } }
       : { agencyId: vis.agencyId, status: { in: activeStatuses } }
     : { agentUserId: vis.userId, status: { in: activeStatuses } };
+  return brokerDirectoryFromWhere(txFilter);
+}
 
+/** Returns broker firms scoped for internal staff (access-scope aware). */
+export async function getBrokerDirectoryForScope(scope: AccessScope): Promise<BrokerFirmWithStats[]> {
+  const activeStatuses = ["active", "on_hold"] as TransactionStatus[];
+  return brokerDirectoryFromWhere({ ...scopeTransactionWhere(scope), status: { in: activeStatuses } });
+}
+
+async function brokerDirectoryFromWhere(
+  txFilter: Prisma.PropertyTransactionWhereInput,
+): Promise<BrokerFirmWithStats[]> {
   const transactions = await prisma.propertyTransaction.findMany({
     where: { ...txFilter, brokerFirmId: { not: null } },
     select: {
@@ -116,12 +127,23 @@ export type BrokerFirmDetail = {
  * see — the access guard. Brokers only attach on the purchaser side.
  */
 export async function getBrokerFirmDetail(vis: AgentVisibility, firmId: string): Promise<BrokerFirmDetail | null> {
-  const scope = vis.seeAll
+  const baseWhere = vis.seeAll
     ? vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
       : { agencyId: vis.agencyId }
     : { agentUserId: vis.userId };
+  return brokerFirmDetailFromWhere(baseWhere, firmId);
+}
 
+/** Broker firm detail scoped for internal staff (access-scope aware). */
+export async function getBrokerFirmDetailForScope(scope: AccessScope, firmId: string): Promise<BrokerFirmDetail | null> {
+  return brokerFirmDetailFromWhere(scopeTransactionWhere(scope), firmId);
+}
+
+async function brokerFirmDetailFromWhere(
+  baseWhere: Prisma.PropertyTransactionWhereInput,
+  firmId: string,
+): Promise<BrokerFirmDetail | null> {
   const [firm, transactions] = await Promise.all([
     prisma.brokerFirm.findUnique({
       where: { id: firmId },
@@ -133,7 +155,7 @@ export async function getBrokerFirmDetail(vis: AgentVisibility, firmId: string):
       },
     }),
     prisma.propertyTransaction.findMany({
-      where: { ...scope, status: { not: "draft" as TransactionStatus }, brokerFirmId: firmId },
+      where: { ...baseWhere, status: { not: "draft" as TransactionStatus }, brokerFirmId: firmId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

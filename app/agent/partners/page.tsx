@@ -1,14 +1,28 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/session";
+import { getAccessScope } from "@/lib/security/access-scope";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { getSolicitorDirectoryForAgent } from "@/lib/services/solicitors";
-import { getBrokerDirectoryForAgent } from "@/lib/services/brokers";
+import {
+  getSolicitorDirectoryForAgent,
+  getSolicitorDirectoryForScope,
+} from "@/lib/services/solicitors";
+import type { SolicitorFirmWithStats } from "@/lib/services/solicitors";
+import {
+  getBrokerDirectoryForAgent,
+  getBrokerDirectoryForScope,
+} from "@/lib/services/brokers";
+import type { BrokerFirmWithStats } from "@/lib/services/brokers";
 import {
   getSolicitorExchangeStats,
+  getSolicitorExchangeStatsForScope,
   getReferralStats,
+  getReferralStatsForScope,
   getBrokerReferralStats,
+  getBrokerReferralStatsForScope,
 } from "@/lib/services/analytics";
+import type { SolicitorExchangeStat, ReferralStat, BrokerReferralStat } from "@/lib/services/analytics";
 import { Buildings } from "@phosphor-icons/react/dist/ssr";
 import { prisma } from "@/lib/prisma";
 import { RecommendedSolicitorsSettings } from "@/components/agent/RecommendedSolicitorsSettings";
@@ -19,11 +33,85 @@ import type { DirectoryFirm, FirmIntel } from "@/components/agent/PartnersDirect
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
+/** Attach per-firm intelligence to the raw directory rows. */
+function buildDirectories(
+  solicitorFirms: SolicitorFirmWithStats[],
+  brokerFirms: BrokerFirmWithStats[],
+  exchangeStats: SolicitorExchangeStat[],
+  solicitorReferrals: ReferralStat[],
+  brokerReferrals: BrokerReferralStat[],
+): { solicitor: DirectoryFirm[]; broker: DirectoryFirm[] } {
+  const exchangeByFirm = new Map(exchangeStats.map((s) => [s.firmId, s]));
+  const solicitorIncomeByFirm = new Map(solicitorReferrals.map((s) => [s.firmId, s]));
+  const brokerIncomeByFirm = new Map(brokerReferrals.map((s) => [s.firmId, s]));
+
+  const solicitorIntel = (firmId: string): FirmIntel => {
+    const ex = exchangeByFirm.get(firmId);
+    const inc = solicitorIncomeByFirm.get(firmId);
+    return {
+      avgDaysToExchange: ex && ex.exchangeCount > 0 ? ex.avgDaysToExchange : null,
+      income: inc
+        ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence, pendingCount: inc.pendingCount }
+        : null,
+    };
+  };
+  const brokerIntel = (firmId: string): FirmIntel => {
+    const inc = brokerIncomeByFirm.get(firmId);
+    return {
+      avgDaysToExchange: null,
+      income: inc
+        ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence, pendingCount: inc.pendingCount }
+        : null,
+    };
+  };
+
+  return {
+    solicitor: solicitorFirms.map((f) => ({ ...f, intel: solicitorIntel(f.id) })),
+    broker: brokerFirms.map((f) => ({ ...f, intel: brokerIntel(f.id) })),
+  };
+}
+
 export default async function AgentPartnersPage() {
   const session = await requireSession();
+  const scope = getAccessScope(session);
+  const isAgent = scope.kind === "agency";
   const isDirector = session.user.role === "director";
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
+  // Internal staff (sales_progressor / admin / superadmin) — access-scope aware,
+  // cross-agency for admin powers, own assigned files for a plain progressor.
+  // Referral income (commercial data) follows hasAdminPowers: shown to admin /
+  // superadmin and the hybrid founder account, hidden from a plain progressor.
+  if (!isAgent) {
+    const showIncome = hasAdminPowers(session);
+    const [firms, brokerFirms, exchangeStats, solicitorReferrals, brokerReferrals] = await Promise.all([
+      getSolicitorDirectoryForScope(scope),
+      getBrokerDirectoryForScope(scope),
+      getSolicitorExchangeStatsForScope(scope).catch(() => []),
+      showIncome ? getReferralStatsForScope(scope).catch(() => []) : Promise.resolve([]),
+      showIncome ? getBrokerReferralStatsForScope(scope).catch(() => []) : Promise.resolve([]),
+    ]);
+    const { solicitor, broker } = buildDirectories(firms, brokerFirms, exchangeStats, solicitorReferrals, brokerReferrals);
+    const empty = solicitor.length === 0 && broker.length === 0;
+
+    return (
+      <>
+        <PageHeader
+          title="Partners"
+          subtitle={scope.kind === "all" ? "Solicitors and brokers across every file on the platform." : "Solicitors and brokers on the files assigned to you."}
+        />
+        <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
+          {empty ? (
+            <EmptyDirectory internal />
+          ) : (
+            <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={showIncome} />
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // Agent path (director / negotiator) — agency-scoped, director-only settings.
+  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [
     firms,
     brokerFirms,
@@ -75,34 +163,8 @@ export default async function AgentPartnersPage() {
       : Promise.resolve(null),
   ]);
 
-  // Index the intelligence by firm id so each card can pull its own numbers.
-  const exchangeByFirm = new Map(exchangeStats.map((s) => [s.firmId, s]));
-  const solicitorIncomeByFirm = new Map(solicitorReferrals.map((s) => [s.firmId, s]));
-  const brokerIncomeByFirm = new Map(brokerReferrals.map((s) => [s.firmId, s]));
-
-  function solicitorIntel(firmId: string): FirmIntel {
-    const ex = exchangeByFirm.get(firmId);
-    const inc = solicitorIncomeByFirm.get(firmId);
-    return {
-      avgDaysToExchange: ex && ex.exchangeCount > 0 ? ex.avgDaysToExchange : null,
-      income: inc
-        ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence, pendingCount: inc.pendingCount }
-        : null,
-    };
-  }
-
-  function brokerIntel(firmId: string): FirmIntel {
-    const inc = brokerIncomeByFirm.get(firmId);
-    return {
-      avgDaysToExchange: null,
-      income: inc
-        ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence, pendingCount: inc.pendingCount }
-        : null,
-    };
-  }
-
-  const solicitorDirectory: DirectoryFirm[] = firms.map((f) => ({ ...f, intel: solicitorIntel(f.id) }));
-  const brokerDirectory: DirectoryFirm[] = brokerFirms.map((f) => ({ ...f, intel: brokerIntel(f.id) }));
+  const { solicitor, broker } = buildDirectories(firms, brokerFirms, exchangeStats, solicitorReferrals, brokerReferrals);
+  const directoryEmpty = solicitor.length === 0 && broker.length === 0;
 
   const preferredBroker = preferredBrokerRow?.brokerFirm
     ? {
@@ -115,8 +177,6 @@ export default async function AgentPartnersPage() {
         defaultReferralFeePence: preferredBrokerRow.defaultReferralFeePence ?? null,
       }
     : null;
-
-  const directoryEmpty = solicitorDirectory.length === 0 && brokerDirectory.length === 0;
 
   return (
     <>
@@ -170,26 +230,30 @@ export default async function AgentPartnersPage() {
 
         {/* Directory */}
         {directoryEmpty ? (
-          <div
-            className="agent-glass-strong agent-empty-card"
-            style={{ padding: "48px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
-          >
-            <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              No partners yet
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-              Solicitors and brokers appear here once they&apos;re on one of your files.
-            </p>
-          </div>
+          <EmptyDirectory />
         ) : (
-          <PartnersDirectory
-            solicitorFirms={solicitorDirectory}
-            brokerFirms={brokerDirectory}
-            showIncome={isDirector}
-          />
+          <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={isDirector} />
         )}
       </div>
     </>
+  );
+}
+
+function EmptyDirectory({ internal = false }: { internal?: boolean }) {
+  return (
+    <div
+      className="agent-glass-strong agent-empty-card"
+      style={{ padding: "48px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
+    >
+      <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+        No partners yet
+      </p>
+      <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
+        {internal
+          ? "Solicitors and brokers appear here once they're on a file in your view."
+          : "Solicitors and brokers appear here once they're on one of your files."}
+      </p>
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { calculateOurFee } from "@/lib/services/fees";
 import type { AgentVisibility } from "./agent";
 import type { Prisma, TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 
 // "draft" exists in the DB enum but may not be in the generated Prisma client yet
 const DRAFT = "draft" as TransactionStatus;
@@ -220,8 +221,17 @@ export type ReferralStat = {
 };
 
 export async function getReferralStats(agencyId: string): Promise<ReferralStat[]> {
+  return referralStatsFromWhere({ agencyId });
+}
+
+/** Cross-scope solicitor referral income (internal staff, access-scope aware). */
+export async function getReferralStatsForScope(scope: AccessScope): Promise<ReferralStat[]> {
+  return referralStatsFromWhere(scopeTransactionWhere(scope));
+}
+
+async function referralStatsFromWhere(base: Prisma.PropertyTransactionWhereInput): Promise<ReferralStat[]> {
   const rows = await prisma.propertyTransaction.findMany({
-    where: { agencyId, referredFirmId: { not: null }, status: { not: "draft" } },
+    where: { ...base, referredFirmId: { not: null }, status: { not: "draft" } },
     select: {
       referralFee: true,
       referralFeeReceived: true,
@@ -262,8 +272,17 @@ export type BrokerReferralStat = {
 };
 
 export async function getBrokerReferralStats(agencyId: string): Promise<BrokerReferralStat[]> {
+  return brokerReferralStatsFromWhere({ agencyId });
+}
+
+/** Cross-scope broker referral income (internal staff, access-scope aware). */
+export async function getBrokerReferralStatsForScope(scope: AccessScope): Promise<BrokerReferralStat[]> {
+  return brokerReferralStatsFromWhere(scopeTransactionWhere(scope));
+}
+
+async function brokerReferralStatsFromWhere(base: Prisma.PropertyTransactionWhereInput): Promise<BrokerReferralStat[]> {
   const rows = await prisma.propertyTransaction.findMany({
-    where: { agencyId, brokerFirmId: { not: null }, status: { not: "draft" } },
+    where: { ...base, brokerFirmId: { not: null }, status: { not: "draft" } },
     select: {
       brokerReferralFee: true,
       brokerReferralFeeReceived: true,
@@ -351,8 +370,15 @@ export type SolicitorExchangeStat = {
 };
 
 export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<SolicitorExchangeStat[]> {
-  const txWhere = buildTxWhere(vis);
+  return solicitorExchangeStatsFromWhere(buildTxWhere(vis));
+}
 
+/** Cross-scope solicitor exchange performance (internal staff, access-scope aware). */
+export async function getSolicitorExchangeStatsForScope(scope: AccessScope): Promise<SolicitorExchangeStat[]> {
+  return solicitorExchangeStatsFromWhere(scopeTransactionWhere(scope));
+}
+
+async function solicitorExchangeStatsFromWhere(txWhere: Prisma.PropertyTransactionWhereInput): Promise<SolicitorExchangeStat[]> {
   const exchangeDefs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM19", "PM26"] } },
     select: { id: true },
