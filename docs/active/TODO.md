@@ -21,6 +21,17 @@ about to-dos" guide card, BUILT BUT HIDDEN behind `SHOW_TODO_GUIDE = false`. Its
 explainer of notes vs sale-linked tasks vs progressor requests. Flip
 `SHOW_TODO_GUIDE = true` once it exists.
 
+## "View demo analytics" — Analytics-with-data view (filed 2026-08-30)
+
+The Analytics empty state (`components/analytics/AnalyticsEmptyState.tsx`) has a
+"Want to see Analytics with data? / View demo analytics" card, BUILT BUT HIDDEN
+behind `SHOW_DEMO_ANALYTICS = false`. Its button currently reuses `useDemoExplore`
+(stands up the demo and routes to the demo file). To ship it, wire "View demo
+analytics" to stand up the demo and then land on **/agent/analytics** (which will
+already show data once the demo files exist), not a file. Add a destination option
+to `useDemoExplore` (e.g. `launch(true, { to: "/agent/analytics" })`), then flip
+`SHOW_DEMO_ANALYTICS = true`.
+
 ## Demo file "Show me around" contextual tour (filed 2026-08-30)
 
 The demo-file first-arrival popover (`components/transaction/DemoFileMarker.tsx`)
