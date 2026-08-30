@@ -16,6 +16,8 @@ import { Pill } from "@/components/ui/Pill";
 import { PriceInput } from "@/components/ui/PriceInput";
 import type { BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { addBrokerForSaleAction } from "@/app/actions/brokers";
+import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 const emptyForm = { firmName: "", contactName: "", phone: "", email: "" };
 
@@ -147,6 +149,8 @@ export function BrokerField({
   }
 
   const contactBits = value ? [value.phone, value.email].filter(Boolean).join(" · ") : "";
+  // Assign is only available once every field is filled and the email is valid.
+  const canAssign = !!form.firmName.trim() && !!form.contactName.trim() && !!form.phone.trim() && isValidEmail(form.email);
 
   return (
     <div>
@@ -221,20 +225,46 @@ export function BrokerField({
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <div>
                     <label style={labelStyle}>Brokerage name</label>
-                    <input ref={firmRef} value={form.firmName} onChange={(e) => setForm({ ...form, firmName: e.target.value })} placeholder="e.g. Bright Future Mortgages" className="glass-input w-full px-3 py-2.5 text-sm" />
+                    <input
+                      ref={firmRef}
+                      value={form.firmName}
+                      onChange={(e) => setForm({ ...form, firmName: e.target.value })}
+                      onBlur={() => setForm((f) => ({ ...f, firmName: titleCaseKeepAcronyms(f.firmName) }))}
+                      placeholder="e.g. Bright Future Mortgages"
+                      className="glass-input w-full px-3 py-2.5 text-sm"
+                    />
                   </div>
                   <div>
                     <label style={labelStyle}>Contact name</label>
-                    <input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} placeholder="e.g. Aisha Rahman" className="glass-input w-full px-3 py-2.5 text-sm" />
+                    <input
+                      value={form.contactName}
+                      onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                      onBlur={() => setForm((f) => ({ ...f, contactName: titleCaseKeepAcronyms(f.contactName) }))}
+                      placeholder="e.g. Aisha Rahman"
+                      className="glass-input w-full px-3 py-2.5 text-sm"
+                    />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <div>
                       <label style={labelStyle}>Phone</label>
-                      <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="020 …" className="glass-input w-full px-3 py-2.5 text-sm" />
+                      <input
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: cleanPhone(e.target.value) })}
+                        onBlur={() => setForm((f) => ({ ...f, phone: formatUKPhone(f.phone) }))}
+                        placeholder="020 …"
+                        inputMode="tel"
+                        className="glass-input w-full px-3 py-2.5 text-sm"
+                      />
                     </div>
                     <div>
                       <label style={labelStyle}>Email</label>
-                      <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="name@firm.co.uk" className="glass-input w-full px-3 py-2.5 text-sm" />
+                      <input
+                        value={form.email}
+                        onChange={(e) => setForm({ ...form, email: e.target.value.toLowerCase() })}
+                        placeholder="name@firm.co.uk"
+                        inputMode="email"
+                        className="glass-input w-full px-3 py-2.5 text-sm"
+                      />
                     </div>
                   </div>
                 </div>
@@ -284,7 +314,13 @@ export function BrokerField({
 
                 {error && <p role="alert" style={{ margin: 0, fontSize: 12, color: "var(--agent-danger, #dc2626)" }}>{error}</p>}
 
-                <button type="button" onClick={assign} disabled={saving} className="agent-btn agent-btn-primary agent-btn-sm" style={{ alignSelf: "flex-start", opacity: saving ? 0.7 : 1 }}>
+                <button
+                  type="button"
+                  onClick={assign}
+                  disabled={saving || !canAssign}
+                  className="agent-btn agent-btn-primary agent-btn-sm"
+                  style={{ alignSelf: "flex-start", opacity: saving || !canAssign ? 0.5 : 1, cursor: saving || !canAssign ? "not-allowed" : "pointer" }}
+                >
                   {saving ? "Assigning" : "Assign broker to this sale"}
                 </button>
               </div>
