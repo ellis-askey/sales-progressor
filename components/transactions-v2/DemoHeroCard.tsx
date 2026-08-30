@@ -8,6 +8,7 @@
 
 import { Play } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
 export function DemoHeroCard() {
@@ -28,16 +29,7 @@ export function DemoHeroCard() {
         }}
       >
         {/* Glass-house artwork, right side, fading into the card. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/demo-hero-bg.png" alt="" aria-hidden
-          style={{
-            position: "absolute", right: 0, top: 0, height: "100%", width: "auto", maxWidth: "44%",
-            objectFit: "cover", objectPosition: "center", pointerEvents: "none",
-            WebkitMaskImage: "linear-gradient(to right, transparent, #000 42%)",
-            maskImage: "linear-gradient(to right, transparent, #000 42%)",
-          }}
-        />
+        <HeroArt light="/demo-hero-bg.png" dark="/demo-hero-bg-dark.png" maxWidth="44%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 540 }}>
           <Pill tone="brand" size="sm" style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             New here?

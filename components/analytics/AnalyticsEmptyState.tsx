@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Plus, Timer, TrendUp, Funnel, Eye } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
 const SHOW_DEMO_ANALYTICS = false;
@@ -32,16 +33,7 @@ export function AnalyticsEmptyState() {
           background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/analytics-hero.png" alt="" aria-hidden
-          style={{
-            position: "absolute", right: 0, top: 0, height: "100%", width: "auto", maxWidth: "50%",
-            objectFit: "cover", objectPosition: "center", pointerEvents: "none",
-            WebkitMaskImage: "linear-gradient(to right, transparent, #000 38%)",
-            maskImage: "linear-gradient(to right, transparent, #000 38%)",
-          }}
-        />
+        <HeroArt light="/analytics-hero.png" dark="/analytics-hero-dark.png" maxWidth="50%" maskStart="38%" />
         <div style={{ position: "relative", maxWidth: 460 }}>
           <Pill tone="brand" size="sm" style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             Your data starts here

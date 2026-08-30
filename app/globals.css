@@ -1823,3 +1823,9 @@ select {
 .setup-cards-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (max-width: 650px) { .setup-cards-3 { grid-template-columns: 1fr; } }
 @media (max-width: 450px) { .setup-cards-2 { grid-template-columns: 1fr; } }
+
+/* Theme-swapped hero artwork on the onboarding empty states (Ellis, 2026-08-30).
+   Light image by default; the dark variant under app dark mode. */
+.agent-hero-art-dark { display: none; }
+:root[data-theme="dark"] .agent-hero-art-light { display: none; }
+:root[data-theme="dark"] .agent-hero-art-dark { display: block; }

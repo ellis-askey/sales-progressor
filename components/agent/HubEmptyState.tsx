@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Plus, FolderOpen, ListChecks, UsersThree, UserCircle, ArrowRight } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
 export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale: boolean }) {
@@ -25,16 +26,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
           background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 50%, transparent 76%)",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/hub-hero.png" alt="" aria-hidden
-          style={{
-            position: "absolute", right: 0, top: 0, height: "100%", width: "auto", maxWidth: "48%",
-            objectFit: "cover", objectPosition: "center", pointerEvents: "none",
-            WebkitMaskImage: "linear-gradient(to right, transparent, #000 40%)",
-            maskImage: "linear-gradient(to right, transparent, #000 40%)",
-          }}
-        />
+        <HeroArt light="/hub-hero.png" dark="/hub-hero-dark.png" maxWidth="48%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
           <Pill tone="brand" size="sm" style={{ marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             New here?

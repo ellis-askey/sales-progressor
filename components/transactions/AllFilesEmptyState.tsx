@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
 export function AllFilesEmptyState() {
@@ -25,16 +26,7 @@ export function AllFilesEmptyState() {
           background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/demo-hero-bg.png" alt="" aria-hidden
-          style={{
-            position: "absolute", right: 0, top: 0, height: "100%", width: "auto", maxWidth: "44%",
-            objectFit: "cover", objectPosition: "center", pointerEvents: "none",
-            WebkitMaskImage: "linear-gradient(to right, transparent, #000 42%)",
-            maskImage: "linear-gradient(to right, transparent, #000 42%)",
-          }}
-        />
+        <HeroArt light="/demo-hero-bg.png" dark="/demo-hero-bg-dark.png" maxWidth="44%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
           <Pill tone="brand" size="sm" style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             No files yet
