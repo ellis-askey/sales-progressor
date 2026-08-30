@@ -11,7 +11,7 @@ import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/FileP
 import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { Stage1Fields } from "@/components/transactions-v2/form/Stage1Fields";
-import { Stage1SummaryBar } from "@/components/transactions-v2/form/Stage1SummaryBar";
+import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
 import { AgentPicker } from "@/components/agent-picker/AgentPicker";
@@ -684,6 +684,22 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     });
   }
 
+  // Guarantee a draft exists (with an id) and return it — used by the editable
+  // hero's photo picker, which needs a real transaction row to upload against
+  // before the file is created. Reuses the same draft the "Save draft" button
+  // makes, so there's never more than one.
+  async function ensureDraft(): Promise<string | null> {
+    if (currentDraftId) return currentDraftId;
+    try {
+      const input = buildDraftInput(formFields, extractedData, undefined);
+      const result = await saveDraftAction(input);
+      if (result.id) setCurrentDraftId(result.id);
+      return result.id;
+    } catch {
+      return null;
+    }
+  }
+
   async function saveDraft() {
     setIsSavingDraft(true);
     try {
@@ -1042,15 +1058,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
               {/* Stage 1 summary bar — hidden while editing */}
               {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 8 }}>
-                <Stage1SummaryBar
-                  streetAddress={formFields.streetAddress}
-                  city={formFields.city}
-                  postcode={formFields.postcode}
-                  tenure={formFields.tenure}
-                  purchaseType={formFields.purchaseType}
-                  progressedBy={formFields.progressedBy}
-                  onEdit={() => setStage1Expanded(true)}
-                  onProgressedByChange={(v) => { updateFormFields({ progressedBy: v }); markFieldEdited("progressedBy"); }}
+                <SaleHeroEditable
+                  fields={formFields}
+                  onUpdate={updateFormFields}
+                  onEditAddress={() => setStage1Expanded(true)}
+                  currentDraftId={currentDraftId}
+                  ensureDraft={ensureDraft}
                 />
               </div>}
 
@@ -1143,15 +1156,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
                   {/* Summary bar — hidden while editing */}
                   {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                    <Stage1SummaryBar
-                      streetAddress={formFields.streetAddress}
-                      city={formFields.city}
-                      postcode={formFields.postcode}
-                      tenure={formFields.tenure}
-                      purchaseType={formFields.purchaseType}
-                      progressedBy={formFields.progressedBy}
-                      onEdit={() => setStage1Expanded(true)}
-                      onProgressedByChange={(v) => { updateFormFields({ progressedBy: v }); markFieldEdited("progressedBy"); }}
+                    <SaleHeroEditable
+                      fields={formFields}
+                      onUpdate={updateFormFields}
+                      onEditAddress={() => setStage1Expanded(true)}
+                      currentDraftId={currentDraftId}
+                      ensureDraft={ensureDraft}
                     />
                   </div>}
 

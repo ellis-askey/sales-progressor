@@ -185,27 +185,7 @@ export function PriceFeesSection({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* G5.1 — Sale price */}
-      <div onBlur={handlePriceBlur}>
-        <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
-          Sale price
-          <FieldIndicator source={priceMemoSource} valid={!!purchasePricePence && purchasePricePence > 0} />
-        </p>
-        <HeroInputWrap isSolid={isSolid}>
-          <PriceInput
-            value={purchasePricePence}
-            onChange={handlePriceChange}
-            placeholder="0"
-            className="price-hero-input"
-          />
-        </HeroInputWrap>
-        {priceWarning && (
-          <p className="agent-reveal-in" style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-warning)", lineHeight: 1.4 }}>
-            {priceWarning}
-          </p>
-        )}
-        <FieldHint source={priceMemoSource} />
-      </div>
+      {/* Sale price now lives in the editable hero (SaleHeroEditable). */}
 
       {/* G5.2 — Agent fee */}
       <div>
