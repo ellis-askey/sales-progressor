@@ -15,6 +15,7 @@ import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { reconcileClaimMilestonesAction } from "@/app/actions/milestones";
 import { supersedeOnwardTrackerForLink, supersedeRelatedSaleTrackerForLink } from "@/lib/services/onward";
 import { stampTrialState } from "@/lib/services/trial";
+import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
 import { sendClaimWelcomeIfNotSent } from "@/lib/emails/send-claim-welcome";
 import { normaliseAddressString } from "@/lib/utils/address";
@@ -169,6 +170,10 @@ export async function POST(req: NextRequest) {
           agentUserId: session.user.id,
           progressedBy: "agent",
           serviceType: "self_managed",
+          // Pricing migration (2026-08): a claimed chain sale is self-progress,
+          // free by type.
+          freeReason: "permanent_free_self",
+          pricingVersion: CURRENT_PRICING_VERSION,
           tenure: tenure as Tenure,
           purchaseType: purchaseType as PurchaseType,
           isShareOfFreehold: isShareOfFreehold === true,

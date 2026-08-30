@@ -492,6 +492,21 @@ model PropertyTransaction {
   // snapshot, not the live purchasePrice field — immune to later price edits.
   priceAtExchange Int? // pence
 
+  // Pricing migration (2026-08). Why a file did not bill, for reporting only —
+  // separates the free product from the giveaway: permanent_free_self
+  // (self-progress, free by type), first_outsourced_free (the free first
+  // outsourced file), legacy_trial (old 14-day-trial files). Null = it billed
+  // (or an outsourced file still pending its exchange-time decision).
+  freeReason FreeReason?
+
+  // The pricing rules in force when this sale was created, so a future reprice
+  // never silently re-prices in-flight sales. Stamped at create, never changed.
+  pricingVersion String?
+
+  // Set true at exchange when this is the agency's first outsourced file, which
+  // is free. Consumed once (D5). Drives the intro-credit invoice line.
+  firstOutsourcedFree Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3411,6 +3426,14 @@ enum InvoiceLineKind {
   in_house_fee
   outsourced_fee
   credit_applied
+  intro_credit // first outsourced file free — full-value credit against the band fee
+}
+
+// Why a file did not bill, for revenue reporting (pricing migration 2026-08).
+enum FreeReason {
+  permanent_free_self   // self-progress: free by service type (the product)
+  first_outsourced_free // the free first outsourced file (the giveaway)
+  legacy_trial          // legacy: a file freed by the old 14-day trial
 }
 
 model InvoiceLine {

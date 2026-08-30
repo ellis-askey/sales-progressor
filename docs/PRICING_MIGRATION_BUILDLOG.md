@@ -28,9 +28,20 @@ Every code/schema/copy change gets an entry here: what changed (plain English), 
 **Verified:** `tsc` clean; `jest lib/billing/__tests__/fee.test.ts` → 11/11 pass.
 **Status:** staging (unpushed at time of writing). Not prod. No customer-visible change yet.
 
-### Increment 2 — freeReason + price-version stamp · pending
+### Increment 2 — freeReason + price-version stamp · 2026-08-31 · staging
 
-Planned: DB migration (staging first) adding a `freeReason` label to every sale (`permanent_free_self` / `first_outsourced_free` / `legacy_trial`) and a `pricingVersion` stamp; set them at create; backfill existing rows. Decisions D6, D7.
+**Plain English:** Every sale now carries a "why is this free" label and a stamp of the price rules it was created under. The label lets internal reporting tell the free *product* (self-progress) apart from the free *giveaway* (first outsourced file) apart from old trial files. The price-version stamp means a future price change never silently re-prices sales already in flight. No change to what bills — this is labelling + future-proofing.
+
+**Files:**
+- `prisma/schema.prisma` — new enum `FreeReason` (permanent_free_self / first_outsourced_free / legacy_trial); new `PropertyTransaction` columns `freeReason`, `pricingVersion`, `firstOutsourcedFree`; new `InvoiceLineKind` value `intro_credit` (for increment 3's discount line).
+- `prisma/migrations/20260831000000_free_reason_pricing_version/migration.sql` — adds the enum/columns and backfills: existing rows → `pricingVersion = 'legacy_2026_paid_self'`; not-yet-billed self-managed → `freeReason = 'permanent_free_self'`; old trial-free outsourced → `freeReason = 'legacy_trial'`.
+- `lib/billing/pricing-version.ts` — new; `CURRENT_PRICING_VERSION = "2026-08_free_self"`.
+- `lib/services/transactions.ts`, `app/actions/transactions.ts` (draft promotion — the main agent new-sale path), `app/api/claim/route.ts` — stamp `freeReason` + `pricingVersion` at every real-sale create.
+
+**Decisions:** D6 (freeReason), D7 (price-version stamp).
+**Verified:** `prisma generate --no-engine` clean; `tsc` clean. Migration SQL validated by review (applies to the staging DB on the next staging deploy — Law 3).
+**Status:** staging (code committed). **The migration applies to a DB when a deploy runs `prisma migrate deploy` (staging first). Code that reads/writes the new columns needs the migration applied first** — flagged for the push/verification step.
+**Note:** `firstOutsourcedFree` + `intro_credit` are added now (one migration) but only wired in increment 3.
 
 ### Increment 3 — First outsourced file free · pending
 
