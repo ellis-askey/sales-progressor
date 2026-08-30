@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { DraftEntry } from "@/components/transactions-v2/types";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
@@ -96,6 +97,7 @@ type Props = {
 
 export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDeleteDraft }: Props) {
   const isSolid = useSolidMode();
+  const { surfaceClass, tag, picked } = useCardSurface("new-sale-drop-memo", "New sale · Drop a memo", "");
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [showAllDrafts, setShowAllDrafts] = useState(false);
@@ -195,22 +197,27 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className="v2-hero-card"
+      className={`v2-hero-card${picked && !dragOver ? ` ${surfaceClass}` : ""}`}
+      {...tag}
       style={{
         borderRadius: 20,
-        background: dragOver
-          ? "rgba(var(--agent-coral-base-rgb), 0.06)"
-          : isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
-        backdropFilter: isSolid ? "none" : "blur(24px)",
-        WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
-        border: dragOver
-          ? "2px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
-          : isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid var(--nv2-border-glass)",
-        boxShadow: isSolid
-          ? "0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04)"
-          : "0 4px 32px rgba(var(--agent-shadow-rgb), 0.08)",
         padding: "36px 32px 32px",
         transition: "background 200ms, border 200ms",
+        // Base surface — a Design Lab pick takes over, except while dragging,
+        // where we always keep the coral drop-feedback.
+        ...(picked && !dragOver ? {} : {
+          background: dragOver
+            ? "rgba(var(--agent-coral-base-rgb), 0.06)"
+            : isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
+          backdropFilter: isSolid ? "none" : "blur(24px)",
+          WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
+          border: dragOver
+            ? "2px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
+            : isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid var(--nv2-border-glass)",
+          boxShadow: isSolid
+            ? "0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04)"
+            : "0 4px 32px rgba(var(--agent-shadow-rgb), 0.08)",
+        }),
       }}
     >
       {/* Breathing AI dot */}

@@ -10,17 +10,16 @@ import { Play } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
-import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 export function DemoHeroCard() {
   const { launch, node } = useDemoExplore();
-  const { surfaceClass, tag, picked } = useCardSurface("new-sale-demo-hero", "New sale · Demo hero", "");
 
   return (
     <>
+      {/* Onboarding hero with its own artwork — deliberately NOT a Design Lab
+          surface: swapping its chrome strips the image, and it's separate from
+          the property hero. */}
       <div
-        className={surfaceClass}
-        {...tag}
         style={{
           position: "relative",
           overflow: "hidden",
@@ -28,11 +27,8 @@ export function DemoHeroCard() {
           marginBottom: 18,
           minHeight: 200,
           padding: "30px 32px",
-          // Its own coral gradient by default; a Design Lab pick takes over.
-          ...(picked ? {} : {
-            border: "1px solid var(--agent-border-subtle)",
-            background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
-          }),
+          border: "1px solid var(--agent-border-subtle)",
+          background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
         }}
       >
         {/* Glass-house artwork, right side, fading into the card. */}
