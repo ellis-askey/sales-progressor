@@ -343,6 +343,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftEntry[]>(initialDrafts);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  // JSON snapshot of the form as it was last persisted (draft save / auto-save).
+  // The nav guard compares this to the live form so edits made AFTER a save are
+  // still caught — otherwise, once a draft existed, later edits were lost
+  // silently on navigate-away.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [showChangeFileModal, setShowChangeFileModal] = useState(false);
@@ -403,6 +408,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // Form is considered dirty if the user has moved past the hero screen
   const formIsDirty = flowState !== "hero" && flowState !== "extracting";
 
+  // There is unsaved data worth warning about if the form is live AND either no
+  // draft has been saved yet, or the live form has diverged from the last saved
+  // snapshot. This is what the navigate-away guards key off, so editing an
+  // already-saved draft and leaving still prompts.
+  const hasUnsavedData =
+    formIsDirty &&
+    (currentDraftId === null || savedSnapshot === null || JSON.stringify(formFields) !== savedSnapshot);
+
   // ── Precise dirty tracking via snapshot comparison ────────────────────────
   // Recomputes manuallyEditedFields whenever formFields change in extracted state.
   // "Type then untype" correctly removes the field from the dirty set.
@@ -429,18 +442,18 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── Navigation guard — warn before tab close when form has unsaved data ──
   useEffect(() => {
-    if (!formIsDirty || currentDraftId !== null) return;
+    if (!hasUnsavedData) return;
     function handleBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = "";
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [formIsDirty, currentDraftId]);
+  }, [hasUnsavedData]);
 
   // ── In-app nav guard — intercept sidebar link clicks when form has unsaved data ──
   useEffect(() => {
-    if (!formIsDirty || currentDraftId !== null) return;
+    if (!hasUnsavedData) return;
     function clickHandler(e: MouseEvent) {
       const anchor = (e.target as Element).closest("a[href]") as HTMLAnchorElement | null;
       if (!anchor) return;
@@ -457,7 +470,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     }
     document.addEventListener("click", clickHandler, true);
     return () => document.removeEventListener("click", clickHandler, true);
-  }, [formIsDirty, currentDraftId]);
+  }, [hasUnsavedData]);
 
   // ── Nav-away modal handlers ───────────────────────────────────────────────
 
@@ -504,6 +517,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setIsSubmitting(false);
     setDuplicateInfo(null);
     setCurrentDraftId(null);
+    setSavedSnapshot(null);
     setIsSavingDraft(false);
     setShowChangeFileModal(false);
     extractedSnapshotRef.current = null;
@@ -536,6 +550,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setExtractedData(null);
     setFormFields(defaultFormFields(defaultProgressedBy));
     setManuallyEditedFields(new Set());
+    setSavedSnapshot(null);
     setSolFillingVendor(false);
     setSolFillingPurchaser(false);
     setSolHintVendor(null);
@@ -592,6 +607,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       saveDraftAction(mosDraftInput).then((result) => {
         if (result.id === null) return; // internal account, no agency: silent skip (manual save shows the message)
         setCurrentDraftId(result.id);
+        setSavedSnapshot(JSON.stringify(newFields));
         upsertDraftInList(result.id, mosDraftInput.propertyAddress, {
           tenure: newFields.tenure || null,
           purchaseType: newFields.purchaseType || null,
@@ -720,7 +736,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     try {
       const input = buildDraftInput(formFields, extractedData, undefined);
       const result = await saveDraftAction(input);
-      if (result.id) setCurrentDraftId(result.id);
+      if (result.id) {
+        setCurrentDraftId(result.id);
+        setSavedSnapshot(JSON.stringify(formFields));
+      }
       return result.id;
     } catch {
       return null;
@@ -740,6 +759,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         return;
       }
       setCurrentDraftId(result.id);
+      setSavedSnapshot(JSON.stringify(formFields));
       upsertDraftInList(result.id, input.propertyAddress, {
         tenure: formFields.tenure || null,
         purchaseType: formFields.purchaseType || null,
@@ -771,6 +791,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setFlowState("manual");
     setStage(1);
     setCurrentDraftId(draft.id);
+    // Baseline the saved snapshot to the loaded draft so leaving without any
+    // edits doesn't prompt, but editing it and leaving does.
+    setSavedSnapshot(JSON.stringify(fields));
     setManuallyEditedFields(new Set());
     setOutsourcedError(null);
     extractedSnapshotRef.current = null;
