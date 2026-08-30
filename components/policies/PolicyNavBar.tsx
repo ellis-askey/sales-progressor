@@ -26,11 +26,12 @@ import { usePathname } from "next/navigation";
 type Tab = { href: string; label: string };
 
 const TABS: Tab[] = [
-  { href: "/privacy",        label: "Privacy"  },
-  { href: "/cookie-policy",  label: "Cookies"  },
-  { href: "/terms",          label: "Terms"    },
-  { href: "/billing-terms",  label: "Billing"  },
-  { href: "/legal/dpa",      label: "DPA"      },
+  { href: "/privacy",         label: "Privacy"        },
+  { href: "/cookie-policy",   label: "Cookies"        },
+  { href: "/terms",           label: "Terms"          },
+  { href: "/billing-terms",   label: "Billing"        },
+  { href: "/legal/dpa",       label: "DPA"            },
+  { href: "/provider-terms",  label: "Provider Terms" },
 ];
 
 export function PolicyNavBar() {
