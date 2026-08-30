@@ -15,7 +15,7 @@ import { useRef, useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setPropertyPhotoAction, removePropertyPhotoAction } from "@/app/actions/property-extras";
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
-import { Camera } from "@phosphor-icons/react";
+import { Camera, CircleNotch } from "@phosphor-icons/react";
 
 // Must exceed the out-animation duration so the photo finishes wiping out
 // before its <img> is unmounted.
@@ -98,7 +98,10 @@ export function usePropertyPhoto(transactionId: string, initialUrl: string | nul
   return { inputRef, onFile, triggerUpload, remove, displayUrl, hasPhoto, busy };
 }
 
-// The hollow add-photo circle shown in the empty state.
+// The add-photo affordance shown in the empty state: a solid gradient ring
+// (deep → light shade of the agency's brand colour, so it follows the primary
+// colour set in Settings) around a clean centre, with the label below. Used on
+// the property-file hero and the New Sale editable hero.
 export function AddPhotoCircle({
   onClick,
   busy,
@@ -108,6 +111,8 @@ export function AddPhotoCircle({
   busy: boolean;
   size?: number;
 }) {
+  const ring = Math.round(size * 0.62);
+  const icon = Math.round(ring * 0.42);
   return (
     <button
       type="button"
@@ -115,27 +120,38 @@ export function AddPhotoCircle({
       disabled={busy}
       aria-label="Add a property photo"
       title="Add a photo"
-      className="agent-hover-row"
       style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        flexShrink: 0,
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        gap: 8,
+        flexShrink: 0,
         cursor: busy ? "wait" : "pointer",
         padding: 0,
+        border: "none",
+        background: "none",
         fontFamily: "inherit",
-        background: "var(--agent-surface-elevated)",
-        border: "2px dashed var(--agent-border-strong, rgba(15,23,42,0.18))",
-        color: "var(--agent-text-muted)",
       }}
     >
-      <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-        <Camera size={size * 0.26} weight="regular" />
-        <span style={{ fontSize: 11, fontWeight: 600 }}>{busy ? "Uploading…" : "Add photo"}</span>
+      <span
+        className="agent-add-photo-ring"
+        style={{
+          width: ring,
+          height: ring,
+          borderRadius: "50%",
+          padding: 3,
+          display: "flex",
+          // Brand-adaptive: deep brand shade → a lighter mix of the base brand
+          // colour. color-mix keeps it tied to --agent-coral (the user's primary).
+          background: "linear-gradient(135deg, var(--agent-coral-deep), color-mix(in srgb, var(--agent-coral) 58%, #ffffff))",
+          boxShadow: "0 4px 14px rgba(var(--agent-coral-rgb), 0.28)",
+        }}
+      >
+        <span style={{ width: "100%", height: "100%", borderRadius: "50%", background: "var(--agent-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--agent-coral-deep)" }}>
+          {busy ? <CircleNotch size={icon} weight="bold" className="agent-spin" /> : <Camera size={icon} weight="regular" />}
+        </span>
       </span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{busy ? "Uploading…" : "Add photo"}</span>
     </button>
   );
 }
