@@ -61,4 +61,6 @@ export const DEFAULT_PICKS: GlassPicks = {
   "overview-recent-activity": { light: "v05", dark: "v05" },
   "reminders-automated-emails": { light: "v22", dark: "v22" },
   "contacts-person": { light: "v03", dark: "v04" },
+  "new-sale-drop-memo": { light: "v26", dark: "v16" },
+  "new-sale-research": { light: "v05" },
 };
