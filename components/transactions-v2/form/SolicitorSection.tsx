@@ -2,7 +2,8 @@
 
 import { Buildings, CheckCircle } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
-import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
+import { type BrokerSelection } from "@/components/brokers/BrokerPicker";
+import { BrokerField } from "@/components/brokers/BrokerField";
 import type { MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
 export { autoFillSolicitor } from "@/lib/utils/solicitor-autofill";
@@ -264,8 +265,7 @@ export function SolicitorSection({
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
           )}
         </p>
-        <BrokerPicker
-          label=""
+        <BrokerField
           value={broker}
           onChange={(v) => { onBrokerChange(v); onEdit("broker"); }}
           preferredBroker={preferredBroker}

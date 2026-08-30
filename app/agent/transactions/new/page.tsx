@@ -148,7 +148,15 @@ export default async function AgentNewSaleV2Page() {
         where: { agencyId: session.user.agencyId },
         select: {
           defaultReferralFeePence: true,
-          brokerFirm: { select: { id: true, name: true } },
+          brokerFirm: {
+            select: {
+              id: true,
+              name: true,
+              // First contact so the saved-broker card can show details once the
+              // agent confirms a broker is involved.
+              handlers: { take: 1, select: { id: true, name: true, phone: true, email: true } },
+            },
+          },
         },
       })
     ).catch(() => null),
@@ -249,7 +257,7 @@ export default async function AgentNewSaleV2Page() {
         <NewSaleFlow
           recommendedFirms={recommendedFirms}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          preferredBroker={(preferredBrokerRow as any)?.brokerFirm ? { firmId: (preferredBrokerRow as any).brokerFirm.id, firmName: (preferredBrokerRow as any).brokerFirm.name, contactId: null, contactName: null, phone: null, email: null } : null}
+          preferredBroker={(preferredBrokerRow as any)?.brokerFirm ? { firmId: (preferredBrokerRow as any).brokerFirm.id, firmName: (preferredBrokerRow as any).brokerFirm.name, contactId: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.id ?? null, contactName: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.name ?? null, phone: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.phone ?? null, email: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.email ?? null } : null}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           preferredBrokerDefaultFee={(preferredBrokerRow as any)?.defaultReferralFeePence ?? null}
           initialDrafts={drafts}
