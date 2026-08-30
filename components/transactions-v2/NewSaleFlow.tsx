@@ -27,7 +27,7 @@ import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntr
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
-import { cleanPhone, formatPostcode } from "@/lib/utils/address";
+import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
 import { titleCase } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -965,6 +965,20 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     });
   }
 
+  // Auto-look-up the sale's postcode as it's entered, so the "Sold prices" tab
+  // is already populated when they switch to it. The memo path looks up in
+  // handleFile (fromMemo), so this covers manual entry only.
+  const lastLookedUpPostcode = useRef<string | null>(null);
+  useEffect(() => {
+    if (fromMemo) return;
+    if (flowState !== "manual" && flowState !== "extracted") return;
+    const pc = formFields.postcode.trim().toUpperCase();
+    if (!pc || !isValidUKPostcode(pc) || lastLookedUpPostcode.current === pc) return;
+    lastLookedUpPostcode.current = pc;
+    intel.lookup({ postcode: pc, street: formFields.streetAddress || null, city: formFields.city || null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromMemo, formFields.postcode, formFields.streetAddress, formFields.city, flowState]);
+
   const stage1FieldProps = {
     streetAddress: formFields.streetAddress,
     city: formFields.city,
@@ -1143,7 +1157,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               matches the left column's Stage2Sections so both columns' headers
               (this + the "Add what you have" line) start level; marginBottom
               matches the left column's gap so the cards below line up. */}
-          {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && (
+          {(flowState === "extracted" || flowState === "manual") && (
             <div style={{ display: "flex", gap: 6, marginTop: 16, marginBottom: 12 }}>
               {(["earnings", "research"] as const).map((mode) => {
                 const active = rightColumnMode === mode;
@@ -1180,7 +1194,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       transition: "border-color 150ms, background 150ms, color 150ms",
                     }}
                   >
-                    {mode === "earnings" ? "Earnings" : "Property Research"}
+                    {mode === "earnings" ? "File worth" : "Sold prices"}
                   </button>
                 );
               })}
@@ -1188,7 +1202,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           )}
 
           <div key={rightColumnMode} style={{ animation: "right-col-fadein 220ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-            {rightColumnMode === "earnings" ? (
+            {/* Before they start (hero / reading a memo) the right column is the
+                Sold-prices research. Once started, the "File worth" tab shows the
+                earnings builder; "Sold prices" stays a tab. */}
+            {rightColumnMode === "earnings" && (flowState === "extracted" || flowState === "manual") ? (
               <EarningsBuilder
                 fields={formFields}
                 onUpdate={updateFormFields}
