@@ -179,15 +179,15 @@ export function Stage2Sections({
             broker={fields.broker}
             preferredBroker={preferredBroker}
             onBrokerChange={(v) => {
-              // Assigning a broker is the referral confirmation (drives the
-              // buyer-portal broker Team slot); removing it clears the flag.
-              // The fee is managed on the broker card itself.
-              onChange({ broker: v, purchaserBrokerReferral: !!v });
+              // Just record the broker on the file (professionals section).
+              // Whether it's the agency's referral is a separate signal below.
+              onChange({ broker: v });
               onEdit("broker");
             }}
             brokerReferralFee={fields.brokerReferralFee}
             onBrokerReferralFeeChange={(v) => onChange({ brokerReferralFee: v })}
             preferredBrokerDefaultFee={preferredBrokerDefaultFee}
+            onBrokerReferredChange={(referred) => onChange({ purchaserBrokerReferral: referred })}
             onEdit={onEdit}
           />
         </SectionAccordion>

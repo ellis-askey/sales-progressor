@@ -32,6 +32,7 @@ type Props = {
   brokerReferralFee: number | null;
   onBrokerReferralFeeChange: (v: number | null) => void;
   preferredBrokerDefaultFee: number | null;
+  onBrokerReferredChange: (referred: boolean) => void;
   onEdit: (field: string) => void;
 };
 
@@ -156,6 +157,7 @@ export function SolicitorSection({
   recommendedFirmIds,
   broker, preferredBroker, onBrokerChange,
   brokerReferralFee, onBrokerReferralFeeChange, preferredBrokerDefaultFee,
+  onBrokerReferredChange,
   onEdit,
 }: Props) {
   return (
@@ -265,6 +267,7 @@ export function SolicitorSection({
           referralFee={brokerReferralFee}
           onReferralFeeChange={(v) => { onBrokerReferralFeeChange(v); onEdit("brokerReferralFee"); }}
           preferredBrokerDefaultFee={preferredBrokerDefaultFee}
+          onReferralChange={onBrokerReferredChange}
         />
       </div>
 

@@ -65,6 +65,7 @@ function NiceCheck({ checked }: { checked: boolean }) {
 export function BrokerField({
   value, onChange, preferredBroker,
   referralFee, onReferralFeeChange, preferredBrokerDefaultFee,
+  onReferralChange,
 }: {
   value: BrokerSelection | null;
   onChange: (v: BrokerSelection | null) => void;
@@ -72,6 +73,10 @@ export function BrokerField({
   referralFee: number | null;
   onReferralFeeChange: (v: number | null) => void;
   preferredBrokerDefaultFee: number | null;
+  // Whether this assignment is the agency's own referral (usual/recommended
+  // broker = true, so it earns a fee and shows on the buyer's portal Team). A
+  // plain buyer's broker you record is NOT a referral.
+  onReferralChange: (referred: boolean) => void;
 }) {
   // `open` = the section is expanded (toggle on). A broker may or may not be
   // assigned to the sale yet.
@@ -106,6 +111,7 @@ export function BrokerField({
       setOpen(false);
       onChange(null);
       onReferralFeeChange(null);
+      onReferralChange(false);
       setForm(emptyForm); setError(null); setSaveAsRecommended(false); setSavedAsRecommended(false);
     } else {
       setOpen(true);
@@ -113,16 +119,19 @@ export function BrokerField({
   }
 
   // One-tap: use the agency's saved broker for this sale (with its saved fee).
+  // This IS the agency's referral.
   function useUsual() {
     if (!preferredBroker) return;
     onChange(preferredBroker);
     onReferralFeeChange(preferredBrokerDefaultFee);
+    onReferralChange(true);
   }
 
   // Back to the entry form to attach a different broker.
   function changeBroker() {
     onChange(null);
     onReferralFeeChange(null);
+    onReferralChange(false);
     setForm(emptyForm); setError(null); setSaveAsRecommended(false); setSavedAsRecommended(false);
   }
 
@@ -130,16 +139,21 @@ export function BrokerField({
     if (!form.firmName.trim()) { setError("Add the brokerage name."); return; }
     setSaving(true); setError(null);
     try {
+      const recommended = !hasUsual && saveAsRecommended;
       const created = await addBrokerForSaleAction({
         firmName: form.firmName,
         contactName: form.contactName,
         contactPhone: form.phone,
         contactEmail: form.email,
-        saveToPartners: !hasUsual && saveAsRecommended,
-        referralFeePence: referralFee,
+        saveToPartners: recommended,
+        referralFeePence: recommended ? referralFee : null,
       });
       onChange(created);
-      setSavedAsRecommended(!hasUsual && saveAsRecommended);
+      setSavedAsRecommended(recommended);
+      // A manually-entered broker is only a referral if you saved it as your
+      // recommended broker; otherwise it's just the buyer's broker on the file.
+      onReferralChange(recommended);
+      if (!recommended) onReferralFeeChange(null);
       setForm(emptyForm);
     } catch {
       setError("We couldn't save the broker. Try again.");
