@@ -65,8 +65,21 @@ Every code/schema/copy change gets an entry here: what changed (plain English), 
 - **D5a** — an erroneous exchange later undone should clear `freeReason`/`firstOutsourcedFree` (build edge; belongs with the reversal path in a later increment).
 - **`intro_credit` invoice-line kind** was added (increment 2) but is currently unused — the CreditNote path uses `credit_applied`. Keep for a possible future inline-discount representation, or drop in a cleanup.
 
-### Increment 4 — Remove the 14-day trial plumbing · pending (Phase 2 overlap)
+### Increment 4 — Remove the 14-day trial (create-time) · 2026-08-31 · staging
 
-Planned: retire the trial window from the create-time free computation now that self is free by type.
+**Plain English:** The old rule "any sale added in your first 14 days is free" is gone. A new sale is no longer made free by a trial window. Self-progress is free because of what it is (handled at exchange); an outsourced sale bills unless it's the free first one (decided at exchange). A comped agency (the deliberate "everything free" setting) is unchanged, and the first-sale activation timestamp is still recorded for analytics.
 
-**→ Phase 1 verification link: provided once increments 2–4 land.**
+**Files:**
+- `lib/services/trial.ts` — `stampTrialState` no longer applies a 14-day window: it sets the first-submission anchor, returns true only for a comped (`feeTier='free'`) agency, else false. Removed the `TRIAL_WINDOW_MS` constant. (The trial *UI* — banners, the new-sale card gate — is Phase 2.)
+
+**Decisions:** part of removing the trial model.
+**Verified:** `tsc` clean; fee tests (11) still green.
+**Status:** staging (code committed).
+
+---
+
+## Phase 1 — billing engine: CODE COMPLETE (2026-08-31)
+
+All four increments committed on staging. Net effect: self-progress is free by type; outsourced bills its band; the first outsourced file per new agency is free (visible credit); the 14-day trial is gone from the engine; every sale is labelled (`freeReason`) and version-stamped (`pricingVersion`). Nothing is on prod.
+
+**→ Phase 1 verification:** see the verification section at the bottom of this file.
