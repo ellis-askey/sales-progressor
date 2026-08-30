@@ -125,6 +125,7 @@ export async function createTransactionAction(input: {
   brokerContactId?: string | null;
   brokerReferralFee?: number | null;
   purchaserBrokerReferral?: boolean;
+  photoStoragePath?: string | null;
   mosUploaded?: boolean;
   mosStoragePath?: string;
   mosFileSize?: number;
@@ -249,6 +250,7 @@ export async function createTransactionAction(input: {
     brokerContactId: input.brokerContactId ?? null,
     brokerReferralFee: input.brokerReferralFee ?? null,
     purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
+    photoStoragePath: input.photoStoragePath ?? null,
     isMigrated: hasMigrationOverride,
   });
 

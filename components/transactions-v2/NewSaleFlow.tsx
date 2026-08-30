@@ -6,13 +6,16 @@ import { MemoStatusBar } from "@/components/transactions-v2/hero/MemoStatusBar";
 import { HeroCard } from "@/components/transactions-v2/HeroCard";
 import { ResearchPanel } from "@/components/transactions-v2/ResearchPanel";
 import { PropertyDossier } from "@/components/transactions-v2/PropertyDossier";
-import { FilePreview } from "@/components/transactions-v2/FilePreview";
-import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
+import { EarningsBuilder } from "@/components/transactions-v2/EarningsBuilder";
+import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
 import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
-import { Stage1Fields } from "@/components/transactions-v2/form/Stage1Fields";
-import { Stage1SummaryBar } from "@/components/transactions-v2/form/Stage1SummaryBar";
+import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
+import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
+import { RequiredPrompt } from "@/components/transactions-v2/form/RequiredPrompt";
+import { NotesSection } from "@/components/transactions-v2/form/NotesSection";
+import { CollapsibleSection } from "@/components/transactions-v2/form/CollapsibleSection";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
 import { AgentPicker } from "@/components/agent-picker/AgentPicker";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
@@ -27,7 +30,7 @@ import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntr
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
-import { cleanPhone, formatPostcode } from "@/lib/utils/address";
+import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
 import { titleCase } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -119,6 +122,9 @@ function populateFormFromDraft(draft: DraftEntry): FormFields {
     isShareOfFreehold: false,
     purchaseType: (draft.purchaseType === "mortgage" || draft.purchaseType === "cash_buyer" || draft.purchaseType === "cash_from_proceeds") ? draft.purchaseType : "",
     progressedBy: draft.progressedBy === "progressor" ? "progressor" : "agent",
+    // The draft list doesn't carry the photo path; a re-loaded draft starts
+    // without a hero photo (the row keeps it, but the client list doesn't).
+    photoStoragePath: null,
     vendors,
     purchasers,
     vendorSolicitor,
@@ -243,7 +249,6 @@ function SaveDraftButton({ isSaving, onClick }: { isSaving: boolean; onClick: ()
       type="button"
       onClick={onClick}
       disabled={isSaving}
-      className={isSaving ? undefined : "agent-link"}
       style={{
         display: "block", width: "100%", marginTop: 10, padding: "8px",
         background: "none", border: "none", cursor: isSaving ? "default" : "pointer",
@@ -252,7 +257,8 @@ function SaveDraftButton({ isSaving, onClick }: { isSaving: boolean; onClick: ()
         textAlign: "center",
       }}
     >
-      {isSaving ? "Saving draft…" : "Save draft"}
+      {/* Underline hugs the text, not the full-width button. */}
+      <span className={isSaving ? undefined : "agent-link"}>{isSaving ? "Saving draft…" : "Save draft"}</span>
     </button>
   );
 }
@@ -284,11 +290,17 @@ type Props = {
   isDirector: boolean;
   currentUserId: string;
   assignableAgents: import("@/lib/services/agency-team").AssignableAgent[];
+  showDemoHero: boolean;
+  // Fee config for the earnings builder — the agency's outsourced-fee tier and
+  // whether they're still inside the 14-day free-outsourcing trial.
+  feeTier: string;
+  legacyOutsourcedFeePence: number | null;
+  withinTrial: boolean;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -332,6 +344,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftEntry[]>(initialDrafts);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  // JSON snapshot of the form as it was last persisted (draft save / auto-save).
+  // The nav guard compares this to the live form so edits made AFTER a save are
+  // still caught — otherwise, once a draft existed, later edits were lost
+  // silently on navigate-away.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [showChangeFileModal, setShowChangeFileModal] = useState(false);
@@ -346,9 +363,22 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [stage1Expanded, setStage1Expanded] = useState(false);
 
   // ── Right column mode ─────────────────────────────────────────────────────
-  const [rightColumnMode, setRightColumnMode] = useState<"research" | "preview">("research");
-  const [hoveredTab, setHoveredTab] = useState<"research" | "preview" | null>(null);
+  const [rightColumnMode, setRightColumnMode] = useState<"earnings" | "research">("earnings");
+  const [hoveredTab, setHoveredTab] = useState<"earnings" | "research" | null>(null);
   const isSolid = useSolidMode();
+
+  // Right-column Notes: open by default on desktop, closed on smaller
+  // breakpoints. Starts closed (SSR-safe) and opens on desktop after mount; the
+  // key remounts CollapsibleSection so its default re-applies when the
+  // breakpoint flips.
+  const [notesOpenByDefault, setNotesOpenByDefault] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setNotesOpenByDefault(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const abortRef = useRef<AbortController | null>(null);
@@ -368,10 +398,24 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     formFields.tenure !== "" &&
     formFields.purchaseType !== "";
 
+  // Manual entry: once the core details are in (address + tenure + purchase
+  // type), reveal the rest of the form automatically — it fades up. No button.
+  useEffect(() => {
+    if (flowState === "manual" && stage === 1 && stage1Valid) setStage(2);
+  }, [flowState, stage, stage1Valid]);
+
   const isOutsourced = formFields.progressedBy === "progressor";
 
   // Form is considered dirty if the user has moved past the hero screen
   const formIsDirty = flowState !== "hero" && flowState !== "extracting";
+
+  // There is unsaved data worth warning about if the form is live AND either no
+  // draft has been saved yet, or the live form has diverged from the last saved
+  // snapshot. This is what the navigate-away guards key off, so editing an
+  // already-saved draft and leaving still prompts.
+  const hasUnsavedData =
+    formIsDirty &&
+    (currentDraftId === null || savedSnapshot === null || JSON.stringify(formFields) !== savedSnapshot);
 
   // ── Precise dirty tracking via snapshot comparison ────────────────────────
   // Recomputes manuallyEditedFields whenever formFields change in extracted state.
@@ -399,18 +443,18 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── Navigation guard — warn before tab close when form has unsaved data ──
   useEffect(() => {
-    if (!formIsDirty || currentDraftId !== null) return;
+    if (!hasUnsavedData) return;
     function handleBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = "";
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [formIsDirty, currentDraftId]);
+  }, [hasUnsavedData]);
 
   // ── In-app nav guard — intercept sidebar link clicks when form has unsaved data ──
   useEffect(() => {
-    if (!formIsDirty || currentDraftId !== null) return;
+    if (!hasUnsavedData) return;
     function clickHandler(e: MouseEvent) {
       const anchor = (e.target as Element).closest("a[href]") as HTMLAnchorElement | null;
       if (!anchor) return;
@@ -427,7 +471,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     }
     document.addEventListener("click", clickHandler, true);
     return () => document.removeEventListener("click", clickHandler, true);
-  }, [formIsDirty, currentDraftId]);
+  }, [hasUnsavedData]);
 
   // ── Nav-away modal handlers ───────────────────────────────────────────────
 
@@ -474,13 +518,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setIsSubmitting(false);
     setDuplicateInfo(null);
     setCurrentDraftId(null);
+    setSavedSnapshot(null);
     setIsSavingDraft(false);
     setShowChangeFileModal(false);
     extractedSnapshotRef.current = null;
     intel.clear();
     setFromMemo(false);
     setStage1Expanded(false);
-    setRightColumnMode("research");
+    setRightColumnMode("earnings");
   }
 
   function updateFormFields(updates: Partial<FormFields>) {
@@ -506,6 +551,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setExtractedData(null);
     setFormFields(defaultFormFields(defaultProgressedBy));
     setManuallyEditedFields(new Set());
+    setSavedSnapshot(null);
     setSolFillingVendor(false);
     setSolFillingPurchaser(false);
     setSolHintVendor(null);
@@ -544,7 +590,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       setSolHintPurchaser(data.purchaserSolicitor?.firm ?? null);
 
       setFlowState("extracted");
-      setRightColumnMode("preview");
+      setRightColumnMode("earnings");
       setStage1Expanded(false);
 
       // Trigger property intel lookup from extracted address
@@ -562,6 +608,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       saveDraftAction(mosDraftInput).then((result) => {
         if (result.id === null) return; // internal account, no agency: silent skip (manual save shows the message)
         setCurrentDraftId(result.id);
+        setSavedSnapshot(JSON.stringify(newFields));
         upsertDraftInList(result.id, mosDraftInput.propertyAddress, {
           tenure: newFields.tenure || null,
           purchaseType: newFields.purchaseType || null,
@@ -639,13 +686,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     intel.clear();
     setFromMemo(false);
     setStage1Expanded(false);
-    setRightColumnMode("research");
-  }
-
-  function handleContinue() {
-    setStage(2);
-    setStage1Expanded(false);
-    setRightColumnMode("preview");
+    setRightColumnMode("earnings");
+    // The editable hero replaces the drop card at the top — bring it into view.
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // ── Draft helpers ─────────────────────────────────────────────────────────
@@ -681,6 +724,25 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     });
   }
 
+  // Guarantee a draft exists (with an id) and return it — used by the editable
+  // hero's photo picker, which needs a real transaction row to upload against
+  // before the file is created. Reuses the same draft the "Save draft" button
+  // makes, so there's never more than one.
+  async function ensureDraft(): Promise<string | null> {
+    if (currentDraftId) return currentDraftId;
+    try {
+      const input = buildDraftInput(formFields, extractedData, undefined);
+      const result = await saveDraftAction(input);
+      if (result.id) {
+        setCurrentDraftId(result.id);
+        setSavedSnapshot(JSON.stringify(formFields));
+      }
+      return result.id;
+    } catch {
+      return null;
+    }
+  }
+
   async function saveDraft() {
     setIsSavingDraft(true);
     try {
@@ -694,6 +756,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         return;
       }
       setCurrentDraftId(result.id);
+      setSavedSnapshot(JSON.stringify(formFields));
       upsertDraftInList(result.id, input.propertyAddress, {
         tenure: formFields.tenure || null,
         purchaseType: formFields.purchaseType || null,
@@ -725,6 +788,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setFlowState("manual");
     setStage(1);
     setCurrentDraftId(draft.id);
+    // Baseline the saved snapshot to the loaded draft so leaving without any
+    // edits doesn't prompt, but editing it and leaving does.
+    setSavedSnapshot(JSON.stringify(fields));
     setManuallyEditedFields(new Set());
     setOutsourcedError(null);
     extractedSnapshotRef.current = null;
@@ -820,6 +886,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         brokerContactId: formFields.broker?.contactId ?? null,
         brokerReferralFee: formFields.broker ? formFields.brokerReferralFee : null,
         purchaserBrokerReferral: formFields.purchaseType === "mortgage" ? formFields.purchaserBrokerReferral : false,
+        photoStoragePath: formFields.photoStoragePath,
         mosUploaded: flowState === "extracted",
         mosStoragePath: extractedData?.mosStoragePath,
         mosFileSize: extractedData?.mosFileSize,
@@ -933,6 +1000,20 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     });
   }
 
+  // Auto-look-up the sale's postcode as it's entered, so the "Sold prices" tab
+  // is already populated when they switch to it. The memo path looks up in
+  // handleFile (fromMemo), so this covers manual entry only.
+  const lastLookedUpPostcode = useRef<string | null>(null);
+  useEffect(() => {
+    if (fromMemo) return;
+    if (flowState !== "manual" && flowState !== "extracted") return;
+    const pc = formFields.postcode.trim().toUpperCase();
+    if (!pc || !isValidUKPostcode(pc) || lastLookedUpPostcode.current === pc) return;
+    lastLookedUpPostcode.current = pc;
+    intel.lookup({ postcode: pc, street: formFields.streetAddress || null, city: formFields.city || null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromMemo, formFields.postcode, formFields.streetAddress, formFields.city, flowState]);
+
   const stage1FieldProps = {
     streetAddress: formFields.streetAddress,
     city: formFields.city,
@@ -969,12 +1050,44 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   } as const;
 
   return (
-    <div className="nv2-night">
+    <div className="nv2-night new-sale-flow">
+
+      {/* Full-width top hero. In the hero state it's the demo card; once the
+          agent starts (memo or manual) that fades away and the live editable
+          file hero takes its place, filling in as they work. */}
+      {flowState === "hero" && showDemoHero && (
+        <div style={{ marginBottom: 16 }}><DemoHeroCard /></div>
+      )}
+      {flowState !== "hero" && flowState !== "extracting" && (
+        <div style={{ marginBottom: 16 }}>
+          <SaleHeroEditable
+            fields={formFields}
+            onUpdate={updateFormFields}
+            currentDraftId={currentDraftId}
+            ensureDraft={ensureDraft}
+            showMemoFooter={flowState === "extracted"}
+            onChangeFile={handleChangeFile}
+          />
+        </div>
+      )}
 
       {/* ── Two-column layout — all states ─────────────────────────────────── */}
       <div className="new-sale-two-col">
 
         <div className="new-sale-form-col">
+
+          {/* Self-progress guide line — sits on the right column's tab centre
+              line. Nudges the next required field during stage 1, then fades to
+              "Add what you have now" once the core details are set. */}
+          {(flowState === "manual" || flowState === "extracted") && !isOutsourced && (
+            <div style={{ marginTop: 16 }}>
+              <RequiredPrompt
+                streetAddress={formFields.streetAddress}
+                tenure={formFields.tenure}
+                purchaseType={formFields.purchaseType}
+              />
+            </div>
+          )}
 
           {/* State 1: Conversational hero card */}
           {flowState === "hero" && (
@@ -987,8 +1100,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             />
           )}
 
-          {/* MOS status bar — extracting + extracted */}
-          {(flowState === "extracting" || flowState === "extracted") && (
+          {/* MOS status bar — only while reading; once read, the "needs
+              attention" info lives in the hero footer instead. */}
+          {flowState === "extracting" && (
             <MemoStatusBar
               status={flowState === "extracting" ? "reading" : "done"}
               isSlow={isSlow}
@@ -1008,48 +1122,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             />
           )}
 
-          {/* State 2: Extracted — Stage 1 summary bar + optional Stage 1 fields + Stage 2 */}
+          {/* State 2: Extracted — the editable hero is at the top; here we just
+              show the rest of the form. */}
           {flowState === "extracted" && (
             <>
-              {/* Stage 1 fields expand above summary bar when Edit clicked */}
-              {stage1Expanded && (
-                <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 16 }}>
-                  <Stage1Fields
-                    {...stage1FieldProps}
-                    memoSources={{
-                      streetAddress: memoSources.streetAddress,
-                      city: memoSources.city,
-                      postcode: memoSources.postcode,
-                      tenure: memoSources.tenure,
-                      purchaseType: memoSources.purchaseType,
-                    }}
-                    showContinueButton={false}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setStage1Expanded(false)}
-                    className="agent-btn agent-btn-secondary agent-btn-sm"
-                    style={{ display: "block", width: "100%", marginTop: 8, marginBottom: 2 }}
-                  >
-                    ↑ Done editing
-                  </button>
-                </div>
-              )}
-
-              {/* Stage 1 summary bar — hidden while editing */}
-              {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 8 }}>
-                <Stage1SummaryBar
-                  streetAddress={formFields.streetAddress}
-                  city={formFields.city}
-                  postcode={formFields.postcode}
-                  tenure={formFields.tenure}
-                  purchaseType={formFields.purchaseType}
-                  progressedBy={formFields.progressedBy}
-                  onEdit={() => setStage1Expanded(true)}
-                  onProgressedByChange={(v) => { updateFormFields({ progressedBy: v }); markFieldEdited("progressedBy"); }}
-                />
-              </div>}
-
               <Stage2Sections
                 {...stage2SectionsProps}
                 memoSources={memoSources}
@@ -1087,70 +1163,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             </>
           )}
 
-          {/* State 3: Manual entry — Stage 1 fields with Continue gate; Stage 2 shows summary bar */}
+          {/* State 3: Manual entry — the editable hero (top) collects the core
+              details and its "Continue" reveals the rest of the form here. */}
           {flowState === "manual" && (
             <div>
-
-              {/* Stage 1 — full fields + Continue gate */}
-              {stage === 1 && (
-                <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                  <Stage1Fields
-                    {...stage1FieldProps}
-                    memoSources={{
-                      streetAddress: NULL_MEMO_SOURCES.streetAddress,
-                      city: NULL_MEMO_SOURCES.city,
-                      postcode: NULL_MEMO_SOURCES.postcode,
-                      tenure: NULL_MEMO_SOURCES.tenure,
-                      purchaseType: NULL_MEMO_SOURCES.purchaseType,
-                    }}
-                    showContinueButton={stage1Valid}
-                    onContinue={handleContinue}
-                  />
-                </div>
-              )}
-
-              {/* Stage 2 — summary bar (above), optional expanded Stage 1 fields, then Stage 2 sections */}
               {stage === 2 && (
                 <>
-                  {/* Stage 1 fields expand above summary bar when Edit clicked */}
-                  {stage1Expanded && (
-                    <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                      <Stage1Fields
-                        {...stage1FieldProps}
-                        memoSources={{
-                          streetAddress: NULL_MEMO_SOURCES.streetAddress,
-                          city: NULL_MEMO_SOURCES.city,
-                          postcode: NULL_MEMO_SOURCES.postcode,
-                          tenure: NULL_MEMO_SOURCES.tenure,
-                          purchaseType: NULL_MEMO_SOURCES.purchaseType,
-                        }}
-                        showContinueButton={false}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setStage1Expanded(false)}
-                        className="agent-btn agent-btn-secondary agent-btn-sm"
-                        style={{ display: "block", width: "100%", marginTop: 8, marginBottom: 2 }}
-                      >
-                        ↑ Done editing
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Summary bar — hidden while editing */}
-                  {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                    <Stage1SummaryBar
-                      streetAddress={formFields.streetAddress}
-                      city={formFields.city}
-                      postcode={formFields.postcode}
-                      tenure={formFields.tenure}
-                      purchaseType={formFields.purchaseType}
-                      progressedBy={formFields.progressedBy}
-                      onEdit={() => setStage1Expanded(true)}
-                      onProgressedByChange={(v) => { updateFormFields({ progressedBy: v }); markFieldEdited("progressedBy"); }}
-                    />
-                  </div>}
-
                   <div ref={stage2ContainerRef}>
                     <Stage2Sections
                       {...stage2SectionsProps}
@@ -1183,10 +1201,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
         {/* Right column — file preview or property intel */}
         <div className="new-sale-right-col">
-          {/* Tab strip — only shown when both modes are relevant */}
-          {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && (
-            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-              {(["research", "preview"] as const).map((mode) => {
+          {/* Tab strip — only shown when both modes are relevant. marginTop
+              matches the left column's Stage2Sections so both columns' headers
+              (this + the "Add what you have" line) start level; marginBottom
+              matches the left column's gap so the cards below line up. */}
+          {(flowState === "extracted" || flowState === "manual") && (
+            <div style={{ display: "flex", gap: 6, marginTop: 16, marginBottom: 12 }}>
+              {(["earnings", "research"] as const).map((mode) => {
                 const active = rightColumnMode === mode;
                 const tabHovered = hoveredTab === mode && !active;
                 return (
@@ -1221,7 +1242,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       transition: "border-color 150ms, background 150ms, color 150ms",
                     }}
                   >
-                    {mode === "research" ? "Property Research" : "File Preview"}
+                    {mode === "earnings" ? "File worth" : "Sold prices"}
                   </button>
                 );
               })}
@@ -1229,8 +1250,18 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           )}
 
           <div key={rightColumnMode} style={{ animation: "right-col-fadein 220ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-            {rightColumnMode === "preview" ? (
-              <FilePreview fields={formFields} allMilestoneDefinitions={allMilestoneDefinitions} />
+            {/* Before they start (hero / reading a memo) the right column is the
+                Sold-prices research. Once started, the "File worth" tab shows the
+                earnings builder; "Sold prices" stays a tab. */}
+            {rightColumnMode === "earnings" && (flowState === "extracted" || flowState === "manual") ? (
+              <EarningsBuilder
+                fields={formFields}
+                onUpdate={updateFormFields}
+                feeTier={feeTier}
+                legacyOutsourcedFeePence={legacyOutsourcedFeePence}
+                withinTrial={withinTrial}
+                allMilestoneDefinitions={allMilestoneDefinitions}
+              />
             ) : intel.state === "success" && intel.data ? (
               <PropertyDossier
                 data={intel.data}
@@ -1248,6 +1279,25 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               />
             )}
           </div>
+
+          {/* Notes — lives under the File worth / Sold prices tabs. Open by
+              default on desktop, collapsed on smaller breakpoints. */}
+          {(flowState === "extracted" || flowState === "manual") && (
+            <div style={{ marginTop: 12 }}>
+              <CollapsibleSection
+                key={notesOpenByDefault ? "notes-open" : "notes-shut"}
+                title="Notes"
+                defaultOpen={notesOpenByDefault}
+                glassId="new-sale-notes"
+                glassLabel="New sale · Notes"
+              >
+                <NotesSection
+                  notes={formFields.notes}
+                  onNotesChange={(v) => updateFormFields({ notes: v })}
+                />
+              </CollapsibleSection>
+            </div>
+          )}
         </div>
 
       </div>

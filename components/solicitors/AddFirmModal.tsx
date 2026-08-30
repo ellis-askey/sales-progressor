@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
-import { titleCase, normalizePhone } from "@/lib/utils";
+import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
@@ -44,8 +44,8 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
-  function blurFirm() { touch("firm"); setFirmName((v) => titleCase(v)); }
-  function blurName() { touch("name"); setHandlerName((v) => titleCase(v)); }
+  function blurFirm() { touch("firm"); setFirmName((v) => titleCaseKeepAcronyms(v)); }
+  function blurName() { touch("name"); setHandlerName((v) => titleCaseKeepAcronyms(v)); }
   function blurPhone() { touch("phone"); setHandlerPhone((v) => normalizePhone(v)); }
   function blurEmail() {
     touch("email");
@@ -118,9 +118,9 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: titleCase(firmName),
+          name: titleCaseKeepAcronyms(firmName),
           handler: {
-            name: titleCase(handlerName),
+            name: titleCaseKeepAcronyms(handlerName),
             phone: normalizePhone(handlerPhone),
             email: handlerEmail.trim().toLowerCase(),
             secondaryEmail: handlerSecondaryEmail.trim().toLowerCase(),
@@ -137,7 +137,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
       // For new firms the handlers array has only the new one anyway.
       const handlers: Handler[] = Array.isArray(data.handlers) ? data.handlers : [];
       const handler: Handler | null = lockFirm
-        ? handlers.find((h) => h.name.trim().toLowerCase() === titleCase(handlerName).toLowerCase()) ?? handlers[handlers.length - 1] ?? null
+        ? handlers.find((h) => h.name.trim().toLowerCase() === titleCaseKeepAcronyms(handlerName).toLowerCase()) ?? handlers[handlers.length - 1] ?? null
         : handlers[0] ?? null;
       onCreated({ id: data.id, name: data.name }, handler);
     } catch (err: unknown) {

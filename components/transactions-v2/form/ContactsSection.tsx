@@ -3,7 +3,8 @@
 import { CheckCircle, Link as LinkIcon } from "@phosphor-icons/react";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
-import { titleCase } from "@/lib/utils";
+import { Pill } from "@/components/ui/Pill";
+import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
@@ -57,7 +58,10 @@ export function ContactCard({
   const numbered = `${label} ${index + 1}`;
   const hasName  = contact.name.trim().length > 0;
   const hasPhone = contact.phone.trim().length > 0;
-  const hasEmail = contact.email.trim().length > 0;
+  // A valid email — "sarah" no longer counts as a contactable email, so it can't
+  // greenlight the contact as complete/ready.
+  const hasEmail = isValidEmail(contact.email);
+  const emailInvalid = contact.email.trim().length > 0 && !hasEmail;
   const mode = progressedBy ?? "agent";
 
   const healthLevel: 0 | 1 | 2 | 3 =
@@ -71,16 +75,11 @@ export function ContactCard({
   return (
     <div
       style={{
-        background: isComplete ? "rgba(5,150,105,0.04)" : "var(--nv2-surface-glass)",
-        borderRadius: 12,
-        border: isComplete
-          ? "0.5px solid rgba(5,150,105,0.22)"
-          : "0.5px solid var(--nv2-border-dark)",
-        padding: "14px 14px 12px",
+        // No inner border/card — the content spreads across the section card.
+        padding: 0,
         display: "flex",
         flexDirection: "column",
         gap: 10,
-        transition: "background 300ms, border-color 300ms",
       }}
     >
       {/* Header row: label + dots + remove */}
@@ -111,7 +110,7 @@ export function ContactCard({
           className="agent-input"
           value={contact.name}
           onChange={(e) => { onChange("name", e.target.value); onEdit(); }}
-          onBlur={(e) => { if (e.target.value.trim()) onChange("name", titleCase(e.target.value)); }}
+          onBlur={(e) => { if (e.target.value.trim()) onChange("name", titleCaseKeepAcronyms(e.target.value)); }}
           placeholder="e.g. Sarah Johnson"
           maxLength={80}
         />
@@ -150,11 +149,15 @@ export function ContactCard({
               maxLength={120}
               type="email"
             />
-            {conflict?.kind === "email" && (
+            {conflict?.kind === "email" ? (
               <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
                 {conflict.withName} already has this email on this sale.
               </p>
-            )}
+            ) : emailInvalid ? (
+              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>
+                Enter a valid email address.
+              </p>
+            ) : null}
           </div>
         </div>
         {isOutsourced && (
@@ -166,20 +169,10 @@ export function ContactCard({
 
       {/* Bottom hint */}
       {isComplete ? (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 5,
-          background: "rgba(5,150,105,0.08)",
-          border: "0.5px solid rgba(5,150,105,0.22)",
-          borderRadius: 100,
-          padding: "4px 10px",
-          alignSelf: "flex-start",
-          marginTop: 2,
-        }}>
+        <Pill glass tone="success" size="sm" style={{ alignSelf: "flex-start", marginTop: 2 }}>
           <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
-          <span style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-success)" }}>
-            {mode === "agent" ? "Portal invite ready" : "Ready to contact"}
-          </span>
-        </div>
+          {mode === "agent" ? "Portal invite ready" : "Ready to contact"}
+        </Pill>
       ) : (
         <>
           {mode === "progressor" && hasName && (hasPhone || hasEmail) && (

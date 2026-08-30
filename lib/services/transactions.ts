@@ -809,6 +809,9 @@ export type CreateTransactionInput = {
   // to the first REAL sale), stamps demoExpiresAt ~1 week out, and is never
   // billed. See docs/active/demo-sale/SPEC.md.
   isDemo?: boolean;
+  // Property photo path uploaded (to a draft) before the file existed, in the
+  // editable new-sale hero. Carried onto the new row so the photo survives submit.
+  photoStoragePath?: string | null;
 };
 
 // Build a chaseRuleSnapshot from the current ReminderRule rows. Forward-only
@@ -922,6 +925,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       isDemo: input.isDemo ?? false,
       demoExpiresAt: input.isDemo ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
       purchaseType: input.purchaseType ?? null,
+      ...(input.photoStoragePath ? { photoStoragePath: input.photoStoragePath, photoUploadedAt: input.createdAt ?? new Date() } : {}),
       notes: input.notes ?? null,
       vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,
       vendorSolicitorContactId: input.vendorSolicitorContactId ?? null,

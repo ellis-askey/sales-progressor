@@ -5,6 +5,7 @@ import { Plus } from "@phosphor-icons/react";
 import { ContactCard } from "./ContactsSection";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
+import { Pill } from "@/components/ui/Pill";
 
 const MAX_ENTRIES = 4;
 
@@ -41,22 +42,9 @@ function isSectionFilled(contacts: ContactEntry[]): boolean {
 function SectionPill({ progressedBy, filled }: { progressedBy: "agent" | "progressor"; filled: boolean }) {
   if (progressedBy === "progressor") {
     return (
-      <span style={{
-        fontSize: 9,
-        fontWeight: 600,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        padding: "2px 6px",
-        borderRadius: 999,
-        background: filled ? "rgba(var(--agent-coral-base-rgb), 0.10)" : "rgba(245,158,11,0.10)",
-        color: filled ? "var(--agent-coral-deep)" : "var(--agent-warning)",
-        marginLeft: 5,
-        flexShrink: 0,
-        display: "inline-block",
-        verticalAlign: "middle",
-      }}>
+      <Pill glass tone={filled ? "brand" : "warning"} size="sm" style={{ marginLeft: 5, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em", verticalAlign: "middle" }}>
         Needed
-      </span>
+      </Pill>
     );
   }
   return null;
@@ -425,7 +413,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
         </button>
       </div>
 
-      <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />
+      <FieldHint source={memoSource} failedText="Couldn't read this. Add contact details manually." />
     </div>
   );
 }

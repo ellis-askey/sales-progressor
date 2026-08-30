@@ -51,5 +51,9 @@ export function ThemeModeBoot({
   } catch (e) { /* ignore — CSS default kicks in */ }
 })();
 `;
-  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+  // `async` makes React 19 treat this as a hoistable head resource (moved to
+  // <head>, deduped) instead of a body script — which silences the dev warning
+  // "Encountered a script tag while rendering React component". `async` is
+  // ignored by the browser for inline scripts, so it still runs pre-paint.
+  return <script async dangerouslySetInnerHTML={{ __html: script }} />;
 }

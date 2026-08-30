@@ -7,7 +7,6 @@ import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledg
 import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
-import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -89,13 +88,21 @@ export default async function AgentNewSaleV2Page() {
   const agencyRow = session.user.agencyId
     ? await prisma.agency.findUnique({
         where: { id: session.user.agencyId },
-        select: { name: true, modeProfile: true },
+        select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true, firstSubmissionAt: true },
       })
     : null;
   const defaultProgressedBy = deriveDefaultProgressedBy(
     agencyRow?.name,
     agencyRow?.modeProfile,
   );
+  // Earnings-builder fee config. withinTrial = still inside the 14-day
+  // free-outsourcing window (or no first sale yet), during which sending a
+  // sale to us costs nothing.
+  const feeTier = agencyRow?.feeTier ?? "standard";
+  const legacyOutsourcedFeePence = agencyRow?.legacyOutsourcedFeePence ?? null;
+  const withinTrial =
+    !agencyRow?.firstSubmissionAt ||
+    Date.now() - agencyRow.firstSubmissionAt.getTime() < TRIAL_WINDOW_MS;
 
   // Portal-invite prompt is a one-shot: only shown on the agent's very
   // first ADDED sale AND only until they've clicked "I won't be using the
@@ -126,8 +133,10 @@ export default async function AgentNewSaleV2Page() {
   // at a time), so it stays available even after the demo has been created —
   // it's their way back into it. See lib/services/demo-sale.ts and
   // components/transactions-v2/DemoHeroCard.tsx.
+  // Drafts don't count as a real sale — the hero stays until they actually
+  // submit one (drop a memo / fill in manually), matching where drafts appear.
   const showDemoHero = session.user.agencyId
-    ? (await prisma.propertyTransaction.count({ where: { agencyId: session.user.agencyId, isDemo: false } })) === 0
+    ? (await prisma.propertyTransaction.count({ where: { agencyId: session.user.agencyId, isDemo: false, status: { not: "draft" as never } } })) === 0
     : false;
 
   const isDirector = session.user.role === "director";
@@ -146,7 +155,15 @@ export default async function AgentNewSaleV2Page() {
         where: { agencyId: session.user.agencyId },
         select: {
           defaultReferralFeePence: true,
-          brokerFirm: { select: { id: true, name: true } },
+          brokerFirm: {
+            select: {
+              id: true,
+              name: true,
+              // First contact so the saved-broker card can show details once the
+              // agent confirms a broker is involved.
+              handlers: { take: 1, select: { id: true, name: true, phone: true, email: true } },
+            },
+          },
         },
       })
     ).catch(() => null),
@@ -240,14 +257,13 @@ export default async function AgentNewSaleV2Page() {
 
   return (
     <>
-      <PageHeader title="New sale" subtitle="Drop your memo of sale to get started, or fill in manually." />
+      <PageHeader title="New sale" subtitle="Drop in your memo of sale to get started, or add the details manually." />
 
       <div className="px-4 md:px-8 pt-2 pb-8">
-        {showDemoHero && <DemoHeroCard />}
         <NewSaleFlow
           recommendedFirms={recommendedFirms}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          preferredBroker={(preferredBrokerRow as any)?.brokerFirm ? { firmId: (preferredBrokerRow as any).brokerFirm.id, firmName: (preferredBrokerRow as any).brokerFirm.name, contactId: null, contactName: null, phone: null, email: null } : null}
+          preferredBroker={(preferredBrokerRow as any)?.brokerFirm ? { firmId: (preferredBrokerRow as any).brokerFirm.id, firmName: (preferredBrokerRow as any).brokerFirm.name, contactId: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.id ?? null, contactName: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.name ?? null, phone: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.phone ?? null, email: (preferredBrokerRow as any).brokerFirm.handlers?.[0]?.email ?? null } : null}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           preferredBrokerDefaultFee={(preferredBrokerRow as any)?.defaultReferralFeePence ?? null}
           initialDrafts={drafts}
@@ -257,6 +273,10 @@ export default async function AgentNewSaleV2Page() {
           isDirector={isDirector}
           currentUserId={session.user.id}
           assignableAgents={assignableAgents}
+          showDemoHero={showDemoHero}
+          feeTier={feeTier}
+          legacyOutsourcedFeePence={legacyOutsourcedFeePence}
+          withinTrial={withinTrial}
         />
       </div>
     </>

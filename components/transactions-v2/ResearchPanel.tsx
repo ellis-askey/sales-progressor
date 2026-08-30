@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MagnifyingGlass, Receipt, Leaf, HouseLine, Clock } from "@phosphor-icons/react";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { IntelState } from "@/lib/hooks/usePropertyIntel";
 
 type Props = {
@@ -33,6 +34,7 @@ function SkeletonBlock({ height, delay = 0, width = "100%" }: { height: number; 
 
 export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: Props) {
   const [query, setQuery] = useState("");
+  const { surfaceClass, tag } = useCardSurface("new-sale-research", "New sale · Property research", "agent-glass-subtle");
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value.toUpperCase();
@@ -48,7 +50,7 @@ export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: P
   // Loading state — show skeletons
   if (state === "loading") {
     return (
-      <div className="agent-glass-subtle" style={{ padding: "20px", borderRadius: 16 }}>
+      <div className={surfaceClass} {...tag} style={{ padding: "20px", borderRadius: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <MagnifyingGlass size={14} weight="bold" color="var(--agent-text-muted)" />
           <p style={{ margin: 0, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--agent-text-muted)" }}>
@@ -71,7 +73,7 @@ export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: P
   // Error state
   if (state === "error") {
     return (
-      <div className="agent-glass-subtle" style={{ padding: "20px", borderRadius: 16 }}>
+      <div className={surfaceClass} {...tag} style={{ padding: "20px", borderRadius: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <MagnifyingGlass size={14} weight="bold" color="var(--agent-text-muted)" />
           <p style={{ margin: 0, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--agent-text-muted)" }}>
@@ -100,7 +102,7 @@ export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: P
   const canSearch = isLikelyPostcode(query);
 
   return (
-    <div className="agent-glass-subtle" style={{ padding: "20px", borderRadius: 16 }}>
+    <div className={surfaceClass} {...tag} style={{ padding: "20px", borderRadius: 16 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <MagnifyingGlass size={14} weight="bold" color="var(--agent-text-muted)" />

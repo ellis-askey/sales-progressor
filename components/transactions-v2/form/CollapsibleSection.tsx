@@ -2,19 +2,27 @@
 
 import { useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 type Props = {
   title: string;
-  summary: string;
+  summary?: string;
   defaultOpen?: boolean;
+  // Design Lab tagging — when set, this card appears in the picker.
+  glassId?: string;
+  glassLabel?: string;
   children: React.ReactNode;
 };
 
-export function CollapsibleSection({ title, summary, defaultOpen = false, children }: Props) {
+export function CollapsibleSection({ title, summary, defaultOpen = false, glassId, glassLabel, children }: Props) {
   const [open, setOpen] = useState(defaultOpen);
+  const { surfaceClass, tag } = useCardSurface(glassId ?? "", glassLabel ?? title, "agent-glass-strong");
+  const glass = glassId ? tag : {};
 
   return (
-    <div className="agent-glass-strong overflow-hidden">
+    // Explicit radius: a picked glass-vNN variant carries no border-radius, so
+    // without this the card squares off once a Design Lab pick applies.
+    <div className={`${glassId ? surfaceClass : "agent-glass-strong"} overflow-hidden`} {...glass} style={{ borderRadius: "var(--agent-radius-lg)" }}>
       <button
         type="button"
         className="agent-acc-hdr w-full"

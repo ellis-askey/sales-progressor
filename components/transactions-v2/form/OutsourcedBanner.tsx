@@ -8,23 +8,29 @@
 // recipe inline with coral tokens rather than introducing a fifth kind.
 
 import { Headset } from "@phosphor-icons/react";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 export function OutsourcedBanner() {
+  const { surfaceClass, tag, picked } = useCardSurface("new-sale-outsourced-banner", "New sale · Outsourced banner", "");
   return (
     <div
-      className="agent-reveal-in"
+      className={`agent-reveal-in ${surfaceClass}`.trim()}
+      {...tag}
       role="status"
       style={{
-        background: "rgba(255, 255, 255, 0.90)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(var(--agent-coral-base-rgb), 0.50)",
         borderRadius: 10,
         padding: "12px 16px",
         display: "flex",
         alignItems: "flex-start",
         gap: 12,
-        boxShadow: "0 1px 3px rgba(var(--agent-coral-base-rgb), 0.10)",
+        // Coral banner recipe by default; a Design Lab pick takes over.
+        ...(picked ? {} : {
+          background: "rgba(255, 255, 255, 0.90)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(var(--agent-coral-base-rgb), 0.50)",
+          boxShadow: "0 1px 3px rgba(var(--agent-coral-base-rgb), 0.10)",
+        }),
       }}
     >
       <span

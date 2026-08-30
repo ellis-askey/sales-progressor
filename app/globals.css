@@ -1829,3 +1829,271 @@ select {
 .agent-hero-art-dark { display: none; }
 :root[data-theme="dark"] .agent-hero-art-light { display: none; }
 :root[data-theme="dark"] .agent-hero-art-dark { display: block; }
+
+/* Add-photo gradient ring — subtle lift on hover (Ellis pick, 2026-08-30). */
+.agent-add-photo-ring { transition: transform 160ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)); }
+button:hover > .agent-add-photo-ring { transform: scale(1.04); }
+
+/* Solicitor / firm search field — "Option A" solid look with a leading
+   magnifier and a coral focus ring (Ellis pick, 2026-08-30). Replaces the old
+   dashed empty box. */
+.sol-search-wrap { position: relative; }
+.sol-search-wrap > .sol-search-mag {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--nv2-text-faint, #9C9086); pointer-events: none; display: flex;
+}
+.sol-search-a {
+  width: 100%;
+  padding: 11px 14px 11px 38px;
+  border-radius: 11px;
+  border: 1px solid var(--nv2-border-dark, rgba(15,23,42,0.14));
+  background: var(--nv2-surface-glass, rgba(255,255,255,0.6));
+  font-size: 14px; line-height: 1.3;
+  color: var(--agent-text-primary);
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.sol-search-a::placeholder { color: var(--nv2-text-faint, #9C9086); }
+.sol-search-a:hover { border-color: rgba(var(--agent-coral-rgb), 0.45); }
+.sol-search-a:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: none; }
+
+/* Coral hover + focus on every text input across the add-sale flow — matches
+   the solicitor search field (Ellis, 2026-08-30). */
+.new-sale-flow input:not([type="checkbox"]):not([type="radio"]),
+.new-sale-flow textarea {
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.new-sale-flow input:not([type="checkbox"]):not([type="radio"]):hover,
+.new-sale-flow textarea:hover {
+  border-color: rgba(var(--agent-coral-rgb), 0.45);
+}
+.new-sale-flow input:not([type="checkbox"]):not([type="radio"]):focus,
+.new-sale-flow textarea:focus {
+  outline: none;
+  border-color: var(--agent-coral-deep);
+  /* No outer ring — the deepened 1px border is the focus signal. Overrides
+     the glass-input focus ring for inputs inside the new-sale flow. */
+  box-shadow: none;
+}
+
+/* Sale-price "£ pill" on the new-sale hero — a compact coral pill you click and
+   type into (just "£" when empty). field-sizing lets it grow with the figure
+   (Ellis, 2026-08-30). */
+.sale-price-pill {
+  field-sizing: content;
+  width: auto;
+  min-width: 56px;
+  max-width: 220px;
+  border: 1px solid rgba(var(--agent-coral-rgb), 0.22) !important;
+  background: rgba(var(--agent-coral-rgb), 0.05) !important;
+  border-radius: 999px !important;
+  padding: 4px 12px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  color: var(--agent-text-primary) !important;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.sale-price-pill::placeholder { color: var(--nv2-text-faint); font-weight: 500; }
+.sale-price-pill:hover { border-color: rgba(var(--agent-coral-rgb), 0.5) !important; }
+.sale-price-pill:focus { outline: none; border-color: var(--agent-coral-deep) !important; box-shadow: none !important; }
+
+/* The hero address text is itself a control — clicking it opens the address
+   editor. The pencil beside line 1 fades in on hover/focus as the affordance. */
+.hero-address-edit { cursor: pointer; border-radius: 8px; outline-offset: 3px; width: fit-content; max-width: 100%; }
+.hero-edit-pencil { opacity: 0; transition: opacity 150ms ease; }
+.hero-address-edit:hover .hero-edit-pencil,
+.hero-address-edit:focus-visible .hero-edit-pencil { opacity: 1; }
+.hero-address-edit:focus-visible { outline: 2px solid var(--agent-coral); }
+
+/* Generic smooth collapse — grid-rows 0fr↔1fr animates height, plus opacity.
+   Wrap the content in .agent-collapse-inner (overflow hidden). Add .open to
+   reveal. Used by the broker field reveal and the milestone preview. */
+.agent-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease;
+}
+.agent-collapse.open { grid-template-rows: 1fr; opacity: 1; }
+.agent-collapse-inner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .agent-collapse { transition: none; } }
+
+/* Two-panel morph — the closing panel collapses its height and fades out fast;
+   the opening panel grows its height and fades in on a delay, so the card
+   animates to the new height before the incoming content appears (used by the
+   broker entry ⇆ assigned swap). */
+.broker-morph {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease;
+}
+.broker-morph.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease 200ms;
+}
+.broker-morph-inner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .broker-morph { transition: none; } }
+
+/* New-sale broker: the "use your usual broker" one-tap card. */
+.broker-usual-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: rgba(var(--agent-coral-rgb), 0.05);
+  box-shadow: inset 0 0 0 1px rgba(var(--agent-coral-rgb), 0.16);
+  transition: background 150ms, box-shadow 150ms;
+}
+.broker-usual-pick:hover { background: rgba(var(--agent-coral-rgb), 0.09); box-shadow: inset 0 0 0 1px rgba(var(--agent-coral-rgb), 0.30); }
+.broker-usual-pick:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+/* Keyboard focus ring on the custom recommended-broker checkbox. */
+.broker-check input:focus-visible + .broker-check-box { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+
+/* Chain prompt quick-answer chips (collapsed state, Option D). */
+.chain-chip-yes, .chain-chip-no {
+  cursor: pointer;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 650;
+  padding: 8px 14px;
+  border-radius: 10px;
+  transition: filter 150ms, background 150ms, box-shadow 150ms, color 150ms;
+}
+.chain-chip-yes {
+  color: #fff;
+  background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral));
+  box-shadow: 0 6px 14px -6px rgba(var(--agent-coral-rgb), 0.6);
+}
+.chain-chip-yes:hover { filter: brightness(1.05); }
+.chain-chip-yes:active { transform: translateY(1px); }
+.chain-chip-no {
+  color: var(--agent-text-muted);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--agent-border-default);
+}
+.chain-chip-no:hover { background: rgba(var(--agent-coral-rgb), 0.05); color: var(--agent-text-secondary); }
+.chain-chip-yes:focus-visible, .chain-chip-no:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+
+/* Chain builder — position segmented control (brand-tinted, follows the
+   user's primary colour via --agent-coral*). */
+.chain-seg {
+  position: relative;
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(var(--agent-coral-rgb), 0.05);
+  box-shadow: inset 0 0 0 1px var(--agent-border-default);
+}
+/* The selected pill: one element that slides between the four equal segments. */
+.chain-seg-ind {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 4);
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral));
+  box-shadow: 0 5px 12px -6px rgba(var(--agent-coral-rgb), 0.6);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.chain-seg button {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--agent-text-muted);
+  background: none;
+  border: none;
+  border-radius: 9px;
+  padding: 8px 6px;
+  cursor: pointer;
+  transition: color 200ms ease;
+}
+.chain-seg button.on { color: #fff; }
+.chain-seg button:not(.on):hover { color: var(--agent-text-secondary); }
+.chain-seg button:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+
+/* Chain builder — vertical connector rail. The line runs down the left; each
+   node/slot sits on a dot. */
+.chain-rail { position: relative; padding-left: 28px; margin-top: 16px; }
+.chain-rail::before {
+  content: "";
+  position: absolute;
+  left: 10px; top: 8px; bottom: 8px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--agent-border-default), rgba(var(--agent-coral-rgb), 0.4), var(--agent-border-default));
+}
+/* Spacing lives on the rail's direct children (stub/your-file items AND the
+   slot wrappers) so add-slots keep their gap; collapsed slots contribute none. */
+.chain-rail > * { margin-bottom: 10px; }
+.chain-rail > *:last-child { margin-bottom: 0; }
+.chain-rail-item { position: relative; }
+.chain-rail-dot {
+  position: absolute;
+  left: -22px; top: 50%;
+  transform: translateY(-50%);
+  width: 12px; height: 12px;
+  border-radius: 999px;
+  background: rgba(var(--agent-coral-rgb), 0.28);
+  box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.08);
+}
+.chain-rail-item.you .chain-rail-dot {
+  background: var(--agent-coral);
+  box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.20);
+}
+
+/* Chain builder — add-sale slot (solid brand tint, no dashed border). */
+.chain-add-slot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--agent-coral-deep);
+  background: rgba(var(--agent-coral-rgb), 0.07);
+  border: none;
+  border-radius: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(var(--agent-coral-rgb), 0.16);
+  transition: background 150ms, box-shadow 150ms;
+}
+.chain-add-slot:hover { background: rgba(var(--agent-coral-rgb), 0.12); box-shadow: inset 0 0 0 1px rgba(var(--agent-coral-rgb), 0.30); }
+.chain-add-slot:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+
+/* Chain builder — add-slot collapse. Keeps the slot mounted and animates its
+   height (grid-rows 0fr↔1fr) + opacity, so choosing Top/Bottom fades the
+   removed slot out and the card grows/shrinks smoothly instead of jumping. */
+.chain-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease, margin-bottom 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chain-slot.open { grid-template-rows: 1fr; opacity: 1; }
+/* A collapsed slot must not hold the 10px rail gap, or it leaves a phantom
+   space where a hidden add-slot would be. */
+.chain-slot:not(.open) { margin-bottom: 0; }
+.chain-slot-inner { overflow: hidden; min-height: 0; }
+
+/* Newly added chain sales ease in rather than popping. */
+@keyframes chain-node-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chain-node-enter { animation: chain-node-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chain-seg-ind, .chain-slot { transition: none; }
+  .chain-node-enter { animation: none; }
+}

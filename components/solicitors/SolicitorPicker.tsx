@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import { AddFirmModal } from "./AddFirmModal";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
 type Handler = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
@@ -190,7 +191,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
   }
 
   function handleAddFirm() {
-    const cased = titleCase(query);
+    const cased = titleCaseKeepAcronyms(query);
     setQuery(cased);
     setModalPrefill(cased);
     setModalLockFirm(false);
@@ -251,7 +252,8 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
         </div>
 
         {/* Firm typeahead */}
-        <div ref={wrapperRef} className="relative">
+        <div ref={wrapperRef} className="relative sol-search-wrap">
+          <span className="sol-search-mag"><MagnifyingGlass size={16} weight="regular" /></span>
           <input
             type="text"
             value={query}
@@ -264,7 +266,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
             }}
             onBlur={() => { if (!showDropdown) setInputBlurred(true); }}
             placeholder="Search firm name…"
-            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
+            className={`sol-search-a${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
           />
           {unconfirmed && (
             <p className="agent-helper-warning">Firm not saved — choose from results or add as new</p>

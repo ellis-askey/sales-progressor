@@ -1,6 +1,9 @@
 "use client";
 
 import { ArrowRight, X } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { PropertyIntel } from "@/lib/hooks/usePropertyIntel";
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -83,7 +86,7 @@ function SaleRow({ address, price, date }: { address: string; price: number; dat
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
       }}>
-        {address || "Address unknown"}
+        {address ? titleCaseKeepAcronyms(address) : "Address unknown"}
       </span>
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", flexShrink: 0 }}>
         {formatPriceFull(price)}
@@ -129,9 +132,10 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
 
   const hasPropertyData = !!(data.lastSold || data.epc || data.tenure);
   const hasRecentSales = (data.recentLocalSales?.length ?? 0) > 0;
+  const { surfaceClass, tag } = useCardSurface("new-sale-sold-prices", "New sale · Sold prices", "agent-glass-subtle");
 
   return (
-    <div className="agent-glass-subtle" style={{ padding: "20px", borderRadius: 16 }}>
+    <div className={surfaceClass} {...tag} style={{ padding: "20px", borderRadius: 16 }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14, gap: 8 }}>
@@ -159,19 +163,9 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {fromMemo && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "var(--agent-success)",
-              background: "var(--agent-success-bg)",
-              border: "1px solid var(--agent-success-border)",
-              borderRadius: 4,
-              padding: "2px 6px",
-            }}>
+            <Pill glass tone="success" size="sm" style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
               From memo
-            </span>
+            </Pill>
           )}
           <button
             type="button"
@@ -272,11 +266,13 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
       {/* Recent sales list — both modes */}
       {hasRecentSales && (
         <div style={{ marginBottom: 14 }}>
-          <SectionLabel>
+          {/* Sentence case (not the uppercase eyebrow) so it reads naturally
+              and the postcode keeps its own casing. */}
+          <p style={{ margin: "0 0 7px", fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>
             {isModeB
               ? `Other recent sales in ${data.address.postcode}`
               : "Recent sales nearby"}
-          </SectionLabel>
+          </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {data.recentLocalSales!.map((s, i) => (
               <SaleRow key={i} address={s.address} price={s.price} date={s.date} />

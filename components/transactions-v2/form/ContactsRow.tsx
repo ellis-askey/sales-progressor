@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { ContactCarousel } from "./ContactCarousel";
+import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 
 type ContactConflict = { kind: "phone" | "email"; withName: string };
@@ -34,9 +35,11 @@ export function ContactsRow({
   onEdit,
   scrollRef,
 }: Props) {
+  const vendorSurface = useCardSurface("new-sale-vendors", "New sale · Sellers", "agent-glass-strong");
+  const purchaserSurface = useCardSurface("new-sale-purchasers", "New sale · Buyers", "agent-glass-strong");
   return (
     <div ref={scrollRef} className="contacts-section-grid" style={{ gap: 12 }}>
-      <div className="agent-glass-strong" style={glassCardStyle}>
+      <div className={vendorSurface.surfaceClass} {...vendorSurface.tag} style={glassCardStyle}>
         <ContactCarousel
           label="Vendors"
           contacts={vendors}
@@ -49,7 +52,7 @@ export function ContactsRow({
           onEdit={() => onEdit("vendors")}
         />
       </div>
-      <div className="agent-glass-strong" style={glassCardStyle}>
+      <div className={purchaserSurface.surfaceClass} {...purchaserSurface.tag} style={glassCardStyle}>
         <ContactCarousel
           label="Purchasers"
           contacts={purchasers}

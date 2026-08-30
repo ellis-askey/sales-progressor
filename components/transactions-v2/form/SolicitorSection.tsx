@@ -2,7 +2,8 @@
 
 import { Buildings, CheckCircle } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
-import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
+import { type BrokerSelection } from "@/components/brokers/BrokerPicker";
+import { BrokerField } from "@/components/brokers/BrokerField";
 import type { MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
 export { autoFillSolicitor } from "@/lib/utils/solicitor-autofill";
@@ -28,9 +29,10 @@ type Props = {
   broker: BrokerSelection | null;
   preferredBroker: BrokerSelection | null;
   onBrokerChange: (v: BrokerSelection | null) => void;
-  purchaseType: string;
-  purchaserBrokerReferral: boolean;
-  onPurchaserBrokerReferralChange: (v: boolean) => void;
+  brokerReferralFee: number | null;
+  onBrokerReferralFeeChange: (v: number | null) => void;
+  preferredBrokerDefaultFee: number | null;
+  onBrokerReferredChange: (referred: boolean) => void;
   onEdit: (field: string) => void;
 };
 
@@ -137,16 +139,9 @@ function PopulatedCard({
 // ── Empty state wrapper ────────────────────────────────────────────────────────
 
 function EmptyPickerWrap({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      borderRadius: 10,
-      border: "1.5px dashed var(--nv2-border-medium)",
-      padding: "12px",
-      background: "var(--nv2-surface-subtle)",
-    }}>
-      {children}
-    </div>
-  );
+  // The picker's own field (Option A: solid + magnifier + coral focus) is the
+  // visible control now — no dashed box around it.
+  return <>{children}</>;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -161,7 +156,8 @@ export function SolicitorSection({
   vendorHint, purchaserHint,
   recommendedFirmIds,
   broker, preferredBroker, onBrokerChange,
-  purchaseType, purchaserBrokerReferral, onPurchaserBrokerReferralChange,
+  brokerReferralFee, onBrokerReferralFeeChange, preferredBrokerDefaultFee,
+  onBrokerReferredChange,
   onEdit,
 }: Props) {
   return (
@@ -170,7 +166,7 @@ export function SolicitorSection({
 
       {/* Seller's solicitor */}
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
           Seller&rsquo;s solicitor
           {vendorSolicitor && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
@@ -213,7 +209,7 @@ export function SolicitorSection({
 
       {/* Buyer's solicitor */}
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
           Buyer&rsquo;s solicitor
           {purchaserSolicitor && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
@@ -264,26 +260,15 @@ export function SolicitorSection({
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
           )}
         </p>
-        <BrokerPicker
-          label=""
+        <BrokerField
           value={broker}
           onChange={(v) => { onBrokerChange(v); onEdit("broker"); }}
           preferredBroker={preferredBroker}
+          referralFee={brokerReferralFee}
+          onReferralFeeChange={(v) => { onBrokerReferralFeeChange(v); onEdit("brokerReferralFee"); }}
+          preferredBrokerDefaultFee={preferredBrokerDefaultFee}
+          onReferralChange={onBrokerReferredChange}
         />
-
-        {purchaseType === "mortgage" && broker?.firmId && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none", marginTop: 10 }}>
-            <input
-              type="checkbox"
-              checked={purchaserBrokerReferral}
-              onChange={(e) => { onPurchaserBrokerReferralChange(e.target.checked); onEdit("purchaserBrokerReferral"); }}
-              style={{ width: 13, height: 13, borderRadius: 4, accentColor: "var(--agent-coral-deep)", cursor: "pointer" }}
-            />
-            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-coral-deep)" }}>
-              Purchaser referred to {broker.firmName}
-            </span>
-          </label>
-        )}
       </div>
 
     </div>

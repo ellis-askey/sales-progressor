@@ -12,6 +12,10 @@ export type FormFields = {
   isShareOfFreehold: boolean;
   purchaseType: "mortgage" | "cash_buyer" | "cash_from_proceeds" | "";
   progressedBy: "agent" | "progressor";
+  // Property photo uploaded in the editable hero before the file is created.
+  // Stored against an on-demand draft transaction; carried into the new file
+  // on submit. Null until a photo is added.
+  photoStoragePath: string | null;
   vendors: ContactEntry[];
   purchasers: ContactEntry[];
   vendorSolicitor: SolicitorSelection | null;
@@ -48,6 +52,7 @@ export function defaultFormFields(
     isShareOfFreehold: false,
     purchaseType: "",
     progressedBy,
+    photoStoragePath: null,
     vendors: [{ name: "", phone: "", email: "" }],
     purchasers: [{ name: "", phone: "", email: "" }],
     vendorSolicitor: null,
@@ -71,19 +76,20 @@ export function defaultFormFields(
 
 /** Purchase types where a chain is near-certain, so the new-sale form opens
  *  the chain section by default and asks outright instead of leaving it
- *  collapsed at the bottom. A mortgaged buyer is usually selling too;
- *  "cash from proceeds" is funded by another sale, i.e. a chain by
- *  definition. A pure cash buyer has no onward dependency, so the section
- *  stays optional and quiet. (Platform audit #5, 2026-08-12.) */
+ *  collapsed at the bottom. Only "cash from proceeds" qualifies: the funds
+ *  come from another sale, so a related sale is confirmed. A mortgaged buyer
+ *  may be a first-time buyer or investor with no onward sale, and a pure cash
+ *  buyer has no onward dependency, so both leave the section collapsed and
+ *  neutral ("Is this sale part of a chain?"). (Platform audit #5, 2026-08-12;
+ *  mortgage removed 2026-08-30 — a mortgage does not imply a chain.) */
 export function isChainLikely(purchaseType: FormFields["purchaseType"]): boolean {
-  return purchaseType === "mortgage" || purchaseType === "cash_from_proceeds";
+  return purchaseType === "cash_from_proceeds";
 }
 
 /** Plain-English reason the chain section auto-opened, shown to the agent so
  *  the open state never feels arbitrary. Null when the section shouldn't
- *  auto-open (cash buyer / not yet chosen). */
+ *  auto-open (mortgage / cash buyer / not yet chosen). */
 export function chainOpenReason(purchaseType: FormFields["purchaseType"]): string | null {
-  if (purchaseType === "mortgage") return "a mortgaged buyer is usually selling too";
   if (purchaseType === "cash_from_proceeds") return "the funds are coming from another sale";
   return null;
 }
