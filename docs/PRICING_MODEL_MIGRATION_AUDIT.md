@@ -381,6 +381,20 @@ Aim for an **atomic copy cutover** (app + marketing) even if backend lands earli
 
 **All logic/commercial decisions are now locked.** Remaining are visual/positioning only: **D12, D15–D19** (phase 5, to be decided against pricing-page artifacts) and **D14** (terms v5 wording — Phase 4 legal).
 
+### 28.2 Pricing-page positioning — LOCKED (2026-08-31)
+
+Decided against the pricing-directions artifact (Option A · Balanced pair chosen).
+
+| ID | Locked answer |
+|---|---|
+| **D15** | **Master hook: "Choose how each sale is progressed."** Symmetric "your team, or ours" framing retained (not a free-led hero). |
+| **D16** | **Two equal cards** (balanced pair), closest to today — self on the left (Free), outsourced on the right. |
+| **D12** | **Wording: "Free"** (not "£0", not "Free forever" on the card). |
+| **D17** | **First-outsourced-free lives as a ribbon on the outsourced card** ("First sale on us") plus the price note. |
+| **CTAs** | Self card → **"Start free"** → free app signup (`APP_SIGNUP_URL` + attribution, unchanged destination). Outsourced card → **"Talk to us"** → `/contact` (conversation-first). **No self-serve line** — keep outsourced-interested visitors flowing to contact as leads. "Book a demo" stays available in nav/`/demo`, not on the card. |
+
+**Still open (pricing-page-adjacent):** D18 (pricing calculator — keep+rescope vs cut), D19 (show first-outsourced-free eligibility in-app to agents/internal).
+
 ### 28.1 Full register (reference)
 
 | ID | Decision | Why it matters | Option A | Option B | Option C | Recommendation | Blocks build? | Artifact helps? |
