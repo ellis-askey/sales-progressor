@@ -1934,14 +1934,29 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 /* Chain builder — position segmented control (brand-tinted, follows the
    user's primary colour via --agent-coral*). */
 .chain-seg {
+  position: relative;
   display: flex;
-  gap: 6px;
   padding: 4px;
   border-radius: 12px;
   background: rgba(var(--agent-coral-rgb), 0.05);
   box-shadow: inset 0 0 0 1px var(--agent-border-default);
 }
+/* The selected pill: one element that slides between the four equal segments. */
+.chain-seg-ind {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 4);
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral));
+  box-shadow: 0 5px 12px -6px rgba(var(--agent-coral-rgb), 0.6);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
 .chain-seg button {
+  position: relative;
+  z-index: 1;
   flex: 1;
   font-size: 12.5px;
   font-weight: 650;
@@ -1951,14 +1966,10 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   border-radius: 9px;
   padding: 8px 6px;
   cursor: pointer;
-  transition: color 150ms, background 150ms, box-shadow 150ms;
+  transition: color 200ms ease;
 }
-.chain-seg button:not(.on):hover { background: rgba(var(--agent-coral-rgb), 0.08); color: var(--agent-text-secondary); }
-.chain-seg button.on {
-  color: #fff;
-  background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral));
-  box-shadow: 0 5px 12px -6px rgba(var(--agent-coral-rgb), 0.6);
-}
+.chain-seg button.on { color: #fff; }
+.chain-seg button:not(.on):hover { color: var(--agent-text-secondary); }
 .chain-seg button:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
 
 /* Chain builder — vertical connector rail. The line runs down the left; each
@@ -2007,3 +2018,27 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 }
 .chain-add-slot:hover { background: rgba(var(--agent-coral-rgb), 0.12); box-shadow: inset 0 0 0 1px rgba(var(--agent-coral-rgb), 0.30); }
 .chain-add-slot:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+
+/* Chain builder — add-slot collapse. Keeps the slot mounted and animates its
+   height (grid-rows 0fr↔1fr) + opacity, so choosing Top/Bottom fades the
+   removed slot out and the card grows/shrinks smoothly instead of jumping. */
+.chain-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+}
+.chain-slot.open { grid-template-rows: 1fr; opacity: 1; }
+.chain-slot-inner { overflow: hidden; min-height: 0; }
+
+/* Newly added chain sales ease in rather than popping. */
+@keyframes chain-node-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chain-node-enter { animation: chain-node-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chain-seg-ind, .chain-slot { transition: none; }
+  .chain-node-enter { animation: none; }
+}

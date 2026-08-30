@@ -190,6 +190,15 @@ export function ChainSection({
 
   const cardRadius = "var(--agent-radius-lg, 16px)";
 
+  // Position options + the selected index, which slides the segmented pill.
+  const POSITIONS: [ChainPosition, string][] = [
+    ["top", "Top"],
+    ["middle", "Middle"],
+    ["bottom", "Bottom"],
+    ["unknown", "Not sure yet"],
+  ];
+  const posIndex = Math.max(0, POSITIONS.findIndex(([v]) => v === position));
+
   // ── Collapsed prompt (Option D — decisive question + quick chips) ─────────
   const collapsedCard = (
     <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "16px 18px" }}>
@@ -274,12 +283,8 @@ export function ChainSection({
           Where does your sale sit?
         </p>
         <div className="chain-seg">
-          {([
-            ["top", "Top"],
-            ["middle", "Middle"],
-            ["bottom", "Bottom"],
-            ["unknown", "Not sure yet"],
-          ] as [ChainPosition, string][]).map(([value, label]) => (
+          <span className="chain-seg-ind" style={{ transform: `translateX(${posIndex * 100}%)` }} aria-hidden />
+          {POSITIONS.map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -297,22 +302,26 @@ export function ChainSection({
           unless Bottom). Clicking a slot opens the node drawer with that
           direction, which is what tags the new sale as above/below. */}
       <div className="chain-rail">
-        {showAddAbove && (
-          <div className="chain-rail-item">
-            <span className="chain-rail-dot" aria-hidden />
-            <button
-              type="button"
-              className="chain-add-slot"
-              onClick={() => { setAddNodeDir("above"); setEditingStub(null); }}
-            >
-              <Plus size={14} weight="bold" /> Add the sale above
-            </button>
+        {/* Add-above slot. Always mounted; collapses + fades (grid-rows) when
+            the position removes it, so the card resizes smoothly. */}
+        <div className={`chain-slot${showAddAbove ? " open" : ""}`}>
+          <div className="chain-slot-inner">
+            <div className="chain-rail-item">
+              <span className="chain-rail-dot" aria-hidden />
+              <button
+                type="button"
+                className="chain-add-slot"
+                onClick={() => { setAddNodeDir("above"); setEditingStub(null); }}
+              >
+                <Plus size={14} weight="bold" /> Add the sale above
+              </button>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Above stubs — newest last added = highest = rendered first */}
         {[...aboveStubs].reverse().map((stub) => (
-          <div key={stub.id} className="chain-rail-item">
+          <div key={stub.id} className="chain-rail-item chain-node-enter">
             <span className="chain-rail-dot" aria-hidden />
             <StubCard
               stub={stub}
@@ -330,7 +339,7 @@ export function ChainSection({
 
         {/* Below stubs — oldest first = closest below */}
         {belowStubs.map((stub) => (
-          <div key={stub.id} className="chain-rail-item">
+          <div key={stub.id} className="chain-rail-item chain-node-enter">
             <span className="chain-rail-dot" aria-hidden />
             <StubCard
               stub={stub}
@@ -340,18 +349,21 @@ export function ChainSection({
           </div>
         ))}
 
-        {showAddBelow && (
-          <div className="chain-rail-item">
-            <span className="chain-rail-dot" aria-hidden />
-            <button
-              type="button"
-              className="chain-add-slot"
-              onClick={() => { setAddNodeDir("below"); setEditingStub(null); }}
-            >
-              <Plus size={14} weight="bold" /> Add the sale below
-            </button>
+        {/* Add-below slot — same collapse treatment as add-above. */}
+        <div className={`chain-slot${showAddBelow ? " open" : ""}`}>
+          <div className="chain-slot-inner">
+            <div className="chain-rail-item">
+              <span className="chain-rail-dot" aria-hidden />
+              <button
+                type="button"
+                className="chain-add-slot"
+                onClick={() => { setAddNodeDir("below"); setEditingStub(null); }}
+              >
+                <Plus size={14} weight="bold" /> Add the sale below
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Add / edit node drawer */}
