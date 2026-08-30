@@ -43,7 +43,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true, isDemo: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -58,6 +58,11 @@ export async function maybeStampExchange(
   // 2a. Demo showcase files never bill (guarding the source here keeps every
   // downstream billing reader safe — a demo never gets billedAtExchange set).
   if (txn.isDemo) return;
+
+  // 2b. Self-progress is free (2026-08 model). A sale the agency runs itself
+  // exchanges but is never billed — decided here by service type, so it holds
+  // regardless of the frozen freeOnExchange stamp (which pre-dates this model).
+  if (txn.serviceType === "self_managed") return;
 
   // 2. Trial files exchange but don't bill
   if (txn.freeOnExchange) return;
