@@ -126,8 +126,10 @@ export default async function AgentNewSaleV2Page() {
   // at a time), so it stays available even after the demo has been created —
   // it's their way back into it. See lib/services/demo-sale.ts and
   // components/transactions-v2/DemoHeroCard.tsx.
+  // Drafts don't count as a real sale — the hero stays until they actually
+  // submit one (drop a memo / fill in manually), matching where drafts appear.
   const showDemoHero = session.user.agencyId
-    ? (await prisma.propertyTransaction.count({ where: { agencyId: session.user.agencyId, isDemo: false } })) === 0
+    ? (await prisma.propertyTransaction.count({ where: { agencyId: session.user.agencyId, isDemo: false, status: { not: "draft" as never } } })) === 0
     : false;
 
   const isDirector = session.user.role === "director";
