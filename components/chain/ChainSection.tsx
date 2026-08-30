@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LinkSimple } from "@phosphor-icons/react";
+import { LinkSimple, Plus } from "@phosphor-icons/react";
 import { AddNodeDrawer, type StubFormData, type EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { Pill } from "@/components/ui/Pill";
 
@@ -44,7 +44,7 @@ function StubCard({
   const hasValidEmail = stub.stubAgentEmail && EMAIL_RE.test(stub.stubAgentEmail);
 
   return (
-    <div className="glass-card border-l-4 border-l-white/20 px-4 py-3">
+    <div className="glass-card px-4 py-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900/90 truncate">{address1}</p>
@@ -84,7 +84,14 @@ function OriginatorCard({ address }: { address: string }) {
   const address2 = parts.slice(1).join(",").trim();
 
   return (
-    <div className="glass-card border-l-4 border-l-[#FF6B4A] px-4 py-3">
+    <div
+      className="px-4 py-3"
+      style={{
+        borderRadius: 13,
+        background: "rgba(var(--agent-coral-rgb), 0.06)",
+        boxShadow: "inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.30)",
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900/90 truncate">
@@ -260,79 +267,90 @@ export function ChainSection({
         )}
       </div>
 
-      {/* Position selector */}
-      <div className="mb-4">
+      {/* Position — segmented control. Choosing Top removes the add-above slot
+          (and any sales above); Bottom removes the add-below slot. */}
+      <div className="mb-1">
         <p className="text-xs font-medium text-slate-900/60 mb-2">
-          Your sale&apos;s position in the chain
+          Where does your sale sit?
         </p>
-        <div className="flex flex-col gap-1.5">
+        <div className="chain-seg">
           {([
-            ["top", "Top of chain", "No sale above this one"],
-            ["bottom", "Bottom of chain", "No sale below this one"],
-            ["middle", "Middle of chain", ""],
-            ["unknown", "I don't know yet", ""],
-          ] as [ChainPosition, string, string][]).map(([value, label, note]) => (
-            <label key={value} className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="radio"
-                name="chainPosition"
-                value={value}
-                checked={position === value}
-                onChange={() => handleChangePosition(value)}
-                className="accent-blue-500"
-              />
-              <span className="text-sm text-slate-900/70">{label}</span>
-              {note && <span className="text-xs text-slate-900/35">{note}</span>}
-            </label>
+            ["top", "Top"],
+            ["middle", "Middle"],
+            ["bottom", "Bottom"],
+            ["unknown", "Not sure yet"],
+          ] as [ChainPosition, string][]).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={position === value ? "on" : ""}
+              onClick={() => handleChangePosition(value)}
+            >
+              {label}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Chain cards stack */}
-      <div className="space-y-1.5 mb-3">
+      {/* Chain rail — a real vertical chain. Add slots sit at the ends and only
+          show where the chosen position allows a sale (above unless Top, below
+          unless Bottom). Clicking a slot opens the node drawer with that
+          direction, which is what tags the new sale as above/below. */}
+      <div className="chain-rail">
+        {showAddAbove && (
+          <div className="chain-rail-item">
+            <span className="chain-rail-dot" aria-hidden />
+            <button
+              type="button"
+              className="chain-add-slot"
+              onClick={() => { setAddNodeDir("above"); setEditingStub(null); }}
+            >
+              <Plus size={14} weight="bold" /> Add the sale above
+            </button>
+          </div>
+        )}
+
         {/* Above stubs — newest last added = highest = rendered first */}
         {[...aboveStubs].reverse().map((stub) => (
-          <StubCard
-            key={stub.id}
-            stub={stub}
-            onEdit={() => { setEditingStub(stub); setAddNodeDir("above"); }}
-            onRemove={() => onRemoveStub(stub.id)}
-          />
+          <div key={stub.id} className="chain-rail-item">
+            <span className="chain-rail-dot" aria-hidden />
+            <StubCard
+              stub={stub}
+              onEdit={() => { setEditingStub(stub); setAddNodeDir("above"); }}
+              onRemove={() => onRemoveStub(stub.id)}
+            />
+          </div>
         ))}
 
-        {/* Originator card */}
-        <OriginatorCard address={originatorAddress} />
+        {/* Your file */}
+        <div className="chain-rail-item you">
+          <span className="chain-rail-dot" aria-hidden />
+          <OriginatorCard address={originatorAddress} />
+        </div>
 
         {/* Below stubs — oldest first = closest below */}
         {belowStubs.map((stub) => (
-          <StubCard
-            key={stub.id}
-            stub={stub}
-            onEdit={() => { setEditingStub(stub); setAddNodeDir("below"); }}
-            onRemove={() => onRemoveStub(stub.id)}
-          />
+          <div key={stub.id} className="chain-rail-item">
+            <span className="chain-rail-dot" aria-hidden />
+            <StubCard
+              stub={stub}
+              onEdit={() => { setEditingStub(stub); setAddNodeDir("below"); }}
+              onRemove={() => onRemoveStub(stub.id)}
+            />
+          </div>
         ))}
-      </div>
 
-      {/* Add buttons */}
-      <div className="flex gap-2">
-        {showAddAbove && (
-          <button
-            type="button"
-            onClick={() => { setAddNodeDir("above"); setEditingStub(null); }}
-            className="flex-1 text-xs font-semibold py-2 rounded-xl agent-chain-callout-btn"
-          >
-            + Add sale above
-          </button>
-        )}
         {showAddBelow && (
-          <button
-            type="button"
-            onClick={() => { setAddNodeDir("below"); setEditingStub(null); }}
-            className="flex-1 text-xs font-semibold py-2 rounded-xl agent-chain-callout-btn"
-          >
-            + Add sale below
-          </button>
+          <div className="chain-rail-item">
+            <span className="chain-rail-dot" aria-hidden />
+            <button
+              type="button"
+              className="chain-add-slot"
+              onClick={() => { setAddNodeDir("below"); setEditingStub(null); }}
+            >
+              <Plus size={14} weight="bold" /> Add the sale below
+            </button>
+          </div>
         )}
       </div>
 
