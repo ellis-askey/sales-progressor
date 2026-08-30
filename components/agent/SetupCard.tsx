@@ -21,8 +21,11 @@ function Arrow() {
   );
 }
 
-export function SetupCard({ iconSrc, tint, title, desc, cta, href, onClick }: {
-  iconSrc: string;
+export function SetupCard({ iconSrc, icon, tint, title, desc, cta, href, onClick }: {
+  // Provide EITHER a line-art PNG (masked to the tint) or a ready-coloured icon
+  // node (e.g. a Phosphor icon). One of the two is required.
+  iconSrc?: string;
+  icon?: React.ReactNode;
   tint: keyof typeof SETUP_TINTS;
   title: string;
   desc: string;
@@ -36,13 +39,17 @@ export function SetupCard({ iconSrc, tint, title, desc, cta, href, onClick }: {
     <div className="agent-glass" style={{ padding: "18px 18px 16px", borderRadius: "var(--agent-radius-lg)", display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
         <span style={{ width: 40, height: 40, borderRadius: "50%", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <span aria-hidden style={{
-            width: 22, height: 22, display: "block", background: t.fg,
-            WebkitMaskImage: `url(${iconSrc})`, maskImage: `url(${iconSrc})`,
-            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-            WebkitMaskPosition: "center", maskPosition: "center",
-            WebkitMaskSize: "contain", maskSize: "contain",
-          }} />
+          {icon ? (
+            <span aria-hidden style={{ color: t.fg, display: "flex" }}>{icon}</span>
+          ) : (
+            <span aria-hidden style={{
+              width: 22, height: 22, display: "block", background: t.fg,
+              WebkitMaskImage: `url(${iconSrc})`, maskImage: `url(${iconSrc})`,
+              WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+              WebkitMaskPosition: "center", maskPosition: "center",
+              WebkitMaskSize: "contain", maskSize: "contain",
+            }} />
+          )}
         </span>
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>{title}</p>
