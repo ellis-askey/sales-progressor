@@ -7,7 +7,6 @@ import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledg
 import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
-import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -253,7 +252,6 @@ export default async function AgentNewSaleV2Page() {
       <PageHeader title="New sale" subtitle="Drop your memo of sale to get started, or fill in manually." />
 
       <div className="px-4 md:px-8 pt-2 pb-8">
-        {showDemoHero && <DemoHeroCard />}
         <NewSaleFlow
           recommendedFirms={recommendedFirms}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -267,6 +265,7 @@ export default async function AgentNewSaleV2Page() {
           isDirector={isDirector}
           currentUserId={session.user.id}
           assignableAgents={assignableAgents}
+          showDemoHero={showDemoHero}
         />
       </div>
     </>

@@ -10,7 +10,7 @@ import { FilePreview } from "@/components/transactions-v2/FilePreview";
 import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
 import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
-import { Stage1Fields } from "@/components/transactions-v2/form/Stage1Fields";
+import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
@@ -287,11 +287,12 @@ type Props = {
   isDirector: boolean;
   currentUserId: string;
   assignableAgents: import("@/lib/services/agency-team").AssignableAgent[];
+  showDemoHero: boolean;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -991,6 +992,25 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   return (
     <div className="nv2-night">
 
+      {/* Full-width top hero. In the hero state it's the demo card; once the
+          agent starts (memo or manual) that fades away and the live editable
+          file hero takes its place, filling in as they work. */}
+      {flowState === "hero" && showDemoHero && (
+        <div style={{ marginBottom: 16 }}><DemoHeroCard /></div>
+      )}
+      {flowState !== "hero" && flowState !== "extracting" && (
+        <div style={{ marginBottom: 16 }}>
+          <SaleHeroEditable
+            fields={formFields}
+            onUpdate={updateFormFields}
+            currentDraftId={currentDraftId}
+            ensureDraft={ensureDraft}
+            showContinue={flowState === "manual" && stage === 1 && stage1Valid}
+            onContinue={handleContinue}
+          />
+        </div>
+      )}
+
       {/* ── Two-column layout — all states ─────────────────────────────────── */}
       <div className="new-sale-two-col">
 
@@ -1028,45 +1048,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             />
           )}
 
-          {/* State 2: Extracted — Stage 1 summary bar + optional Stage 1 fields + Stage 2 */}
+          {/* State 2: Extracted — the editable hero is at the top; here we just
+              show the rest of the form. */}
           {flowState === "extracted" && (
             <>
-              {/* Stage 1 fields expand above summary bar when Edit clicked */}
-              {stage1Expanded && (
-                <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 16 }}>
-                  <Stage1Fields
-                    {...stage1FieldProps}
-                    memoSources={{
-                      streetAddress: memoSources.streetAddress,
-                      city: memoSources.city,
-                      postcode: memoSources.postcode,
-                      tenure: memoSources.tenure,
-                      purchaseType: memoSources.purchaseType,
-                    }}
-                    showContinueButton={false}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setStage1Expanded(false)}
-                    className="agent-btn agent-btn-secondary agent-btn-sm"
-                    style={{ display: "block", width: "100%", marginTop: 8, marginBottom: 2 }}
-                  >
-                    ↑ Done editing
-                  </button>
-                </div>
-              )}
-
-              {/* Stage 1 summary bar — hidden while editing */}
-              {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 8 }}>
-                <SaleHeroEditable
-                  fields={formFields}
-                  onUpdate={updateFormFields}
-                  onEditAddress={() => setStage1Expanded(true)}
-                  currentDraftId={currentDraftId}
-                  ensureDraft={ensureDraft}
-                />
-              </div>}
-
               <Stage2Sections
                 {...stage2SectionsProps}
                 memoSources={memoSources}
@@ -1104,67 +1089,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             </>
           )}
 
-          {/* State 3: Manual entry — Stage 1 fields with Continue gate; Stage 2 shows summary bar */}
+          {/* State 3: Manual entry — the editable hero (top) collects the core
+              details and its "Continue" reveals the rest of the form here. */}
           {flowState === "manual" && (
             <div>
-
-              {/* Stage 1 — full fields + Continue gate */}
-              {stage === 1 && (
-                <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                  <Stage1Fields
-                    {...stage1FieldProps}
-                    memoSources={{
-                      streetAddress: NULL_MEMO_SOURCES.streetAddress,
-                      city: NULL_MEMO_SOURCES.city,
-                      postcode: NULL_MEMO_SOURCES.postcode,
-                      tenure: NULL_MEMO_SOURCES.tenure,
-                      purchaseType: NULL_MEMO_SOURCES.purchaseType,
-                    }}
-                    showContinueButton={stage1Valid}
-                    onContinue={handleContinue}
-                  />
-                </div>
-              )}
-
-              {/* Stage 2 — summary bar (above), optional expanded Stage 1 fields, then Stage 2 sections */}
               {stage === 2 && (
                 <>
-                  {/* Stage 1 fields expand above summary bar when Edit clicked */}
-                  {stage1Expanded && (
-                    <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                      <Stage1Fields
-                        {...stage1FieldProps}
-                        memoSources={{
-                          streetAddress: NULL_MEMO_SOURCES.streetAddress,
-                          city: NULL_MEMO_SOURCES.city,
-                          postcode: NULL_MEMO_SOURCES.postcode,
-                          tenure: NULL_MEMO_SOURCES.tenure,
-                          purchaseType: NULL_MEMO_SOURCES.purchaseType,
-                        }}
-                        showContinueButton={false}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setStage1Expanded(false)}
-                        className="agent-btn agent-btn-secondary agent-btn-sm"
-                        style={{ display: "block", width: "100%", marginTop: 8, marginBottom: 2 }}
-                      >
-                        ↑ Done editing
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Summary bar — hidden while editing */}
-                  {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-                    <SaleHeroEditable
-                      fields={formFields}
-                      onUpdate={updateFormFields}
-                      onEditAddress={() => setStage1Expanded(true)}
-                      currentDraftId={currentDraftId}
-                      ensureDraft={ensureDraft}
-                    />
-                  </div>}
-
                   <div ref={stage2ContainerRef}>
                     <Stage2Sections
                       {...stage2SectionsProps}

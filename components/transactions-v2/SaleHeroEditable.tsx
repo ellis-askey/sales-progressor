@@ -1,22 +1,21 @@
 "use client";
 
-// The editable "file hero" on the New Sale form. Mirrors the property-file hero
-// look (photo left fading into the card, content right) but its fields are bound
-// to the new-sale form state, so the sale fills in live as the agent works and
-// they can set the photo, price, tenure and purchase type right here. Replaces
-// the old Stage-1 summary bar + the right-column read-only File Preview.
+// The editable "file hero" on the New Sale form — the full-width top element,
+// mirroring the property-file hero. It replaces the demo hero (which fades out
+// as this fades in) and is the single surface for the core sale details: photo,
+// address, price, tenure, purchase type and who's progressing it. Everything
+// fills in live and there's no separate step-1 form.
 //
-// The photo uses the real upload flow. Since there's no file yet, it uploads
-// against an on-demand draft (ensureDraft) and stashes the storage path in the
-// form; the path is carried onto the new file on submit (see FormFields +
-// createTransaction). See components/transaction/HeroPhotoUpload.tsx for the
-// file-page equivalent.
+// The photo uses the real upload flow against an on-demand draft (ensureDraft),
+// since there's no file yet; the storage path is carried onto the new file on
+// submit. See components/transaction/HeroPhotoUpload.tsx for the file-page one.
 
 import { useRef, useState } from "react";
-import { HouseSimple, Camera, PencilSimple, X } from "@phosphor-icons/react";
+import { Camera, PencilSimple, X, ArrowRight, CircleNotch } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { Pill } from "@/components/ui/Pill";
+import { AddressFields } from "@/components/transactions-v2/form/AddressFields";
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
@@ -30,7 +29,6 @@ const PURCHASE_TYPES: { value: "mortgage" | "cash_buyer" | "cash_from_proceeds";
   { value: "cash_from_proceeds", label: "Cash from proceeds" },
 ];
 
-// A small pill-shaped selectable chip (glass when selected).
 function Choice({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex" }}>
@@ -42,13 +40,15 @@ function Choice({ selected, onClick, children }: { selected: boolean; onClick: (
 }
 
 export function SaleHeroEditable({
-  fields, onUpdate, onEditAddress, currentDraftId, ensureDraft,
+  fields, onUpdate, currentDraftId, ensureDraft, canOutsource = true, showContinue = false, onContinue,
 }: {
   fields: FormFields;
   onUpdate: (u: Partial<FormFields>) => void;
-  onEditAddress: () => void;
   currentDraftId: string | null;
   ensureDraft: () => Promise<string | null>;
+  canOutsource?: boolean;
+  showContinue?: boolean;
+  onContinue?: () => void;
 }) {
   const { toast } = useAgentToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +57,7 @@ export function SaleHeroEditable({
   const [busy, setBusy] = useState(false);
 
   const addressLine = [fields.streetAddress, fields.city, fields.postcode].map((s) => s.trim()).filter(Boolean).join(", ");
+  const [editingAddress, setEditingAddress] = useState<boolean>(!addressLine);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -95,11 +96,11 @@ export function SaleHeroEditable({
   }
 
   return (
-    <div className="agent-glass-strong" style={{ position: "relative", overflow: "hidden", borderRadius: "var(--agent-radius-xl)", display: "flex", flexWrap: "wrap" }}>
+    <div className="agent-glass-strong" style={{ position: "relative", overflow: "hidden", borderRadius: "var(--agent-radius-xl)", display: "flex", flexWrap: "wrap", animation: "agent-section-in 320ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) both" }}>
       <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
 
       {/* Photo zone */}
-      <div style={{ position: "relative", flex: "0 0 auto", width: 180, minHeight: 168, background: hasPhoto ? "transparent" : "linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.16), rgba(var(--agent-coral-rgb),0.05))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ position: "relative", flex: "0 0 auto", width: 200, minHeight: 196, background: hasPhoto ? "transparent" : "linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.16), rgba(var(--agent-coral-rgb),0.05))", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {hasPhoto && displayUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -110,8 +111,8 @@ export function SaleHeroEditable({
           </>
         ) : (
           <button type="button" onClick={() => { if (!busy) inputRef.current?.click(); }} disabled={busy} aria-label="Add a property photo" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: busy ? "wait" : "pointer", color: "var(--agent-coral-deep)" }}>
-            <span style={{ width: 46, height: 46, borderRadius: "50%", border: "2px dashed rgba(var(--agent-coral-rgb),0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {busy ? <HouseSimple size={20} weight="regular" /> : <Camera size={20} weight="regular" />}
+            <span style={{ width: 50, height: 50, borderRadius: "50%", border: "2px dashed rgba(var(--agent-coral-rgb),0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {busy ? <CircleNotch size={22} weight="bold" className="agent-spin" /> : <Camera size={22} weight="regular" />}
             </span>
             <span style={{ fontSize: 11, fontWeight: 600 }}>{busy ? "Uploading…" : "Add photo"}</span>
           </button>
@@ -119,22 +120,30 @@ export function SaleHeroEditable({
       </div>
 
       {/* Content */}
-      <div style={{ flex: "1 1 320px", minWidth: 0, padding: "18px 20px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: "1 1 340px", minWidth: 0, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Address */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {addressLine ? (
-              <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{addressLine}</p>
-            ) : (
-              <button type="button" onClick={onEditAddress} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-muted)", letterSpacing: "var(--agent-tracking-tight)" }}>Add the address</button>
+        {editingAddress ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <AddressFields
+              streetAddress={fields.streetAddress}
+              city={fields.city}
+              postcode={fields.postcode}
+              onStreetAddressChange={(v) => onUpdate({ streetAddress: v })}
+              onCityChange={(v) => onUpdate({ city: v })}
+              onPostcodeChange={(v) => onUpdate({ postcode: v })}
+            />
+            {addressLine && (
+              <button type="button" onClick={() => setEditingAddress(false)} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ width: "fit-content" }}>Done</button>
             )}
           </div>
-          {addressLine && (
-            <button type="button" onClick={onEditAddress} aria-label="Edit address" style={{ flexShrink: 0, background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--agent-text-muted)" }}>
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{addressLine}</p>
+            <button type="button" onClick={() => setEditingAddress(true)} aria-label="Edit address" style={{ flexShrink: 0, background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--agent-text-muted)" }}>
               <PencilSimple size={15} weight="regular" />
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Price */}
         <div>
@@ -143,15 +152,32 @@ export function SaleHeroEditable({
         </div>
 
         {/* Tenure + purchase type */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           {TENURES.map((t) => (
             <Choice key={t.value} selected={fields.tenure === t.value} onClick={() => onUpdate({ tenure: t.value })}>{t.label}</Choice>
           ))}
-          <span style={{ width: 1, alignSelf: "stretch", background: "var(--nv2-border-dark)" }} />
+          <span style={{ width: 1, height: 18, background: "var(--nv2-border-dark)" }} />
           {PURCHASE_TYPES.map((p) => (
             <Choice key={p.value} selected={fields.purchaseType === p.value} onClick={() => onUpdate({ purchaseType: p.value })}>{p.label}</Choice>
           ))}
         </div>
+
+        {/* Progressed by */}
+        {canOutsource && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", marginRight: 2 }}>Progressed by</span>
+            <Choice selected={fields.progressedBy === "agent"} onClick={() => onUpdate({ progressedBy: "agent" })}>Self-progress</Choice>
+            <Choice selected={fields.progressedBy === "progressor"} onClick={() => onUpdate({ progressedBy: "progressor" })}>Send to us</Choice>
+          </div>
+        )}
+
+        {/* Continue (manual gate) */}
+        {showContinue && (
+          <button type="button" onClick={onContinue} className="agent-btn agent-btn-primary agent-btn-md" style={{ width: "fit-content", gap: 8 }}>
+            Continue to details
+            <ArrowRight size={15} weight="bold" />
+          </button>
+        )}
       </div>
     </div>
   );
