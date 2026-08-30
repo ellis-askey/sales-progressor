@@ -1935,6 +1935,8 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 }
 .broker-usual-pick:hover { background: rgba(var(--agent-coral-rgb), 0.09); box-shadow: inset 0 0 0 1px rgba(var(--agent-coral-rgb), 0.30); }
 .broker-usual-pick:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+/* Keyboard focus ring on the custom recommended-broker checkbox. */
+.broker-check input:focus-visible + .broker-check-box { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
 
 /* Chain prompt quick-answer chips (collapsed state, Option D). */
 .chain-chip-yes, .chain-chip-no {

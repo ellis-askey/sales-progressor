@@ -11,7 +11,7 @@
 // See app/actions/brokers.ts (addBrokerForSaleAction).
 
 import { useState, useEffect, useRef } from "react";
-import { Buildings } from "@phosphor-icons/react";
+import { Buildings, Check } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PriceInput } from "@/components/ui/PriceInput";
 import type { BrokerSelection } from "@/components/brokers/BrokerPicker";
@@ -28,6 +28,35 @@ function FeeRow({ value, onChange }: { value: number | null; onChange: (v: numbe
       </div>
       <PriceInput value={value} onChange={onChange} placeholder="" className="sale-price-pill" />
     </div>
+  );
+}
+
+// A rounded checkbox whose tick fades and scales in, driven by a visually
+// hidden native input (so it stays keyboard-accessible).
+function NiceCheck({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className="broker-check-box"
+      aria-hidden
+      style={{
+        flexShrink: 0, width: 18, height: 18, borderRadius: 6, marginTop: 1,
+        display: "grid", placeItems: "center",
+        background: checked ? "var(--agent-coral-deep)" : "transparent",
+        boxShadow: checked ? "none" : "inset 0 0 0 1.5px var(--agent-border-default)",
+        transition: "background 160ms ease, box-shadow 160ms ease",
+      }}
+    >
+      <Check
+        size={12}
+        weight="bold"
+        color="#fff"
+        style={{
+          opacity: checked ? 1 : 0,
+          transform: checked ? "scale(1)" : "scale(0.5)",
+          transition: "opacity 160ms ease, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+      />
+    </span>
   );
 }
 
@@ -49,6 +78,10 @@ export function BrokerField({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveAsRecommended, setSaveAsRecommended] = useState(false);
+  // True once a manually-entered broker has been assigned AND saved as the
+  // agency's recommended broker — the referral fee belongs to it (the passed
+  // preferredBroker prop won't reflect the just-saved one this render).
+  const [savedAsRecommended, setSavedAsRecommended] = useState(false);
   const firmRef = useRef<HTMLInputElement>(null);
 
   const assigned = !!value;
@@ -71,7 +104,7 @@ export function BrokerField({
       setOpen(false);
       onChange(null);
       onReferralFeeChange(null);
-      setForm(emptyForm); setError(null); setSaveAsRecommended(false);
+      setForm(emptyForm); setError(null); setSaveAsRecommended(false); setSavedAsRecommended(false);
     } else {
       setOpen(true);
     }
@@ -88,7 +121,7 @@ export function BrokerField({
   function changeBroker() {
     onChange(null);
     onReferralFeeChange(null);
-    setForm(emptyForm); setError(null);
+    setForm(emptyForm); setError(null); setSaveAsRecommended(false); setSavedAsRecommended(false);
   }
 
   async function assign() {
@@ -104,6 +137,7 @@ export function BrokerField({
         referralFeePence: referralFee,
       });
       onChange(created);
+      setSavedAsRecommended(!hasUsual && saveAsRecommended);
       setForm(emptyForm);
     } catch {
       setError("We couldn't save the broker. Try again.");
@@ -168,7 +202,9 @@ export function BrokerField({
                   </div>
                 )}
 
-                <FeeRow value={referralFee} onChange={onReferralFeeChange} />
+                {/* Referral fee only for the agency's own recommended broker,
+                    not a one-off buyer's broker. */}
+                {(isUsual || savedAsRecommended) && <FeeRow value={referralFee} onChange={onReferralFeeChange} />}
 
                 <button
                   type="button"
@@ -221,21 +257,29 @@ export function BrokerField({
                   </button>
                 )}
 
-                <FeeRow value={referralFee} onChange={onReferralFeeChange} />
-
-                {/* Opt-in: only when the agency has no saved broker yet. */}
+                {/* Opt-in: only when the agency has no saved broker yet. The
+                    referral fee belongs to the agency's own broker, so it lives
+                    beneath this tick and only appears once it's on. */}
                 {!hasUsual && (
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", userSelect: "none" }}>
-                    <input
-                      type="checkbox"
-                      checked={saveAsRecommended}
-                      onChange={(e) => setSaveAsRecommended(e.target.checked)}
-                      style={{ width: 14, height: 14, marginTop: 1, borderRadius: 4, accentColor: "var(--agent-coral-deep)", cursor: "pointer", flexShrink: 0 }}
-                    />
-                    <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
-                      This is our recommended broker. Save it to Partners so it&rsquo;s ready next time.
-                    </span>
-                  </label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label className="broker-check" style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", userSelect: "none", position: "relative" }}>
+                      <input
+                        type="checkbox"
+                        checked={saveAsRecommended}
+                        onChange={(e) => { const c = e.target.checked; setSaveAsRecommended(c); if (!c) onReferralFeeChange(null); }}
+                        style={{ position: "absolute", opacity: 0, width: 1, height: 1, margin: 0 }}
+                      />
+                      <NiceCheck checked={saveAsRecommended} />
+                      <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
+                        This is our recommended broker. Save it to Partners so it&rsquo;s ready next time.
+                      </span>
+                    </label>
+                    {saveAsRecommended && (
+                      <div style={{ paddingLeft: 27 }}>
+                        <FeeRow value={referralFee} onChange={onReferralFeeChange} />
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {error && <p role="alert" style={{ margin: 0, fontSize: 12, color: "var(--agent-danger, #dc2626)" }}>{error}</p>}
