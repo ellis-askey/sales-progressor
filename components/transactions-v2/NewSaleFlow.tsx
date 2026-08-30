@@ -13,6 +13,7 @@ import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
+import { RequiredPrompt } from "@/components/transactions-v2/form/RequiredPrompt";
 import { NotesSection } from "@/components/transactions-v2/form/NotesSection";
 import { CollapsibleSection } from "@/components/transactions-v2/form/CollapsibleSection";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
@@ -1078,6 +1079,19 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       <div className="new-sale-two-col">
 
         <div className="new-sale-form-col">
+
+          {/* Self-progress guide line — sits on the right column's tab centre
+              line. Nudges the next required field during stage 1, then fades to
+              "Add what you have now" once the core details are set. */}
+          {(flowState === "manual" || flowState === "extracted") && !isOutsourced && (
+            <div style={{ marginTop: 16 }}>
+              <RequiredPrompt
+                streetAddress={formFields.streetAddress}
+                tenure={formFields.tenure}
+                purchaseType={formFields.purchaseType}
+              />
+            </div>
+          )}
 
           {/* State 1: Conversational hero card */}
           {flowState === "hero" && (
