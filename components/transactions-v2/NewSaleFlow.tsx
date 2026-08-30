@@ -687,6 +687,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setFromMemo(false);
     setStage1Expanded(false);
     setRightColumnMode("earnings");
+    // The editable hero replaces the drop card at the top — bring it into view.
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleContinue() {
