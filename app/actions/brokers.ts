@@ -20,6 +20,8 @@ export async function addBrokerForSaleAction(input: {
   contactPhone?: string;
   contactEmail?: string;
   saveToPartners: boolean;
+  // When saving to Partners, the referral fee to store as the agency default.
+  referralFeePence?: number | null;
 }): Promise<{
   firmId: string; firmName: string;
   contactId: string | null; contactName: string | null;
@@ -49,10 +51,11 @@ export async function addBrokerForSaleAction(input: {
   }
 
   if (input.saveToPartners) {
+    const feePence = input.referralFeePence ?? null;
     await prisma.agencyPreferredBroker.upsert({
       where: { agencyId },
-      create: { agencyId, brokerFirmId: firm.id, defaultReferralFeePence: null },
-      update: { brokerFirmId: firm.id, defaultReferralFeePence: null },
+      create: { agencyId, brokerFirmId: firm.id, defaultReferralFeePence: feePence },
+      update: { brokerFirmId: firm.id, defaultReferralFeePence: feePence },
     });
     revalidatePath("/agent/partners");
   }

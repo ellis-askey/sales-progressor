@@ -145,14 +145,16 @@ export function EarningsBuilder({
             <span>We&rsquo;ll track this sale through {milestones.length} steps</span>
             <span style={{ transition: "transform 200ms", transform: showMs ? "rotate(180deg)" : "none", fontSize: 10 }}>▾</span>
           </button>
-          {showMs && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
-              {milestones.slice(0, 8).map((m) => (
-                <span key={m.id} style={{ fontSize: 10.5, color: "var(--nv2-text-secondary)", background: "var(--nv2-surface-glass)", border: "0.5px solid var(--nv2-border-dark)", borderRadius: 6, padding: "2px 7px" }}>{m.name}</span>
-              ))}
-              {milestones.length > 8 && <span style={{ fontSize: 10.5, color: "var(--nv2-text-muted)", padding: "2px 4px" }}>+{milestones.length - 8} more</span>}
+          <div className={`agent-collapse${showMs ? " open" : ""}`}>
+            <div className="agent-collapse-inner">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, paddingTop: 8 }}>
+                {milestones.slice(0, 8).map((m) => (
+                  <span key={m.id} style={{ fontSize: 10.5, color: "var(--nv2-text-secondary)", background: "var(--nv2-surface-glass)", border: "0.5px solid var(--nv2-border-dark)", borderRadius: 6, padding: "2px 7px" }}>{m.name}</span>
+                ))}
+                {milestones.length > 8 && <span style={{ fontSize: 10.5, color: "var(--nv2-text-muted)", padding: "2px 4px" }}>+{milestones.length - 8} more</span>}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

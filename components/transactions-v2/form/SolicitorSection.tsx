@@ -29,9 +29,9 @@ type Props = {
   broker: BrokerSelection | null;
   preferredBroker: BrokerSelection | null;
   onBrokerChange: (v: BrokerSelection | null) => void;
-  purchaseType: string;
-  purchaserBrokerReferral: boolean;
-  onPurchaserBrokerReferralChange: (v: boolean) => void;
+  brokerReferralFee: number | null;
+  onBrokerReferralFeeChange: (v: number | null) => void;
+  preferredBrokerDefaultFee: number | null;
   onEdit: (field: string) => void;
 };
 
@@ -155,7 +155,7 @@ export function SolicitorSection({
   vendorHint, purchaserHint,
   recommendedFirmIds,
   broker, preferredBroker, onBrokerChange,
-  purchaseType, purchaserBrokerReferral, onPurchaserBrokerReferralChange,
+  brokerReferralFee, onBrokerReferralFeeChange, preferredBrokerDefaultFee,
   onEdit,
 }: Props) {
   return (
@@ -262,21 +262,10 @@ export function SolicitorSection({
           value={broker}
           onChange={(v) => { onBrokerChange(v); onEdit("broker"); }}
           preferredBroker={preferredBroker}
+          referralFee={brokerReferralFee}
+          onReferralFeeChange={(v) => { onBrokerReferralFeeChange(v); onEdit("brokerReferralFee"); }}
+          preferredBrokerDefaultFee={preferredBrokerDefaultFee}
         />
-
-        {purchaseType === "mortgage" && broker?.firmId && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none", marginTop: 10 }}>
-            <input
-              type="checkbox"
-              checked={purchaserBrokerReferral}
-              onChange={(e) => { onPurchaserBrokerReferralChange(e.target.checked); onEdit("purchaserBrokerReferral"); }}
-              style={{ width: 13, height: 13, borderRadius: 4, accentColor: "var(--agent-coral-deep)", cursor: "pointer" }}
-            />
-            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-coral-deep)" }}>
-              Purchaser referred to {broker.firmName}
-            </span>
-          </label>
-        )}
       </div>
 
     </div>
