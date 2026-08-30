@@ -12,6 +12,10 @@ export type FormFields = {
   isShareOfFreehold: boolean;
   purchaseType: "mortgage" | "cash_buyer" | "cash_from_proceeds" | "";
   progressedBy: "agent" | "progressor";
+  // Property photo uploaded in the editable hero before the file is created.
+  // Stored against an on-demand draft transaction; carried into the new file
+  // on submit. Null until a photo is added.
+  photoStoragePath: string | null;
   vendors: ContactEntry[];
   purchasers: ContactEntry[];
   vendorSolicitor: SolicitorSelection | null;
@@ -48,6 +52,7 @@ export function defaultFormFields(
     isShareOfFreehold: false,
     purchaseType: "",
     progressedBy,
+    photoStoragePath: null,
     vendors: [{ name: "", phone: "", email: "" }],
     purchasers: [{ name: "", phone: "", email: "" }],
     vendorSolicitor: null,

@@ -820,6 +820,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         brokerContactId: formFields.broker?.contactId ?? null,
         brokerReferralFee: formFields.broker ? formFields.brokerReferralFee : null,
         purchaserBrokerReferral: formFields.purchaseType === "mortgage" ? formFields.purchaserBrokerReferral : false,
+        photoStoragePath: formFields.photoStoragePath,
         mosUploaded: flowState === "extracted",
         mosStoragePath: extractedData?.mosStoragePath,
         mosFileSize: extractedData?.mosFileSize,
