@@ -393,7 +393,9 @@ Decided against the pricing-directions artifact (Option A · Balanced pair chose
 | **D17** | **First-outsourced-free lives as a ribbon on the outsourced card** ("First sale on us") plus the price note. |
 | **CTAs** | Self card → **"Start free"** → free app signup (`APP_SIGNUP_URL` + attribution, unchanged destination). Outsourced card → **"Talk to us"** → `/contact` (conversation-first). **No self-serve line** — keep outsourced-interested visitors flowing to contact as leads. "Book a demo" stays available in nav/`/demo`, not on the card. |
 
-**Still open (pricing-page-adjacent):** D18 (pricing calculator — keep+rescope vs cut), D19 (show first-outsourced-free eligibility in-app to agents/internal).
+| **D18** | **Keep the cost calculator, rescoped to outsourcing.** "What would it cost to hand N sales to us?" — £250–£350 per outsourced sale, first one free. (Mock the rescoped version as part of the pricing-page build.) |
+
+**Still open:** D19 (show first-outsourced-free eligibility in-app to agents/internal — Phase 3/4), D14 (terms v5 wording — Phase 4 legal), D13a (debt ceiling — deferred).
 
 ### 28.1 Full register (reference)
 
