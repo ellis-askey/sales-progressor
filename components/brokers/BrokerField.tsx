@@ -182,9 +182,15 @@ export function BrokerField({
       <div className={`agent-collapse${open ? " open" : ""}`}>
         <div className="agent-collapse-inner">
           <div style={{ paddingTop: 14 }}>
-            {assigned ? (
-              /* ── Assigned broker ─────────────────────────────────────── */
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Entry ⇆ assigned morph. Assigning (or using the usual broker)
+                fades the entry out, animates the card down to the shorter
+                height, then fades the broker in. Both panels stay mounted so
+                the grid-rows heights can cross-animate. */}
+            <div className={`broker-morph${assigned ? " open" : ""}`}>
+              <div className="broker-morph-inner">
+                {value && (
+                  /* ── Assigned broker ─────────────────────────────────── */
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(var(--agent-coral-base-rgb), 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Buildings size={12} weight="bold" color="var(--agent-coral-deep)" />
@@ -217,10 +223,15 @@ export function BrokerField({
                 >
                   Use a different broker
                 </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              /* ── Entry ───────────────────────────────────────────────── */
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            </div>
+
+            <div className={`broker-morph${!assigned ? " open" : ""}`}>
+              <div className="broker-morph-inner">
+                {/* ── Entry ─────────────────────────────────────────────── */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* This buyer's broker */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <div>
@@ -323,8 +334,9 @@ export function BrokerField({
                 >
                   {saving ? "Assigning" : "Assign broker to this sale"}
                 </button>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

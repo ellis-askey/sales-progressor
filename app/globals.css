@@ -1921,6 +1921,24 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 .agent-collapse-inner { overflow: hidden; min-height: 0; }
 @media (prefers-reduced-motion: reduce) { .agent-collapse { transition: none; } }
 
+/* Two-panel morph — the closing panel collapses its height and fades out fast;
+   the opening panel grows its height and fades in on a delay, so the card
+   animates to the new height before the incoming content appears (used by the
+   broker entry ⇆ assigned swap). */
+.broker-morph {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease;
+}
+.broker-morph.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease 200ms;
+}
+.broker-morph-inner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .broker-morph { transition: none; } }
+
 /* New-sale broker: the "use your usual broker" one-tap card. */
 .broker-usual-pick {
   display: flex;
