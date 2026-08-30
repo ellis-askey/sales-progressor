@@ -13,7 +13,7 @@
 // the storage path is carried onto the new file on submit.
 
 import { useRef, useState } from "react";
-import { PencilSimple, ArrowRight } from "@phosphor-icons/react";
+import { PencilSimple, ArrowRight, CheckCircle, Trash } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { Pill } from "@/components/ui/Pill";
@@ -23,6 +23,15 @@ import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
 const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+
+// The dark frosted-glass pill used for the photo overlays (matches the
+// property-file "Back to files" / "Remove photo" buttons).
+const DARK_PILL: React.CSSProperties = {
+  position: "absolute", zIndex: 2, display: "inline-flex", alignItems: "center", gap: 6,
+  fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: "none",
+  color: "#fff", background: "rgba(15,23,42,0.42)",
+  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", fontFamily: "inherit",
+};
 
 const TENURES: { value: "freehold" | "leasehold"; label: string }[] = [
   { value: "freehold", label: "Freehold" },
@@ -62,12 +71,11 @@ function Choice({ selected, onClick, children }: { selected: boolean; onClick: (
   );
 }
 
-// Small group label with a "needed" cue while the group has no selection.
-function GroupLabel({ children, needed }: { children: React.ReactNode; needed: boolean }) {
+// Group label — green once a selection is made, grey while it isn't.
+function GroupLabel({ children, selected }: { children: React.ReactNode; selected: boolean }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: needed ? "var(--agent-warning)" : "var(--agent-text-muted)" }}>
+    <span style={{ fontSize: 11, fontWeight: 600, color: selected ? "var(--agent-success)" : "var(--agent-text-muted)", transition: "color 150ms" }}>
       {children}
-      {needed && <span style={{ fontSize: 10, fontWeight: 600 }}>· pick one</span>}
     </span>
   );
 }
@@ -94,17 +102,6 @@ export function SaleHeroEditable({
 
   const addressLine = [fields.streetAddress, fields.city, fields.postcode].map((s) => s.trim()).filter(Boolean).join(", ");
   const [editingAddress, setEditingAddress] = useState<boolean>(!addressLine);
-
-  const tenureNeeded = !fields.tenure;
-  const purchaseNeeded = !fields.purchaseType;
-
-  // Fields the memo left blank / still needed — surfaced in the hero footer.
-  const missing = [
-    !addressLine && "Address",
-    fields.purchasePricePence == null && "Price",
-    tenureNeeded && "Tenure",
-    purchaseNeeded && "Purchase type",
-  ].filter(Boolean) as string[];
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -166,11 +163,24 @@ export function SaleHeroEditable({
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: hasPhoto ? 0 : 1, pointerEvents: hasPhoto ? "none" : "auto", transition: "opacity 300ms ease" }}>
           <AddPhotoCircle onClick={() => { if (!busy) inputRef.current?.click(); }} busy={busy} size={120} />
         </div>
-        {hasPhoto && (
-          <button type="button" onClick={removePhoto} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ position: "absolute", bottom: 12, left: 12, zIndex: 2 }}>
-            Remove photo
-          </button>
+        {/* "Memo read" status — top-left, same dark glass as the file's Back button. */}
+        {showMemoFooter && (
+          <span style={{ ...DARK_PILL, top: 14, left: 14 }}>
+            <CheckCircle size={13} weight="fill" />
+            Memo read
+          </span>
         )}
+        {/* Remove-photo — bottom-left, same dark glass, fades with the photo. */}
+        <button
+          type="button"
+          onClick={removePhoto}
+          disabled={busy || !hasPhoto}
+          aria-hidden={!hasPhoto}
+          style={{ ...DARK_PILL, bottom: 14, left: 14, cursor: busy ? "wait" : "pointer", opacity: hasPhoto ? 1 : 0, pointerEvents: hasPhoto ? "auto" : "none", transition: hasPhoto ? "opacity 360ms ease 240ms" : "opacity 220ms ease" }}
+        >
+          <Trash size={13} weight="regular" />
+          Remove photo
+        </button>
       </div>
 
       {/* Content */}
@@ -207,7 +217,7 @@ export function SaleHeroEditable({
 
         {/* Tenure */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <GroupLabel needed={tenureNeeded}>Tenure</GroupLabel>
+          <GroupLabel selected={!!fields.tenure}>Tenure</GroupLabel>
           {TENURES.map((t) => (
             <Choice key={t.value} selected={fields.tenure === t.value} onClick={() => onUpdate({ tenure: t.value })}>{t.label}</Choice>
           ))}
@@ -215,7 +225,7 @@ export function SaleHeroEditable({
 
         {/* Purchase type */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <GroupLabel needed={purchaseNeeded}>Purchase type</GroupLabel>
+          <GroupLabel selected={!!fields.purchaseType}>Purchase type</GroupLabel>
           {PURCHASE_TYPES.map((p) => (
             <Choice key={p.value} selected={fields.purchaseType === p.value} onClick={() => onUpdate({ purchaseType: p.value })}>{p.label}</Choice>
           ))}
@@ -224,31 +234,19 @@ export function SaleHeroEditable({
         {/* Progressed by */}
         {canOutsource && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)" }}>Progressed by</span>
+            <GroupLabel selected={!!fields.progressedBy}>Progressed by</GroupLabel>
             <Choice selected={fields.progressedBy === "agent"} onClick={() => onUpdate({ progressedBy: "agent" })}>Self-progress</Choice>
             <Choice selected={fields.progressedBy === "progressor"} onClick={() => onUpdate({ progressedBy: "progressor" })}>Send to us</Choice>
           </div>
         )}
 
-        {/* Memo footer — replaces the separate "Memo read" card */}
-        {showMemoFooter && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", paddingTop: 12, marginTop: 2, borderTop: "0.5px solid var(--nv2-border-dark)" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Memo read</span>
-            {missing.length > 0 ? (
-              <>
-                <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>· still needed:</span>
-                {missing.map((m) => (
-                  <Pill key={m} glass tone="warning" size="sm">{m}</Pill>
-                ))}
-              </>
-            ) : (
-              <span style={{ fontSize: 12, color: "var(--agent-success)" }}>· all set</span>
-            )}
-            {onChangeFile && (
-              <button type="button" onClick={onChangeFile} className="agent-link agent-link-muted" style={{ marginLeft: "auto", fontSize: 12 }}>
-                Change file
-              </button>
-            )}
+        {/* Change file — subtle link in memo mode (the "Memo read" status is the
+            top-left pill; the "still needed" list is gone). */}
+        {showMemoFooter && onChangeFile && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button type="button" onClick={onChangeFile} className="agent-link agent-link-muted" style={{ fontSize: 12 }}>
+              Change file
+            </button>
           </div>
         )}
 
