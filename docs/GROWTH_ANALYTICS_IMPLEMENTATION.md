@@ -10,10 +10,20 @@ Started 2026-08-30. Two repos: `full` (portal + Command Centre), `marketing-site
 |---|---|
 | 1. Attribution at signup (marketing → Agency columns) | **DONE** (both repos, tested) |
 | 2. Product analytics event gaps | **DONE** |
-| 3. Shared Command Centre UI primitive kit | not started |
-| 4. Website & Growth page — DB-authoritative sections | not started |
+| 3. Shared Command Centre UI primitive kit | **DONE** (`components/command/ui/primitives.tsx`) |
+| 4. Website & Growth page — DB-authoritative sections | **DONE** (`/command/website-growth`) |
 | 5. marketing-site PostHog + `mkt_` taxonomy + section instrumentation + cross-domain id | not started |
 | 6. PostHog read layer + web-behaviour/homepage/CTA sections + tracking-health | not started |
+
+## Slice 3 — Shared CC UI primitives (DONE)
+`components/command/ui/primitives.tsx`: `Section`, `KpiCard`, `DeltaPill`, `FunnelBars`, `ParamTabs` (URL-param tabs), `TableShell`/`Tr`/`Td`, `CardEmpty`, `TrackingDisabled` (the intentional not-connected state, never a fake 0), `InsightCard`, `fmtGBP/fmtInt/fmtPct`. Server-safe, CC dark styling. Existing Growth pages untouched (they keep their local copies).
+
+## Slice 4 — Website & Growth page (DONE, DB-authoritative)
+- Nav: added `Website & Growth` at the top of the existing Growth group (`CommandSidebar.tsx`) — the 9 existing pages unchanged.
+- `lib/command/growth-analytics.ts` — one load (agencies + real txns + banked InvoiceLines), computes: Overview (signups/activated/activation-rate/exchanges/revenue + prev-period deltas), cohort Funnel (signup→activated→2nd→5th→exchanged + cohort revenue), Acquisition by classified source, CTA performance (from `signupCtaLocation`), Activation & adoption (all-time Nth-sale + avg days-to-first-sale), deterministic Insights, Tracking health. Period (7d/30d/90d/month/last-month/quarter) + tier (all/self/outsourced) via URL params.
+- `app/command/(protected)/website-growth/page.tsx` — server component composing the sections with the Slice-3 primitives. Website-behaviour/homepage sections show the `TrackingDisabled` state until PostHog is connected (Slice 5-6).
+- **Exclusions:** `agency.isInternal=false`, tx `isDemo=false`, `isMigrated=false`. **Revenue = `InvoiceLine.totalPence`** on banked (issued/paid/failed) invoices only; free/trial exchanges bank £0.
+- Note: needs migrations `20260830010000` + `20260830010500` applied (columns/enum) before it renders live.
 
 Nothing pushed yet — commits sit on `staging` (full) / the marketing-site working branch, awaiting Ellis's push.
 
