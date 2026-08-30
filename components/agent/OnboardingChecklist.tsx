@@ -81,6 +81,9 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
   const [progress, setProgress] = useState<ProgressData>(DEFAULT_PROGRESS);
   const [firstTxId, setFirstTxId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  // Lets the hub's "Continue setup" card open the floating checklist even where
+  // Option B would normally hide it (hub, no sale yet).
+  const [forceShow, setForceShow] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -112,9 +115,14 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
     };
     window.addEventListener("sp_onboarding_step", onStep);
 
+    // "Continue setup" (hub empty state) opens the floating checklist.
+    const onOpen = () => { setForceShow(true); setOpen(true); };
+    window.addEventListener("sp_open_checklist", onOpen);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener("sp_onboarding_step", onStep);
+      window.removeEventListener("sp_open_checklist", onOpen);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -260,9 +268,10 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
   }
 
   // ── Floating (default) ────────────────────────────────────────────────────
-  // Option B: on the hub, while there are no sales, the inline version shows
-  // instead — so hide the floating one there. Everywhere else it floats.
-  if (pathname === "/agent/hub" && !effectiveProgress.hasSale) return null;
+  // Option B: on the hub, while there are no sales, the hub's own empty state
+  // owns setup — so hide the floating one there unless the "Continue setup" card
+  // has explicitly opened it (forceShow). Everywhere else it floats.
+  if (pathname === "/agent/hub" && !effectiveProgress.hasSale && !forceShow) return null;
 
   return (
     <div style={{
