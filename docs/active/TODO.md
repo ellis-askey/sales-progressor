@@ -21,6 +21,14 @@ about to-dos" guide card, BUILT BUT HIDDEN behind `SHOW_TODO_GUIDE = false`. Its
 explainer of notes vs sale-linked tasks vs progressor requests. Flip
 `SHOW_TODO_GUIDE = true` once it exists.
 
+## Updates "Learn more about Updates" guide + card "Learn more" links (filed 2026-08-30)
+
+The Updates empty state (`components/agent/CommsEmptyState.tsx`) has a "Learn more
+about Updates" guide card, BUILT BUT HIDDEN behind `SHOW_UPDATES_GUIDE = false`.
+The three "What you'll see here" cards are info-only for now (no dead controls per
+Law 13). When a guide target exists, add a "Learn more" link to each card and flip
+`SHOW_UPDATES_GUIDE = true` so the buttons and the bottom guide card appear together.
+
 ---
 
 ## Phase-2 arc — BuyerRound per-sale scoping for remaining models

@@ -26,7 +26,7 @@ export function SetupCard({ iconSrc, tint, title, desc, cta, href, onClick }: {
   tint: keyof typeof SETUP_TINTS;
   title: string;
   desc: string;
-  cta: string;
+  cta?: string;
   href?: string;
   onClick?: () => void;
 }) {
@@ -49,11 +49,12 @@ export function SetupCard({ iconSrc, tint, title, desc, cta, href, onClick }: {
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{desc}</p>
         </div>
       </div>
-      {href ? (
+      {/* Info-only card when there's no action to offer (e.g. an empty feed). */}
+      {cta && (href ? (
         <Link href={href} className="agent-btn agent-btn-secondary agent-btn-sm" style={btnStyle}>{inner}</Link>
       ) : (
         <button type="button" onClick={onClick} className="agent-btn agent-btn-secondary agent-btn-sm" style={btnStyle}>{inner}</button>
-      )}
+      ))}
     </div>
   );
 }
