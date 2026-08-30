@@ -12,7 +12,7 @@
 // Since there's no file yet, it uploads against an on-demand draft (ensureDraft);
 // the storage path is carried onto the new file on submit.
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { PencilSimple, CheckCircle, Trash } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -104,15 +104,6 @@ export function SaleHeroEditable({
   const [line1, ...restAddr] = addressLine.split(",");
   const line2 = restAddr.join(",").trim();
 
-  // Price: display with a hover pencil, click to edit inline (like the file).
-  const [editingPrice, setEditingPrice] = useState(false);
-  const priceWrapRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (editingPrice) {
-      const input = priceWrapRef.current?.querySelector<HTMLInputElement>("input");
-      input?.focus(); input?.select();
-    }
-  }, [editingPrice]);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -232,21 +223,11 @@ export function SaleHeroEditable({
           </div>
         </div>
 
-        {/* Price — displays like the file: value + hover pencil, click to edit. */}
+        {/* Price — a simple £ pill you click and type into (shows just "£" when
+            empty, "£230,000" once typed). No placeholder text, no save. */}
         <div>
           <p style={{ margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Sale price</p>
-          {editingPrice ? (
-            <div ref={priceWrapRef} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); setEditingPrice(false); } }}>
-              <PriceInput value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} onBlur={() => setEditingPrice(false)} placeholder="Add the sale price" className="price-hero-input" />
-            </div>
-          ) : fields.purchasePricePence != null ? (
-            <button type="button" onClick={() => setEditingPrice(true)} className="group" aria-label="Edit sale price" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-              <span style={{ fontSize: 21, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{"£" + Math.round(fields.purchasePricePence / 100).toLocaleString("en-GB")}</span>
-              <PencilSimple size={13} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)" }} />
-            </button>
-          ) : (
-            <button type="button" onClick={() => setEditingPrice(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 20, fontWeight: 600, color: "var(--agent-text-muted)" }}>Add the sale price</button>
-          )}
+          <PriceInput value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} placeholder="" className="sale-price-pill" />
         </div>
 
         {/* Tenure */}

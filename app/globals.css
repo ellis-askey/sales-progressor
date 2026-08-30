@@ -1872,3 +1872,25 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   border-color: var(--agent-coral-deep);
   box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12);
 }
+
+/* Sale-price "£ pill" on the new-sale hero — a compact coral pill you click and
+   type into (just "£" when empty). field-sizing lets it grow with the figure
+   (Ellis, 2026-08-30). */
+.sale-price-pill {
+  field-sizing: content;
+  width: auto;
+  min-width: 84px;
+  max-width: 260px;
+  border: 1px solid rgba(var(--agent-coral-rgb), 0.22) !important;
+  background: rgba(var(--agent-coral-rgb), 0.05) !important;
+  border-radius: 999px !important;
+  padding: 7px 16px !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  color: var(--agent-text-primary) !important;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.sale-price-pill::placeholder { color: var(--nv2-text-faint); font-weight: 500; }
+.sale-price-pill:hover { border-color: rgba(var(--agent-coral-rgb), 0.5) !important; }
+.sale-price-pill:focus { outline: none; border-color: var(--agent-coral-deep) !important; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12) !important; }
