@@ -687,6 +687,13 @@ export function QuoteFlow({
                 ? "Sending…"
                 : `Request quote${selectedFirms.size > 1 ? "s" : ""} from ${selectedFirms.size} firm${selectedFirms.size === 1 ? "" : "s"}`}
             </button>
+            <p style={{ margin: "12px 0 0", fontSize: 12, color: A.textFaint, textAlign: "center", lineHeight: 1.5 }}>
+              By requesting a quote you agree to our{" "}
+              <a href="/provider-terms" target="_blank" rel="noopener noreferrer" style={{ color: A.coralDark, textDecoration: "underline", textUnderlineOffset: 2 }}>
+                Provider Request Service Terms
+              </a>
+              .
+            </p>
           </div>
         </div>
       )}

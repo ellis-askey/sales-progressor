@@ -13,6 +13,7 @@ import { sendChainInvite } from "@/lib/chain/invite";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
+import { postExchangeDateUpdateToClients } from "@/lib/services/portal";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal, cascadeChainBuyerFound } from "@/lib/chain/withdrawal";
 import { splitChainAtBoundary } from "@/lib/chain/split";
@@ -886,22 +887,43 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
   revalidateTx(transactionId);
 }
 
+// Calendar-day equality on the stored expected-exchange dates, compared in UTC
+// (both are date-only values persisted at UTC midnight). Used to decide whether
+// a date genuinely moved before telling clients.
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
 export async function saveOverrideDateAction(transactionId: string, overridePredictedDate: string | null) {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, overridePredictedDate: true, expectedExchangeDate: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
+  const newDate = overridePredictedDate ? new Date(overridePredictedDate) : null;
+
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { overridePredictedDate: overridePredictedDate ? new Date(overridePredictedDate) : null },
+    data: { overridePredictedDate: newDate },
   });
 
-  const dateStr = overridePredictedDate
-    ? new Date(overridePredictedDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  // Client-visible portal entry — only when an existing expected date moves to a
+  // different date. First-time set (no prior stored date) and clearing stay
+  // silent, per the portal feature-ledger decision (2026-08-30).
+  const priorExpected = tx.overridePredictedDate ?? tx.expectedExchangeDate;
+  if (newDate && priorExpected && !isSameCalendarDay(priorExpected, newDate)) {
+    await postExchangeDateUpdateToClients(transactionId, newDate, session.user.id);
+  }
+
+  const dateStr = newDate
+    ? newDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;
   await logActivity(
     transactionId,
@@ -938,7 +960,7 @@ export async function reviseOverdueExchangeDateAction(input: {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true },
+    select: { id: true, overridePredictedDate: true, expectedExchangeDate: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -946,6 +968,13 @@ export async function reviseOverdueExchangeDateAction(input: {
     where: { id: input.transactionId },
     data: { overridePredictedDate: parsed },
   });
+
+  // Client-visible portal entry — only when an existing expected date moves to a
+  // different date (skip a first-ever set), per the feature-ledger decision.
+  const priorExpected = tx.overridePredictedDate ?? tx.expectedExchangeDate;
+  if (priorExpected && !isSameCalendarDay(priorExpected, parsed)) {
+    await postExchangeDateUpdateToClients(input.transactionId, parsed, session.user.id);
+  }
 
   const dateStr = parsed.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   await logActivity(
