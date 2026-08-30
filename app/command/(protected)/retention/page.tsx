@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { parseMode, parseAgencies } from "@/lib/command/scope";
-import { getRetention, type DriftUser } from "@/lib/command/retention";
+import { getRetention, getTransactionRetention, type DriftUser } from "@/lib/command/retention";
 import InfoTip from "@/components/command/shared/InfoTip";
 
 // Command Centre → Repeat use. Are people coming back, and who's drifting away?
@@ -27,6 +27,16 @@ function fmtHours(h: number | null): string {
 function fmtDate(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
+function fmtDays(d: number): string {
+  if (d <= 0) return "same day";
+  if (d < 60) return `${d}d`;
+  return `${Math.round(d / 30)}mo`;
+}
+function milestoneLabel(threshold: number): string {
+  if (threshold === 1) return "Created a first sale";
+  if (threshold === 2) return "Reached a 2nd sale";
+  return `Reached ${threshold} sales`;
+}
 
 export default async function RetentionPage({
   searchParams,
@@ -36,7 +46,10 @@ export default async function RetentionPage({
   const sp = await searchParams;
   const mode = parseMode(sp.mode);
   const agencyIds = parseAgencies(sp.agency);
-  const { cards, returning, gaps, driftUsers, driftAgencies, scopeLabel } = await getRetention(mode, agencyIds);
+  const [{ cards, returning, gaps, driftUsers, driftAgencies, scopeLabel }, tx] = await Promise.all([
+    getRetention(mode, agencyIds),
+    getTransactionRetention(mode, agencyIds),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -76,6 +89,81 @@ export default async function RetentionPage({
             </p>
           </div>
         </div>
+      </section>
+
+      {/* Second sale and beyond — agency transaction retention */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
+          Second sale and beyond
+          <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="Second sale and beyond">The first sale can be a trial. A second is real evidence an agency found this useful enough to come back, and 2 to 5 to 10 shows where use turns habitual. Drafts and bulk-imported files are excluded.</InfoTip></span>
+        </h2>
+        <p className="text-[11px] text-neutral-600 mb-4">
+          Of the {tx.starters} {tx.starters === 1 ? "agency" : "agencies"} that created a first sale, how many came back to create more.
+        </p>
+
+        {tx.starters === 0 ? (
+          <p className="text-sm text-neutral-600">No agency has created a first sale in this view yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {/* 1 → 2 → 5 → 10 funnel */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {tx.milestones.map((m) => (
+                <div key={m.threshold} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+                  <p className="text-xs text-neutral-400 mb-1">{milestoneLabel(m.threshold)}</p>
+                  <p className="text-2xl font-bold text-white tabular-nums">{m.agencies}</p>
+                  {m.threshold === 1 ? (
+                    <p className="text-[11px] text-neutral-600 mt-0.5">created a first sale</p>
+                  ) : (
+                    <p className="text-[11px] text-neutral-500 mt-0.5 tabular-nums">
+                      {m.stepPct == null ? "—" : `${m.stepPct}%`} of the step before
+                      {m.pctOfStarters != null && <span className="text-neutral-600"> · {m.pctOfStarters}% of starters</span>}
+                    </p>
+                  )}
+                  {m.medianDaysFromFirst != null && (
+                    <p className="text-[10px] text-neutral-600 mt-0.5 tabular-nums">median {fmtDays(m.medianDaysFromFirst)} from first</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* How quickly the second comes */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+              <p className="text-[11px] text-neutral-500 uppercase tracking-wider mb-3">How quickly the second sale comes</p>
+              {tx.timeToSecond.n === 0 ? (
+                <p className="text-xs text-neutral-600">No agency has reached a second sale in this view yet.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-6">
+                  {[
+                    { label: "Fastest quarter", v: tx.timeToSecond.p25 },
+                    { label: "Typical", v: tx.timeToSecond.median },
+                    { label: "Slowest quarter", v: tx.timeToSecond.p75 },
+                  ].map(({ label, v }) => (
+                    <div key={label} className="text-center">
+                      <p className="text-[11px] text-neutral-500 mb-1">{label}</p>
+                      <p className="text-2xl font-bold text-white tabular-nums">{v == null ? "—" : fmtDays(Math.round(v))}</p>
+                      <p className="text-[10px] text-neutral-600 mt-0.5">after the first</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Recently activated — reached their second in the last 90 days */}
+            {tx.recentSecond.length > 0 && (
+              <div>
+                <p className="text-[11px] text-neutral-500 uppercase tracking-wider mb-2">Recently reached their second sale · last 90 days</p>
+                <div className="flex flex-wrap gap-2">
+                  {tx.recentSecond.map((r) => (
+                    <span key={r.agencyId} className="inline-flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 rounded-full px-3 py-1 text-[11px] text-neutral-300">
+                      {r.agencyName}
+                      <span className="text-neutral-500">{fmtDate(r.secondAt)} · {fmtDays(r.daysFromFirst)} after first</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* How often people come back */}
