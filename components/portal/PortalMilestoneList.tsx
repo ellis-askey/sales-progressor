@@ -10,6 +10,7 @@ import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
 import { getEventDateLabel, getMilestoneConfirmCopy } from "@/lib/portal-copy";
+import { getMilestoneGuidance } from "@/lib/portal/milestone-guidance";
 import { SearchesUpload } from "./SearchesUpload";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { PortalButton } from "./PortalButton";
@@ -543,6 +544,31 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
               {helpMilestone.description}
             </p>
+            {(() => {
+              const guidance = getMilestoneGuidance(helpMilestone.code);
+              if (!guidance) return null;
+              return (
+                <div className="mt-4 flex items-center gap-2">
+                  <a
+                    href={guidance.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="portal-guidance-link inline-flex items-center gap-1.5 text-[13.5px] font-semibold"
+                    style={{ color: P.accent }}
+                  >
+                    Learn more
+                    <span className="pgl-glide inline-flex">
+                      <span className="pgl-spin inline-flex">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                        </svg>
+                      </span>
+                    </span>
+                  </a>
+                  <span className="text-[11.5px]" style={{ color: P.textMuted }}>{guidance.source}</span>
+                </div>
+              );
+            })()}
             <button
               onClick={() => setHelpMilestone(null)}
               className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
@@ -550,6 +576,22 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             >
               Got it
             </button>
+            <style>{`
+              .portal-guidance-link .pgl-spin {
+                transform: rotate(-45deg);
+                transition: transform 170ms cubic-bezier(0.16,1,0.3,1);
+              }
+              .portal-guidance-link .pgl-glide {
+                transform: translateX(0);
+                transition: transform 220ms cubic-bezier(0.16,1,0.3,1) 150ms;
+              }
+              .portal-guidance-link:hover .pgl-spin { transform: rotate(0deg); }
+              .portal-guidance-link:hover .pgl-glide { transform: translateX(3px); }
+              @media (prefers-reduced-motion: reduce) {
+                .portal-guidance-link .pgl-spin,
+                .portal-guidance-link .pgl-glide { transition: none; }
+              }
+            `}</style>
           </div>
         )}
       </PortalSheet>
