@@ -187,16 +187,27 @@ export function SaleHeroEditable({
 
       {/* Content */}
       <div style={{ flex: "1 1 340px", minWidth: 0, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
-        {/* Address (left) + sale price (right); price wraps below on narrow. */}
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "12px 24px" }}>
+        {/* Address (left) + sale price (a comfortable gap to its right); the
+            price wraps below the address when the row runs out of width. */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: "12px 64px" }}>
         {/* Address — display and editor crossfade their heights (grid-rows
             0fr↔1fr) so the hero, and the photo that stretches to match it, grow
             and shrink smoothly instead of jumping. */}
-        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div style={{ flex: "0 1 auto", minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateRows: editingAddress ? "0fr" : "1fr", transition: "grid-template-rows 300ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1))" }}>
             <div style={{ overflow: "hidden", minHeight: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                {/* The address text itself opens the editor on click — same as the
+                    pencil. Hover underlines line 1 so it reads as a control. */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setEditingAddress(true)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingAddress(true); } }}
+                  className="hero-address-edit"
+                  aria-label="Edit address"
+                  style={{ flex: 1, minWidth: 0 }}
+                >
                   <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{line1}</p>
                   {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
                 </div>

@@ -1894,3 +1894,14 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 .sale-price-pill::placeholder { color: var(--nv2-text-faint); font-weight: 500; }
 .sale-price-pill:hover { border-color: rgba(var(--agent-coral-rgb), 0.5) !important; }
 .sale-price-pill:focus { outline: none; border-color: var(--agent-coral-deep) !important; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12) !important; }
+
+/* The hero address text is itself a control — clicking it opens the address
+   editor (same as the pencil). Hover underlines line 1 so it reads as clickable. */
+.hero-address-edit { cursor: pointer; border-radius: 8px; outline-offset: 3px; }
+.hero-address-edit:hover p:first-child {
+  text-decoration: underline;
+  text-decoration-color: var(--agent-coral);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}
+.hero-address-edit:focus-visible { outline: 2px solid var(--agent-coral); }

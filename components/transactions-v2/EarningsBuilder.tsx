@@ -93,7 +93,7 @@ export function EarningsBuilder({
 
   return (
     <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-xl)", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
-      <p className="agent-eyebrow" style={{ margin: 0 }}>What this file is worth</p>
+      {/* No card title — the "File worth" tab above already names this. */}
 
       {/* Commission editor */}
       <div>
