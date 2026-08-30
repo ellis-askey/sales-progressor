@@ -2476,6 +2476,63 @@ const KEY_MILESTONE_CODES = new Set(["VM12", "PM16", "VM13", "PM17"]);
 //
 // The previous `_contactId` parameter was unused (headline relist privacy
 // bug — a purchaser saw the file's full message log). It's now load-bearing.
+/**
+ * Post a client-visible timeline entry when an agent moves the expected
+ * exchange date. It surfaces on the portal Overview "Latest updates" card and
+ * the Updates page as an unattributed agency update (orange icon, no author
+ * name or photo), and is flagged "New since your last visit". Targets every
+ * client contact on the file — all sellers plus the active buyer — so both
+ * sides see it. A mixed vendor + purchaser recipient set means the row stays
+ * file-level (buyerRoundId null), per the OutboundMessage attribution
+ * invariant. Callers decide WHEN to post (only on a real date change); this
+ * just writes the entry.
+ */
+export async function postExchangeDateUpdateToClients(
+  transactionId: string,
+  newDate: Date,
+  actorId: string,
+): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { agencyId: true, activeBuyerRoundId: true },
+  });
+  if (!tx) return;
+
+  const contacts = await prisma.contact.findMany({
+    where: {
+      propertyTransactionId: transactionId,
+      OR: [
+        { roleType: "vendor" },
+        { roleType: "purchaser", buyerRoundId: tx.activeBuyerRoundId },
+      ],
+    },
+    select: { id: true },
+  });
+  if (contacts.length === 0) return;
+
+  const dateStr = newDate.toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+  });
+
+  await prisma.outboundMessage.create({
+    data: {
+      agencyId: tx.agencyId,
+      transactionId,
+      channel: "in_app",
+      purpose: "notification",
+      status: "sent",
+      type: "outbound",
+      contactIds: contacts.map((c) => c.id),
+      visibleToClient: true,
+      isAutomated: true,
+      createdById: actorId,
+      content:
+        `We've updated your estimated exchange date to ${dateStr}.\n\n` +
+        `This is our latest estimate and could still change as the sale moves forward.`,
+    },
+  });
+}
+
 export async function getPortalTimeline(
   transactionId: string,
   side: "vendor" | "purchaser",
