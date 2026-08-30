@@ -43,9 +43,27 @@ Every code/schema/copy change gets an entry here: what changed (plain English), 
 **Status:** staging (code committed). **The migration applies to a DB when a deploy runs `prisma migrate deploy` (staging first). Code that reads/writes the new columns needs the migration applied first** — flagged for the push/verification step.
 **Note:** `firstOutsourcedFree` + `intro_credit` are added now (one migration) but only wired in increment 3.
 
-### Increment 3 — First outsourced file free · pending
+### Increment 3 — First outsourced file free · 2026-08-31 · staging
 
-Planned: decide "is this the agency's first outsourced file?" at exchange (concurrency-guarded), render as an explicit discount line. Decisions D3, D4, D5.
+**Plain English:** When an outsourced sale exchanges, we check whether it's the agency's very first outsourced sale to reach exchange. If it is (and they've never had one before — new agencies only, D3), it's on us: the sale bills its normal band fee, and a full-value credit cancels it, so the invoice reads "£300 · first file free −£300 = £0" (visible and auditable, D4). Consumed once, at exchange, and exchange is final (D5). Every later outsourced sale bills normally.
+
+**How it nets to zero without new plumbing:** the free file gets `billedAtExchange` set (so it appears on the invoice at the band price) plus a `CreditNote` for the full fee. The existing accrual + running-total code already turns an unapplied CreditNote into a visible `credit_applied` line and nets it against the total — so no accrual or live-total changes were needed.
+
+**Files:**
+- `lib/services/billing-trigger.ts` — outsourced first-free decision at exchange: count prior exchanged outsourced files for the agency; if none, stamp `firstOutsourcedFree` + `freeReason='first_outsourced_free'` + `billedAtExchange` + `priceAtExchange`, and write a full-value `CreditNote`. Bilateral-safe (credit written once). Imports `computeFee`.
+
+**Decisions:** D3, D4, D5.
+**Verified:** `tsc` clean. (End-to-end DB behaviour verified at the Phase 1 seeded link.)
+**Status:** staging (code committed).
+
+---
+
+## Deferred / follow-ups
+
+- **First-outsourced-free concurrency hardening (D3a).** The "is this the first?" check is a count, safe at pre-launch scale (a same-agency simultaneous double-exchange cannot happen yet). Before real volume, add a Postgres **advisory lock on `agencyId`** at the start of the outsourced decision (never throws, so it can't poison the shared exchange transaction — unlike a unique-index violation). The `firstOutsourcedFree` column is ready for it.
+- **D13a** — outstanding-outsourced-debt ceiling + escalation (from the failed-payment decision).
+- **D5a** — an erroneous exchange later undone should clear `freeReason`/`firstOutsourcedFree` (build edge; belongs with the reversal path in a later increment).
+- **`intro_credit` invoice-line kind** was added (increment 2) but is currently unused — the CreditNote path uses `credit_applied`. Keep for a possible future inline-discount representation, or drop in a cleanup.
 
 ### Increment 4 — Remove the 14-day trial plumbing · pending (Phase 2 overlap)
 

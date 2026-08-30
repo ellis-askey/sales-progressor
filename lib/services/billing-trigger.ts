@@ -28,6 +28,7 @@
 // rows and writes nothing.
 
 import { prisma } from "@/lib/prisma";
+import { computeFee } from "@/lib/billing/fee";
 import type { Prisma } from "@prisma/client";
 
 export const EXCHANGE_CODES = new Set(["VM19", "PM26"]);
@@ -43,7 +44,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -67,9 +68,69 @@ export async function maybeStampExchange(
   // 2. Trial files exchange but don't bill
   if (txn.freeOnExchange) return;
 
-  // 3 + 4. Snapshot purchasePrice and stamp billing — race-safe and bilateral-
-  // safe via NULL guard. Second call (bilateral partner OR concurrent fire)
-  // matches 0 rows and writes nothing.
+  // 3. First outsourced file free (D3/D4/D5). The agency's FIRST outsourced
+  //    file to reach exchange is on us; agencies that have already exchanged an
+  //    outsourced file are grandfathered out (D3, new agencies only). Recorded
+  //    as a normal bill PLUS a full-value CreditNote (D4) so the invoice shows
+  //    "£X · first file free −£X = £0" — visible, not a silent zero. Consumed
+  //    once, at exchange, and exchange is final (D5).
+  //
+  //    Concurrency: the count check is safe at current (pre-launch) scale — two
+  //    outsourced files for the SAME agency exchanging in the same instant is
+  //    the only race, and cannot happen yet. A DB-level guard (advisory lock on
+  //    agencyId, so it never throws inside this shared exchange transaction) is
+  //    the hardening before real volume — see the build log's deferred items.
+  if (txn.serviceType === "outsourced") {
+    const priorOutsourcedExchanged = await db.propertyTransaction.count({
+      where: {
+        agencyId: txn.agencyId,
+        id: { not: transactionId },
+        serviceType: "outsourced",
+        exchangedAt: { not: null },
+        isMigrated: false,
+      },
+    });
+    if (priorOutsourcedExchanged === 0) {
+      const claimed = await db.propertyTransaction.updateMany({
+        where: { id: transactionId, billedAtExchange: null },
+        data: {
+          firstOutsourcedFree: true,
+          freeReason: "first_outsourced_free",
+          billedAtExchange: now,
+          priceAtExchange: txn.purchasePrice,
+        },
+      });
+      // claimed.count is 0 on the bilateral second fire (billedAtExchange
+      // already set) — so the credit is written exactly once.
+      if (claimed.count > 0) {
+        const agency = await db.agency.findUnique({
+          where: { id: txn.agencyId },
+          select: { vatRegisteredAt: true, vatRateBps: true, feeTier: true, legacyOutsourcedFeePence: true },
+        });
+        const fee = computeFee(
+          "outsourced",
+          txn.purchasePrice,
+          agency ? { vatRegisteredAt: agency.vatRegisteredAt, vatRateBps: agency.vatRateBps } : null,
+          agency ? { feeTier: agency.feeTier, legacyOutsourcedFeePence: agency.legacyOutsourcedFeePence } : null,
+        );
+        if (fee.totalPence > 0) {
+          await db.creditNote.create({
+            data: {
+              agencyId: txn.agencyId,
+              transactionId,
+              amountPence: fee.totalPence,
+              reason: "First outsourced file free",
+            },
+          });
+        }
+      }
+      return;
+    }
+  }
+
+  // 4. Bill normally. Snapshot purchasePrice and stamp billing — race-safe and
+  // bilateral-safe via NULL guard. Second call (bilateral partner OR concurrent
+  // fire) matches 0 rows and writes nothing.
   await db.propertyTransaction.updateMany({
     where: {
       id: transactionId,
