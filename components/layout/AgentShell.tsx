@@ -29,6 +29,13 @@ import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
 
+// Accounts that see the Design Lab flask in the topbar. Picks persist per-user,
+// so adding an email here is all that's needed to let that account use it.
+const DESIGN_LAB_EMAILS = new Set([
+  "ellis@thesalesprogressor.co.uk",
+  "ellisaskey+tb@googlemail.com", // Tim Branston — Ellis's agent test account
+]);
+
 function formatAgentTime(d: Date): string {
   try {
     return d.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false });
@@ -338,9 +345,9 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>
           {/* Moving-background intensity — all users, slider popover. */}
           <div className="hidden md:block"><AuroraOpacityControl initialOpacity={backgroundOpacity} /></div>
-          {/* Design Lab — Ellis-only per-card glass picker. Invisible for
-              everyone else so it doesn't clutter the topbar. */}
-          {session.user.email === "ellis@thesalesprogressor.co.uk" && (
+          {/* Design Lab — per-card glass picker, limited to the allowlist so it
+              doesn't clutter the topbar for real agents. */}
+          {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
             <div className="hidden md:block"><DesignLabToggle /></div>
           )}
           <AgentBell userKey={session.user.email ?? session.user.id} />
