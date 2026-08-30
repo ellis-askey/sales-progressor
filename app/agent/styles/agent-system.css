@@ -1480,6 +1480,12 @@
   .partner-file-row { transition: background 120ms; }
   .partner-file-row:hover { background: var(--agent-hover-tint) !important; }
 
+  /* ── Partners: staggered card entrance ──────────────────────────────────── */
+  .partner-card-in { animation: agent-section-in 360ms cubic-bezier(.16,1,.3,1) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .partner-card-in { animation: none; }
+  }
+
   /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
   .coming-up-link { text-underline-offset: 2px; }
   .coming-up-link:hover { text-decoration: underline; color: var(--agent-text-primary); }

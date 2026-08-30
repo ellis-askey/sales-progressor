@@ -33,7 +33,6 @@ const STATUS_LABEL: Record<string, string> = {
   on_hold: "On hold",
   completed: "Completed",
   withdrawn: "Withdrawn",
-  fallen_through: "Fell through",
 };
 
 function statusLabel(status: string): string {

@@ -220,6 +220,14 @@ Surface 8 was closed as a no-op in [CLOSURE.md](phase-3/08-internal-dashboard/CL
 | Surface 9 `agent-glass` cards (2 in `app/agent/analytics/page.tsx` L129 + L144, ghost preview stat cards) | Migrate to `<Card variant="agent-glass">` | grandfather | 2026-07-01 | Extends Surfaces 2-6 chrome entry. Surface 9 is the **6th consumer** of `agent-glass*`. Card primitive variant extension pending. Re-evaluated 2026-09-26 |
 | Analytics "+ Submit your first sale" `<Link className="agent-btn">` (`app/agent/analytics/page.tsx:114`) | Migrate to canonical `<ButtonLink>` primitive | grandfather | 2026-07-01 | Extends ButtonLink-pending entry. Total Link-styled `agent-btn` instances now: 6 across hub + transactions list + analytics |
 
+### Partners rebuild grandfathers (2026-08-30)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| Firm cards + firm-detail tiles/rows in [components/agent/PartnersDirectory.tsx](../components/agent/PartnersDirectory.tsx) and [app/agent/partners/[kind]/[id]/page.tsx](../app/agent/partners/%5Bkind%5D/%5Bid%5D/page.tsx) use bespoke inline styles rather than canonical primitives (StatTile, StatusPill, IntelPill, ContactRow, section headings) | Extract to `components/ui` primitives (stat tile, status pill, meta pill) | grandfather | 2026-08-30 | Inherited the original Partners page's inline-style idiom and extended it consistently. Migrating blind carries behavioural-diff risk and there is no live visual baseline yet (dev server was down through the rebuild arc). Re-evaluate once the surface has a rendered baseline + the StatTile/StatusPill primitives exist. Re-evaluated 2026-11-30 |
+| Partners "all"-scope internal directory ([app/agent/partners/page.tsx](../app/agent/partners/page.tsx)) is unpaginated | Paginate / cap + "show more" once firm counts grow | defer-Q4-2026 | 2026-08-30 | `kind: "all"` lists every firm on an active file platform-wide. Fine at pre-launch scale (~5 users); revisit before real volume. Filed during PR3 |
+| No per-firm "stuck / at-risk files" metric on Partners | Build a per-firm risk rollup (files past expected stage) for the firm cards + detail | tbd | 2026-08-30 | Spec vision item; no per-firm risk metric exists in the codebase, so it is its own build, not part of the rebuild arc. Deferred rather than smuggled into PR3 |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |
