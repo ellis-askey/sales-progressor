@@ -13,7 +13,7 @@
 // the storage path is carried onto the new file on submit.
 
 import { useRef, useState } from "react";
-import { PencilSimple, ArrowRight, CheckCircle, Trash } from "@phosphor-icons/react";
+import { PencilSimple, CheckCircle, Trash } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { Pill } from "@/components/ui/Pill";
@@ -82,15 +82,13 @@ function GroupLabel({ children, selected }: { children: React.ReactNode; selecte
 
 export function SaleHeroEditable({
   fields, onUpdate, currentDraftId, ensureDraft, canOutsource = true,
-  showContinue = false, onContinue, showMemoFooter = false, onChangeFile,
+  showMemoFooter = false, onChangeFile,
 }: {
   fields: FormFields;
   onUpdate: (u: Partial<FormFields>) => void;
   currentDraftId: string | null;
   ensureDraft: () => Promise<string | null>;
   canOutsource?: boolean;
-  showContinue?: boolean;
-  onContinue?: () => void;
   showMemoFooter?: boolean;
   onChangeFile?: () => void;
 }) {
@@ -248,14 +246,6 @@ export function SaleHeroEditable({
               Change file
             </button>
           </div>
-        )}
-
-        {/* Continue (manual gate) */}
-        {showContinue && (
-          <button type="button" onClick={onContinue} className="agent-btn agent-btn-primary agent-btn-md" style={{ width: "fit-content", gap: 8 }}>
-            Continue to details
-            <ArrowRight size={15} weight="bold" />
-          </button>
         )}
       </div>
     </div>

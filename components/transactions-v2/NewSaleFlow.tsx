@@ -372,6 +372,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     formFields.tenure !== "" &&
     formFields.purchaseType !== "";
 
+  // Manual entry: once the core details are in (address + tenure + purchase
+  // type), reveal the rest of the form automatically — it fades up. No button.
+  useEffect(() => {
+    if (flowState === "manual" && stage === 1 && stage1Valid) setStage(2);
+  }, [flowState, stage, stage1Valid]);
+
   const isOutsourced = formFields.progressedBy === "progressor";
 
   // Form is considered dirty if the user has moved past the hero screen
@@ -1005,8 +1011,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             onUpdate={updateFormFields}
             currentDraftId={currentDraftId}
             ensureDraft={ensureDraft}
-            showContinue={flowState === "manual" && stage === 1 && stage1Valid}
-            onContinue={handleContinue}
             showMemoFooter={flowState === "extracted"}
             onChangeFile={handleChangeFile}
           />
