@@ -3,7 +3,7 @@
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 function requireDirector(role: string) {
   if (role !== "director" && role !== "admin") throw new Error("Unauthorised");
@@ -29,7 +29,7 @@ export async function addBrokerForSaleAction(input: {
   const agencyId = session.user.agencyId;
   if (!agencyId) throw new Error("Only agency users can add a broker");
 
-  const firmName = titleCase(input.firmName.trim());
+  const firmName = titleCaseKeepAcronyms(input.firmName.trim());
   if (!firmName) throw new Error("Brokerage name is required");
 
   // Fresh firm per agency — brokers aren't shared across agencies.
@@ -40,7 +40,7 @@ export async function addBrokerForSaleAction(input: {
     contact = await prisma.brokerContact.create({
       data: {
         firmId: firm.id,
-        name: titleCase(input.contactName.trim()),
+        name: titleCaseKeepAcronyms(input.contactName.trim()),
         phone: input.contactPhone?.trim() || null,
         email: input.contactEmail?.trim().toLowerCase() || null,
       },

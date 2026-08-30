@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { AddFirmModal } from "./AddFirmModal";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
 type Handler = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
@@ -190,7 +190,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
   }
 
   function handleAddFirm() {
-    const cased = titleCase(query);
+    const cased = titleCaseKeepAcronyms(query);
     setQuery(cased);
     setModalPrefill(cased);
     setModalLockFirm(false);

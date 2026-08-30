@@ -61,6 +61,15 @@ export function titleCaseKeepAcronyms(str: string): string {
   );
 }
 
+/**
+ * True when the string looks like a real email address (something@something.tld).
+ * Deliberately simple — blocks obvious non-emails like "sarah" without rejecting
+ * unusual-but-valid addresses.
+ */
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
 const NAME_PREFIXES = new Set(["mr","mrs","ms","miss","dr","prof","sir","lord","lady","rev"]);
 const NAME_SUFFIXES = new Set(["jr","sr","ii","iii","iv","phd","md","esq","mbe","obe","cbe"]);
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
@@ -202,7 +202,7 @@ export function AddNodeDrawer({
     return () => {
       const val = form[field];
       if (val.trim()) {
-        setForm((f) => ({ ...f, [field]: titleCase(val) }));
+        setForm((f) => ({ ...f, [field]: titleCaseKeepAcronyms(val) }));
       }
     };
   }

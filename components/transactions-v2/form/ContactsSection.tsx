@@ -4,7 +4,7 @@ import { CheckCircle, Link as LinkIcon } from "@phosphor-icons/react";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
 import { Pill } from "@/components/ui/Pill";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
@@ -58,7 +58,10 @@ export function ContactCard({
   const numbered = `${label} ${index + 1}`;
   const hasName  = contact.name.trim().length > 0;
   const hasPhone = contact.phone.trim().length > 0;
-  const hasEmail = contact.email.trim().length > 0;
+  // A valid email — "sarah" no longer counts as a contactable email, so it can't
+  // greenlight the contact as complete/ready.
+  const hasEmail = isValidEmail(contact.email);
+  const emailInvalid = contact.email.trim().length > 0 && !hasEmail;
   const mode = progressedBy ?? "agent";
 
   const healthLevel: 0 | 1 | 2 | 3 =
@@ -112,7 +115,7 @@ export function ContactCard({
           className="agent-input"
           value={contact.name}
           onChange={(e) => { onChange("name", e.target.value); onEdit(); }}
-          onBlur={(e) => { if (e.target.value.trim()) onChange("name", titleCase(e.target.value)); }}
+          onBlur={(e) => { if (e.target.value.trim()) onChange("name", titleCaseKeepAcronyms(e.target.value)); }}
           placeholder="e.g. Sarah Johnson"
           maxLength={80}
         />
@@ -151,11 +154,15 @@ export function ContactCard({
               maxLength={120}
               type="email"
             />
-            {conflict?.kind === "email" && (
+            {conflict?.kind === "email" ? (
               <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
                 {conflict.withName} already has this email on this sale.
               </p>
-            )}
+            ) : emailInvalid ? (
+              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>
+                Enter a valid email address.
+              </p>
+            ) : null}
           </div>
         </div>
         {isOutsourced && (
