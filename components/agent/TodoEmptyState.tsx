@@ -79,7 +79,7 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
       {/* What you can do */}
       <div>
         <p className="agent-eyebrow" style={{ marginBottom: 12 }}>What you can do</p>
-        <div style={{ display: "grid", gridTemplateColumns: canUseProgressor ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gap: 16 }}>
+        <div className={canUseProgressor ? "setup-cards-3" : "setup-cards-2"}>
           <SetupCard
             iconSrc="/todo-notes.png"
             tint="coral"

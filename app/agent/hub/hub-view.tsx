@@ -244,7 +244,7 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
           </p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
+        <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
           {/* Welcome card + faded brand watermark (upper-right). */}
           <div className="agent-glass" style={{
             position: "relative", overflow: "hidden",

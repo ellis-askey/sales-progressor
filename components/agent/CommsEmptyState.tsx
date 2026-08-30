@@ -53,7 +53,7 @@ export function CommsEmptyState() {
       {/* What you'll see here */}
       <div>
         <p className="agent-eyebrow" style={{ marginBottom: 12 }}>What you&rsquo;ll see here</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div className="setup-cards-3">
           <SetupCard
             iconSrc="/updates-solicitor.png"
             tint="coral"

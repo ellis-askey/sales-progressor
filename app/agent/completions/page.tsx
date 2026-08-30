@@ -169,7 +169,7 @@ export default async function AgentCompletionsPage() {
             {/* While you're getting set up */}
             <div>
               <p className="agent-eyebrow" style={{ marginBottom: 12 }}>While you&apos;re getting set up</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+              <div className="setup-cards-3">
                 <SetupCard
                   iconSrc="/setup-profile.png"
                   tint="coral"

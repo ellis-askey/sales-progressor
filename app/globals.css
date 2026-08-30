@@ -1816,3 +1816,10 @@ select {
 .nv2-night[data-night] .hover\:text-slate-900\/80:hover { color: rgba(239,246,255,0.90); }
 .nv2-night[data-night] .border-white\/20    { border-color: rgba(255,255,255,0.07); }
 .nv2-night[data-night] .hover\:bg-white\/20:hover { background-color: rgba(30,41,59,0.35); }
+
+/* Onboarding empty-state setup-card grids (Completions / To-Do / Updates).
+   Stack full-width at the breakpoints Ellis specified (2026-08-30). */
+.setup-cards-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.setup-cards-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 650px) { .setup-cards-3 { grid-template-columns: 1fr; } }
+@media (max-width: 450px) { .setup-cards-2 { grid-template-columns: 1fr; } }
