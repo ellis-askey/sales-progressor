@@ -413,7 +413,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
         </button>
       </div>
 
-      <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />
+      <FieldHint source={memoSource} failedText="Couldn't read this. Add contact details manually." />
     </div>
   );
 }
