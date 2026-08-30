@@ -138,16 +138,9 @@ function PopulatedCard({
 // ── Empty state wrapper ────────────────────────────────────────────────────────
 
 function EmptyPickerWrap({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      borderRadius: 10,
-      border: "1.5px dashed var(--nv2-border-medium)",
-      padding: "12px",
-      background: "var(--nv2-surface-subtle)",
-    }}>
-      {children}
-    </div>
-  );
+  // The picker's own field (Option A: solid + magnifier + coral focus) is the
+  // visible control now — no dashed box around it.
+  return <>{children}</>;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

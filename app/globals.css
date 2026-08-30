@@ -1833,3 +1833,25 @@ select {
 /* Add-photo gradient ring — subtle lift on hover (Ellis pick, 2026-08-30). */
 .agent-add-photo-ring { transition: transform 160ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)); }
 button:hover > .agent-add-photo-ring { transform: scale(1.04); }
+
+/* Solicitor / firm search field — "Option A" solid look with a leading
+   magnifier and a coral focus ring (Ellis pick, 2026-08-30). Replaces the old
+   dashed empty box. */
+.sol-search-wrap { position: relative; }
+.sol-search-wrap > .sol-search-mag {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--nv2-text-faint, #9C9086); pointer-events: none; display: flex;
+}
+.sol-search-a {
+  width: 100%;
+  padding: 11px 14px 11px 38px;
+  border-radius: 11px;
+  border: 1px solid var(--nv2-border-dark, rgba(15,23,42,0.14));
+  background: var(--nv2-surface-glass, rgba(255,255,255,0.6));
+  font-size: 14px; line-height: 1.3;
+  color: var(--agent-text-primary);
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.sol-search-a::placeholder { color: var(--nv2-text-faint, #9C9086); }
+.sol-search-a:hover { border-color: rgba(var(--agent-coral-rgb), 0.45); }
+.sol-search-a:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12); }
