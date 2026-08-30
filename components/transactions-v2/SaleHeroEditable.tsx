@@ -196,32 +196,41 @@ export function SaleHeroEditable({
 
       {/* Content */}
       <div style={{ flex: "1 1 340px", minWidth: 0, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
-        {/* Address */}
-        {editingAddress ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <AddressFields
-              streetAddress={fields.streetAddress}
-              city={fields.city}
-              postcode={fields.postcode}
-              onStreetAddressChange={(v) => onUpdate({ streetAddress: v })}
-              onCityChange={(v) => onUpdate({ city: v })}
-              onPostcodeChange={(v) => onUpdate({ postcode: v })}
-            />
-            {addressLine && (
-              <button type="button" onClick={() => setEditingAddress(false)} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ width: "fit-content" }}>Done</button>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{line1}</p>
-              {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
+        {/* Address — display and editor crossfade their heights (grid-rows
+            0fr↔1fr) so the hero, and the photo that stretches to match it, grow
+            and shrink smoothly instead of jumping. */}
+        <div>
+          <div style={{ display: "grid", gridTemplateRows: editingAddress ? "0fr" : "1fr", transition: "grid-template-rows 300ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1))" }}>
+            <div style={{ overflow: "hidden", minHeight: 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{line1}</p>
+                  {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
+                </div>
+                <button type="button" onClick={() => setEditingAddress(true)} aria-label="Edit address" style={{ flexShrink: 0, background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--agent-text-muted)" }}>
+                  <PencilSimple size={15} weight="regular" />
+                </button>
+              </div>
             </div>
-            <button type="button" onClick={() => setEditingAddress(true)} aria-label="Edit address" style={{ flexShrink: 0, background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--agent-text-muted)" }}>
-              <PencilSimple size={15} weight="regular" />
-            </button>
           </div>
-        )}
+          <div style={{ display: "grid", gridTemplateRows: editingAddress ? "1fr" : "0fr", transition: "grid-template-rows 300ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1))" }}>
+            <div style={{ overflow: "hidden", minHeight: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
+                <AddressFields
+                  streetAddress={fields.streetAddress}
+                  city={fields.city}
+                  postcode={fields.postcode}
+                  onStreetAddressChange={(v) => onUpdate({ streetAddress: v })}
+                  onCityChange={(v) => onUpdate({ city: v })}
+                  onPostcodeChange={(v) => onUpdate({ postcode: v })}
+                />
+                {addressLine && (
+                  <button type="button" onClick={() => setEditingAddress(false)} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ width: "fit-content" }}>Done</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Price — displays like the file: value + hover pencil, click to edit. */}
         <div>
@@ -232,7 +241,7 @@ export function SaleHeroEditable({
             </div>
           ) : fields.purchasePricePence != null ? (
             <button type="button" onClick={() => setEditingPrice(true)} className="group" aria-label="Edit sale price" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-              <span style={{ fontSize: 26, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{"£" + Math.round(fields.purchasePricePence / 100).toLocaleString("en-GB")}</span>
+              <span style={{ fontSize: 21, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{"£" + Math.round(fields.purchasePricePence / 100).toLocaleString("en-GB")}</span>
               <PencilSimple size={13} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)" }} />
             </button>
           ) : (

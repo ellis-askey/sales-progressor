@@ -134,7 +134,7 @@ export function EarningsBuilder({
         {net == null ? (
           <span style={{ fontSize: 13, color: "var(--nv2-text-ghost)" }}>{!price ? "Add a price" : "Add a commission"}</span>
         ) : (
-          <span style={{ fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmt(net)}</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmt(net)}</span>
         )}
       </div>
 

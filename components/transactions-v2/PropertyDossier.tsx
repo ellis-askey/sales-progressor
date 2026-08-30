@@ -2,6 +2,7 @@
 
 import { ArrowRight, X } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 import type { PropertyIntel } from "@/lib/hooks/usePropertyIntel";
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -84,7 +85,7 @@ function SaleRow({ address, price, date }: { address: string; price: number; dat
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
       }}>
-        {address || "Address unknown"}
+        {address ? titleCaseKeepAcronyms(address) : "Address unknown"}
       </span>
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", flexShrink: 0 }}>
         {formatPriceFull(price)}
@@ -263,11 +264,13 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
       {/* Recent sales list — both modes */}
       {hasRecentSales && (
         <div style={{ marginBottom: 14 }}>
-          <SectionLabel>
+          {/* Sentence case (not the uppercase eyebrow) so it reads naturally
+              and the postcode keeps its own casing. */}
+          <p style={{ margin: "0 0 7px", fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>
             {isModeB
               ? `Other recent sales in ${data.address.postcode}`
               : "Recent sales nearby"}
-          </SectionLabel>
+          </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {data.recentLocalSales!.map((s, i) => (
               <SaleRow key={i} address={s.address} price={s.price} date={s.date} />
