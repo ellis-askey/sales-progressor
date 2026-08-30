@@ -169,16 +169,20 @@ export function PartnersDirectory({
           {visibleSolicitors.length > 0 && (
             <div className="space-y-3">
               <SectionHeading Icon={Scales} label="Conveyancers" count={visibleSolicitors.length} />
-              {visibleSolicitors.map((firm) => (
-                <FirmCard key={firm.id} firm={firm} kind="solicitor" showIncome={showIncome} />
+              {visibleSolicitors.map((firm, i) => (
+                <div key={firm.id} className="partner-card-in" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+                  <FirmCard firm={firm} kind="solicitor" showIncome={showIncome} />
+                </div>
               ))}
             </div>
           )}
           {visibleBrokers.length > 0 && (
             <div className="space-y-3">
               <SectionHeading Icon={Bank} label="Mortgage brokers" count={visibleBrokers.length} />
-              {visibleBrokers.map((firm) => (
-                <FirmCard key={firm.id} firm={firm} kind="broker" showIncome={showIncome} />
+              {visibleBrokers.map((firm, i) => (
+                <div key={firm.id} className="partner-card-in" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+                  <FirmCard firm={firm} kind="broker" showIncome={showIncome} />
+                </div>
               ))}
             </div>
           )}
