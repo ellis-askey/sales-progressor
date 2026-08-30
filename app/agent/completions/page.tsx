@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ClockCountdown, Plus, ArrowRight, ListChecks } from "@phosphor-icons/react/dist/ssr";
+import { ClockCountdown, Plus, ListChecks } from "@phosphor-icons/react/dist/ssr";
+import { SetupCard } from "@/components/agent/SetupCard";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, getAgentCompletedFiles, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
@@ -49,49 +50,6 @@ const ALL_GROUPS = [
 // The bottom "Track your setup progress" guide card is built below but hidden
 // until its "View all steps" modal exists (logged in docs/active/TODO.md).
 const SHOW_SETUP_GUIDE = false;
-
-const SETUP_TINTS = {
-  coral: { bg: "rgba(var(--agent-coral-rgb), 0.12)", fg: "var(--agent-coral-deep)" },
-  blue:  { bg: "rgba(59,130,246,0.12)",  fg: "#2f74e0" },
-  green: { bg: "rgba(16,185,129,0.14)",  fg: "#0f9d6b" },
-} as const;
-
-// One "While you're getting set up" card: tinted icon, title, description, and a
-// glass button (our shape) with a coral arrow. Hover lift comes from agent-btn-secondary.
-// The icon is a line-art PNG masked to the tint colour so it matches the palette.
-function SetupCard({ iconSrc, tint, title, desc, cta, href }: {
-  iconSrc: string;
-  tint: keyof typeof SETUP_TINTS;
-  title: string;
-  desc: string;
-  cta: string;
-  href: string;
-}) {
-  const t = SETUP_TINTS[tint];
-  return (
-    <div className="agent-glass" style={{ padding: "18px 18px 16px", borderRadius: "var(--agent-radius-lg)", display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
-        <span style={{ width: 40, height: 40, borderRadius: "50%", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <span aria-hidden style={{
-            width: 22, height: 22, display: "block", background: t.fg,
-            WebkitMaskImage: `url(${iconSrc})`, maskImage: `url(${iconSrc})`,
-            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-            WebkitMaskPosition: "center", maskPosition: "center",
-            WebkitMaskSize: "contain", maskSize: "contain",
-          }} />
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{desc}</p>
-        </div>
-      </div>
-      <Link href={href} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ textDecoration: "none", width: "100%", justifyContent: "space-between" }}>
-        {cta}
-        <ArrowRight size={14} weight="bold" style={{ color: "var(--agent-coral-deep)" }} />
-      </Link>
-    </div>
-  );
-}
 
 export default async function AgentCompletionsPage() {
   const session = await requireSession();

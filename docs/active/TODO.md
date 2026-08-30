@@ -13,6 +13,14 @@ place. Reuse the onboarding progress source (`/api/agent/onboarding-progress`,
 same as `components/agent/OnboardingChecklist.tsx`). When the modal exists, flip
 `SHOW_SETUP_GUIDE = true`.
 
+## To-Do "Learn more about to-dos" guide card (filed 2026-08-30)
+
+The To-Do empty state (`components/agent/TodoEmptyState.tsx`) has a "Learn more
+about to-dos" guide card, BUILT BUT HIDDEN behind `SHOW_TODO_GUIDE = false`. Its
+"View guide" button needs a target — either a help article/URL or a short in-app
+explainer of notes vs sale-linked tasks vs progressor requests. Flip
+`SHOW_TODO_GUIDE = true` once it exists.
+
 ---
 
 ## Phase-2 arc — BuyerRound per-sale scoping for remaining models
