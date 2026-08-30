@@ -1134,9 +1134,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
         {/* Right column — file preview or property intel */}
         <div className="new-sale-right-col">
-          {/* Tab strip — only shown when both modes are relevant */}
+          {/* Tab strip — only shown when both modes are relevant. marginTop
+              matches the left column's Stage2Sections so both columns' headers
+              (this + the "Add what you have" line) start level; marginBottom
+              matches the left column's gap so the cards below line up. */}
           {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && (
-            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: 6, marginTop: 16, marginBottom: 12 }}>
               {(["research", "preview"] as const).map((mode) => {
                 const active = rightColumnMode === mode;
                 const tabHovered = hoveredTab === mode && !active;

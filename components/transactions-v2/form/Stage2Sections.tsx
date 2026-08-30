@@ -152,11 +152,15 @@ export function Stage2Sections({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
 
-      {/* Optional umbrella note — self-progress only */}
+      {/* Optional umbrella note — self-progress only. The 30px flex box makes
+          this line the same height as the right column's tab strip, so it sits
+          on the tabs' centre line and the cards below start level. */}
       {!isOutsourced && (
-        <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--nv2-text-muted)", fontStyle: "italic" }}>
-          Add what you have now. You can fill in the rest later.
-        </p>
+        <div style={{ minHeight: 30, display: "flex", alignItems: "center" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--nv2-text-muted)", fontStyle: "italic" }}>
+            Add what you have now. You can fill in the rest later.
+          </p>
+        </div>
       )}
 
       {/* Outsourced banner (progressor mode only) */}
