@@ -12,7 +12,7 @@
 // Since there's no file yet, it uploads against an on-demand draft (ensureDraft);
 // the storage path is carried onto the new file on submit.
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { PencilSimple, CheckCircle, Trash } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -100,6 +100,19 @@ export function SaleHeroEditable({
 
   const addressLine = [fields.streetAddress, fields.city, fields.postcode].map((s) => s.trim()).filter(Boolean).join(", ");
   const [editingAddress, setEditingAddress] = useState<boolean>(!addressLine);
+  // Split like the property-file hero: street on top, town + postcode below.
+  const [line1, ...restAddr] = addressLine.split(",");
+  const line2 = restAddr.join(",").trim();
+
+  // Price: display with a hover pencil, click to edit inline (like the file).
+  const [editingPrice, setEditingPrice] = useState(false);
+  const priceWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (editingPrice) {
+      const input = priceWrapRef.current?.querySelector<HTMLInputElement>("input");
+      input?.focus(); input?.select();
+    }
+  }, [editingPrice]);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -200,17 +213,31 @@ export function SaleHeroEditable({
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{addressLine}</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{line1}</p>
+              {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
+            </div>
             <button type="button" onClick={() => setEditingAddress(true)} aria-label="Edit address" style={{ flexShrink: 0, background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--agent-text-muted)" }}>
               <PencilSimple size={15} weight="regular" />
             </button>
           </div>
         )}
 
-        {/* Price */}
+        {/* Price — displays like the file: value + hover pencil, click to edit. */}
         <div>
           <p style={{ margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Sale price</p>
-          <PriceInput value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} placeholder="Add the sale price" className="price-hero-input" />
+          {editingPrice ? (
+            <div ref={priceWrapRef} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); setEditingPrice(false); } }}>
+              <PriceInput value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} onBlur={() => setEditingPrice(false)} placeholder="Add the sale price" className="price-hero-input" />
+            </div>
+          ) : fields.purchasePricePence != null ? (
+            <button type="button" onClick={() => setEditingPrice(true)} className="group" aria-label="Edit sale price" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+              <span style={{ fontSize: 26, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{"£" + Math.round(fields.purchasePricePence / 100).toLocaleString("en-GB")}</span>
+              <PencilSimple size={13} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)" }} />
+            </button>
+          ) : (
+            <button type="button" onClick={() => setEditingPrice(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 20, fontWeight: 600, color: "var(--agent-text-muted)" }}>Add the sale price</button>
+          )}
         </div>
 
         {/* Tenure */}

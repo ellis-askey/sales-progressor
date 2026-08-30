@@ -246,7 +246,6 @@ function SaveDraftButton({ isSaving, onClick }: { isSaving: boolean; onClick: ()
       type="button"
       onClick={onClick}
       disabled={isSaving}
-      className={isSaving ? undefined : "agent-link"}
       style={{
         display: "block", width: "100%", marginTop: 10, padding: "8px",
         background: "none", border: "none", cursor: isSaving ? "default" : "pointer",
@@ -255,7 +254,8 @@ function SaveDraftButton({ isSaving, onClick }: { isSaving: boolean; onClick: ()
         textAlign: "center",
       }}
     >
-      {isSaving ? "Saving draft…" : "Save draft"}
+      {/* Underline hugs the text, not the full-width button. */}
+      <span className={isSaving ? undefined : "agent-link"}>{isSaving ? "Saving draft…" : "Save draft"}</span>
     </button>
   );
 }
