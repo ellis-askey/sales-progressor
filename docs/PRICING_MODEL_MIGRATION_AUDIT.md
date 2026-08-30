@@ -374,10 +374,12 @@ Aim for an **atomic copy cutover** (app + marketing) even if backend lands earli
 | **D8** | **Card only when outsourcing again.** Never requested for self-progress. The New-Sale gate is rescoped so it can only fire for a 2nd+ outsourced file (the first is free). |
 | **D9** | **Forgive pre-launch self-progress files.** Any self-progress file open at launch stops billing (no £59). Historical/issued lines untouched. |
 | **D13** | **Don't block self-progress on a failed outsourced payment** — pause only new *outsourced* files. **Follow-on (D13a, deferred):** define an outstanding-outsourced-debt ceiling beyond which we escalate. |
+| **D7** | **Add a price-version stamp.** Each sale records the price rules in force when it was created, so future reprices never silently re-price in-flight sales and history stays auditable. |
+| **D11** | **Keep the trial-value metric, split + relabel.** Historical trial value stays for the £59 era; going forward, separate `permanent_free_self` (the product) from `first_outsourced_free` (the giveaway cost) via `freeReason`. |
 
 **New deferred sub-decisions surfaced:** D5a (erroneous-undo clears free flag — build edge, no commercial call), D13a (debt ceiling + escalation policy).
 
-**Still open (not build-blocking):** D7, D11, D14 (phases 3–4); D12, D15–D19 (phase 5 positioning — to be decided against pricing-page artifacts).
+**All logic/commercial decisions are now locked.** Remaining are visual/positioning only: **D12, D15–D19** (phase 5, to be decided against pricing-page artifacts) and **D14** (terms v5 wording — Phase 4 legal).
 
 ### 28.1 Full register (reference)
 
