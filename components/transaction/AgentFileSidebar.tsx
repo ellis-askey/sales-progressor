@@ -30,6 +30,7 @@ import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
+import { StampDutyQuickAction } from "@/components/transaction/StampDutyDrawer";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
@@ -543,6 +544,9 @@ export function AgentFileSidebar({
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {primaryPortalHref && (
             <QuickLinkExternal href={primaryPortalHref} label="Open in client portal" Icon={LinkIcon} />
+          )}
+          {transaction.purchasePrice != null && transaction.purchasePrice > 0 && (
+            <StampDutyQuickAction priceGBP={transaction.purchasePrice / 100} />
           )}
           <QuickLinkButton
             label="View file documents"
