@@ -63,4 +63,12 @@ export const DEFAULT_PICKS: GlassPicks = {
   "contacts-person": { light: "v03", dark: "v04" },
   "new-sale-drop-memo": { light: "v26", dark: "v16" },
   "new-sale-research": { light: "v05" },
+  "new-sale-hero": { light: "v08", dark: "v04" },
+  "new-sale-portal-invite": { light: "v15" },
+  "new-sale-vendors": { light: "v05" },
+  "new-sale-purchasers": { light: "v05" },
+  "new-sale-solicitors": { light: "v05" },
+  "new-sale-chain": { light: "v28" },
+  "new-sale-file-worth": { light: "v06" },
+  "new-sale-notes": { light: "v06" },
 };
