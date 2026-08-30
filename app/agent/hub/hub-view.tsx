@@ -25,11 +25,12 @@ import {
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles,
+  getHubSubtitleSignals,
 } from "@/lib/services/hub";
-import type { DiaryItem } from "@/lib/services/hub";
+import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
-import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
+import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ExchangeForecastChart, ServiceSplitDonut,
@@ -65,10 +66,55 @@ function getGreeting(name: string): string {
   }
 }
 
-function getSubtitle(isAdmin: boolean, isProgressor: boolean): string {
+// Journey-aware subtitle for agency users: onboarding stage sets the baseline;
+// today's signals (a completion / exchange due, files needing attention) take
+// priority once they have sales. Priority is top-to-bottom, first match wins.
+// The generic line is the safe fallback (used on a signals-load error). Strings
+// approved by Ellis 2026-08-30.
+function buildAgencySubtitle(s: HubSubtitleSignals): string {
+  // No real sales yet.
+  if (s.realSales === 0) {
+    return s.hasDemo
+      ? "You’re exploring the demo. Ready to add your own?"
+      : "Your pipeline starts with your first sale.";
+  }
+  // Today's signals (they have at least one real sale).
+  if (s.completionsToday > 0) {
+    return s.completionsToday === 1
+      ? "One of your sales completes today."
+      : `${s.completionsToday} of your sales complete today.`;
+  }
+  if (s.exchangesToday > 0) {
+    return s.exchangesToday === 1
+      ? "One of your sales is set to exchange today."
+      : `${s.exchangesToday} of your sales are set to exchange today.`;
+  }
+  if (s.exchangingThisWeek > 0) {
+    return s.exchangingThisWeek === 1
+      ? "One sale is on track to exchange this week."
+      : `${s.exchangingThisWeek} sales are on track to exchange this week.`;
+  }
+  if (s.attentionCount === 1) return "One sale needs your attention today.";
+  if (s.attentionCount > 1)  return `${s.attentionCount} sales need your attention today.`;
+  // Nothing urgent — baseline by pipeline size.
+  if (s.realSales === 1) return "Your first sale is up and running.";
+  if (s.realSales <= 4)  return "Your pipeline is taking shape.";
+  return "Everything’s on track. Nothing needs your attention today.";
+}
+
+async function getSubtitle(
+  vis: AgentVisibility,
+  isAdmin: boolean,
+  isProgressor: boolean,
+): Promise<string> {
   if (isAdmin) return "Here's what's happening across the platform today.";
   if (isProgressor) return "Here's what's happening with your assigned files today.";
-  return "Here's what's happening with your pipeline today.";
+  try {
+    return buildAgencySubtitle(await getHubSubtitleSignals(vis));
+  } catch {
+    // Safe fallback (the previous static agency line) if signals fail to load.
+    return "Here's what's happening across your pipeline today.";
+  }
 }
 
 function fmtCurrency(pence: number): string {
@@ -171,7 +217,7 @@ export default async function Hub() {
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const greeting = getGreeting(session.user.name ?? "there");
-  const subtitle = getSubtitle(isAdmin, isProgressor);
+  const subtitle = await getSubtitle(vis, isAdmin, isProgressor);
 
   const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale };
 
@@ -230,12 +276,20 @@ async function BodyGate({ ctx }: { ctx: Ctx }) {
 
 function EmptyStateBody({ ctx }: { ctx: Ctx }) {
   const { isProgressor, canCreateSale } = ctx;
+
+  // Agency users (director / negotiator / admin) get the onboarding empty state.
+  if (!isProgressor) {
+    return (
+      <div data-testid="hub-empty-state">
+        <HubEmptyState userId={ctx.session.user.id} canCreateSale={canCreateSale} />
+      </div>
+    );
+  }
+
+  // Progressor: no assigned files, plus the decorative ghost preview below.
   return (
     <div data-testid="hub-empty-state" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Top: welcome card + Getting-started checklist (agency), or the plain
-          "no assigned files" card (progressor). */}
-      {isProgressor ? (
-        <div className="agent-glass" style={{ padding: "26px 30px", borderRadius: "var(--agent-radius-xl)" }}>
+      <div className="agent-glass" style={{ padding: "26px 30px", borderRadius: "var(--agent-radius-xl)" }}>
           <p style={{ margin: "0 0 4px", fontSize: "var(--agent-text-h3)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
             No assigned files yet.
           </p>
@@ -243,49 +297,6 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
             Files assigned to you will appear here.
           </p>
         </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
-          {/* Welcome card + faded brand watermark (upper-right). */}
-          <div className="agent-glass" style={{
-            position: "relative", overflow: "hidden",
-            padding: "26px 28px", borderRadius: "var(--agent-radius-xl)",
-            minHeight: 188, display: "flex", flexDirection: "column", justifyContent: "center",
-          }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand-c-tick.png" alt="" aria-hidden
-              style={{
-                position: "absolute", top: -14, right: 8, width: 164, height: 164,
-                opacity: 0.07, pointerEvents: "none",
-                WebkitMaskImage: "radial-gradient(circle at 62% 40%, #000 32%, transparent 72%)",
-                maskImage: "radial-gradient(circle at 62% 40%, #000 32%, transparent 72%)",
-              }}
-            />
-            <div style={{ position: "relative" }}>
-              <p style={{ margin: "0 0 6px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-                Add your first sale
-              </p>
-              <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 300 }}>
-                Start your pipeline by adding the sale you&apos;ve just agreed.
-              </p>
-              {canCreateSale && (
-                <Link
-                  href="/agent/transactions/new"
-                  className="agent-btn agent-btn-primary agent-btn-md"
-                  style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}
-                >
-                  <Plus size={16} weight="bold" />
-                  Add a sale
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Getting-started checklist, inline. The floating one hides on the hub
-              while empty (Option B), so exactly one shows here. */}
-          <OnboardingChecklist userId={ctx.session.user.id} variant="inline" />
-        </div>
-      )}
 
       {/* Ghost pipeline health + momentum (decorative — kept as-is) */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>

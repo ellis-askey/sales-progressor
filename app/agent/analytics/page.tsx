@@ -8,6 +8,7 @@ import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, g
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
 import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
+import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,18 @@ export default async function AgentAnalyticsPage({
 
   // ── Full empty state (zero files ever) ───────────────────────────────────
   if (transactions.length === 0) {
+    // Agency users get the onboarding empty state (mock). Internal staff keep
+    // the simple card + ghost preview below.
+    if (!isInternalStaff) {
+      return (
+        <>
+          <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
+          <div className="px-4 py-5 sm:px-8">
+            <AnalyticsEmptyState />
+          </div>
+        </>
+      );
+    }
     return (
       <>
         <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />

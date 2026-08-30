@@ -9,6 +9,7 @@ import {
 } from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { CommsEmptyState } from "@/components/agent/CommsEmptyState";
 import {
   CommsActivityFeed,
   type DayBucket,
@@ -112,7 +113,10 @@ export default async function AgentCommsPage() {
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
-        {entries.length === 0 && (
+        {/* Brand-new agency user: the onboarding empty state (matches the mock). */}
+        {entries.length === 0 && !isInternalStaff && <CommsEmptyState />}
+
+        {entries.length === 0 && isInternalStaff && (
           <>
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />

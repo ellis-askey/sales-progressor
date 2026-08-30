@@ -175,7 +175,11 @@ async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: 
 
   await prisma.propertyTransaction.update({
     where: { id: tx.id },
-    data: { photoStoragePath: DEMO_PRESET.photoStoragePath, lastActivityAt: daysAgo(1) },
+    // demoExpiresAt: null — the demo stays available while the account has no
+    // genuine sales; we no longer auto-remove it after a fixed period (Ellis,
+    // 2026-08-30). Removal is handled separately. createTransaction stamps a
+    // +7d expiry for demos, so we null it here.
+    data: { photoStoragePath: DEMO_PRESET.photoStoragePath, lastActivityAt: daysAgo(1), demoExpiresAt: null },
   });
 
   const vendor = await prisma.contact.create({

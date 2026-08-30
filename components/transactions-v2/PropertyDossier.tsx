@@ -5,12 +5,6 @@ import type { PropertyIntel } from "@/lib/hooks/usePropertyIntel";
 
 // ── Formatters ─────────────────────────────────────────────────────────────
 
-function formatPrice(p: number): string {
-  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(2)}m`;
-  if (p >= 1_000) return `£${Math.round(p / 1_000)}k`;
-  return `£${p.toLocaleString("en-GB")}`;
-}
-
 function formatPriceFull(p: number): string {
   return `£${p.toLocaleString("en-GB")}`;
 }
@@ -92,7 +86,7 @@ function SaleRow({ address, price, date }: { address: string; price: number; dat
         {address || "Address unknown"}
       </span>
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", flexShrink: 0 }}>
-        {formatPrice(price)}
+        {formatPriceFull(price)}
       </span>
       <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>
         {formatDateShort(date)}

@@ -13,6 +13,45 @@ place. Reuse the onboarding progress source (`/api/agent/onboarding-progress`,
 same as `components/agent/OnboardingChecklist.tsx`). When the modal exists, flip
 `SHOW_SETUP_GUIDE = true`.
 
+## To-Do "Learn more about to-dos" guide card (filed 2026-08-30)
+
+The To-Do empty state (`components/agent/TodoEmptyState.tsx`) has a "Learn more
+about to-dos" guide card, BUILT BUT HIDDEN behind `SHOW_TODO_GUIDE = false`. Its
+"View guide" button needs a target — either a help article/URL or a short in-app
+explainer of notes vs sale-linked tasks vs progressor requests. Flip
+`SHOW_TODO_GUIDE = true` once it exists.
+
+## "View demo analytics" — Analytics-with-data view (filed 2026-08-30)
+
+The Analytics empty state (`components/analytics/AnalyticsEmptyState.tsx`) has a
+"Want to see Analytics with data? / View demo analytics" card, BUILT BUT HIDDEN
+behind `SHOW_DEMO_ANALYTICS = false`. Its button currently reuses `useDemoExplore`
+(stands up the demo and routes to the demo file). To ship it, wire "View demo
+analytics" to stand up the demo and then land on **/agent/analytics** (which will
+already show data once the demo files exist), not a file. Add a destination option
+to `useDemoExplore` (e.g. `launch(true, { to: "/agent/analytics" })`), then flip
+`SHOW_DEMO_ANALYTICS = true`.
+
+## Demo file "Show me around" contextual tour (filed 2026-08-30)
+
+The demo-file first-arrival popover (`components/transaction/DemoFileMarker.tsx`)
+currently has one action, "Explore myself" (dismiss). The spec also called for a
+"Show me around" button that kicks off a short contextual product tour of the
+demo file (progress, updates, tasks, activity). That contextual tour does not
+exist yet, so the button is deliberately omitted for now (no dead control). When
+a tour exists, add "Show me around" alongside "Explore myself" and wire it up.
+A generic slide tour already lives at `components/agent/TourSlides.tsx`, but it's
+not file-contextual and ends by routing to /agent/transactions/new, so it's not a
+drop-in — the contextual tour is separate work.
+
+## Updates "Learn more about Updates" guide + card "Learn more" links (filed 2026-08-30)
+
+The Updates empty state (`components/agent/CommsEmptyState.tsx`) has a "Learn more
+about Updates" guide card, BUILT BUT HIDDEN behind `SHOW_UPDATES_GUIDE = false`.
+The three "What you'll see here" cards are info-only for now (no dead controls per
+Law 13). When a guide target exists, add a "Learn more" link to each card and flip
+`SHOW_UPDATES_GUIDE = true` so the buttons and the bottom guide card appear together.
+
 ---
 
 ## Phase-2 arc — BuyerRound per-sale scoping for remaining models

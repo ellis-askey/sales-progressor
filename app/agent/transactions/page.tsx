@@ -8,6 +8,7 @@ import { listTransactions, getExchangeForecast } from "@/lib/services/transactio
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getHubFilteredIds, getMonthExchangingIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
+import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
 import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -246,6 +247,10 @@ export default async function AllTransactionsPage({
         )}
 
         {allTransactions.length === 0 ? (
+          !isInternalStaff ? (
+            // Agency users with no files: the onboarding empty state (mock).
+            <AllFilesEmptyState />
+          ) : (
           <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
             <HouseLine
               weight="regular"
@@ -288,6 +293,7 @@ export default async function AllTransactionsPage({
               </>
             )}
           </div>
+          )
         ) : (
           <div className="space-y-5">
             {/* Exchange forecast — compact month-pill strip. Refactored

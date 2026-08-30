@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/session";
 import { listAllTasksForAgent, listProgressorInboxTasks, listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
+import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
@@ -63,9 +64,16 @@ export default async function AgentTodoPage() {
         ))}
       </PageHeader>
 
-      <div className="px-4 md:px-8 py-2 md:py-4" style={{ maxWidth: 680 }}>
-        <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
-      </div>
+      {tasks.length === 0 && !isInternal ? (
+        // Brand-new agency user: the onboarding empty state (full width, mock).
+        <div className="px-4 md:px-8 py-2 md:py-4">
+          <TodoEmptyState canUseProgressor={hasOutsourced} />
+        </div>
+      ) : (
+        <div className="px-4 md:px-8 py-2 md:py-4" style={{ maxWidth: 680 }}>
+          <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
+        </div>
+      )}
     </>
   );
 }
