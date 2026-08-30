@@ -24,7 +24,7 @@ function isCash(purchaseType: string) {
   return purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds";
 }
 
-function getVisibleMilestones(defs: MilestoneDefinitionSlim[], fields: FormFields) {
+export function getVisibleMilestones(defs: MilestoneDefinitionSlim[], fields: FormFields) {
   return defs.filter((d) => {
     if (fields.tenure === "freehold" && NR_FREEHOLD.has(d.code)) return false;
     if (isCash(fields.purchaseType) && NR_CASH.has(d.code)) return false;

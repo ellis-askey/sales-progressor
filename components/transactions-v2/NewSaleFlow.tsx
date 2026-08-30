@@ -6,7 +6,7 @@ import { MemoStatusBar } from "@/components/transactions-v2/hero/MemoStatusBar";
 import { HeroCard } from "@/components/transactions-v2/HeroCard";
 import { ResearchPanel } from "@/components/transactions-v2/ResearchPanel";
 import { PropertyDossier } from "@/components/transactions-v2/PropertyDossier";
-import { FilePreview } from "@/components/transactions-v2/FilePreview";
+import { EarningsBuilder } from "@/components/transactions-v2/EarningsBuilder";
 import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
 import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
@@ -288,11 +288,16 @@ type Props = {
   currentUserId: string;
   assignableAgents: import("@/lib/services/agency-team").AssignableAgent[];
   showDemoHero: boolean;
+  // Fee config for the earnings builder — the agency's outsourced-fee tier and
+  // whether they're still inside the 14-day free-outsourcing trial.
+  feeTier: string;
+  legacyOutsourcedFeePence: number | null;
+  withinTrial: boolean;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -350,8 +355,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [stage1Expanded, setStage1Expanded] = useState(false);
 
   // ── Right column mode ─────────────────────────────────────────────────────
-  const [rightColumnMode, setRightColumnMode] = useState<"research" | "preview">("research");
-  const [hoveredTab, setHoveredTab] = useState<"research" | "preview" | null>(null);
+  const [rightColumnMode, setRightColumnMode] = useState<"earnings" | "research">("earnings");
+  const [hoveredTab, setHoveredTab] = useState<"earnings" | "research" | null>(null);
   const isSolid = useSolidMode();
 
   // ── Refs ──────────────────────────────────────────────────────────────────
@@ -490,7 +495,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     intel.clear();
     setFromMemo(false);
     setStage1Expanded(false);
-    setRightColumnMode("research");
+    setRightColumnMode("earnings");
   }
 
   function updateFormFields(updates: Partial<FormFields>) {
@@ -554,7 +559,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       setSolHintPurchaser(data.purchaserSolicitor?.firm ?? null);
 
       setFlowState("extracted");
-      setRightColumnMode("preview");
+      setRightColumnMode("earnings");
       setStage1Expanded(false);
 
       // Trigger property intel lookup from extracted address
@@ -649,13 +654,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     intel.clear();
     setFromMemo(false);
     setStage1Expanded(false);
-    setRightColumnMode("research");
+    setRightColumnMode("earnings");
   }
 
   function handleContinue() {
     setStage(2);
     setStage1Expanded(false);
-    setRightColumnMode("preview");
+    setRightColumnMode("earnings");
   }
 
   // ── Draft helpers ─────────────────────────────────────────────────────────
@@ -1140,7 +1145,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               matches the left column's gap so the cards below line up. */}
           {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && (
             <div style={{ display: "flex", gap: 6, marginTop: 16, marginBottom: 12 }}>
-              {(["research", "preview"] as const).map((mode) => {
+              {(["earnings", "research"] as const).map((mode) => {
                 const active = rightColumnMode === mode;
                 const tabHovered = hoveredTab === mode && !active;
                 return (
@@ -1175,7 +1180,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       transition: "border-color 150ms, background 150ms, color 150ms",
                     }}
                   >
-                    {mode === "research" ? "Property Research" : "File Preview"}
+                    {mode === "earnings" ? "Earnings" : "Property Research"}
                   </button>
                 );
               })}
@@ -1183,8 +1188,15 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           )}
 
           <div key={rightColumnMode} style={{ animation: "right-col-fadein 220ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
-            {rightColumnMode === "preview" ? (
-              <FilePreview fields={formFields} allMilestoneDefinitions={allMilestoneDefinitions} />
+            {rightColumnMode === "earnings" ? (
+              <EarningsBuilder
+                fields={formFields}
+                onUpdate={updateFormFields}
+                feeTier={feeTier}
+                legacyOutsourcedFeePence={legacyOutsourcedFeePence}
+                withinTrial={withinTrial}
+                allMilestoneDefinitions={allMilestoneDefinitions}
+              />
             ) : intel.state === "success" && intel.data ? (
               <PropertyDossier
                 data={intel.data}

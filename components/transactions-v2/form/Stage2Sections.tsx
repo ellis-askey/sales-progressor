@@ -7,7 +7,6 @@ import { isChainLikely, chainOpenReason } from "./types";
 import type { StubFormData } from "@/components/chain/AddNodeDrawer";
 import { ContactsRow } from "./ContactsRow";
 import { SolicitorSection } from "./SolicitorSection";
-import { PriceFeesSection } from "./PriceFeesSection";
 import { NotesSection } from "./NotesSection";
 import { FormChainSection } from "./FormChainSection";
 import { SectionAccordion } from "./SectionAccordion";
@@ -249,28 +248,7 @@ export function Stage2Sections({
         </SectionAccordion>
       </Section>
 
-      {/* 3 — Price & Fees (collapsed by default) */}
-      <Section delayMs={ms(3)}>
-        <CollapsibleSection title="Price & Fees" summary={priceSummary(fields)}>
-          <PriceFeesSection
-            purchasePricePence={fields.purchasePricePence}
-            priceMemoSource={memoSources.purchasePricePence}
-            agentFeeType={fields.agentFeeType}
-            agentFeeAmount={fields.agentFeeAmount}
-            agentFeePercentStr={fields.agentFeePercentStr}
-            agentFeeVat={fields.agentFeeVat}
-            agentFeeMemoSource={memoSources.agentFee}
-            referralFee={fields.referralFee}
-            brokerReferralFee={fields.brokerReferralFee}
-            onPurchasePriceChange={(v) => { onChange({ purchasePricePence: v }); onEdit("purchasePricePence"); }}
-            onAgentFeeTypeChange={(v) => { onChange({ agentFeeType: v }); onEdit("agentFeeType"); }}
-            onAgentFeeAmountChange={(v) => { onChange({ agentFeeAmount: v }); onEdit("agentFeeAmount"); }}
-            onAgentFeePercentStrChange={(v) => { onChange({ agentFeePercentStr: v }); onEdit("agentFeePercentStr"); }}
-            onAgentFeeVatChange={(v) => { onChange({ agentFeeVat: v }); onEdit("agentFeeVat"); }}
-            onEdit={onEdit}
-          />
-        </CollapsibleSection>
-      </Section>
+      {/* Price & Fees moved to the right-column earnings builder (EarningsBuilder). */}
 
       {/* 4 — Notes (collapsed by default) */}
       <Section delayMs={ms(4)}>

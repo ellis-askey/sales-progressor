@@ -88,13 +88,21 @@ export default async function AgentNewSaleV2Page() {
   const agencyRow = session.user.agencyId
     ? await prisma.agency.findUnique({
         where: { id: session.user.agencyId },
-        select: { name: true, modeProfile: true },
+        select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true, firstSubmissionAt: true },
       })
     : null;
   const defaultProgressedBy = deriveDefaultProgressedBy(
     agencyRow?.name,
     agencyRow?.modeProfile,
   );
+  // Earnings-builder fee config. withinTrial = still inside the 14-day
+  // free-outsourcing window (or no first sale yet), during which sending a
+  // sale to us costs nothing.
+  const feeTier = agencyRow?.feeTier ?? "standard";
+  const legacyOutsourcedFeePence = agencyRow?.legacyOutsourcedFeePence ?? null;
+  const withinTrial =
+    !agencyRow?.firstSubmissionAt ||
+    Date.now() - agencyRow.firstSubmissionAt.getTime() < TRIAL_WINDOW_MS;
 
   // Portal-invite prompt is a one-shot: only shown on the agent's very
   // first ADDED sale AND only until they've clicked "I won't be using the
@@ -266,6 +274,9 @@ export default async function AgentNewSaleV2Page() {
           currentUserId={session.user.id}
           assignableAgents={assignableAgents}
           showDemoHero={showDemoHero}
+          feeTier={feeTier}
+          legacyOutsourcedFeePence={legacyOutsourcedFeePence}
+          withinTrial={withinTrial}
         />
       </div>
     </>
