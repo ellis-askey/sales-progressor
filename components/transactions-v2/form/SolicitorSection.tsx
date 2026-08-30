@@ -164,7 +164,7 @@ export function SolicitorSection({
 
       {/* Seller's solicitor */}
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
           Seller&rsquo;s solicitor
           {vendorSolicitor && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
@@ -207,7 +207,7 @@ export function SolicitorSection({
 
       {/* Buyer's solicitor */}
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
           Buyer&rsquo;s solicitor
           {purchaserSolicitor && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />

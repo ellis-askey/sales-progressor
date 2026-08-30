@@ -1855,3 +1855,20 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 .sol-search-a::placeholder { color: var(--nv2-text-faint, #9C9086); }
 .sol-search-a:hover { border-color: rgba(var(--agent-coral-rgb), 0.45); }
 .sol-search-a:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12); }
+
+/* Coral hover + focus on every text input across the add-sale flow — matches
+   the solicitor search field (Ellis, 2026-08-30). */
+.new-sale-flow input:not([type="checkbox"]):not([type="radio"]),
+.new-sale-flow textarea {
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.new-sale-flow input:not([type="checkbox"]):not([type="radio"]):hover,
+.new-sale-flow textarea:hover {
+  border-color: rgba(var(--agent-coral-rgb), 0.45);
+}
+.new-sale-flow input:not([type="checkbox"]):not([type="radio"]):focus,
+.new-sale-flow textarea:focus {
+  outline: none;
+  border-color: var(--agent-coral-deep);
+  box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12);
+}

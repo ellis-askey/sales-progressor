@@ -996,7 +996,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   } as const;
 
   return (
-    <div className="nv2-night">
+    <div className="nv2-night new-sale-flow">
 
       {/* Full-width top hero. In the hero state it's the demo card; once the
           agent starts (memo or manual) that fades away and the live editable
