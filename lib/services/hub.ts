@@ -68,6 +68,63 @@ function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInp
   return { agentUserId: vis.userId };
 }
 
+// ── Hub subtitle signals ──────────────────────────────────────────────────────
+// Compact set of counts that drive the journey-aware hub subtitle (the line
+// under the greeting). Real sales exclude demo files. Cheap count queries plus
+// the shared attention source. See getHubSubtitle() in the hub view.
+export type HubSubtitleSignals = {
+  realSales: number;          // lifetime non-demo, non-draft files in scope
+  hasDemo: boolean;           // a demo file exists in scope
+  completionsToday: number;   // completionDate is today
+  exchangesToday: number;     // active + expected/predicted exchange is today
+  exchangingThisWeek: number; // active + expected/predicted exchange in next 7 days
+  attentionCount: number;     // files flagged as needing attention
+};
+
+export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSubtitleSignals> {
+  const txWhere = buildTxWhere(vis);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const in7Days = new Date(now.getTime() + 7 * 86400000);
+
+  const [realSales, demoCount, completionsToday, exchangesToday, exchangingThisWeek, attentionItems] = await Promise.all([
+    prisma.propertyTransaction.count({ where: { ...txWhere, isDemo: false, status: { not: "draft" } } }),
+    prisma.propertyTransaction.count({ where: { ...txWhere, isDemo: true } }),
+    prisma.propertyTransaction.count({
+      where: { ...txWhere, isDemo: false, completionDate: { gte: startOfToday, lte: endOfToday } },
+    }),
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere, isDemo: false, status: "active",
+        OR: [
+          { expectedExchangeDate: { gte: startOfToday, lte: endOfToday } },
+          { overridePredictedDate: { gte: startOfToday, lte: endOfToday } },
+        ],
+      },
+    }),
+    prisma.propertyTransaction.count({
+      where: {
+        ...txWhere, isDemo: false, status: "active",
+        OR: [
+          { expectedExchangeDate: { gte: now, lte: in7Days } },
+          { overridePredictedDate: { gte: now, lte: in7Days } },
+        ],
+      },
+    }),
+    getHubAttentionItems(vis),
+  ]);
+
+  return {
+    realSales,
+    hasDemo: demoCount > 0,
+    completionsToday,
+    exchangesToday,
+    exchangingThisWeek,
+    attentionCount: attentionItems.length,
+  };
+}
+
 // ── Pipeline stats ────────────────────────────────────────────────────────────
 
 export async function getHubPipelineStats(vis: AgentVisibility) {

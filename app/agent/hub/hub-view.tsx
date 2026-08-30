@@ -25,8 +25,9 @@ import {
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles,
+  getHubSubtitleSignals,
 } from "@/lib/services/hub";
-import type { DiaryItem } from "@/lib/services/hub";
+import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
@@ -65,10 +66,55 @@ function getGreeting(name: string): string {
   }
 }
 
-function getSubtitle(isAdmin: boolean, isProgressor: boolean): string {
+// Journey-aware subtitle for agency users: onboarding stage sets the baseline;
+// today's signals (a completion / exchange due, files needing attention) take
+// priority once they have sales. Priority is top-to-bottom, first match wins.
+// The generic line is the safe fallback (used on a signals-load error). Strings
+// approved by Ellis 2026-08-30.
+function buildAgencySubtitle(s: HubSubtitleSignals): string {
+  // No real sales yet.
+  if (s.realSales === 0) {
+    return s.hasDemo
+      ? "You’re exploring the demo. Ready to add your own?"
+      : "Your pipeline starts with your first sale.";
+  }
+  // Today's signals (they have at least one real sale).
+  if (s.completionsToday > 0) {
+    return s.completionsToday === 1
+      ? "One of your sales completes today."
+      : `${s.completionsToday} of your sales complete today.`;
+  }
+  if (s.exchangesToday > 0) {
+    return s.exchangesToday === 1
+      ? "One of your sales is set to exchange today."
+      : `${s.exchangesToday} of your sales are set to exchange today.`;
+  }
+  if (s.exchangingThisWeek > 0) {
+    return s.exchangingThisWeek === 1
+      ? "One sale is on track to exchange this week."
+      : `${s.exchangingThisWeek} sales are on track to exchange this week.`;
+  }
+  if (s.attentionCount === 1) return "One sale needs your attention today.";
+  if (s.attentionCount > 1)  return `${s.attentionCount} sales need your attention today.`;
+  // Nothing urgent — baseline by pipeline size.
+  if (s.realSales === 1) return "Your first sale is up and running.";
+  if (s.realSales <= 4)  return "Your pipeline is taking shape.";
+  return "Everything’s on track. Nothing needs your attention today.";
+}
+
+async function getSubtitle(
+  vis: AgentVisibility,
+  isAdmin: boolean,
+  isProgressor: boolean,
+): Promise<string> {
   if (isAdmin) return "Here's what's happening across the platform today.";
   if (isProgressor) return "Here's what's happening with your assigned files today.";
-  return "Here's what's happening with your pipeline today.";
+  try {
+    return buildAgencySubtitle(await getHubSubtitleSignals(vis));
+  } catch {
+    // Safe fallback (the previous static agency line) if signals fail to load.
+    return "Here's what's happening across your pipeline today.";
+  }
 }
 
 function fmtCurrency(pence: number): string {
@@ -171,7 +217,7 @@ export default async function Hub() {
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const greeting = getGreeting(session.user.name ?? "there");
-  const subtitle = getSubtitle(isAdmin, isProgressor);
+  const subtitle = await getSubtitle(vis, isAdmin, isProgressor);
 
   const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale };
 
