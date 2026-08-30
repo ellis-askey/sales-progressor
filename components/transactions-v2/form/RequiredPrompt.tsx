@@ -8,9 +8,9 @@
 import { useState, useEffect } from "react";
 
 function nextLabel(field: string): string {
-  if (field === "address") return "Add the address to continue";
-  if (field === "tenure") return "Choose a tenure to continue";
-  return "Choose a purchase type to continue";
+  if (field === "address") return "Add the address to save this sale";
+  if (field === "tenure") return "Choose a tenure to save this sale";
+  return "Choose a purchase type to save this sale";
 }
 
 export function RequiredPrompt({ streetAddress, tenure, purchaseType }: {
