@@ -119,6 +119,9 @@ function populateFormFromDraft(draft: DraftEntry): FormFields {
     isShareOfFreehold: false,
     purchaseType: (draft.purchaseType === "mortgage" || draft.purchaseType === "cash_buyer" || draft.purchaseType === "cash_from_proceeds") ? draft.purchaseType : "",
     progressedBy: draft.progressedBy === "progressor" ? "progressor" : "agent",
+    // The draft list doesn't carry the photo path; a re-loaded draft starts
+    // without a hero photo (the row keeps it, but the client list doesn't).
+    photoStoragePath: null,
     vendors,
     purchasers,
     vendorSolicitor,
