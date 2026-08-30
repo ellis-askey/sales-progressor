@@ -187,10 +187,12 @@ export function SaleHeroEditable({
 
       {/* Content */}
       <div style={{ flex: "1 1 340px", minWidth: 0, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Address (left) + sale price (right); price wraps below on narrow. */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "12px 24px" }}>
         {/* Address — display and editor crossfade their heights (grid-rows
             0fr↔1fr) so the hero, and the photo that stretches to match it, grow
             and shrink smoothly instead of jumping. */}
-        <div>
+        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateRows: editingAddress ? "0fr" : "1fr", transition: "grid-template-rows 300ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1))" }}>
             <div style={{ overflow: "hidden", minHeight: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
@@ -225,10 +227,11 @@ export function SaleHeroEditable({
 
         {/* Price — a simple £ pill you click and type into (shows just "£" when
             empty, "£230,000" once typed). No placeholder text, no save. */}
-        <div>
+        <div style={{ flexShrink: 0 }}>
           <p style={{ margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Sale price</p>
           <PriceInput value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} placeholder="" className="sale-price-pill" />
         </div>
+        </div>{/* end address + price row */}
 
         {/* Tenure */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

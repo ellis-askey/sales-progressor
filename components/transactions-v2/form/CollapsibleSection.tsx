@@ -5,7 +5,7 @@ import { CaretDown } from "@phosphor-icons/react";
 
 type Props = {
   title: string;
-  summary: string;
+  summary?: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
 };

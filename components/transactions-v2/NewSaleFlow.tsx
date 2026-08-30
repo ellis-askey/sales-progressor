@@ -13,6 +13,8 @@ import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
+import { NotesSection } from "@/components/transactions-v2/form/NotesSection";
+import { CollapsibleSection } from "@/components/transactions-v2/form/CollapsibleSection";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
 import { AgentPicker } from "@/components/agent-picker/AgentPicker";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
@@ -358,6 +360,19 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [rightColumnMode, setRightColumnMode] = useState<"earnings" | "research">("earnings");
   const [hoveredTab, setHoveredTab] = useState<"earnings" | "research" | null>(null);
   const isSolid = useSolidMode();
+
+  // Right-column Notes: open by default on desktop, closed on smaller
+  // breakpoints. Starts closed (SSR-safe) and opens on desktop after mount; the
+  // key remounts CollapsibleSection so its default re-applies when the
+  // breakpoint flips.
+  const [notesOpenByDefault, setNotesOpenByDefault] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setNotesOpenByDefault(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const abortRef = useRef<AbortController | null>(null);
@@ -1231,6 +1246,23 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               />
             )}
           </div>
+
+          {/* Notes — lives under the File worth / Sold prices tabs. Open by
+              default on desktop, collapsed on smaller breakpoints. */}
+          {(flowState === "extracted" || flowState === "manual") && (
+            <div style={{ marginTop: 12 }}>
+              <CollapsibleSection
+                key={notesOpenByDefault ? "notes-open" : "notes-shut"}
+                title="Notes"
+                defaultOpen={notesOpenByDefault}
+              >
+                <NotesSection
+                  notes={formFields.notes}
+                  onNotesChange={(v) => updateFormFields({ notes: v })}
+                />
+              </CollapsibleSection>
+            </div>
+          )}
         </div>
 
       </div>
