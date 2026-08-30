@@ -18,6 +18,10 @@ import { prisma } from "@/lib/prisma";
 //
 // Gated on active/on-hold (not completed/withdrawn) so a file that has
 // already closed doesn't unlock an otherwise-empty page.
+//
+// isDemo:false — a demo sale must NOT unlock these surfaces. The demo sends no
+// real chases or emails, so an agency that only has the demo file (and outsources
+// everything real) should still see neither page. Founder, 2026-08-30.
 export async function agencyUserHasSelfManagedFiles(
   role: string,
   userId: string,
@@ -28,6 +32,7 @@ export async function agencyUserHasSelfManagedFiles(
     where: {
       serviceType: "self_managed",
       status: { in: ["active", "on_hold"] },
+      isDemo: false,
       ...(role === "director"
         ? { agencyId: agencyId ?? "__none__" }
         : { agentUserId: userId }),
