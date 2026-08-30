@@ -75,16 +75,11 @@ export function ContactCard({
   return (
     <div
       style={{
-        background: isComplete ? "rgba(5,150,105,0.04)" : "var(--nv2-surface-glass)",
-        borderRadius: 12,
-        border: isComplete
-          ? "0.5px solid rgba(5,150,105,0.22)"
-          : "0.5px solid var(--nv2-border-dark)",
-        padding: "14px 14px 12px",
+        // No inner border/card — the content spreads across the section card.
+        padding: 0,
         display: "flex",
         flexDirection: "column",
         gap: 10,
-        transition: "background 300ms, border-color 300ms",
       }}
     >
       {/* Header row: label + dots + remove */}
