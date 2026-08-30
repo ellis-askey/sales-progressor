@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import type { ExtractedMemoData } from "@/components/transactions-v2/types";
 
 // ── Field definitions (used only during "reading" animation) ──────────────────
@@ -372,21 +373,9 @@ export function MemoStatusBar({
                 onClick={() => onFocusField?.(pill.key)}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.72"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-                style={{
-                  flexShrink: 0,
-                  padding: "4px 10px",
-                  borderRadius: 20,
-                  border: "1px solid var(--agent-warning-border)",
-                  background: "var(--agent-warning-bg)",
-                  color: "var(--agent-warning)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: onFocusField ? "pointer" : "default",
-                  whiteSpace: "nowrap",
-                  lineHeight: 1.4,
-                }}
+                style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: onFocusField ? "pointer" : "default" }}
               >
-                {pill.label}
+                <Pill glass tone="warning" size="md">{pill.label}</Pill>
               </button>
             ))}
           </div>

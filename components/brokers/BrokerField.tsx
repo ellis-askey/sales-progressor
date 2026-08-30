@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { Buildings } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import type { BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { addBrokerForSaleAction } from "@/app/actions/brokers";
 
@@ -123,9 +124,7 @@ export function BrokerField({ value, onChange, preferredBroker }: {
               {value.firmName}
             </p>
             {isSaved && (
-              <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 650, letterSpacing: "0.02em", padding: "2px 8px", borderRadius: 999, background: "var(--agent-success-bg)", color: "var(--agent-success)" }}>
-                Your saved broker
-              </span>
+              <Pill glass tone="success" size="sm" style={{ flexShrink: 0 }}>Your saved broker</Pill>
             )}
           </div>
           <div style={{ background: "var(--nv2-surface-glass)", border: "0.5px solid var(--nv2-border-dark)", borderRadius: 8, padding: "8px 10px" }}>

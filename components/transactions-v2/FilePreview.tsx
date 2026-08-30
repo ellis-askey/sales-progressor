@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
 export type MilestoneDefinitionSlim = {
@@ -92,10 +93,10 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
           <Eye size={14} weight="duotone" color="var(--agent-coral-deep)" />
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-primary)" }}>File Preview</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(5,150,105,0.08)", border: "0.5px solid rgba(5,150,105,0.2)", borderRadius: 100, padding: "3px 8px" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-success)", display: "inline-block", animation: "agent-pulse-dot 2s ease-in-out infinite" }} />
-          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "0.06em" }}>LIVE</span>
-        </div>
+        <Pill glass tone="success" size="sm" style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-success)", display: "inline-block", animation: "agent-pulse-dot 2s ease-in-out infinite", flexShrink: 0 }} />
+          LIVE
+        </Pill>
       </div>
 
       <div style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -110,16 +111,14 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
           )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {fields.tenure ? (
-              <span style={{ fontSize: 10, fontWeight: 600, background: "rgba(var(--agent-coral-base-rgb),0.10)", color: "var(--agent-coral-deep)", borderRadius: 100, padding: "3px 8px", textTransform: "capitalize" }}>{fields.tenure}</span>
+              <Pill glass tone="brand" size="sm" style={{ textTransform: "capitalize" }}>{fields.tenure}</Pill>
             ) : (
-              <span style={{ fontSize: 10, color: "var(--nv2-text-ghost)", borderRadius: 100, border: "0.5px dashed var(--nv2-border-medium)", padding: "3px 8px" }}>Tenure?</span>
+              <Pill tone="muted" size="sm" outline>Tenure?</Pill>
             )}
             {fields.purchaseType ? (
-              <span style={{ fontSize: 10, fontWeight: 600, background: "var(--nv2-bg-hover)", color: "var(--nv2-text-secondary)", borderRadius: 100, padding: "3px 8px" }}>
-                {purchaseTypeLabel(fields.purchaseType)}
-              </span>
+              <Pill glass tone="default" size="sm">{purchaseTypeLabel(fields.purchaseType)}</Pill>
             ) : (
-              <span style={{ fontSize: 10, color: "var(--nv2-text-ghost)", borderRadius: 100, border: "0.5px dashed var(--nv2-border-medium)", padding: "3px 8px" }}>Purchase type?</span>
+              <Pill tone="muted" size="sm" outline>Purchase type?</Pill>
             )}
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Pill } from "@/components/ui/Pill";
 
 type Props = {
   streetAddress: string;
@@ -13,57 +13,9 @@ type Props = {
   onProgressedByChange?: (v: "agent" | "progressor") => void;
 };
 
-function Pill({
-  label,
-  variant = "default",
-}: {
-  label: string;
-  variant?: "default" | "green" | "coral" | "warning";
-}) {
-  const base: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "3px 8px",
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: 600,
-    lineHeight: 1.4,
-  };
-
-  const variantStyles: Record<string, React.CSSProperties> = {
-    default: {
-      background: "var(--nv2-bg-hover)",
-      color: "var(--nv2-text-secondary)",
-    },
-    green: {
-      background: "var(--agent-success-bg)",
-      color: "var(--agent-success)",
-      border: "1px solid var(--agent-success-border)",
-    },
-    coral: {
-      background: "rgba(var(--agent-coral-base-rgb), 0.08)",
-      color: "var(--agent-coral-deep)",
-      border: "1px solid rgba(var(--agent-coral-base-rgb), 0.20)",
-    },
-    warning: {
-      background: "rgba(245,158,11,0.10)",
-      color: "var(--agent-warning)",
-      border: "1px solid rgba(245,158,11,0.28)",
-    },
-  };
-
-  return (
-    <span style={{ ...base, ...variantStyles[variant] }}>
-      {label}
-    </span>
-  );
-}
-
 export function Stage1SummaryBar({
   streetAddress, city, postcode, tenure, purchaseType, progressedBy, onEdit, onProgressedByChange,
 }: Props) {
-  const [swapHovered, setSwapHovered] = useState(false);
-
   const addressParts = [streetAddress, city, postcode].map((s) => s.trim()).filter(Boolean);
   const address = addressParts.length > 0 ? addressParts.join(", ") : "No address set";
 
@@ -92,47 +44,25 @@ export function Stage1SummaryBar({
           {address}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {tenureLabel && <Pill label={tenureLabel} variant="default" />}
-          {purchaseTypeLabel && <Pill label={purchaseTypeLabel} variant="default" />}
+          {tenureLabel && <Pill glass tone="default">{tenureLabel}</Pill>}
+          {purchaseTypeLabel && <Pill glass tone="default">{purchaseTypeLabel}</Pill>}
           {onProgressedByChange ? (
             <button
               type="button"
               className="v2-swap-btn"
               onClick={() => onProgressedByChange(progressedBy === "agent" ? "progressor" : "agent")}
-              onMouseEnter={() => setSwapHovered(true)}
-              onMouseLeave={() => setSwapHovered(false)}
               style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center" }}
               title="Click to switch"
             >
-              <span style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 600,
-                lineHeight: 1.4,
-                transition: "background 150ms, border-color 150ms",
-                ...(progressedBy === "agent" ? {
-                  background: swapHovered ? "rgba(31,138,74,0.18)" : "var(--agent-success-bg)",
-                  color: "var(--agent-success)",
-                  border: swapHovered ? "1px solid rgba(31,138,74,0.45)" : "1px solid var(--agent-success-border)",
-                } : {
-                  background: swapHovered ? "rgba(var(--agent-coral-base-rgb), 0.14)" : "rgba(var(--agent-coral-base-rgb), 0.08)",
-                  color: "var(--agent-coral-deep)",
-                  border: swapHovered ? "1px solid rgba(var(--agent-coral-base-rgb), 0.35)" : "1px solid rgba(var(--agent-coral-base-rgb), 0.20)",
-                }),
-              }}>
+              <Pill glass tone={progressedBy === "agent" ? "success" : "brand"}>
                 {progressedBy === "agent" ? "Self-progress" : "Send to us"}
                 <span className="v2-swap-arrow" style={{ marginLeft: 1 }}>⇄</span>
-              </span>
+              </Pill>
             </button>
           ) : (
-            <Pill
-              label={progressedBy === "agent" ? "Self-progress" : "Send to us"}
-              variant={progressedBy === "agent" ? "green" : "coral"}
-            />
+            <Pill glass tone={progressedBy === "agent" ? "success" : "brand"}>
+              {progressedBy === "agent" ? "Self-progress" : "Send to us"}
+            </Pill>
           )}
         </div>
       </div>

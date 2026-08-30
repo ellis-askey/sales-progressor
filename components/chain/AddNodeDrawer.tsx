@@ -7,6 +7,7 @@ import { titleCase } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
+import { Pill } from "@/components/ui/Pill";
 
 function joinAddress(street: string, city: string, postcode: string): string {
   return [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
@@ -303,9 +304,9 @@ export function AddNodeDrawer({
     : "Save and add below";
 
   const directionPill = !isEditMode && (
-    <span className="agent-chain-callout text-[10px] font-semibold px-2 py-0.5 rounded-full">
+    <Pill glass tone="info" size="sm">
       {direction === "above" ? "↑ Above" : "↓ Below"}
-    </span>
+    </Pill>
   );
 
   return createPortal(

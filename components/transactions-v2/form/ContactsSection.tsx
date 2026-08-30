@@ -3,6 +3,7 @@
 import { CheckCircle, Link as LinkIcon } from "@phosphor-icons/react";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
+import { Pill } from "@/components/ui/Pill";
 import { titleCase } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
@@ -166,20 +167,10 @@ export function ContactCard({
 
       {/* Bottom hint */}
       {isComplete ? (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 5,
-          background: "rgba(5,150,105,0.08)",
-          border: "0.5px solid rgba(5,150,105,0.22)",
-          borderRadius: 100,
-          padding: "4px 10px",
-          alignSelf: "flex-start",
-          marginTop: 2,
-        }}>
+        <Pill glass tone="success" size="sm" style={{ alignSelf: "flex-start", marginTop: 2 }}>
           <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
-          <span style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-success)" }}>
-            {mode === "agent" ? "Portal invite ready" : "Ready to contact"}
-          </span>
-        </div>
+          {mode === "agent" ? "Portal invite ready" : "Ready to contact"}
+        </Pill>
       ) : (
         <>
           {mode === "progressor" && hasName && (hasPhone || hasEmail) && (

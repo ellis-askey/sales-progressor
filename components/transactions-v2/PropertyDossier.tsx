@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, X } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import type { PropertyIntel } from "@/lib/hooks/usePropertyIntel";
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -159,19 +160,9 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {fromMemo && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "var(--agent-success)",
-              background: "var(--agent-success-bg)",
-              border: "1px solid var(--agent-success-border)",
-              borderRadius: 4,
-              padding: "2px 6px",
-            }}>
+            <Pill glass tone="success" size="sm" style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
               From memo
-            </span>
+            </Pill>
           )}
           <button
             type="button"

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AddNodeDrawer, type StubFormData, type EditingLinkData } from "@/components/chain/AddNodeDrawer";
+import { Pill } from "@/components/ui/Pill";
 
 export type InMemoryStub = StubFormData & {
   id: string;
@@ -90,9 +91,7 @@ function OriginatorCard({ address }: { address: string }) {
           </p>
           {address2 && <p className="text-xs text-slate-900/40 truncate">{address2}</p>}
         </div>
-        <span className="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-[#FF6B4A] border border-orange-100">
-          Your file
-        </span>
+        <Pill glass tone="brand" size="sm" className="flex-shrink-0">Your file</Pill>
       </div>
     </div>
   );
@@ -216,7 +215,7 @@ export function ChainSection({
       {/* Position selector */}
       <div className="mb-4">
         <p className="text-xs font-medium text-slate-900/60 mb-2">
-          Your sale's position in the chain
+          Your sale&apos;s position in the chain
         </p>
         <div className="flex flex-col gap-1.5">
           {([
