@@ -11,6 +11,10 @@
 
 ## 0. How to read this document
 
+**Working protocol (agreed 2026-08-31):**
+- Every change made during the build is recorded in [PRICING_MIGRATION_BUILDLOG.md](PRICING_MIGRATION_BUILDLOG.md) — one entry per increment.
+- At the **end of every full phase**, a local, seeded-if-needed link is provided so Ellis can verify the change in the running app, with a note on exactly what to look at. Increments within a phase are logged; the verification link lands at the phase boundary.
+
 - Sections 1–19 are **findings** (what exists today, what breaks).
 - Sections 20–23 are **decisions & design**.
 - Sections 24–27 are **execution** (tests, deploy, risks, phases).
