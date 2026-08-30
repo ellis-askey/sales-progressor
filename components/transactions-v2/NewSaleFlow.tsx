@@ -7,7 +7,7 @@ import { HeroCard } from "@/components/transactions-v2/HeroCard";
 import { ResearchPanel } from "@/components/transactions-v2/ResearchPanel";
 import { PropertyDossier } from "@/components/transactions-v2/PropertyDossier";
 import { EarningsBuilder } from "@/components/transactions-v2/EarningsBuilder";
-import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
+import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
 import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
@@ -689,12 +689,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setRightColumnMode("earnings");
     // The editable hero replaces the drop card at the top — bring it into view.
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function handleContinue() {
-    setStage(2);
-    setStage1Expanded(false);
-    setRightColumnMode("earnings");
   }
 
   // ── Draft helpers ─────────────────────────────────────────────────────────

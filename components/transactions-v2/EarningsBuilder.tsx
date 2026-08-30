@@ -12,7 +12,7 @@ import { useState } from "react";
 import type { ClientType } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { calculateOurFee } from "@/lib/services/fees";
-import { getVisibleMilestones, type MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
+import { getVisibleMilestones, type MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
