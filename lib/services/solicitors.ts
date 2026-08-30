@@ -106,6 +106,83 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
   }));
 }
 
+export type FirmFileRow = {
+  id: string;
+  propertyAddress: string;
+  status: string;
+  role: "vendor" | "purchaser" | "both";
+  isReferral: boolean;
+  createdAt: Date;
+};
+
+export type SolicitorFirmDetail = {
+  id: string;
+  name: string;
+  contacts: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail: string | null }[];
+  files: FirmFileRow[];
+};
+
+/**
+ * Full detail for one solicitor firm, scoped to the agent's visible files
+ * (all statuses except draft, so completed files show too). Returns null when
+ * the firm has no file the agent can see — which doubles as the access guard.
+ */
+export async function getSolicitorFirmDetail(vis: AgentVisibility, firmId: string): Promise<SolicitorFirmDetail | null> {
+  const scope = vis.seeAll
+    ? vis.firmName
+      ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { agencyId: vis.agencyId }
+    : { agentUserId: vis.userId };
+
+  const [firm, transactions] = await Promise.all([
+    prisma.solicitorFirm.findUnique({
+      where: { id: firmId },
+      select: {
+        id: true,
+        name: true,
+        handlers: {
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, phone: true, email: true, secondaryEmail: true },
+        },
+      },
+    }),
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...scope,
+        status: { not: "draft" as TransactionStatus },
+        OR: [{ vendorSolicitorFirmId: firmId }, { purchaserSolicitorFirmId: firmId }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        propertyAddress: true,
+        status: true,
+        createdAt: true,
+        referredFirmId: true,
+        vendorSolicitorFirmId: true,
+        purchaserSolicitorFirmId: true,
+      },
+    }),
+  ]);
+
+  if (!firm || transactions.length === 0) return null;
+
+  const files: FirmFileRow[] = transactions.map((tx) => {
+    const isVendor = tx.vendorSolicitorFirmId === firmId;
+    const isPurchaser = tx.purchaserSolicitorFirmId === firmId;
+    return {
+      id: tx.id,
+      propertyAddress: tx.propertyAddress,
+      status: tx.status,
+      role: isVendor && isPurchaser ? "both" : isVendor ? "vendor" : "purchaser",
+      isReferral: tx.referredFirmId === firmId,
+      createdAt: tx.createdAt,
+    };
+  });
+
+  return { id: firm.id, name: firm.name, contacts: firm.handlers, files };
+}
+
 export async function getSolicitorDirectory(agencyId: string): Promise<SolicitorFirmWithStats[]> {
   const firms = await prisma.solicitorFirm.findMany({
     orderBy: { name: "asc" },

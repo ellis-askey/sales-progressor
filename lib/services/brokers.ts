@@ -93,3 +93,67 @@ export async function getBrokerDirectoryForAgent(vis: AgentVisibility): Promise<
     })),
   }));
 }
+
+export type BrokerFirmFileRow = {
+  id: string;
+  propertyAddress: string;
+  status: string;
+  isReferral: boolean;
+  createdAt: Date;
+};
+
+export type BrokerFirmDetail = {
+  id: string;
+  name: string;
+  website: string | null;
+  contacts: { id: string; name: string; phone: string | null; email: string | null }[];
+  files: BrokerFirmFileRow[];
+};
+
+/**
+ * Full detail for one broker firm, scoped to the agent's visible files (all
+ * statuses except draft). Returns null when the firm has no file the agent can
+ * see — the access guard. Brokers only attach on the purchaser side.
+ */
+export async function getBrokerFirmDetail(vis: AgentVisibility, firmId: string): Promise<BrokerFirmDetail | null> {
+  const scope = vis.seeAll
+    ? vis.firmName
+      ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { agencyId: vis.agencyId }
+    : { agentUserId: vis.userId };
+
+  const [firm, transactions] = await Promise.all([
+    prisma.brokerFirm.findUnique({
+      where: { id: firmId },
+      select: {
+        id: true,
+        name: true,
+        website: true,
+        handlers: { orderBy: { name: "asc" }, select: { id: true, name: true, phone: true, email: true } },
+      },
+    }),
+    prisma.propertyTransaction.findMany({
+      where: { ...scope, status: { not: "draft" as TransactionStatus }, brokerFirmId: firmId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        propertyAddress: true,
+        status: true,
+        createdAt: true,
+        purchaserBrokerReferral: true,
+      },
+    }),
+  ]);
+
+  if (!firm || transactions.length === 0) return null;
+
+  const files: BrokerFirmFileRow[] = transactions.map((tx) => ({
+    id: tx.id,
+    propertyAddress: tx.propertyAddress,
+    status: tx.status,
+    isReferral: tx.purchaserBrokerReferral,
+    createdAt: tx.createdAt,
+  }));
+
+  return { id: firm.id, name: firm.name, website: firm.website, contacts: firm.handlers, files };
+}
