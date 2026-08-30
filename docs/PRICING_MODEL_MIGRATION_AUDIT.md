@@ -117,9 +117,9 @@ Historical financial records stay **untouched** (frozen `InvoiceLine` amounts). 
 | **C** | Paying £59 self-progress | History preserved; future self-progress free |
 | **D** | Historical £59 exchanges | **Never rewrite** — frozen invoice lines stay correct |
 | **E** | Never outsourced | First outsourced file free available |
-| **F** | Already outsourced ≥1 | **DECISION D3:** retroactive free file, or grandfathered out? |
+| **F** | Already outsourced ≥1 | **LOCKED (D3): grandfathered out** — no retroactive free file |
 | **G** | New agency post-launch | Clean new model |
-| **H** | Created before launch, exchanges after | **DECISION D9:** the terms' "price set at add time" clause implies pre-launch self files could still bill £59 — forgive or honour? |
+| **H** | Created before launch, exchanges after | **LOCKED (D9): forgiven** — pre-launch self-progress files stop billing (no £59) |
 | **I** | Active self-progress txn | Stops billing (→ £0) |
 | **J** | Active outsourced txn | Unchanged (£250-350) |
 
@@ -361,6 +361,26 @@ Aim for an **atomic copy cutover** (app + marketing) even if backend lands earli
 
 ## 28. Decision register
 
+### 28.0 LOCKED — all build-blocking decisions resolved (2026-08-30)
+
+| ID | Locked answer |
+|---|---|
+| **D1** | **Free per sale, by type.** `self_managed` always computes £0 at the billing layer; do NOT use agency-wide `feeTier=free`. Free self-progress and paid outsourced coexist cleanly; immune to stale `freeOnExchange`. |
+| **D2** | **Off-invoice.** Free self-progress files create no invoice line and no `billedAtExchange` (reuse "exchanged but not billed"). |
+| **D3** | **First outsourced file to EXCHANGE is free; new agencies only.** Agencies that have already had a billed outsourced file are grandfathered out (cohort F). Per-agency lifetime; migrated/demo excluded. |
+| **D4** | **Explicit discount line.** Invoice shows the band price then a first-file credit to £0 ("Outsourced £300 · first file free −£300 = £0"). Auditable, distinct from trial value. |
+| **D5** | **Consumed at exchange, one-and-done.** Exchange is legally final — a sale cannot fall through post-exchange, and we are payable at exchange. **Build edge (D5a):** an erroneous exchange that is later *undone* (milestone reversal / data correction) must CLEAR the free flag so it isn't a phantom giveaway — it does not grant a bonus free file. |
+| **D6** | **Add `freeReason`** (`permanent_free_self` / `first_outsourced_free` / `legacy_trial`) before the switch. |
+| **D8** | **Card only when outsourcing again.** Never requested for self-progress. The New-Sale gate is rescoped so it can only fire for a 2nd+ outsourced file (the first is free). |
+| **D9** | **Forgive pre-launch self-progress files.** Any self-progress file open at launch stops billing (no £59). Historical/issued lines untouched. |
+| **D13** | **Don't block self-progress on a failed outsourced payment** — pause only new *outsourced* files. **Follow-on (D13a, deferred):** define an outstanding-outsourced-debt ceiling beyond which we escalate. |
+
+**New deferred sub-decisions surfaced:** D5a (erroneous-undo clears free flag — build edge, no commercial call), D13a (debt ceiling + escalation policy).
+
+**Still open (not build-blocking):** D7, D11, D14 (phases 3–4); D12, D15–D19 (phase 5 positioning — to be decided against pricing-page artifacts).
+
+### 28.1 Full register (reference)
+
 | ID | Decision | Why it matters | Option A | Option B | Option C | Recommendation | Blocks build? | Artifact helps? |
 |---|---|---|---|---|---|---|---|---|
 | **D1** | Self-free mechanism | `feeTier=free` frees outsourced too | Free-by-`serviceType` rule in `grossFee`/billing-trigger | Default `feeTier=free` | Zero `IN_HOUSE_FEE_PENCE` | **A** | Yes | No |
@@ -387,11 +407,9 @@ Aim for an **atomic copy cutover** (app + marketing) even if backend lands earli
 
 ## 29. Ellis — decisions required (systematic)
 
-Work through **§28** in order. The **build-blocking** ones (must answer before Phase 1–2 code): **D1, D2, D3, D4, D5, D6, D8, D9, D13**. Phase-3+ (can follow): **D7, D11, D14**. Marketing/positioning (Phase 5, artifact-assisted): **D12, D15, D16, D17, D18, D19**.
+**All build-blocking decisions (D1, D2, D3, D4, D5, D6, D8, D9, D13) are LOCKED — see §28.0.** Phase 1–2 is unblocked and ready to spec/build on your signal.
 
-Also confirm the two facts the audit surfaced that you may not have decided yet:
-- **Cohort F** (agencies that already outsourced): do they get a retroactive free file, or is first-outsourced-free grandfathered to new agencies only?
-- **Cohort H** (self-progress files created before launch, exchanging after): forgive the £59 or honour the "price set at add time" terms clause?
+Still to decide (not blocking): **D7, D11, D14** (phases 3–4), and the positioning set **D12, D15–D19** (phase 5) — best taken against visual pricing-page artifacts. Plus two deferred sub-decisions: **D13a** (outstanding-outsourced-debt ceiling + escalation) and **D5a** (a build-time edge, no commercial call).
 
 ## 30. Ellis — manual actions eventually required (at the very end)
 
