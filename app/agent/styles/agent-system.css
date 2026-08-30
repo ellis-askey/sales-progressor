@@ -102,6 +102,17 @@
   to   { opacity: 1; transform: translateY(0);   }
 }
 
+/* Chain card cross-fade — the collapsed prompt and the expanded builder swap
+   places: the outgoing card fades down and out, the incoming fades up and in. */
+@keyframes chain-swap-out {
+  from { opacity: 1; transform: translateY(0);   }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+@keyframes chain-swap-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
 /* Canonical accordion, reveal, dropdown-entrance, and row-flash animations.
  * Extracted from /agent/anim-preview. All agent pages use these — no page invents its own. */
 

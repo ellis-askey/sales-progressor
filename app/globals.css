@@ -1905,3 +1905,28 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   text-decoration-thickness: 2px;
 }
 .hero-address-edit:focus-visible { outline: 2px solid var(--agent-coral); }
+
+/* Chain prompt quick-answer chips (collapsed state, Option D). */
+.chain-chip-yes, .chain-chip-no {
+  cursor: pointer;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 650;
+  padding: 8px 14px;
+  border-radius: 10px;
+  transition: filter 150ms, background 150ms, box-shadow 150ms, color 150ms;
+}
+.chain-chip-yes {
+  color: #fff;
+  background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral));
+  box-shadow: 0 6px 14px -6px rgba(var(--agent-coral-rgb), 0.6);
+}
+.chain-chip-yes:hover { filter: brightness(1.05); }
+.chain-chip-yes:active { transform: translateY(1px); }
+.chain-chip-no {
+  color: var(--agent-text-muted);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--agent-border-default);
+}
+.chain-chip-no:hover { background: rgba(var(--agent-coral-rgb), 0.05); color: var(--agent-text-secondary); }
+.chain-chip-yes:focus-visible, .chain-chip-no:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }

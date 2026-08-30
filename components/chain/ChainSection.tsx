@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { LinkSimple } from "@phosphor-icons/react";
 import { AddNodeDrawer, type StubFormData, type EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { Pill } from "@/components/ui/Pill";
 
@@ -111,6 +112,24 @@ export function ChainSection({
   const [position, setPosition] = useState<ChainPosition>("unknown");
   const [addNodeDir, setAddNodeDir] = useState<"above" | "below" | null>(null);
   const [editingStub, setEditingStub] = useState<InMemoryStub | null>(null);
+  // Local "answered no" acknowledgement for the collapsed prompt's chip.
+  const [dismissed, setDismissed] = useState(false);
+
+  // ── Collapsed ⇆ expanded cross-fade ──────────────────────────────────────
+  // The outgoing card fades down and out; the incoming fades up and in. Driven
+  // off the `expanded` prop (plus the local "not in a chain" answer) with a
+  // short out → swap → in sequence so both directions animate rather than the
+  // content just being dumped onto the page.
+  const targetView: "expanded" | "dismissed" | "collapsed" =
+    expanded ? "expanded" : dismissed ? "dismissed" : "collapsed";
+  const [view, setView] = useState<"expanded" | "dismissed" | "collapsed">(targetView);
+  const [anim, setAnim] = useState<"none" | "in" | "out">("none");
+  useEffect(() => {
+    if (targetView === view) return;
+    setAnim("out");
+    const t = setTimeout(() => { setView(targetView); setAnim("in"); }, 180);
+    return () => clearTimeout(t);
+  }, [targetView, view]);
 
   const aboveStubs = stubs.filter((s) => s.direction === "above");
   const belowStubs = stubs.filter((s) => s.direction === "below");
@@ -162,29 +181,58 @@ export function ChainSection({
       }
     : undefined;
 
-  if (!expanded) {
-    return (
-      <div className="rounded-xl agent-chain-callout px-4 py-3.5 flex items-center justify-between gap-4">
-        <div>
-          <p className="glass-section-label text-slate-900/50 mb-1">
-            Chain <span className="text-slate-900/30 font-normal normal-case">(optional)</span>
-          </p>
-          <p className="text-sm text-slate-900/60">Is this property part of a chain?</p>
-          <p className="text-xs text-slate-900/40 mt-0.5">Adding a chain sends invite links to the other agents involved.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onExpand}
-          className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg agent-chain-callout-btn"
-        >
-          + Add chain
-        </button>
-      </div>
-    );
-  }
+  const cardRadius = "var(--agent-radius-lg, 16px)";
 
-  return (
-    <div>
+  // ── Collapsed prompt (Option D — decisive question + quick chips) ─────────
+  const collapsedCard = (
+    <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "16px 18px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 13 }}>
+        <span style={{
+          flexShrink: 0, width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center",
+          color: "#fff",
+          background: "linear-gradient(135deg, var(--agent-coral-deep), color-mix(in srgb, var(--agent-coral) 70%, #ffffff))",
+          boxShadow: "0 6px 14px -6px rgba(var(--agent-coral-rgb), 0.6)",
+        }}>
+          <LinkSimple size={18} weight="bold" />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 14.5, fontWeight: 650, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
+            Is this sale part of a chain?
+          </p>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+            Add the chain and we&rsquo;ll send invite links to the other agents involved.
+          </p>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 13 }}>
+        <button type="button" onClick={onExpand} className="chain-chip-yes">Yes, add the chain</button>
+        <button type="button" onClick={() => setDismissed(true)} className="chain-chip-no">Not in a chain</button>
+      </div>
+    </div>
+  );
+
+  // ── Answered "no" — a compact resolved row that stays out of the way ──────
+  const dismissedRow = (
+    <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <span style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--agent-text-muted)", background: "rgba(var(--agent-coral-rgb), 0.06)" }}>
+          <LinkSimple size={15} weight="regular" />
+        </span>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>Not in a chain</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => { setDismissed(false); onExpand(); }}
+        style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "var(--agent-coral-deep)" }}
+      >
+        + Add chain
+      </button>
+    </div>
+  );
+
+  // ── Expanded builder — now wrapped in its own white card ──────────────────
+  const expandedCard = (
+    <div className="agent-glass-strong" style={{ borderRadius: cardRadius, padding: "18px 20px" }}>
       {/* Header. When the section opened itself (audit #5) it leads with the
           question + the reason; a manual open keeps the plain "Chain" label. */}
       <div className="mb-3">
@@ -298,6 +346,22 @@ export function ChainSection({
           onSaved={() => { setAddNodeDir(null); setEditingStub(null); }}
         />
       )}
+    </div>
+  );
+
+  // The swap wrapper animates whichever card is showing. Once the entrance
+  // finishes we clear the animation so no lingering transform creates a
+  // containing block for the (fixed) AddNodeDrawer.
+  const swapStyle = {
+    animation:
+      anim === "out" ? "chain-swap-out 180ms ease forwards"
+      : anim === "in" ? "chain-swap-in 260ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) both"
+      : undefined,
+  };
+
+  return (
+    <div style={swapStyle} onAnimationEnd={() => { if (anim === "in") setAnim("none"); }}>
+      {view === "expanded" ? expandedCard : view === "dismissed" ? dismissedRow : collapsedCard}
     </div>
   );
 }
