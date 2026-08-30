@@ -196,24 +196,24 @@ export function SaleHeroEditable({
         <div style={{ flex: "0 1 auto", minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateRows: editingAddress ? "0fr" : "1fr", transition: "grid-template-rows 300ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1))" }}>
             <div style={{ overflow: "hidden", minHeight: 0 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                {/* The address text itself opens the editor on click — same as the
-                    pencil. Hover underlines line 1 so it reads as a control. */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setEditingAddress(true)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingAddress(true); } }}
-                  className="hero-address-edit"
-                  aria-label="Edit address"
-                  style={{ flex: 1, minWidth: 0 }}
-                >
-                  <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2 }}>{line1}</p>
-                  {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
+              {/* The address itself opens the editor on click; the pencil sits
+                  right beside line 1 and only appears on hover/focus. */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditingAddress(true)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingAddress(true); } }}
+                className="hero-address-edit"
+                aria-label="Edit address"
+                style={{ minWidth: 0 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{line1}</p>
+                  <span className="hero-edit-pencil" aria-hidden style={{ flexShrink: 0, display: "inline-flex", color: "var(--agent-text-muted)" }}>
+                    <PencilSimple size={15} weight="regular" />
+                  </span>
                 </div>
-                <button type="button" onClick={() => setEditingAddress(true)} aria-label="Edit address" style={{ flexShrink: 0, background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--agent-text-muted)" }}>
-                  <PencilSimple size={15} weight="regular" />
-                </button>
+                {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
               </div>
             </div>
           </div>

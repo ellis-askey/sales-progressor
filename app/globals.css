@@ -1898,14 +1898,11 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 .sale-price-pill:focus { outline: none; border-color: var(--agent-coral-deep) !important; box-shadow: none !important; }
 
 /* The hero address text is itself a control — clicking it opens the address
-   editor (same as the pencil). Hover underlines line 1 so it reads as clickable. */
-.hero-address-edit { cursor: pointer; border-radius: 8px; outline-offset: 3px; }
-.hero-address-edit:hover p:first-child {
-  text-decoration: underline;
-  text-decoration-color: var(--agent-coral);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 2px;
-}
+   editor. The pencil beside line 1 fades in on hover/focus as the affordance. */
+.hero-address-edit { cursor: pointer; border-radius: 8px; outline-offset: 3px; width: fit-content; max-width: 100%; }
+.hero-edit-pencil { opacity: 0; transition: opacity 150ms ease; }
+.hero-address-edit:hover .hero-edit-pencil,
+.hero-address-edit:focus-visible .hero-edit-pencil { opacity: 1; }
 .hero-address-edit:focus-visible { outline: 2px solid var(--agent-coral); }
 
 /* Generic smooth collapse — grid-rows 0fr↔1fr animates height, plus opacity.
@@ -2034,8 +2031,11 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   width: 2px;
   background: linear-gradient(180deg, var(--agent-border-default), rgba(var(--agent-coral-rgb), 0.4), var(--agent-border-default));
 }
-.chain-rail-item { position: relative; margin-bottom: 10px; }
-.chain-rail-item:last-child { margin-bottom: 0; }
+/* Spacing lives on the rail's direct children (stub/your-file items AND the
+   slot wrappers) so add-slots keep their gap; collapsed slots contribute none. */
+.chain-rail > * { margin-bottom: 10px; }
+.chain-rail > *:last-child { margin-bottom: 0; }
+.chain-rail-item { position: relative; }
 .chain-rail-dot {
   position: absolute;
   left: -22px; top: 50%;
@@ -2078,9 +2078,12 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+  transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease, margin-bottom 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .chain-slot.open { grid-template-rows: 1fr; opacity: 1; }
+/* A collapsed slot must not hold the 10px rail gap, or it leaves a phantom
+   space where a hidden add-slot would be. */
+.chain-slot:not(.open) { margin-bottom: 0; }
 .chain-slot-inner { overflow: hidden; min-height: 0; }
 
 /* Newly added chain sales ease in rather than popping. */
