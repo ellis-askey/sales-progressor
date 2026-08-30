@@ -1007,6 +1007,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             ensureDraft={ensureDraft}
             showContinue={flowState === "manual" && stage === 1 && stage1Valid}
             onContinue={handleContinue}
+            showMemoFooter={flowState === "extracted"}
+            onChangeFile={handleChangeFile}
           />
         </div>
       )}
@@ -1027,8 +1029,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             />
           )}
 
-          {/* MOS status bar — extracting + extracted */}
-          {(flowState === "extracting" || flowState === "extracted") && (
+          {/* MOS status bar — only while reading; once read, the "needs
+              attention" info lives in the hero footer instead. */}
+          {flowState === "extracting" && (
             <MemoStatusBar
               status={flowState === "extracting" ? "reading" : "done"}
               isSlow={isSlow}

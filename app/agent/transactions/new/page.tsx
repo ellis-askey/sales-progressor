@@ -249,7 +249,7 @@ export default async function AgentNewSaleV2Page() {
 
   return (
     <>
-      <PageHeader title="New sale" subtitle="Drop your memo of sale to get started, or fill in manually." />
+      <PageHeader title="New sale" subtitle="Drop in your memo of sale to get started, or add the details manually." />
 
       <div className="px-4 md:px-8 pt-2 pb-8">
         <NewSaleFlow
