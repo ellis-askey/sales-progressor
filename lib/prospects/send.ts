@@ -16,11 +16,14 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Public site the signature image links to.
+const SITE_URL = process.env.PROSPECT_SITE_URL ?? "https://www.thesalesprogressor.co.uk";
+
 function renderHtml(text: string): string {
   const bodyHtml = escapeHtml(text).replace(/\n/g, "<br>");
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111;line-height:1.5">
     <div>${bodyHtml}</div>
-    <div style="margin-top:20px"><img src="${SIGNATURE_URL}" alt="Ellis Askey, Operations Director, The Sales Progressor" style="max-width:340px;height:auto;border:0" /></div>
+    <div style="margin-top:20px"><a href="${SITE_URL}" target="_blank" style="text-decoration:none;border:0"><img src="${SIGNATURE_URL}" alt="Ellis Askey, Operations Director, The Sales Progressor" style="max-width:340px;height:auto;border:0;display:block" /></a></div>
   </div>`;
 }
 
