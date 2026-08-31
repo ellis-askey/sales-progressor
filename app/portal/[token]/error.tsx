@@ -15,7 +15,7 @@ export default function PortalError({
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#F8F9FB", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <div className="max-w-sm w-full text-center">
+      <div className="max-w-sm w-full text-center portal-fade-in">
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
           style={{ background: "rgba(255,107,74,0.10)" }}
@@ -34,7 +34,7 @@ export default function PortalError({
         </p>
         <button
           onClick={reset}
-          className="w-full py-4 rounded-2xl text-[15px] font-bold text-white"
+          className="pbtn pbtn-press pbtn-primary w-full py-4 rounded-2xl text-[15px] font-bold text-white"
           style={{ background: "#FF6B4A" }}
         >
           Try again

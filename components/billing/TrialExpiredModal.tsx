@@ -337,11 +337,11 @@ function IntroStep({ onContinue }: { onContinue: () => void }) {
         id="trial-expired-title"
         style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#111827", lineHeight: 1.3 }}
       >
-        Your free trial has ended
+        Add a card to send sales to us
       </h2>
 
       <p style={{ margin: "12px 0 0", fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
-        Your two-week trial has flown by. The sales you added during it keep running, free through to exchange, just as promised. To add new ones, add a card.
+        Your first outsourced sale was on us. From the next one, we bill £250 to £350 when the sale exchanges, and nothing if it falls through. Add a card so we can do that. The sales you progress yourself stay free.
       </p>
 
       <div
@@ -357,7 +357,7 @@ function IntroStep({ onContinue }: { onContinue: () => void }) {
         }}
       >
         <strong style={{ color: "var(--agent-coral)" }}>Nothing&apos;s charged today.</strong>{" "}
-        New sales are only billed when they exchange, never when you add one, and never if it falls through.
+        We only bill outsourced sales, and only when they exchange, never when you add one, and never if a sale falls through.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 28 }}>
@@ -401,7 +401,7 @@ function CardStep({
         Add your card
       </h2>
       <p style={{ margin: "8px 0 20px", fontSize: 13, lineHeight: 1.55, color: "#6b7280" }}>
-        We&apos;ll only charge it when a sale exchanges. Saved securely with Stripe.
+        We&apos;ll only charge it when an outsourced sale exchanges. Saved securely with Stripe.
       </p>
 
       <CardCaptureForm publishableKey={publishableKey} onSuccess={onSaved} />
@@ -478,7 +478,7 @@ function SuccessStep({
       <p style={{ margin: "10px auto 0", fontSize: 14, lineHeight: 1.55, color: "#4b5563", maxWidth: 360 }}>
         {source === "new-sale"
           ? "Taking you to the new sale form…"
-          : <>Your card is saved. We&apos;ll only charge it when a sale exchanges.</>}
+          : <>Your card is saved. We&apos;ll only charge it when an outsourced sale exchanges.</>}
       </p>
 
       {/* Close button only on hub source: gives manual escape from the

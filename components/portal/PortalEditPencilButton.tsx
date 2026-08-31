@@ -13,6 +13,7 @@ export function PortalEditPencilButton({ config, label }: { config: EditDrawerCo
       type="button"
       aria-label={label}
       onClick={() => window.dispatchEvent(new CustomEvent("portal:open-edit-drawer", { detail: config }))}
+      className="pbtn-press"
       style={{
         background: "none", border: "none", padding: 4, cursor: "pointer",
         color: "var(--portal-textMuted, #8B91A3)", display: "inline-flex",

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { commandDb } from "@/lib/command/prisma";
 import { modeProfileScope, type CommandMode } from "@/lib/command/scope";
 import { eventLabel } from "@/lib/command/event-labels";
+import { computeFee } from "@/lib/billing/fee";
 
 // Command Centre → Repeat use. The retention-specific data: are people coming
 // back, how often, and WHO is drifting away. Every section here honours the
@@ -183,6 +184,57 @@ export async function getTransactionRetention(mode: CommandMode, agencyIds: stri
   }
 
   return { starters, milestones, timeToSecond, recentSecond };
+}
+
+// ── Free-model signals (pricing migration 2026-08) ────────────────────────────
+// The two numbers the free model needs: what the first-outsourced-free giveaway
+// is costing, and how many free self-progress agencies go on to outsource. The
+// £59-era "trial value" metric no longer describes any of this.
+
+export type FreeModelSignals = {
+  firstFreeCount: number;        // first-outsourced-free files given
+  firstFreeValuePence: number;   // what they would have billed (giveaway cost)
+  selfProgressAgencies: number;  // agencies with >= 1 self-progress sale
+  convertedToOutsourced: number; // of those, how many also have an outsourced sale
+  conversionPct: number | null;  // convertedToOutsourced / selfProgressAgencies
+};
+
+export async function getFreeModelSignals(mode: CommandMode, agencyIds: string[]): Promise<FreeModelSignals> {
+  const scopeIds = await scopeAgencyIds(mode, agencyIds);
+  const empty: FreeModelSignals = {
+    firstFreeCount: 0, firstFreeValuePence: 0, selfProgressAgencies: 0, convertedToOutsourced: 0, conversionPct: null,
+  };
+  if (scopeIds.length === 0) return empty;
+
+  const txs = await commandDb.propertyTransaction.findMany({
+    where: { agencyId: { in: scopeIds }, status: { not: "draft" }, isMigrated: false, isDemo: false },
+    select: { agencyId: true, serviceType: true, firstOutsourcedFree: true, priceAtExchange: true },
+  });
+
+  // First-outsourced-free giveaway cost (what those files would have billed).
+  let firstFreeCount = 0;
+  let firstFreeValuePence = 0;
+  // Free → outsourced conversion.
+  const hasSelf = new Set<string>();
+  const hasOutsourced = new Set<string>();
+  for (const t of txs) {
+    if (t.firstOutsourcedFree) {
+      firstFreeCount++;
+      firstFreeValuePence += computeFee("outsourced", t.priceAtExchange).totalPence;
+    }
+    if (t.serviceType === "self_managed") hasSelf.add(t.agencyId);
+    else hasOutsourced.add(t.agencyId);
+  }
+  let converted = 0;
+  for (const id of hasSelf) if (hasOutsourced.has(id)) converted++;
+
+  return {
+    firstFreeCount,
+    firstFreeValuePence,
+    selfProgressAgencies: hasSelf.size,
+    convertedToOutsourced: converted,
+    conversionPct: hasSelf.size ? Math.round((converted / hasSelf.size) * 100) : null,
+  };
 }
 
 export async function getRetention(mode: CommandMode, agencyIds: string[]): Promise<RetentionData> {

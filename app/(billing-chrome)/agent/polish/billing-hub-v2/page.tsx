@@ -204,7 +204,6 @@ export default async function BillingHubV2PolishPage({
 
       <div style={{ borderTop: HAIRLINE }} />
       <PlanTermsCollapsed
-        trialState={trialState}
         agreed={
           terms
             ? {

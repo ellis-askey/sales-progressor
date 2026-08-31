@@ -278,3 +278,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author:** Claude, 2026-08-25
 - **Deletion criteria:** delete once it has run on production.
 - **Justification:** one-off data backfill of a display string on solicitor-confirmed rows; not a feature/test/npm-script. Idempotent (only rewrites rows whose text differs).
+
+### seed-pricing-verification.ts
+- **Purpose:** one-shot Phase-1 pricing verification seed — fresh agency + 3 exchanged sales (self £0 / first outsourced free / second billed) via the real billing paths.
+- **Lifetime:** one-shot (throwaway). Staging-guarded (refuses non-staging DB).
+- **Author/date:** pricing migration, 2026-08-31.
+- **Deletion criteria:** delete the "Pricing Verification Co" agency + this script once Phase 1 is verified.

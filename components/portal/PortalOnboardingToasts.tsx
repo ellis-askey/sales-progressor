@@ -434,6 +434,7 @@ function InstallToastBody({
         <button
           type="button"
           onClick={onPrimary}
+          className="pbtn pbtn-press"
           style={{
             padding: "7px 14px",
             borderRadius: 999,
@@ -451,6 +452,7 @@ function InstallToastBody({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
+          className="pbtn pbtn-press"
           style={{
             width: 30, height: 30, borderRadius: 999,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -540,6 +542,7 @@ function PushToastBody({
           type="button"
           onClick={onEnable}
           disabled={status === "asking"}
+          className="pbtn pbtn-press"
           style={{
             padding: "7px 14px",
             borderRadius: 999,
@@ -566,6 +569,7 @@ function DismissBtn({ onClick, tone }: { onClick: () => void; tone: "light" | "d
       type="button"
       onClick={onClick}
       aria-label="Dismiss"
+      className="pbtn pbtn-press"
       style={{
         width: 30, height: 30, borderRadius: 999,
         display: "inline-flex", alignItems: "center", justifyContent: "center",

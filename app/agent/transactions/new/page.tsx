@@ -2,9 +2,6 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
-import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
-import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
-import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 
@@ -12,73 +9,16 @@ import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 // chain and takes ~10s, so give this route generous headroom over the default.
 export const maxDuration = 60;
 
-// 14 days, same window used by stampTrialState to decide freeOnExchange.
-// Past this point new sales cost money; if no card is on file the
-// director hits the trial-expired modal instead of the form.
-const TRIAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
 export default async function AgentNewSaleV2Page() {
   const session = await requireSession();
 
-  // Trial-expired gate. Only blocks directors. Negotiators never set up
-  // billing (they get BillingNegotiatorModal via the dropdown route).
-  // Internal staff (admin / SP) bypass entirely. The modal renders in
-  // place of the form so the page only fetches data the modal needs.
-  if (session.user.role === "director" && session.user.agencyId) {
-    const agency = await prisma.agency.findUnique({
-      where: { id: session.user.agencyId },
-      select: {
-        firstSubmissionAt: true,
-        stripeCustomerId: true,
-        feeTier: true,
-        legacyOutsourcedFeePence: true,
-      },
-    });
-    // Legacy agencies don't get a 14-day trial — they're on a fixed fee
-    // per their pre-existing contract and should be on billing from sale 1.
-    // For them the gate fires immediately on no-card. Standard-tier
-    // agencies keep the 14-day onboarding runway.
-    const isLegacy = agency?.feeTier === "legacy";
-    const noCard = agency && !agency.stripeCustomerId;
-    const trialElapsed =
-      !!agency?.firstSubmissionAt &&
-      Date.now() - agency.firstSubmissionAt.getTime() >= TRIAL_WINDOW_MS;
-    if (agency && noCard && (isLegacy || trialElapsed)) {
-      // Server component — reads the unprefixed key (matches lib/stripe.ts
-      // + the settings billing page + the Vercel env var the founder set
-      // up). The earlier NEXT_PUBLIC_ variant drifted from that
-      // convention and resolved to "" at runtime, tripping
-      // CardCaptureForm's empty-key guard.
-      const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
-      // Pre-resolve pricing-terms state so the modal can render the
-      // terms step inline before CardCaptureForm tries to fetch the
-      // SetupIntent (which would 409 with "Pricing terms not yet
-      // acknowledged" otherwise).
-      const activeTerms = await getActiveTermsVersion();
-      const termsAcknowledged = activeTerms
-        ? await hasAcknowledged(session.user.agencyId, activeTerms.id)
-        : false;
-      // Legacy agencies see their fixed fee in the Charges section instead
-      // of the public sliding scale. No-op for sliding tier.
-      const sections = applyAgencyTermsOverrides(
-        activeTerms?.sections ?? [],
-        agency,
-      );
-      return (
-        <TrialExpiredModal
-          publishableKey={publishableKey}
-          source="new-sale"
-          termsAcknowledged={termsAcknowledged}
-          termsVersionId={activeTerms?.id ?? null}
-          termsVersionTag={activeTerms?.versionTag ?? null}
-          termsSections={sections}
-        />
-      );
-    }
-  }
+  // Pricing migration (2026-08): there is no trial gate any more. Self-progress
+  // is free, so a self-progressing agency is never blocked from adding a sale.
+  // A card is needed only for billable outsourcing (beyond the free first file),
+  // and that is captured via the hub payment nudge, not by walling off this form.
 
   // Per-agency default for the "progressed by" toggle. The legacy
   // progressor-managed agencies (Meldone / Oplah / Akeman / Via) default
@@ -88,21 +28,26 @@ export default async function AgentNewSaleV2Page() {
   const agencyRow = session.user.agencyId
     ? await prisma.agency.findUnique({
         where: { id: session.user.agencyId },
-        select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true, firstSubmissionAt: true },
+        select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true },
       })
     : null;
   const defaultProgressedBy = deriveDefaultProgressedBy(
     agencyRow?.name,
     agencyRow?.modeProfile,
   );
-  // Earnings-builder fee config. withinTrial = still inside the 14-day
-  // free-outsourcing window (or no first sale yet), during which sending a
-  // sale to us costs nothing.
+  // Earnings-builder fee config. Under the 2026-08 model, sending a sale to us
+  // is free when it would be the agency's FIRST outsourced file (D3) — i.e. no
+  // prior outsourced sale has exchanged yet. (feeTier="free" comped agencies are
+  // handled inside the earnings builder via feeTier.) The prop keeps the name
+  // `withinTrial` for now; its meaning is now "your next outsourced sale is free".
   const feeTier = agencyRow?.feeTier ?? "standard";
   const legacyOutsourcedFeePence = agencyRow?.legacyOutsourcedFeePence ?? null;
-  const withinTrial =
-    !agencyRow?.firstSubmissionAt ||
-    Date.now() - agencyRow.firstSubmissionAt.getTime() < TRIAL_WINDOW_MS;
+  const priorExchangedOutsourced = session.user.agencyId
+    ? await prisma.propertyTransaction.count({
+        where: { agencyId: session.user.agencyId, serviceType: "outsourced", exchangedAt: { not: null }, isMigrated: false },
+      })
+    : 0;
+  const withinTrial = priorExchangedOutsourced === 0;
 
   // Portal-invite prompt is a one-shot: only shown on the agent's very
   // first ADDED sale AND only until they've clicked "I won't be using the

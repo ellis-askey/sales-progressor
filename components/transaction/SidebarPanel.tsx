@@ -39,6 +39,7 @@ type SidebarTransaction = {
   lastActivityAt?: Date | null;
   serviceType: "self_managed" | "outsourced" | null;
   freeOnExchange?: boolean | null;
+  firstOutsourcedFree?: boolean | null;
   agentFeeAmount: number | null;
   agentFeePercent: number | null;
   agentFeeIsVatInclusive: boolean | null;
@@ -332,6 +333,7 @@ export async function SidebarPanel({
         brokerFirmName: brokerRow?.brokerFirm?.name ?? null,
         serviceType: transaction.serviceType ?? null,
         freeOnExchange: transaction.freeOnExchange ?? null,
+        firstOutsourcedFree: transaction.firstOutsourcedFree ?? null,
       }}
       recommendedFirms={recommendedFirms}
       checkIn={{

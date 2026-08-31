@@ -116,6 +116,7 @@ export function PortalFollowupButton({
   const sheet = open ? (
     <div
       onClick={() => setOpen(false)}
+      className="portal-sheet-backdrop"
       style={{
         position: "fixed",
         inset: 0,
@@ -130,6 +131,7 @@ export function PortalFollowupButton({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="portal-sheet"
         style={{
           width: "100%",
           maxWidth: 480,

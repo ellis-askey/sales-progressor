@@ -38,7 +38,7 @@ export function PortalMessageCompose({ token }: { token: string }) {
 
       <div className="px-5 py-4">
         {sent ? (
-          <div className="flex items-center gap-2.5 py-3 px-4 rounded-xl" style={{ background: P.successBg }}>
+          <div className="portal-reveal-fade flex items-center gap-2.5 py-3 px-4 rounded-xl" style={{ background: P.successBg }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
@@ -62,12 +62,12 @@ export function PortalMessageCompose({ token }: { token: string }) {
               }}
             />
             {error && (
-              <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>
+              <p className="portal-reveal-fade text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>
             )}
             <button
               onClick={send}
               disabled={isPending || !content.trim()}
-              className="mt-3 w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 transition-opacity"
+              className="pbtn pbtn-primary mt-3 w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 transition-opacity"
               style={{ background: P.primary }}
             >
               {isPending ? (

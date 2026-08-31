@@ -42,10 +42,10 @@ export function parseTermsSections(value: unknown): TermsSection[] {
  * not a scale that doesn't apply to them.
  *
  * Contract:
- *   - identifies the Charges section by exact heading match. v3 and v4 both
- *     use "Charges"; if v5 renames the heading the override will no-op and
- *     legacy agents would see the canonical scale again — easy to catch in v5
- *     review.
+ *   - identifies the Charges section by exact heading match. v3, v4 and v5 all
+ *     use "Charges"; if a future version renames the heading the override will
+ *     no-op and legacy agents would see the canonical scale again — easy to
+ *     catch at version review.
  *   - defensive no-op when agency is null, feeTier is "standard", or
  *     legacyOutsourcedFeePence is null (admin error case — render canonical
  *     rather than £NaN).
@@ -69,17 +69,20 @@ export function applyAgencyTermsOverrides(
     if (s.heading === "Charges") {
       return {
         ...s,
-        body: `Fees are charged per sale and only on exchange of that sale. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee is a fixed ${fixedFee} per sale, regardless of the agreed sale price at exchange.`,
+        body: `Fees apply only to sales you pass to our team to progress, and only on exchange of that sale. Sales you progress yourself are free, at every stage, with no charge on exchange. For a sale you pass to our team, the fee is a fixed ${fixedFee} per sale, regardless of the agreed sale price at exchange.`,
       };
     }
-    // Legacy agencies do not get the 14-day free trial — they are
-    // billable from sale 1 per their pre-existing contract. The
-    // canonical "Free trial period" wording is misleading for them, so
-    // we replace the body with a one-liner that's truthful for their tier.
-    if (s.heading === "Free trial period") {
+    // Legacy agencies are grandfathered on their fixed outsourced fee and,
+    // unlike sliding-tier agencies, do NOT get a free first outsourced file —
+    // they are billable from their first outsourced sale per their pre-existing
+    // contract. Self-progress is free for them too. The canonical "Free sales"
+    // wording (which promises a free first outsourced file) is misleading for
+    // them, so we replace the body with a one-liner that's truthful for their
+    // tier.
+    if (s.heading === "Free sales") {
       return {
         ...s,
-        body: "This agency is on a fixed-fee tier and is not part of the 14-day free trial. Fees apply from your first sale.",
+        body: "This agency is on a fixed-fee tier. Sales you progress yourself are free; outsourced sales are charged at the fixed fee from the first sale.",
       };
     }
     return s;

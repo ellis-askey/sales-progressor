@@ -63,7 +63,7 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   const text = [
     `Hi ${firstName},`,
     ``,
-    `Your account is ready. Add your first sale to start using the platform. You only pay when it exchanges.`,
+    `Your account is ready. Add your first sale to start using the platform. Self-progress is free, and if you'd like us to run a sale for you, your first outsourced one is on us.`,
     ``,
     `Add a sale: ${ctaUrl}`,
     ``,
@@ -74,7 +74,7 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
 
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your account is ready. Add your first sale to start using the platform. You only pay when it exchanges.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your account is ready. Add your first sale to start using the platform. Self-progress is free, and if you'd like us to run a sale for you, your first outsourced one is on us.</p>`,
     ctaUrl ? ctaButton("Add a sale →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you need a hand getting set up.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Sales Progressor</p>`,
@@ -118,7 +118,7 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Open your sale: ${ctaUrl}`,
     ``,
-    `This sale is free because it came in through the chain. Any sale you add in the next 14 days is also free, through to exchange. After that, you only pay when a sale exchanges.`,
+    `This sale is free because it came in through the chain. Every sale you progress yourself is free. If you'd like us to run one for you, your first outsourced sale is on us.`,
     ``,
     `The account is yours to keep. Run every sale you handle the same way: each step tracked, clients in the loop without you chasing or being chased.`,
     ``,
@@ -132,7 +132,7 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${openingSentence}</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Open the file and you'll see your sale moving alongside the connected sales: where each is up to, what's holding things up, when exchange is likely.</p>`,
     ctaUrl ? ctaButton("Open your sale →", ctaUrl) : "",
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">This sale is free because it came in through the chain. Any sale you add in the next 14 days is also free, through to exchange. After that, you only pay when a sale exchanges.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">This sale is free because it came in through the chain. Every sale you progress yourself is free. If you'd like us to run one for you, your first outsourced sale is on us.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The account is yours to keep. Run every sale you handle the same way: each step tracked, clients in the loop without you chasing or being chased.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply if you'd like a hand getting started.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Sales Progressor</p>`,
@@ -193,7 +193,7 @@ export function buildFirstExchange(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Contracts have exchanged on ${address}, your first sale through Sales Progressor.`,
     ``,
-    `An invoice for £59 will follow shortly.`,
+    `Nothing to pay for this one.`,
     ``,
     `View the file: ${ctaUrl}`,
     ``,
@@ -203,7 +203,7 @@ export function buildFirstExchange(vars: TemplateVars): RetentionEmailResult {
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Contracts have exchanged on ${address}, your first sale through Sales Progressor.</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">An invoice for £59 will follow shortly.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Nothing to pay for this one.</p>`,
     ctaUrl ? ctaButton("View the file →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Sales Progressor</p>`,
   ].join("");

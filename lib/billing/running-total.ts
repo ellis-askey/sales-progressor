@@ -96,6 +96,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       serviceType: true,
       priceAtExchange: true,
       billedAtExchange: true,
+      firstOutsourcedFree: true,
     },
     orderBy: { billedAtExchange: "asc" },
   });
@@ -109,9 +110,16 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
 
   for (const r of rows) {
     const fee = computeFee(r.serviceType, r.priceAtExchange, vat, feeOverride);
-    totalPence += fee.totalPence;
-    subtotalPence += fee.amountPence;
-    vatPence += fee.vatPence;
+    // First outsourced file free (D3/D4): bills its band but nets to £0 with a
+    // clear "first file free" label, matching the durable invoice. Keeps the
+    // live director total correct regardless of whether the accrual cron has run.
+    const firstFree = r.firstOutsourcedFree;
+    const amountPence = firstFree ? 0 : fee.amountPence;
+    const vatPence_ = firstFree ? 0 : fee.vatPence;
+    const totalPence_ = firstFree ? 0 : fee.totalPence;
+    totalPence += totalPence_;
+    subtotalPence += amountPence;
+    vatPence += vatPence_;
     if (fee.kind === "in_house_fee") inHouseCount++;
     else outsourcedCount++;
     lines.push({
@@ -119,11 +127,11 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       propertyAddress: r.propertyAddress,
       exchangedAt: r.billedAtExchange!, // non-null per WHERE clause
       kind: fee.kind,
-      bandLabel: fee.bandLabel,
+      bandLabel: firstFree ? "Outsourced — first file free" : fee.bandLabel,
       priceAtExchangePence: r.priceAtExchange,
-      amountPence: fee.amountPence,
-      vatPence: fee.vatPence,
-      totalPence: fee.totalPence,
+      amountPence,
+      vatPence: vatPence_,
+      totalPence: totalPence_,
     });
   }
 

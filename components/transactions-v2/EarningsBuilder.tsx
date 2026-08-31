@@ -3,8 +3,9 @@
 // Right-column earnings builder on the New Sale form. A live "what this file is
 // worth" calculator: agent commission (editable here) + solicitor / broker
 // referral income − progression cost (self-progress = free, sent-to-us = our
-// outsourced fee, which is free during the 14-day trial and for free-plan
-// agencies). Same net logic as the property-file Fees card — reuses
+// outsourced fee, which is free for the agency's first outsourced sale — the
+// `withinTrial` prop now carries that "first outsourced free" meaning — and for
+// free-plan agencies). Same net logic as the property-file Fees card — reuses
 // calculateOurFee from lib/services/fees. A compact "what we'll track"
 // milestone preview is tucked at the bottom.
 
@@ -82,7 +83,7 @@ export function EarningsBuilder({
   const brokRef = fields.brokerReferralFee ?? 0;
 
   // ── Progression cost ── self-progress = free; sent-to-us = our fee, but free
-  // during the trial and for free-plan agencies (mirrors the property file).
+  // for the first outsourced sale and for free-plan agencies (mirrors the file).
   const outsourced = fields.progressedBy === "progressor";
   const chargeable = outsourced && !withinTrial && feeTier !== "free";
   const progressionCost = chargeable

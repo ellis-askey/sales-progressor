@@ -99,7 +99,7 @@ export function OutsourceIntakeForm() {
         >
           {loading ? "Sending…" : "Hand it over"}
         </button>
-        <p style={{ margin: 0, fontSize: 12, color: A.textMuted, textAlign: "center" }}>£250 per sale. Nothing to pay unless it exchanges.</p>
+        <p style={{ margin: 0, fontSize: 12, color: A.textMuted, textAlign: "center" }}>First sale free, then £250 to £350. Nothing to pay unless it exchanges.</p>
       </form>
     </>
   );

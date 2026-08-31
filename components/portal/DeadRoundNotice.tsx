@@ -20,6 +20,7 @@ export function DeadRoundNotice({
 }) {
   return (
     <div
+      className="portal-fade-in"
       style={{
         maxWidth: 480,
         margin: "10vh auto",

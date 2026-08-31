@@ -8,6 +8,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
+import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { recordEvent } from "@/lib/command/events/write";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -916,6 +917,13 @@ export async function createTransaction(input: CreateTransactionInput) {
       agentUserId: input.agentUserId ?? null,
       progressedBy: input.progressedBy ?? "progressor",
       serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",
+      // Pricing migration (2026-08): a self-run sale is free by type; an
+      // outsourced sale bills unless it turns out to be the agency's free first
+      // one (decided at exchange, not here). Demo files are never billed and
+      // stay unlabelled. pricingVersion freezes the rules this sale was made
+      // under so a future reprice never touches it.
+      freeReason: !input.isDemo && (input.progressedBy ?? "progressor") === "agent" ? "permanent_free_self" : null,
+      pricingVersion: CURRENT_PRICING_VERSION,
       // When it becomes outsourced, stamp the SP waiting clock. Anchored to
       // createdAt (like assignedAt) so backdated files measure from the right moment.
       outsourcedAt: (input.progressedBy ?? "progressor") === "agent" ? null : (input.createdAt ?? new Date()),

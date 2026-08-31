@@ -18,7 +18,10 @@
 
 import type { ClientType, ServiceType } from "@prisma/client";
 
-const IN_HOUSE_FEE_PENCE = 5900;   // £59 inclusive (NOT VAT-registered today)
+// Self-progress is free under the 2026-08 model (was £59 inclusive). A sale an
+// agency runs itself is never charged — decided by service type below, not the
+// frozen freeOnExchange stamp. The £59 self fee is retired; historical invoice
+// lines keep their frozen amounts and are never recomputed.
 const OUTSOURCED_BAND_LOW_PENCE   = 25000; // £250 (price ≤ £349,999)
 const OUTSOURCED_BAND_MID_PENCE   = 30000; // £300 (£350,000–£499,999)
 const OUTSOURCED_BAND_HIGH_PENCE  = 35000; // £350 (≥ £500,000)
@@ -67,7 +70,10 @@ function grossFee(
   agencyOverride: AgencyFeeOverride,
 ): { totalPence: number; kind: FeeKind; bandLabel: string } {
   if (serviceType === "self_managed") {
-    return { totalPence: IN_HOUSE_FEE_PENCE, kind: "in_house_fee", bandLabel: "In-house file" };
+    // Self-progress is free. Kept as a real £0 branch so every computeFee
+    // caller — billing accrual, the live running total, and revenue reporting
+    // — values a self-managed file at zero rather than the old £59.
+    return { totalPence: 0, kind: "in_house_fee", bandLabel: "Self-progress (free)" };
   }
   // Outsourced. Per-agency legacy override wins when configured — the agency
   // pays a flat fee regardless of sale price. Self-managed (£59) is

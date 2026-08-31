@@ -297,7 +297,7 @@ export function PortalEditDrawer({
                     <Pill on={f.tenure === "leasehold"} onClick={() => setF((p) => ({ ...p, tenure: "leasehold" }))}>Leasehold</Pill>
                   </PillGroup>
                   {f.tenure === "leasehold" && (
-                    <label className="flex items-center gap-2 mb-3 text-[13px]" style={{ color: P.textSecondary }}>
+                    <label className="flex items-center gap-2 mb-3 text-[13px] portal-reveal-fade" style={{ color: P.textSecondary }}>
                       <input type="checkbox" checked={f.shareOfFreehold === "1"} onChange={(e) => setF((p) => ({ ...p, shareOfFreehold: e.target.checked ? "1" : "" }))} />
                       Share of freehold
                     </label>
@@ -313,7 +313,7 @@ export function PortalEditDrawer({
                 </>
               )}
 
-              {error && <p className="text-[12px] mt-1" style={{ color: P.warning }}>{error}</p>}
+              {error && <p className="text-[12px] mt-1 portal-reveal-fade" style={{ color: P.warning }}>{error}</p>}
             </>
           )}
         </div>
@@ -323,7 +323,7 @@ export function PortalEditDrawer({
           <button
             type="button"
             onClick={() => { if (!busy) onClose(); }}
-            className="w-full mt-1.5 py-2.5 text-[15px] font-medium rounded-xl"
+            className="w-full mt-1.5 py-2.5 text-[15px] font-medium rounded-xl pbtn-press"
             style={{ color: P.textSecondary, background: "none", border: "none", cursor: "pointer" }}
           >
             Cancel
@@ -359,7 +359,7 @@ function LabeledInput({
         className="w-full rounded-xl text-[15px]"
         style={{ padding: "10px 12px", border: `1px solid ${error ? "#EF4444" : P.border}`, background: P.pageBg, color: P.textPrimary }}
       />
-      {error && <p className="text-[11px] mt-1" style={{ color: "#EF4444" }}>{error}</p>}
+      {error && <p className="text-[11px] mt-1 portal-reveal-fade" style={{ color: "#EF4444" }}>{error}</p>}
     </div>
   );
 }
@@ -381,6 +381,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button
       type="button"
       onClick={onClick}
+      className="portal-pill pbtn-press"
       style={{
         fontSize: 13, padding: "7px 13px", borderRadius: 999, cursor: "pointer",
         border: on ? `1px solid ${P.primary}` : `1px solid ${P.border}`,

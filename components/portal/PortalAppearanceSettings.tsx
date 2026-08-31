@@ -87,6 +87,7 @@ export function PortalAppearanceSettings() {
                   onClick={() => update({ accent: a.id === "coral" ? null : a.hex })}
                   aria-label={a.label}
                   title={a.label}
+                  className="pbtn-press"
                   style={{
                     width: 30,
                     height: 30,
@@ -154,6 +155,7 @@ function Segmented({
               key={v}
               type="button"
               onClick={() => onChange(v)}
+              className="pbtn-press"
               style={{
                 border: "none",
                 cursor: "pointer",

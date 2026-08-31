@@ -8,6 +8,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction } from "@/lib/services/transactions";
+import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2 } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
@@ -1606,10 +1607,20 @@ export async function promoteDraftAction(
 
   const draft = await prisma.propertyTransaction.findFirst({
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
-    // notes feeds the sale-setup note write-through below.
-    select: { id: true, activeBuyerRoundId: true, notes: true, agencyId: true },
+    // notes feeds the sale-setup note write-through below; serviceType resolves
+    // the free label when the promotion doesn't itself change progressedBy.
+    select: { id: true, activeBuyerRoundId: true, notes: true, agencyId: true, serviceType: true },
   });
   if (!draft) throw new Error("Draft not found");
+
+  // Pricing migration (2026-08): the sale goes live here. Resolve its final
+  // service type (the promotion may or may not change progressedBy) and label
+  // a self-run sale as free by type; an outsourced sale stays unlabelled until
+  // its exchange-time first-free decision.
+  const finalServiceType = data.progressedBy
+    ? (data.progressedBy === "agent" ? "self_managed" : "outsourced")
+    : draft.serviceType;
+  const promotedFreeReason = finalServiceType === "self_managed" ? "permanent_free_self" : null;
 
   // Defensive Round-1 backfill for drafts that pre-date the
   // saveDraftAction wiring (Phase 1 follow-up commit). Idempotent —
@@ -1662,6 +1673,8 @@ export async function promoteDraftAction(
       purchaseType: data.purchaseType,
       purchasePrice: data.purchasePrice,
       status: "active",
+      freeReason: promotedFreeReason,
+      pricingVersion: CURRENT_PRICING_VERSION,
       ...(data.progressedBy ? {
         progressedBy: data.progressedBy,
         serviceType: data.progressedBy === "progressor" ? "outsourced" : "self_managed",

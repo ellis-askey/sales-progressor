@@ -87,8 +87,9 @@ export function AgencyFeeManager({
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">Agency fees</h2>
           <p className="text-[12px] text-neutral-500 mt-1 max-w-2xl leading-relaxed">
-            Per-agency override. Self-managed is £59 unless the agency is set to free. Standard agencies
-            use the sliding scale: under £350k → £250, £350k&ndash;£499k → £300, £500k+ → £350.
+            Per-agency override for outsourced pricing. Self-progress is free for everyone. Standard agencies
+            use the outsourced sliding scale: under £350k → £250, £350k&ndash;£499k → £300, £500k+ → £350. &ldquo;Free&rdquo; comps
+            an agency&apos;s outsourced files too.
           </p>
         </div>
         <div className="text-[11px] text-neutral-500 text-right shrink-0 tabular-nums">

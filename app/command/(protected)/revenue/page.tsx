@@ -131,7 +131,7 @@ export default async function RevenuePage({
             title="Pipeline by service type"
             rows={[
               { label: "Outsourced", pence: data.breakdown.pipelineByServiceType.outsourcedPence, color: "#3b82f6" },
-              { label: "In-house (£59)", pence: data.breakdown.pipelineByServiceType.inHousePence, color: "#8b9dff" },
+              { label: "Self-progress (free)", pence: data.breakdown.pipelineByServiceType.inHousePence, color: "#8b9dff" },
             ]}
           />
           <BreakdownCard
@@ -153,7 +153,7 @@ export default async function RevenuePage({
             title="Banked this month by service type"
             rows={[
               { label: "Outsourced", pence: data.breakdown.bankedByServiceType.outsourcedPence, color: "#10b981" },
-              { label: "In-house (£59)", pence: data.breakdown.bankedByServiceType.inHousePence, color: "#6ee7b7" },
+              { label: "Self-progress (free)", pence: data.breakdown.bankedByServiceType.inHousePence, color: "#6ee7b7" },
             ]}
           />
         </div>
@@ -394,7 +394,7 @@ function PerAgencyTable({ rows }: { rows: AgencyRevenueRow[] }) {
               <td className="px-3 py-3 text-right text-xs tabular-nums">
                 {r.feeTier === "legacy" && r.legacyOutsourcedFeePence != null
                   ? <span className="text-amber-300 font-semibold">{formatGBP(r.legacyOutsourcedFeePence)}</span>
-                  : <span className="text-neutral-500">£59 / 250–350</span>}
+                  : <span className="text-neutral-500">Free / £250–350</span>}
               </td>
               <td className="px-3 py-3 text-right text-xs tabular-nums text-neutral-400">{r.activeFileCount || "—"}</td>
               <td className="px-3 py-3 text-right text-xs tabular-nums text-neutral-200">
@@ -549,7 +549,7 @@ function FeeLegend({ legacyAgencies }: { legacyAgencies: LegacyAgencyRef[] }) {
         <div>
           <p className="text-[11px] font-semibold text-neutral-300 uppercase tracking-wider mb-2">Standard pricing</p>
           <ul className="space-y-1 text-neutral-400">
-            <li>Self-managed (in-house) <span className="text-neutral-200 tabular-nums">£59</span> inclusive per exchange</li>
+            <li>Self-progress <span className="text-emerald-300">free</span> (never billed on exchange)</li>
             <li>Outsourced &le; £349,999 <span className="text-neutral-200 tabular-nums">£250</span></li>
             <li>Outsourced £350k–£499,999 <span className="text-neutral-200 tabular-nums">£300</span></li>
             <li>Outsourced &ge; £500,000 <span className="text-neutral-200 tabular-nums">£350</span></li>
@@ -573,7 +573,7 @@ function FeeLegend({ legacyAgencies }: { legacyAgencies: LegacyAgencyRef[] }) {
       </div>
       <p className="mt-4 pt-3 border-t border-neutral-800 text-[11px] text-neutral-600 leading-relaxed">
         VAT: not registered today. When <code className="text-neutral-500">Agency.vatRegisteredAt</code> flips, invoices split into ex-VAT + 20% VAT.
-        Trial: an agency&apos;s first file within 7 days of <code className="text-neutral-500">firstSubmissionAt</code> exchanges free.
+        Free: self-progress never bills; each agency&apos;s first outsourced file to exchange is free (<code className="text-neutral-500">firstOutsourcedFree</code>).
         All numbers in this view exclude internal/demo agencies.
       </p>
     </div>

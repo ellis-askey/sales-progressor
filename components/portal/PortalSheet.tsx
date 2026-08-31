@@ -98,7 +98,7 @@ export function PortalSheet({
         {showClose && (
           <button
             onClick={dismiss}
-            className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
+            className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center pbtn-press"
             style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
             aria-label="Close"
           >

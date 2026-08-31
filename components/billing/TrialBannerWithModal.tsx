@@ -53,10 +53,10 @@ export function TrialBannerWithModal({
       >
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600, fontSize: 14, color: "var(--agent-text-primary, #111827)" }}>
-            Set up billing
+            Add a card for your outsourced sales
           </div>
           <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 3, lineHeight: 1.5 }}>
-            Your trial has ended. Add a card to keep adding sales. We&apos;ll only charge your account on exchange.
+            You&apos;ve sent sales to us to progress. Add a card so we can bill those on exchange. The sales you run yourself stay free.
           </div>
         </div>
         <button

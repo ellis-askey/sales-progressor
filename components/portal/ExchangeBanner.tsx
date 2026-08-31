@@ -180,11 +180,11 @@ export function ExchangeBanner({ token, completionDate, exchangeDate, photoUrl }
           )}
           <Link
             href={`/portal/${token}/exchange`}
-            className="pbtn pbtn-press flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
+            className="pbtn pbtn-press portal-chev flex items-center justify-center gap-2 flex-1 py-3 rounded-xl text-[14px] font-bold"
             style={{ background: P.glassSoft, color: P.textPrimary, border: `0.5px solid ${P.border}` }}
           >
             Exchange guide
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="portal-chev-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
           </Link>
@@ -243,7 +243,7 @@ export function CompletionBanner({ token, saleWord, completionDate, photoUrl }: 
         )}
         <Link
           href={`/portal/${token}/complete`}
-          className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
+          className="pbtn pbtn-press mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
           style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
         >
           View your completion guide

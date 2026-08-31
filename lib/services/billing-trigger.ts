@@ -43,7 +43,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true, isDemo: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -59,12 +59,61 @@ export async function maybeStampExchange(
   // downstream billing reader safe — a demo never gets billedAtExchange set).
   if (txn.isDemo) return;
 
+  // 2b. Self-progress is free (2026-08 model). A sale the agency runs itself
+  // exchanges but is never billed — decided here by service type, so it holds
+  // regardless of the frozen freeOnExchange stamp (which pre-dates this model).
+  if (txn.serviceType === "self_managed") return;
+
   // 2. Trial files exchange but don't bill
   if (txn.freeOnExchange) return;
 
-  // 3 + 4. Snapshot purchasePrice and stamp billing — race-safe and bilateral-
-  // safe via NULL guard. Second call (bilateral partner OR concurrent fire)
-  // matches 0 rows and writes nothing.
+  // 3. First outsourced file free (D3/D4/D5). The agency's FIRST outsourced
+  //    file to reach exchange is on us; agencies that have already exchanged an
+  //    outsourced file are grandfathered out (D3, new agencies only). Recorded
+  //    as a normal bill PLUS a full-value CreditNote (D4) so the invoice shows
+  //    "£X · first file free −£X = £0" — visible, not a silent zero. Consumed
+  //    once, at exchange, and exchange is final (D5).
+  //
+  //    Concurrency: the count check is safe at current (pre-launch) scale — two
+  //    outsourced files for the SAME agency exchanging in the same instant is
+  //    the only race, and cannot happen yet. A DB-level guard (advisory lock on
+  //    agencyId, so it never throws inside this shared exchange transaction) is
+  //    the hardening before real volume — see the build log's deferred items.
+  //
+  //    Representation: the file gets billedAtExchange + priceAtExchange + the
+  //    firstOutsourcedFree flag stamped. The £0 net and the visible "first file
+  //    free" line are rendered from that flag by accrual and the running total
+  //    (they zero the band fee for a flagged file), so no CreditNote is needed
+  //    and nothing double-counts. The giveaway's value stays recoverable from
+  //    freeReason + priceAtExchange for reporting.
+  if (txn.serviceType === "outsourced") {
+    const priorOutsourcedExchanged = await db.propertyTransaction.count({
+      where: {
+        agencyId: txn.agencyId,
+        id: { not: transactionId },
+        serviceType: "outsourced",
+        exchangedAt: { not: null },
+        isMigrated: false,
+      },
+    });
+    if (priorOutsourcedExchanged === 0) {
+      // Bilateral-safe via the NULL guard: the second fire matches 0 rows.
+      await db.propertyTransaction.updateMany({
+        where: { id: transactionId, billedAtExchange: null },
+        data: {
+          firstOutsourcedFree: true,
+          freeReason: "first_outsourced_free",
+          billedAtExchange: now,
+          priceAtExchange: txn.purchasePrice,
+        },
+      });
+      return;
+    }
+  }
+
+  // 4. Bill normally. Snapshot purchasePrice and stamp billing — race-safe and
+  // bilateral-safe via NULL guard. Second call (bilateral partner OR concurrent
+  // fire) matches 0 rows and writes nothing.
   await db.propertyTransaction.updateMany({
     where: {
       id: transactionId,

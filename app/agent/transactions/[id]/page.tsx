@@ -358,6 +358,7 @@ export default async function AgentTransactionDetailPage({
             lastActivityAt: transaction.lastActivityAt ?? null,
             serviceType: transaction.serviceType ?? null,
             freeOnExchange: transaction.freeOnExchange ?? null,
+            firstOutsourcedFree: transaction.firstOutsourcedFree ?? null,
             agentFeeAmount: transaction.agentFeeAmount ?? null,
             agentFeePercent: transaction.agentFeePercent ? Number(transaction.agentFeePercent) : null,
             agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,

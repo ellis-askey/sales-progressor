@@ -73,3 +73,7 @@ logs/
 # UK addresses from test fixtures; never commit. Reproduce at any
 # revision via scripts/parity-harness-mc-reads.ts.
 scripts/snapshots/
+
+# Pricing migration verification screenshots (local only)
+pricing-migration-screens/
+pricing-shoot.mjs
