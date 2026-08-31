@@ -58,6 +58,26 @@ Every code/schema/copy change gets an entry here: what changed (plain English), 
 
 ---
 
+## Phase 2 — remove the trial (in-app UI)
+
+Approved against the Phase-2 mockup artifact (billing page free-plan state, outsourcing charges with first-file-free credit, reframed card prompt, retired trial surfaces).
+
+### Increment 2A — new-sale gate removed · 2026-08-31 · staging
+
+**Plain English:** The old wall that blocked a director with no card from adding *any* new sale after the trial is gone. A self-progressing agency now always reaches the New Sale form, forever, no card. The earnings builder's "sending to us is free" flag no longer keys off a 14-day window — it's now true when it would be the agency's first outsourced sale (free first file). Card capture for billable outsourcing moves to the hub nudge (increment 2B).
+
+**Files:** `app/agent/transactions/new/page.tsx` — removed the `TrialExpiredModal` page gate + `TRIAL_WINDOW_MS` + trial-only imports; replaced the `withinTrial` window with `priorExchangedOutsourced === 0` (first-outsourced-free). Prop still named `withinTrial` (meaning repurposed; rename is a later cleanup).
+
+**Verified:** `tsc` clean.
+**Status:** staging (committed).
+
+### Increments 2B–2D — pending
+- 2B: reframe the card-capture modal/banner/nudge copy (trial-ended → "add a card to send sales to us"), and gate the nudge to outsourcing only.
+- 2C: billing hub reframe (PlanTermsCollapsed "Free" + no Trial column; MetricsStrip relabel; the free-plan billing page state).
+- 2D: signup microcopy (ClaimSignupForm) + earnings-builder comment + `lib/billing/trial-state.ts` cleanup.
+
+---
+
 ## Deferred / follow-ups
 
 - **First-outsourced-free concurrency hardening (D3a).** The "is this the first?" check is a count, safe at pre-launch scale (a same-agency simultaneous double-exchange cannot happen yet). Before real volume, add a Postgres **advisory lock on `agencyId`** at the start of the outsourced decision (never throws, so it can't poison the shared exchange transaction — unlike a unique-index violation). The `firstOutsourcedFree` column is ready for it.
