@@ -287,3 +287,12 @@ Chase drafting and problem flagging are thoughtful. But every AI invocation is a
 - **Blockchain for property records.** No.
 - **P2P agent-to-agent messaging for chains.** The portal is the right abstraction.
 - **A marketplace for agents to find solicitors.** Build the intelligence; agents will draw their own conclusions.
+
+---
+
+## Deferred from the opportunity sweep (2026-08-27)
+
+Agent / internal ideas parked here because they aren't client-portal features (so they don't belong in [`docs/active/portal-feature-ledger.md`](../active/portal-feature-ledger.md)). Unlike the vision above, these are **decisions** — "not now, with a stated trigger" — recorded so they aren't re-proposed as fresh ideas.
+
+- **Voice note → activity entry (sweep E2).** An agent records a quick voice note from their phone; it transcribes (Whisper-style) and drops into the file's comms timeline as an internal note. **Trigger:** needs a transcription API — a new third-party dependency plus a manual-setup / DPA step. Revisit when we're ready to take that on.
+- **Director agency-KPI weekly email (sweep D2).** A per-agency weekly KPI summary for a director (files closed, average time-to-exchange, fall-throughs with reasons, top solicitor firms by speed). Distinct from the existing per-agent weekly brief. **Trigger:** only useful once there's a self-managed customer agency — every current user outsources to us today.

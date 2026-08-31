@@ -50,6 +50,9 @@ Legend: ✅ Shipped · 🔜 Approved / queued · ⏸ Deferred (wanted, not now) 
 | **Mortgage-offer expiry tracker** | Capture the buyer's mortgage-offer expiry date and warn as it nears (a real completion risk). **Trigger: the client-settings work, which is coming next** — the expiry capture lands there. | 2026-08-17 |
 | **Stage-aware FAQ** | "Why is this taking so long?", "when do I pay my deposit?" as stage-scoped questions. Overlaps the deferred plain-English glossary; not distinct enough to pursue separately for now. Do not re-offer. | 2026-08-17 |
 | **Early ID / AML nudge** | Remind clients to complete ID checks with their solicitor early (a common delay). Better expressed as a normal tip card than a standalone feature; not worth a dedicated build. Do not re-offer. | 2026-08-17 |
+| **Broker / mortgage check-ins (sweep A2)** | Automated chases to the mortgage broker on mortgage milestones, reusing the shipped solicitor-chase engine narrowed to mortgage steps. Deferred; revisit once the solicitor-chase engine has bedded in. Note: this is agent-side automation, filed here as a transaction-party (broker) feature rather than a portal surface. | 2026-08-27 |
+| **Lender-chase drafts, agent-reviewed (sweep A3)** | A pre-filled draft email to the broker/lender quoting the current milestone state; the agent reviews and sends (human-in-the-loop, for sensitive parties). Deferred. Agent-side, filed here with A2. | 2026-08-27 |
+| **Completion-day memory email (sweep B5)** | Upgrade the plain completion email into a personalised "your move with us" — property photo, key dates, the agent who handled it. Sibling of the deferred weekly-progress-digest email above. Deferred. | 2026-08-27 |
 
 ## ❌ Declined (do not re-raise)
 
