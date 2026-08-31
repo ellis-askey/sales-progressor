@@ -47,6 +47,9 @@ export async function buildClientNarrative(input: {
   expectedExchangeDate: Date | null;
   overridePredictedDate: Date | null;
   completionDate: Date | null;
+  // Optional agency tone steer (Tier-2 weekly_update). Guides the draft's
+  // voice; the hard rules above always win, so it can't override compliance.
+  toneGuidance?: string | null;
 }): Promise<string | null> {
   try {
     const { vendor, purchaser } = await getMilestonesForTransaction(input.transactionId, input.agencyId);
@@ -78,7 +81,12 @@ export async function buildClientNarrative(input: {
       exchStr ? `Target exchange date on record: ${exchStr}.` : `No exchange date set yet.`,
     ].join("\n");
 
-    const narrative = (await callClaude(SYSTEM, facts, 400)).trim();
+    // Layer the agency's tone steer on top, but keep the hard rules supreme.
+    const system = input.toneGuidance && input.toneGuidance.trim()
+      ? `${SYSTEM}\n\nThe agency has asked for this tone and style: "${input.toneGuidance.trim()}". Follow it where you can, but every hard rule above takes priority and must never be broken.`
+      : SYSTEM;
+
+    const narrative = (await callClaude(system, facts, 400)).trim();
     return narrative.length > 0 ? narrative : null;
   } catch {
     return null;

@@ -177,6 +177,46 @@ export async function resolveClientChaseContent(agencyId: string | null): Promis
   return raw ? coalesceClientChase(raw) : CLIENT_CHASE_DEFAULT;
 }
 
+// ─── Weekly client update ─────────────────────────────────────────────────────
+//
+// The weekly update's body is a per-file AI narrative, so it isn't a rewritable
+// block either. An agency can set a custom subject (blank = our default), an
+// optional opening line, a tone steer that guides the AI draft (our hard voice
+// rules always win), and a custom closing line (blank = our default). All
+// optional; empty everywhere == unchanged behaviour.
+
+export type WeeklyUpdateContent = { subject: string; intro: string; toneGuidance: string; closing: string };
+
+export const WEEKLY_UPDATE_DEFAULT: WeeklyUpdateContent = { subject: "", intro: "", toneGuidance: "", closing: "" };
+
+function coalesceWeeklyUpdate(raw: unknown): WeeklyUpdateContent {
+  const c = (raw ?? {}) as Partial<WeeklyUpdateContent>;
+  return {
+    subject: typeof c.subject === "string" ? c.subject : "",
+    intro: typeof c.intro === "string" ? c.intro : "",
+    toneGuidance: typeof c.toneGuidance === "string" ? c.toneGuidance : "",
+    closing: typeof c.closing === "string" ? c.closing : "",
+  };
+}
+function validateWeeklyUpdate(raw: unknown): WeeklyUpdateContent | null {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  for (const k of ["subject", "intro", "toneGuidance", "closing"]) {
+    if (c[k] !== undefined && typeof c[k] !== "string") return null;
+  }
+  return {
+    subject: typeof c.subject === "string" ? c.subject.trim() : "",
+    intro: typeof c.intro === "string" ? c.intro.trim() : "",
+    toneGuidance: typeof c.toneGuidance === "string" ? c.toneGuidance.trim() : "",
+    closing: typeof c.closing === "string" ? c.closing.trim() : "",
+  };
+}
+
+export async function resolveWeeklyUpdateContent(agencyId: string | null): Promise<WeeklyUpdateContent> {
+  if (!agencyId) return WEEKLY_UPDATE_DEFAULT;
+  const raw = await getRow(agencyId, "weekly_update", "default");
+  return raw ? coalesceWeeklyUpdate(raw) : WEEKLY_UPDATE_DEFAULT;
+}
+
 // ─── Generic storage ──────────────────────────────────────────────────────────
 
 async function getRow(agencyId: string, templateKey: string, variant: string): Promise<unknown | null> {
@@ -236,6 +276,12 @@ export const TEMPLATE_FAMILIES: Record<string, FamilyDef> = {
     defaultFor: () => CLIENT_CHASE_DEFAULT,
     coalesce: (_v, raw) => coalesceClientChase(raw),
     validate: (_v, raw) => validateClientChase(raw),
+  },
+  weekly_update: {
+    variants: ["default"],
+    defaultFor: () => WEEKLY_UPDATE_DEFAULT,
+    coalesce: (_v, raw) => coalesceWeeklyUpdate(raw),
+    validate: (_v, raw) => validateWeeklyUpdate(raw),
   },
 };
 
