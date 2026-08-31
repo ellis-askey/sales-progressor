@@ -108,6 +108,13 @@ const SECTIONS: PolicySection[] = [
           and their agency. We are not responsible for the content of messages composed and sent by
           platform users.
         </p>
+        <p>
+          If you choose to connect an email mailbox, we may access and store emails relating to your
+          sales against the relevant transaction and send emails from your address on your behalf.
+          Connecting your mailbox is optional, and you can disconnect it at any time. Further
+          information about how we handle this data is set out in our{" "}
+          <Link href="/privacy">Privacy Policy</Link>.
+        </p>
       </>
     ),
   },
@@ -136,6 +143,11 @@ const SECTIONS: PolicySection[] = [
           postcodes, sale prices, email addresses, phone numbers, internal notes, or the content of
           any previous message. Anthropic processes this data under their commercial API terms and{" "}
           <strong>does not use it to train their models</strong>.
+        </p>
+        <p>
+          Where you connect an email mailbox, we may use AI to interpret emails relating to a sale
+          and suggest relevant updates to the transaction. These suggestions are provided for review
+          and are not applied automatically.
         </p>
       </>
     ),
@@ -275,8 +287,8 @@ export default function TermsPage() {
     <PolicyShell
       title="Terms of Service"
       description="The contract between you (or your agency) and us."
-      lastUpdated="25 May 2026"
-      version="1.0"
+      lastUpdated="31 August 2026"
+      version="1.1"
       sections={SECTIONS}
     />
   );
