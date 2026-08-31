@@ -1,14 +1,13 @@
 // GET /api/agent/email-templates/resolve?templateKey=&variant=
 //
 // Returns the effective Tier-2 email copy for this agency (their own version if
-// any, else our default), plus our default for compare/reset. Director only;
-// agencyId from the session (Law 7). Completion pack for now; more families add
-// a case here.
+// any, else our default) + our default for compare/reset. Director only;
+// agencyId from the session (Law 7). Generic over the template registry.
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { describeCompletionPack, type CompletionPackSide } from "@/lib/agency-email/templates";
+import { describeTemplate } from "@/lib/agency-email/templates";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -17,13 +16,7 @@ export async function GET(req: Request) {
   }
 
   const p = new URL(req.url).searchParams;
-  const templateKey = p.get("templateKey");
-  const variant = p.get("variant");
-
-  if (templateKey === "completion_pack" && (variant === "vendor" || variant === "purchaser")) {
-    const desc = await describeCompletionPack(session.user.agencyId, variant as CompletionPackSide);
-    return NextResponse.json({ exists: true, source: desc.source, effective: desc.effective, base: desc.base });
-  }
-
-  return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  const desc = await describeTemplate(session.user.agencyId, p.get("templateKey") ?? "", p.get("variant") ?? "");
+  if (!desc) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  return NextResponse.json(desc);
 }

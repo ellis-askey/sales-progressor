@@ -21,6 +21,7 @@ import {
   buildExchangeDayClientMorningEmail,
   buildExchangeDayClientAuthorityEmail,
 } from "@/lib/exchange-day/emails";
+import { resolveExchangeDayClientContent } from "@/lib/agency-email/templates";
 
 const SLOT_WINDOW_MIN = 120;
 const PORTAL_BASE = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
@@ -78,6 +79,7 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
       exchangeDayStartedAt: true, exchangeDayCancelledAt: true,
       exchangeDayClientMorningEmailAt: true, exchangeDayClientAuthorityEmailAt: true,
       clientEmailsPaused: true,
+      agencyId: true,
       agentUserId: true, assignedUserId: true,
       agency: { select: { name: true } },
       assignedUser: { select: { name: true } },
@@ -100,6 +102,8 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
     if (due.length === 0) continue;
 
     const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined }));
+    // Effective client copy — the agency's own version, else our default.
+    const edContent = await resolveExchangeDayClientContent(tx.agencyId);
     const senderName = tx.assignedUser?.name ?? tx.agentUser?.name ?? "Sales Progressor";
     const agencyName = tx.agency?.name ?? "Sales Progressor";
     const addressShort = tx.propertyAddress.split(",")[0]?.trim() || tx.propertyAddress;
@@ -125,9 +129,9 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
           // Skip anyone who has already given authority this activation.
           const given = !!c.exchangeAuthorityGivenAt && !!tx.exchangeDayStartedAt && c.exchangeAuthorityGivenAt >= tx.exchangeDayStartedAt;
           if (given || !c.portalToken) continue;
-          built = buildExchangeDayClientAuthorityEmail({ ...vars, authorityUrl: `${PORTAL_BASE}/portal/${c.portalToken}?authority=1` });
+          built = buildExchangeDayClientAuthorityEmail({ ...vars, authorityUrl: `${PORTAL_BASE}/portal/${c.portalToken}?authority=1` }, edContent.authority);
         } else {
-          built = buildExchangeDayClientMorningEmail(vars);
+          built = buildExchangeDayClientMorningEmail(vars, edContent.morning);
         }
 
         try {

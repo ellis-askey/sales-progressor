@@ -11,6 +11,7 @@ import { resolveAgentSession } from "@/lib/agent-session";
 import { buildStepList } from "@/lib/milestone-emails/steps";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
 import { CompletionPackEditor } from "@/components/account/emails/CompletionPackEditor";
+import { ExchangeDayClientEditor } from "@/components/account/emails/ExchangeDayClientEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,8 @@ export default async function AccountEmailsPage() {
           blurb="Longer emails that go out at key moments. More will appear here over time."
         />
         <CompletionPackEditor />
+        <div style={{ borderTop: HAIRLINE, marginTop: 4 }} />
+        <ExchangeDayClientEditor />
       </section>
     </div>
   );
