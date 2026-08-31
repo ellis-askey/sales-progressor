@@ -122,6 +122,7 @@ model Agency {
   creditNotes             CreditNote[]
   agentEmailLogs          AgentEmailLog[]
   prospect                Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
+  milestoneEmailOverrides MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -2348,6 +2349,16 @@ model MilestoneEmailOverride {
   tenure       String  @default("any") // "any" | "freehold" | "leasehold"
   purchaseType String  @default("any") // "any" | "mortgage" | "cash"
 
+  // NULL = the Sales Progressor default (edited from the Command Centre matrix).
+  // A non-null agencyId = that agency's own override, which wins over the SP
+  // default at send time (the agency layer is resolved before the default
+  // layer). A partial unique index (added in the migration SQL, since Prisma
+  // can't express it) keeps the one-SP-default-per-scenario guarantee for the
+  // agencyId IS NULL rows — the composite @@unique below only enforces it for
+  // non-null agencyId because NULLs are distinct in a normal unique index.
+  agencyId String?
+  agency   Agency? @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
   // The six editable fields of a RecipientEmailCopy.
   subject      String
   heroLabel    String
@@ -2360,8 +2371,9 @@ model MilestoneEmailOverride {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([code, side, tenure, purchaseType])
+  @@unique([code, side, tenure, purchaseType, agencyId])
   @@index([code, side])
+  @@index([agencyId])
 }
 
 // Client-portal "Updates" copy overrides, edited from the Command Centre. One

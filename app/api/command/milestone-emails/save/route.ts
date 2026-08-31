@@ -51,13 +51,22 @@ export async function POST(req: Request) {
     updatedById: session.user.id,
   };
 
-  await prisma.milestoneEmailOverride.upsert({
-    where: {
-      code_side_tenure_purchaseType: { code, side, tenure, purchaseType },
-    },
-    create: { code, side, tenure, purchaseType, ...data },
-    update: data,
+  // The Command Centre edits the Sales Progressor default layer (agencyId null).
+  // Agency-specific rows are written by the agency-facing editor (Phase 1).
+  // Prisma types a nullable field as non-null inside a compound-unique `where`,
+  // so we can't upsert the agencyId=null row directly — find-then-write instead.
+  // The partial unique index (agencyId IS NULL) still guards against duplicates.
+  const existing = await prisma.milestoneEmailOverride.findFirst({
+    where: { code, side, tenure, purchaseType, agencyId: null },
+    select: { id: true },
   });
+  if (existing) {
+    await prisma.milestoneEmailOverride.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.milestoneEmailOverride.create({
+      data: { code, side, tenure, purchaseType, agencyId: null, ...data },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

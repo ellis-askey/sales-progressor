@@ -1252,7 +1252,7 @@ export async function logPortalMilestoneConfirm(
       ? applyOverridesToEmailCopy(
           baseRichCopy,
           { tenure: normalizeTenure(tx.tenure), method: normalizeMethod(tx.purchaseType) },
-          await getOverridesForCode(milestoneCode)
+          await getOverridesForCode(milestoneCode, tx.agencyId ?? null)
         )
       : baseRichCopy;
 
@@ -1941,7 +1941,7 @@ async function sendRichMilestoneEmails(
   // Command Centre copy overrides — merge any saved, scenario-scoped edits over
   // the code default before anything is interpolated/enqueued. Uses the file's
   // real tenure + purchase type to pick the most-specific saved version.
-  const overrideRows = await getOverridesForCode(milestoneCode);
+  const overrideRows = await getOverridesForCode(milestoneCode, tx.agencyId ?? null);
   const effectiveEmailCopy = applyOverridesToEmailCopy(
     emailCopy,
     { tenure: normalizeTenure(tx.tenure), method: normalizeMethod(tx.purchaseType) },

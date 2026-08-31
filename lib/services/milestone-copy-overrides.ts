@@ -1,12 +1,20 @@
 // lib/services/milestone-copy-overrides.ts
 //
 // Resolves the effective milestone email copy for a given scenario, layering
-// any saved Command Centre overrides on top of the code default in
-// lib/portal-copy.ts. Precedence (most specific wins):
-//   exact tenure + method  >  one axis specific  >  any/any  >  code default.
+// any saved overrides on top of the code default in lib/portal-copy.ts.
 //
-// Used by the live send paths (lib/services/portal.ts) and by the Command
-// Centre matrix page for preview.
+// Two layers, resolved agency-first:
+//   1. the agency's own override rows (agencyId = the file's agency), then
+//   2. the Sales Progressor default rows (agencyId = null),
+// and within each layer the most-specific scenario wins:
+//   exact tenure + method  >  one axis specific  >  any/any  >  code default.
+// An agency row (at ANY specificity) beats a default row — if an agency has
+// customised a milestone, their wording ships even where our default has a
+// more tenure-specific variant.
+//
+// Used by the live send paths (lib/services/portal.ts, which passes the file's
+// agencyId) and by the Command Centre matrix (which edits the null-agency
+// default layer, so it calls with no agencyId).
 
 import "server-only";
 import type { PurchaseType, Tenure } from "@prisma/client";
@@ -30,6 +38,7 @@ export function normalizeTenure(t: Tenure | null | undefined): ScenarioTenure {
 }
 
 type OverrideRow = {
+  agencyId: string | null;
   side: string;
   tenure: string;
   purchaseType: string;
@@ -76,6 +85,9 @@ function pickBest(rows: OverrideRow[], side: CopySide, scenario: Scenario): Over
   );
   if (matching.length === 0) return null;
   matching.sort((a, b) => {
+    // Agency layer beats the SP-default layer, regardless of scenario specificity.
+    const agencyDelta = (b.agencyId ? 1 : 0) - (a.agencyId ? 1 : 0);
+    if (agencyDelta !== 0) return agencyDelta;
     const d = score(b) - score(a);
     if (d !== 0) return d;
     return b.updatedAt.getTime() - a.updatedAt.getTime();
@@ -83,11 +95,23 @@ function pickBest(rows: OverrideRow[], side: CopySide, scenario: Scenario): Over
   return matching[0];
 }
 
-/** All override rows for a milestone code (both sides). */
-export async function getOverridesForCode(code: string): Promise<OverrideRow[]> {
+/**
+ * Override rows for a milestone code (both sides).
+ * - agencyId omitted/null → the Sales Progressor default layer only (used by the
+ *   Command Centre matrix, which edits the defaults).
+ * - agencyId set → that agency's rows PLUS the default rows, so pickBest can
+ *   resolve agency-first-then-default at send time.
+ */
+export async function getOverridesForCode(
+  code: string,
+  agencyId: string | null = null,
+): Promise<OverrideRow[]> {
   return prisma.milestoneEmailOverride.findMany({
-    where: { code },
+    where: agencyId
+      ? { code, OR: [{ agencyId: null }, { agencyId }] }
+      : { code, agencyId: null },
     select: {
+      agencyId: true,
       side: true,
       tenure: true,
       purchaseType: true,

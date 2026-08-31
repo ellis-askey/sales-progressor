@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   const purchaseType = String(b.purchaseType ?? "any");
   if (!code || !side) return NextResponse.json({ error: "Bad request" }, { status: 400 });
 
-  await prisma.milestoneEmailOverride.deleteMany({ where: { code, side, tenure, purchaseType } });
+  // Reset only the Sales Progressor default (agencyId null) — never an agency's
+  // own override, which the agency-facing editor owns (Phase 1).
+  await prisma.milestoneEmailOverride.deleteMany({ where: { code, side, tenure, purchaseType, agencyId: null } });
   return NextResponse.json({ ok: true });
 }
