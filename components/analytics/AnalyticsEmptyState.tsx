@@ -35,7 +35,7 @@ export function AnalyticsEmptyState() {
       >
         <HeroArt light="/analytics-hero.png" dark="/analytics-hero-dark.png" maxWidth="50%" maskStart="38%" />
         <div style={{ position: "relative", maxWidth: 460 }}>
-          <Pill tone="brand" size="sm" style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             Your data starts here
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
@@ -58,18 +58,24 @@ export function AnalyticsEmptyState() {
       {/* What Analytics gives you */}
       <div className="setup-cards-3">
         <SetupCard
+          glassId="empty-analytics-solicitors"
+          label="Analytics empty · Solicitor speed"
           tint="coral"
           icon={<Timer size={22} weight="regular" />}
           title="See which solicitors move fastest"
           desc="Compare the firms on your sales by how long they actually take to reach exchange."
         />
         <SetupCard
+          glassId="empty-analytics-commission"
+          label="Analytics empty · Commission"
           tint="green"
           icon={<TrendUp size={22} weight="regular" />}
           title="Forecast your commission"
           desc="See the fees expected this month alongside the commission already secured at exchange."
         />
         <SetupCard
+          glassId="empty-analytics-conversion"
+          label="Analytics empty · Conversion"
           tint="blue"
           icon={<Funnel size={22} weight="regular" />}
           title="Measure your conversion"

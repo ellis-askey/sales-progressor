@@ -1512,6 +1512,46 @@
   .todo-hover-tick-show           { opacity: 1; }
   .todo-hover-tick-show .todo-tick-path { stroke-dashoffset: 0; }
 
+  /* ── Settings (Account area) button interactions ─────────────────────────── */
+  /* Universal primary settings button: coral fill, brighten on hover, press
+     down on active. Used for Save changes / Save colour and any settings CTA. */
+  .account-btn-primary {
+    background: var(--agent-coral, #FF6B4A);
+    color: #fff; border: none; border-radius: 8px;
+    transition: filter 140ms ease, transform 90ms ease, box-shadow 140ms ease;
+  }
+  .account-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.05);
+    box-shadow: 0 4px 14px rgba(var(--agent-coral-rgb, 255,107,74), 0.34);
+  }
+  .account-btn-primary:active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+  .account-btn-primary:disabled { opacity: 0.45; cursor: default; }
+
+  /* Press-down only (no hover tint change) — for outline/secondary buttons. */
+  .account-press { transition: transform 90ms ease; }
+  .account-press:active:not(:disabled) { transform: scale(0.97); }
+
+  /* Secondary settings button: white, subtle grey hover, press-down. */
+  .account-btn-secondary { transition: background 140ms ease, border-color 140ms ease, transform 90ms ease; }
+  .account-btn-secondary:hover:not(:disabled) { background: #f6f6f7 !important; border-color: rgba(0,0,0,0.24) !important; }
+  .account-btn-secondary:active:not(:disabled) { transform: scale(0.97); }
+  @media (prefers-reduced-motion: reduce) {
+    .account-btn-secondary { transition: none; }
+    .account-btn-secondary:active:not(:disabled) { transform: none; }
+  }
+
+  /* Settings text input: coral focus ring (replaces the bare outline:none). */
+  .account-input { transition: border-color 120ms ease, box-shadow 120ms ease; }
+  .account-input:focus {
+    border-color: var(--agent-coral, #FF6B4A) !important;
+    box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb, 255,107,74), 0.15);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .account-btn-primary, .account-press { transition: none; }
+    .account-btn-primary:active:not(:disabled), .account-press:active:not(:disabled) { transform: none; }
+  }
+
   /* Warning/attention row hover — for items flagging an issue (stalled files, overdue, etc.) */
   .agent-hover-row-warning { transition: background-color 150ms ease; }
   .agent-hover-row-warning:hover { background-color: var(--agent-hover-tint-warning); }
@@ -2451,6 +2491,12 @@
 .agent-pill-glass {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 62%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(var(--pill-rgb, 100, 116, 139), 0.18);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+/* Hover deepens the pill's own tone tint (~+8% alpha over the base 14%). */
+.agent-pill-glass:hover {
+  background-color: rgba(var(--pill-rgb, 100, 116, 139), 0.22) !important;
+  border-color: rgba(var(--pill-rgb, 100, 116, 139), 0.48) !important;
 }
 .agent-pill-glass .pill-dot {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);

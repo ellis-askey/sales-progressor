@@ -138,18 +138,27 @@ Point three existing surfaces at it:
 
 ---
 
-## Open questions / decisions still needed before Phase 2+
+## Decisions locked (2026-08-31)
 
-1. **Per-agency vs per-file editing granularity** — assume per-agency (one set of
-   templates for the whole agency), not per-file. Confirm.
-2. **Negotiator access** — director-only edit, or negotiators too? (Billing +
-   automation settings are director-only today; suggest matching that.)
-3. **Solicitor/chain templates** — these go to third parties and external agents.
-   Confirm agencies *should* be able to reword solicitor-facing and
-   chain-neighbour emails (compliance/tone risk), or lock those to us.
-4. **Reset semantics** — a "reset to default" removes the agency row so future
-   SP-default changes flow through. Confirm that's the wanted behaviour (vs a
-   frozen copy at edit time).
+1. **Per-agency**, not per-file (one template set per agency).
+2. **Director-only** editing. Negotiators without a director ship our defaults
+   until a director joins (no agency rows = our default, so this is automatic).
+3. **Solicitor / enquiries / chain / external-agent emails stay LOCKED to us** —
+   NOT agency-editable. Tier-2 scope is therefore client-facing only: completion
+   pack, exchange-day client, client chase.
+4. **Reset removes the agency row** so future SP-default improvements flow through.
+5. **Full prose control** for the Tier-2 client emails (subject + every
+   paragraph/checklist line editable), BUT every edit is recorded in an
+   append-only audit (`AgencyEmailEdit`) so we can always prove what an agency
+   authored — who, when, exact copy — the "cover ourselves" requirement.
+
+## Audit trail
+
+`AgencyEmailEdit` (append-only) logs every save/reset across BOTH layers
+(milestone overrides + Tier-2 templates): `agencyId, kind, editKey, variant,
+action, contentSnapshot, editedById, editedByName, editedByEmail, editedAt`.
+Written best-effort (never blocks a save). The milestone save/reset routes were
+retrofitted to write it too.
 
 ---
 

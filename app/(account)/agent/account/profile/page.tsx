@@ -33,7 +33,7 @@ import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { User, Palette, Image as ImageIcon, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
+import { Palette, Image as ImageIcon, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountProfilePage({
   searchParams,
@@ -45,7 +45,7 @@ export default async function AccountProfilePage({
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phone: true, agentPreferences: true, image: true },
+    select: { phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true },
   });
   const currentBrand = getBrandColor(userRecord?.agentPreferences);
 
@@ -65,6 +65,55 @@ export default async function AccountProfilePage({
     };
   }
 
+  const colourCard = (
+    <AccountCard
+      icon={<Palette size={18} weight="bold" />}
+      title="Your app colour"
+      subtitle="Choose the accent colour you'll see across Sales Progressor."
+    >
+      <BrandColorPicker initialColor={currentBrand} />
+    </AccountCard>
+  );
+
+  const sendingCard = (
+    <AccountCard
+      icon={<EnvelopeSimple size={18} weight="bold" />}
+      title="Sending addresses"
+      subtitle="Send emails to clients directly from your own work address."
+    >
+      <SendingAddressesSection initialVerified={verified === "1"} />
+    </AccountCard>
+  );
+
+  const accountCard = (
+    <AccountCard
+      icon={<Database size={18} weight="bold" />}
+      title="Account & data"
+      subtitle="Manage your data or permanently delete your account."
+    >
+      <AccountDangerZonePlain userEmail={session.user.email ?? ""} />
+    </AccountCard>
+  );
+
+  const emailCard = isDirector && branding ? (
+    <AccountCard
+      icon={<ImageIcon size={18} weight="bold" />}
+      title="Email branding"
+      subtitle="Your logo appears at the top of emails your clients receive."
+    >
+      <EmailBrandingStudio initial={branding} />
+      <p style={{ margin: "16px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#6b7280" }}>
+        Want to change the wording in your emails?{" "}
+        <Link
+          href="/agent/account/emails"
+          style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
+        >
+          Email settings →
+        </Link>
+      </p>
+    </AccountCard>
+  ) : null;
+
   return (
     <>
       <AccountPageHeader
@@ -72,67 +121,57 @@ export default async function AccountProfilePage({
         subtitle="Manage your personal details and app preferences."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <AccountCard
-          icon={<User size={18} weight="bold" />}
-          title="Personal details"
-          subtitle="Update your name, email and phone number."
-        >
-          <ProfileFormPlain
-            initialName={session.user.name ?? ""}
-            initialEmail={session.user.email ?? ""}
-            initialPhone={userRecord?.phone ?? ""}
-            initialImage={userRecord?.image ?? null}
-            role={session.user.role}
-          />
-        </AccountCard>
+        <ProfileFormPlain
+          initialName={session.user.name ?? ""}
+          initialEmail={session.user.email ?? ""}
+          initialPhone={userRecord?.phone ?? ""}
+          initialJobTitle={userRecord?.jobTitle ?? ""}
+          initialDirectMobile={userRecord?.directMobile ?? ""}
+          initialImage={userRecord?.image ?? null}
+          role={session.user.role}
+        />
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24, alignItems: "start" }}>
-          <AccountCard
-            icon={<Palette size={18} weight="bold" />}
-            title="Your app colour"
-            subtitle="Choose the accent colour you'll see across Sales Progressor."
-          >
-            <BrandColorPicker initialColor={currentBrand} />
-          </AccountCard>
-
-          {isDirector && branding && (
-            <AccountCard
-              icon={<ImageIcon size={18} weight="bold" />}
-              title="Email branding"
-              subtitle="Your logo appears at the top of emails your clients receive."
-            >
-              <EmailBrandingStudio initial={branding} />
-              <p style={{ margin: "16px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#6b7280" }}>
-                Want to change the wording in your emails?{" "}
-                <Link
-                  href="/agent/account/emails"
-                  style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
-                >
-                  Email settings →
-                </Link>
-              </p>
-            </AccountCard>
-          )}
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24, alignItems: "start" }}>
-          <AccountCard
-            icon={<EnvelopeSimple size={18} weight="bold" />}
-            title="Sending addresses"
-            subtitle="Send emails to clients directly from your own work address."
-          >
-            <SendingAddressesSection initialVerified={verified === "1"} />
-          </AccountCard>
-
-          <AccountCard
-            icon={<Database size={18} weight="bold" />}
-            title="Account & data"
-            subtitle="Manage your data or permanently delete your account."
-          >
-            <AccountDangerZonePlain userEmail={session.user.email ?? ""} />
-          </AccountCard>
-        </div>
+        {emailCard ? (
+          // Desktop: email branding on the right; colour, sending, account
+          // stacked on the left. Mobile (1 col): colour, email, sending,
+          // account — the same order as before.
+          <div className="profile-grid">
+            <div style={{ gridArea: "colour" }}>{colourCard}</div>
+            <div style={{ gridArea: "email" }}>{emailCard}</div>
+            <div style={{ gridArea: "sending" }}>{sendingCard}</div>
+            <div style={{ gridArea: "account" }}>{accountCard}</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {colourCard}
+            {sendingCard}
+            {accountCard}
+          </div>
+        )}
       </div>
+
+      <style>{`
+        .profile-grid {
+          display: grid;
+          gap: 24px;
+          align-items: start;
+          grid-template-columns: 1fr 1fr;
+          grid-template-areas:
+            "colour  email"
+            "sending email"
+            "account email";
+        }
+        @media (max-width: 1024px) {
+          .profile-grid {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+              "colour"
+              "email"
+              "sending"
+              "account";
+          }
+        }
+      `}</style>
     </>
   );
 }

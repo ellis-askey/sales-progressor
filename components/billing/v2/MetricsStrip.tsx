@@ -46,7 +46,9 @@ function StatCard({
     <div
       className="account-card"
       style={{
-        background: "#fff",
+        background: "rgba(255,255,255,0.82)",
+        backdropFilter: "blur(14px) saturate(115%)",
+        WebkitBackdropFilter: "blur(14px) saturate(115%)",
         border: "0.5px solid rgba(0,0,0,0.07)",
         borderRadius: 16,
         boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 6px 22px rgba(20,14,10,0.05)",
@@ -60,12 +62,8 @@ function StatCard({
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 32,
-          height: 32,
-          borderRadius: 9,
-          background: "rgba(255,107,74,0.10)",
           color: "var(--agent-coral-deep, #E2452A)",
-          marginBottom: 12,
+          marginBottom: 10,
         }}
       >
         {icon}
@@ -95,30 +93,36 @@ export function MetricsStrip(props: MetricsStripProps) {
   const lifetime = useCountUp(props.billedLifetimePence, { duration: 700 });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 16 }}>
+    <div className="account-metrics-grid">
+      <style>{`
+        /* 4 across, or a clean 2x2, or 1 col — never a lopsided 3+1. */
+        .account-metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+        @media (max-width: 1100px) { .account-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 520px)  { .account-metrics-grid { grid-template-columns: 1fr; } }
+      `}</style>
       <StatCard
-        icon={<CreditCard size={17} weight="bold" />}
+        icon={<CreditCard size={22} weight="bold" />}
         label="This month"
         display={thisMonth}
         format={poundsTwoDp}
         sub={`${props.outsourcedThisMonth} outsourced exchange${props.outsourcedThisMonth === 1 ? "" : "s"}`}
       />
       <StatCard
-        icon={<ArrowsLeftRight size={17} weight="bold" />}
+        icon={<ArrowsLeftRight size={22} weight="bold" />}
         label="Exchanges this month"
         display={exchanges}
         format={(n) => Math.round(n).toString()}
         sub={`${props.outsourcedThisMonth} outsourced · ${props.inHouseThisMonth} self-progress`}
       />
       <StatCard
-        icon={<Gift size={17} weight="bold" />}
+        icon={<Gift size={22} weight="bold" />}
         label="Given free"
         display={saved}
         format={pounds}
         sub={`${props.trialExchangeCountLifetime} file${props.trialExchangeCountLifetime === 1 ? "" : "s"} given free`}
       />
       <StatCard
-        icon={<Receipt size={17} weight="bold" />}
+        icon={<Receipt size={22} weight="bold" />}
         label="Billed lifetime"
         display={lifetime}
         format={pounds}

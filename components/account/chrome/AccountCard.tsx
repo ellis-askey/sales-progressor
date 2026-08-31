@@ -31,7 +31,10 @@ export function AccountCard({
     <section
       className="account-card"
       style={{
-        background: "#fff",
+        // Lightly frosted so the streetscape backdrop reads through as a blur.
+        background: "rgba(255,255,255,0.82)",
+        backdropFilter: "blur(14px) saturate(115%)",
+        WebkitBackdropFilter: "blur(14px) saturate(115%)",
         border: "0.5px solid rgba(0,0,0,0.07)",
         borderRadius: 16,
         boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 6px 22px rgba(20,14,10,0.05)",
@@ -45,15 +48,13 @@ export function AccountCard({
           {icon && (
             <span
               aria-hidden
+              className="account-card-ico"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 34,
-                height: 34,
                 flexShrink: 0,
-                borderRadius: 10,
-                background: "rgba(255,107,74,0.10)",
+                marginTop: 1,
                 color: "var(--agent-coral-deep, #E2452A)",
               }}
             >
@@ -78,9 +79,12 @@ export function AccountCard({
       {children && <div style={{ marginTop: hasHeader ? 18 : 0, ...bodyStyle }}>{children}</div>}
 
       <style>{`
-        .account-card { animation: account-card-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        /* Settings-icon standard: no container background, glyph a touch larger. */
+        .account-card-ico svg { width: 20px; height: 20px; }
+        /* Cards fade up as one on mount, alongside the count-up numbers. */
+        .account-card { animation: account-card-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
         @keyframes account-card-in {
-          from { opacity: 0; transform: translateY(8px); }
+          from { opacity: 0; transform: translateY(13px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @media (prefers-reduced-motion: reduce) {

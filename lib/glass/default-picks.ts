@@ -72,4 +72,35 @@ export const DEFAULT_PICKS: GlassPicks = {
   "new-sale-chain": { light: "v28", dark: "v28" },
   "new-sale-file-worth": { light: "v06", dark: "v07" },
   "new-sale-notes": { light: "v06", dark: "v04" },
+
+  // Onboarding empty states (Hub / Completions / To-Do / Updates / All Files /
+  // Analytics). Mostly dark-only picks — light stays v00 baseline. 2026-08-31.
+  "empty-hub-place": { dark: "v04" },
+  "empty-hub-attention": { dark: "v04" },
+  "empty-hub-picture": { dark: "v04" },
+  "empty-hub-finish": { light: "v20", dark: "v19" },
+  "hub-email-nudge": { light: "v25", dark: "v21" },
+  "empty-completions-profile": { dark: "v04" },
+  "empty-completions-agency": { dark: "v04" },
+  "empty-completions-invite": { dark: "v04" },
+  "empty-todo-notes": { dark: "v04" },
+  "empty-todo-sale": { dark: "v04" },
+  // Not in Ellis's export (only shows for outsourced agencies) — matched to its
+  // two sibling cards so the row is consistent. 2026-08-31.
+  "empty-todo-progressor": { dark: "v04" },
+  "empty-updates-solicitor": { dark: "v04" },
+  "empty-updates-progress": { dark: "v04" },
+  "empty-updates-confirmed": { dark: "v04" },
+  "empty-allfiles-demo": { light: "v25", dark: "v21" },
+  "empty-allfiles-risk": { dark: "v04" },
+  "empty-allfiles-next": { dark: "v04" },
+  "empty-allfiles-exchange": { dark: "v04" },
+  "empty-analytics-solicitors": { dark: "v04" },
+  "empty-analytics-commission": { dark: "v04" },
+  "empty-analytics-conversion": { dark: "v04" },
+  "empty-partners-broker": { dark: "v04" },
+  "empty-partners-solicitor": { dark: "v04" },
+  "empty-partners-network": { dark: "v04" },
+  // Mirrors the All Files "finished example" card.
+  "empty-partners-nosales": { light: "v25", dark: "v21" },
 };

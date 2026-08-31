@@ -132,7 +132,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
             }}
           >
             <Lock size={13} weight="regular" />
-            Securely stored by Stripe — we never see your card number.
+            Securely stored by Stripe. We never see your card details.
           </div>
           <div
             style={{
@@ -141,7 +141,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
               lineHeight: 1.55,
             }}
           >
-            We&apos;ll charge this card on the 1st of each month for that month&apos;s exchanges.
+            This card will be charged on the 1st of each month for the previous month&apos;s exchanges.
           </div>
         </>
       )}

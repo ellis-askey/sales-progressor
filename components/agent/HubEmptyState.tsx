@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Plus, FolderOpen, ListChecks, UsersThree, UserCircle, ArrowRight } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
@@ -28,7 +29,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
       >
         <HeroArt light="/hub-hero.png" dark="/hub-hero-dark.png" maxWidth="48%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" style={{ marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             New here?
           </Pill>
           <p style={{ margin: "0 0 10px", fontSize: 29, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
@@ -66,18 +67,24 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
         <p className="agent-eyebrow" style={{ marginBottom: 12 }}>What happens next</p>
         <div className="setup-cards-3">
           <SetupCard
+            glassId="empty-hub-place"
+            label="Hub empty · One place"
             tint="coral"
             icon={<FolderOpen size={22} weight="regular" />}
             title="Everything starts in one place"
             desc="Buyers, sellers, solicitors, milestones and documents stay attached to the file."
           />
           <SetupCard
+            glassId="empty-hub-attention"
+            label="Hub empty · Needs attention"
             tint="blue"
             icon={<ListChecks size={22} weight="regular" />}
             title="Know what needs attention"
             desc="See what's outstanding, what needs chasing and which sales are starting to drift."
           />
           <SetupCard
+            glassId="empty-hub-picture"
+            label="Hub empty · In the picture"
             tint="green"
             icon={<UsersThree size={22} weight="regular" />}
             title="Keep everyone in the picture"
@@ -87,7 +94,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
       </div>
 
       {/* Finish setting up your workspace — opens the Getting-started checklist */}
-      <div className="agent-glass" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+      <GlassCard glassId="empty-hub-finish" label="Hub empty · Finish setup" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <UserCircle size={20} weight="regular" />
@@ -112,7 +119,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
           Continue setup
           <ArrowRight size={15} weight="bold" />
         </button>
-      </div>
+      </GlassCard>
 
       {node}
     </div>

@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { termsDisplayName, type TermsSection } from "@/lib/billing/terms-sections";
 import { CaretDown } from "@phosphor-icons/react";
+import { AnimatedTick } from "@/components/ui/AnimatedTick";
 
 export type PlanTermsCollapsedProps = {
   agreed: {
@@ -81,8 +82,9 @@ export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
             aria-expanded={open}
             style={{
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              flexDirection: "column",
+              alignItems: "stretch",
+              gap: 7,
               width: "100%",
               padding: "12px 4px",
               background: "transparent",
@@ -91,20 +93,10 @@ export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
               textAlign: "left",
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
-              View your agreed terms ({termsDisplayName(agreed.versionTag)})
-            </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-              {agreed.acknowledgedAt && (
-                <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                  Acknowledged{" "}
-                  {agreed.acknowledgedAt.toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              )}
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#374151" }}>
+                View your agreed terms ({termsDisplayName(agreed.versionTag)})
+              </span>
               {/* Canonical chevron: right-aligned, 0 -> 180deg rotation
                   (2026-08-11 drawer-consistency pass; was left-aligned
                   with a -90deg "pointer" rotation). */}
@@ -121,6 +113,17 @@ export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
                 }}
               />
             </span>
+            {agreed.acknowledgedAt && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#9ca3af" }}>
+                <AnimatedTick size={13} color="#1f9d6b" />
+                Acknowledged{" "}
+                {agreed.acknowledgedAt.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            )}
           </button>
           <div className={`agent-acc${open ? " open" : ""}`}>
             <div className="agent-acc-in">

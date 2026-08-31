@@ -73,6 +73,7 @@ export function BrandColorPicker({ initialColor }: { initialColor: string }) {
               onKeyDown={(e) => { if (e.key === "Enter") apply(hexText); }}
               placeholder="#2563EB"
               spellCheck={false}
+              className="account-input"
               style={{ width: 120, padding: "8px 10px", fontSize: 13.5, fontFamily: "ui-monospace, monospace", color: "#111827", background: "#fff", border: "0.5px solid rgba(0,0,0,0.16)", borderRadius: 8, outline: "none" }}
             />
           </div>
@@ -90,7 +91,9 @@ export function BrandColorPicker({ initialColor }: { initialColor: string }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11.5, color: "#9ca3af" }}>Suggestions</span>
         {SUGGESTED.map((s) => (
-          <button key={s} type="button" onClick={() => apply(s)} title={s} aria-label={`Use ${s}`} style={{ ...swatch, background: s, outline: s.toLowerCase() === saved.toLowerCase() ? "2px solid #111827" : "none", outlineOffset: 1 }} />
+          // Select only — the colour is applied when "Save colour" is pressed,
+          // not on pick (no silent auto-save).
+          <button key={s} type="button" onClick={() => { setColor(s); setHexText(s); }} title={s} aria-label={`Use ${s}`} style={{ ...swatch, background: s, outline: s.toLowerCase() === color.toLowerCase() ? "2px solid #111827" : "none", outlineOffset: 1 }} />
         ))}
       </div>
 
@@ -99,11 +102,12 @@ export function BrandColorPicker({ initialColor }: { initialColor: string }) {
           type="button"
           onClick={() => apply(color)}
           disabled={saving || !dirty}
-          style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, color: "#fff", background: "#111827", border: "none", borderRadius: 8, cursor: saving || !dirty ? "default" : "pointer", opacity: saving || !dirty ? 0.45 : 1 }}
+          className="account-btn-primary"
+          style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0, cursor: saving || !dirty ? "default" : "pointer" }}
         >
           {saving ? "Saving…" : "Save colour"}
         </button>
-        <span style={{ fontSize: 11.5, color: "#9ca3af" }}>Glass cards and the status colours (green / amber / red) stay the same.</span>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: "#9ca3af" }}>Glass cards and the status colours (green / amber / red) stay the same.</span>
       </div>
     </div>
   );

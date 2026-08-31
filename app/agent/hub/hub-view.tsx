@@ -247,11 +247,6 @@ export default async function Hub() {
           <PaymentMethodNudge agencyId={session.user.agencyId} />
         )}
 
-        {/* Nudge directors still on the shared fallback to set up their own email */}
-        {role === "director" && session.user.agencyId && (
-          <EmailSetupPrompt userId={session.user.id} />
-        )}
-
         {/* Body gate — decides empty vs full. NO outer SectionReveal wrap here:
             wrapping the body would fade everything as one block and swallow
             the per-section cascade. Each slot below owns its own SectionReveal
@@ -259,6 +254,13 @@ export default async function Hub() {
         <Suspense fallback={<LoadingCard label="Loading your hub" minHeight={140} />}>
           <BodyGate ctx={ctx} />
         </Suspense>
+
+        {/* Nudge directors still on the shared fallback to set up their own email.
+            Sits below the body (hero + what-happens-next in the empty state) so
+            it reads as a follow-on, not a header banner. */}
+        {role === "director" && session.user.agencyId && (
+          <EmailSetupPrompt userId={session.user.id} />
+        )}
       </div>
     </div>
   );

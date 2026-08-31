@@ -56,12 +56,29 @@ export async function createAndRecommendSolicitorAction(name: string) {
   revalidatePath("/agent/solicitors");
 }
 
+/** Case handlers already recorded on a (shared) solicitor firm, so the agent can
+ *  pick an existing one instead of creating a duplicate. Director-only. */
+export async function getSolicitorFirmHandlersAction(
+  firmId: string,
+): Promise<{ id: string; name: string; phone: string | null; email: string | null }[]> {
+  const session = await requireSession();
+  requireDirector(session.user.role);
+  return prisma.solicitorContact.findMany({
+    where: { firmId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, phone: true, email: true },
+  });
+}
+
 export async function addRecommendedSolicitorWithContactAction(input: {
   firmId?: string;
   firmName?: string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
+  // Contact fields are only used when adding a NEW handler. Omit them (or leave
+  // blank) when the agent picked an existing handler on a shared firm, so we
+  // don't create a duplicate contact.
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   referralFeePence: number | null;
 }): Promise<{ firmId: string; firmName: string }> {
   const session = await requireSession();
@@ -85,15 +102,18 @@ export async function addRecommendedSolicitorWithContactAction(input: {
     firmName = firm?.name ?? firmName;
   }
 
-  // Always create the contact on the firm
-  await prisma.solicitorContact.create({
-    data: {
-      firmId,
-      name: input.contactName.trim(),
-      phone: input.contactPhone.trim() || null,
-      email: input.contactEmail.trim() || null,
-    },
-  });
+  // Only create a contact when a new handler was entered (not when an existing
+  // handler was picked from the shared firm).
+  if (input.contactName && input.contactName.trim()) {
+    await prisma.solicitorContact.create({
+      data: {
+        firmId,
+        name: input.contactName.trim(),
+        phone: input.contactPhone?.trim() || null,
+        email: input.contactEmail?.trim() || null,
+      },
+    });
+  }
 
   // Add to recommended list with the given fee
   await db.agencyRecommendedSolicitor.upsert({

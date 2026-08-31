@@ -32,11 +32,14 @@ const TABS: Tab[] = [
 export function AccountLeftNav({
   role,
   agencyHasDirector,
+  onNavigate,
 }: {
   role: UserRole;
   /** When false AND the viewer is a negotiator, the Team tab shows so they can
    *  invite a director. Otherwise negotiators don't see Team. */
   agencyHasDirector: boolean;
+  /** Fired when a tab is clicked — used to close the mobile drawer. */
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const items: NavRailItem[] = TABS.filter((t) => {
@@ -47,7 +50,7 @@ export function AccountLeftNav({
 
   return (
     <nav aria-label="Account navigation">
-      <AgentNavRail items={items} pathname={pathname} />
+      <AgentNavRail items={items} pathname={pathname} onNavigate={onNavigate} />
     </nav>
   );
 }

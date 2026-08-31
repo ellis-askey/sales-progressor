@@ -97,15 +97,12 @@ export function AutomatedEmailsList() {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 34,
-                height: 34,
+                width: 22,
                 flexShrink: 0,
-                borderRadius: 10,
-                background: "rgba(255,107,74,0.10)",
                 color: "var(--agent-coral-deep, #E2452A)",
               }}
             >
-              <r.Icon size={17} weight="bold" />
+              <r.Icon size={22} weight="bold" />
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

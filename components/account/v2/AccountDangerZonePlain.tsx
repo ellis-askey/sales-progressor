@@ -106,7 +106,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
             borderRadius: 11,
             cursor: isExporting ? "default" : "pointer",
             opacity: isExporting ? 0.6 : 1,
-            transition: "background 150ms, border-color 150ms",
+            transition: "background 150ms, border-color 150ms, box-shadow 150ms",
           }}
         >
           <span className="account-datarow-icon" aria-hidden>
@@ -120,7 +120,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
               Get a copy of your data in a secure file.
             </span>
           </span>
-          <CaretRight size={14} weight="bold" style={{ color: "#c0c4d0", flexShrink: 0 }} />
+          <CaretRight size={14} weight="bold" className="account-datarow-chev" style={{ color: "#c0c4d0", flexShrink: 0 }} />
         </button>
 
         <button
@@ -138,7 +138,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
             border: "0.5px solid #fecaca",
             borderRadius: 11,
             cursor: "pointer",
-            transition: "background 150ms, border-color 150ms",
+            transition: "background 150ms, border-color 150ms, box-shadow 150ms",
           }}
         >
           <span className="account-datarow-icon account-datarow-icon-danger" aria-hidden>
@@ -152,18 +152,26 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
               Permanently delete your account and all associated data.
             </span>
           </span>
-          <CaretRight size={14} weight="bold" style={{ color: "#f0a3a3", flexShrink: 0 }} />
+          <CaretRight size={14} weight="bold" className="account-datarow-chev" style={{ color: "#f0a3a3", flexShrink: 0 }} />
         </button>
 
         <style>{`
-          .account-datarow:hover { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.2); }
-          .account-datarow-danger:hover { background: #fef2f2; border-color: #fca5a5; }
+          /* Hover lights the border in the row's accent (coral / red) and
+             nudges the chevron right; both ease back on hover-off. */
+          .account-datarow:hover { background: rgba(255,107,74,0.03); border-color: var(--agent-coral, #FF6B4A); box-shadow: inset 0 0 0 1px var(--agent-coral, #FF6B4A); }
+          .account-datarow-danger:hover { background: #fef2f2; border-color: #ef4444; box-shadow: inset 0 0 0 1px #ef4444; }
+          .account-datarow-chev { transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1); }
+          .account-datarow:hover .account-datarow-chev { transform: translateX(3px); }
           .account-datarow-icon {
             display: inline-flex; align-items: center; justify-content: center;
             width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px;
             background: rgba(0,0,0,0.05); color: #6b7280;
           }
           .account-datarow-icon-danger { background: #fef2f2; color: #dc2626; }
+          @media (prefers-reduced-motion: reduce) {
+            .account-datarow-chev { transition: none; }
+            .account-datarow:hover .account-datarow-chev { transform: none; }
+          }
         `}</style>
       </div>
 
@@ -260,6 +268,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
                 placeholder={userEmail}
                 disabled={isPending}
                 autoFocus
+                className="account-input"
                 style={{
                   width: "100%",
                   padding: "9px 12px",

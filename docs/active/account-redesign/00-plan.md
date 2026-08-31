@@ -119,3 +119,34 @@ For each page: **Preserve** (wired functionality that must survive), **Layout** 
 6. **Emails** (new interaction model; Post-completion if in scope).
 
 Each page: confirm its extras → build layout against the mock strings → wire nothing new except confirmed extras → verify no lost function → screenshot check.
+
+---
+
+## F. Review pass — running conventions + per-page feedback
+
+Carried forward across pages. When the user gives a global tweak ("do X to all settings pages"), apply it to every settings page in one go where cheap.
+
+**Reusable primitives (use these; don't re-roll):**
+- **Status pill →** `components/ui/Pill.tsx` with **`glass`** prop (tone-based: `warning`/`success`/`info`/`danger`/`default`…). Every little coloured status pill uses the glass pill, matching the app + client portal. No bespoke amber/green pill boxes.
+- **Confirmation tick →** `components/ui/AnimatedTick.tsx` (draws in on mount; reuses the to-do tick stroke). Use for any tick that appears as a confirmation.
+
+**Global look standards (apply to every settings surface):**
+- **Icons:** no container background behind settings icons; glyph sized ~20–22px, coral. (`AccountCard` forces 20px via `.account-card-ico svg`; StatCards / list-rows set 22px directly.)
+- **Card entrance:** `.account-card` fades up as one on mount (520ms, translateY 13px), running alongside the count-up numbers.
+- **Primary settings button →** `.account-btn-primary` (coral, brighten on hover, press-down on active, faded when disabled). Save changes / Save colour and any settings CTA. Defined in `agent-system.css`.
+- **Press-down only →** `.account-press` (outline/secondary buttons that shouldn't tint on hover, e.g. Add a sending address). Upload photo / Upload logo get NO hover/press by request.
+- **Text input focus →** `.account-input` (coral border + soft ring, replacing bare `outline:none`). Every settings text field.
+- **Input value formatting:** name `titleCaseKeepAcronyms` on blur (keeps "EJ"), email lowercased on blur, phone `normalizePhone` on blur. Helpers in `lib/utils.ts`.
+- **No silent auto-save:** selecting a value (e.g. a colour swatch) only stages it; the Save button commits.
+
+**Page 2 — Profile (feedback pass 1, 2026-09-01):**
+- No-photo avatar → blurred agent portrait cropped in the circle (`/agent-avatar-fallback.png`, object-position center 28%), not initials. Artifact preview built for crop sign-off.
+- Metrics/pill/icon/button/input standards above all applied. Role chip → glass `Pill`. Download/Delete rows light their border (coral/red) + slide the chevron on hover.
+- Left open: EmailBrandingStudio buttons untouched (not flagged); data-row leading icons keep their red/grey squares (deliberate danger coding) — flag if you want them stripped too.
+
+**Mobile shell:** off-canvas drawer + hamburger top bar below 860px (`AccountShell`), mirrors AgentShell. Fixed 2026-08-31 (content was collapsing to 0-width).
+
+**Page 1 — Billing (feedback pass 1, 2026-08-31):**
+- "Building" pill → now the canonical `Pill` (tone `warning`, pulse dot kept). ✅
+- Acknowledged-terms line → `AnimatedTick` draws in. ✅ (open Q: which other ticks does "any and all" cover?)
+- Seeded Tim Branston (William H Brown, staging) with billing states via `scripts/seed-tim-billing-demo.ts`: 3 outsourced exchanges this month (first free £0 + £250 + £350), 3 past invoices (Paid £550 / Issued £300 / Failed £350), terms acknowledged. Additive; never touches his real files. No card (Stripe not on staging → honest "add a card" state). ✅

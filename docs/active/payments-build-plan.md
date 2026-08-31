@@ -211,6 +211,35 @@ Eight PRs. Each one ends at a verifiable boundary before the next is opened. Sch
 
 ---
 
+## Follow-ups (post-PR-8, not yet built)
+
+### Invoice email to the agency on issuance (filed 2026-08-31)
+
+**Gap found:** the app sends the agency **no email at all** about their bill.
+Issuance ([lib/billing/issuance.ts](../../lib/billing/issuance.ts)) creates the
+Stripe invoice and flips status but emails nothing; the Stripe webhook
+([lib/billing/stripe-webhook.ts](../../lib/billing/stripe-webhook.ts)) only
+updates DB status. `lib/email/` has no invoice/receipt template. The only
+invoice email an agency could receive today is one Stripe generates itself,
+which depends on Stripe dashboard "customer emails" settings AND the charge
+actually going through — so if collection silently skips (no card, no live
+keys, cron didn't run), the agency hears nothing.
+
+**What to build:** on the 1st-of-month issuance run, email each agency their
+invoice **regardless of the Stripe collection outcome** — line-by-line
+breakdown, total, billing period, and payment status (charged / will be
+attempted / needs a card). Send via the standard SendGrid path
+(`updates@thesalesprogressor.co.uk` sender). Consider a matching
+"payment failed — update your card" email off `invoice.payment_failed`
+(the failed-payment block at PR 7 currently has no email, only an in-app
+banner + create-file block).
+
+**Why it matters:** "agents get told what they owe" is table stakes for going
+live on real billing. Without it, month-end invoicing is invisible to the
+customer even when it works.
+
+---
+
 ## Decisions locked (2026-05-24)
 
 1. **VAT rate stored as basis points** (`vatRateBps: Int?`, `2000` = 20%). Lossless for future reduced/zero rates.
@@ -232,3 +261,4 @@ Each PR boundary is a verification pause. **Specifically: walk PR 1's staging st
 - Refund flow (model is credit-only, not cash refunds)
 - Multi-currency
 - Per-negotiator billing or seat counts (whole-agency only)
+- Invoice / payment-failed emails to the agency (logged as a follow-up above, filed 2026-08-31)

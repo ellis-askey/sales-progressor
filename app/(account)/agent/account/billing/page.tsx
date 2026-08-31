@@ -31,6 +31,7 @@ import { PlanTermsCollapsed } from "@/components/billing/v2/PlanTermsCollapsed";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { getDefaultCard } from "@/lib/stripe";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 
 function monthLabel(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -38,6 +39,18 @@ function monthLabel(d: Date): string {
     month: "long",
     year: "numeric",
   }).format(d);
+}
+
+// Split a fee bandLabel ("Outsourced — up to £349,999") into the service
+// name + a muted sub-descriptor ("Outsourced" / "Up to £349,999"), matching
+// the invoice-content mock. Also drops the em-dash from the displayed string.
+function splitService(kind: string, bandLabel: string): { label: string; sub?: string } {
+  if (/self-progress/i.test(bandLabel)) return { label: "Self-progress", sub: "Free" };
+  const label = kind === "in_house_fee" ? "In-house" : "Outsourced";
+  const dash = bandLabel.indexOf("—");
+  let sub = dash >= 0 ? bandLabel.slice(dash + 1).trim() : bandLabel;
+  sub = sub.charAt(0).toUpperCase() + sub.slice(1);
+  return { label, sub };
 }
 
 export default async function AccountBillingPage() {
@@ -97,20 +110,44 @@ export default async function AccountBillingPage() {
       })
     : null;
 
+  // Per-line file metadata for the address popover (property photo + added date).
+  const lineTxIds = runningTotal.lines.map((l) => l.transactionId);
+  const lineMetaRows = lineTxIds.length
+    ? await prisma.propertyTransaction.findMany({
+        where: { id: { in: lineTxIds } },
+        select: { id: true, createdAt: true, photoStoragePath: true },
+      })
+    : [];
+  const linePhotoMap = await getSignedUrlMap(lineMetaRows.map((m) => m.photoStoragePath));
+  const lineMetaById = new Map(
+    lineMetaRows.map((m) => [
+      m.id,
+      { addedAt: m.createdAt, photoUrl: m.photoStoragePath ? linePhotoMap.get(m.photoStoragePath) ?? null : null },
+    ]),
+  );
+
   const buildingLines = [
-    ...runningTotal.lines.map((l) => ({
-      transactionId: l.transactionId,
-      exchangedAt: l.exchangedAt,
-      address: l.propertyAddress,
-      service: l.bandLabel,
-      totalPence: l.totalPence,
-      variant: "normal" as const,
-    })),
+    ...runningTotal.lines.map((l) => {
+      const s = splitService(l.kind, l.bandLabel);
+      return {
+        transactionId: l.transactionId,
+        exchangedAt: l.exchangedAt,
+        address: l.propertyAddress,
+        serviceLabel: s.label,
+        serviceSub: s.sub,
+        totalPence: l.totalPence,
+        variant: "normal" as const,
+        fileHref: `/agent/transactions/${l.transactionId}`,
+        addedAt: lineMetaById.get(l.transactionId)?.addedAt ?? null,
+        photoUrl: lineMetaById.get(l.transactionId)?.photoUrl ?? null,
+      };
+    }),
     ...trialFilesThisMonth.map((t) => ({
       transactionId: t.id,
       exchangedAt: t.exchangedAt!,
       address: t.propertyAddress,
-      service: "Free — trial",
+      serviceLabel: "Trial",
+      serviceSub: "Free",
       totalPence: 0,
       variant: "trial" as const,
     })),
@@ -119,7 +156,8 @@ export default async function AccountBillingPage() {
           transactionId: "_credit_",
           exchangedAt: new Date(),
           address: "Pending credit (applies next month)",
-          service: "Credit",
+          serviceLabel: "Credit",
+          serviceSub: undefined,
           totalPence: -runningTotal.pendingCreditPence,
           variant: "credit" as const,
         }]

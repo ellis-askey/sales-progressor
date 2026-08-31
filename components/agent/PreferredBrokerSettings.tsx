@@ -5,7 +5,7 @@ import { NumericFormat } from "react-number-format";
 import { Buildings, ArrowSquareOut } from "@phosphor-icons/react";
 import { upsertPreferredBrokerAction, removePreferredBrokerAction, addBrokerWithContactAction } from "@/app/actions/brokers";
 
-type PreferredBroker = {
+export type PreferredBroker = {
   firmId: string;
   firmName: string;
   firmWebsite: string | null;
@@ -137,7 +137,7 @@ function BrokerCard({
 
 // ── Profile form (empty state + edit state) ────────────────────────────────────
 
-function BrokerForm({
+export function BrokerForm({
   initial,
   isEdit,
   onCancel,
