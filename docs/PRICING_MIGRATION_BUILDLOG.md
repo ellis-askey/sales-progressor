@@ -94,6 +94,16 @@ Local dev server `http://localhost:3001` (runs the committed Phase-2 code, point
 
 ---
 
+## Fix — first-outsourced-free representation · 2026-08-31 · staging
+
+**Found by the Phase-2 screenshot pass** (the billing page showed £600, not £300): the first-outsourced-free CreditNote was invisible to the live running total once the accrual cron applied it (running-total reads transactions, not invoice lines), and a CreditNote also risked double-counting against the page's pending-credit figure before accrual ran.
+
+**Fix:** dropped the CreditNote for first-outsourced-free. The `firstOutsourcedFree` flag now drives a **£0 "Outsourced — first file free" line** directly in both the accrual cron and the live running total, so the file bills its band conceptually but nets to £0 everywhere, regardless of cron timing. The band value stays recoverable from `freeReason` + `priceAtExchange` for reporting.
+
+**Files:** `lib/services/billing-trigger.ts` (no CreditNote, just the flag), `lib/billing/accrual.ts` (£0 first-free line), `lib/billing/running-total.ts` (£0 first-free line). **Verified:** re-seeded staging → billing page shows £300.00, invoice reads "first file free £0.00" + "£300.00" (screenshot `pricing-migration-screens/01-billing-plan-and-invoice.png`). tsc clean.
+
+**Screenshot workflow:** `pricing-shoot.mjs` (git-ignored) logs into the seeded staging agency via Playwright and captures every changed surface into `pricing-migration-screens/` (git-ignored). Re-run after any visual change.
+
 ## Deferred / follow-ups
 
 - **First-outsourced-free concurrency hardening (D3a).** The "is this the first?" check is a count, safe at pre-launch scale (a same-agency simultaneous double-exchange cannot happen yet). Before real volume, add a Postgres **advisory lock on `agencyId`** at the start of the outsourced decision (never throws, so it can't poison the shared exchange transaction — unlike a unique-index violation). The `firstOutsourcedFree` column is ready for it.

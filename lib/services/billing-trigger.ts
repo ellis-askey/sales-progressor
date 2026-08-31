@@ -28,7 +28,6 @@
 // rows and writes nothing.
 
 import { prisma } from "@/lib/prisma";
-import { computeFee } from "@/lib/billing/fee";
 import type { Prisma } from "@prisma/client";
 
 export const EXCHANGE_CODES = new Set(["VM19", "PM26"]);
@@ -80,6 +79,13 @@ export async function maybeStampExchange(
   //    the only race, and cannot happen yet. A DB-level guard (advisory lock on
   //    agencyId, so it never throws inside this shared exchange transaction) is
   //    the hardening before real volume — see the build log's deferred items.
+  //
+  //    Representation: the file gets billedAtExchange + priceAtExchange + the
+  //    firstOutsourcedFree flag stamped. The £0 net and the visible "first file
+  //    free" line are rendered from that flag by accrual and the running total
+  //    (they zero the band fee for a flagged file), so no CreditNote is needed
+  //    and nothing double-counts. The giveaway's value stays recoverable from
+  //    freeReason + priceAtExchange for reporting.
   if (txn.serviceType === "outsourced") {
     const priorOutsourcedExchanged = await db.propertyTransaction.count({
       where: {
@@ -91,7 +97,8 @@ export async function maybeStampExchange(
       },
     });
     if (priorOutsourcedExchanged === 0) {
-      const claimed = await db.propertyTransaction.updateMany({
+      // Bilateral-safe via the NULL guard: the second fire matches 0 rows.
+      await db.propertyTransaction.updateMany({
         where: { id: transactionId, billedAtExchange: null },
         data: {
           firstOutsourcedFree: true,
@@ -100,30 +107,6 @@ export async function maybeStampExchange(
           priceAtExchange: txn.purchasePrice,
         },
       });
-      // claimed.count is 0 on the bilateral second fire (billedAtExchange
-      // already set) — so the credit is written exactly once.
-      if (claimed.count > 0) {
-        const agency = await db.agency.findUnique({
-          where: { id: txn.agencyId },
-          select: { vatRegisteredAt: true, vatRateBps: true, feeTier: true, legacyOutsourcedFeePence: true },
-        });
-        const fee = computeFee(
-          "outsourced",
-          txn.purchasePrice,
-          agency ? { vatRegisteredAt: agency.vatRegisteredAt, vatRateBps: agency.vatRateBps } : null,
-          agency ? { feeTier: agency.feeTier, legacyOutsourcedFeePence: agency.legacyOutsourcedFeePence } : null,
-        );
-        if (fee.totalPence > 0) {
-          await db.creditNote.create({
-            data: {
-              agencyId: txn.agencyId,
-              transactionId,
-              amountPence: fee.totalPence,
-              reason: "First outsourced file free",
-            },
-          });
-        }
-      }
       return;
     }
   }

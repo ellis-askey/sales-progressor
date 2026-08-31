@@ -101,6 +101,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
           propertyAddress: true,
           serviceType: true,
           priceAtExchange: true,
+          firstOutsourcedFree: true,
         },
       });
       const billedIds = new Set(billedTxns.map((t) => t.id));
@@ -131,15 +132,21 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
       for (const t of billedTxns) {
         if (existingByTxId.has(t.id)) continue;
         const fee = computeFee(t.serviceType, t.priceAtExchange, agencyVat, feeOverride);
+        // First outsourced file free (D3/D4): the sale bills its band, but the
+        // line nets to £0 with a clear "first file free" label. The band value
+        // stays recoverable from freeReason + priceAtExchange for reporting.
+        const firstFree = t.firstOutsourcedFree;
         await tx.invoiceLine.create({
           data: {
             invoiceId: invoice.id,
             transactionId: t.id,
             kind: fee.kind satisfies InvoiceLineKind,
-            description: `${fee.bandLabel} — ${t.propertyAddress}`,
-            amountPence: fee.amountPence,
-            vatPence: fee.vatPence,
-            totalPence: fee.totalPence,
+            description: firstFree
+              ? `Outsourced — first file free — ${t.propertyAddress}`
+              : `${fee.bandLabel} — ${t.propertyAddress}`,
+            amountPence: firstFree ? 0 : fee.amountPence,
+            vatPence: firstFree ? 0 : fee.vatPence,
+            totalPence: firstFree ? 0 : fee.totalPence,
           },
         });
         linesAdded++;
