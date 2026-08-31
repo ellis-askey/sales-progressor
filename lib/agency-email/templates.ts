@@ -172,9 +172,12 @@ function validateClientChase(raw: unknown): ClientChaseContent | null {
 }
 
 export async function resolveClientChaseContent(agencyId: string | null): Promise<ClientChaseContent> {
-  if (!agencyId) return CLIENT_CHASE_DEFAULT;
-  const raw = await getRow(agencyId, "client_chase", "default");
-  return raw ? coalesceClientChase(raw) : CLIENT_CHASE_DEFAULT;
+  if (agencyId) {
+    const raw = await getRow(agencyId, "client_chase", "default");
+    if (raw) return coalesceClientChase(raw);
+  }
+  const platform = await getPlatformRow("client_chase", "default");
+  return platform ? coalesceClientChase(platform) : CLIENT_CHASE_DEFAULT;
 }
 
 // ─── Weekly client update ─────────────────────────────────────────────────────
@@ -212,9 +215,12 @@ function validateWeeklyUpdate(raw: unknown): WeeklyUpdateContent | null {
 }
 
 export async function resolveWeeklyUpdateContent(agencyId: string | null): Promise<WeeklyUpdateContent> {
-  if (!agencyId) return WEEKLY_UPDATE_DEFAULT;
-  const raw = await getRow(agencyId, "weekly_update", "default");
-  return raw ? coalesceWeeklyUpdate(raw) : WEEKLY_UPDATE_DEFAULT;
+  if (agencyId) {
+    const raw = await getRow(agencyId, "weekly_update", "default");
+    if (raw) return coalesceWeeklyUpdate(raw);
+  }
+  const platform = await getPlatformRow("weekly_update", "default");
+  return platform ? coalesceWeeklyUpdate(platform) : WEEKLY_UPDATE_DEFAULT;
 }
 
 // ─── Generic storage ──────────────────────────────────────────────────────────
@@ -227,25 +233,39 @@ async function getRow(agencyId: string, templateKey: string, variant: string): P
   return row?.content ?? null;
 }
 
+// Sales Progressor's own edited default for a template (Command Centre). null =
+// no edit, so the built-in code default applies.
+async function getPlatformRow(templateKey: string, variant: string): Promise<unknown | null> {
+  const row = await prisma.platformEmailTemplate.findUnique({
+    where: { templateKey_variant: { templateKey, variant } },
+    select: { content: true },
+  });
+  return row?.content ?? null;
+}
+
 // ─── Send-path resolvers (typed) ──────────────────────────────────────────────
 
 export async function resolveCompletionPackContent(agencyId: string | null, side: CompletionPackSide): Promise<CompletionPackContent> {
-  if (!agencyId) return COMPLETION_PACK_DEFAULTS[side];
-  const raw = await getRow(agencyId, "completion_pack", side);
-  return raw ? coalesceCompletionPack(raw, side) : COMPLETION_PACK_DEFAULTS[side];
+  if (agencyId) {
+    const raw = await getRow(agencyId, "completion_pack", side);
+    if (raw) return coalesceCompletionPack(raw, side);
+  }
+  const platform = await getPlatformRow("completion_pack", side);
+  return platform ? coalesceCompletionPack(platform, side) : COMPLETION_PACK_DEFAULTS[side];
 }
 
 export async function resolveExchangeDayClientContent(
   agencyId: string | null,
 ): Promise<{ morning: ExchangeDayMorningContent; authority: ExchangeDayAuthorityContent }> {
-  if (!agencyId) return { morning: EXCHANGE_DAY_MORNING_DEFAULT, authority: EXCHANGE_DAY_AUTHORITY_DEFAULT };
-  const [m, a] = await Promise.all([
-    getRow(agencyId, "exchange_day_client", "morning"),
-    getRow(agencyId, "exchange_day_client", "authority"),
+  const [am, aa, pm, pa] = await Promise.all([
+    agencyId ? getRow(agencyId, "exchange_day_client", "morning") : Promise.resolve(null),
+    agencyId ? getRow(agencyId, "exchange_day_client", "authority") : Promise.resolve(null),
+    getPlatformRow("exchange_day_client", "morning"),
+    getPlatformRow("exchange_day_client", "authority"),
   ]);
   return {
-    morning: m ? coalesceExchangeMorning(m) : EXCHANGE_DAY_MORNING_DEFAULT,
-    authority: a ? coalesceExchangeAuthority(a) : EXCHANGE_DAY_AUTHORITY_DEFAULT,
+    morning: am ? coalesceExchangeMorning(am) : pm ? coalesceExchangeMorning(pm) : EXCHANGE_DAY_MORNING_DEFAULT,
+    authority: aa ? coalesceExchangeAuthority(aa) : pa ? coalesceExchangeAuthority(pa) : EXCHANGE_DAY_AUTHORITY_DEFAULT,
   };
 }
 
@@ -292,10 +312,48 @@ export type TemplateDescription = { exists: true; source: "agency" | "default"; 
 export async function describeTemplate(agencyId: string, templateKey: string, variant: string): Promise<TemplateDescription | null> {
   const fam = TEMPLATE_FAMILIES[templateKey];
   if (!fam || !fam.variants.includes(variant)) return null;
-  const base = fam.defaultFor(variant);
+  // The agency's "Sales Progressor default" (and reset target) is our edited
+  // platform default if one exists, else the built-in code default.
+  const platformRaw = await getPlatformRow(templateKey, variant);
+  const base = platformRaw != null ? fam.coalesce(variant, platformRaw) : fam.defaultFor(variant);
   const raw = await getRow(agencyId, templateKey, variant);
   if (raw == null) return { exists: true, source: "default", effective: base, base };
   return { exists: true, source: "agency", effective: fam.coalesce(variant, raw), base };
+}
+
+// ─── Platform-default (Command Centre) describe / save / reset ─────────────────
+// Edits Sales Progressor's own default (the agencyId-free PlatformEmailTemplate
+// layer). "custom" = we've edited the default; "default" = built-in code copy.
+
+export type PlatformTemplateDescription = { source: "custom" | "default"; effective: unknown; base: unknown };
+
+export async function describePlatformTemplate(templateKey: string, variant: string): Promise<PlatformTemplateDescription | null> {
+  const fam = TEMPLATE_FAMILIES[templateKey];
+  if (!fam || !fam.variants.includes(variant)) return null;
+  const codeDefault = fam.defaultFor(variant);
+  const raw = await getPlatformRow(templateKey, variant);
+  if (raw == null) return { source: "default", effective: codeDefault, base: codeDefault };
+  return { source: "custom", effective: fam.coalesce(variant, raw), base: codeDefault };
+}
+
+export async function savePlatformTemplate(templateKey: string, variant: string, rawContent: unknown, editorId: string): Promise<{ ok: boolean }> {
+  const fam = TEMPLATE_FAMILIES[templateKey];
+  if (!fam || !fam.variants.includes(variant)) return { ok: false };
+  const content = fam.validate(variant, rawContent);
+  if (!content) return { ok: false };
+  await prisma.platformEmailTemplate.upsert({
+    where: { templateKey_variant: { templateKey, variant } },
+    create: { templateKey, variant, content: content as never, updatedById: editorId },
+    update: { content: content as never, updatedById: editorId },
+  });
+  return { ok: true };
+}
+
+export async function resetPlatformTemplate(templateKey: string, variant: string): Promise<{ ok: boolean }> {
+  const fam = TEMPLATE_FAMILIES[templateKey];
+  if (!fam || !fam.variants.includes(variant)) return { ok: false };
+  await prisma.platformEmailTemplate.deleteMany({ where: { templateKey, variant } });
+  return { ok: true };
 }
 
 export async function saveTemplate(
