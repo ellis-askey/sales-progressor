@@ -35,41 +35,13 @@ export type SubscribedDevice = {
 type Spec = { key: PushKey; label: string; description: string };
 
 const TOGGLES: Spec[] = [
-  {
-    key: "clientConfirmation",
-    label: "Client milestone confirmations",
-    description: "When a buyer or seller confirms a milestone via their portal. Off by default — turn on to be notified every time a client confirms.",
-  },
-  {
-    key: "clientChaseNote",
-    label: "Client replies on Respond page",
-    description: "When a client leaves a note on a chase request (e.g. \"Solicitor's away til Monday\").",
-  },
-  {
-    key: "chaseEscalation",
-    label: "Chase escalates",
-    description: "When a chase task crosses the threshold to escalated priority — manually or by the engine.",
-  },
-  {
-    key: "fileAssigned",
-    label: "File assigned to me",
-    description: "When a file is assigned (or reassigned) to you.",
-  },
-  {
-    key: "exchangeApproaching",
-    label: "Exchange approaching",
-    description: "Daily check; fires once per file when the exchange target is within a week.",
-  },
-  {
-    key: "mortgageOfferExpiring",
-    label: "Mortgage offer expiring",
-    description: "Daily check; warns you as a client's mortgage-offer expiry nears: a heads-up at 21 days, a sharper nudge at 7, and once it lapses.",
-  },
-  {
-    key: "chainEvent",
-    label: "Chain updates",
-    description: "When something happens on a chain your file is part of — a pulled buyer, a fallen purchase, a wait request, or a declined invite.",
-  },
+  { key: "clientConfirmation", label: "Client confirmations", description: "When a buyer or seller confirms a milestone." },
+  { key: "clientChaseNote", label: "Client replies on Respond page", description: "When a client leaves a note on a chase request." },
+  { key: "chaseEscalation", label: "Chase escalations", description: "When a chase task crosses the threshold to escalated priority." },
+  { key: "fileAssigned", label: "Files assigned to me", description: "When a file is assigned (or reassigned) to you." },
+  { key: "exchangeApproaching", label: "Exchange approaching", description: "Daily check; fires once per file when the exchange target is within a week." },
+  { key: "mortgageOfferExpiring", label: "Mortgage offer expiring", description: "Warns you as a client's mortgage-offer expiry nears." },
+  { key: "chainEvent", label: "Chain updates", description: "When something happens on a chain affecting a file." },
 ];
 
 type SubscribeStatus =
@@ -261,7 +233,7 @@ export function MobilePushSection({
     try {
       const result = await sendTestPushAction();
       if (!result.ok) {
-        setTestStatus("Couldn't send the test — try again.");
+        setTestStatus("Couldn't send the test. Try again.");
         return;
       }
       if (result.deliveredCount === 0) {
@@ -270,17 +242,17 @@ export function MobilePushSection({
           // in server logs — the user just sees the unavailable copy.
           setTestStatus("Push notifications aren't available right now.");
         } else {
-          setTestStatus("No devices subscribed yet — enable on this device first.");
+          setTestStatus("No devices subscribed yet. Enable on this device first.");
         }
         return;
       }
       setTestStatus(
         result.deliveredCount === 1
-          ? "Sent — check your device."
+          ? "Sent. Check your device."
           : `Sent to ${result.deliveredCount} devices.`,
       );
     } catch {
-      setTestStatus("Couldn't send the test — try again.");
+      setTestStatus("Couldn't send the test. Try again.");
     }
     // Auto-clear after a few seconds so the UI doesn't get stuck.
     setTimeout(() => setTestStatus(null), 8000);
