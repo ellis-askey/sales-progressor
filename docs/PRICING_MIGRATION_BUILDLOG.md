@@ -103,3 +103,13 @@ All four increments committed on staging. Net effect: self-progress is free by t
 2. **Local:** confirm the dev server's active `DATABASE_URL` is the **staging** one; I apply the migration to it and seed, then give you the **localhost:3001** link.
 
 Either way the seed uses the real create + exchange paths so it genuinely exercises the new billing code, not faked rows.
+
+### VERIFIED on staging · 2026-08-31
+
+Migration applied to staging (the seed used the new columns successfully). `scripts/seed-pricing-verification.ts` ran against staging and produced exactly the intended behaviour:
+- **First outsourced sale** (£425k): `freeReason=first_outsourced_free`, `firstOutsourcedFree=true`, billed at the £300 band **with a £300 "First outsourced file free" CreditNote** → nets to £0.
+- **Second outsourced sale** (£400k): `freeReason=null`, bills its band.
+- **Self-progress sale**: skipped (free, no bill).
+- **Accrual**: 1 invoice, 2 fee lines + 1 credit applied.
+
+**View it:** dev server at `http://localhost:3001/agent/billing`, logged in as `pricing-verify@thesalesprogressor.test`. The self-progress sale never bills; the first outsourced shows a fee + a first-file-free credit netting to £0; the second bills its band. (The file sidebar still shows the old £59 self copy — that's Phase 4 copy, not done yet.)
