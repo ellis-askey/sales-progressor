@@ -1,8 +1,10 @@
-// lib/command/milestone-emails/steps.ts
+// lib/milestone-emails/steps.ts
 //
-// Builds the ordered list of milestone steps for the Command Centre email
-// matrix: which sides each step emails, and which scenario a step is specific
-// to (mortgage-only buyer steps, leasehold-only management-pack steps).
+// Builds the ordered list of milestone steps for the email-copy editors (the
+// Command Centre matrix and the agency-facing Account editor): which sides each
+// step emails, and which scenario a step is specific to (mortgage-only buyer
+// steps, leasehold-only management-pack steps). Brand-neutral so both surfaces
+// can import it (the agent app must not import lib/command — Law 8).
 
 import "server-only";
 import { getMilestoneCopy } from "@/lib/portal-copy";

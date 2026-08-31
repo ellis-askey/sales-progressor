@@ -21,6 +21,7 @@
 // The legacy /agent/settings page continues to render the same four
 // sections (plus team/automation/etc.) until Stage 4 retire.
 
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getBrandColor } from "@/lib/agent/themes";
@@ -119,6 +120,16 @@ export default async function AccountProfilePage({
               </h2>
               <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
                 Your logo, shown at the top of the emails your clients receive. Adjust it until it looks right.
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                To change the wording your clients read, not just the logo, head to{" "}
+                <Link
+                  href="/agent/account/emails"
+                  style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
+                >
+                  Emails
+                </Link>
+                .
               </p>
             </div>
             {branding && <EmailBrandingStudio initial={branding} />}

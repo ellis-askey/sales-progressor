@@ -185,3 +185,46 @@ export async function describeEffective(
   }
   return { effective: base, source: "default", base };
 }
+
+export type AgencyEffectiveDescription = {
+  effective: RecipientEmailCopy | null; // agency > SP-default > code default; null = no email to this side
+  source: "agency" | "sp_default" | "default";
+  matchedTenure?: string; // scope of the winning AGENCY row (for reset), when source==="agency"
+  matchedMethod?: string;
+  resetBase: RecipientEmailCopy | null; // what "Reset to Sales Progressor" reverts to (SP default, else code default)
+};
+
+/**
+ * Full description for the agency-facing Account editor: the copy that would
+ * send for THIS agency, whether it's the agency's own version / our default /
+ * the built-in default, and the copy a reset would revert to.
+ */
+export async function describeEffectiveForAgency(
+  code: string,
+  side: CopySide,
+  scenario: Scenario,
+  agencyId: string
+): Promise<AgencyEffectiveDescription> {
+  const rows = await getOverridesForCode(code, agencyId); // agency rows + SP-default (null) rows
+  const codeDefault = getMilestoneCopy(code).emailCopy?.[side] ?? null;
+
+  // Effective across both layers — pickBest ranks the agency layer first.
+  const best = pickBest(rows, side, scenario);
+  // What a reset reverts to: best of the SP-default (null) rows, else code default.
+  const spBest = pickBest(rows.filter((r) => r.agencyId === null), side, scenario);
+  const resetBase = spBest ? toCopy(spBest) : codeDefault;
+
+  if (best && best.agencyId === agencyId) {
+    return {
+      effective: toCopy(best),
+      source: "agency",
+      matchedTenure: best.tenure,
+      matchedMethod: best.purchaseType,
+      resetBase,
+    };
+  }
+  if (best) {
+    return { effective: toCopy(best), source: "sp_default", resetBase };
+  }
+  return { effective: codeDefault, source: "default", resetBase };
+}
