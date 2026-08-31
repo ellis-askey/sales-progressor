@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { parseMode, parseAgencies } from "@/lib/command/scope";
-import { getRetention, getTransactionRetention, type DriftUser } from "@/lib/command/retention";
+import { getRetention, getTransactionRetention, getFreeModelSignals, type DriftUser } from "@/lib/command/retention";
 import InfoTip from "@/components/command/shared/InfoTip";
 
 // Command Centre → Repeat use. Are people coming back, and who's drifting away?
@@ -37,6 +37,9 @@ function milestoneLabel(threshold: number): string {
   if (threshold === 2) return "Reached a 2nd sale";
   return `Reached ${threshold} sales`;
 }
+function fmtGBP(pence: number): string {
+  return `£${Math.round(pence / 100).toLocaleString("en-GB")}`;
+}
 
 export default async function RetentionPage({
   searchParams,
@@ -46,9 +49,10 @@ export default async function RetentionPage({
   const sp = await searchParams;
   const mode = parseMode(sp.mode);
   const agencyIds = parseAgencies(sp.agency);
-  const [{ cards, returning, gaps, driftUsers, driftAgencies, scopeLabel }, tx] = await Promise.all([
+  const [{ cards, returning, gaps, driftUsers, driftAgencies, scopeLabel }, tx, free] = await Promise.all([
     getRetention(mode, agencyIds),
     getTransactionRetention(mode, agencyIds),
+    getFreeModelSignals(mode, agencyIds),
   ]);
 
   return (
@@ -62,6 +66,41 @@ export default async function RetentionPage({
           <Link href="/command/growth" className="text-neutral-400 hover:text-neutral-200 underline">Trends</Link>.
         </p>
       </div>
+
+      {/* Free-model signals — the two numbers the free pricing model needs */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
+          Free model
+          <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="Free model">Self-progress is free, so the old &ldquo;trial value&rdquo; number no longer describes anything. These are the two signals that matter now: what the first-outsourced-free giveaway costs, and how many free agencies go on to pay for outsourcing.</InfoTip></span>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+            <p className="text-xs text-neutral-400 mb-1">
+              Free → outsourced
+              <span className="ml-1"><InfoTip label="Free to outsourced conversion">Of agencies with at least one self-progress sale, the share who have also sent at least one sale to us. The core monetisation signal under the free model.</InfoTip></span>
+            </p>
+            <p className="text-2xl font-bold text-white tabular-nums">{free.conversionPct == null ? "—" : `${free.conversionPct}%`}</p>
+            <p className="text-[11px] text-neutral-600 mt-0.5 tabular-nums">
+              {free.convertedToOutsourced} of {free.selfProgressAgencies} self-progress {free.selfProgressAgencies === 1 ? "agency" : "agencies"}
+            </p>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+            <p className="text-xs text-neutral-400 mb-1">
+              First-file giveaway
+              <span className="ml-1"><InfoTip label="First outsourced file free">What the first-outsourced-free files would have billed at their band. The real cost of the acquisition offer, distinct from the free self-progress product.</InfoTip></span>
+            </p>
+            <p className="text-2xl font-bold text-white tabular-nums">{fmtGBP(free.firstFreeValuePence)}</p>
+            <p className="text-[11px] text-neutral-600 mt-0.5 tabular-nums">
+              {free.firstFreeCount} free {free.firstFreeCount === 1 ? "file" : "files"} given
+            </p>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+            <p className="text-xs text-neutral-400 mb-1">Self-progress agencies</p>
+            <p className="text-2xl font-bold text-white tabular-nums">{free.selfProgressAgencies.toLocaleString()}</p>
+            <p className="text-[11px] text-neutral-600 mt-0.5">on the free product</p>
+          </div>
+        </div>
+      </section>
 
       {/* Coming back — cards + returning-user rate */}
       <section>

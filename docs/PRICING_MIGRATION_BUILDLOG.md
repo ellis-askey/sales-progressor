@@ -162,3 +162,10 @@ Migration applied to staging (the seed used the new columns successfully). `scri
 
 ### Increment 3A — Command Centre pricing copy fixed · 2026-08-31 · staging
 Removed the actively-wrong pricing copy from the superadmin views: "In-house (£59)" breakdown labels -> "Self-progress (free)"; fee column "£59 / 250-350" -> "Free / £250-350"; rulebook "Self-managed £59 per exchange" -> "Self-progress free"; stale "7-day trial" footnote -> "self-progress never bills; first outsourced file free"; AgencyFeeManager + growth InfoTip reframed. Files: revenue/page.tsx, AgencyFeeManager.tsx, growth/page.tsx. tsc clean.
+
+### Increments 3B + 3C — free-model signals · 2026-08-31 · staging
+New `getFreeModelSignals(mode, agencyIds)` in `lib/command/retention.ts` + a "Free model" section on `/command/retention`: **free→outsourced conversion** (of agencies with a self-progress sale, the share who also outsource — the flagship monetisation signal), the **first-file giveaway cost** (what the first-outsourced-free files would have billed, distinct from the free self-progress product), and the self-progress agency count. This is the split the audit asked for (D6/D11): the real giveaway (first-outsourced-free) is now measured on its own rather than buried in the old "trial value" figure. tsc clean.
+
+**Verification:** superadmin-only page — Ellis verifies `/command/retention` himself (no admin login on this side to screenshot). 
+
+**Follow-up (minor):** the CC revenue page still has a "Trial given away" KPI reading `freeOnExchange` files (now only old-trial + comped); trends to £0 as legacy trial files clear. Relabel to "Legacy trial value" in a later pass.
