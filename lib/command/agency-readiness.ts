@@ -27,6 +27,17 @@ export type ReadinessDomain = {
 // not_started = no sender address and no domain at all
 export type ReadinessLevel = "ready" | "setting_up" | "broken" | "not_started";
 
+// Inbound readiness: whether replies from clients and solicitors land back on
+// the agency's files. Needs a connected mailbox (an Outlook connection on any
+// user in the agency) and, ideally, recent inbound email actually captured.
+export type InboundLevel = "ready" | "connected_quiet" | "none";
+
+export type AgencyInboundReadiness = {
+  connected: boolean;
+  recentMessages: number;
+  level: InboundLevel;
+};
+
 export type AgencyEmailReadiness = {
   id: string;
   name: string;
@@ -34,6 +45,7 @@ export type AgencyEmailReadiness = {
   senderSet: boolean;
   domain: ReadinessDomain | null;
   level: ReadinessLevel;
+  inbound: AgencyInboundReadiness;
 };
 
 function levelFor(senderSet: boolean, domain: ReadinessDomain | null): ReadinessLevel {
@@ -54,10 +66,40 @@ export async function getAgencyEmailReadiness(): Promise<{
     orderBy: { name: "asc" },
   });
 
+  const agencyIds = agencies.map((a) => a.id);
+
   const domains = await commandDb.verifiedDomain.findMany({
-    where: { agencyId: { in: agencies.map((a) => a.id) } },
+    where: { agencyId: { in: agencyIds } },
     orderBy: { createdAt: "desc" },
   });
+
+  // Which agencies have a connected mailbox: one query over every Outlook
+  // connection whose owning user belongs to one of these agencies, collapsed
+  // to a Set of agencyIds so the per-agency lookup below is O(1).
+  const connections = await commandDb.outlookConnection.findMany({
+    where: { user: { agencyId: { in: agencyIds } } },
+    select: { user: { select: { agencyId: true } } },
+  });
+  const connectedAgencyIds = new Set(
+    connections.map((c) => c.user?.agencyId).filter((id): id is string => !!id),
+  );
+
+  // Recent inbound email captured on each agency's files (last 30 days). One
+  // count per agency, run in parallel rather than N+1 sequential awaits.
+  const inboundSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentInboundCounts = await Promise.all(
+    agencyIds.map((id) =>
+      commandDb.outboundMessage.count({
+        where: {
+          agencyId: id,
+          type: "inbound",
+          method: "email",
+          createdAt: { gte: inboundSince },
+        },
+      }),
+    ),
+  );
+  const recentInboundByAgency = new Map(agencyIds.map((id, i) => [id, recentInboundCounts[i]]));
 
   const senderDomainOf = (email: string | null) => email?.split("@")[1]?.toLowerCase() ?? "";
 
@@ -78,6 +120,13 @@ export async function getAgencyEmailReadiness(): Promise<{
         }
       : null;
     const senderSet = !!a.quoteSenderEmail;
+    const connected = connectedAgencyIds.has(a.id);
+    const recentMessages = recentInboundByAgency.get(a.id) ?? 0;
+    const inboundLevel: InboundLevel = connected
+      ? recentMessages > 0
+        ? "ready"
+        : "connected_quiet"
+      : "none";
     return {
       id: a.id,
       name: a.name,
@@ -85,6 +134,7 @@ export async function getAgencyEmailReadiness(): Promise<{
       senderSet,
       domain,
       level: levelFor(senderSet, domain),
+      inbound: { connected, recentMessages, level: inboundLevel },
     };
   });
 

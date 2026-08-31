@@ -20,6 +20,7 @@ type ProgressData = {
   hasVerifiedEmail:   boolean;
   hasPhone:           boolean;
   hasVerifiedSender:  boolean;
+  hasInboundConnected: boolean;
 };
 
 const DEFAULT_PROGRESS: ProgressData = {
@@ -30,6 +31,7 @@ const DEFAULT_PROGRESS: ProgressData = {
   hasVerifiedEmail:   false,
   hasPhone:           false,
   hasVerifiedSender:  false,
+  hasInboundConnected: false,
 };
 
 type Step = {
@@ -51,6 +53,9 @@ const STEPS: Step[] = [
   // access, so we only show it to the person who can act on it. Ticks on the
   // same "ready" signal as the Command Centre agency-readiness view.
   { label: "Send mail from your agency's domain", href: "/agent/account/profile", progressKey: "hasVerifiedSender", directorOnly: true },
+  // Directors and negotiators both handle their own files, so both connect an
+  // inbox. Not directorOnly — shows to every agency user.
+  { label: "Connect your email inbox", href: "/agent/account/connections", progressKey: "hasInboundConnected" },
 ];
 
 // Index at which the "Finish setup" section begins. Items before this index

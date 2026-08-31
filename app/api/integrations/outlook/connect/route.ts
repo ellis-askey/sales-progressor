@@ -13,7 +13,14 @@ import {
   OUTLOOK_STATE_MAX_AGE_SECONDS,
 } from "@/lib/integrations/outlook/state";
 
-const SETTINGS_PATH = "/command/settings/connections";
+// Agency users (director/negotiator) manage their inbox from the Account area;
+// internal staff use the Command Centre. Send each back to their own surface so
+// the OAuth flow doesn't dead-end on a page they can't see.
+function returnPathFor(role: string): string {
+  return role === "director" || role === "negotiator"
+    ? "/agent/account/connections"
+    : "/command/settings/connections";
+}
 
 export async function GET(req: Request) {
   const session = await requireSession();
@@ -22,11 +29,12 @@ export async function GET(req: Request) {
 
   const reqUrl = new URL(req.url);
   const origin = reqUrl.origin;
+  const settingsPath = returnPathFor(session.user.role);
   // Optional: pre-target a specific mailbox (from a roster row's Connect button).
   const loginHint = reqUrl.searchParams.get("email") ?? undefined;
 
   if (!isOutlookConfigured()) {
-    const back = new URL(SETTINGS_PATH, origin);
+    const back = new URL(settingsPath, origin);
     back.searchParams.set("outlook", "error");
     back.searchParams.set("reason", "not_configured");
     return NextResponse.redirect(back);

@@ -12,13 +12,22 @@
 import { Fragment, useState } from "react";
 import InfoTip from "@/components/command/shared/InfoTip";
 import { AgencyDomainAuth } from "@/components/command/email-senders/AgencyDomainAuth";
-import type { AgencyEmailReadiness as Row, ReadinessLevel } from "@/lib/command/agency-readiness";
+import type { AgencyEmailReadiness as Row, ReadinessLevel, InboundLevel } from "@/lib/command/agency-readiness";
 
 const LEVEL: Record<ReadinessLevel, { label: string; cls: string; rank: number }> = {
   broken: { label: "Action needed", cls: "text-red-400 bg-red-950/40 border-red-900", rank: 0 },
   not_started: { label: "Not started", cls: "text-neutral-400 bg-neutral-800 border-neutral-700", rank: 1 },
   setting_up: { label: "Setting up", cls: "text-amber-400 bg-amber-950/50 border-amber-900", rank: 2 },
   ready: { label: "Ready", cls: "text-emerald-400 bg-emerald-950/50 border-emerald-900", rank: 3 },
+};
+
+// Inbound is a separate signal from the sender+DNS readiness pill: a connected
+// mailbox landing replies back on files. Kept visually distinct so it never
+// folds into the overall Ready/Setting up state.
+const INBOUND: Record<InboundLevel, { label: string; mark: string; color: string; pill: string }> = {
+  ready: { label: "Receiving", mark: "✓", color: "#6ee7b7", pill: "text-emerald-400 bg-emerald-950/50 border-emerald-900" },
+  connected_quiet: { label: "Quiet", mark: "◑", color: "#fbbf24", pill: "text-amber-400 bg-amber-950/50 border-amber-900" },
+  none: { label: "Not connected", mark: "○", color: "#71717a", pill: "text-neutral-400 bg-neutral-800 border-neutral-700" },
 };
 
 function ReadinessPill({ level }: { level: ReadinessLevel }) {
@@ -126,6 +135,7 @@ export function AgencyEmailReadiness({
                           <span className="inline-flex items-center gap-3">
                             <Tick done={r.senderSet} label="Sender" />
                             <Tick done={dnsDone} label="DNS" />
+                            <Tick done={r.inbound.level === "ready"} label="Inbound" />
                           </span>
                         </td>
                         <td className="px-4 py-3 border-b border-neutral-800/70 whitespace-nowrap">
@@ -176,6 +186,32 @@ export function AgencyEmailReadiness({
                                       : r.domain
                                         ? "DNS records generated. The agency needs to add them at their registrar, then check status here."
                                         : "Not started. Generate the DNS records, then send them to the agency to add at their registrar."}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* 3. Inbound email (replies landing on files) */}
+                              <div className="flex items-start gap-3">
+                                <span className="text-[13px] leading-6" style={{ color: INBOUND[r.inbound.level].color }}>
+                                  {INBOUND[r.inbound.level].mark}
+                                </span>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <p className="text-[13px] font-semibold text-neutral-200">
+                                      Inbound email (replies land on files)
+                                    </p>
+                                    <span
+                                      className={`text-[10px] font-mono uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full border ${INBOUND[r.inbound.level].pill}`}
+                                    >
+                                      {INBOUND[r.inbound.level].label}
+                                    </span>
+                                  </div>
+                                  <p className="text-[12px] text-neutral-500 mt-1">
+                                    {r.inbound.level === "ready"
+                                      ? "Connected and receiving. Recent replies are landing on files."
+                                      : r.inbound.level === "connected_quiet"
+                                        ? "A mailbox is connected, but no replies have landed in the last 30 days."
+                                        : "No mailbox connected for this agency yet. A director or negotiator connects their inbox from their Account > Connections page."}
                                   </p>
                                 </div>
                               </div>

@@ -11,7 +11,7 @@ export async function GET() {
   // All checks scoped to this agent's own files
   const agentTxWhere = { agentUserId: userId, agencyId, status: { not: "draft" as const } };
 
-  const [activeTxCount, contactWithDetails, contactWithEmail, verifiedEmail, user, firstTx, verifiedDomainCount] =
+  const [activeTxCount, contactWithDetails, contactWithEmail, verifiedEmail, user, firstTx, verifiedDomainCount, inboundConnectionCount] =
     await Promise.all([
       prisma.propertyTransaction.count({ where: agentTxWhere }),
       prisma.contact.count({
@@ -37,6 +37,9 @@ export async function GET() {
       // the domain on verify, so a verified domain is the single source of truth.
       // Non-agency users (agencyId null) never match and stay false.
       prisma.verifiedDomain.count({ where: { agencyId: agencyId ?? "__none__", status: "verified" } }),
+      // Email inbox connected: at least one OutlookConnection for this user. Drives
+      // agents to link their inbox on the new /agent/account/connections page.
+      prisma.outlookConnection.count({ where: { userId } }),
     ]);
 
   // Explicit theme choice: agentPreferences.theme must exist and be a valid theme.
@@ -61,6 +64,7 @@ export async function GET() {
       hasVerifiedEmail:   verifiedEmail > 0 || accountAgeMs > THEME_GRACE_MS,
       hasPhone:           !!(user?.phone?.trim()),
       hasVerifiedSender:  verifiedDomainCount > 0,
+      hasInboundConnected: inboundConnectionCount > 0,
     },
     firstTxId: firstTx?.id ?? null,
   });
