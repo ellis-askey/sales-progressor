@@ -514,7 +514,7 @@ export function AgentFileSidebar({
           <SidebarRow
             label="Progressor fee"
             value={transaction.firstOutsourcedFree
-              ? <span style={{ color: "var(--agent-coral)" }} title="Your agency's first outsourced sale is on us.">Free — first file on us</span>
+              ? <span style={{ color: "var(--agent-coral)" }} title="Your agency's first outsourced sale is on us.">Free (first file on us)</span>
               : (transaction.serviceType === "self_managed" || transaction.freeOnExchange)
                 ? <span style={{ color: "var(--agent-coral)" }}>Free</span>
                 : ourFee.label}
