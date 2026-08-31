@@ -5,6 +5,7 @@
 // PDF link per row uses the same /api/billing/invoice-pdf/[id] route.
 
 import { FilePdf } from "@phosphor-icons/react/dist/ssr";
+import { Pill, type PillProps } from "@/components/ui/Pill";
 
 type HistoryRow = {
   id: string;
@@ -13,11 +14,12 @@ type HistoryRow = {
   totalPence: number;
 };
 
-const STATUS_COLOUR: Record<HistoryRow["status"], { bg: string; fg: string; label: string }> = {
-  paid:   { bg: "#d1fae5", fg: "#065f46", label: "Paid"   },
-  issued: { bg: "#dbeafe", fg: "#1e40af", label: "Issued" },
-  failed: { bg: "#fee2e2", fg: "#991b1b", label: "Failed" },
-  void:   { bg: "#e5e7eb", fg: "#374151", label: "Void"   },
+// Glass pills, matching the coloured status pills used across the app + portal.
+const STATUS_PILL: Record<HistoryRow["status"], { tone: PillProps["tone"]; label: string }> = {
+  paid:   { tone: "success", label: "Paid"   },
+  issued: { tone: "info",    label: "Issued" },
+  failed: { tone: "danger",  label: "Failed" },
+  void:   { tone: "default", label: "Void"   },
 };
 
 function fmt(p: number): string {
@@ -45,7 +47,7 @@ export function InvoiceHistoryLines({ rows }: { rows: HistoryRow[] }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>
           {rows.map((r) => {
-            const s = STATUS_COLOUR[r.status];
+            const s = STATUS_PILL[r.status];
             return (
               <div
                 key={r.id}
@@ -60,20 +62,7 @@ export function InvoiceHistoryLines({ rows }: { rows: HistoryRow[] }) {
                 }}
               >
                 <div style={{ color: "#111827" }}>{r.monthLabel}</div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.6,
-                    background: s.bg,
-                    color: s.fg,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                  }}
-                >
-                  {s.label}
-                </div>
+                <Pill tone={s.tone} glass>{s.label}</Pill>
                 <div
                   style={{
                     fontVariantNumeric: "tabular-nums",

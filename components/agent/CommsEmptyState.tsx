@@ -1,32 +1,12 @@
-import { Check, ChatText, BookOpen, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
+import { ChatText, BookOpen, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { Pill } from "@/components/ui/Pill";
 
 // The "Learn more about Updates" guide card is built below but hidden until its
 // "View guide" target exists (logged in docs/active/TODO.md). The three cards'
 // "Learn more" links land at the same time, so they share this flag.
 const SHOW_UPDATES_GUIDE = false;
-
-// A faded three-row feed watermark for the hero (circle + bar per row, a tick on
-// the last). Recreated with elements to match the mock — there's no icon for it.
-function FeedWatermark() {
-  return (
-    <span aria-hidden className="hidden md:flex" style={{
-      position: "absolute", top: "50%", right: 30, transform: "translateY(-50%)",
-      flexDirection: "column", gap: 16, opacity: 0.14, pointerEvents: "none",
-      color: "var(--agent-coral)",
-    }}>
-      {[0, 1, 2].map((i) => (
-        <span key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ width: 30, height: 30, borderRadius: "50%", border: "2px solid currentColor", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            {i === 2 && <Check size={15} weight="bold" />}
-          </span>
-          <span style={{ width: i === 1 ? 150 : 130, height: 11, borderRadius: 6, background: "currentColor" }} />
-        </span>
-      ))}
-    </span>
-  );
-}
 
 // Updates onboarding empty state (agency users, no updates yet). Mirrors the
 // Completions and To-Do empty states. There's no user action that creates an
@@ -35,10 +15,17 @@ export function CommsEmptyState() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
-      <div className="agent-glass-strong" style={{ position: "relative", overflow: "hidden", padding: "28px 30px", borderRadius: "var(--agent-radius-xl)" }}>
-        <FeedWatermark />
-        <div style={{ position: "relative" }}>
-          <Pill tone="brand" size="sm" style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+      <div
+        style={{
+          position: "relative", overflow: "hidden",
+          borderRadius: "var(--agent-radius-xl)", minHeight: 210, padding: "28px 30px",
+          border: "1px solid var(--agent-border-subtle)",
+          background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
+        }}
+      >
+        <HeroArt light="/updates-hero.png" dark="/updates-hero-dark.png" maxWidth="46%" maskStart="42%" />
+        <div style={{ position: "relative", maxWidth: 480 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             Nothing here yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
@@ -55,18 +42,24 @@ export function CommsEmptyState() {
         <p className="agent-eyebrow" style={{ marginBottom: 12 }}>What you&rsquo;ll see here</p>
         <div className="setup-cards-3">
           <SetupCard
+            glassId="empty-updates-solicitor"
+            label="Updates empty · Solicitor replies"
             iconSrc="/updates-solicitor.png"
             tint="coral"
             title="Solicitor replies, no chasing"
             desc="When a solicitor replies to one of our automatic chases, their reply and any dates they give appear right here."
           />
           <SetupCard
+            glassId="empty-updates-progress"
+            label="Updates empty · File progress"
             iconSrc="/updates-progress.png"
             tint="blue"
             title="See every file's progress"
             desc="Next to each update you'll see that sale's completion, its current stage and what it needs next."
           />
           <SetupCard
+            glassId="empty-updates-confirmed"
+            label="Updates empty · Who confirmed"
             iconSrc="/updates-confirmed.png"
             tint="green"
             title="See who confirmed each step"

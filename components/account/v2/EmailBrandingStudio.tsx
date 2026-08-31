@@ -200,6 +200,7 @@ export function EmailBrandingStudio({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
+          className="email-logo-replace"
           style={{
             fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 8,
             border: "1px solid rgba(0,0,0,0.14)", background: "#fff", color: "#111827",
@@ -212,11 +213,20 @@ export function EmailBrandingStudio({
           <button
             type="button"
             onClick={onRemove}
+            className="email-logo-remove"
             style={{ fontSize: 13, fontWeight: 500, background: "none", border: "none", color: "#6b7280", cursor: "pointer", padding: 0 }}
           >
             Remove
           </button>
         )}
+        <style>{`
+          .email-logo-replace { transition: background 140ms ease, transform 90ms ease; }
+          .email-logo-replace:hover:not(:disabled) { background: #f6f6f7 !important; }
+          .email-logo-replace:active:not(:disabled) { transform: scale(0.97); }
+          .email-logo-remove { transition: color 140ms ease; }
+          .email-logo-remove:hover { color: #dc2626 !important; }
+          @media (prefers-reduced-motion: reduce) { .email-logo-replace { transition: none; } .email-logo-replace:active:not(:disabled) { transform: none; } }
+        `}</style>
         <input ref={inputRef} type="file" accept={ACCEPT} onChange={onFile} style={{ display: "none" }} />
       </div>
 

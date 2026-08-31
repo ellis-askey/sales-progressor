@@ -18,7 +18,9 @@
 // query.
 
 import { useState, useTransition } from "react";
+import { Bell, BellSlash } from "@phosphor-icons/react";
 import { pauseClientEmails, resumeClientEmails } from "@/app/actions/automation";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
 
 type FileRow = {
   id: string;
@@ -94,11 +96,78 @@ export function SilencedFilesSectionPlain({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <AccountCard
+      icon={<Bell size={18} weight="bold" />}
+      title="Silenced files"
+      subtitle="Pause automated client emails for individual sales."
+      headerAction={
+        !pickerOpen ? (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            disabled={available.length === 0}
+            title={available.length === 0 ? "All your active files are already silenced" : undefined}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 13px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: available.length === 0 ? "#9ca3af" : "var(--agent-coral-deep, #E2452A)",
+              background: "#fff",
+              border: available.length === 0 ? "0.5px solid rgba(0,0,0,0.12)" : "0.5px solid rgba(255,107,74,0.5)",
+              borderRadius: 9,
+              cursor: available.length === 0 ? "default" : "pointer",
+            }}
+          >
+            + Silence a file
+          </button>
+        ) : undefined
+      }
+      bodyStyle={{ marginTop: 12 }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {pickerOpen && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <select
+            value={pickerValue}
+            onChange={(e) => setPickerValue(e.target.value)}
+            style={{ flex: 1, minWidth: 200, padding: "8px 12px", fontSize: 13, color: "#111827", background: "#fff", border: "0.5px solid rgba(0,0,0,0.18)", borderRadius: 8, outline: "none" }}
+          >
+            <option value="">Choose a file</option>
+            {available.map((r) => (
+              <option key={r.id} value={r.id}>{r.propertyAddress}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={handleSilence}
+            disabled={!pickerValue || isPending}
+            style={{ padding: "8px 14px", fontSize: 13, fontWeight: 500, color: "#fff", background: "var(--agent-coral, #FF6B4A)", border: "none", borderRadius: 8, cursor: !pickerValue || isPending ? "default" : "pointer", opacity: !pickerValue || isPending ? 0.45 : 1 }}
+          >
+            Silence
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPickerOpen(false); setPickerValue(""); }}
+            disabled={isPending}
+            style={{ padding: "8px 12px", fontSize: 13, color: "#6b7280", background: "transparent", border: "none", borderRadius: 6, cursor: isPending ? "default" : "pointer" }}
+            className="hover:bg-black/[0.04]"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {silenced.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>
-          No files are currently silenced. Use the picker below to silence one.
-        </p>
+        <div style={{ textAlign: "center", padding: "26px 0 20px" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,107,74,0.10)", color: "var(--agent-coral-deep, #E2452A)", marginBottom: 12 }}>
+            <BellSlash size={20} weight="bold" />
+          </span>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>No files are silenced</p>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#9ca3af" }}>All active files are currently sending as normal.</p>
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {silenced.map((f) => (
@@ -150,93 +219,7 @@ export function SilencedFilesSectionPlain({
         </div>
       )}
 
-      {/* Picker — opens inline */}
-      {!pickerOpen ? (
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          disabled={available.length === 0}
-          style={{
-            alignSelf: "flex-start",
-            padding: "6px 0",
-            fontSize: 13,
-            fontWeight: 500,
-            color: available.length === 0 ? "#9ca3af" : "var(--agent-coral-deep, #E84F2D)",
-            background: "transparent",
-            border: "none",
-            cursor: available.length === 0 ? "default" : "pointer",
-            textDecoration: available.length === 0 ? "none" : "underline",
-            textUnderlineOffset: 3,
-          }}
-        >
-          {available.length === 0
-            ? "All your active files are already silenced"
-            : "+ Silence another file"}
-        </button>
-      ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <select
-            value={pickerValue}
-            onChange={(e) => setPickerValue(e.target.value)}
-            style={{
-              flex: 1,
-              minWidth: 200,
-              padding: "8px 12px",
-              fontSize: 13,
-              color: "#111827",
-              background: "#fff",
-              border: "0.5px solid rgba(0,0,0,0.18)",
-              borderRadius: 8,
-              outline: "none",
-            }}
-          >
-            <option value="">Choose a file</option>
-            {available.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.propertyAddress}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={handleSilence}
-            disabled={!pickerValue || isPending}
-            style={{
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#fff",
-              background: "var(--agent-coral, #FF6B4A)",
-              border: "none",
-              borderRadius: 8,
-              cursor: !pickerValue || isPending ? "default" : "pointer",
-              opacity: !pickerValue || isPending ? 0.45 : 1,
-            }}
-          >
-            Silence
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPickerOpen(false);
-              setPickerValue("");
-            }}
-            disabled={isPending}
-            style={{
-              padding: "8px 12px",
-              fontSize: 13,
-              color: "#6b7280",
-              background: "transparent",
-              border: "none",
-              borderRadius: 6,
-              cursor: isPending ? "default" : "pointer",
-            }}
-            className="hover:bg-black/[0.04]"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-    </div>
+      </div>
+    </AccountCard>
   );
 }

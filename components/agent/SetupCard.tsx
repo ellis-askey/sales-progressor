@@ -1,8 +1,13 @@
 import Link from "next/link";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 // A tinted line-art PNG icon (masked to the tint colour) + title + description +
 // a glass button with a coral arrow. Used on the Completions and To-Do empty
 // states. The CTA is a link (`href`) or a click handler (`onClick`).
+//
+// Design Lab: pass `glassId` + `label` to make the card a pickable surface in
+// the lab (renders through GlassCard at v00 by default). Omit them and the card
+// stays a plain `.agent-glass` surface, unchanged. 2026-08-31.
 
 export const SETUP_TINTS = {
   coral: { bg: "rgba(var(--agent-coral-rgb), 0.12)", fg: "var(--agent-coral-deep)" },
@@ -21,7 +26,7 @@ function Arrow() {
   );
 }
 
-export function SetupCard({ iconSrc, icon, tint, title, desc, cta, href, onClick }: {
+export function SetupCard({ iconSrc, icon, tint, title, desc, cta, href, onClick, glassId, label }: {
   // Provide EITHER a line-art PNG (masked to the tint) or a ready-coloured icon
   // node (e.g. a Phosphor icon). One of the two is required.
   iconSrc?: string;
@@ -32,11 +37,15 @@ export function SetupCard({ iconSrc, icon, tint, title, desc, cta, href, onClick
   cta?: string;
   href?: string;
   onClick?: () => void;
+  // Design Lab: when both are set, the card is a pickable surface in the lab.
+  glassId?: string;
+  label?: string;
 }) {
   const t = SETUP_TINTS[tint];
   const inner = <>{cta}<Arrow /></>;
-  return (
-    <div className="agent-glass" style={{ padding: "18px 18px 16px", borderRadius: "var(--agent-radius-lg)", display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
+  const cardStyle: React.CSSProperties = { padding: "18px 18px 16px", borderRadius: "var(--agent-radius-lg)", display: "flex", flexDirection: "column", gap: 14, height: "100%" };
+  const body = (
+    <>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
         <span style={{ width: 40, height: 40, borderRadius: "50%", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {icon ? (
@@ -62,6 +71,19 @@ export function SetupCard({ iconSrc, icon, tint, title, desc, cta, href, onClick
       ) : (
         <button type="button" onClick={onClick} className="agent-btn agent-btn-secondary agent-btn-sm" style={btnStyle}>{inner}</button>
       ))}
+    </>
+  );
+
+  if (glassId) {
+    return (
+      <GlassCard glassId={glassId} label={label ?? title} style={cardStyle}>
+        {body}
+      </GlassCard>
+    );
+  }
+  return (
+    <div className="agent-glass" style={cardStyle}>
+      {body}
     </div>
   );
 }

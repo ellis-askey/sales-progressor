@@ -2,15 +2,15 @@
 
 // components/account/v2/TeamListViewPlain.tsx
 //
-// Team roster + pending invitations as hairline-divided rows on the
-// clean Account canvas. Same shape and props as TeamListView (one row
-// per director / negotiator / pending-invitation, same actions per
-// row), restyled — no glass cards, no card-per-row containers, just
-// a list with hairline separators. The original TeamListView remains
-// in use by the legacy /agent/settings page.
+// Team roster + pending invitations as rows on the Account card. Same props /
+// wiring as before (one row per director / negotiator / pending invite, same
+// actions). Redesign: every row shows a role badge; a negotiator's file access
+// is a dropdown (All files / Own files); per-row actions live in a "…" menu
+// (Remove / Resend / Cancel). The add trigger moved to the card header.
 
-import { Eye, EyeSlash, Crown, Trash, UserPlus, EnvelopeSimple, X } from "@phosphor-icons/react";
+import { Crown, EnvelopeSimple, CaretDown } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
 
 export type TeamMember = {
   id: string;
@@ -48,23 +48,66 @@ const ROW_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 12,
-  padding: "12px 4px",
+  padding: "13px 2px",
   borderBottom: "0.5px solid rgba(0,0,0,0.06)",
 };
 
-const ICON_BTN_STYLE: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 32,
-  height: 32,
-  background: "transparent",
-  border: "none",
-  borderRadius: 6,
-  color: "#9ca3af",
-  cursor: "pointer",
-  transition: "color 150ms, background 150ms",
-};
+function Badge({ label, tone }: { label: string; tone: "director" | "neutral" }) {
+  const styles =
+    tone === "director"
+      ? { background: "#fef3c7", color: "#92400e" }
+      : { background: "#f3f4f6", color: "#6b7280" };
+  return (
+    <span
+      style={{
+        flexShrink: 0,
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+        padding: "3px 8px",
+        borderRadius: 5,
+        ...styles,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function FileAccessSelect({ member, onToggle }: { member: TeamMember; onToggle?: (m: TeamMember) => void }) {
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <select
+        value={member.canViewAllFiles ? "all" : "own"}
+        onChange={() => onToggle?.(member)}
+        aria-label={`File access for ${member.name}`}
+        style={{
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+          padding: "6px 28px 6px 11px",
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: "#374151",
+          background: "#fff",
+          border: "0.5px solid rgba(0,0,0,0.16)",
+          borderRadius: 8,
+          cursor: "pointer",
+          outline: "none",
+        }}
+      >
+        <option value="all">All files</option>
+        <option value="own">Own files</option>
+      </select>
+      <CaretDown
+        size={11}
+        weight="bold"
+        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }}
+      />
+    </div>
+  );
+}
 
 export function TeamListViewPlain({
   directors,
@@ -72,7 +115,6 @@ export function TeamListViewPlain({
   currentUserId,
   onToggleViewAll,
   onRemove,
-  onAddClick,
   pendingInvitations = [],
   onResendInvitation,
   onCancelInvitation,
@@ -83,8 +125,8 @@ export function TeamListViewPlain({
         <div key={m.id} style={ROW_STYLE}>
           <div
             style={{
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
@@ -93,117 +135,64 @@ export function TeamListViewPlain({
               background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
             }}
           >
-            <Crown style={{ width: 15, height: 15, color: "#fff" }} weight="fill" />
+            <Crown style={{ width: 16, height: 16, color: "#fff" }} weight="fill" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {m.name}
+              {m.id === currentUserId && <span style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600 }}> · You</span>}
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {m.email}
             </p>
           </div>
-          <span
-            style={{
-              flexShrink: 0,
-              fontSize: 10,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: 0.7,
-              padding: "3px 8px",
-              borderRadius: 4,
-              background: "#fef3c7",
-              color: "#92400e",
-            }}
-          >
-            Director
-          </span>
+          <Badge label="Director" tone="director" />
         </div>
       ))}
 
-      {negotiators.length === 0 && pendingInvitations.length === 0 && onAddClick && (
-        <div
-          style={{
-            padding: "20px 4px",
-            textAlign: "center",
-            color: "#9ca3af",
-          }}
-        >
+      {negotiators.length === 0 && pendingInvitations.length === 0 && (
+        <div style={{ padding: "22px 4px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>No negotiators yet.</p>
           <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
-            Add a negotiator below to give them access to the portal.
+            Add a team member to give them access to the portal.
           </p>
         </div>
       )}
 
-      {negotiators.map((m) => (
-        <div key={m.id} style={ROW_STYLE}>
-          <UserAvatar user={{ name: m.name }} size={32} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {m.name}
-            </p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {m.email}
-            </p>
+      {negotiators.map((m) => {
+        const actions: RowAction[] =
+          onRemove && m.id !== currentUserId
+            ? [{ label: "Remove from team", onClick: () => onRemove(m.id, m.name), danger: true }]
+            : [];
+        return (
+          <div key={m.id} style={ROW_STYLE}>
+            <UserAvatar user={{ name: m.name }} size={34} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {m.name}
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {m.email}
+              </p>
+            </div>
+            <Badge label="Negotiator" tone="neutral" />
+            <FileAccessSelect member={m} onToggle={onToggleViewAll} />
+            <RowActionsMenu items={actions} />
           </div>
-          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-            <button
-              onClick={() => onToggleViewAll?.(m)}
-              title={
-                m.canViewAllFiles
-                  ? "Can see all agency files. Click to restrict."
-                  : "Can only see own files. Click to allow all."
-              }
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "5px 10px",
-                fontSize: 11.5,
-                fontWeight: 500,
-                background: m.canViewAllFiles
-                  ? "rgba(var(--agent-coral-rgb, 255, 107, 74), 0.10)"
-                  : "#f3f4f6",
-                color: m.canViewAllFiles ? "var(--agent-coral-deep, #E84F2D)" : "#6b7280",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                transition: "background 150ms",
-              }}
-            >
-              {m.canViewAllFiles ? (
-                <>
-                  <Eye style={{ width: 13, height: 13 }} /> All files
-                </>
-              ) : (
-                <>
-                  <EyeSlash style={{ width: 13, height: 13 }} /> Own files
-                </>
-              )}
-            </button>
-            {onRemove && m.id !== currentUserId && (
-              <button
-                onClick={() => onRemove(m.id, m.name)}
-                title="Remove from team"
-                style={ICON_BTN_STYLE}
-                className="hover:bg-red-50 hover:text-red-500"
-              >
-                <Trash style={{ width: 14, height: 14 }} />
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       {pendingInvitations.map((inv) => {
         const days = daysUntil(inv.expiresAt);
+        const actions: RowAction[] = [];
+        if (onResendInvitation) actions.push({ label: "Resend invitation", onClick: () => onResendInvitation(inv.id) });
+        if (onCancelInvitation) actions.push({ label: "Cancel invitation", onClick: () => onCancelInvitation(inv.id, inv.negotiatorName), danger: true });
         return (
           <div key={inv.id} style={ROW_STYLE}>
             <div
               style={{
-                width: 32,
-                height: 32,
+                width: 34,
+                height: 34,
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
@@ -212,7 +201,7 @@ export function TeamListViewPlain({
                 background: "#f3f4f6",
               }}
             >
-              <EnvelopeSimple style={{ width: 15, height: 15, color: "#9ca3af" }} weight="regular" />
+              <EnvelopeSimple style={{ width: 16, height: 16, color: "#9ca3af" }} weight="regular" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -226,81 +215,11 @@ export function TeamListViewPlain({
                 </span>
               </p>
             </div>
-            <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.6,
-                  padding: "3px 8px",
-                  borderRadius: 4,
-                  background: "#f3f4f6",
-                  color: "#6b7280",
-                }}
-              >
-                Pending
-              </span>
-              {onResendInvitation && (
-                <button
-                  onClick={() => onResendInvitation(inv.id)}
-                  title="Resend invitation email"
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    color: "#6b7280",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    transition: "background 150ms, color 150ms",
-                  }}
-                  className="hover:bg-black/[0.04]"
-                >
-                  Resend
-                </button>
-              )}
-              {onCancelInvitation && (
-                <button
-                  onClick={() => onCancelInvitation(inv.id, inv.negotiatorName)}
-                  title="Cancel invitation"
-                  style={ICON_BTN_STYLE}
-                  className="hover:bg-red-50 hover:text-red-500"
-                >
-                  <X style={{ width: 14, height: 14 }} />
-                </button>
-              )}
-            </div>
+            <Badge label="Pending" tone="neutral" />
+            <RowActionsMenu items={actions} />
           </div>
         );
       })}
-
-      {onAddClick && (
-        <button
-          onClick={onAddClick}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            marginTop: 14,
-            padding: "11px 16px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--agent-coral-deep, #E84F2D)",
-            background: "transparent",
-            border: "1px dashed rgba(var(--agent-coral-rgb, 255, 107, 74), 0.45)",
-            borderRadius: 10,
-            cursor: "pointer",
-            transition: "background 150ms",
-          }}
-          className="hover:bg-black/[0.03]"
-        >
-          <UserPlus style={{ width: 15, height: 15 }} />
-          Add a negotiator
-        </button>
-      )}
     </div>
   );
 }

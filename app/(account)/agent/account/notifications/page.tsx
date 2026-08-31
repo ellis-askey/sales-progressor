@@ -33,6 +33,7 @@ import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 import { EmailNotificationsSectionPlain } from "@/components/account/v2/EmailNotificationsSectionPlain";
 import { SilencedFilesSectionPlain } from "@/components/account/v2/SilencedFilesSectionPlain";
 import { MobilePushSection } from "@/components/agent/settings/MobilePushSection";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 
 export default async function AccountNotificationsPage() {
   const session = await requireSession();
@@ -97,60 +98,20 @@ export default async function AccountNotificationsPage() {
     createdAt: d.createdAt,
   }));
 
-  const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
-
   return (
-    <div
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        padding: "32px 24px 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 40,
-      }}
-    >
-      {/* 1. Email notifications */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Email notifications
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Choose which automated emails reach your inbox. The in-app bell keeps showing
-            everything — these toggles only suppress the email duplicates.
-          </p>
-        </div>
+    <>
+      <AccountPageHeader
+        title="Notifications"
+        subtitle="Choose how and when Sales Progressor gets your attention."
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <EmailNotificationsSectionPlain initialPrefs={notificationPrefs} />
-      </section>
-
-      <div style={{ borderTop: HAIRLINE }} />
-
-      {/* 2. Mobile push notifications — reused AS-IS from the legacy
-            settings page. The component renders its own h2, intro copy,
-            section headings ("Devices", "Push me when…"), and embeds
-            the iOS-PWA fallback walkthrough. Don't wrap a duplicate
-            heading above it. */}
-      <MobilePushSection initialPrefs={notificationPrefs} initialDevices={pushDevices} />
-
-      <div style={{ borderTop: HAIRLINE }} />
-
-      {/* 3. Silenced files */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Silenced files
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Files where automated client emails are paused. You can still pause or resume from
-            the file itself — this is a faster way to see everything at once.
-          </p>
-        </div>
+        <MobilePushSection initialPrefs={notificationPrefs} initialDevices={pushDevices} />
         <SilencedFilesSectionPlain
           initialSilenced={silencedFiles}
           silenceable={silenceableFiles}
         />
-      </section>
-    </div>
+      </div>
+    </>
   );
 }

@@ -31,3 +31,31 @@ export function getStripeClient(): Stripe {
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY);
 }
+
+export type DefaultCard = { brand: string; last4: string; expMonth: number; expYear: number };
+
+// The agency's real card on file, read from Stripe. Returns null when Stripe
+// isn't configured (e.g. no keys in this environment), the customer has no
+// card, or anything errors — the caller shows a details-free "Card on file"
+// state rather than fabricated placeholder digits.
+export async function getDefaultCard(stripeCustomerId: string): Promise<DefaultCard | null> {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  try {
+    const stripe = getStripeClient();
+    const customer = await stripe.customers.retrieve(stripeCustomerId, {
+      expand: ["invoice_settings.default_payment_method"],
+    });
+    if (!("deleted" in customer)) {
+      const dpm = customer.invoice_settings?.default_payment_method;
+      if (dpm && typeof dpm !== "string" && dpm.card) {
+        return { brand: dpm.card.brand, last4: dpm.card.last4, expMonth: dpm.card.exp_month, expYear: dpm.card.exp_year };
+      }
+    }
+    const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: "card", limit: 1 });
+    const c = pms.data[0]?.card;
+    if (c) return { brand: c.brand, last4: c.last4, expMonth: c.exp_month, expYear: c.exp_year };
+    return null;
+  } catch {
+    return null;
+  }
+}

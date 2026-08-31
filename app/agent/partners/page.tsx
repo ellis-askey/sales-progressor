@@ -29,6 +29,7 @@ import { RecommendedSolicitorsSettings } from "@/components/agent/RecommendedSol
 import { PreferredBrokerSettings } from "@/components/agent/PreferredBrokerSettings";
 import { PartnersDirectory } from "@/components/agent/PartnersDirectory";
 import type { DirectoryFirm, FirmIntel } from "@/components/agent/PartnersDirectory";
+import { PartnersEmptyState } from "@/components/agent/partners/PartnersEmptyState";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -178,10 +179,30 @@ export default async function AgentPartnersPage() {
       }
     : null;
 
+  // Brand-new director (no firms from sales yet) gets the onboarding screen —
+  // the add flows live in a popup, and the cards fill in as they set a broker /
+  // solicitors. They stay here until real firms appear from their sales, at
+  // which point the full directory page (below) takes over.
+  const showOnboarding = isDirector && directoryEmpty;
+
   return (
     <>
       <PageHeader title="Partners" subtitle="Solicitors, brokers, and preferred professional partners." />
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
+
+        {showOnboarding ? (
+          <PartnersEmptyState
+            initialBroker={preferredBroker}
+            initialRecommended={(recommendedSolicitors as { solicitorFirmId: string; solicitorFirm: { name: string }; defaultReferralFeePence: number | null }[]).map((r) => ({
+              firmId: r.solicitorFirmId,
+              firmName: r.solicitorFirm.name,
+              defaultReferralFeePence: r.defaultReferralFeePence,
+            }))}
+            allFirms={allSolicitorFirms}
+            canCreateSale
+          />
+        ) : (
+        <>
 
         {/* Director-only settings — preferred broker + recommended solicitors (side by side) */}
         {isDirector && (
@@ -233,6 +254,8 @@ export default async function AgentPartnersPage() {
           <EmptyDirectory />
         ) : (
           <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={isDirector} />
+        )}
+        </>
         )}
       </div>
     </>

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
@@ -28,7 +29,7 @@ export function AllFilesEmptyState() {
       >
         <HeroArt light="/demo-hero-bg.png" dark="/demo-hero-bg-dark.png" maxWidth="44%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             No files yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
@@ -51,18 +52,24 @@ export function AllFilesEmptyState() {
       {/* What the list gives you */}
       <div className="setup-cards-3">
         <SetupCard
+          glassId="empty-allfiles-risk"
+          label="All Files empty · At-risk sales"
           tint="coral"
           icon={<ShieldWarning size={22} weight="regular" />}
           title="Spot at-risk sales early"
           desc="Every sale gets a live risk read, so the ones drifting towards falling through stand out before it's too late."
         />
         <SetupCard
+          glassId="empty-allfiles-next"
+          label="All Files empty · Next step"
           tint="blue"
           icon={<ListChecks size={22} weight="regular" />}
           title="See each sale's next step"
           desc="Each file shows the exact next thing to do to move it forward, so you can work your list without opening a single one."
         />
         <SetupCard
+          glassId="empty-allfiles-exchange"
+          label="All Files empty · Exchanging when"
           tint="green"
           icon={<CalendarCheck size={22} weight="regular" />}
           title="Know what's exchanging when"
@@ -71,7 +78,7 @@ export function AllFilesEmptyState() {
       </div>
 
       {/* Explore demo sale — real, reuses the shared flow */}
-      <div className="agent-glass" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+      <GlassCard glassId="empty-allfiles-demo" label="All Files empty · Demo card" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Eye size={20} weight="regular" />
@@ -100,7 +107,7 @@ export function AllFilesEmptyState() {
             <polyline points="13 6 19 12 13 18" />
           </svg>
         </button>
-      </div>
+      </GlassCard>
 
       {node}
     </div>

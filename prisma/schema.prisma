@@ -150,6 +150,11 @@ model User {
   clientType          ClientType @default(standard)
   legacyFee           Int?
   phone               String?
+  // Profile detail (2026-09): shown alongside the name in client-facing
+  // surfaces. Both optional. jobTitle e.g. "Sales Manager"; directMobile is a
+  // personal number distinct from `phone` (which may be an office line).
+  jobTitle            String?
+  directMobile        String?
   canViewAllFiles     Boolean    @default(false)
   hasSeenAgentWelcome Boolean    @default(false)
   isInternal          Boolean    @default(false)

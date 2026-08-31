@@ -12,19 +12,27 @@ export async function markWelcomeSeenAction() {
   });
 }
 
-export async function updateProfileAction(data: { name: string; email: string; phone: string }) {
+export async function updateProfileAction(data: {
+  name: string;
+  email: string;
+  phone: string;
+  jobTitle?: string;
+  directMobile?: string;
+}) {
   const session = await requireSession();
 
   const name = data.name.trim();
   const email = data.email.trim().toLowerCase();
   const phone = data.phone.trim() || null;
+  const jobTitle = data.jobTitle?.trim() || null;
+  const directMobile = data.directMobile?.trim() || null;
 
-  if (!name) throw new Error("Name is required");
+  if (name.length < 2) throw new Error("Name is required");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Valid email required");
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { name, email, phone },
+    data: { name, email, phone, jobTitle, directMobile },
   });
 
   revalidatePath("/agent/account/profile");

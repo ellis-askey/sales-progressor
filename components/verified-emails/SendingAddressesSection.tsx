@@ -144,9 +144,14 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {step.type !== "domain-auth" && step.type !== "inbox-verify" && (
         <div className="space-y-2">
           {emails.length === 0 && step.type !== "add-email" && (
-            <div className="glass-card px-5 py-8 text-center">
-              <p className="text-sm text-slate-900/50">No verified sending addresses yet.</p>
-              <p className="text-xs text-slate-900/35 mt-1">Add a work email address to start sending from the dashboard.</p>
+            <div
+              className="px-5 py-7 text-center"
+              style={{ border: "1px dashed rgba(0,0,0,0.14)", borderRadius: 11, background: "#fcfbfa" }}
+            >
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#374151" }}>No sending address connected</p>
+              <p style={{ margin: "3px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                Add a work email address to start sending from the dashboard.
+              </p>
             </div>
           )}
           {emails.map((e) => (
@@ -235,7 +240,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {(step.type === "list" || step.type === "success") && (
         <button
           onClick={() => { setStep({ type: "add-email" }); setError(null); }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-medium hover:bg-black/[0.03] transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium hover:bg-black/[0.03] transition-colors account-press"
           style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
         >
           <Plus className="w-4 h-4" />

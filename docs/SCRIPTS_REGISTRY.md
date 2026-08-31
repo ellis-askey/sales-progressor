@@ -284,3 +284,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Staging-guarded (refuses non-staging DB).
 - **Author/date:** pricing migration, 2026-08-31.
 - **Deletion criteria:** delete the "Pricing Verification Co" agency + this script once Phase 1 is verified.
+
+### seed-tim-billing-demo.ts
+- **Purpose:** additive billing demo data for Tim Branston (agency "William H Brown") so /agent/account/billing shows populated states during the Account redesign review — this-month building invoice, invoice history (Paid/Issued/Failed), given-free + billed-lifetime figures, acknowledged terms. Never touches his real files; demo rows are tagged "(demo)" / "demo_tim_".
+- **Lifetime:** one-shot (throwaway). Staging-guarded (refuses non-staging DB). Re-runnable.
+- **Author/date:** Claude, 2026-08-31.
+- **Deletion criteria:** delete this script + the demo rows (transactions tagged "(demo)", invoices with stripeInvoiceId prefix "demo_tim_") once the Account/billing redesign review is done.

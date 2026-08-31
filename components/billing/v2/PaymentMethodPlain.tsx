@@ -20,7 +20,9 @@ type CardOnFile = {
 };
 
 export type PaymentMethodPlainProps =
-  | { kind: "card_on_file"; card: CardOnFile; publishableKey: string }
+  // card === null when a card is on file but its details can't be read (e.g.
+  // Stripe not configured in this environment) — shown as "Card on file".
+  | { kind: "card_on_file"; card: CardOnFile | null; publishableKey: string }
   | { kind: "add_card"; publishableKey: string }
   | { kind: "pending" };
 
@@ -64,7 +66,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
             className="hover:bg-black/[0.05]"
           >
             <ArrowsClockwise size={12} weight="bold" />
-            Update
+            Change card
           </button>
         )}
       </div>
@@ -89,14 +91,25 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
         >
           <CreditCard size={28} weight="duotone" color="#6b7280" />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
-              {brandLabel(props.card.brand)} ····{" "}
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>{props.card.last4}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-              Expires {String(props.card.expMonth).padStart(2, "0")}/
-              {String(props.card.expYear).slice(-2)}
-            </div>
+            {props.card ? (
+              <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+                  {brandLabel(props.card.brand)} ····{" "}
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>{props.card.last4}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                  Expires {String(props.card.expMonth).padStart(2, "0")}/
+                  {String(props.card.expYear).slice(-2)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Card on file</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                  Your saved card is ready for billing.
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -119,7 +132,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
             }}
           >
             <Lock size={13} weight="regular" />
-            Securely stored by Stripe — we never see your card number.
+            Securely stored by Stripe. We never see your card details.
           </div>
           <div
             style={{
@@ -128,7 +141,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
               lineHeight: 1.55,
             }}
           >
-            We&apos;ll charge this card on the 1st of each month for that month&apos;s exchanges.
+            This card will be charged on the 1st of each month for the previous month&apos;s exchanges.
           </div>
         </>
       )}

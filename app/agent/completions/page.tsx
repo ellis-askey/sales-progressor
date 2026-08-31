@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClockCountdown, Plus, ListChecks } from "@phosphor-icons/react/dist/ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, getAgentCompletedFiles, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
@@ -152,18 +153,29 @@ export default async function AgentCompletionsPage() {
         {/* Empty state — brand-new agency users get the onboarding layout. */}
         {files.length === 0 && isBrandNew && (
           <>
-            {/* Hero (tightened to sit with the cards below; no watermark). */}
-            <div className="agent-glass-strong" style={{ padding: "28px 30px", borderRadius: "var(--agent-radius-xl)" }}>
-              <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-                No completions yet
-              </p>
-              <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 430 }}>
-                Once files are exchanged, they&apos;ll appear here and you&apos;ll be able to track them all the way to completion.
-              </p>
-              <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
-                <Plus size={16} weight="bold" />
-                Add your first sale
-              </Link>
+            {/* Hero — matches the other empty states (gradient + HeroArt; the
+                generic backdrop takes over < 1000px via HeroArt). */}
+            <div
+              style={{
+                position: "relative", overflow: "hidden",
+                borderRadius: "var(--agent-radius-xl)", minHeight: 210, padding: "28px 30px",
+                border: "1px solid var(--agent-border-subtle)",
+                background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
+              }}
+            >
+              <HeroArt light="/completions-hero.png" dark="/completions-hero-dark.png" maxWidth="46%" maskStart="42%" />
+              <div style={{ position: "relative", maxWidth: 480 }}>
+                <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
+                  No completions yet
+                </p>
+                <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 430 }}>
+                  Once files are exchanged, they&apos;ll appear here and you&apos;ll be able to track them all the way to completion.
+                </p>
+                <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
+                  <Plus size={16} weight="bold" />
+                  Add your first sale
+                </Link>
+              </div>
             </div>
 
             {/* While you're getting set up */}
@@ -171,6 +183,8 @@ export default async function AgentCompletionsPage() {
               <p className="agent-eyebrow" style={{ marginBottom: 12 }}>While you&apos;re getting set up</p>
               <div className="setup-cards-3">
                 <SetupCard
+                  glassId="empty-completions-profile"
+                  label="Completions empty · Complete profile"
                   iconSrc="/setup-profile.png"
                   tint="coral"
                   title="Complete your profile"
@@ -179,6 +193,8 @@ export default async function AgentCompletionsPage() {
                   href="/agent/account/profile"
                 />
                 <SetupCard
+                  glassId="empty-completions-agency"
+                  label="Completions empty · Set up agency"
                   iconSrc="/setup-agency.png"
                   tint="blue"
                   title="Set up your agency"
@@ -187,6 +203,8 @@ export default async function AgentCompletionsPage() {
                   href="/agent/account/profile"
                 />
                 <SetupCard
+                  glassId="empty-completions-invite"
+                  label="Completions empty · Invite team"
                   iconSrc="/setup-invite.png"
                   tint="green"
                   title="Invite your team"

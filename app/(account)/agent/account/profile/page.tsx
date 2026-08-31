@@ -31,6 +31,9 @@ import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZon
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { Palette, Image as ImageIcon, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountProfilePage({
   searchParams,
@@ -42,7 +45,7 @@ export default async function AccountProfilePage({
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phone: true, agentPreferences: true, image: true },
+    select: { phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true },
   });
   const currentBrand = getBrandColor(userRecord?.agentPreferences);
 
@@ -62,111 +65,113 @@ export default async function AccountProfilePage({
     };
   }
 
-  const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
+  const colourCard = (
+    <AccountCard
+      icon={<Palette size={18} weight="bold" />}
+      title="Your app colour"
+      subtitle="Choose the accent colour you'll see across Sales Progressor."
+    >
+      <BrandColorPicker initialColor={currentBrand} />
+    </AccountCard>
+  );
+
+  const sendingCard = (
+    <AccountCard
+      icon={<EnvelopeSimple size={18} weight="bold" />}
+      title="Sending addresses"
+      subtitle="Send emails to clients directly from your own work address."
+    >
+      <SendingAddressesSection initialVerified={verified === "1"} />
+    </AccountCard>
+  );
+
+  const accountCard = (
+    <AccountCard
+      icon={<Database size={18} weight="bold" />}
+      title="Account & data"
+      subtitle="Manage your data or permanently delete your account."
+    >
+      <AccountDangerZonePlain userEmail={session.user.email ?? ""} />
+    </AccountCard>
+  );
+
+  const emailCard = isDirector && branding ? (
+    <AccountCard
+      icon={<ImageIcon size={18} weight="bold" />}
+      title="Email branding"
+      subtitle="Your logo appears at the top of emails your clients receive."
+    >
+      <EmailBrandingStudio initial={branding} />
+      <p style={{ margin: "16px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#6b7280" }}>
+        Want to change the wording in your emails?{" "}
+        <Link
+          href="/agent/account/emails"
+          style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
+        >
+          Email settings →
+        </Link>
+      </p>
+    </AccountCard>
+  ) : null;
 
   return (
-    <div
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        padding: "32px 24px 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 40,
-      }}
-    >
-      {/* 1. My profile */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            My profile
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Update your name, email and phone number.
-          </p>
-        </div>
+    <>
+      <AccountPageHeader
+        title="Profile"
+        subtitle="Manage your personal details and app preferences."
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <ProfileFormPlain
           initialName={session.user.name ?? ""}
           initialEmail={session.user.email ?? ""}
           initialPhone={userRecord?.phone ?? ""}
+          initialJobTitle={userRecord?.jobTitle ?? ""}
+          initialDirectMobile={userRecord?.directMobile ?? ""}
           initialImage={userRecord?.image ?? null}
           role={session.user.role}
         />
-      </section>
 
-      <div style={{ borderTop: HAIRLINE }} />
+        {emailCard ? (
+          // Desktop: email branding on the right; colour, sending, account
+          // stacked on the left. Mobile (1 col): colour, email, sending,
+          // account — the same order as before.
+          <div className="profile-grid">
+            <div style={{ gridArea: "colour" }}>{colourCard}</div>
+            <div style={{ gridArea: "email" }}>{emailCard}</div>
+            <div style={{ gridArea: "sending" }}>{sendingCard}</div>
+            <div style={{ gridArea: "account" }}>{accountCard}</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {colourCard}
+            {sendingCard}
+            {accountCard}
+          </div>
+        )}
+      </div>
 
-      {/* 2. Brand colour */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Brand colour
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Your personal colour — visible only to you. It sets the buttons, links and highlights across the app.
-          </p>
-        </div>
-        <BrandColorPicker initialColor={currentBrand} />
-      </section>
-
-      {isDirector && (
-        <>
-          <div style={{ borderTop: HAIRLINE }} />
-          {/* Agency logo (director only) */}
-          <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-                Email branding
-              </h2>
-              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-                Your logo, shown at the top of the emails your clients receive. Adjust it until it looks right.
-              </p>
-              <p style={{ margin: "8px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-                To change the wording your clients read, not just the logo, head to{" "}
-                <Link
-                  href="/agent/account/emails"
-                  style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
-                >
-                  Emails
-                </Link>
-                .
-              </p>
-            </div>
-            {branding && <EmailBrandingStudio initial={branding} />}
-          </section>
-        </>
-      )}
-
-      <div style={{ borderTop: HAIRLINE }} />
-
-      {/* 3. Sending addresses */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Sending addresses
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Verify a work email address to send emails to clients directly from the dashboard.
-            Emails appear as coming from you — not a generic system address.
-          </p>
-        </div>
-        <SendingAddressesSection initialVerified={verified === "1"} />
-      </section>
-
-      <div style={{ borderTop: HAIRLINE }} />
-
-      {/* 4. Account / danger zone */}
-      <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Account
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Download a copy of your data, or permanently delete your account.
-          </p>
-        </div>
-        <AccountDangerZonePlain userEmail={session.user.email ?? ""} />
-      </section>
-    </div>
+      <style>{`
+        .profile-grid {
+          display: grid;
+          gap: 24px;
+          align-items: start;
+          grid-template-columns: 1fr 1fr;
+          grid-template-areas:
+            "colour  email"
+            "sending email"
+            "account email";
+        }
+        @media (max-width: 1024px) {
+          .profile-grid {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+              "colour"
+              "email"
+              "sending"
+              "account";
+          }
+        }
+      `}</style>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@phosphor-icons/react";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { SetupCard } from "@/components/agent/SetupCard";
+import { HeroArt } from "@/components/agent/HeroArt";
 import { Pill } from "@/components/ui/Pill";
 
 // The "Learn more about to-dos" guide card is built below but hidden until its
@@ -48,19 +49,17 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
-      <div className="agent-glass-strong" style={{ position: "relative", overflow: "hidden", padding: "28px 30px", borderRadius: "var(--agent-radius-xl)" }}>
-        {/* Faded note watermark — larger breakpoints only, centre-right. */}
-        <span aria-hidden className="hidden md:block" style={{
-          position: "absolute", top: "50%", right: 28, width: 140, height: 140,
-          transform: "translateY(-50%)",
-          background: "var(--agent-coral)", opacity: 0.10, pointerEvents: "none",
-          WebkitMaskImage: "url(/todo-notes.png)", maskImage: "url(/todo-notes.png)",
-          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-          WebkitMaskPosition: "center", maskPosition: "center",
-          WebkitMaskSize: "contain", maskSize: "contain",
-        }} />
-        <div style={{ position: "relative" }}>
-          <Pill tone="brand" size="sm" style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+      <div
+        style={{
+          position: "relative", overflow: "hidden",
+          borderRadius: "var(--agent-radius-xl)", minHeight: 210, padding: "28px 30px",
+          border: "1px solid var(--agent-border-subtle)",
+          background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
+        }}
+      >
+        <HeroArt light="/todo-hero.png" dark="/todo-hero-dark.png" maxWidth="46%" maskStart="42%" />
+        <div style={{ position: "relative", maxWidth: 480 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             Nothing here yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
@@ -81,6 +80,8 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
         <p className="agent-eyebrow" style={{ marginBottom: 12 }}>What you can do</p>
         <div className={canUseProgressor ? "setup-cards-3" : "setup-cards-2"}>
           <SetupCard
+            glassId="empty-todo-notes"
+            label="To-Do empty · Own notes"
             iconSrc="/todo-notes.png"
             tint="coral"
             title="Keep your own notes"
@@ -89,6 +90,8 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
             onClick={() => setAdding(true)}
           />
           <SetupCard
+            glassId="empty-todo-sale"
+            label="To-Do empty · Tie to a sale"
             iconSrc="/todo-sale.png"
             tint="blue"
             title="Tie tasks to a sale"
@@ -98,6 +101,8 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
           />
           {canUseProgressor && (
             <SetupCard
+              glassId="empty-todo-progressor"
+              label="To-Do empty · Send to progressor"
               iconSrc="/todo-progressor.png"
               tint="green"
               title="Send a task to your progressor"

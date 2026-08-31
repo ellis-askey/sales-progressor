@@ -152,6 +152,7 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 | **Deferred polish backlog** (decisions on what gets fixed, grandfathered, or deferred) | [`docs/POLISH_TBD.md`](docs/POLISH_TBD.md) |
 | **Component catalog** (closed list of canonical primitives + to-extract + grandfathered) | [`docs/reference/COMPONENT_LIBRARY_CATALOG.md`](docs/reference/COMPONENT_LIBRARY_CATALOG.md) |
 | **Component developer reference** (how to use the canonical patterns) | [`docs/reference/COMPONENT_LIBRARY.md`](docs/reference/COMPONENT_LIBRARY.md) |
+| **Agent-app internals** (glass Lab, portal theme gotcha, z-index layers, empty-state hero/card system, popup primitives) — read before `/agent/*` work; append new reusable patterns here in the same change | [`docs/reference/AGENT_APP_INTERNALS.md`](docs/reference/AGENT_APP_INTERNALS.md) |
 | **Any visual decision** (colour, spacing, radius, shadow, motion, z-index) | [`docs/reference/DESIGN_TOKENS.md`](docs/reference/DESIGN_TOKENS.md) + [`design/tokens.ts`](design/tokens.ts) |
 | **Any modal or drawer** | [`docs/reference/MODAL_DRAWER_INDEX.md`](docs/reference/MODAL_DRAWER_INDEX.md) → [`MODAL_DRAWER_SYSTEM.md`](docs/reference/MODAL_DRAWER_SYSTEM.md) |
 | **Any user-facing string** | [`docs/reference/VOICE.md`](docs/reference/VOICE.md) |

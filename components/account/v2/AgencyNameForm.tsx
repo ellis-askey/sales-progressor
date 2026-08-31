@@ -9,8 +9,10 @@
 // sees is what gets saved.
 
 import { useState } from "react";
+import { Buildings } from "@phosphor-icons/react";
 import { updateAgencyNameAction } from "@/app/actions/agency";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { titleCase } from "@/lib/utils";
 
 export function AgencyNameForm({ initialName }: { initialName: string }) {
@@ -63,25 +65,11 @@ export function AgencyNameForm({ initialName }: { initialName: string }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <div style={{ maxWidth: 420 }}>
-        <label style={labelStyle}>Agency name</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={(e) => { if (e.target.value.trim()) setName(titleCase(e.target.value)); }}
-          placeholder="e.g. Hartwell & Partners"
-          autoComplete="organization"
-          style={fieldStyle}
-        />
-      </div>
-
-      {error && (
-        <p style={{ fontSize: 12.5, color: "#dc2626", margin: 0 }}>{error}</p>
-      )}
-
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+    <AccountCard
+      icon={<Buildings size={18} weight="bold" />}
+      title="Agency details"
+      subtitle="The agency name shown across Sales Progressor and in your client communications."
+      headerAction={
         <button
           type="button"
           onClick={handleSave}
@@ -101,7 +89,19 @@ export function AgencyNameForm({ initialName }: { initialName: string }) {
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-      </div>
-    </div>
+      }
+    >
+      <label style={labelStyle}>Agency name</label>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={(e) => { if (e.target.value.trim()) setName(titleCase(e.target.value)); }}
+        placeholder="e.g. Hartwell & Partners"
+        autoComplete="organization"
+        style={fieldStyle}
+      />
+      {error && <p style={{ fontSize: 12.5, color: "#dc2626", margin: "10px 0 0" }}>{error}</p>}
+    </AccountCard>
   );
 }
