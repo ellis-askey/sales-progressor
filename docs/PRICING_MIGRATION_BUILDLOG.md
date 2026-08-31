@@ -193,3 +193,23 @@ Pushed the 11-commit Phase 1-4 stack to `origin/staging` (`c37213c0..cf98cb88`).
 **Gotcha found + fixed — migration data-inserts don't run on staging.** `scripts/vercel-db-deploy.mjs` runs `prisma db push` on Preview/staging (schema-only) and only `prisma migrate deploy` on Production. So the v5 TermsVersion **INSERT** never ran on staging (the schema columns did, via db push — that's the "already in sync" log line). Inserted the v5 row into the staging DB directly via a guarded one-shot (project-ref check == etidawkbqctarmsdjoxp). `getActiveTermsVersion` on staging now returns `2026-08-payments-v5`.
 
 **Implication for Phase 6 (prod cutover):** production DOES use `prisma migrate deploy`, so the v5 migration WILL run and insert the row automatically at cutover — no manual insert needed on prod. But any FUTURE staging test of a data-bearing migration needs the same manual insert, because staging never runs migration SQL.
+
+---
+
+## Phase 5 — marketing site (../marketing-site) · 2026-08-31 · NOT deployed
+
+Separate repo, **not** git-tracked — deploys via the Vercel CLI. Changes are on disk only. Per the atomic-cutover plan, this flip must go live in the SAME window as the app copy (Phase 6), never before, so site and app never disagree on price. Approved against the Phase-5 was→will-be artifact + five locked decisions (self "Free" wording, symmetric two cards, "First sale on us" ribbon, calculator rescoped, CTAs split).
+
+**Source of truth flipped:** `lib/pricing.ts` — `SELF_PRICE 59 → 0`, `SELF_PRICE_DISPLAY "£59" → "Free"`. Every consumer that renders the constant flips automatically.
+
+**Files edited (hand-rolled, Law 16):**
+- Pricing page — `app/pricing/PricingClient.tsx`: H1 "Pay on exchange." → "Free to self-progress."; self qualifier → "every sale · always"; self CTA "Get started" → "Start free"; outsourced badge "Full service" → "First sale on us"; outsourced qualifier + "· first one free"; outsourced CTA "Book a demo"/demo → "Talk to us"/**/contact** (decision A); caption + "Your first outsourced sale is on us."; calculator intro rescoped; comparison row + "first one free"; pricing FAQ de-blanketed. `app/pricing/page.tsx` meta description rewritten (`SELF_PRICE` still passed → JSON-LD price "0").
+- Calculator — `components/pricing/PricingCalculator.tsx`: fee math now `outsourcedCount * rate` (self free), dropped unused `SELF_PRICE` import, stat relabelled "Per-sale fee" → "Avg fee per sale" + "Self-progress is free, so you only pay to outsource." (fixes the blended £60 reading like a flat charge / echoing £59).
+- Homepage — `Hero.tsx` (label £59→Free auto + hardcoded; 2× trust-chip sets de-trialed), `TheChoice.tsx` (self suffix), `PricingPreview.tsx` (self price/qualifier/CTA + H2 "Pay on exchange. Nothing else." → "Free to self-progress. Pay only to outsource."), `FooterCTA.tsx` trust line.
+- SEO/AI — `lib/jsonld.tsx` (self Offer price "0" via constant + unitText, doc comment; decision B), `lib/faq-data.ts` (2 answers rewritten + new "Is there a trial?" FAQ), `app/llms.txt/route.ts` (2 lines).
+- Long-tail — `app/about/page.tsx` two-ways paragraph (+ dropped unused import), `app/terms/page.tsx` "your free trial" removed, `components/blog/PostFooterCTA.tsx`, `lib/signup.ts` comment.
+- **Deleted** (decision C): `app/test/homepage-v2/`, `app/test/homepage-v3/` (stale £250–£600 + trial mocks, noindexed).
+
+**Verified:** `tsc --noEmit` clean (after clearing stale `.next` route types from the deletions). Grep sweep: zero `£59`, zero "free trial", zero umbrella "Pay on exchange" remain. Screenshots (`marketing-site/phase5-screens/`): pricing desktop + mobile + calculator, homepage hero. No em dash in any added string.
+
+**Outstanding:** deploy (Vercel CLI) held for the Phase-6 atomic cutover. Post-launch: request Google re-crawl of /pricing + homepage after the JSON-LD/FAQ flip (ELLIS_MANUAL_TODO candidate).
