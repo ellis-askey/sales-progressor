@@ -51,6 +51,32 @@ export const COMPLETION_PACK_DEFAULTS: Record<CompletionPackSide, CompletionPack
   },
 };
 
+// Post-completion ("thank you + what to do after completion"). Same content
+// shape as the completion pack. NOTE: no send trigger is wired yet — this is
+// editable so the copy is ready, and the trigger lands in a follow-up.
+export const POST_COMPLETION_DEFAULTS: Record<CompletionPackSide, CompletionPackContent> = {
+  vendor: {
+    subject: "That's completion: thank you",
+    opening: "Completion has gone through on {address}. The sale is done, and it's been a pleasure helping you get here.",
+    bullets: [
+      "Your solicitor will send your completion statement and any balance due to you shortly.",
+      "Hand over any remaining keys, alarm codes and documents to the new owner or {teamRef}.",
+      "Redirect your post and update your address with your bank, utilities and the council.",
+      "If anything comes up over the next few weeks, we're still here to help.",
+    ],
+  },
+  purchaser: {
+    subject: "That's completion: welcome to your new home",
+    opening: "Completion has gone through on {address}. The keys are yours, and congratulations on your new home.",
+    bullets: [
+      "Collect your keys as arranged, and take meter readings when you first arrive.",
+      "Set up your utilities, broadband and council tax at your new address.",
+      "Your solicitor will register your ownership with HM Land Registry; there's nothing you need to do for this.",
+      "Keep your completion statement somewhere safe for your records.",
+    ],
+  },
+};
+
 function str(v: unknown, fallback: string): string {
   return typeof v === "string" && v.trim() ? v : fallback;
 }
@@ -60,10 +86,15 @@ function strList(v: unknown, fallback: string[]): string[] {
   return list.length > 0 ? list : fallback;
 }
 
-function coalesceCompletionPack(raw: unknown, side: CompletionPackSide): CompletionPackContent {
-  const d = COMPLETION_PACK_DEFAULTS[side];
+function coalescePack(raw: unknown, d: CompletionPackContent): CompletionPackContent {
   const c = (raw ?? {}) as Partial<CompletionPackContent>;
   return { subject: str(c.subject, d.subject), opening: str(c.opening, d.opening), bullets: strList(c.bullets, d.bullets) };
+}
+function coalesceCompletionPack(raw: unknown, side: CompletionPackSide): CompletionPackContent {
+  return coalescePack(raw, COMPLETION_PACK_DEFAULTS[side]);
+}
+function coalescePostCompletion(raw: unknown, side: CompletionPackSide): CompletionPackContent {
+  return coalescePack(raw, POST_COMPLETION_DEFAULTS[side]);
 }
 function validateCompletionPack(raw: unknown): CompletionPackContent | null {
   const c = (raw ?? {}) as Record<string, unknown>;
@@ -254,6 +285,15 @@ export async function resolveCompletionPackContent(agencyId: string | null, side
   return platform ? coalesceCompletionPack(platform, side) : COMPLETION_PACK_DEFAULTS[side];
 }
 
+export async function resolvePostCompletionContent(agencyId: string | null, side: CompletionPackSide): Promise<CompletionPackContent> {
+  if (agencyId) {
+    const raw = await getRow(agencyId, "post_completion", side);
+    if (raw) return coalescePostCompletion(raw, side);
+  }
+  const platform = await getPlatformRow("post_completion", side);
+  return platform ? coalescePostCompletion(platform, side) : POST_COMPLETION_DEFAULTS[side];
+}
+
 export async function resolveExchangeDayClientContent(
   agencyId: string | null,
 ): Promise<{ morning: ExchangeDayMorningContent; authority: ExchangeDayAuthorityContent }> {
@@ -283,6 +323,12 @@ export const TEMPLATE_FAMILIES: Record<string, FamilyDef> = {
     variants: ["vendor", "purchaser"],
     defaultFor: (v) => COMPLETION_PACK_DEFAULTS[v as CompletionPackSide],
     coalesce: (v, raw) => coalesceCompletionPack(raw, v as CompletionPackSide),
+    validate: (_v, raw) => validateCompletionPack(raw),
+  },
+  post_completion: {
+    variants: ["vendor", "purchaser"],
+    defaultFor: (v) => POST_COMPLETION_DEFAULTS[v as CompletionPackSide],
+    coalesce: (v, raw) => coalescePostCompletion(raw, v as CompletionPackSide),
     validate: (_v, raw) => validateCompletionPack(raw),
   },
   exchange_day_client: {

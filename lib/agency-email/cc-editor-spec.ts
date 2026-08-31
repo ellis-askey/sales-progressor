@@ -26,6 +26,15 @@ export const CC_EMAIL_TEMPLATES: CcTemplateSpec[] = [
     ],
   },
   {
+    key: "post_completion",
+    label: "Post-completion",
+    blurb: "A thank you and what to do after completion. Not sending yet; the send trigger lands in a follow-up.",
+    variants: [
+      { templateKey: "post_completion", variant: "purchaser", label: "Buyer", fields: COMPLETION_FIELDS },
+      { templateKey: "post_completion", variant: "vendor", label: "Seller", fields: COMPLETION_FIELDS },
+    ],
+  },
+  {
     key: "exchange_day_client",
     label: "Exchange day",
     blurb: "Sent to the client on exchange day: a morning note and a later authority nudge.",

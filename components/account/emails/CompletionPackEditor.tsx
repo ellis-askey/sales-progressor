@@ -43,7 +43,15 @@ function voiceWarnings(c: Content): string[] {
   return w;
 }
 
-export function CompletionPackEditor() {
+export function CompletionPackEditor({
+  templateKey = "completion_pack",
+  title = "Contracts exchanged: what happens next",
+  subtitle = "Sent to your client once contracts exchange, setting out what to expect on completion day.",
+}: {
+  templateKey?: string;
+  title?: string;
+  subtitle?: string;
+} = {}) {
   const [side, setSide] = useState<Side>("purchaser");
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +64,7 @@ export function CompletionPackEditor() {
     setLoading(true);
     setEditing(false);
     try {
-      const res = await fetch(`/api/agent/email-templates/resolve?templateKey=completion_pack&variant=${side}`);
+      const res = await fetch(`/api/agent/email-templates/resolve?templateKey=${templateKey}&variant=${side}`);
       if (res.ok) setResolved(await res.json());
     } finally {
       setLoading(false);
@@ -80,7 +88,7 @@ export function CompletionPackEditor() {
       const res = await fetch("/api/agent/email-templates/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateKey: "completion_pack", variant: side, content: draft }),
+        body: JSON.stringify({ templateKey, variant: side, content: draft }),
       });
       if (res.ok) {
         setEditing(false);
@@ -98,7 +106,7 @@ export function CompletionPackEditor() {
       await fetch("/api/agent/email-templates/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateKey: "completion_pack", variant: side }),
+        body: JSON.stringify({ templateKey, variant: side }),
       });
       await load();
     } finally {
@@ -120,12 +128,8 @@ export function CompletionPackEditor() {
         }}
       >
         <div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TEXT }}>
-            Contracts exchanged: what happens next
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
-            Sent to your client once contracts exchange, setting out what to expect on completion day.
-          </p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TEXT }}>{title}</p>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>{subtitle}</p>
         </div>
         <Segmented value={side} onChange={(v) => setSide(v as Side)} options={SIDE_OPTIONS} />
       </div>
