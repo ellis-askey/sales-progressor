@@ -4,6 +4,23 @@ import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildGreeting } from "@/lib/portal-copy";
 import { buildClientNarrative } from "@/lib/services/client-narrative";
+import { resolveWeeklyUpdateContent } from "@/lib/agency-email/templates";
+
+function escWeekly(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Fills the agency-editable weekly-update slots (subject / intro / closing).
+function interpWeekly(t: string, vars: { firstName: string; address: string; roleLabel: string }): string {
+  return t.replace(/\{(\w+)\}/g, (_, k) => {
+    switch (k) {
+      case "firstName": return vars.firstName;
+      case "address": return vars.address;
+      case "roleLabel": return vars.roleLabel;
+      default: return `{${k}}`;
+    }
+  });
+}
 
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
@@ -14,6 +31,10 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
     select: { weeklyClientUpdatesEnabled: true },
   });
   if (agencyPref && agencyPref.weeklyClientUpdatesEnabled === false) return 0;
+
+  // Agency personalisation (subject / intro / AI tone steer / closing). Resolved
+  // once for the whole agency; empty everywhere = unchanged default behaviour.
+  const wu = await resolveWeeklyUpdateContent(agencyId);
 
   // Active transactions for this agency
   const transactions = await prisma.propertyTransaction.findMany({
@@ -54,7 +75,9 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       if (!contact.email) continue;
 
       const roleLabel = contact.roleType === "purchaser" ? "purchase" : "sale";
-      const subject = `An update on your ${roleLabel} at ${tx.propertyAddress}`;
+      const firstName = contact.name.trim().split(/\s+/)[0] || contact.name;
+      const interpVars = { firstName, address: tx.propertyAddress, roleLabel };
+      const subject = wu.subject ? interpWeekly(wu.subject, interpVars) : `An update on your ${roleLabel} at ${tx.propertyAddress}`;
 
       const portalLink = contact.portalToken
         ? `\n\nYou can view your progress at any time here:\n${base}/portal/${contact.portalToken}`
@@ -69,10 +92,11 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         agencyId,
         side: contact.roleType === "purchaser" ? "purchaser" : "vendor",
         address: tx.propertyAddress,
-        clientFirstName: contact.name.trim().split(/\s+/)[0] || contact.name,
+        clientFirstName: firstName,
         expectedExchangeDate: tx.expectedExchangeDate ?? null,
         overridePredictedDate: tx.overridePredictedDate ?? null,
         completionDate: tx.completionDate ?? null,
+        toneGuidance: wu.toneGuidance || null,
       }).catch(() => null);
 
       const bodyParas = narrative
@@ -82,9 +106,12 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
             `No news at this stage is genuinely good news. It means nothing unexpected is holding things up. Behind the scenes we're chasing solicitors, watching the process, and keeping everything moving.`,
           ];
 
-      const closing = `If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}`;
+      const closing = wu.closing
+        ? interpWeekly(wu.closing, interpVars)
+        : `If anything needs your attention we'll be in touch right away.${canReply !== false ? " Otherwise, just reply to this email if you have questions." : ""}`;
+      const introText = wu.intro ? interpWeekly(wu.intro, interpVars) : "";
 
-      const text = [buildGreeting(contact.name), ``, ...bodyParas.flatMap((p) => [p, ``]), closing + portalLink].join("\n");
+      const text = [buildGreeting(contact.name), ``, ...(introText ? [introText, ``] : []), ...bodyParas.flatMap((p) => [p, ``]), closing + portalLink].join("\n");
 
       const portalSection = contact.portalToken
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
@@ -93,8 +120,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A quick update on where your move is up to.")}
 <p style="margin:0 0 4px;color:#6b7280;font-size:13px">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${buildGreeting(contact.name)}</h1>
-${bodyParas.map((p) => `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${p}</p>`).join("\n")}
-<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">${closing}</p>
+${introText ? `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${escWeekly(introText)}</p>\n` : ""}${bodyParas.map((p) => `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${p}</p>`).join("\n")}
+<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">${escWeekly(closing)}</p>
 ${portalSection}
 <p style="margin:0;font-size:12px;color:#8b91a3">${tx.agency.name}</p>
 </body></html>`;

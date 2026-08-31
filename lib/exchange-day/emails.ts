@@ -100,18 +100,34 @@ ${inner}
 </div>`;
 }
 
+// Fills the client tokens in an (agency-editable) prose string. senderName /
+// agencyName live in the structural sign-off, not the editable body.
+function interpClient(t: string, v: ExchangeDayClientVars): string {
+  return t.replace(/\{(\w+)\}/g, (_, k) => {
+    switch (k) {
+      case "firstName": return v.firstName;
+      case "address": return v.address;
+      case "addressShort": return v.addressShort;
+      case "completionDate": return v.completionDate;
+      case "saleWord": return v.saleWord;
+      default: return `{${k}}`;
+    }
+  });
+}
+
+// Editable prose for the two client emails. Resolved (agency version or our
+// default) by lib/agency-email/templates.ts and passed in by the sender, so a
+// file with no override renders exactly as before.
+export type ExchangeDayMorningCopy = { subject: string; paragraphs: string[] };
+export type ExchangeDayAuthorityCopy = { subject: string; intro: string[]; closing: string };
+
 // 9am — informational + authority ask. No button.
-export function buildExchangeDayClientMorningEmail(v: ExchangeDayClientVars): { subject: string; text: string; html: string } {
-  const subject = `Exchange today: ${v.addressShort}`;
-  const paras = [
-    `Hi ${v.firstName},`,
-    `I hope you are well.`,
-    `We're aiming to exchange contracts on your ${v.saleWord} of ${v.address} today, with completion agreed for ${v.completionDate}.`,
-    `We've already been in touch with the solicitors this morning and will check in again just before 1pm, and later this afternoon if needed. We'll keep you updated as the day progresses.`,
-    `Your solicitor will need your authority before they can exchange contracts. If you haven't already given this verbally, please give them a quick call or send them an email confirming you're happy to exchange with completion on ${v.completionDate}. If you're emailing, please feel free to copy us in so we have visibility too.`,
-    `If your solicitor tells you there's anything preventing them from exchanging today, please let us know as soon as you can so we can help chase anything needed.`,
-    `Likewise, if you hear anything before we do, please keep us posted.`,
-  ];
+export function buildExchangeDayClientMorningEmail(
+  v: ExchangeDayClientVars,
+  content: ExchangeDayMorningCopy,
+): { subject: string; text: string; html: string } {
+  const subject = interpClient(content.subject, v);
+  const paras = content.paragraphs.map((p) => interpClient(p, v));
   const text = `${paras.join("\n\n")}\n\nKind regards,\n${v.senderName}\n${v.agencyName}`;
   const html = clientShell(paras.map(clientPara).join("\n") + "\n" + clientSignOff(v.senderName, v.agencyName));
   return { subject, text, html };
@@ -121,14 +137,11 @@ export function buildExchangeDayClientMorningEmail(v: ExchangeDayClientVars): { 
 // to contacts who haven't confirmed authority yet this activation.
 export function buildExchangeDayClientAuthorityEmail(
   v: ExchangeDayClientVars & { authorityUrl: string },
+  content: ExchangeDayAuthorityCopy,
 ): { subject: string; text: string; html: string } {
-  const subject = `${v.addressShort}: have you given authority?`;
-  const intro = [
-    `Hi ${v.firstName},`,
-    `Just following up on your ${v.saleWord} of ${v.address}.`,
-    `If you've now given your solicitor authority to exchange, please tap below to let us know. It helps us keep track of everything as we work towards exchange today.`,
-  ];
-  const closing = `If you haven't yet, please give your solicitor a quick call or email confirming you're happy to exchange with completion on ${v.completionDate}.`;
+  const subject = interpClient(content.subject, v);
+  const intro = content.intro.map((p) => interpClient(p, v));
+  const closing = interpClient(content.closing, v);
   const text = `${intro.join("\n\n")}\n\nI've given authority: ${v.authorityUrl}\n\n${closing}\n\nKind regards,\n${v.senderName}\n${v.agencyName}`;
   const html = clientShell(
     intro.map(clientPara).join("\n") +

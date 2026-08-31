@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { buildStepList } from "@/lib/command/milestone-emails/steps";
+import { buildStepList } from "@/lib/milestone-emails/steps";
 import { MilestoneEmailsMatrix } from "@/components/command/milestone-emails/MilestoneEmailsMatrix";
 
 // Command Centre → Milestone emails. Pick a scenario (tenure, method, side, step)

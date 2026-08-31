@@ -1,24 +1,26 @@
-// POST /api/command/milestone-emails/save
+// POST /api/agent/milestone-emails/save
 // { code, side, tenure, purchaseType, subject, heroLabel, opening, whatHappened, whatNext, action }
 //
-// Saves (upserts) a scenario-scoped override for a milestone email. It applies
-// to future sends immediately. Superadmin only.
+// Saves (upserts) this agency's own scenario-scoped override for a client
+// milestone email. Applies to future sends immediately. Director only; the
+// agencyId comes from the session (Law 7) — never client-supplied.
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAgencyEmailEdit } from "@/lib/agency-email/templates";
 
-const SIDES = new Set(["vendor", "purchaser", "vendorAgent", "progressor"]);
+const CLIENT_SIDES = new Set(["vendor", "purchaser"]);
 const TENURES = new Set(["any", "freehold", "leasehold"]);
 const METHODS = new Set(["any", "mortgage", "cash"]);
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !hasSuperAdminPowers(session)) {
+  if (!session?.user || session.user.role !== "director" || !session.user.agencyId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const agencyId = session.user.agencyId;
 
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const code = String(b.code ?? "");
@@ -26,7 +28,7 @@ export async function POST(req: Request) {
   const tenure = String(b.tenure ?? "any");
   const purchaseType = String(b.purchaseType ?? "any");
 
-  if (!code || !SIDES.has(side) || !TENURES.has(tenure) || !METHODS.has(purchaseType)) {
+  if (!code || !CLIENT_SIDES.has(side) || !TENURES.has(tenure) || !METHODS.has(purchaseType)) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
@@ -51,22 +53,25 @@ export async function POST(req: Request) {
     updatedById: session.user.id,
   };
 
-  // The Command Centre edits the Sales Progressor default layer (agencyId null).
-  // Agency-specific rows are written by the agency-facing editor (Phase 1).
-  // Prisma types a nullable field as non-null inside a compound-unique `where`,
-  // so we can't upsert the agencyId=null row directly — find-then-write instead.
-  // The partial unique index (agencyId IS NULL) still guards against duplicates.
-  const existing = await prisma.milestoneEmailOverride.findFirst({
-    where: { code, side, tenure, purchaseType, agencyId: null },
-    select: { id: true },
+  // agencyId is non-null here, so the compound-unique upsert works (the null
+  // default layer can't upsert this way — see the Command Centre save route).
+  await prisma.milestoneEmailOverride.upsert({
+    where: {
+      code_side_tenure_purchaseType_agencyId: { code, side, tenure, purchaseType, agencyId },
+    },
+    create: { code, side, tenure, purchaseType, agencyId, ...data },
+    update: data,
   });
-  if (existing) {
-    await prisma.milestoneEmailOverride.update({ where: { id: existing.id }, data });
-  } else {
-    await prisma.milestoneEmailOverride.create({
-      data: { code, side, tenure, purchaseType, agencyId: null, ...data },
-    });
-  }
+
+  await recordAgencyEmailEdit({
+    agencyId,
+    kind: "milestone",
+    editKey: code,
+    variant: `${side} · ${tenure} · ${purchaseType}`,
+    action: "save",
+    contentSnapshot: { subject, heroLabel, opening, whatHappened, whatNext: data.whatNext, action: data.action },
+    editor: { id: session.user.id, name: session.user.name ?? "", email: session.user.email ?? "" },
+  });
 
   return NextResponse.json({ ok: true });
 }

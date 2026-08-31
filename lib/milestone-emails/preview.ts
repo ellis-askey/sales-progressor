@@ -1,10 +1,11 @@
-// lib/command/milestone-emails/preview.ts
+// lib/milestone-emails/preview.ts
 //
 // Fills a milestone email's {tokens} with representative example values so the
-// Command Centre matrix shows roughly what a real recipient would see for the
-// selected scenario. The conditional strings mirror the live logic in
-// lib/services/portal.ts (kept in sync by hand — this is preview only, never
-// what actually sends).
+// email-copy editors (Command Centre matrix + agency Account editor) show
+// roughly what a real recipient would see for the selected scenario. The
+// conditional strings mirror the live logic in lib/services/portal.ts (kept in
+// sync by hand — this is preview only, never what actually sends). Brand-neutral
+// so the agent app can import it without reaching into lib/command (Law 8).
 
 import "server-only";
 import type { RecipientEmailCopy } from "@/lib/portal-copy";

@@ -10,13 +10,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Envelope, X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 const dismissedKey = (userId: string) => `sp_email_prompt_dismissed_${userId}`;
 
 export function EmailSetupPrompt({ userId }: { userId: string }) {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [notNowHover, setNotNowHover] = useState(false);
+  const [closeHover, setCloseHover] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem(dismissedKey(userId))) {
@@ -47,42 +50,26 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
   if (dismissed || !show) return null;
 
   return (
-    <div
+    <GlassCard
+      glassId="hub-email-nudge"
+      label="Hub · Email nudge banner"
       className="agent-reveal-in"
       style={{
         display: "flex",
         gap: 14,
         alignItems: "flex-start",
-        background: "var(--agent-surface-elevated)",
-        border: "0.5px solid var(--agent-border-default)",
-        borderLeft: "3px solid var(--agent-coral)",
         borderRadius: "var(--agent-radius-lg)",
         padding: "16px 18px",
         boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
       }}
     >
-      <div
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 10,
-          background: "rgba(var(--agent-coral-rgb), 0.12)",
-          color: "var(--agent-coral-deep)",
-          display: "grid",
-          placeItems: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Envelope size={18} weight="bold" />
-      </div>
-
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
           Send emails from your own address
         </p>
         <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
-          Right now your client emails send from Sales Progressor. Set up your agency&rsquo;s email and
-          they&rsquo;ll come from you, which clients trust and open more.
+          Connect your agency email and client updates will come directly from you, keeping everything
+          familiar, trusted and under your brand.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Link
@@ -95,38 +82,53 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
           <button
             type="button"
             onClick={dismiss}
+            onMouseEnter={() => setNotNowHover(true)}
+            onMouseLeave={() => setNotNowHover(false)}
             style={{
               fontSize: 12.5,
               fontWeight: 600,
-              color: "var(--agent-text-muted)",
+              color: notNowHover ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
               background: "none",
               border: "none",
               padding: "8px 6px",
               cursor: "pointer",
+              transition: "color 120ms ease",
             }}
           >
             Not now
           </button>
         </div>
+        <p style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
+          Want to change what those emails say?{" "}
+          <Link
+            href="/agent/account/emails"
+            style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
+          >
+            Personalise your client emails
+          </Link>
+        </p>
       </div>
 
       <button
         type="button"
         onClick={dismiss}
+        onMouseEnter={() => setCloseHover(true)}
+        onMouseLeave={() => setCloseHover(false)}
         aria-label="Dismiss"
         style={{
           padding: 4,
           borderRadius: 6,
           border: "none",
-          background: "none",
+          background: closeHover ? "rgba(var(--agent-coral-rgb), 0.1)" : "none",
           cursor: "pointer",
-          color: "var(--agent-text-muted)",
+          color: closeHover ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
           display: "flex",
           flexShrink: 0,
+          transition: "background 120ms ease, color 120ms ease",
         }}
       >
         <X size={14} />
       </button>
-    </div>
+    </GlassCard>
   );
 }

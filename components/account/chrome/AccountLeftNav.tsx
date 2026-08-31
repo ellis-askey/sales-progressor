@@ -19,7 +19,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard, User, Users, Bell, EnvelopeSimple } from "@phosphor-icons/react";
+import { CreditCard, User, Users, Bell, EnvelopeSimple, EnvelopeOpen } from "@phosphor-icons/react";
 
 type Tab = {
   href: string;
@@ -66,6 +66,15 @@ const TABS: Tab[] = [
     label: "Connections",
     Icon: EnvelopeSimple,
     roles: ["director", "negotiator"],
+  },
+  {
+    href: "/agent/account/emails",
+    label: "Emails",
+    Icon: EnvelopeOpen,
+    // Director-only: personalising client email wording is an agency-wide brand
+    // decision, matching Billing / Automation. Negotiators ship our defaults
+    // until a director joins and edits.
+    roles: ["director"],
   },
 ];
 
