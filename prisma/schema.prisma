@@ -2401,6 +2401,24 @@ model AgencyEmailTemplate {
   @@index([agencyId])
 }
 
+// Sales Progressor's OWN default copy for a Tier-2 automated email, editable
+// from the Command Centre (superadmin). No row = the built-in code default in
+// lib/agency-email/templates.ts. Resolution at send time:
+//   agency override (AgencyEmailTemplate) → platform default (this) → code default.
+// One row per templateKey + variant. Same JSON content shape as the agency
+// override so the resolver/validators are shared.
+model PlatformEmailTemplate {
+  id          String   @id @default(cuid())
+  templateKey String
+  variant     String   @default("default")
+  content     Json
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([templateKey, variant])
+}
+
 // Append-only audit of every agency email-copy edit — BOTH milestone overrides
 // and Tier-2 templates. Never updated or deleted in normal operation: it exists
 // so we can always prove exactly what copy an agency authored, who made the
