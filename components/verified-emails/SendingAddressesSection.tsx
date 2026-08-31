@@ -144,9 +144,14 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {step.type !== "domain-auth" && step.type !== "inbox-verify" && (
         <div className="space-y-2">
           {emails.length === 0 && step.type !== "add-email" && (
-            <div className="glass-card px-5 py-8 text-center">
-              <p className="text-sm text-slate-900/50">No verified sending addresses yet.</p>
-              <p className="text-xs text-slate-900/35 mt-1">Add a work email address to start sending from the dashboard.</p>
+            <div
+              className="px-5 py-7 text-center"
+              style={{ border: "1px dashed rgba(0,0,0,0.14)", borderRadius: 11, background: "#fcfbfa" }}
+            >
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#374151" }}>No sending address connected</p>
+              <p style={{ margin: "3px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                Add a work email address to start sending from the dashboard.
+              </p>
             </div>
           )}
           {emails.map((e) => (

@@ -12,7 +12,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { signOut } from "next-auth/react";
-import { X } from "@phosphor-icons/react";
+import { X, DownloadSimple, Trash, CaretRight } from "@phosphor-icons/react";
 import { deleteMyAccount } from "@/app/actions/delete-my-account";
 import { exportMyData } from "@/app/actions/export-my-data";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -88,43 +88,83 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
 
   return (
     <>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <button
+          type="button"
           onClick={handleExport}
           disabled={isExporting}
+          className="account-datarow"
           style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#374151",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            textAlign: "left",
+            padding: "12px 14px",
             background: "#fff",
-            border: "0.5px solid rgba(0,0,0,0.18)",
-            borderRadius: 8,
+            border: "0.5px solid rgba(0,0,0,0.12)",
+            borderRadius: 11,
             cursor: isExporting ? "default" : "pointer",
-            opacity: isExporting ? 0.5 : 1,
-            transition: "background 150ms",
+            opacity: isExporting ? 0.6 : 1,
+            transition: "background 150ms, border-color 150ms",
           }}
-          className="hover:bg-black/[0.03]"
         >
-          {isExporting ? "Preparing…" : "Download my data"}
+          <span className="account-datarow-icon" aria-hidden>
+            <DownloadSimple size={16} weight="bold" />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
+              {isExporting ? "Preparing…" : "Download my data"}
+            </span>
+            <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 1 }}>
+              Get a copy of your data in a secure file.
+            </span>
+          </span>
+          <CaretRight size={14} weight="bold" style={{ color: "#c0c4d0", flexShrink: 0 }} />
         </button>
+
         <button
+          type="button"
           onClick={openModal}
+          className="account-datarow account-datarow-danger"
           style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#b91c1c",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            textAlign: "left",
+            padding: "12px 14px",
             background: "#fff",
             border: "0.5px solid #fecaca",
-            borderRadius: 8,
+            borderRadius: 11,
             cursor: "pointer",
-            transition: "background 150ms",
+            transition: "background 150ms, border-color 150ms",
           }}
-          className="hover:bg-red-50"
         >
-          Delete my account
+          <span className="account-datarow-icon account-datarow-icon-danger" aria-hidden>
+            <Trash size={16} weight="bold" />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#b91c1c" }}>
+              Delete my account
+            </span>
+            <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 1 }}>
+              Permanently delete your account and all associated data.
+            </span>
+          </span>
+          <CaretRight size={14} weight="bold" style={{ color: "#f0a3a3", flexShrink: 0 }} />
         </button>
+
+        <style>{`
+          .account-datarow:hover { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.2); }
+          .account-datarow-danger:hover { background: #fef2f2; border-color: #fca5a5; }
+          .account-datarow-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px;
+            background: rgba(0,0,0,0.05); color: #6b7280;
+          }
+          .account-datarow-icon-danger { background: #fef2f2; color: #dc2626; }
+        `}</style>
       </div>
 
       {showModal && (
