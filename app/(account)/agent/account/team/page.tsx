@@ -23,6 +23,7 @@ import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { TeamManagementPlain } from "@/components/account/v2/TeamManagementPlain";
 import { InviteDirectorPlain } from "@/components/account/v2/InviteDirectorPlain";
 import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 
 export default async function AccountTeamPage() {
   const session = await requireSession();
@@ -50,16 +51,12 @@ export default async function AccountTeamPage() {
     const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
     return (
-      <div
-        style={{
-          maxWidth: 880,
-          margin: "0 auto",
-          padding: "32px 24px 64px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 32,
-        }}
-      >
+      <>
+        <AccountPageHeader
+          title="Agency & team"
+          subtitle="Manage your agency details, team members and access."
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
         {/* Agency name editor — director-only */}
         <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div>
@@ -94,7 +91,8 @@ export default async function AccountTeamPage() {
             }))}
           />
         </section>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -127,27 +125,24 @@ export default async function AccountTeamPage() {
       : null;
 
     return (
-      <div
-        style={{
-          maxWidth: 880,
-          margin: "0 auto",
-          padding: "32px 24px 64px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 24,
-        }}
-      >
+      <>
+        <AccountPageHeader
+          title="Team"
+          subtitle="Bring your director onto Sales Progressor to unlock the full team view."
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
             Invite your director
           </h2>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Bring your director onto Sales Progressor — they&apos;ll be able to see all of your
+            Bring your director onto Sales Progressor, they&apos;ll be able to see all of your
             active sales.
           </p>
         </div>
         <InviteDirectorPlain latestInvitation={latestInvitation} />
-      </div>
+        </div>
+      </>
     );
   }
 

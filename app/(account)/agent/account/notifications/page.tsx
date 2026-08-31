@@ -33,6 +33,7 @@ import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 import { EmailNotificationsSectionPlain } from "@/components/account/v2/EmailNotificationsSectionPlain";
 import { SilencedFilesSectionPlain } from "@/components/account/v2/SilencedFilesSectionPlain";
 import { MobilePushSection } from "@/components/agent/settings/MobilePushSection";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 
 export default async function AccountNotificationsPage() {
   const session = await requireSession();
@@ -100,16 +101,12 @@ export default async function AccountNotificationsPage() {
   const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
   return (
-    <div
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        padding: "32px 24px 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 40,
-      }}
-    >
+    <>
+      <AccountPageHeader
+        title="Notifications"
+        subtitle="Choose how and when Sales Progressor gets your attention."
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
       {/* 1. Email notifications */}
       <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
@@ -151,6 +148,7 @@ export default async function AccountNotificationsPage() {
           silenceable={silenceableFiles}
         />
       </section>
-    </div>
+      </div>
+    </>
   );
 }

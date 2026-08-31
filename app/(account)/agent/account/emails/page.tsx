@@ -14,6 +14,7 @@ import { CompletionPackEditor } from "@/components/account/emails/CompletionPack
 import { ExchangeDayClientEditor } from "@/components/account/emails/ExchangeDayClientEditor";
 import { ClientChaseEditor } from "@/components/account/emails/ClientChaseEditor";
 import { WeeklyUpdateEditor } from "@/components/account/emails/WeeklyUpdateEditor";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -38,25 +39,12 @@ export default async function AccountEmailsPage() {
     .map((s) => ({ ...s, sides: s.sides.filter((x) => x === "vendor" || x === "purchaser") }));
 
   return (
-    <div
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        padding: "32px 24px 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 22,
-      }}
-    >
-      <div>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
-          Your client emails
-        </h1>
-        <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.55, color: "#6b7280", maxWidth: 620 }}>
-          Every update your buyers and sellers receive is written for you, ready to send. Make any of it
-          your own and we&apos;ll use your version from the next send. Anything you leave alone keeps ours.
-        </p>
-      </div>
+    <>
+      <AccountPageHeader
+        title="Your client emails"
+        subtitle="Every email is ready to send. Customise any of them and we'll use your version instead."
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <SectionHeading
@@ -81,6 +69,7 @@ export default async function AccountEmailsPage() {
         <div style={{ borderTop: HAIRLINE, marginTop: 4 }} />
         <WeeklyUpdateEditor />
       </section>
-    </div>
+      </div>
+    </>
   );
 }

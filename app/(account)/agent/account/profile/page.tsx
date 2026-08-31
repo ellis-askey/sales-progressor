@@ -31,6 +31,7 @@ import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZon
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 
 export default async function AccountProfilePage({
   searchParams,
@@ -65,16 +66,12 @@ export default async function AccountProfilePage({
   const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
   return (
-    <div
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        padding: "32px 24px 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 40,
-      }}
-    >
+    <>
+      <AccountPageHeader
+        title="Profile"
+        subtitle="Manage your personal details and app preferences."
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
       {/* 1. My profile */}
       <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
@@ -167,6 +164,7 @@ export default async function AccountProfilePage({
         </div>
         <AccountDangerZonePlain userEmail={session.user.email ?? ""} />
       </section>
-    </div>
+      </div>
+    </>
   );
 }

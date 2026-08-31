@@ -28,6 +28,7 @@ import { BuildingInvoiceHero } from "@/components/billing/v2/BuildingInvoiceHero
 import { InvoiceHistoryLines } from "@/components/billing/v2/InvoiceHistoryLines";
 import { PaymentMethodPlain } from "@/components/billing/v2/PaymentMethodPlain";
 import { PlanTermsCollapsed } from "@/components/billing/v2/PlanTermsCollapsed";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 
 function monthLabel(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -149,16 +150,12 @@ export default async function AccountBillingPage() {
   const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
   return (
-    <div
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        padding: "32px 24px 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 40,
-      }}
-    >
+    <>
+      <AccountPageHeader
+        title="Billing"
+        subtitle="Manage your charges, invoices and payment method."
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
       <PaymentBlockBanner agencyId={agency.id} />
 
       <MetricsStrip
@@ -213,6 +210,7 @@ export default async function AccountBillingPage() {
           />
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
