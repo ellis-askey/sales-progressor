@@ -17,8 +17,11 @@
 // gate the device-push duplicate.
 
 import { useState, useTransition, useEffect } from "react";
+import { DeviceMobile } from "@phosphor-icons/react";
 import { updateAgentPushPrefAction, sendTestPushAction } from "@/app/actions/agent-preferences";
 import { Pill } from "@/components/ui/Pill";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { SectionMasterControl } from "@/components/account/chrome/SectionMasterControl";
 import type { NotificationPrefs, PushKey } from "@/lib/agent/notification-prefs";
 
 export type SubscribedDevice = {
@@ -145,6 +148,27 @@ export function MobilePushSection({
         setPrefs((p) => ({ ...p, push: { ...p.push, [key]: !next } }));
       } finally {
         setSavingKey(null);
+      }
+    });
+  }
+
+  // Master "All on / All off" over the visible push toggles. The hidden
+  // saleRelisted key is intentionally left untouched.
+  function setAllPush(value: boolean) {
+    if (isPending) return;
+    const changed = TOGGLES.filter((t) => prefs.push[t.key] !== value);
+    if (changed.length === 0) return;
+    const prev = prefs;
+    setPrefs((p) => {
+      const push = { ...p.push };
+      for (const t of changed) push[t.key] = value;
+      return { ...p, push };
+    });
+    startTransition(async () => {
+      try {
+        await Promise.all(changed.map((t) => updateAgentPushPrefAction({ key: t.key, value })));
+      } catch {
+        setPrefs(prev);
       }
     });
   }
@@ -285,14 +309,13 @@ export function MobilePushSection({
   }
 
   return (
-    <div className="glass-card p-6">
-      <div className="mb-5">
-        <h2 className="text-sm font-bold text-slate-900/80 mb-1">Mobile push notifications</h2>
-        <p className="text-xs text-slate-900/50">
-          Get device pop-ups for the events that matter — even when the tab is closed. The in-app bell still fires for everything; these toggles only control the device push.
-        </p>
-      </div>
-
+    <AccountCard
+      icon={<DeviceMobile size={18} weight="bold" />}
+      title="Push notifications"
+      subtitle="Get pop-ups for important events, even when the app is closed."
+      headerAction={<SectionMasterControl values={TOGGLES.map((t) => prefs.push[t.key])} onSetAll={setAllPush} disabled={isPending} />}
+      bodyStyle={{ marginTop: 10 }}
+    >
       {/* Devices list */}
       <div className="mb-5">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Devices</p>
@@ -426,7 +449,7 @@ export function MobilePushSection({
           })}
         </div>
       </div>
-    </div>
+    </AccountCard>
   );
 }
 
