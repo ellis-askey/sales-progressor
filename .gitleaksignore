@@ -7,3 +7,15 @@
 # False positive — string is a question identifier in the content drafter,
 # not a credential. Verified 2026-06-04 (q3_proud_moment).
 7b0cd2df3c7ac1bb8bc74e5bc394534f92793521:lib/command/content/voice-questions.ts:generic-api-key:19
+
+# False positives — staging portal tokens for disposable demo data, hard-coded in
+# a dev-only test index (from scripts/seed-broker-demo.ts). Not credentials: each
+# only opens a throwaway staging demo portal, no prod/customer data. Delete with
+# the broker-demo seed. Verified 2026-09-01.
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:9
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:10
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:11
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:12
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:13
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:14
+244a9f3cad0114872b3c729039d250561eead142:app/dev/broker-states/page.tsx:generic-api-key:15
