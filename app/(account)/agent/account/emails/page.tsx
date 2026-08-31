@@ -12,6 +12,7 @@ import { buildStepList } from "@/lib/milestone-emails/steps";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
 import { CompletionPackEditor } from "@/components/account/emails/CompletionPackEditor";
 import { ExchangeDayClientEditor } from "@/components/account/emails/ExchangeDayClientEditor";
+import { ClientChaseEditor } from "@/components/account/emails/ClientChaseEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,8 @@ export default async function AccountEmailsPage() {
         <CompletionPackEditor />
         <div style={{ borderTop: HAIRLINE, marginTop: 4 }} />
         <ExchangeDayClientEditor />
+        <div style={{ borderTop: HAIRLINE, marginTop: 4 }} />
+        <ClientChaseEditor />
       </section>
     </div>
   );

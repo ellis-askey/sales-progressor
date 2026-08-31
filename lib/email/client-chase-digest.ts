@@ -40,6 +40,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { toUKDateStr } from "@/lib/utils";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 
 // Guard for the multi-contact chase-inflation bug (2026-08-17).
 //
@@ -75,6 +76,10 @@ export type AssembleDigestInput = {
   // reading "things on your sale at X" hits a mental snag — they're
   // buying, not selling. Resolved by the caller via contact.roleType.
   recipientSide: "vendor" | "purchaser";
+  // Optional agency personalisation (Tier-2 client_chase). subject (empty =
+  // our rotating default), plus an intro/outro line that bracket the dynamic
+  // body. Resolved by the caller; empty everywhere == unchanged default output.
+  agencyCopy?: { subject: string; intro: string; outro: string };
 };
 
 export type AssembledDigest = {
@@ -103,6 +108,18 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// Token fill for the agency-editable chase slots (subject / intro / outro).
+function interpChase(t: string, vars: { address: string; firstName: string; transactionWord: string }): string {
+  return t.replace(/\{(\w+)\}/g, (_, k) => {
+    switch (k) {
+      case "address": return vars.address;
+      case "firstName": return vars.firstName;
+      case "transactionWord": return vars.transactionWord;
+      default: return `{${k}}`;
+    }
+  });
 }
 
 // Classifier: returns the tone of a single milestone code based on
@@ -214,23 +231,35 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     { id: "personal", build: () => (first ? `${first}, an update on ${address}` : `An update on ${address}`) },
     { id: "soft",     build: () => `On your ${transactionWord} at ${address}` },
   ];
-  const chosenVariant = subjectVariants[subjectVariantIndex(contact.id, subjectVariants.length)];
-  const subject = chosenVariant.build();
-  const subjectVariant = chosenVariant.id;
+  const chaseVars = { address, firstName: first, transactionWord };
+  // Agency subject override (empty = our rotating default). "custom" rides to
+  // SendGrid as the template version so it's still distinguishable in analytics.
+  let subject: string;
+  let subjectVariant: string;
+  if (input.agencyCopy && input.agencyCopy.subject.trim()) {
+    subject = interpChase(input.agencyCopy.subject, chaseVars);
+    subjectVariant = "custom";
+  } else {
+    const chosenVariant = subjectVariants[subjectVariantIndex(contact.id, subjectVariants.length)];
+    subject = chosenVariant.build();
+    subjectVariant = chosenVariant.id;
+  }
+  // Optional agency intro/outro that bracket the dynamic body (empty = none).
+  const introText = input.agencyCopy && input.agencyCopy.intro.trim() ? interpChase(input.agencyCopy.intro, chaseVars) : "";
+  const outroText = input.agencyCopy && input.agencyCopy.outro.trim() ? interpChase(input.agencyCopy.outro, chaseVars) : "";
 
   // ─── Text body ─────────────────────────────────────────────────────────
-  // Singular/plural as fixed strings (no template fragments — robust).
+  // Singular/plural as fixed strings (no template fragments — robust). Built
+  // WITHOUT the greeting so the agency intro/outro can bracket the tone body.
   const bulletLine = (label: string) => `  • ${label}`;
 
-  let bodyLines: string[];
+  let toneLines: string[];
 
   if (overallTone === "diy") {
     const opener = count === 1
       ? `There's one thing on your ${transactionWord} at ${address} that only you can move forward:`
       : `There are ${count} things on your ${transactionWord} at ${address} that only you can move forward:`;
-    bodyLines = [
-      `Hi ${first},`,
-      ``,
+    toneLines = [
       opener,
       ``,
       ...diy.map((d) => bulletLine(d.label)),
@@ -244,9 +273,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     const opener = count === 1
       ? `One thing is sitting with ${phrase} right now that we haven't seen confirmed yet:`
       : `${count} things are sitting with ${phrase} right now that we haven't seen confirmed yet:`;
-    bodyLines = [
-      `Hi ${first},`,
-      ``,
+    toneLines = [
       `A quick update on your ${transactionWord} at ${address}.`,
       ``,
       opener,
@@ -262,9 +289,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   } else {
     // mixed
     const phrase = withWhomPhrase(nudgeParties);
-    bodyLines = [
-      `Hi ${first},`,
-      ``,
+    toneLines = [
       `A few updates on your ${transactionWord} at ${address}. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.`,
       ``,
       `Yours to do:`,
@@ -278,6 +303,14 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
       respondUrl,
     ];
   }
+
+  const bodyLines = [
+    `Hi ${first},`,
+    ``,
+    ...(introText ? [introText, ``] : []),
+    ...toneLines,
+    ...(outroText ? [``, outroText] : []),
+  ];
 
   const text = [
     ...bodyLines,
@@ -299,14 +332,14 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     items.map((i) => `        <li style="${liStyle}">${escapeHtml(i.label)}</li>`).join("\n") +
     `\n      </ul>`;
 
-  let htmlInner: string;
+  // Tone body WITHOUT the greeting <p>, so the agency intro/outro can bracket it.
+  let toneHtml: string;
 
   if (overallTone === "diy") {
     const opener = count === 1
       ? `There's one thing on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`
       : `There are ${count} things on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`;
-    htmlInner = `
-          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
+    toneHtml = `
           <p style="${pStyle}">${opener}</p>
           ${renderList(diy)}
           <p style="${pStyle}">Open the page below to confirm each one is done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.</p>`;
@@ -315,8 +348,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     const opener = count === 1
       ? `One thing is sitting with ${phrase} right now that we haven't seen confirmed yet:`
       : `${count} things are sitting with ${phrase} right now that we haven't seen confirmed yet:`;
-    htmlInner = `
-          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
+    toneHtml = `
           <p style="${pStyle}">A quick update on your ${transactionWord} at <strong>${escapeHtml(address)}</strong>.</p>
           <p style="${pStyle}">${opener}</p>
           ${renderList(nudge)}
@@ -325,8 +357,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   } else {
     // mixed
     const phrase = escapeHtml(withWhomPhrase(nudgeParties));
-    htmlInner = `
-          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
+    toneHtml = `
           <p style="${pStyle}">A few updates on your ${transactionWord} at <strong>${escapeHtml(address)}</strong>. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.</p>
           <p style="${headingStyle}">Yours to do:</p>
           ${renderList(diy)}
@@ -334,6 +365,13 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
           ${renderList(nudge)}
           <p style="${pStyle}">Open the page below to confirm the items that are done, set an expected date, or leave a note for anything that's running late.</p>`;
   }
+
+  const extraPara = (t: string) => `<p style="${pStyle}">${escapeHtml(t)}</p>`;
+  const htmlInner =
+    `\n          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>` +
+    (introText ? `\n          ${extraPara(introText)}` : "") +
+    toneHtml +
+    (outroText ? `\n          ${extraPara(outroText)}` : "");
 
   const html = `<!DOCTYPE html>
 <html>
@@ -401,6 +439,7 @@ export async function enqueueClientChaseDigest(input: {
       select: {
         id: true,
         propertyAddress: true,
+        agencyId: true,
         agency: { select: { name: true } },
         // Phase 1 commit 4c: needed by the ClientChaseState upsert
         // below so purchaser-contact rows get round-stamped.
@@ -422,6 +461,9 @@ export async function enqueueClientChaseDigest(input: {
   // shortest-path: don't even queue.
   if (contact.unsubscribedAt) return { enqueued: false, rowId: null };
 
+  // Agency personalisation for the chase (subject override + optional intro/outro).
+  const agencyCopy = await resolveClientChaseContent(transaction.agencyId);
+
   const payload = assembleDigestPayload({
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
@@ -431,6 +473,7 @@ export async function enqueueClientChaseDigest(input: {
     // defensively — should never apply since the cron filters contacts
     // to vendor/purchaser only before reaching this path.
     recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
+    agencyCopy,
   });
 
   const today = new Date();

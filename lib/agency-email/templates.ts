@@ -138,6 +138,45 @@ function validateExchangeAuthority(raw: unknown): ExchangeDayAuthorityContent | 
   return { subject, intro, closing };
 }
 
+// ─── Client chase ─────────────────────────────────────────────────────────────
+//
+// The chase body is assembled dynamically (which milestones are outstanding, in
+// one of three tones), so it isn't a rewritable block like the others. Agencies
+// get a subject override (empty = our rotating default) plus an optional opening
+// and closing line that BRACKET the dynamic body — they don't replace it. All
+// three fields optional; empty everywhere == our default output.
+
+export type ClientChaseContent = { subject: string; intro: string; outro: string };
+
+export const CLIENT_CHASE_DEFAULT: ClientChaseContent = { subject: "", intro: "", outro: "" };
+
+function coalesceClientChase(raw: unknown): ClientChaseContent {
+  const c = (raw ?? {}) as Partial<ClientChaseContent>;
+  return {
+    subject: typeof c.subject === "string" ? c.subject : "",
+    intro: typeof c.intro === "string" ? c.intro : "",
+    outro: typeof c.outro === "string" ? c.outro : "",
+  };
+}
+function validateClientChase(raw: unknown): ClientChaseContent | null {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  // Every field is optional; we only require that what's present is a string.
+  if (c.subject !== undefined && typeof c.subject !== "string") return null;
+  if (c.intro !== undefined && typeof c.intro !== "string") return null;
+  if (c.outro !== undefined && typeof c.outro !== "string") return null;
+  return {
+    subject: typeof c.subject === "string" ? c.subject.trim() : "",
+    intro: typeof c.intro === "string" ? c.intro.trim() : "",
+    outro: typeof c.outro === "string" ? c.outro.trim() : "",
+  };
+}
+
+export async function resolveClientChaseContent(agencyId: string | null): Promise<ClientChaseContent> {
+  if (!agencyId) return CLIENT_CHASE_DEFAULT;
+  const raw = await getRow(agencyId, "client_chase", "default");
+  return raw ? coalesceClientChase(raw) : CLIENT_CHASE_DEFAULT;
+}
+
 // ─── Generic storage ──────────────────────────────────────────────────────────
 
 async function getRow(agencyId: string, templateKey: string, variant: string): Promise<unknown | null> {
@@ -191,6 +230,12 @@ export const TEMPLATE_FAMILIES: Record<string, FamilyDef> = {
     defaultFor: (v) => (v === "authority" ? EXCHANGE_DAY_AUTHORITY_DEFAULT : EXCHANGE_DAY_MORNING_DEFAULT),
     coalesce: (v, raw) => (v === "authority" ? coalesceExchangeAuthority(raw) : coalesceExchangeMorning(raw)),
     validate: (v, raw) => (v === "authority" ? validateExchangeAuthority(raw) : validateExchangeMorning(raw)),
+  },
+  client_chase: {
+    variants: ["default"],
+    defaultFor: () => CLIENT_CHASE_DEFAULT,
+    coalesce: (_v, raw) => coalesceClientChase(raw),
+    validate: (_v, raw) => validateClientChase(raw),
   },
 };
 
