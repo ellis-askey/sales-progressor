@@ -82,6 +82,16 @@ Claim signup subline "Free 14-day trial · No card needed" → "Free to use · N
 
 **Cleanup noted (not user-facing):** `lib/billing/trial-state.ts` (`getTrialState`/`TrialState`) is now unused by the billing hub; leave for a later dead-code sweep. The `withinTrial` prop + `TrialExpiredModal` component name are misnomers now — rename in a later pass.
 
+### Phase 2 verification (how to see it)
+
+Local dev server `http://localhost:3001` (runs the committed Phase-2 code, points at the staging DB with the seeded verification agency). Log in as `pricing-verify@thesalesprogressor.test` / `PricingVerify2026!`.
+
+- **`/agent/transactions/new`** — the form loads straight away; no "trial has ended" wall. A self-progressing agency is never blocked.
+- **`/agent/billing`** — "Plan & terms" reads **Self-progress · Free** and **Outsourced · £250/£300/£350, first sale free**; no £59, no Trial countdown column. The building invoice shows the outsourced charges + the first-file-free credit. Because this agency has a billed outsourced sale and no card, the reframed nudge **"Add a card for your outsourced sales"** appears (not "your trial has ended").
+- **Hub** — no trial banner / countdown for self-progress.
+
+(Not in this phase: the file-sidebar "£59" line and the marketing site — Phase 4 / Phase 5.)
+
 ---
 
 ## Deferred / follow-ups
