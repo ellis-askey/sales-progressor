@@ -11,7 +11,7 @@ export async function GET() {
   // All checks scoped to this agent's own files
   const agentTxWhere = { agentUserId: userId, agencyId, status: { not: "draft" as const } };
 
-  const [activeTxCount, contactWithDetails, contactWithEmail, verifiedEmail, user, firstTx] =
+  const [activeTxCount, contactWithDetails, contactWithEmail, verifiedEmail, user, firstTx, verifiedDomainCount] =
     await Promise.all([
       prisma.propertyTransaction.count({ where: agentTxWhere }),
       prisma.contact.count({
@@ -32,6 +32,11 @@ export async function GET() {
         orderBy: { createdAt: "asc" },
         select: { id: true },
       }),
+      // Agency sending domain authenticated (DKIM + SPF verified). Same "ready"
+      // signal the Command Centre agency readiness view uses. Sender auto-adopts
+      // the domain on verify, so a verified domain is the single source of truth.
+      // Non-agency users (agencyId null) never match and stay false.
+      prisma.verifiedDomain.count({ where: { agencyId: agencyId ?? "__none__", status: "verified" } }),
     ]);
 
   // Explicit theme choice: agentPreferences.theme must exist and be a valid theme.
@@ -55,6 +60,7 @@ export async function GET() {
       hasContactEmail:    contactWithEmail > 0,
       hasVerifiedEmail:   verifiedEmail > 0 || accountAgeMs > THEME_GRACE_MS,
       hasPhone:           !!(user?.phone?.trim()),
+      hasVerifiedSender:  verifiedDomainCount > 0,
     },
     firstTxId: firstTx?.id ?? null,
   });
