@@ -186,3 +186,10 @@ Shipped a new **TermsVersion v5** (`2026-08-payments-v5`) rather than editing v4
 Substantive v5 changes vs v4: Charges (in-house £59 removed, self free, first outsourced free), Payment (scoped to outsourced), Free trial period → **Free sales**, Failed payments (blocks sending new sales to our team, self stays free/unaffected). Wording verbatim from the approved Phase-4 artifact. tsc clean; no stale `payments-v4` / `Free trial period` refs remain in app/lib.
 
 **Verify (once pushed to staging):** `/billing-terms` shows the v5 preview immediately (static). The acknowledged disclosure (director saving a card) shows v5 only after Vercel applies the migration to the staging DB — confirm the Vercel deploy is GREEN before trusting it.
+
+### Phase 4 pushed to staging + deploy verified · 2026-08-31
+Pushed the 11-commit Phase 1-4 stack to `origin/staging` (`c37213c0..cf98cb88`). Vercel Preview deploy `salesprogressor-ra9wfibzi` went **Ready** (green).
+
+**Gotcha found + fixed — migration data-inserts don't run on staging.** `scripts/vercel-db-deploy.mjs` runs `prisma db push` on Preview/staging (schema-only) and only `prisma migrate deploy` on Production. So the v5 TermsVersion **INSERT** never ran on staging (the schema columns did, via db push — that's the "already in sync" log line). Inserted the v5 row into the staging DB directly via a guarded one-shot (project-ref check == etidawkbqctarmsdjoxp). `getActiveTermsVersion` on staging now returns `2026-08-payments-v5`.
+
+**Implication for Phase 6 (prod cutover):** production DOES use `prisma migrate deploy`, so the v5 migration WILL run and insert the row automatically at cutover — no manual insert needed on prod. But any FUTURE staging test of a data-bearing migration needs the same manual insert, because staging never runs migration SQL.
