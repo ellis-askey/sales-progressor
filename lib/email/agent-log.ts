@@ -33,6 +33,8 @@ export type AgentEmailKind =
   | "chain_invite"
   | "chain_invite_nudge"
   | "chain_neighbour_update"
+  | "milestone_agent"
+  | "milestone_progressor"
   | "password_reset";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).

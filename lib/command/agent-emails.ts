@@ -15,6 +15,10 @@ export const AGENT_EMAIL_KINDS = [
   "domain_auth",
   "verified_email",
   "chain_invite",
+  "chain_invite_nudge",
+  "chain_neighbour_update",
+  "milestone_agent",
+  "milestone_progressor",
   "password_reset",
 ] as const;
 
@@ -32,6 +36,10 @@ export const KIND_LABELS: Record<AgentEmailKind, string> = {
   domain_auth: "Domain auth",
   verified_email: "Verified email",
   chain_invite: "Chain invite",
+  chain_invite_nudge: "Chain invite nudge",
+  chain_neighbour_update: "Chain neighbour update",
+  milestone_agent: "Milestone (agent)",
+  milestone_progressor: "Milestone (progressor)",
   password_reset: "Password reset",
 };
 
@@ -49,6 +57,7 @@ export type AgentEmailTabId =
   | "onboarding"
   | "alerts"
   | "portal"
+  | "milestones"
   | "chain"
   | "auth";
 
@@ -62,7 +71,8 @@ export const TABS: { id: AgentEmailTabId; label: string; kinds: AgentEmailKind[]
   },
   { id: "alerts", label: "Alerts", kinds: ["domain_auth", "verified_email"] },
   { id: "portal", label: "Portal messages", kinds: ["portal_message"] },
-  { id: "chain", label: "Chain invites", kinds: ["chain_invite"] },
+  { id: "milestones", label: "Milestone notifications", kinds: ["milestone_agent", "milestone_progressor"] },
+  { id: "chain", label: "Chain", kinds: ["chain_invite", "chain_invite_nudge", "chain_neighbour_update"] },
   { id: "auth", label: "Auth", kinds: ["password_reset"] },
 ];
 
@@ -90,6 +100,7 @@ export const GROUP_PILL: Record<AgentEmailTabId, string> = {
   onboarding: "bg-[#14352a] text-[#6ee7b7]",
   alerts: "bg-[#3a2a12] text-[#fbbf24]",
   portal: "bg-[#3a1d2e] text-[#f9a8d4]",
+  milestones: "bg-[#12303a] text-[#67e8f9]",
   chain: "bg-[#2a2350] text-[#c4b5fd]",
   auth: "bg-[#3a1717] text-[#fca5a5]",
 };
