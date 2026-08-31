@@ -139,9 +139,9 @@ const SECTIONS: PolicySection[] = [
           contact with that recipient.
         </p>
         <p>
-          The information sent does <strong>not</strong> include the full names of any other party,
-          postcodes, sale prices, email addresses, phone numbers, internal notes, or the content of
-          any previous message. Anthropic processes this data under their commercial API terms and{" "}
+          For drafting, the information sent does <strong>not</strong> include the full names of any
+          other party, postcodes, sale prices, email addresses, phone numbers, internal notes, or the
+          content of any previous message. Anthropic processes this data under their commercial API terms and{" "}
           <strong>does not use it to train their models</strong>.
         </p>
         <p>
