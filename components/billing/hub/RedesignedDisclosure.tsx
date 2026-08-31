@@ -13,7 +13,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { TermsSection } from "@/lib/billing/terms-sections";
+import { termsDisplayName, type TermsSection } from "@/lib/billing/terms-sections";
 
 export type RedesignedDisclosureProps = {
   termsVersionId: string;
@@ -64,7 +64,7 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
           Before we add your card
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-          Version <code>{termsVersionTag}</code>. Please read and confirm.
+          {termsDisplayName(termsVersionTag)}. Please read and confirm.
         </p>
       </div>
 

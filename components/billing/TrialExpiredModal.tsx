@@ -36,7 +36,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CardCaptureForm } from "./CardCaptureForm";
-import type { TermsSection } from "@/lib/billing/terms-sections";
+import { termsDisplayName, type TermsSection } from "@/lib/billing/terms-sections";
 
 type Step = "intro" | "terms" | "card" | "success";
 
@@ -228,7 +228,7 @@ function TermsStep({
         Before we add your card
       </h2>
       <p style={{ margin: "4px 0 16px", fontSize: 11, color: "#9ca3af", letterSpacing: 0.2 }}>
-        Pricing terms <code style={{ fontSize: 11, color: "#9ca3af" }}>{versionTag}</code>
+        {termsDisplayName(versionTag)}
       </p>
 
       {/* Scrollable terms body. Smaller fonts than the settings-page
