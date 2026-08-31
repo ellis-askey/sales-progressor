@@ -4,9 +4,10 @@
 **Last verified:** 2026-08-27 (full code inspection of every open item)
 **Working style:** Items can be picked up in any order, not necessarily sequentially. Strike through each one (`~~A1~~`) or tick the checkbox as it lands. New ideas can be appended to the **Yes** list with a fresh letter/number.
 
-### Status at 2026-08-27
-- **Shipped (8):** A1, B2, B4, F2, C2, plus D1, F1, C1 — the three "last 10%" partials were finished 2026-08-27.
-- **Still open (5):** E2, A2, A3, B5, D2.
+### Status at 2026-08-27 — RESOLVED
+- **Shipped (8):** A1, B2, B4, F2, C2, plus D1, F1, C1 (the three "last 10%" partials finished 2026-08-27).
+- **Deferred & relocated (5):** the remaining net-new ideas were parked 2026-08-27. **A2, A3, B5** moved to the [portal feature ledger](portal-feature-ledger.md) (⏸ Deferred). **E2, D2** (agent/internal, not client-portal) moved to [FUTURE_FEATURES](../reference/FUTURE_FEATURES.md).
+- This backlog is now fully resolved. For the live decision on the five deferred items, see those two docs, not the entries below (kept for the audit trail).
 
 ---
 

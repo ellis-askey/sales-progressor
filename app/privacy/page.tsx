@@ -92,6 +92,18 @@ const SECTIONS: PolicySection[] = [
         <p>
           Copies of emails and messages sent through the platform are logged for record-keeping.
         </p>
+        <h3>Connected email mailboxes (optional)</h3>
+        <p>
+          If you choose to connect an email mailbox, such as Microsoft Outlook, we can access emails
+          relating to your sales and save relevant messages to the matching transaction. This may
+          include the sender, recipients, subject, date and message content, helping to keep a
+          complete record of communication on the file.
+        </p>
+        <p>
+          We only access mailboxes that have been connected to the platform. You can disconnect your
+          mailbox at any time. Connecting your mailbox also allows the platform to send emails from
+          your address on your behalf.
+        </p>
         <h3>Technical and usage data</h3>
         <p>
           When you use the platform, our infrastructure and monitoring providers automatically
@@ -149,6 +161,11 @@ const SECTIONS: PolicySection[] = [
               <td>All users</td>
               <td><strong>Consent</strong> — only if you accept analytics cookies; you can decline or withdraw at any time</td>
             </tr>
+            <tr>
+              <td>Access and store emails from a connected mailbox that relate to your sales, and send emails from your address on your behalf</td>
+              <td>Agency users who connect a mailbox, and the buyers, sellers, solicitors and other parties included in relevant emails</td>
+              <td><strong>Consent</strong> from the user connecting the mailbox, which can be withdrawn at any time by disconnecting it. Where emails contain personal data handled by the agency on behalf of its clients, we process that data as the agency&rsquo;s processor.</td>
+            </tr>
           </tbody>
         </table>
         <p>
@@ -195,15 +212,26 @@ const SECTIONS: PolicySection[] = [
               <td>US (SCCs + UK IDTA)</td>
             </tr>
             <tr>
+              <td>Microsoft</td>
+              <td>
+                Provides secure access to connected Microsoft 365 and Outlook mailboxes through
+                Microsoft Graph. Where a user chooses to connect their mailbox, this allows us to
+                access emails relating to their sales and send emails from their address on their
+                behalf. Relevant emails may be stored against the matching transaction within the
+                platform.
+              </td>
+              <td>According to the Microsoft 365 region associated with the mailbox, with appropriate international data-transfer safeguards where required.</td>
+            </tr>
+            <tr>
               <td>Anthropic</td>
               <td>
-                AI-assisted message drafting. Receives the recipient&rsquo;s first name and role, the
-                role labels (but not the names) of other transaction parties, the property&rsquo;s
-                street line (without postcode), milestone status, and the timing of previous contact.
-                Does <strong>not</strong> receive the full names of other parties, postcodes, sale
-                prices, email addresses, phone numbers, internal notes, or previous message content.
-                Inputs are not used to train Anthropic&rsquo;s models under their commercial API
-                terms.
+                AI-assisted features, including message drafting and interpreting emails relating to
+                a sale. When drafting communications, we limit the information provided to what is
+                needed to generate the message and exclude unnecessary personal information. Where a
+                user has connected their mailbox, relevant email content may also be processed by
+                Anthropic to identify and suggest updates to the transaction. AI-generated
+                suggestions are presented for review and are not applied automatically. Data
+                submitted through Anthropic&rsquo;s commercial API is not used to train its models.
               </td>
               <td>US (SCCs + UK IDTA)</td>
             </tr>
@@ -410,8 +438,8 @@ export default function PrivacyPage() {
     <PolicyShell
       title="Privacy Policy"
       description="How we collect, use, and protect personal data, and the rights you have over your data."
-      lastUpdated="25 May 2026"
-      version="1.0"
+      lastUpdated="31 August 2026"
+      version="1.1"
       sections={SECTIONS}
     />
   );

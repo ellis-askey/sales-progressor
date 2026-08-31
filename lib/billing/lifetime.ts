@@ -11,9 +11,11 @@
 // price edits make live-recompute and invoice-sum diverge; this lifetime
 // figure intentionally tracks the invoice trail.
 //
-// "Saved via trial" is summed across all PropertyTransaction rows on the
-// agency where freeOnExchange = true and exchangedAt is set — what would
-// have been billed if not in trial, run through computeFee for the £ value.
+// "Given free" is summed across all PropertyTransaction rows on the agency
+// that were given away and have exchangedAt set: legacy trial files
+// (freeOnExchange = true) AND first-outsourced-file giveaways under the free
+// model (firstOutsourcedFree = true). Each is run through computeFee for the
+// £ value that would otherwise have been billed.
 
 import { prisma } from "@/lib/prisma";
 import { computeFee } from "@/lib/billing/fee";
@@ -21,9 +23,9 @@ import { computeFee } from "@/lib/billing/fee";
 export type LifetimeMetrics = {
   /** Sum of totalPence across all this agency's InvoiceLines on non-building invoices. */
   billedLifetimePence: number;
-  /** Count of exchanges that fell within a trial window (freeOnExchange + exchangedAt). */
+  /** Count of exchanges given away: legacy trial (freeOnExchange) + first-outsourced-free. */
   trialExchangeCountLifetime: number;
-  /** Sum of what trial exchanges WOULD have charged at gross rates. The value given away. */
+  /** Sum of what those given-away exchanges WOULD have charged at gross rates. */
   savedViaTrialLifetimePence: number;
 };
 
@@ -39,9 +41,10 @@ export async function getLifetimeMetrics(agencyId: string): Promise<LifetimeMetr
   });
   const billedLifetimePence = billedAgg._sum.totalPence ?? 0;
 
-  // Trial-given-away: lifetime sum. Reads PropertyTransaction directly since
-  // trial files never appear on invoices. Fee tier override applies so a
-  // legacy agency's "saved via trial" reflects what they ACTUALLY would have
+  // Given-away: lifetime sum. Reads PropertyTransaction directly. Legacy trial
+  // files never appear on invoices; first-outsourced-free files appear at £0
+  // net, so computeFee gives the gross value that was waived. Fee tier override
+  // applies so a legacy agency's figure reflects what they ACTUALLY would have
   // paid (their flat fee), not the standard sliding scale.
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
@@ -57,7 +60,11 @@ export async function getLifetimeMetrics(agencyId: string): Promise<LifetimeMetr
     ? { feeTier: agency.feeTier, legacyOutsourcedFeePence: agency.legacyOutsourcedFeePence }
     : null;
   const trials = await prisma.propertyTransaction.findMany({
-    where: { agencyId, freeOnExchange: true, exchangedAt: { not: null } },
+    where: {
+      agencyId,
+      exchangedAt: { not: null },
+      OR: [{ freeOnExchange: true }, { firstOutsourcedFree: true }],
+    },
     select: { serviceType: true, priceAtExchange: true, purchasePrice: true },
   });
   let savedViaTrialLifetimePence = 0;

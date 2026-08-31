@@ -19,6 +19,8 @@ type ProgressData = {
   hasContactEmail:    boolean;
   hasVerifiedEmail:   boolean;
   hasPhone:           boolean;
+  hasVerifiedSender:  boolean;
+  hasInboundConnected: boolean;
 };
 
 const DEFAULT_PROGRESS: ProgressData = {
@@ -28,6 +30,8 @@ const DEFAULT_PROGRESS: ProgressData = {
   hasContactEmail:    false,
   hasVerifiedEmail:   false,
   hasPhone:           false,
+  hasVerifiedSender:  false,
+  hasInboundConnected: false,
 };
 
 type Step = {
@@ -35,6 +39,7 @@ type Step = {
   href: string;
   hrefDynamic?: (firstTxId: string | null) => string;
   progressKey: keyof ProgressData;
+  directorOnly?: boolean;
 };
 
 const STEPS: Step[] = [
@@ -44,11 +49,27 @@ const STEPS: Step[] = [
   { label: "Verify your email address",      href: "/agent/account/profile", progressKey: "hasVerifiedEmail" },
   { label: "Add your phone number",          href: "/agent/account/profile", progressKey: "hasPhone" },
   { label: "Choose your branch theme",       href: "/agent/account/profile", progressKey: "hasThemeSet" },
+  // Directors only: authenticating the agency's sending domain needs registrar
+  // access, so we only show it to the person who can act on it. Ticks on the
+  // same "ready" signal as the Command Centre agency-readiness view.
+  { label: "Send mail from your agency's domain", href: "/agent/account/profile", progressKey: "hasVerifiedSender", directorOnly: true },
+  // Directors and negotiators both handle their own files, so both connect an
+  // inbox. Not directorOnly — shows to every agency user.
+  { label: "Connect your email inbox", href: "/agent/account/connections", progressKey: "hasInboundConnected" },
 ];
 
 // Index at which the "Finish setup" section begins. Items before this index
 // are the high-leverage "Get going" set; from here onward is account polish.
 const FINISH_SETUP_START = 3;
+
+// The progress keys that actually count towards "complete" for this user. The
+// director-only step drops out for negotiators so the checklist can still finish.
+function requiredKeys(isDirector: boolean): (keyof ProgressData)[] {
+  return STEPS.filter((s) => !s.directorOnly || isDirector).map((s) => s.progressKey);
+}
+function isAllDone(p: ProgressData, isDirector: boolean): boolean {
+  return requiredKeys(isDirector).every((k) => p[k]);
+}
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -73,8 +94,9 @@ function SectionHeader({ label }: { label: string }) {
 //   - variant="inline": rendered in the hub's empty state (top-right). Steps
 //     drive the agent to add their first sale + finish account setup. Once a
 //     sale exists, the inline one steps aside and the floating one takes over.
-export function OnboardingChecklist({ userId, variant = "floating" }: { userId: string; variant?: "floating" | "inline" }) {
+export function OnboardingChecklist({ userId, variant = "floating", role }: { userId: string; variant?: "floating" | "inline"; role?: string }) {
   const pathname = usePathname();
+  const isDirector = role === "director";
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [emailSkipped, setEmailSkipped] = useState(false);
@@ -106,7 +128,7 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
       }
       setProgress((prev) => {
         const next = { ...prev, ...patch };
-        if (Object.values(next).every(Boolean)) {
+        if (isAllDone(next, isDirector)) {
           localStorage.setItem(dismissedKey(userId), "1");
           setDismissed(true);
         }
@@ -135,7 +157,7 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
       setProgress(data.progress);
       setFirstTxId(data.firstTxId);
       // If already done, silently dismiss — no flash, no animation
-      if (Object.values(data.progress).every(Boolean)) {
+      if (isAllDone(data.progress, isDirector)) {
         localStorage.setItem(dismissedKey(userId), "1");
         setDismissed(true);
       }
@@ -157,7 +179,7 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
     setEmailSkipped(true);
     // Treat as completion: if everything else is done, dismiss the checklist
     const withSkip = { ...progress, hasVerifiedEmail: true };
-    if (Object.values(withSkip).every(Boolean)) {
+    if (isAllDone(withSkip, isDirector)) {
       localStorage.setItem(dismissedKey(userId), "1");
       setDismissed(true);
     }
@@ -166,11 +188,13 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
   if (!mounted || dismissed) return null;
 
   const effectiveProgress: ProgressData = { ...progress, hasVerifiedEmail: progress.hasVerifiedEmail || emailSkipped };
-  const completedCount = Object.values(effectiveProgress).filter(Boolean).length;
-  const totalCount = STEPS.length;
+  // Only the steps this user actually sees count towards the badge + totals.
+  const visibleSteps = STEPS.filter((s) => !s.directorOnly || isDirector);
+  const completedCount = visibleSteps.filter((s) => effectiveProgress[s.progressKey]).length;
+  const totalCount = visibleSteps.length;
 
   // Show skip on verify email only when it's the sole remaining step
-  const allOthersComplete = STEPS
+  const allOthersComplete = visibleSteps
     .filter((s) => s.progressKey !== "hasVerifiedEmail")
     .every((s) => effectiveProgress[s.progressKey]);
 
@@ -179,7 +203,7 @@ export function OnboardingChecklist({ userId, variant = "floating" }: { userId: 
   // Step list — shared by both variants.
   const stepList = (
     <div style={{ padding: "4px 0 8px" }}>
-      {STEPS.map((step, i) => {
+      {visibleSteps.map((step, i) => {
         const done = effectiveProgress[step.progressKey];
         const href = step.hrefDynamic ? step.hrefDynamic(firstTxId) : step.href;
         const showSkip = step.progressKey === "hasVerifiedEmail" && !done && allOthersComplete;

@@ -19,7 +19,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard, User, Users, Bell } from "@phosphor-icons/react";
+import { CreditCard, User, Users, Bell, EnvelopeSimple } from "@phosphor-icons/react";
 
 type Tab = {
   href: string;
@@ -59,6 +59,12 @@ const TABS: Tab[] = [
     href: "/agent/account/notifications",
     label: "Notifications",
     Icon: Bell,
+    roles: ["director", "negotiator"],
+  },
+  {
+    href: "/agent/account/connections",
+    label: "Connections",
+    Icon: EnvelopeSimple,
     roles: ["director", "negotiator"],
   },
 ];

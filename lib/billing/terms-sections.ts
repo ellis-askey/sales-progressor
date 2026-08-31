@@ -12,6 +12,24 @@ export type TermsSection = {
 };
 
 /**
+ * Human-facing label for a TermsVersion, shown to directors instead of the
+ * internal versionTag (e.g. "2026-08-payments-v6"). Derived from the YYYY-MM
+ * prefix of the tag so it reads "Billing Terms - August 2026". The internal
+ * tag is still what PricingAcknowledgement records; this is display-only.
+ */
+export function termsDisplayName(versionTag: string): string {
+  const m = versionTag.match(/^(\d{4})-(\d{2})/);
+  if (!m) return versionTag;
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const name = months[parseInt(m[2], 10) - 1];
+  if (!name) return versionTag;
+  return `Billing Terms - ${name} ${m[1]}`;
+}
+
+/**
  * Narrow Prisma's JsonValue to TermsSection[]. Throws on shape violation —
  * the migration enforces the shape so this should never throw in practice;
  * the throw exists so a future schema drift surfaces loudly rather than

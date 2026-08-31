@@ -127,7 +127,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       propertyAddress: r.propertyAddress,
       exchangedAt: r.billedAtExchange!, // non-null per WHERE clause
       kind: fee.kind,
-      bandLabel: firstFree ? "Outsourced — first file free" : fee.bandLabel,
+      bandLabel: firstFree ? "Outsourced — First file free" : fee.bandLabel,
       priceAtExchangePence: r.priceAtExchange,
       amountPence,
       vatPence: vatPence_,

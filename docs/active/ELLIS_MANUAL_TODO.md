@@ -743,3 +743,9 @@ Once all three steps complete, PR 6 + PR 7 are both fully live in production.
 - When Ellis completes a task, strike through with `~~` markdown — keep visible for record
 - When a category becomes empty, leave the heading; new tasks of that category may arrive later
 - This file replaces ad-hoc "manual task appendices" surfaced at end of build runs
+
+## Google re-crawl after pricing flip (added 2026-08-31)
+
+The pricing migration went live on prod 2026-08-31 (self-progress now free; JSON-LD `Offer` self price is now `"0"`; FAQ + /pricing copy rewritten). Google will keep showing the old **£59** rich result until it re-crawls.
+
+**Action:** in Google Search Console, request re-indexing of `https://www.thesalesprogressor.co.uk/pricing` and the homepage. Optionally resubmit the sitemap.

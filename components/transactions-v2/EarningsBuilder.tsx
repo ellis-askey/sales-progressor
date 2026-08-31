@@ -129,6 +129,11 @@ export function EarningsBuilder({
           value={outsourced ? (chargeable ? `−${fmt(progressionCost)}` : "Free") : "Free"}
           tone={outsourced && chargeable ? "cost" : "muted"}
         />
+        {outsourced && withinTrial && feeTier !== "free" && (
+          <p style={{ margin: "-2px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
+            Your first sale is on us
+          </p>
+        )}
       </div>
 
       {/* Net */}

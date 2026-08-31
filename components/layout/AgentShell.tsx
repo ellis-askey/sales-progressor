@@ -567,7 +567,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
       </main>
 
       {showWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} />}
-      {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} />}
+      {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
     </div>
   );
 }

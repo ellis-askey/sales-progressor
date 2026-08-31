@@ -17,12 +17,18 @@ import {
 } from "@/lib/integrations/outlook/config";
 import { verifyOutlookState, OUTLOOK_STATE_COOKIE } from "@/lib/integrations/outlook/state";
 
-const SETTINGS_PATH = "/command/settings/connections";
+// Send agency users back to the Account area, internal staff to the Command
+// Centre, so the flow returns to the surface it started from.
+function returnPathFor(role: string): string {
+  return role === "director" || role === "negotiator"
+    ? "/agent/account/connections"
+    : "/command/settings/connections";
+}
 
 export async function GET(req: Request) {
   const session = await requireSession();
   const url = new URL(req.url);
-  const back = new URL(SETTINGS_PATH, url.origin);
+  const back = new URL(returnPathFor(session.user.role), url.origin);
 
   // Always clear the one-shot state cookie on the way out.
   const finish = (params: Record<string, string>) => {

@@ -32,6 +32,7 @@ export function TrialBannerWithModal({
   termsSections,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [pressed, setPressed] = useState(false);
 
   return (
     <>
@@ -53,25 +54,31 @@ export function TrialBannerWithModal({
       >
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600, fontSize: 14, color: "var(--agent-text-primary, #111827)" }}>
-            Add a card for your outsourced sales
+            Add a card to outsource more sales
           </div>
           <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 3, lineHeight: 1.5 }}>
-            You&apos;ve sent sales to us to progress. Add a card so we can bill those on exchange. The sales you run yourself stay free.
+            Your first outsourced sale is free. To send us another, add a payment card. You&rsquo;ll only be charged when the sale exchanges.
           </div>
         </div>
         <button
           type="button"
           onClick={() => setOpen(true)}
+          onPointerDown={() => setPressed(true)}
+          onPointerUp={() => setPressed(false)}
+          onPointerLeave={() => setPressed(false)}
+          onPointerCancel={() => setPressed(false)}
           style={{
             background: "var(--agent-coral)",
             color: "white",
-            padding: "8px 14px",
-            borderRadius: 6,
+            padding: "9px 16px",
+            borderRadius: 10,
             fontSize: 13,
             fontWeight: 600,
             whiteSpace: "nowrap",
             border: "none",
             cursor: "pointer",
+            transform: pressed ? "scale(0.96)" : "scale(1)",
+            transition: "transform 100ms ease",
           }}
         >
           Add card →

@@ -1,6 +1,7 @@
 // app/billing-terms/page.tsx
 //
-// Public preview of the Billing Terms — Version 2026-08-payments-v5.
+// Public preview of the Billing Terms — Version 2026-08-payments-v6
+// (shown to users as "Billing Terms - August 2026").
 //
 // CRITICAL: the AUTHORITATIVE source of the live billing terms is the
 // TermsVersion DB row (rendered to directors via RedesignedDisclosure when
@@ -20,7 +21,7 @@
 // Two sources of v5 truth (keep in sync):
 //   1. This page (public preview)
 //   2. prisma/migrations/20260831120000_terms_version_v5/migration.sql
-//      (also the row that runs on deploy, versionTag = '2026-08-payments-v5')
+//      (also the row that runs on deploy, versionTag = '2026-08-payments-v6')
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -39,8 +40,8 @@ const SECTIONS: PolicySection[] = [
     title: "About these terms",
     body: (
       <p>
-        By saving a payment card, you agree to the pricing terms set out below. Billing is operated
-        by The Sales Progressor.
+        By saving a payment card, you agree to the pricing and billing terms set out below. Billing
+        is operated by The Sales Progressor.
       </p>
     ),
   },
@@ -50,8 +51,8 @@ const SECTIONS: PolicySection[] = [
     body: (
       <>
         <p>
-          Fees apply only to sales you pass to our team to progress, and only on exchange of that
-          sale.
+          Fees apply only to sales you pass to our team to progress, and only if that sale
+          exchanges.
         </p>
         <ul>
           <li>Sales you progress yourself are <strong>free</strong>, at every stage, with no charge on exchange.</li>
@@ -73,8 +74,8 @@ const SECTIONS: PolicySection[] = [
       <p>
         No fee is charged until an outsourced sale exchanges. Fees for all outsourced sales that
         exchange within a calendar month are collected as a single payment at the end of that month.
-        The running total of fees accrued in the current month is shown on your billing page,
-        subject to availability of the service.
+        The running total of fees due for sales exchanged during the current month is shown on your
+        billing page, subject to availability of the service.
       </p>
     ),
   },
@@ -84,8 +85,8 @@ const SECTIONS: PolicySection[] = [
     body: (
       <p>
         Sales you progress yourself are <strong>always free</strong>, at every stage, including on
-        exchange. Each agency&rsquo;s <strong>first sale passed to our team is also free</strong>,
-        through to exchange, regardless of when it exchanges.
+        exchange. Each agency&rsquo;s <strong>first sale passed to our team is also free</strong> and
+        will not incur a fee when it exchanges.
       </p>
     ),
   },
@@ -94,9 +95,9 @@ const SECTIONS: PolicySection[] = [
     title: "Reversed sales and credits",
     body: (
       <p>
-        Where a sale that has exchanged is subsequently reversed (for example, where the exchange is
-        undone), the corresponding fee is reversed and applied as a credit against your next
-        invoice. This is processed automatically and requires no action on your part.
+        Where a sale that has exchanged is subsequently reversed or the exchange is formally
+        rescinded, the corresponding fee will be credited to your account and applied against your
+        next payment. This is processed automatically and requires no action on your part.
       </p>
     ),
   },
@@ -107,9 +108,10 @@ const SECTIONS: PolicySection[] = [
       <p>
         If a payment is unsuccessful, we will notify you and re-attempt collection over a period of{" "}
         <strong>14 days</strong>, followed by a <strong>7-day grace period</strong> in which to
-        resolve the matter. If the payment remains outstanding after that period, you will be unable
-        to send new sales to our team until it is resolved. Sales you progress yourself are
-        unaffected and remain free, and sales already in progress are unaffected throughout.
+        resolve the outstanding balance. If the payment remains outstanding after that period, you
+        will be unable to send new sales to our team until it is resolved. Sales you progress
+        yourself are unaffected and remain free, and any outsourced sales already being progressed by
+        our team will continue as normal.
       </p>
     ),
   },
@@ -119,7 +121,7 @@ const SECTIONS: PolicySection[] = [
     body: (
       <p>
         Your card details are stored securely by our payment processor, <strong>Stripe</strong>, and
-        are not held by us. We have access only to the last four digits and the card brand, and
+        are not held by us. We have access only to the last four digits and brand of your card, and
         never to the full card number.
       </p>
     ),
@@ -141,8 +143,8 @@ const SECTIONS: PolicySection[] = [
       <p>
         We may change our pricing in future. Where we do, we will give you at least{" "}
         <strong>30 days&rsquo; notice</strong>, and the revised pricing will apply only to sales
-        added after it takes effect. Any sale already in progress will be charged at the price that
-        applied when it was added.
+        passed to our team after the new pricing takes effect. Any outsourced sale already in
+        progress will be charged at the price that applied when it was passed to our team.
       </p>
     ),
   },
@@ -151,10 +153,10 @@ const SECTIONS: PolicySection[] = [
     title: "VAT",
     body: (
       <p>
-        We are not currently registered for VAT, and no VAT is therefore added to these fees. Should
-        this change, we will notify you before it affects the amount you pay. As this is a material
-        change, we will issue updated billing terms for your acknowledgement before your next
-        billing cycle.
+        We are not currently registered for VAT, so VAT is not added to these fees. Should this
+        change, we will notify you before it affects the amount you pay. As this is a material
+        change, we will issue updated billing terms for your acknowledgement before the new charges
+        apply.
       </p>
     ),
   },
@@ -193,7 +195,7 @@ export default function BillingTermsPage() {
       title="Billing Terms"
       description="Pricing, billing cadence, payment failures, and credit notes."
       lastUpdated="31 August 2026"
-      version="5"
+      version="6"
       sections={SECTIONS}
     />
   );

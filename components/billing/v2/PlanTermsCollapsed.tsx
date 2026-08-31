@@ -9,7 +9,7 @@
 // there is no trial, so the old In-house £59 + Trial columns are gone.)
 
 import { useState } from "react";
-import type { TermsSection } from "@/lib/billing/terms-sections";
+import { termsDisplayName, type TermsSection } from "@/lib/billing/terms-sections";
 import { CaretDown } from "@phosphor-icons/react";
 
 export type PlanTermsCollapsedProps = {
@@ -92,7 +92,7 @@ export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
             }}
           >
             <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
-              View your agreed terms ({agreed.versionTag})
+              View your agreed terms ({termsDisplayName(agreed.versionTag)})
             </span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
               {agreed.acknowledgedAt && (

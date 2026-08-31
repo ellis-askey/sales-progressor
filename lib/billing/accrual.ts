@@ -142,7 +142,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
             transactionId: t.id,
             kind: fee.kind satisfies InvoiceLineKind,
             description: firstFree
-              ? `Outsourced — first file free — ${t.propertyAddress}`
+              ? `Outsourced — First file free — ${t.propertyAddress}`
               : `${fee.bandLabel} — ${t.propertyAddress}`,
             amountPence: firstFree ? 0 : fee.amountPence,
             vatPence: firstFree ? 0 : fee.vatPence,

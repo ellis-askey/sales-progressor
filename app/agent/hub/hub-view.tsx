@@ -30,6 +30,7 @@ import {
 import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
+import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
@@ -244,6 +245,11 @@ export default async function Hub() {
         )}
         {role === "director" && session.user.agencyId && (
           <PaymentMethodNudge agencyId={session.user.agencyId} />
+        )}
+
+        {/* Nudge directors still on the shared fallback to set up their own email */}
+        {role === "director" && session.user.agencyId && (
+          <EmailSetupPrompt userId={session.user.id} />
         )}
 
         {/* Body gate — decides empty vs full. NO outer SectionReveal wrap here:

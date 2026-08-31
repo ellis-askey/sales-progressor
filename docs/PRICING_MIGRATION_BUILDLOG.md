@@ -213,3 +213,20 @@ Separate repo, **not** git-tracked — deploys via the Vercel CLI. Changes are o
 **Verified:** `tsc --noEmit` clean (after clearing stale `.next` route types from the deletions). Grep sweep: zero `£59`, zero "free trial", zero umbrella "Pay on exchange" remain. Screenshots (`marketing-site/phase5-screens/`): pricing desktop + mobile + calculator, homepage hero. No em dash in any added string.
 
 **Outstanding:** deploy (Vercel CLI) held for the Phase-6 atomic cutover. Post-launch: request Google re-crawl of /pricing + homepage after the JSON-LD/FAQ flip (ELLIS_MANUAL_TODO candidate).
+
+---
+
+## Phase 6 — ATOMIC CUTOVER COMPLETE · 2026-08-31 · LIVE ON PROD
+
+Both halves flipped in the same window:
+
+1. **App (portal)** — merged `staging → master` (isolated git worktree, so the shared working dir / second tab was never touched). Vercel prod deploy `salesprogressor-rjbocztbu` GREEN. `prisma migrate deploy` applied **both** migrations to the prod DB — build log: "Applying migration `20260831000000_free_reason_pricing_version`" + "Applying migration `20260831120000_terms_version_v5`" + "All migrations have been successfully applied." So the v5 terms row is live on prod and is now the active acknowledged version (directors re-acknowledge on next card action). The merge also carried the second tab's portal motion sweep + Stamp Duty drawer (Ellis approved).
+2. **Marketing site** (`../marketing-site`, non-git) — `vercel --prod`, deploy `marketing-site-br3pgqpss` READY, aliased to **www.thesalesprogressor.co.uk**.
+
+**Verified live:**
+- www/pricing: serves "Free to self-progress", "First sale on us", "per sale · on exchange · first one free"; **zero £59**. /llms.txt shows free model. Apex 308→www.
+- portal/billing-terms: "Free sales" section + "31 August 2026" (v5 preview). portal/outsource: "first sale is on us" + "£250 to £350", no £59.
+
+**Manual follow-up (added to ELLIS_MANUAL_TODO):** request a Google Search Console re-crawl of /pricing + homepage now the JSON-LD/FAQ flipped, so the old £59 rich-result clears.
+
+**Migration is DONE.** Self-progress is free; first outsourced file free; £250/£300/£350 bands unchanged; no trial anywhere; Terms v5 live on staging + prod.
