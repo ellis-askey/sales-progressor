@@ -177,5 +177,12 @@ Approved against the Phase-4 was→will-be artifact. 4A: file sidebar self-progr
 
 **Follow-up:** plumb firstOutsourcedFree through SidebarPanel + the [id] page query so the sidebar first-file label lights up (currently self shows "Free", a first-free outsourced shows its band).
 
-### Increment 4D — Terms v5 · pending
-New versioned TermsVersion (billing-terms body + terms-sections legacy override + migration + insert + DB row + re-acknowledgement). Legal-review copy from the artifact.
+### Increment 4D — Terms v5 · 2026-08-31 · staging (committed, migration applies on push)
+Shipped a new **TermsVersion v5** (`2026-08-payments-v5`) rather than editing v4 in place, so every director who acknowledged v4 re-acknowledges v5 (`getActiveTermsVersion` picks the latest `effectiveFrom`, and v5's is later). All three v5 sources are in sync:
+- **Migration** `prisma/migrations/20260831120000_terms_version_v5/migration.sql` — inserts the full v5 body (ON CONFLICT DO NOTHING), runs via `prisma migrate deploy` on deploy. Applies to whichever env the branch deploys to (staging now, prod at the Phase-6 cutover).
+- **Preview** `app/billing-terms/page.tsx` — SECTIONS + metadata + PolicyShell `version="5"` / `lastUpdated="31 August 2026"`. This page is static, so it shows v5 copy without the DB.
+- **Legacy override** `lib/billing/terms-sections.ts` — Charges override drops the £59 in-house line (self free); heading match `Free trial period` → `Free sales`; legacy body updated (self free, fixed outsourced fee from sale 1, **no** free first file — grandfathered).
+
+Substantive v5 changes vs v4: Charges (in-house £59 removed, self free, first outsourced free), Payment (scoped to outsourced), Free trial period → **Free sales**, Failed payments (blocks sending new sales to our team, self stays free/unaffected). Wording verbatim from the approved Phase-4 artifact. tsc clean; no stale `payments-v4` / `Free trial period` refs remain in app/lib.
+
+**Verify (once pushed to staging):** `/billing-terms` shows the v5 preview immediately (static). The acknowledged disclosure (director saving a card) shows v5 only after Vercel applies the migration to the staging DB — confirm the Vercel deploy is GREEN before trusting it.

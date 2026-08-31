@@ -1,30 +1,26 @@
 // app/billing-terms/page.tsx
 //
-// Public preview of the Billing Terms — Version 2026-06-payments-v4.
+// Public preview of the Billing Terms — Version 2026-08-payments-v5.
 //
 // CRITICAL: the AUTHORITATIVE source of the live billing terms is the
 // TermsVersion DB row (rendered to directors via RedesignedDisclosure when
 // they save a card). This /billing-terms page is a READ-ONLY PREVIEW.
 //
-// The text below MUST stay in sync with the v4 TermsVersion DB row + the
-// v4 migration SQL + the v4 insertion script. Changing the wording here
-// without shipping a new TermsVersion creates drift between what users see
-// in the public preview and what they actually acknowledge when saving a card.
+// The text below MUST stay in sync with the v5 TermsVersion DB row + the
+// v5 migration SQL. Changing the wording here without shipping a new
+// TermsVersion creates drift between what users see in the public preview
+// and what they actually acknowledge when saving a card.
 //
-// v4 shipped 2026-05-26 and has since had two in-place copy refinements
-// while still pre-acknowledgement on staging: placeholder line removed
-// (2026-05-29) and full re-phrasing into formal noun-phrase headings
-// (Charges / Payment and collection / Free trial period / etc.) on
-// 2026-06-01. Once a director has acknowledged v4 in production, any
-// further material change ships as v5; small placeholder tidies do not.
+// v5 shipped as part of the free-pricing migration (self-progress becomes
+// free; the £59 in-house fee is retired; the 14-day free trial is replaced
+// by first-outsourced-file-free). It is a MATERIAL change from v4, so every
+// director who acknowledged v4 re-acknowledges v5. Once a director has
+// acknowledged v5 in production, any further material change ships as v6.
 //
-// Four sources of v4 truth (keep in sync):
+// Two sources of v5 truth (keep in sync):
 //   1. This page (public preview)
-//   2. prisma/migrations/20260526100000_terms_version_v4/migration.sql
-//   3. scripts/insert-prod-terms-v4.ts
-//   4. TermsVersion DB row, versionTag = '2026-06-payments-v4'
-//
-// No remaining placeholders on this page.
+//   2. prisma/migrations/20260831120000_terms_version_v5/migration.sql
+//      (also the row that runs on deploy, versionTag = '2026-08-payments-v5')
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -33,7 +29,7 @@ import { PolicyShell, type PolicySection } from "@/components/policies/PolicyShe
 export const metadata: Metadata = {
   title: "Billing Terms — The Sales Progressor",
   description:
-    "Pricing, billing cadence, your free trial, payment failures, and how we handle credit notes.",
+    "Pricing, billing cadence, payment failures, and how we handle credit notes.",
   robots: { index: true, follow: true },
 };
 
@@ -53,14 +49,18 @@ const SECTIONS: PolicySection[] = [
     title: "Charges",
     body: (
       <>
-        <p>Fees are charged per sale and only on exchange of that sale.</p>
+        <p>
+          Fees apply only to sales you pass to our team to progress, and only on exchange of that
+          sale.
+        </p>
         <ul>
-          <li>For a sale you progress in-house, the fee is <strong>£59</strong>.</li>
+          <li>Sales you progress yourself are <strong>free</strong>, at every stage, with no charge on exchange.</li>
           <li>
-            For a sale you pass to our team to progress, the fee is determined by the agreed sale
-            price at exchange, as follows: <strong>£250</strong> for a sale price up to £349,999;{" "}
-            <strong>£300</strong> for a sale price from £350,000 to £499,999; and{" "}
-            <strong>£350</strong> for a sale price of £500,000 or above.
+            Your agency&rsquo;s <strong>first sale passed to our team is free</strong>. After that,
+            the fee is determined by the agreed sale price at exchange, as follows:{" "}
+            <strong>£250</strong> for a sale price up to £349,999; <strong>£300</strong> for a sale
+            price from £350,000 to £499,999; and <strong>£350</strong> for a sale price of £500,000
+            or above.
           </li>
         </ul>
       </>
@@ -71,21 +71,21 @@ const SECTIONS: PolicySection[] = [
     title: "Payment and collection",
     body: (
       <p>
-        No fee is charged until a sale exchanges. Fees for all sales that exchange within a calendar
-        month are collected as a single payment at the end of that month. The running total of fees
-        accrued in the current month is shown on your billing page, subject to availability of the
-        service.
+        No fee is charged until an outsourced sale exchanges. Fees for all outsourced sales that
+        exchange within a calendar month are collected as a single payment at the end of that month.
+        The running total of fees accrued in the current month is shown on your billing page,
+        subject to availability of the service.
       </p>
     ),
   },
   {
-    id: "free-trial-period",
-    title: "Free trial period",
+    id: "free-sales",
+    title: "Free sales",
     body: (
       <p>
-        Any sale added within the first <strong>14 days</strong> is not chargeable at any stage,
-        including on its eventual exchange, regardless of how long after the trial period that
-        exchange occurs. The 14-day period begins on the date you add your first sale.
+        Sales you progress yourself are <strong>always free</strong>, at every stage, including on
+        exchange. Each agency&rsquo;s <strong>first sale passed to our team is also free</strong>,
+        through to exchange, regardless of when it exchanges.
       </p>
     ),
   },
@@ -108,7 +108,8 @@ const SECTIONS: PolicySection[] = [
         If a payment is unsuccessful, we will notify you and re-attempt collection over a period of{" "}
         <strong>14 days</strong>, followed by a <strong>7-day grace period</strong> in which to
         resolve the matter. If the payment remains outstanding after that period, you will be unable
-        to add new sales until it is resolved. Sales already in progress are unaffected throughout.
+        to send new sales to our team until it is resolved. Sales you progress yourself are
+        unaffected and remain free, and sales already in progress are unaffected throughout.
       </p>
     ),
   },
@@ -190,9 +191,9 @@ export default function BillingTermsPage() {
   return (
     <PolicyShell
       title="Billing Terms"
-      description="Pricing, billing cadence, your free trial, payment failures, and credit notes."
-      lastUpdated="26 May 2026"
-      version="4"
+      description="Pricing, billing cadence, payment failures, and credit notes."
+      lastUpdated="31 August 2026"
+      version="5"
       sections={SECTIONS}
     />
   );
