@@ -62,6 +62,7 @@ type Props = {
     brokerFirmName?: string | null;
     serviceType?: "self_managed" | "outsourced" | null;
     freeOnExchange?: boolean | null;
+    firstOutsourcedFree?: boolean | null;
   };
   recommendedFirms?: { id: string; name: string; defaultReferralFeePence: number | null }[] | null;
   assignedUser: {
@@ -191,11 +192,10 @@ export function AgentFileSidebar({
   const risk = riskInput ? calculateRiskScore(riskInput) : null;
   const riskConfig = risk && risk.level !== "no_data" ? RISK_CONFIG[risk.level] : null;
 
-  // Fee arithmetic (unchanged from TransactionSidebar) — self-managed is
-  // always £59, outsourced honours SP override → agency legacy → sliding
-  // scale via calculateOurFee.
+  // Fee arithmetic — self-progress is free (2026-08 model); outsourced honours
+  // SP override → agency legacy → sliding scale via calculateOurFee.
   const ourFee = transaction.serviceType === "self_managed"
-    ? { fee: 5900, label: formatFee(5900) }
+    ? { fee: 0, label: "Free" }
     : assignedUser
       ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice, agencyFeeOverride ?? null)
       : agencyFeeOverride?.feeTier === "legacy" && agencyFeeOverride.legacyOutsourcedFeePence != null
@@ -215,7 +215,7 @@ export function AgentFileSidebar({
   // be false until the retroactive stamp runs).
   const agencyIsFree = agencyFeeOverride?.feeTier === "free";
   const progressorFeePence =
-    showOurFee && ourFee.fee != null && !transaction.freeOnExchange && !agencyIsFree ? ourFee.fee : 0;
+    showOurFee && ourFee.fee != null && !transaction.freeOnExchange && !transaction.firstOutsourcedFree && !agencyIsFree ? ourFee.fee : 0;
   const totalFeesPence =
     (agentFeeCalcPence ?? 0)
     + (transaction.referralFee ?? 0)
@@ -513,9 +513,11 @@ export function AgentFileSidebar({
         {showOurFee && ourFee.fee != null && !agencyIsFree && (
           <SidebarRow
             label="Progressor fee"
-            value={transaction.freeOnExchange
-              ? <span style={{ color: "var(--agent-coral)" }} title="Free during your 14-day trial.">Free during your trial</span>
-              : ourFee.label}
+            value={transaction.firstOutsourcedFree
+              ? <span style={{ color: "var(--agent-coral)" }} title="Your agency's first outsourced sale is on us.">Free — first file on us</span>
+              : (transaction.serviceType === "self_managed" || transaction.freeOnExchange)
+                ? <span style={{ color: "var(--agent-coral)" }}>Free</span>
+                : ourFee.label}
           />
         )}
         {hasTotal && (

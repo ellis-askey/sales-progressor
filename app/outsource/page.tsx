@@ -13,7 +13,7 @@ import "./outsource.css";
 
 export const metadata = {
   title: "We'll progress your sales | Sales Progressor",
-  description: "Hand us your agreed sales. We chase them through to exchange. You pay £250 per sale, only when it exchanges.",
+  description: "Hand us your agreed sales. We chase them through to exchange. Your first sale is on us, then £250 to £350 per sale, only when it exchanges.",
 };
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 const STEPS: { n: string; title: string; body: string }[] = [
   { n: "1", title: "Send us a sale", body: "Once you've agreed a sale, pass us the details. It takes about a minute." },
   { n: "2", title: "We take it from there", body: "We progress the sale under your agency's name, handling the day-to-day chasing and keeping your buyers and sellers updated along the way." },
-  { n: "3", title: "You pay on exchange", body: "£250 per sale, only when it exchanges. Nothing if it falls through." },
+  { n: "3", title: "You pay on exchange", body: "£250 to £350 per sale, only when it exchanges. Your first one is on us, and nothing if it falls through." },
 ];
 
 const WHY: { title: string; body: string }[] = [
@@ -61,7 +61,7 @@ export default function OutsourcePage() {
               We&apos;ll progress your sales to exchange.
             </h1>
             <p style={{ margin: "0 0 24px", fontSize: 16.5, lineHeight: 1.62, color: A.textSecondary }}>
-              Take the day-to-day progression off your team. We chase solicitors, buyers, sellers, brokers and the rest of the chain, keeping every sale moving through to exchange. You stay in the picture throughout, and only pay £250 when the sale exchanges.
+              Take the day-to-day progression off your team. We chase solicitors, buyers, sellers, brokers and the rest of the chain, keeping every sale moving through to exchange. You stay in the picture throughout. Your first sale is on us, then £250 to £350 when the sale exchanges.
             </p>
             <a
               href="#start"

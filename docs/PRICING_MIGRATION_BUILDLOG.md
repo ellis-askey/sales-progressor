@@ -169,3 +169,13 @@ New `getFreeModelSignals(mode, agencyIds)` in `lib/command/retention.ts` + a "Fr
 **Verification:** superadmin-only page — Ellis verifies `/command/retention` himself (no admin login on this side to screenshot). 
 
 **Follow-up (minor):** the CC revenue page still has a "Trial given away" KPI reading `freeOnExchange` files (now only old-trial + comped); trends to £0 as legacy trial files clear. Relabel to "Legacy trial value" in a later pass.
+
+## Phase 4 — app copy + Terms v5 (in progress)
+
+### Increments 4A-4C — agent copy + legal refs + outsource · 2026-08-31 · staging
+Approved against the Phase-4 was→will-be artifact. 4A: file sidebar self-progress fee £59 → "Free" (+ "Free — first file on us" for firstOutsourcedFree, degrades gracefully until the field is plumbed to SidebarPanel). 4B: emails — activation "you only pay when it exchanges" → "self-progress is free…first outsourced on us"; first-exchange "An invoice for £59 will follow shortly" → "Nothing to pay for this one" (the first exchange is always free now); dormant claim-welcome de-trialed. 4C: /terms + /legal "your free trial" phrase removed; /outsource flat £250 → "first sale free, then £250 to £350". Files: AgentFileSidebar.tsx, retention/index.ts, terms/page.tsx, legal/page.tsx, outsource/page.tsx, OutsourceIntakeForm.tsx. tsc clean.
+
+**Follow-up:** plumb firstOutsourcedFree through SidebarPanel + the [id] page query so the sidebar first-file label lights up (currently self shows "Free", a first-free outsourced shows its band).
+
+### Increment 4D — Terms v5 · pending
+New versioned TermsVersion (billing-terms body + terms-sections legacy override + migration + insert + DB row + re-acknowledgement). Legal-review copy from the artifact.

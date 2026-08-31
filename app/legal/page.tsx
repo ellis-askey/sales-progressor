@@ -39,7 +39,7 @@ const DOCS: LegalDoc[] = [
   },
   {
     title: "Billing Terms",
-    description: "Pricing and payment terms — what you pay, when, your free trial, and how payment failures are handled. Shown to directors when adding a payment card.",
+    description: "Pricing and payment terms — what you pay, when, and how payment failures are handled. Shown to directors when adding a payment card.",
     href: "/billing-terms",
   },
   {
