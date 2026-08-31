@@ -87,15 +87,29 @@ export async function maybeStampExchange(
   //    and nothing double-counts. The giveaway's value stays recoverable from
   //    freeReason + priceAtExchange for reporting.
   if (txn.serviceType === "outsourced") {
-    const priorOutsourcedExchanged = await db.propertyTransaction.count({
-      where: {
-        agencyId: txn.agencyId,
-        id: { not: transactionId },
-        serviceType: "outsourced",
-        exchangedAt: { not: null },
-        isMigrated: false,
-      },
+    // Legacy fixed-fee agencies are grandfathered OUT of the first-outsourced-
+    // free giveaway: their contract charges the fixed fee from their first
+    // outsourced sale (matches the legacy Charges/Free-sales override in
+    // lib/billing/terms-sections.ts). This also hardens the count below, which
+    // excludes migrated files — without this guard, an agency whose outsourced
+    // history is all imported/migrated could be mis-granted a free file on its
+    // next real outsourced exchange.
+    const agency = await db.agency.findUnique({
+      where: { id: txn.agencyId },
+      select: { feeTier: true },
     });
+    const isLegacyTier = agency?.feeTier === "legacy";
+    const priorOutsourcedExchanged = isLegacyTier
+      ? 1 // force "not first" so a legacy agency never gets the free file
+      : await db.propertyTransaction.count({
+          where: {
+            agencyId: txn.agencyId,
+            id: { not: transactionId },
+            serviceType: "outsourced",
+            exchangedAt: { not: null },
+            isMigrated: false,
+          },
+        });
     if (priorOutsourcedExchanged === 0) {
       // Bilateral-safe via the NULL guard: the second fire matches 0 rows.
       await db.propertyTransaction.updateMany({
