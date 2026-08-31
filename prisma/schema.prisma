@@ -123,6 +123,8 @@ model Agency {
   agentEmailLogs          AgentEmailLog[]
   prospect                Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
   milestoneEmailOverrides MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
+  agencyEmailTemplates    AgencyEmailTemplate[] // this agency's own Tier-2 (non-milestone) automated-email copy
+  agencyEmailEdits        AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -2374,6 +2376,53 @@ model MilestoneEmailOverride {
   @@unique([code, side, tenure, purchaseType, agencyId])
   @@index([code, side])
   @@index([agencyId])
+}
+
+// Per-agency override of a non-milestone ("Tier-2") automated email's editable
+// prose — completion pack, exchange-day client emails, client chase, etc. No
+// row = our built-in default copy (in code). `content` is a per-template JSON
+// shape (defined + defaulted in lib/agency-email/templates.ts). One row per
+// agency + templateKey + variant (variant carries the side, e.g. vendor /
+// purchaser, or "default"). Agencies get full prose control (founder decision
+// 2026-08-31); every save is also appended to AgencyEmailEdit for the audit
+// trail so we can always show what an agency authored.
+model AgencyEmailTemplate {
+  id          String   @id @default(cuid())
+  agencyId    String
+  agency      Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  templateKey String // e.g. "completion_pack"
+  variant     String   @default("default") // "vendor" | "purchaser" | "default"
+  content     Json // template-specific editable shape (subject + prose slots)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([agencyId, templateKey, variant])
+  @@index([agencyId])
+}
+
+// Append-only audit of every agency email-copy edit — BOTH milestone overrides
+// and Tier-2 templates. Never updated or deleted in normal operation: it exists
+// so we can always prove exactly what copy an agency authored, who made the
+// change, and when, if edited client copy is ever queried (founder requirement
+// 2026-08-31). The denormalised name/email stand alone as the record even if
+// the user is later removed.
+model AgencyEmailEdit {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  kind            String // "milestone" | "template"
+  editKey         String // milestone code (e.g. "PM9") or templateKey (e.g. "completion_pack")
+  variant         String // side/scenario descriptor, e.g. "purchaser · freehold · mortgage" or "vendor"
+  action          String // "save" | "reset"
+  contentSnapshot Json? // the copy as saved (null for a reset)
+  editedById      String?
+  editedByName    String // denormalised at edit time — the audit record stands alone
+  editedByEmail   String // denormalised at edit time
+  editedAt        DateTime @default(now())
+
+  @@index([agencyId, editedAt])
+  @@index([kind, editKey])
 }
 
 // Client-portal "Updates" copy overrides, edited from the Command Centre. One

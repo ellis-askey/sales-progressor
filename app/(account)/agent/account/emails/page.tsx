@@ -10,8 +10,20 @@ import { notFound } from "next/navigation";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { buildStepList } from "@/lib/milestone-emails/steps";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
+import { CompletionPackEditor } from "@/components/account/emails/CompletionPackEditor";
 
 export const dynamic = "force-dynamic";
+
+const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
+
+function SectionHeading({ title, blurb }: { title: string; blurb: string }) {
+  return (
+    <div>
+      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827" }}>{title}</h2>
+      <p style={{ margin: "5px 0 0", fontSize: 13, lineHeight: 1.55, color: "#6b7280", maxWidth: 620 }}>{blurb}</p>
+    </div>
+  );
+}
 
 export default async function AccountEmailsPage() {
   const { session } = await resolveAgentSession();
@@ -43,7 +55,23 @@ export default async function AccountEmailsPage() {
         </p>
       </div>
 
-      <AgencyMilestoneEmailsEditor steps={steps} />
+      <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SectionHeading
+          title="Step-by-step updates"
+          blurb="The email your client gets at each stage of the sale, from offer accepted through to completion."
+        />
+        <AgencyMilestoneEmailsEditor steps={steps} />
+      </section>
+
+      <div style={{ borderTop: HAIRLINE }} />
+
+      <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SectionHeading
+          title="Other automated emails"
+          blurb="Longer emails that go out at key moments. More will appear here over time."
+        />
+        <CompletionPackEditor />
+      </section>
     </div>
   );
 }

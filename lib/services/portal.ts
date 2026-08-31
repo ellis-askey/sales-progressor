@@ -16,6 +16,10 @@ import {
   normalizeMethod,
   normalizeTenure,
 } from "@/lib/services/milestone-copy-overrides";
+import {
+  resolveCompletionPackContent,
+  type CompletionPackContent,
+} from "@/lib/agency-email/templates";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 // ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
 //
@@ -2205,8 +2209,11 @@ function renderCompletionPackBody(args: {
   // "a member of our team or a member of our team" redundancy the old
   // string fallback used to render.
   agentName: string | null;
+  // Effective copy for this side — our default, or the agency's own version.
+  // Resolved once per side in loadCompletionPackContext.
+  content: CompletionPackContent;
 }): { subject: string; text: string; html: string; recipientEmail: string } {
-  const { side, contact, address, completionDate, agentName } = args;
+  const { contact, address, completionDate, agentName, content } = args;
   const base = process.env.NEXTAUTH_URL ?? "";
   const completionStr = completionDate
     ? new Date(completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -2221,35 +2228,27 @@ function renderCompletionPackBody(args: {
   // otherwise we just say "a member of our team" on its own.
   const teamRef = agentName ? `${agentName} or a member of our team` : "a member of our team";
 
-  const bodyHtml = side === "vendor"
-    ? `
-    <p>Contracts have been exchanged on <strong>${address}</strong>. The sale is now legally committed.${completionSentenceHtml}</p>
+  // Token fill. Copy prose is escaped for HTML (it may be agency-authored);
+  // {address} keeps its bold, matching the original hardcoded output.
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const htmlVars: Record<string, string> = { address: `<strong>${esc(address)}</strong>`, teamRef: esc(teamRef) };
+  const plainVars: Record<string, string> = { address, teamRef };
+  const interpHtml = (t: string) => esc(t).replace(/\{(\w+)\}/g, (_, k) => htmlVars[k] ?? `{${k}}`);
+  const interpPlain = (t: string) => t.replace(/\{(\w+)\}/g, (_, k) => plainVars[k] ?? `{${k}}`);
+
+  const bulletsHtml = content.bullets.map((b) => `<li>${interpHtml(b)}</li>`).join("\n      ");
+  const bulletsPlain = content.bullets.map((b) => `- ${interpPlain(b)}`).join("\n");
+
+  const bodyHtml = `
+    <p>${interpHtml(content.opening)}${completionSentenceHtml}</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
-      <li>Your solicitor will handle the transfer of funds. You don't need to be at the property.</li>
-      <li>Read all utility meters (gas, electricity, water) before you leave for the last time.</li>
-      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).</li>
-      <li>Leave appliance manuals, warranties, and service records. The buyer is entitled to these.</li>
-      <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
-    </ul>`
-    : `
-    <p>Contracts have been exchanged on <strong>${address}</strong>. Your purchase is now legally committed.${completionSentenceHtml}</p>
-    <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
-    <ul style="padding-left:20px;line-height:2">
-      <li>Keep your phone on. Your solicitor will call you when the funds have been transferred.</li>
-      <li>Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.</li>
-      <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
-      <li>From today, the property is at your risk. If your buildings insurance isn't already in place, arrange it as soon as possible.</li>
-      <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
+      ${bulletsHtml}
     </ul>`;
 
-  const bodyPlain = side === "vendor"
-    ? `Contracts have been exchanged on ${address}. The sale is now legally committed.${completionSentencePlain}\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds. You don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).\n- Leave appliance manuals, warranties, and service records. The buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
-    : `Contracts have been exchanged on ${address}. Your purchase is now legally committed.${completionSentencePlain}\n\nWhat to expect on completion day:\n- Keep your phone on. Your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk. If your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+  const bodyPlain = `${interpPlain(content.opening)}${completionSentencePlain}\n\nWhat to expect on completion day:\n${bulletsPlain}`;
 
-  const subject = side === "vendor"
-    ? `Contracts exchanged: what happens next for your sale`
-    : `Contracts exchanged: what happens next for your purchase`;
+  const subject = content.subject;
 
   const greeting = buildGreeting(contact.name);
   const text = `${greeting}\n\n${bodyPlain}\n\nView your portal: ${portalUrl}`;
@@ -2269,12 +2268,15 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
   agentName: string | null;
   vendors: CompletionPackContact[];
   purchasers: CompletionPackContact[];
+  vendorContent: CompletionPackContent;
+  purchaserContent: CompletionPackContent;
 } | null> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
       propertyAddress: true,
       completionDate: true,
+      agencyId: true,
       agentUser: { select: { name: true } },
       contacts: {
         select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
@@ -2286,12 +2288,19 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
     c.email ? { id: c.id, name: c.name, email: c.email, portalToken: c.portalToken } : null;
   const vendors    = tx.contacts.filter((c) => c.roleType === "vendor" && c.portalEligible)   .map(narrow).filter((c): c is CompletionPackContact => c !== null);
   const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.portalEligible).map(narrow).filter((c): c is CompletionPackContact => c !== null);
+  // Effective copy for each side — the agency's own version, else our default.
+  const [vendorContent, purchaserContent] = await Promise.all([
+    resolveCompletionPackContent(tx.agencyId, "vendor"),
+    resolveCompletionPackContent(tx.agencyId, "purchaser"),
+  ]);
   return {
     address: tx.propertyAddress,
     completionDate: tx.completionDate,
     agentName: tx.agentUser?.name ?? null,
     vendors,
     purchasers,
+    vendorContent,
+    purchaserContent,
   };
 }
 
@@ -2308,7 +2317,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   const vendorIds: string[] = [];
   let vendorPlainForLog = "";
   for (const c of ctx.vendors) {
-    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent });
     await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
     vendorIds.push(c.id);
     if (!vendorPlainForLog) vendorPlainForLog = body.text;
@@ -2320,7 +2329,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   const purchaserIds: string[] = [];
   let purchaserPlainForLog = "";
   for (const c of ctx.purchasers) {
-    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent });
     await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
     purchaserIds.push(c.id);
     if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
@@ -2345,7 +2354,7 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
 
   const sourceIdBase = `${transactionId}:${milestoneCode}`;
   for (const c of ctx.vendors) {
-    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent });
     await enqueueEmail({
       emailType: "COMPLETION_PACK",
       sourceId: sourceIdBase,
@@ -2356,7 +2365,7 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
     }).catch(() => {});
   }
   for (const c of ctx.purchasers) {
-    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent });
     await enqueueEmail({
       emailType: "COMPLETION_PACK",
       sourceId: sourceIdBase,
@@ -2373,11 +2382,11 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
   const vendorIds = ctx.vendors.map((c) => c.id);
   const purchaserIds = ctx.purchasers.map((c) => c.id);
   if (vendorIds.length > 0) {
-    const sampleBody = renderCompletionPackBody({ side: "vendor", contact: ctx.vendors[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    const sampleBody = renderCompletionPackBody({ side: "vendor", contact: ctx.vendors[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent });
     logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged: what happens next for your sale`, sampleBody.text).catch(() => {});
   }
   if (purchaserIds.length > 0) {
-    const sampleBody = renderCompletionPackBody({ side: "purchaser", contact: ctx.purchasers[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    const sampleBody = renderCompletionPackBody({ side: "purchaser", contact: ctx.purchasers[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent });
     logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged: what happens next for your purchase`, sampleBody.text).catch(() => {});
   }
 }

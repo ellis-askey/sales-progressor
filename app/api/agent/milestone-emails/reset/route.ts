@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordAgencyEmailEdit } from "@/lib/agency-email/templates";
 
 const CLIENT_SIDES = new Set(["vendor", "purchaser"]);
 
@@ -27,6 +28,16 @@ export async function POST(req: Request) {
 
   await prisma.milestoneEmailOverride.deleteMany({
     where: { code, side, tenure, purchaseType, agencyId },
+  });
+
+  await recordAgencyEmailEdit({
+    agencyId,
+    kind: "milestone",
+    editKey: code,
+    variant: `${side} · ${tenure} · ${purchaseType}`,
+    action: "reset",
+    contentSnapshot: null,
+    editor: { id: session.user.id, name: session.user.name ?? "", email: session.user.email ?? "" },
   });
   return NextResponse.json({ ok: true });
 }

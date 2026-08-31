@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordAgencyEmailEdit } from "@/lib/agency-email/templates";
 
 const CLIENT_SIDES = new Set(["vendor", "purchaser"]);
 const TENURES = new Set(["any", "freehold", "leasehold"]);
@@ -60,6 +61,16 @@ export async function POST(req: Request) {
     },
     create: { code, side, tenure, purchaseType, agencyId, ...data },
     update: data,
+  });
+
+  await recordAgencyEmailEdit({
+    agencyId,
+    kind: "milestone",
+    editKey: code,
+    variant: `${side} · ${tenure} · ${purchaseType}`,
+    action: "save",
+    contentSnapshot: { subject, heroLabel, opening, whatHappened, whatNext: data.whatNext, action: data.action },
+    editor: { id: session.user.id, name: session.user.name ?? "", email: session.user.email ?? "" },
   });
 
   return NextResponse.json({ ok: true });
