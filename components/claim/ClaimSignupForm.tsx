@@ -144,7 +144,7 @@ export function ClaimSignupForm({
       <div className="claim-signup-account">
         <div className="claim-form-card">
           <h1 className="claim-sub-h1">Create your account</h1>
-          <p className="claim-sub-p">Free 14-day trial · No card needed · Cancel anytime.</p>
+          <p className="claim-sub-p">Free to use · No card needed · Cancel anytime.</p>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Name row */}

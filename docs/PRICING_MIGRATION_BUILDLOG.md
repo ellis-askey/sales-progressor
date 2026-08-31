@@ -71,10 +71,16 @@ Approved against the Phase-2 mockup artifact (billing page free-plan state, outs
 **Verified:** `tsc` clean.
 **Status:** staging (committed).
 
-### Increments 2B–2D — pending
-- 2B: reframe the card-capture modal/banner/nudge copy (trial-ended → "add a card to send sales to us"), and gate the nudge to outsourcing only.
-- 2C: billing hub reframe (PlanTermsCollapsed "Free" + no Trial column; MetricsStrip relabel; the free-plan billing page state).
-- 2D: signup microcopy (ClaimSignupForm) + earnings-builder comment + `lib/billing/trial-state.ts` cleanup.
+### Increment 2B — card-capture reframed · 2026-08-31 · staging
+Hub payment nudge now fires only on a real outsourced charge with no card (billed outsourced file that isn't the free first one), never on a trial clock, never for self-progress. Banner + modal copy reframed to "add a card to send sales to us" (first outsourced free, then bill on exchange; self-progress stays free). Files: `PaymentMethodNudge.tsx`, `TrialBannerWithModal.tsx`, `TrialExpiredModal.tsx`. (Component name TrialExpiredModal kept — rename is later cleanup.) tsc clean.
+
+### Increment 2C — billing hub reframed · 2026-08-31 · staging
+Plan & terms panel: "Self-progress · Free" + "Outsourced · £250/£300/£350, first sale free"; the £59 "In-house" value and the whole "Trial" countdown column removed. Metrics: "Saved via trial" → "Given free"; "in-house" → "self-progress". Files: `PlanTermsCollapsed.tsx` (dropped the `trialState` prop), `billing/page.tsx` + polish `billing-hub-v2/page.tsx` (removed `getTrialState`/prop), `MetricsStrip.tsx`. tsc clean. (A dedicated "you're on the free plan" hero was left out — the reframed panel + empty invoice already read as free; noted as optional polish.)
+
+### Increment 2D — signup + earnings copy · 2026-08-31 · staging
+Claim signup subline "Free 14-day trial · No card needed" → "Free to use · No card needed". EarningsBuilder comments updated (the `withinTrial` prop now means "first outsourced free"). Files: `ClaimSignupForm.tsx`, `EarningsBuilder.tsx`. tsc clean.
+
+**Cleanup noted (not user-facing):** `lib/billing/trial-state.ts` (`getTrialState`/`TrialState`) is now unused by the billing hub; leave for a later dead-code sweep. The `withinTrial` prop + `TrialExpiredModal` component name are misnomers now — rename in a later pass.
 
 ---
 

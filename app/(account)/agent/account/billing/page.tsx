@@ -18,7 +18,6 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCurrentMonthRunningTotal } from "@/lib/billing/running-total";
 import { getLifetimeMetrics } from "@/lib/billing/lifetime";
-import { getTrialState } from "@/lib/billing/trial-state";
 import { getActiveTermsVersion } from "@/lib/billing/acknowledgement";
 import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { billingMonthRange } from "@/lib/billing/period";
@@ -61,11 +60,10 @@ export default async function AccountBillingPage() {
   });
   if (!agency) notFound();
 
-  const [runningTotal, lifetime, trialState, terms, historyRows, trialFilesThisMonth] =
+  const [runningTotal, lifetime, terms, historyRows, trialFilesThisMonth] =
     await Promise.all([
       getCurrentMonthRunningTotal(agency.id),
       getLifetimeMetrics(agency.id),
-      getTrialState(agency.id),
       getActiveTermsVersion(),
       prisma.invoice.findMany({
         where: { agencyId: agency.id, status: { in: ["issued", "paid", "failed"] } },
@@ -194,7 +192,6 @@ export default async function AccountBillingPage() {
 
       <div style={{ borderTop: HAIRLINE }} />
       <PlanTermsCollapsed
-        trialState={trialState}
         agreed={
           terms
             ? {

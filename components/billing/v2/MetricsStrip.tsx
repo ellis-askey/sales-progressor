@@ -93,11 +93,11 @@ export function MetricsStrip(props: MetricsStripProps) {
         label="Exchanges this month"
         display={exchanges}
         format={(n) => Math.round(n).toString()}
-        sub={`${props.inHouseThisMonth} in-house · ${props.outsourcedThisMonth} outsourced`}
+        sub={`${props.inHouseThisMonth} self-progress · ${props.outsourcedThisMonth} outsourced`}
       />
       <div style={{ width: "0.5px", background: "rgba(0,0,0,0.08)" }} />
       <Cell
-        label="Saved via trial"
+        label="Given free"
         display={saved}
         format={pounds}
         sub={`${props.trialExchangeCountLifetime} file${props.trialExchangeCountLifetime === 1 ? "" : "s"} given free`}

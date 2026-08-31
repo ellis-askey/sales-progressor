@@ -2,18 +2,17 @@
 
 // components/billing/v2/PlanTermsCollapsed.tsx
 //
-// Plan summary always visible (3 columns: In-house / Outsourced / Trial),
+// Plan summary always visible (2 columns: Self-progress / Outsourced),
 // agreed-terms behind the canonical .agent-acc accordion. Acknowledged
 // date appears in the header summary so the director sees it without
-// having to expand.
+// having to expand. (Pricing migration 2026-08: self-progress is free and
+// there is no trial, so the old In-house £59 + Trial columns are gone.)
 
 import { useState } from "react";
 import type { TermsSection } from "@/lib/billing/terms-sections";
-import type { TrialState } from "@/lib/billing/trial-state";
 import { CaretDown } from "@phosphor-icons/react";
 
 export type PlanTermsCollapsedProps = {
-  trialState: TrialState;
   agreed: {
     versionTag: string;
     sections: TermsSection[];
@@ -21,14 +20,8 @@ export type PlanTermsCollapsedProps = {
   } | null;
 };
 
-export function PlanTermsCollapsed({ trialState, agreed }: PlanTermsCollapsedProps) {
+export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
   const [open, setOpen] = useState(false);
-  const trialLine =
-    trialState.kind === "in_trial"
-      ? `${trialState.daysLeft} day${trialState.daysLeft === 1 ? "" : "s"} left of your free trial`
-      : trialState.kind === "trial_ended"
-      ? "Trial ended"
-      : "Trial begins on your first sale";
 
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -54,9 +47,9 @@ export function PlanTermsCollapsed({ trialState, agreed }: PlanTermsCollapsedPro
               fontWeight: 500,
             }}
           >
-            In-house
+            Self-progress
           </div>
-          <div style={{ marginTop: 4, color: "#111827" }}>£59 per exchange</div>
+          <div style={{ marginTop: 4, color: "#1f9d6b", fontWeight: 600 }}>Free</div>
         </div>
         <div>
           <div
@@ -71,28 +64,7 @@ export function PlanTermsCollapsed({ trialState, agreed }: PlanTermsCollapsedPro
             Outsourced
           </div>
           <div style={{ marginTop: 4, color: "#111827" }}>£250 / £300 / £350 by band</div>
-        </div>
-        <div>
-          <div
-            style={{
-              fontSize: 10,
-              color: "#9ca3af",
-              textTransform: "uppercase",
-              letterSpacing: 0.7,
-              fontWeight: 500,
-            }}
-          >
-            Trial
-          </div>
-          <div
-            style={{
-              marginTop: 4,
-              color: trialState.kind === "in_trial" ? "var(--agent-coral, #FF6B4A)" : "#111827",
-              fontWeight: trialState.kind === "in_trial" ? 600 : 400,
-            }}
-          >
-            {trialLine}
-          </div>
+          <div style={{ marginTop: 2, fontSize: 11.5, color: "#6b7280" }}>First sale free</div>
         </div>
       </div>
 
