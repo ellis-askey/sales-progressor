@@ -14,7 +14,9 @@
 // legacy /agent/settings page until Stage 4 retire.
 
 import { useState, useEffect, useCallback } from "react";
+import { Users, UserPlus, Info } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
 import {
   TeamListViewPlain,
   type PendingNegotiatorInvitation,
@@ -146,14 +148,41 @@ export function TeamManagementPlain({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <AccountCard
+      icon={<Users size={18} weight="bold" />}
+      title="Your team"
+      subtitle="Give your team access and control which sales they can see."
+      headerAction={
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="account-btn-outline"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "8px 13px",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "var(--agent-coral-deep, #E2452A)",
+            background: "#fff",
+            border: "0.5px solid rgba(255,107,74,0.5)",
+            borderRadius: 9,
+            cursor: "pointer",
+            transition: "background 130ms",
+          }}
+        >
+          <UserPlus size={15} weight="bold" /> Add team member
+        </button>
+      }
+      bodyStyle={{ marginTop: 10 }}
+    >
       <TeamListViewPlain
         directors={directors}
         negotiators={negotiators}
         currentUserId={currentUserId}
         onToggleViewAll={toggleViewAll}
         onRemove={removeMember}
-        onAddClick={() => setShowAdd(true)}
         pendingInvitations={pending}
         onResendInvitation={handleResend}
         onCancelInvitation={handleCancel}
@@ -238,15 +267,34 @@ export function TeamManagementPlain({
         </div>
       )}
 
-      <div style={{ paddingTop: 14, borderTop: "0.5px solid rgba(0,0,0,0.06)" }}>
-        <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af", lineHeight: 1.6 }}>
-          <strong style={{ color: "#374151", fontWeight: 600 }}>Own files</strong> — negotiator
-          can only see their own files.
-          <br />
-          <strong style={{ color: "#374151", fontWeight: 600 }}>All files</strong> — negotiator
-          can see all files in the agency (same as director).
-        </p>
+      <div
+        style={{
+          marginTop: 16,
+          display: "flex",
+          gap: 12,
+          padding: "14px 16px",
+          background: "rgba(255,107,74,0.05)",
+          border: "0.5px solid rgba(0,0,0,0.06)",
+          borderRadius: 12,
+        }}
+      >
+        <Info size={18} weight="fill" style={{ color: "var(--agent-coral-deep, #E2452A)", flexShrink: 0, marginTop: 1 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 12.5, fontWeight: 700, color: "#111827" }}>File access</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "10px 22px" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+              <strong style={{ color: "#374151", fontWeight: 600 }}>Own files</strong>
+              <br />
+              Team members can only see the sales assigned to them.
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+              <strong style={{ color: "#374151", fontWeight: 600 }}>All files</strong>
+              <br />
+              Team members can see every sale across the agency.
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </AccountCard>
   );
 }
