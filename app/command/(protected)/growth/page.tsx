@@ -330,7 +330,7 @@ export default async function GrowthPage({
         <section>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
             By service type — last 30 days
-            <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="By service type">How the file is billed: self-managed (£59, the agency runs it) vs outsourced (£250+, we run it). Distinct from mode profile, which is about who progresses the work.</InfoTip></span>
+            <span className="ml-1.5 normal-case tracking-normal"><InfoTip label="By service type">How the file is billed: self-progress (free, the agency runs it) vs outsourced (£250+, we run it, first one free). Distinct from mode profile, which is about who progresses the work.</InfoTip></span>
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">

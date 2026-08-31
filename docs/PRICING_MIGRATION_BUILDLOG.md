@@ -159,3 +159,6 @@ Migration applied to staging (the seed used the new columns successfully). `scri
 - **Accrual**: 1 invoice, 2 fee lines + 1 credit applied.
 
 **View it:** dev server at `http://localhost:3001/agent/billing`, logged in as `pricing-verify@thesalesprogressor.test`. The self-progress sale never bills; the first outsourced shows a fee + a first-file-free credit netting to £0; the second bills its band. (The file sidebar still shows the old £59 self copy — that's Phase 4 copy, not done yet.)
+
+### Increment 3A — Command Centre pricing copy fixed · 2026-08-31 · staging
+Removed the actively-wrong pricing copy from the superadmin views: "In-house (£59)" breakdown labels -> "Self-progress (free)"; fee column "£59 / 250-350" -> "Free / £250-350"; rulebook "Self-managed £59 per exchange" -> "Self-progress free"; stale "7-day trial" footnote -> "self-progress never bills; first outsourced file free"; AgencyFeeManager + growth InfoTip reframed. Files: revenue/page.tsx, AgencyFeeManager.tsx, growth/page.tsx. tsc clean.
