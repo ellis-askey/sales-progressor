@@ -45,7 +45,7 @@ export function SearchesUpload({ token }: Props) {
   if (state === "done") {
     return (
       <div
-        className="mt-3 rounded-xl px-4 py-3 flex items-start gap-3"
+        className="portal-reveal-fade mt-3 rounded-xl px-4 py-3 flex items-start gap-3"
         style={{ background: P.successBg }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
@@ -82,7 +82,7 @@ export function SearchesUpload({ token }: Props) {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={state === "uploading"}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-opacity disabled:opacity-50"
+        className="pbtn pbtn-press flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-opacity disabled:opacity-50"
         style={{ background: P.accentBg, color: P.accent }}
       >
         {state === "uploading" ? (

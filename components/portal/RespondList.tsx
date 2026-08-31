@@ -69,6 +69,7 @@ export function RespondList({
   const [submittingCode, setSubmittingCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pillByCode, setPillByCode] = useState<Record<string, PillState>>({});
+  const [collapsingFor, setCollapsingFor] = useState<string[]>([]);
   const [doneFor, setDoneFor] = useState<string[]>([]);
   const [hardBlockByCode, setHardBlockByCode] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
@@ -85,17 +86,23 @@ export function RespondList({
     setActiveMode(null);
   }
 
-  // A2 in-place pill: hold for 1200ms, then collapse the row out.
+  // A2 in-place pill: hold for 1200ms, then collapse the row out (portal-row-out,
+  // 300ms) before removing it from the list — so the row folds away rather than
+  // blinking out.
   function flashPill(code: string, pill: PillState) {
     setPillByCode((prev) => ({ ...prev, [code]: pill }));
     close();
     setTimeout(() => {
-      setDoneFor((prev) => [...prev, code]);
-      setPillByCode((prev) => {
-        const next = { ...prev };
-        delete next[code];
-        return next;
-      });
+      setCollapsingFor((prev) => [...prev, code]);
+      setTimeout(() => {
+        setDoneFor((prev) => [...prev, code]);
+        setCollapsingFor((prev) => prev.filter((c) => c !== code));
+        setPillByCode((prev) => {
+          const next = { ...prev };
+          delete next[code];
+          return next;
+        });
+      }, 300);
     }, 1200);
   }
 
@@ -295,6 +302,7 @@ export function RespondList({
           return (
             <div
               key={item.milestoneCode}
+              className={collapsingFor.includes(item.milestoneCode) ? "portal-row-out" : undefined}
               style={{
                 background: P.cardBg,
                 border: `0.5px solid ${P.border}`,
@@ -304,6 +312,7 @@ export function RespondList({
             >
               {pill ? (
                 <p
+                  className="portal-reveal-fade"
                   style={{
                     fontSize: 14,
                     color: "#065f46",
@@ -348,6 +357,7 @@ export function RespondList({
                       <button
                         onClick={() => open(item.milestoneCode, "confirm")}
                         disabled={isSubmitting}
+                        className="pbtn pbtn-press"
                         style={{
                           padding: "8px 14px",
                           borderRadius: 8,
@@ -364,6 +374,7 @@ export function RespondList({
                       <button
                         onClick={() => open(item.milestoneCode, "date")}
                         disabled={isSubmitting}
+                        className="pbtn pbtn-press"
                         style={{
                           padding: "8px 14px",
                           borderRadius: 8,
@@ -380,6 +391,7 @@ export function RespondList({
                       <button
                         onClick={() => open(item.milestoneCode, "note")}
                         disabled={isSubmitting}
+                        className="pbtn pbtn-press"
                         style={{
                           padding: "8px 14px",
                           borderRadius: 8,
@@ -395,7 +407,7 @@ export function RespondList({
                       </button>
                     </div>
                   ) : (
-                    <div style={{ marginTop: 14 }}>
+                    <div className="portal-reveal-fade" style={{ marginTop: 14 }}>
                       {activeMode === "confirm" && (
                         <>
                           <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
@@ -418,6 +430,7 @@ export function RespondList({
                             <button
                               onClick={() => handleConfirm(item)}
                               disabled={isSubmitting}
+                              className="pbtn pbtn-press"
                               style={{
                                 padding: "8px 14px",
                                 borderRadius: 8,
@@ -435,6 +448,7 @@ export function RespondList({
                             <button
                               onClick={close}
                               disabled={isSubmitting}
+                              className="pbtn pbtn-press"
                               style={{
                                 padding: "8px 14px",
                                 borderRadius: 8,
@@ -474,6 +488,7 @@ export function RespondList({
                             <button
                               onClick={() => handleSetDate(item)}
                               disabled={isSubmitting || !dateInput}
+                              className="pbtn pbtn-press"
                               style={{
                                 padding: "8px 14px",
                                 borderRadius: 8,
@@ -491,6 +506,7 @@ export function RespondList({
                             <button
                               onClick={close}
                               disabled={isSubmitting}
+                              className="pbtn pbtn-press"
                               style={{
                                 padding: "8px 14px",
                                 borderRadius: 8,
@@ -533,6 +549,7 @@ export function RespondList({
                             <button
                               onClick={() => handleNote(item)}
                               disabled={isSubmitting || !noteInput.trim()}
+                              className="pbtn pbtn-press"
                               style={{
                                 padding: "8px 14px",
                                 borderRadius: 8,
@@ -550,6 +567,7 @@ export function RespondList({
                             <button
                               onClick={close}
                               disabled={isSubmitting}
+                              className="pbtn pbtn-press"
                               style={{
                                 padding: "8px 14px",
                                 borderRadius: 8,

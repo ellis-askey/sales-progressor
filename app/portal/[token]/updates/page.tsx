@@ -86,7 +86,7 @@ export default async function PortalUpdatesPage({
   const newCount = timeline.filter(isNew).length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 portal-reveal-stack">
       {newCount > 0 && (
         <div className="flex items-center gap-2 px-1">
           <span className="w-2 h-2 rounded-full" style={{ background: P.primary }} />

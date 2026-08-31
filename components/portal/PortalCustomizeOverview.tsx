@@ -102,6 +102,17 @@ function Panel({
   });
   const [saving, setSaving] = useState(false);
 
+  // Slide the panel back out to the right before unmounting, rather than
+  // vanishing. Route every close (X, Escape, swipe, save) through here so the
+  // exit animation always plays. Timer matches .portal-panel-out (260ms).
+  const [closing, setClosing] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const requestClose = useRef(() => {
+    setClosing(true);
+    setTimeout(() => onCloseRef.current(), 260);
+  }).current;
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
@@ -164,7 +175,7 @@ function Panel({
     setSaving(true);
     try {
       await portalSaveOverviewLayout({ token, order: items.visible, hidden: items.hidden });
-      onClose();
+      requestClose();
     } finally {
       setSaving(false);
     }
@@ -172,10 +183,10 @@ function Panel({
 
   // Escape also closes.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") requestClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [requestClose]);
 
   // Swipe right to dismiss (mobile drawer feel). A quick horizontal swipe won't
   // trip the drag handle (TouchSensor has a 150ms delay).
@@ -189,12 +200,12 @@ function Panel({
     touch.current = null;
     if (!start) return;
     const t = e.changedTouches[0];
-    if (t.clientX - start.x > 100 && Math.abs(t.clientY - start.y) < 70) onClose();
+    if (t.clientX - start.x > 100 && Math.abs(t.clientY - start.y) < 70) requestClose();
   }
 
   return (
     <div
-      className="portal-panel fixed inset-0 z-[60] overflow-hidden"
+      className={`portal-panel${closing ? " portal-panel-out" : ""} fixed inset-0 z-[60] overflow-hidden`}
       style={{
         backgroundColor: P.pageBg,
         backgroundImage: [
@@ -213,7 +224,7 @@ function Panel({
         <div className="relative flex items-center justify-center px-5 pt-5 pb-3">
           <button
             type="button"
-            onClick={() => onClose()}
+            onClick={requestClose}
             aria-label="Close"
             className="pbtn-press absolute left-4 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full flex items-center justify-center"
             style={{ background: "rgba(15,23,42,0.06)", color: P.textPrimary }}

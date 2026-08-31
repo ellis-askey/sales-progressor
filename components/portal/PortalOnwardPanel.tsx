@@ -300,7 +300,7 @@ export function PortalOnwardPanel({
         return (
           <div key={group.label}>
             <button
-              className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
+              className="pbtn w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
               style={{ background: headerBg, borderBottom: `1px solid ${P.border}` }}
               onClick={() => setExpanded((p) => ({ ...p, [group.label]: !isOpen }))}
             >
@@ -315,7 +315,7 @@ export function PortalOnwardPanel({
               </div>
             </button>
 
-            {isOpen && (
+            <div className="portal-collapse" data-open={isOpen}>
               <div>
                 {steps.map((step, i) => {
                   const locked = !step.isComplete && !step.isAvailable;
@@ -360,7 +360,7 @@ export function PortalOnwardPanel({
                                   return r?.view ?? null;
                                 })
                               }
-                              className="text-[12px] font-semibold"
+                              className="pbtn-press text-[12px] font-semibold"
                               style={{ color: P.textMuted, background: "none", border: "none", padding: "4px 2px", cursor: "pointer" }}
                             >
                               Undo
@@ -374,7 +374,7 @@ export function PortalOnwardPanel({
                                 <button
                                   type="button"
                                   onClick={() => setSkipSheet(true)}
-                                  className="text-[11px] font-medium underline"
+                                  className="pbtn-press text-[11px] font-medium underline"
                                   style={{ color: P.textMuted, background: "none", border: "none", cursor: "pointer" }}
                                 >
                                   Skip survey
@@ -388,7 +388,7 @@ export function PortalOnwardPanel({
                   );
                 })}
               </div>
-            )}
+            </div>
           </div>
         );
       })}
@@ -403,7 +403,7 @@ export function PortalOnwardPanel({
             type="button"
             disabled={pending}
             onClick={() => run(() => portalSkipOnwardSurveyAction(token, false))}
-            className="font-semibold underline"
+            className="pbtn-press font-semibold underline"
             style={{ color: P.textMuted, background: "none", border: "none", cursor: "pointer" }}
           >
             Undo
@@ -423,7 +423,7 @@ export function PortalOnwardPanel({
             <button
               onClick={() => run(async () => { const v = await portalSkipOnwardSurveyAction(token, true); setSkipSheet(false); return v; })}
               disabled={pending}
-              className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+              className="pbtn pbtn-press w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
               style={{ background: P.warning, borderRadius: P.radiusMd }}
             >
               {pending ? "Saving…" : "Yes, skip the survey"}
@@ -431,7 +431,7 @@ export function PortalOnwardPanel({
             <button
               onClick={() => setSkipSheet(false)}
               disabled={pending}
-              className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+              className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
               style={{ color: P.textSecondary }}
             >
               Cancel
@@ -474,7 +474,7 @@ export function PortalOnwardPanel({
             <button
               onClick={() => doConfirm(confirmingStep.code)}
               disabled={pending}
-              className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+              className="pbtn pbtn-press w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
               style={{ background: P.primary, borderRadius: P.radiusMd }}
             >
               {pending ? "Saving…" : "Confirm"}
@@ -482,7 +482,7 @@ export function PortalOnwardPanel({
             <button
               onClick={closeSheet}
               disabled={pending}
-              className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+              className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
               style={{ color: P.textSecondary }}
             >
               Cancel
@@ -508,6 +508,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button
       type="button"
       onClick={onClick}
+      className="portal-pill pbtn-press"
       style={{
         fontSize: 13, padding: "7px 13px", borderRadius: 999, cursor: "pointer",
         border: on ? `1px solid ${P.primary}` : `1px solid ${P.border}`,

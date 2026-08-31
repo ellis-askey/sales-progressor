@@ -209,7 +209,7 @@ export function PortalCostsCard({
                 <p className="text-[14px] font-bold" style={{ color: P.success }}>Funds sent</p>
                 <p className="text-[11px]" style={{ color: P.textMuted }}>You&apos;ve told us the completion funds are on their way.</p>
               </div>
-              <button type="button" onClick={() => markFundsSent(false)} disabled={saving} className="pbtn-press text-[12px] font-semibold" style={{ color: P.textMuted }}>
+              <button type="button" onClick={() => markFundsSent(false)} disabled={saving} className="pbtn pbtn-press text-[12px] font-semibold" style={{ color: P.textMuted }}>
                 Undo
               </button>
             </div>
@@ -226,7 +226,7 @@ export function PortalCostsCard({
               <button
                 type="button"
                 onClick={() => setShowFundsParts((v) => !v)}
-                className="pbtn-press mt-2 flex items-center gap-1.5 text-[12px] font-semibold"
+                className="pbtn pbtn-press mt-2 flex items-center gap-1.5 text-[12px] font-semibold"
                 style={{ color: P.primary }}
               >
                 {showFundsParts ? "Hide the breakdown" : "What's this made of?"}
@@ -235,7 +235,7 @@ export function PortalCostsCard({
                 </svg>
               </button>
               {showFundsParts && (
-                <div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${P.border}`, background: P.cardBg }}>
+                <div className="portal-reveal-fade mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${P.border}`, background: P.cardBg }}>
                   <BreakdownRow label="Balance of the purchase price" value={fmtGBP(balanceOfPrice)} />
                   <BreakdownRow label="Stamp duty" value={fmtGBP(sdlt)} />
                   {otherFundsNum > 0 && <BreakdownRow label="Less other funds already sent" value={"−" + fmtGBP(otherFundsNum)} />}
@@ -393,14 +393,14 @@ export function PortalCostsCard({
                     <p className="text-[12px] mt-1.5" style={{ color: P.textSecondary }}>Effective rate {fmtPct(result.effectiveRate)} of the purchase price</p>
                   </div>
 
-                  <button type="button" onClick={() => setShowBreakdown((v) => !v)} className="flex items-center gap-1.5 text-[13px] font-semibold mb-3" style={{ color: P.accent }}>
+                  <button type="button" onClick={() => setShowBreakdown((v) => !v)} className="pbtn pbtn-press flex items-center gap-1.5 text-[13px] font-semibold mb-3" style={{ color: P.accent }}>
                     {showBreakdown ? "Hide" : "See"} how this is worked out
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showBreakdown ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
                   </button>
                   {showBreakdown && (
-                    <div className="rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${P.border}` }}>
+                    <div className="portal-reveal-fade rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${P.border}` }}>
                       {result.bands.length === 0 ? (
                         <p className="px-4 py-3 text-[13px]" style={{ color: P.textMuted }}>No stamp duty on this price.</p>
                       ) : (
@@ -509,7 +509,7 @@ function OptionButton({ label, sub, selected, onClick }: { label: string; sub: s
     <button
       type="button"
       onClick={onClick}
-      className="flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
+      className="pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
       style={{ border: `1px solid ${selected ? P.primary : P.border}`, borderWidth: selected ? 2 : 1, background: selected ? P.primaryBg : P.cardBg }}
       aria-pressed={selected}
     >
@@ -533,7 +533,7 @@ function ToggleRow({ label, sub, on, onClick }: { label: string; sub: string; on
     <button
       type="button"
       onClick={onClick}
-      className="flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
+      className="pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
       style={{ border: `1px solid ${on ? P.primary : P.border}`, borderWidth: on ? 2 : 1, background: on ? P.primaryBg : P.cardBg }}
       aria-pressed={on}
     >

@@ -355,7 +355,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           return (
             <div key={group.label}>
               <button
-                className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
+                className="pbtn w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
                 style={{ background: headerBg, borderBottom: `1px solid ${P.border}` }}
                 onClick={() => toggle(gIdx)}
               >
@@ -373,7 +373,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               </button>
 
               {isOpen && (
-                <div>
+                <div className="portal-reveal-fade">
                   {groupMilestones.map((m, mIdx) => {
                     const isLast        = mIdx === groupMilestones.length - 1;
                     // B1 hard-block: the six bilateral / agent-only codes
@@ -417,7 +417,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             {m.description && !m.isComplete && (
                               <button
                                 onClick={() => setHelpMilestone(m)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"
+                                className="pbtn pbtn-press w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"
                                 style={{ background: P.border, color: P.textMuted }}
                                 aria-label="What does this mean?"
                               >
@@ -432,7 +432,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 {m.code === "PM9" && (
                                   <button
                                     onClick={() => setSkipSurveyId(m.id)}
-                                    className="text-[11px] font-medium underline"
+                                    className="pbtn-press text-[11px] font-medium underline"
                                     style={{ color: P.textMuted }}
                                   >
                                     Skip survey
@@ -490,7 +490,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                       <button
                         type="button"
                         onClick={() => toggleOther(group.label)}
-                        className="w-full px-5 py-2.5 flex items-center justify-between text-left"
+                        className="pbtn w-full px-5 py-2.5 flex items-center justify-between text-left"
                         style={{ background: P.pageBg, borderBottom: `1px solid ${P.border}` }}
                       >
                         <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: P.textMuted }}>
@@ -503,7 +503,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                           <ChevronIcon open={isOpen} />
                         </div>
                       </button>
-                      {isOpen && groupMilestones.map((m, mIdx) => (
+                      {isOpen && (<div className="portal-reveal-fade">{groupMilestones.map((m, mIdx) => (
                         <div key={m.id} className="flex items-center gap-3.5 px-5 py-3" style={{ borderBottom: mIdx < groupMilestones.length - 1 ? `1px solid ${P.border}` : undefined }}>
                           <StatusDot isComplete={m.isComplete} isLocked={!m.isComplete && !m.isAvailable} canConfirm={false} />
                           <p className="text-[13px] flex-1" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
@@ -513,7 +513,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             <span className="text-[11px] flex-shrink-0" style={{ color: P.success }}>✓</span>
                           )}
                         </div>
-                      ))}
+                      ))}</div>)}
                     </div>
                   );
                 })}
@@ -571,7 +571,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             })()}
             <button
               onClick={() => setHelpMilestone(null)}
-              className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
+              className="pbtn pbtn-press w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
               style={{ background: P.primary, borderRadius: P.radiusMd }}
             >
               Got it
@@ -612,7 +612,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             <button
               onClick={() => skipSurvey(skipSurveyId!)}
               disabled={skipLoading}
-              className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+              className="pbtn pbtn-press w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
               style={{ background: P.warning, borderRadius: P.radiusMd }}
             >
               {skipLoading ? "Saving…" : "Yes, skip the survey"}
@@ -620,7 +620,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             <button
               onClick={() => setSkipSurveyId(null)}
               disabled={skipLoading}
-              className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+              className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
               style={{ color: P.textSecondary }}
             >
               Cancel
@@ -670,7 +670,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                           key={o.quoteRequestId}
                           type="button"
                           onClick={() => setSurveyChoice({ kind: "our_firm", quoteRequestId: o.quoteRequestId })}
-                          className="text-left px-4 py-3 rounded-xl text-[14px] font-semibold border transition-colors"
+                          className="pbtn-press text-left px-4 py-3 rounded-xl text-[14px] font-semibold border transition-colors"
                           style={{ borderColor: active ? P.primary : P.border, borderWidth: active ? 2 : 1, background: active ? P.primaryBg : P.cardBg, color: P.textPrimary }}
                         >
                           {o.firmName}
@@ -680,7 +680,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                     <button
                       type="button"
                       onClick={() => setSurveyChoice({ kind: "someone_else" })}
-                      className="text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
+                      className="pbtn-press text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
                       style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : P.cardBg, color: P.textPrimary }}
                     >
                       I booked someone else
@@ -706,7 +706,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               <button
                 onClick={() => confirmMilestone(confirmingMilestone.id, confirmingMilestone.eventDateRequired)}
                 disabled={loading}
-                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+                className="pbtn pbtn-press w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
                 {loading ? "Saving…" : "Confirm"}
@@ -714,7 +714,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               <button
                 onClick={closeSheet}
                 disabled={loading}
-                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+                className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
                 style={{ color: P.textSecondary }}
               >
                 Cancel

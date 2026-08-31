@@ -90,7 +90,7 @@ export function PortalExchangeDayCard({
         <div className="mt-4">
           {given ? (
             <span
-              className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-[14px] font-bold"
+              className="portal-reveal-fade inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-[14px] font-bold"
               style={{
                 background: "linear-gradient(180deg, rgba(16,185,129,0.16), rgba(16,185,129,0.10))",
                 color: "#0f9d6b",
@@ -136,9 +136,9 @@ export function PortalExchangeDayCard({
 
       {sheetOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => !loading && setSheetOpen(false)}>
-          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div className="portal-sheet-backdrop absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
           <div
-            className="relative w-full max-w-lg mx-auto"
+            className="portal-sheet relative w-full max-w-lg mx-auto"
             style={{ background: P.cardBg, borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`, boxShadow: P.shadowXl, paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -164,7 +164,7 @@ export function PortalExchangeDayCard({
               <button
                 onClick={() => setSheetOpen(false)}
                 disabled={loading}
-                className="w-full mt-2 py-3 rounded-xl text-[14px] font-semibold"
+                className="pbtn-press w-full mt-2 py-3 rounded-xl text-[14px] font-semibold"
                 style={{ color: P.textSecondary }}
               >
                 Not yet

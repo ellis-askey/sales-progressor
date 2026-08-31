@@ -693,7 +693,13 @@ body {
 [data-portal-motion="reduced"] .portal-sheet,
 [data-portal-motion="reduced"] .portal-sheet-backdrop,
 [data-portal-motion="reduced"] .portal-panel,
+[data-portal-motion="reduced"] .portal-panel-out,
+[data-portal-motion="reduced"] .portal-row-out,
+[data-portal-motion="reduced"] .portal-toast-in,
+[data-portal-motion="reduced"] .portal-toast-out,
+[data-portal-motion="reduced"] .portal-pop-in,
 [data-portal-motion="reduced"] .portal-inprogress-pulse { animation: none !important; }
+[data-portal-motion="reduced"] .portal-collapse { transition: none !important; }
 [data-portal-motion="reduced"] .portal-scope *,
 [data-portal-motion="reduced"] .portal-sheet * {
   transition-duration: 0.001ms !important;
@@ -807,6 +813,54 @@ body {
 }
 .portal-inprogress-pulse { animation: portal-inprogress-pulse 2.6s ease-in-out infinite; }
 
+/* ─── Portal motion sweep (2026-08-31) — exits, collapses, popover, pills ─────
+   The portal had a full set of entrances but almost no exits/collapses, so
+   accordions and rows snapped shut and hand-rolled sheets/panels appeared and
+   vanished with no motion. These fill that gap, all on the portal settle curve
+   cubic-bezier(0.16,1,0.3,1) so they sit with the existing reveal/sheet classes. */
+
+/* Accordion collapse — height + fade, BOTH directions. The group body stays
+   mounted; [data-open="true"] toggles it. Uses the grid 0fr→1fr technique so it
+   collapses cleanly with no height measurement (within the same modern-CSS
+   baseline the portal already needs for color-mix). The single direct child
+   must be able to clip — the rule below handles that. */
+.portal-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease;
+}
+.portal-collapse[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.portal-collapse > * { overflow: hidden; min-height: 0; }
+
+/* Row exit — fades + collapses a list row's height before React removes it.
+   Match the JS unmount timer to 300ms (two-step exit pattern). */
+@keyframes portal-row-out {
+  from { opacity: 1; max-height: var(--portal-row-h, 140px); }
+  to   { opacity: 0; max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; }
+}
+.portal-row-out { overflow: hidden; animation: portal-row-out 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Bottom toast — slide up + fade in, hold, fade out. Promotes the inline
+   ToastShell motion (PortalOnboardingToasts) to a shared class. */
+@keyframes portal-toast-in  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes portal-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px); } }
+.portal-toast-in  { animation: portal-toast-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.portal-toast-out { animation: portal-toast-out 220ms ease forwards; }
+
+/* Popover — scales out of its anchor corner. Consumer may override the origin. */
+@keyframes portal-pop-in { from { opacity: 0; transform: scale(0.92) translateY(-4px); } to { opacity: 1; transform: none; } }
+.portal-pop-in { animation: portal-pop-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: top right; }
+
+/* Selection pill — eases colour on select instead of hard-flipping border /
+   background / text. Add to tenure / payment-type toggle buttons. */
+.portal-pill { transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
+
+/* Customize-overview panel exit — reverse of .portal-panel. Keep the panel
+   mounted through the animation, then unmount at 260ms. */
+@keyframes portal-panel-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+.portal-panel-out { animation: portal-panel-out 260ms cubic-bezier(0.4, 0, 1, 1) forwards; will-change: transform; }
+
 @media (prefers-reduced-motion: reduce) {
   .portal-edge-pulse,
   .portal-fade-in,
@@ -816,7 +870,13 @@ body {
   .portal-sheet,
   .portal-sheet-backdrop,
   .portal-panel,
+  .portal-panel-out,
+  .portal-row-out,
+  .portal-toast-in,
+  .portal-toast-out,
+  .portal-pop-in,
   .portal-inprogress-pulse { animation: none; }
+  .portal-collapse { transition: none; }
   /* Mirror the explicit reduce-motion toggle: also still inline transitions on
      portal descendants (drawers, toggles, rings) for OS-level reduced motion. */
   .portal-scope *,

@@ -207,6 +207,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
                 onClick={() => setMenuOpen(true)}
                 aria-label="Open menu"
                 aria-expanded={menuOpen}
+                className="pbtn-press"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

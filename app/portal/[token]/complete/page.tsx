@@ -102,11 +102,11 @@ export default async function PortalCompletePage({
   if (!completionMilestone) {
     // Not yet complete — redirect home
     return (
-      <div className="text-center py-16 px-4">
+      <div className="text-center py-16 px-4 portal-fade-in">
         <p className="text-[15px]" style={{ color: P.textSecondary }}>
           This page will be available once your transaction completes.
         </p>
-        <Link href={`/portal/${token}`} className="block mt-4 text-[14px] font-semibold" style={{ color: P.primary }}>
+        <Link href={`/portal/${token}`} className="pbtn pbtn-press block mt-4 text-[14px] font-semibold" style={{ color: P.primary }}>
           Back to overview
         </Link>
       </div>
@@ -121,7 +121,7 @@ export default async function PortalCompletePage({
   const completionDate = completionMilestone.eventDate ?? completionMilestone.completedAt;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 portal-reveal-stack">
 
       {/* ── Banner ──────────────────────────────────────────────────── */}
       <div
@@ -255,7 +255,7 @@ export default async function PortalCompletePage({
       {/* ── Back link ───────────────────────────────────────────────── */}
       <Link
         href={`/portal/${token}`}
-        className="flex items-center justify-center gap-2 py-4 rounded-2xl text-[14px] font-semibold"
+        className="pbtn pbtn-press flex items-center justify-center gap-2 py-4 rounded-2xl text-[14px] font-semibold"
         style={{ background: P.cardBg, boxShadow: P.shadowSm, color: P.accent }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

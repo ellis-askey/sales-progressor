@@ -25,6 +25,7 @@ function EditPencil({ onClick, label }: { onClick: () => void; label: string }) 
       type="button"
       aria-label={label}
       onClick={onClick}
+      className="pbtn-press"
       style={{ background: "none", border: "none", padding: 2, cursor: "pointer", color: "var(--portal-textMuted, #8B91A3)", display: "inline-flex", alignItems: "center" }}
     >
       <PencilSimple size={16} weight="regular" />
@@ -254,6 +255,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
               type="button"
               onClick={onClose}
               aria-label="Close menu"
+              className="pbtn-press"
               style={{
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 width: 36, height: 36, borderRadius: 10,
@@ -471,6 +473,7 @@ function ProfileHeader({
           onClick={() => fileRef.current?.click()}
           disabled={busy}
           aria-label="Change your photo"
+          className="pbtn-press"
           style={{
             position: "absolute", right: -2, bottom: -2,
             width: 26, height: 26, borderRadius: "50%",
@@ -571,7 +574,7 @@ function YourAgentsSection({
             </p>
             {ca.correctionMailto && (
               <SectionFooter>
-                <a href={ca.correctionMailto} className="portal-menu-btn" style={btnGhost}>Email us to correct</a>
+                <a href={ca.correctionMailto} className="pbtn pbtn-press" style={btnGhost}>Email us to correct</a>
               </SectionFooter>
             )}
           </>
@@ -603,8 +606,8 @@ function YourAgentsSection({
           <ReadRow label="Agency" value={ca.agencyName ?? "—"} />
           {direction === "above" && (
             <SectionFooter>
-              <button type="button" onClick={() => openEditDrawer({ kind: "onward-change", mode: "change", direction: "above", initial: {} })} className="portal-menu-btn" style={btnGhost}>Change to a different place</button>
-              <button type="button" onClick={() => openEditDrawer({ kind: "onward-stop", mode: "stop", initial: {} })} className="portal-menu-btn" style={btnGhost}>No longer buying onward</button>
+              <button type="button" onClick={() => openEditDrawer({ kind: "onward-change", mode: "change", direction: "above", initial: {} })} className="pbtn pbtn-press" style={btnGhost}>Change to a different place</button>
+              <button type="button" onClick={() => openEditDrawer({ kind: "onward-stop", mode: "stop", initial: {} })} className="pbtn pbtn-press" style={btnGhost}>No longer buying onward</button>
             </SectionFooter>
           )}
         </>
@@ -616,7 +619,7 @@ function YourAgentsSection({
               : "Buying onward? Add the agent for the place you're buying so we can keep the chain moving."}
           </p>
           <SectionFooter>
-            <button type="button" onClick={() => openAgent("add")} className="portal-menu-btn" style={btnPrimary}>Add agent</button>
+            <button type="button" onClick={() => openAgent("add")} className="pbtn pbtn-press pbtn-primary" style={btnPrimary}>Add agent</button>
           </SectionFooter>
         </>
       )}
@@ -665,7 +668,7 @@ function YourSolicitorSection({
             No solicitor set for your file yet.
           </p>
           <SectionFooter>
-            <button type="button" onClick={() => openSolicitor("add")} className="portal-menu-btn" style={btnPrimary}>Add solicitor</button>
+            <button type="button" onClick={() => openSolicitor("add")} className="pbtn pbtn-press pbtn-primary" style={btnPrimary}>Add solicitor</button>
           </SectionFooter>
         </>
       ) : (
@@ -675,7 +678,7 @@ function YourSolicitorSection({
           <ReadRow label="Email"   value={sol.email ?? "—"} />
           <ReadRow label="Phone"   value={sol.phone ?? "—"} />
           <SectionFooter>
-            <button type="button" onClick={() => openSolicitor("switch")} className="portal-menu-btn" style={btnGhost}>Switch firm</button>
+            <button type="button" onClick={() => openSolicitor("switch")} className="pbtn pbtn-press" style={btnGhost}>Switch firm</button>
           </SectionFooter>
         </>
       )}
@@ -768,7 +771,7 @@ function NotificationsSection({
                 Until {pausedLabel}. Your other updates still come through.
               </p>
             </div>
-            <button type="button" onClick={resume} disabled={busy} className="portal-menu-btn" style={btnGhost}>Turn back on</button>
+            <button type="button" onClick={resume} disabled={busy} className="pbtn pbtn-press" style={btnGhost}>Turn back on</button>
           </div>
         ) : (
           <div>
@@ -777,8 +780,8 @@ function NotificationsSection({
               Going away? Pause chase reminders. Your important updates still come through.
             </p>
             <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={() => pause(1)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Pause 1 week</button>
-              <button type="button" onClick={() => pause(2)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Pause 2 weeks</button>
+              <button type="button" onClick={() => pause(1)} disabled={busy} className="pbtn pbtn-press" style={btnGhost}>Pause 1 week</button>
+              <button type="button" onClick={() => pause(2)} disabled={busy} className="pbtn pbtn-press" style={btnGhost}>Pause 2 weeks</button>
             </div>
           </div>
         )}
@@ -807,6 +810,7 @@ function RequestQuoteSection({ token }: { token: string }) {
       </p>
       <a
         href={`/quote/${token}`}
+        className="pbtn-press portal-chev"
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
           padding: "10px 12px", borderRadius: 10, border: `1px solid ${P.border}`,
@@ -814,7 +818,7 @@ function RequestQuoteSection({ token }: { token: string }) {
         }}
       >
         <span>Request a quote</span>
-        <ArrowRight size={14} weight="bold" />
+        <ArrowRight size={14} weight="bold" className="portal-chev-i" />
       </a>
     </SectionCard>
   );
@@ -874,10 +878,11 @@ function ServicesSection({
               {mailto && (
                 <a
                   href={mailto}
+                  className="pbtn-press portal-chev"
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", borderRadius: 10, border: `1px solid ${P.border}`, background: P.primaryBg, color: P.primary, textDecoration: "none", fontSize: 13, fontWeight: 600 }}
                 >
                   <span>Email your progressor</span>
-                  <ArrowRight size={14} weight="bold" />
+                  <ArrowRight size={14} weight="bold" className="portal-chev-i" />
                 </a>
               )}
             </div>
@@ -889,8 +894,8 @@ function ServicesSection({
                 This will confirm to us and the other side that you&apos;re not getting a survey. You can change this at any time until your solicitor&apos;s enquiries have been satisfied.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" onClick={() => setConfirmingOff(false)} disabled={busy} className="portal-menu-btn" style={btnGhost}>Cancel</button>
-                <button type="button" onClick={turnOff} disabled={busy} className="portal-menu-btn" style={btnPrimary}>{busy ? "Saving…" : "Yes, I'm not getting a survey"}</button>
+                <button type="button" onClick={() => setConfirmingOff(false)} disabled={busy} className="pbtn pbtn-press" style={btnGhost}>Cancel</button>
+                <button type="button" onClick={turnOff} disabled={busy} className="pbtn pbtn-press pbtn-primary" style={btnPrimary}>{busy ? "Saving…" : "Yes, I'm not getting a survey"}</button>
               </div>
             </div>
           ) : (
@@ -926,6 +931,7 @@ function ServicesSection({
           </p>
           <a
             href={`/quote/${token}`}
+            className="pbtn-press portal-chev"
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
               padding: "10px 12px", borderRadius: 10, border: `1px solid ${P.border}`,
@@ -933,7 +939,7 @@ function ServicesSection({
             }}
           >
             <span>Get a survey quote</span>
-            <ArrowRight size={14} weight="bold" />
+            <ArrowRight size={14} weight="bold" className="portal-chev-i" />
           </a>
         </div>
       )}
@@ -991,7 +997,7 @@ function SectionFooter({ children }: { children: React.ReactNode }) {
 
 function SavedFlash() {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: P.success }}>
+    <span className="portal-reveal-fade" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: P.success }}>
       <Check size={13} weight="bold" /> Saved
     </span>
   );

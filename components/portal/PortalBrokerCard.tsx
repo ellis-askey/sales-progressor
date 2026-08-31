@@ -53,15 +53,22 @@ export function PortalBrokerCard({
   const [requested, setRequested] = useState(initialRequested);
   const [dismissed, setDismissed] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastExiting, setToastExiting] = useState(false);
   const [consented, setConsented] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => setMounted(true), []);
+  // Hold the toast, then fade it out (portal-toast-out is 220ms) before unmounting.
   useEffect(() => {
     if (!showToast) return;
-    const t = setTimeout(() => setShowToast(false), 3200);
+    const t = setTimeout(() => setToastExiting(true), 3200);
     return () => clearTimeout(t);
   }, [showToast]);
+  useEffect(() => {
+    if (!toastExiting) return;
+    const t = setTimeout(() => { setShowToast(false); setToastExiting(false); }, 220);
+    return () => clearTimeout(t);
+  }, [toastExiting]);
 
   if (dismissed) return null;
 
@@ -132,6 +139,7 @@ export function PortalBrokerCard({
   const sheet = open ? (
     <div
       onClick={() => setOpen(false)}
+      className="portal-sheet-backdrop"
       style={{
         position: "fixed",
         inset: 0,
@@ -146,6 +154,7 @@ export function PortalBrokerCard({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="portal-sheet"
         style={{
           width: "100%",
           maxWidth: 480,
@@ -254,6 +263,7 @@ export function PortalBrokerCard({
 
   const toast = showToast ? (
     <div
+      className={toastExiting ? "portal-toast-out" : "portal-toast-in"}
       style={{
         position: "fixed",
         left: 16,
@@ -302,6 +312,7 @@ export function PortalBrokerCard({
           type="button"
           aria-label="Dismiss"
           onClick={(e) => { e.stopPropagation(); dismiss(); }}
+          className="pbtn pbtn-press"
           style={{
             position: "absolute", top: 16, right: 16,
             width: 34, height: 34, borderRadius: "50%",

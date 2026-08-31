@@ -197,7 +197,7 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
     <div className="mb-2.5 rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
       <div className="flex items-center gap-3 px-4 py-3.5">
         {doc.url ? (
-          <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0" style={{ textDecoration: "none" }}>
+          <a href={doc.url} target="_blank" rel="noopener noreferrer" className="portal-team-row flex items-center gap-3 flex-1 min-w-0" style={{ textDecoration: "none" }}>
             {inner}
           </a>
         ) : (
@@ -221,7 +221,7 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
           <>
             <div className="fixed inset-0 z-[75]" onClick={() => setMenuOpen(false)} />
             <div
-              className="fixed z-[76] rounded-xl overflow-hidden"
+              className="portal-pop-in fixed z-[76] rounded-xl overflow-hidden"
               style={{ top: pos.top, left: pos.left, background: P.cardBg, boxShadow: P.shadowXl, border: `1px solid ${P.border}`, minWidth: 176 }}
             >
               {confirmRemove ? (

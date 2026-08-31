@@ -119,7 +119,7 @@ export default async function PortalProgressPage({
   const nextUp = portalMilestones.find((m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && (m.isAvailable ?? false));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 portal-reveal-stack">
       {/* ── Progress header ─────────────────────────────────── */}
       <PortalGlassCard glassId="progress-header" label="Progress: steps-done header" defaultVariant="v25" className="px-5 py-4">
         <div className="flex items-center justify-between mb-3">

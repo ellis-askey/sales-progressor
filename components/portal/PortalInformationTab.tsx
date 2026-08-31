@@ -140,7 +140,7 @@ export function PortalInformationTab({
               </Field>
               <Field label="Where are they coming from?">
                 <Segmented value={info.fundsSource} disabled={readOnly} options={[["savings", "Savings"], ["lisa", "Lifetime ISA"], ["gift", "Gift"], ["sale", "From a sale"], ["other", "Other"]]} onChange={(v) => patch("your-situation", { fundsSource: v })} />
-                <p className="text-[12px] mt-2 leading-snug" style={{ color: P.textMuted }}>
+                <p className="portal-reveal-fade text-[12px] mt-2 leading-snug" style={{ color: P.textMuted }}>
                   {info.fundsSource === "lisa"
                     ? "A Lifetime ISA can take up to 30 days to release, so it helps us to know. You don't need to move the money now."
                     : "Just so we can plan timing. You don't need to move any money now."}
@@ -154,7 +154,7 @@ export function PortalInformationTab({
                 <YesNo value={info.needsNotice} disabled={readOnly} onChange={(v) => patch("your-situation", { needsNotice: v, ...(v ? {} : { noticePeriod: null, noticeGiven: null, noticeEndDate: null }) })} />
               </Field>
               {info.needsNotice === true && (
-                <>
+                <div className="portal-reveal-fade">
                   <Field label="Notice period">
                     <Segmented value={info.noticePeriod} disabled={readOnly} options={[["1m", "1 month"], ["2m", "2 months"], ["other", "Other"]]} onChange={(v) => patch("your-situation", { noticePeriod: v })} />
                   </Field>
@@ -162,11 +162,13 @@ export function PortalInformationTab({
                     <YesNo value={info.noticeGiven} disabled={readOnly} onChange={(v) => patch("your-situation", { noticeGiven: v, ...(v ? {} : { noticeEndDate: null }) })} />
                   </Field>
                   {info.noticeGiven === true && (
-                    <Field label="Notice ends">
-                      <DateInput value={info.noticeEndDate} disabled={readOnly} onChange={(v) => patch("your-situation", { noticeEndDate: v })} />
-                    </Field>
+                    <div className="portal-reveal-fade">
+                      <Field label="Notice ends">
+                        <DateInput value={info.noticeEndDate} disabled={readOnly} onChange={(v) => patch("your-situation", { noticeEndDate: v })} />
+                      </Field>
+                    </div>
                   )}
-                </>
+                </div>
               )}
             </>
           )}
@@ -208,7 +210,7 @@ export function PortalInformationTab({
             </p>
           ) : null}
           {(ctx.onwardLinkKnown || info.buyingOnward === true) && (
-            <>
+            <div className="portal-reveal-fade">
               {/* The onward STEP tracker moved to the Progress tab (swipe to
                   "Your onward"). Here we keep the mortgage-offer expiry, which
                   offers to confirm the offer and fill in the mortgage steps. */}
@@ -218,7 +220,7 @@ export function PortalInformationTab({
               <p className="text-[11px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted }}>
                 Track the steps on your onward under Progress. You can add your onward agent under Your agents in Settings.
               </p>
-            </>
+            </div>
           )}
         </Section>
       )}
@@ -233,7 +235,7 @@ export function PortalInformationTab({
             <YesNo value={info.sellingRelated} disabled={readOnly} onChange={(v) => patch("related-sale", { sellingRelated: v })} />
           </Field>
           {info.sellingRelated === true && (
-            <p className="text-[11px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted }}>
+            <p className="portal-reveal-fade text-[11px] px-4 pt-2.5 pb-3" style={{ color: P.textMuted }}>
               Track the steps on your sale under Progress. You can add your selling agent under Your agents in Settings.
             </p>
           )}
@@ -250,7 +252,7 @@ export function PortalInformationTab({
           <button
             onClick={async () => { setMortgageBusy(true); try { await portalConfirmOnwardMortgageOfferAction(token); } finally { setMortgageBusy(false); setMortgageModal(false); } }}
             disabled={mortgageBusy}
-            className="w-full py-3.5 rounded-xl text-[15px] font-bold text-white mb-2"
+            className="pbtn-press w-full py-3.5 rounded-xl text-[15px] font-bold text-white mb-2"
             style={{ background: P.primary, borderRadius: P.radiusMd, opacity: mortgageBusy ? 0.6 : 1 }}
           >
             {mortgageBusy ? "Saving…" : "Yes, my offer is in place"}
@@ -258,7 +260,7 @@ export function PortalInformationTab({
           <button
             onClick={() => setMortgageModal(false)}
             disabled={mortgageBusy}
-            className="w-full py-3 text-[15px] font-medium rounded-xl"
+            className="pbtn-press w-full py-3 text-[15px] font-medium rounded-xl"
             style={{ color: P.textSecondary }}
           >
             Not yet
@@ -272,9 +274,11 @@ export function PortalInformationTab({
           <Segmented value={info.removalStatus} disabled={readOnly} options={[["not_started", "Not started"], ["getting_quotes", "Getting quotes"], ["provisional", "Provisionally booked"], ["confirmed", "Confirmed"]]} onChange={(v) => patch("moving-plans", { removalStatus: v })} />
         </Field>
         {info.removalStatus === "confirmed" && (
-          <Field label="Removal company (optional)">
-            <TextInput value={info.removalCompany} disabled={readOnly} placeholder="Company name" onCommit={(v) => patch("moving-plans", { removalCompany: v })} />
-          </Field>
+          <div className="portal-reveal-fade">
+            <Field label="Removal company (optional)">
+              <TextInput value={info.removalCompany} disabled={readOnly} placeholder="Company name" onCommit={(v) => patch("moving-plans", { removalCompany: v })} />
+            </Field>
+          </div>
         )}
       </Section>
 
@@ -363,11 +367,11 @@ function OnwardManageRow({ label, onClick }: { label: string; onClick: () => voi
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      className="portal-team-row portal-chev w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
       style={{ borderBottom: `1px solid ${P.border}`, background: "none", cursor: "pointer" }}
     >
       <span className="text-[14px] font-medium" style={{ color: P.textPrimary }}>{label}</span>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg className="portal-chev-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </button>
@@ -458,7 +462,7 @@ function UnavailableEditor({ value, disabled, onChange }: { value: UnavailableRa
           {value.map((r, i) => (
             <div key={i} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2" style={{ background: P.pageBg }}>
               <span className="text-[13.5px] font-medium" style={{ color: P.textPrimary }}>{fmtDate(r.start)}{r.end ? ` to ${fmtDate(r.end)}` : ""}</span>
-              {!disabled && <button type="button" onClick={() => remove(i)} aria-label="Remove" className="text-[12px] font-semibold" style={{ color: P.textMuted }}>Remove</button>}
+              {!disabled && <button type="button" onClick={() => remove(i)} aria-label="Remove" className="pbtn-press text-[12px] font-semibold" style={{ color: P.textMuted }}>Remove</button>}
             </div>
           ))}
         </div>

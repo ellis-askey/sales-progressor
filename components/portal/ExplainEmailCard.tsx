@@ -117,7 +117,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
     return (
       <button
         onClick={() => setState("open")}
-        className={glassPick ? classFor(glassPick) : undefined}
+        className={glassPick ? `pbtn-press ${classFor(glassPick)}` : "pbtn-press"}
         data-glass-id="explain-email"
         data-glass-label="Explain a solicitor email"
         data-glass-variant={glassPick ?? "v00"}
@@ -172,7 +172,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
     const parsed = parseExplanation(explanation);
 
     return (
-      <div style={{ background: P.cardBg, borderRadius: P.radiusLg, overflow: "hidden", boxShadow: P.shadowSm }}>
+      <div className="portal-reveal-fade" style={{ background: P.cardBg, borderRadius: P.radiusLg, overflow: "hidden", boxShadow: P.shadowSm }}>
         <div style={{ padding: "15px 20px", borderBottom: `1px solid ${P.border}` }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: P.textPrimary }}>Here&apos;s what this means</p>
         </div>
@@ -297,6 +297,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
           </div>
           <button
             onClick={handleReset}
+            className="pbtn-press"
             style={{
               marginTop: 14,
               padding: "8px 16px",
@@ -316,7 +317,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
   }
 
   return (
-    <div style={{ background: P.cardBg, borderRadius: P.radiusLg, overflow: "hidden", boxShadow: P.shadowSm }}>
+    <div className="portal-reveal-fade" style={{ background: P.cardBg, borderRadius: P.radiusLg, overflow: "hidden", boxShadow: P.shadowSm }}>
       <div
         style={{
           display: "flex",
@@ -329,6 +330,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: P.textPrimary }}>Explain a solicitor email</p>
         <button
           onClick={() => setState("idle")}
+          className="pbtn-press"
           style={{
             background: "none",
             border: "none",
@@ -376,6 +378,7 @@ export function ExplainEmailCard({ token }: { token: string }) {
         <button
           onClick={handleSubmit}
           disabled={state === "loading" || emailBody.trim().length < 20}
+          className="pbtn-press"
           style={{
             marginTop: 12,
             width: "100%",
