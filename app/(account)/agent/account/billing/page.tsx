@@ -29,6 +29,8 @@ import { InvoiceHistoryLines } from "@/components/billing/v2/InvoiceHistoryLines
 import { PaymentMethodPlain } from "@/components/billing/v2/PaymentMethodPlain";
 import { PlanTermsCollapsed } from "@/components/billing/v2/PlanTermsCollapsed";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { getDefaultCard } from "@/lib/stripe";
 
 function monthLabel(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -138,16 +140,13 @@ export default async function AccountBillingPage() {
   if (!ackedTerms) {
     paymentPanelProps = { kind: "pending" };
   } else if (agency.stripeCustomerId) {
-    paymentPanelProps = {
-      kind: "card_on_file",
-      publishableKey,
-      card: { brand: "visa", last4: "····", expMonth: 12, expYear: 2030 },
-    };
+    // Read the real card from Stripe; null when Stripe isn't configured here
+    // (shows "Card on file" rather than fabricated placeholder digits).
+    const realCard = await getDefaultCard(agency.stripeCustomerId);
+    paymentPanelProps = { kind: "card_on_file", publishableKey, card: realCard };
   } else {
     paymentPanelProps = { kind: "add_card", publishableKey };
   }
-
-  const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
   return (
     <>
@@ -155,61 +154,66 @@ export default async function AccountBillingPage() {
         title="Billing"
         subtitle="Manage your charges, invoices and payment method."
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
-      <PaymentBlockBanner agencyId={agency.id} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <PaymentBlockBanner agencyId={agency.id} />
 
-      <MetricsStrip
-        thisMonthPence={runningTotal.totalPence}
-        exchangesThisMonth={runningTotal.lines.length}
-        inHouseThisMonth={runningTotal.inHouseCount}
-        outsourcedThisMonth={runningTotal.outsourcedCount}
-        savedViaTrialLifetimePence={lifetime.savedViaTrialLifetimePence}
-        trialExchangeCountLifetime={lifetime.trialExchangeCountLifetime}
-        billedLifetimePence={lifetime.billedLifetimePence}
-      />
+        <MetricsStrip
+          thisMonthPence={runningTotal.totalPence}
+          exchangesThisMonth={runningTotal.lines.length}
+          inHouseThisMonth={runningTotal.inHouseCount}
+          outsourcedThisMonth={runningTotal.outsourcedCount}
+          savedViaTrialLifetimePence={lifetime.savedViaTrialLifetimePence}
+          trialExchangeCountLifetime={lifetime.trialExchangeCountLifetime}
+          billedLifetimePence={lifetime.billedLifetimePence}
+          invoiceCount={historyRowsForUI.length}
+        />
 
-      <BuildingInvoiceHero
-        periodLabel={monthLabel(runningTotal.monthStart)}
-        lines={buildingLines}
-        subtotalPence={runningTotal.subtotalPence}
-        creditsAppliedPence={runningTotal.pendingCreditPence}
-        totalPence={runningTotal.totalPence - runningTotal.pendingCreditPence}
-        hidePreviewButton={buildingLines.length === 0}
-      />
-
-      <div style={{ borderTop: HAIRLINE }} />
-      <InvoiceHistoryLines rows={historyRowsForUI} />
-
-      <div style={{ borderTop: HAIRLINE }} />
-      {/* id used for /agent/billing/payment-method deep-link anchor when
-          the legacy route redirects (Stage 4). */}
-      <div id="payment-method">
-        <PaymentMethodPlain {...paymentPanelProps} />
-      </div>
-
-      <div style={{ borderTop: HAIRLINE }} />
-      <PlanTermsCollapsed
-        agreed={
-          terms
-            ? {
-                versionTag: terms.versionTag,
-                sections: termsSectionsForAgency,
-                acknowledgedAt: ack?.acknowledgedAt ?? null,
-              }
-            : null
-        }
-      />
-
-      {terms && !ackedTerms && (
-        <>
-          <div style={{ borderTop: HAIRLINE }} />
-          <RedesignedDisclosure
-            termsVersionId={terms.id}
-            termsVersionTag={terms.versionTag}
-            termsSections={termsSectionsForAgency}
+        <AccountCard>
+          <BuildingInvoiceHero
+            periodLabel={monthLabel(runningTotal.monthStart)}
+            lines={buildingLines}
+            subtotalPence={runningTotal.subtotalPence}
+            creditsAppliedPence={runningTotal.pendingCreditPence}
+            totalPence={runningTotal.totalPence - runningTotal.pendingCreditPence}
+            hidePreviewButton={buildingLines.length === 0}
           />
-        </>
-      )}
+        </AccountCard>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24, alignItems: "start" }}>
+          {/* id used for /agent/billing/payment-method deep-link anchor. */}
+          <div id="payment-method">
+            <AccountCard>
+              <PaymentMethodPlain {...paymentPanelProps} />
+            </AccountCard>
+          </div>
+          <AccountCard>
+            <PlanTermsCollapsed
+              agreed={
+                terms
+                  ? {
+                      versionTag: terms.versionTag,
+                      sections: termsSectionsForAgency,
+                      acknowledgedAt: ack?.acknowledgedAt ?? null,
+                    }
+                  : null
+              }
+            />
+          </AccountCard>
+        </div>
+
+        <AccountCard>
+          <InvoiceHistoryLines rows={historyRowsForUI} />
+        </AccountCard>
+
+        {terms && !ackedTerms && (
+          <AccountCard>
+            <RedesignedDisclosure
+              termsVersionId={terms.id}
+              termsVersionTag={terms.versionTag}
+              termsSections={termsSectionsForAgency}
+            />
+          </AccountCard>
+        )}
       </div>
     </>
   );

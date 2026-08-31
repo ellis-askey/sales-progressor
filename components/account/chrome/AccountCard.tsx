@@ -18,13 +18,15 @@ export function AccountCard({
   bodyStyle,
 }: {
   icon?: ReactNode;
-  title: string;
+  /** Omit for a headerless panel (just the white card + children). */
+  title?: string;
   subtitle?: string;
   headerAction?: ReactNode;
   children?: ReactNode;
   style?: React.CSSProperties;
   bodyStyle?: React.CSSProperties;
 }) {
+  const hasHeader = Boolean(title || headerAction);
   return (
     <section
       className="account-card"
@@ -37,6 +39,7 @@ export function AccountCard({
         ...style,
       }}
     >
+      {hasHeader && (
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
           {icon && (
@@ -58,9 +61,11 @@ export function AccountCard({
             </span>
           )}
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 15.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
-              {title}
-            </h2>
+            {title && (
+              <h2 style={{ margin: 0, fontSize: 15.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
+                {title}
+              </h2>
+            )}
             {subtitle && (
               <p style={{ margin: "3px 0 0", fontSize: 13, lineHeight: 1.5, color: "#6b7280" }}>{subtitle}</p>
             )}
@@ -68,8 +73,9 @@ export function AccountCard({
         </div>
         {headerAction && <div style={{ flexShrink: 0 }}>{headerAction}</div>}
       </div>
+      )}
 
-      {children && <div style={{ marginTop: 18, ...bodyStyle }}>{children}</div>}
+      {children && <div style={{ marginTop: hasHeader ? 18 : 0, ...bodyStyle }}>{children}</div>}
 
       <style>{`
         .account-card { animation: account-card-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }

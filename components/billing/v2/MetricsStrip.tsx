@@ -8,6 +8,7 @@
 // quieter size. Context, not hero. The building invoice below carries
 // the visual weight.
 
+import { CreditCard, ArrowsLeftRight, Gift, Receipt } from "@phosphor-icons/react";
 import { useCountUp } from "@/lib/hooks/useCountUp";
 
 export type MetricsStripProps = {
@@ -18,6 +19,7 @@ export type MetricsStripProps = {
   savedViaTrialLifetimePence: number;
   trialExchangeCountLifetime: number;
   billedLifetimePence: number;
+  invoiceCount?: number;
 };
 
 function pounds(p: number): string {
@@ -27,45 +29,61 @@ function poundsTwoDp(p: number): string {
   return `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function Cell({
+function StatCard({
+  icon,
   label,
   display,
   format,
   sub,
 }: {
+  icon: React.ReactNode;
   label: string;
   display: number;
   format: (n: number) => string;
   sub?: string;
 }) {
   return (
-    <div style={{ flex: 1, minWidth: 0, padding: "6px 4px" }}>
-      <div
+    <div
+      className="account-card"
+      style={{
+        background: "#fff",
+        border: "0.5px solid rgba(0,0,0,0.07)",
+        borderRadius: 16,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 6px 22px rgba(20,14,10,0.05)",
+        padding: "16px 18px",
+        minWidth: 0,
+      }}
+    >
+      <span
+        aria-hidden
         style={{
-          fontSize: 10,
-          color: "#6b7280",
-          textTransform: "uppercase",
-          letterSpacing: 0.7,
-          fontWeight: 500,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          borderRadius: 9,
+          background: "rgba(255,107,74,0.10)",
+          color: "var(--agent-coral-deep, #E2452A)",
+          marginBottom: 12,
         }}
       >
-        {label}
-      </div>
+        {icon}
+      </span>
+      <div style={{ fontSize: 11.5, color: "#6b7280", fontWeight: 500 }}>{label}</div>
       <div
         style={{
-          marginTop: 4,
-          fontSize: 17,
-          fontWeight: 500,
+          marginTop: 3,
+          fontSize: 24,
+          fontWeight: 700,
           color: "#111827",
           fontVariantNumeric: "tabular-nums",
-          letterSpacing: "-0.01em",
+          letterSpacing: "-0.02em",
         }}
       >
         {format(display)}
       </div>
-      {sub && (
-        <div style={{ marginTop: 2, fontSize: 11, color: "#9ca3af" }}>{sub}</div>
-      )}
+      {sub && <div style={{ marginTop: 3, fontSize: 11.5, color: "#9ca3af" }}>{sub}</div>}
     </div>
   );
 }
@@ -77,37 +95,34 @@ export function MetricsStrip(props: MetricsStripProps) {
   const lifetime = useCountUp(props.billedLifetimePence, { duration: 700 });
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "stretch",
-        gap: 0,
-        padding: "10px 0",
-        borderTop: "0.5px solid rgba(0,0,0,0.08)",
-        borderBottom: "0.5px solid rgba(0,0,0,0.08)",
-      }}
-    >
-      <Cell label="This month" display={thisMonth} format={poundsTwoDp} />
-      <div style={{ width: "0.5px", background: "rgba(0,0,0,0.08)" }} />
-      <Cell
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 16 }}>
+      <StatCard
+        icon={<CreditCard size={17} weight="bold" />}
+        label="This month"
+        display={thisMonth}
+        format={poundsTwoDp}
+        sub={`${props.outsourcedThisMonth} outsourced exchange${props.outsourcedThisMonth === 1 ? "" : "s"}`}
+      />
+      <StatCard
+        icon={<ArrowsLeftRight size={17} weight="bold" />}
         label="Exchanges this month"
         display={exchanges}
         format={(n) => Math.round(n).toString()}
-        sub={`${props.inHouseThisMonth} self-progress · ${props.outsourcedThisMonth} outsourced`}
+        sub={`${props.outsourcedThisMonth} outsourced · ${props.inHouseThisMonth} self-progress`}
       />
-      <div style={{ width: "0.5px", background: "rgba(0,0,0,0.08)" }} />
-      <Cell
+      <StatCard
+        icon={<Gift size={17} weight="bold" />}
         label="Given free"
         display={saved}
         format={pounds}
         sub={`${props.trialExchangeCountLifetime} file${props.trialExchangeCountLifetime === 1 ? "" : "s"} given free`}
       />
-      <div style={{ width: "0.5px", background: "rgba(0,0,0,0.08)" }} />
-      <Cell
+      <StatCard
+        icon={<Receipt size={17} weight="bold" />}
         label="Billed lifetime"
         display={lifetime}
         format={pounds}
-        sub="From your invoice history"
+        sub={props.invoiceCount != null ? `From ${props.invoiceCount} invoice${props.invoiceCount === 1 ? "" : "s"}` : "From your invoice history"}
       />
     </div>
   );
