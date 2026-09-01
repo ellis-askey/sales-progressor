@@ -34,7 +34,7 @@ import { StampDutyQuickAction } from "@/components/transaction/StampDutyDrawer";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
-import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, FolderSimple, PaperPlaneTilt, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
+import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
@@ -550,16 +550,6 @@ export function AgentFileSidebar({
           {transaction.purchasePrice != null && transaction.purchasePrice > 0 && (
             <StampDutyQuickAction priceGBP={transaction.purchasePrice / 100} />
           )}
-          <QuickLinkButton
-            label="View file documents"
-            Icon={FolderSimple}
-            onClick={() => setActiveTab("activity")}
-          />
-          <QuickLinkButton
-            label="Send secure message"
-            Icon={PaperPlaneTilt}
-            onClick={() => setActiveTab("activity")}
-          />
           <SendQuoteLinkQuickAction transactionId={transaction.id} />
           {checkIn && checkIn.seller.steps.length > 0 && (
             <CheckInQuickAction label="Copy seller check-in" side={checkIn.seller} transactionId={checkIn.transactionId} />
