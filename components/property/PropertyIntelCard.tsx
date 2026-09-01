@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
 
-type PricePaid = { date: string; amount: number; propertyType: string; newBuild: boolean; estateType: string };
-type Epc = { rating: string; score: number | null; propertyType: string; floorArea: number | null; builtForm: string; inspectionDate: string };
+type PricePaid = { date: string; amount: number; propertyType: string; newBuild: boolean; estateType: string; paon?: string; saon?: string; street?: string };
+type Epc = { rating: string; score: number | null; propertyType: string; floorArea: number | null; builtForm: string; inspectionDate: string; validUntil: string | null };
 type Links = { rightmove: string; zoopla: string; landReg: string };
 
 type IntelData = {
@@ -12,9 +12,31 @@ type IntelData = {
   address: string;
   pricePaid: PricePaid[];
   epc: Epc | null;
+  epcError: boolean;
   epcConfigured: boolean;
   links: Links | null;
 };
+
+// Land Registry built-form/property-type strings are ALL CAPS or slugged; make
+// them read like a person wrote them ("Semi-Detached", "Purpose Built Flat").
+function tidy(s: string): string {
+  return (s ?? "")
+    .replace(/[-_]+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+// "10 High Street" / "Flat 2, 10 High Street" from the Land Registry parts.
+function saleAddress(e: PricePaid): string {
+  const line = [e.paon, e.street].filter(Boolean).map((s) => tidy(String(s))).join(" ");
+  return e.saon ? `${tidy(String(e.saon))}, ${line}`.trim() : line;
+}
+
+function fmtFullDate(d: string): string {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 const EPC_COLOURS: Record<string, { bg: string; text: string }> = {
   A: { bg: "bg-green-600",  text: "text-white" },
@@ -105,19 +127,24 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                 <p className="text-sm italic" style={{ color: "var(--agent-text-muted)" }}>No sales found for this postcode.</p>
               ) : (
                 <div className="space-y-2">
-                  {data.pricePaid.slice(0, 5).map((entry, i) => (
-                    <div key={i} className="agent-hover-row rounded-md px-1 -mx-1 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs flex-shrink-0" style={{ color: "var(--agent-text-muted)" }}>{fmtDate(entry.date)}</span>
-                        <span className="text-sm font-semibold" style={{ color: "var(--agent-text-primary)" }}>
-                          {entry.amount > 0 ? fmt(entry.amount * 100) : "—"}
+                  {data.pricePaid.slice(0, 5).map((entry, i) => {
+                    const addr = saleAddress(entry);
+                    return (
+                      <div key={i} className="agent-hover-row rounded-md px-1 -mx-1 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-sm font-semibold" style={{ color: "var(--agent-text-primary)" }}>
+                            {entry.amount > 0 ? fmt(entry.amount * 100) : "Price withheld"}
+                          </span>
+                          <span className="block text-xs truncate" style={{ color: "var(--agent-text-muted)" }}>
+                            {fmtFullDate(entry.date)}{addr ? ` · ${addr}` : ""}
+                          </span>
+                        </div>
+                        <span className="text-xs flex-shrink-0 text-right" style={{ color: "var(--agent-text-muted)" }}>
+                          {tidy(entry.propertyType)}{entry.newBuild ? " · New build" : ""}{entry.estateType ? ` · ${tidy(entry.estateType)}` : ""}
                         </span>
                       </div>
-                      <span className="text-xs flex-shrink-0 ml-3" style={{ color: "var(--agent-text-muted)" }}>
-                        {entry.propertyType}{entry.newBuild ? " · New build" : ""}{entry.estateType ? ` · ${entry.estateType}` : ""}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -151,12 +178,26 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                       </a>
                     )}
                   </div>
+                  {(data.epc.propertyType || data.epc.builtForm || data.epc.floorArea) && (
+                    <p className="text-xs" style={{ color: "var(--agent-text-secondary)" }}>
+                      {[
+                        [data.epc.builtForm && tidy(data.epc.builtForm), data.epc.propertyType && tidy(data.epc.propertyType)]
+                          .filter(Boolean).join(" "),
+                        data.epc.floorArea ? `${Math.round(data.epc.floorArea)} m²` : "",
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                   {data.epc.inspectionDate && (
-                    <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>Inspected {fmtDate(data.epc.inspectionDate)}</p>
+                    <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>
+                      Inspected {fmtDate(data.epc.inspectionDate)}
+                      {data.epc.validUntil ? ` · valid until ${fmtDate(data.epc.validUntil)}` : ""}
+                    </p>
                   )}
                 </div>
+              ) : data.epcError ? (
+                <p className="text-xs italic" style={{ color: "var(--agent-text-muted)" }}>Couldn&rsquo;t reach the EPC register. Try again shortly.</p>
               ) : data.epcConfigured ? (
-                <p className="text-xs italic" style={{ color: "var(--agent-text-muted)" }}>No EPC found.</p>
+                <p className="text-xs italic" style={{ color: "var(--agent-text-muted)" }}>No certificate on record for this address.</p>
               ) : (
                 <p className="text-xs italic" style={{ color: "var(--agent-text-muted)" }}>EPC data is currently unavailable.</p>
               )}
