@@ -27,7 +27,7 @@
 // collapses via the header chevron. Rows beyond the first 8 sit behind a
 // "Show all" expander so nothing is silently dropped.
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
@@ -248,9 +248,16 @@ function AssignInline({ transactionId, onAssigned }: { transactionId: string; on
 const INITIAL_VISIBLE = 8;
 
 export function AttentionCard({ holds: initialHolds, reminders, unassigned: initialUnassigned, relists: initialRelists, chainSetup: initialChain }: Props) {
+  // Empty on first load → start collapsed (nothing to show); populated → open.
+  const initialEmpty =
+    initialHolds.length === 0 &&
+    reminders.length === 0 &&
+    initialUnassigned.length === 0 &&
+    initialRelists.length === 0 &&
+    initialChain.length === 0;
   const { toast } = useAgentToast();
   const { theme, isNight } = usePortalTheme();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(initialEmpty);
   const [showAll, setShowAll] = useState(false);
   const [, startTransition] = useTransition();
   const [listRef] = useAutoAnimate<HTMLDivElement>();
@@ -372,6 +379,23 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   const summary = summaryParts.length > 0 ? summaryParts.join(" · ") : "Reminders, holds and anything waiting on you.";
 
   const allClear = rows.length === 0;
+
+  // When the last item is cleared, keep the all-clear line visible briefly,
+  // then slide the card shut. Starts from initialEmpty so this only fires on
+  // the populated → empty transition, not on a first load that was already
+  // empty (which is collapsed from the start).
+  const wasClearRef = useRef(initialEmpty);
+  useEffect(() => {
+    if (allClear && !wasClearRef.current) {
+      wasClearRef.current = true;
+      const t = setTimeout(() => setCollapsed(true), 3000);
+      return () => clearTimeout(t);
+    }
+    if (!allClear && wasClearRef.current) {
+      wasClearRef.current = false;
+      setCollapsed(false);
+    }
+  }, [allClear]);
 
   return (
     // Design Lab: `hub-attention`. Default v27 (Classic frost bar) per
