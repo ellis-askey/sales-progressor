@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getChainV2, addChainLink } from "@/lib/services/chains";
+import { getChainV2, addChainLink, addChainBranch } from "@/lib/services/chains";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
 import { normaliseAddressString } from "@/lib/utils/address";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// POST /api/chains/[id]/links — add a stub link above or below
+// POST /api/chains/[id]/links — add a stub link above or below, OR (when
+// forkFromLinkId is present) an extra onward BRANCH forking above a sale.
 export async function POST(req: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -26,7 +27,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const body = await req.json() as {
-    direction: "above" | "below";
+    direction?: "above" | "below";
+    forkFromLinkId?: string;
     stubPropertyAddress: string;
     stubAgencyName: string;
     stubAgentEmail?: string | null;
@@ -35,11 +37,46 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     stubNotes?: string | null;
   };
 
-  if (!body.direction || !body.stubPropertyAddress || !body.stubAgencyName) {
+  if (!body.stubPropertyAddress || !body.stubAgencyName) {
     return NextResponse.json(
-      { error: "direction, stubPropertyAddress and stubAgencyName are required" },
+      { error: "stubPropertyAddress and stubAgencyName are required" },
       { status: 400 },
     );
+  }
+
+  // Branch mode: an extra onward purchase forking above a specific sale. Adding
+  // an onward is an "above" action, so it uses the add-above permission on that
+  // fork node.
+  if (body.forkFromLinkId) {
+    const forkNode = chain.links.find((l) => l.id === body.forkFromLinkId);
+    if (!forkNode) {
+      return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
+    }
+    if (!canAddAbove(forkNode, session.user.id, session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const branchResult = await addChainBranch({
+      chainId,
+      forkFromLinkId: body.forkFromLinkId,
+      userId: session.user.id,
+      stubPropertyAddress: normaliseAddressString(body.stubPropertyAddress),
+      stubAgencyName: body.stubAgencyName,
+      stubAgentEmail: body.stubAgentEmail ?? null,
+      stubAgentName: body.stubAgentName ?? null,
+      stubAgentPhone: body.stubAgentPhone ?? null,
+      stubNotes: body.stubNotes ?? null,
+    });
+    if (!branchResult.ok) {
+      const msg = branchResult.reason === "at_limit"
+        ? "A sale can have at most three onward purchases."
+        : "That sale is not in this chain.";
+      return NextResponse.json({ error: msg }, { status: branchResult.reason === "at_limit" ? 409 : 400 });
+    }
+    return NextResponse.json({ chain: branchResult.chain, inviteSent: false }, { status: 201 });
+  }
+
+  if (!body.direction) {
+    return NextResponse.json({ error: "direction is required" }, { status: 400 });
   }
 
   // Anchor for the add-permission check: the user's own link when they have

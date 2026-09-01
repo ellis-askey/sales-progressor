@@ -24,7 +24,14 @@ type ChainDrawerProps = {
   // edit chains on outsourced files they progress but didn't originate.
   currentUserRole?: string | null;
   onClose: () => void;
-  onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: EditingLinkData) => void;
+  // forkFromLinkId set => opening the drawer to add an EXTRA onward purchase (a
+  // branch) forking above that sale, rather than a normal above/below stub.
+  onOpenAddNode?: (
+    direction: "above" | "below",
+    chainId: string,
+    editingLink?: EditingLinkData,
+    forkFromLinkId?: string,
+  ) => void;
   declineNotification?: { address: string; at: string } | null;
   refreshKey?: number;
 };
@@ -312,7 +319,27 @@ export function ChainDrawer({
       (l.createdByUserId === currentUserId || isInternal),
   ) ?? [];
 
-  const links = chain?.links ?? [];
+  // Split the chain into the main SPINE (branchKey "") and any onward BRANCHES
+  // (extra onward purchases forking above a sale). The spine renders as the
+  // vertical ladder exactly as before; branches render grouped above their fork
+  // node. See docs/active/chain-branching/00-spec.md.
+  const allChainLinks = chain?.links ?? [];
+  const links = allChainLinks.filter((l) => (l.branchKey ?? "") === "");
+  const branchesByFork = new Map<string, ChainV2["links"]>();
+  for (const l of allChainLinks) {
+    if ((l.branchKey ?? "") !== "" && l.forkFromLinkId) {
+      const arr = branchesByFork.get(l.forkFromLinkId) ?? [];
+      arr.push(l);
+      branchesByFork.set(l.forkFromLinkId, arr);
+    }
+  }
+  const MAX_ONWARDS = 3;
+  // Onwards a spine node already has: the spine link directly above it (its
+  // onward #1) plus any branches forking from it.
+  const onwardCountFor = (node: ChainV2["links"][number], spineIndex: number): number => {
+    const hasSpineOnward = spineIndex > 0 ? 1 : 0;
+    return hasSpineOnward + (branchesByFork.get(node.id)?.length ?? 0);
+  };
   const topLink = links[0] ?? null;
   const bottomLink = links[links.length - 1] ?? null;
 
@@ -337,6 +364,63 @@ export function ChainDrawer({
       : !!userLink &&
         canAddBelow(userLink, currentUserId, currentUserRole) &&
         (bottomLink === null || bottomLink.id === userLink.id || bottomLink.transactionId === null));
+
+  // Renders one link (the inline delete-confirm row, or the card). Shared by the
+  // spine list and the branch groups so both behave identically. chainId is
+  // passed in because `chain` is only narrowed to non-null inside the JSX below.
+  const renderChainLink = (
+    link: ChainV2["links"][number],
+    chainId: string,
+    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string },
+  ) => {
+    const mayEditStub = link.canEditStub ?? canEditLink(link, currentUserId, currentUserRole);
+    if (confirmingDeleteId === link.id) {
+      return (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+          background: "var(--agent-surface-elevated)",
+          border: "1px solid var(--agent-danger-border)", borderRadius: 14,
+          boxShadow: "var(--agent-glass-shadow)",
+        }}>
+          <p style={{ flex: 1, margin: 0, fontSize: 13, color: "var(--agent-text-primary)" }}>
+            Remove this sale from the chain?
+          </p>
+          <button
+            onClick={() => { void doDeleteConfirmed(link.id); }}
+            className="chain-act-link"
+            style={{ color: "var(--agent-danger)", fontWeight: 600 }}
+          >
+            Remove
+          </button>
+          <button onClick={() => setConfirmingDeleteId(null)} className="chain-act-link">
+            Cancel
+          </button>
+        </div>
+      );
+    }
+    return (
+      <LinkCard
+        link={link}
+        totalLinks={opts.totalLinks}
+        positionLabelOverride={opts.positionLabel}
+        currentUserId={currentUserId}
+        edge={opts.edge}
+        directional={directional[link.id]}
+        isYourFile={
+          link.claimedByUserId === currentUserId ||
+          (link.transactionId !== null && link.createdByUserId === currentUserId)
+        }
+        onResendInvite={
+          canEditLink(link, currentUserId, currentUserRole) && !!link.stubAgentEmail
+            ? (id) => { void handleResendInvite(id); }
+            : undefined
+        }
+        onEditStub={mayEditStub ? (l) => { onOpenAddNode?.("above", chainId, l); } : undefined}
+        onDeleteStub={mayEditStub ? (id) => setConfirmingDeleteId(id) : undefined}
+        onSaveIntel={handleSaveIntel}
+      />
+    );
+  };
 
   return createPortal(
     <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
@@ -667,70 +751,52 @@ export function ChainDrawer({
                 </button>
               )}
 
-              {/* Link cards */}
-              {links.map((link, i) => (
-                <div key={link.id} className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
-                  {confirmingDeleteId === link.id ? (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-                      background: "var(--agent-surface-elevated)",
-                      border: "1px solid var(--agent-danger-border)", borderRadius: 14,
-                      boxShadow: "var(--agent-glass-shadow)",
-                    }}>
-                      <p style={{ flex: 1, margin: 0, fontSize: 13, color: "var(--agent-text-primary)" }}>
-                        Remove this sale from the chain?
-                      </p>
-                      <button
-                        onClick={() => { void doDeleteConfirmed(link.id); }}
-                        className="chain-act-link"
-                        style={{ color: "var(--agent-danger)", fontWeight: 600 }}
-                      >
-                        Remove
-                      </button>
-                      <button onClick={() => setConfirmingDeleteId(null)} className="chain-act-link">
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <LinkCard
-                      link={link}
-                      totalLinks={links.length}
-                      currentUserId={currentUserId}
-                      edge={
+              {/* Link cards (main spine). Onward branches for a fork node render
+                  grouped just above that node. */}
+              {links.map((link, i) => {
+                const branches = branchesByFork.get(link.id) ?? [];
+                const onwards = onwardCountFor(link, i);
+                const canAddBranch =
+                  onwards >= 1 &&
+                  onwards < MAX_ONWARDS &&
+                  (isInternal || canAddAbove(link, currentUserId, currentUserRole));
+                return (
+                  <div key={link.id} className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
+                    {(branches.length > 0 || canAddBranch) && (
+                      <div className="chain-branch-group">
+                        <p className="chain-branch-label">
+                          Onward purchases from this sale{onwards > 0 ? ` · ${onwards} of ${MAX_ONWARDS}` : ""}
+                        </p>
+                        {branches.map((b) => (
+                          <div key={b.id} className={newLinkIds.has(b.id) ? "agent-reveal-in" : undefined}>
+                            {renderChainLink(b, chain.id, { totalLinks: 1, positionLabel: "Onward purchase" })}
+                          </div>
+                        ))}
+                        {canAddBranch && (
+                          <button
+                            onClick={() => onOpenAddNode?.("above", chain.id, undefined, link.id)}
+                            className="chain-addbtn chain-addbtn-above"
+                          >
+                            + Add another onward purchase
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {renderChainLink(link, chain.id, {
+                      totalLinks: links.length,
+                      edge:
                         links.length > 1
                           ? i === 0
                             ? "top"
                             : i === links.length - 1
                               ? "bottom"
                               : undefined
-                          : undefined
-                      }
-                      directional={directional[link.id]}
-                      isYourFile={
-                        link.claimedByUserId === currentUserId ||
-                        (link.transactionId !== null && link.createdByUserId === currentUserId)
-                      }
-                      onResendInvite={
-                        canEditLink(link, currentUserId, currentUserRole) && !!link.stubAgentEmail
-                          ? (id) => { void handleResendInvite(id); }
-                          : undefined
-                      }
-                      onEditStub={
-                        canEditLink(link, currentUserId, currentUserRole)
-                          ? (l) => { onOpenAddNode?.("above", chain.id, l); }
-                          : undefined
-                      }
-                      onDeleteStub={
-                        canEditLink(link, currentUserId, currentUserRole)
-                          ? (id) => setConfirmingDeleteId(id)
-                          : undefined
-                      }
-                      onSaveIntel={handleSaveIntel}
-                    />
-                  )}
-                  {i < links.length - 1 && <ChainConnector />}
-                </div>
-              ))}
+                          : undefined,
+                    })}
+                    {i < links.length - 1 && <ChainConnector />}
+                  </div>
+                );
+              })}
 
               {/* Add below button */}
               {showAddBelow && (

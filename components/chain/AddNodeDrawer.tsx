@@ -44,6 +44,9 @@ type Props = {
   transactionId?: string;
   direction: "above" | "below";
   editingLink?: EditingLinkData;
+  // When set, this adds an EXTRA onward purchase (a branch) forking above the
+  // given sale, rather than a normal above/below stub.
+  forkFromLinkId?: string;
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;
@@ -134,10 +137,12 @@ export function AddNodeDrawer({
   transactionId: _transactionId,
   direction,
   editingLink,
+  forkFromLinkId,
   onSaveToMemory,
   onClose,
   onSaved,
 }: Props) {
+  const isBranch = !!forkFromLinkId;
   const { theme } = usePortalTheme();
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,7 +268,9 @@ export function AddNodeDrawer({
         method: isEditMode ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          direction,
+          // Branch add sends forkFromLinkId (an extra onward); otherwise a normal
+          // above/below stub.
+          ...(isBranch ? { forkFromLinkId } : { direction }),
           stubPropertyAddress: stubPropertyAddress.trim(),
           stubAgencyName: form.stubAgencyName.trim(),
           stubAgentName: form.stubAgentName.trim() || null,
@@ -292,12 +299,16 @@ export function AddNodeDrawer({
 
   const title = isEditMode
     ? "Edit sale"
+    : isBranch
+    ? "Add another onward purchase"
     : direction === "above"
     ? "Add sale above"
     : "Add sale below";
 
   const submitLabel = isEditMode
     ? "Save changes"
+    : isBranch
+    ? "Save onward purchase"
     : direction === "above"
     ? "Save and add above"
     : "Save and add below";

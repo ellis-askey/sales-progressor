@@ -1,5 +1,6 @@
 // lib/services/chains.ts
 
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { shiftPositionsUp, repackPositions } from "@/lib/chain/positions";
 import {
@@ -101,6 +102,12 @@ export type ChainOnwardSummary = {
 export type ChainLinkV2 = {
   id: string;
   position: number;
+  // Branching: "" = the main spine. A non-empty key groups one onward branch's
+  // links. forkFromLinkId (set on a branch's bottom link) is the spine node the
+  // branch forks above. Optional so hand-built demo/dev links are unaffected;
+  // getChainV2 always populates them. See docs/active/chain-branching/00-spec.md.
+  branchKey?: string;
+  forkFromLinkId?: string | null;
   createdByUserId: string | null;
   claimedByUserId: string | null;
   transactionId: string | null;
@@ -288,6 +295,8 @@ export async function upsertChainLink(chainId: string, position: number, data: {
 const LINK_V2_SELECT = {
   id: true,
   position: true,
+  branchKey: true,
+  forkFromLinkId: true,
   createdByUserId: true,
   claimedByUserId: true,
   transactionId: true,
@@ -1058,6 +1067,75 @@ export async function addChainLink(input: AddLinkInput): Promise<ChainV2> {
   });
 
   return (await getChainV2(chainId))!;
+}
+
+// Max onward purchases a single sale can fork into (Ellis, 2026-09-01).
+export const MAX_ONWARD_BRANCHES = 3;
+
+export type AddBranchInput = {
+  chainId: string;
+  forkFromLinkId: string; // the spine node this onward forks above
+  userId: string;
+  stubPropertyAddress: string;
+  stubAgencyName: string;
+  stubAgentEmail?: string | null;
+  stubAgentName?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+};
+
+// How many onward purchases a fork node already has: the single spine link
+// directly above it (if any) counts as onward #1, plus every branch that forks
+// from it. Used to enforce MAX_ONWARD_BRANCHES.
+async function countOnwardsForNode(
+  tx: Pick<typeof prisma, "chainLink">,
+  chainId: string,
+  forkNode: { id: string; position: number },
+): Promise<number> {
+  const spineAbove = await tx.chainLink.count({
+    where: { chainId, branchKey: "", position: forkNode.position - 1 },
+  });
+  const branches = await tx.chainLink.count({
+    where: { forkFromLinkId: forkNode.id },
+  });
+  return spineAbove + branches;
+}
+
+// Add an extra onward purchase (a branch) above a sale. The first onward is a
+// normal spine link ("add sale above"); the 2nd/3rd are branches that fork from
+// the same node. Each branch is its own ladder (unique branchKey), starting at
+// position 0. Enforces MAX_ONWARD_BRANCHES. Throws on a bad/duplicate request so
+// the caller surfaces a clean error.
+export async function addChainBranch(
+  input: AddBranchInput,
+): Promise<{ ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" | "at_limit" }> {
+  const { chainId, forkFromLinkId, userId, ...stub } = input;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const forkNode = await tx.chainLink.findFirst({
+      where: { id: forkFromLinkId, chainId, branchKey: "" },
+      select: { id: true, position: true },
+    });
+    if (!forkNode) return { ok: false as const, reason: "not_found" as const };
+
+    const onwards = await countOnwardsForNode(tx, chainId, forkNode);
+    if (onwards >= MAX_ONWARD_BRANCHES) return { ok: false as const, reason: "at_limit" as const };
+
+    await tx.chainLink.create({
+      data: {
+        chainId,
+        branchKey: randomUUID(),
+        position: 0,
+        forkFromLinkId: forkNode.id,
+        createdByUserId: userId,
+        ...stubFields(stub),
+      },
+    });
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  return { ok: true, chain: (await getChainV2(chainId))! };
 }
 
 export async function updateChainLinkStub(
