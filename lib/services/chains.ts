@@ -1,5 +1,6 @@
 // lib/services/chains.ts
 
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { shiftPositionsUp, repackPositions } from "@/lib/chain/positions";
 import {
@@ -101,6 +102,12 @@ export type ChainOnwardSummary = {
 export type ChainLinkV2 = {
   id: string;
   position: number;
+  // Branching: "" = the main spine. A non-empty key groups one onward branch's
+  // links. forkFromLinkId (set on a branch's bottom link) is the spine node the
+  // branch forks above. Optional so hand-built demo/dev links are unaffected;
+  // getChainV2 always populates them. See docs/active/chain-branching/00-spec.md.
+  branchKey?: string;
+  forkFromLinkId?: string | null;
   createdByUserId: string | null;
   claimedByUserId: string | null;
   transactionId: string | null;
@@ -178,6 +185,12 @@ export type ChainLinkV2 = {
   // Whether the current viewer may edit this node's intel. False when no viewer
   // context is passed.
   canEditIntel?: boolean;
+  // Whether the current viewer may edit this node's STUB details (address,
+  // agency, agent contact, notes). Only ever true for an UNCLAIMED link, and
+  // only for the same owner set as intel (internal team, the stub's creator, or
+  // a director in the creating agency). Lets the internal team fix an
+  // agent-added stub whose real-world details changed. False when no viewer.
+  canEditStub?: boolean;
   // Compact onward summary — populated only on the viewer's own sale node, and
   // only while the onward is still a reported stand-in (not superseded/abandoned).
   // Null everywhere else. Optional so hand-built demo links are unaffected.
@@ -282,6 +295,8 @@ export async function upsertChainLink(chainId: string, position: number, data: {
 const LINK_V2_SELECT = {
   id: true,
   position: true,
+  branchKey: true,
+  forkFromLinkId: true,
   createdByUserId: true,
   claimedByUserId: true,
   transactionId: true,
@@ -641,6 +656,10 @@ export async function getChainV2(
         txAgentUserId: rawTx?.agentUserId ?? null,
       };
       const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
+      // Stub details are editable only on an UNCLAIMED link, by the same owner
+      // set as intel. A claimed link is a real file — its details live there, not
+      // on the stub. This is what lets the internal team edit an agent-added stub.
+      const canEditStub = l.transactionId === null && canEditIntel;
       const intelVisible = viewer ? canViewNodeIntel(viewer, ownership) : false;
       const intel: ChainNodeIntel | null = intelVisible
         ? {
@@ -668,6 +687,7 @@ export async function getChainV2(
           stuckMilestoneLabel: null,
           intel,
           canEditIntel,
+          canEditStub,
           onwardSummary: null,
         };
       }
@@ -721,6 +741,7 @@ export async function getChainV2(
         stuckMilestoneLabel,
         intel,
         canEditIntel,
+        canEditStub,
         onwardSummary: l.transactionId ? onwardByTx.get(l.transactionId) ?? null : null,
       };
     }),
@@ -1011,14 +1032,17 @@ export async function addChainLink(input: AddLinkInput): Promise<ChainV2> {
   const { chainId, userId, direction, ...stub } = input;
 
   await prisma.$transaction(async (tx) => {
+    // addChainLink extends the MAIN SPINE (branchKey ""). Branch links are added
+    // via the branch flow (step 2), so we scope positioning to the spine and
+    // never renumber a branch when a spine node is inserted above.
     const links = await tx.chainLink.findMany({
-      where: { chainId },
+      where: { chainId, branchKey: "" },
       orderBy: { position: "asc" },
     });
 
     let newPosition: number;
     if (direction === "above") {
-      // Shift all existing links down, new link gets position 0
+      // Shift all existing spine links down, new link gets position 0
       for (const link of [...links].reverse()) {
         await tx.chainLink.update({
           where: { id: link.id },
@@ -1043,6 +1067,75 @@ export async function addChainLink(input: AddLinkInput): Promise<ChainV2> {
   });
 
   return (await getChainV2(chainId))!;
+}
+
+// Max onward purchases a single sale can fork into (Ellis, 2026-09-01).
+export const MAX_ONWARD_BRANCHES = 3;
+
+export type AddBranchInput = {
+  chainId: string;
+  forkFromLinkId: string; // the spine node this onward forks above
+  userId: string;
+  stubPropertyAddress: string;
+  stubAgencyName: string;
+  stubAgentEmail?: string | null;
+  stubAgentName?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+};
+
+// How many onward purchases a fork node already has: the single spine link
+// directly above it (if any) counts as onward #1, plus every branch that forks
+// from it. Used to enforce MAX_ONWARD_BRANCHES.
+async function countOnwardsForNode(
+  tx: Pick<typeof prisma, "chainLink">,
+  chainId: string,
+  forkNode: { id: string; position: number },
+): Promise<number> {
+  const spineAbove = await tx.chainLink.count({
+    where: { chainId, branchKey: "", position: forkNode.position - 1 },
+  });
+  const branches = await tx.chainLink.count({
+    where: { forkFromLinkId: forkNode.id },
+  });
+  return spineAbove + branches;
+}
+
+// Add an extra onward purchase (a branch) above a sale. The first onward is a
+// normal spine link ("add sale above"); the 2nd/3rd are branches that fork from
+// the same node. Each branch is its own ladder (unique branchKey), starting at
+// position 0. Enforces MAX_ONWARD_BRANCHES. Throws on a bad/duplicate request so
+// the caller surfaces a clean error.
+export async function addChainBranch(
+  input: AddBranchInput,
+): Promise<{ ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" | "at_limit" }> {
+  const { chainId, forkFromLinkId, userId, ...stub } = input;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const forkNode = await tx.chainLink.findFirst({
+      where: { id: forkFromLinkId, chainId, branchKey: "" },
+      select: { id: true, position: true },
+    });
+    if (!forkNode) return { ok: false as const, reason: "not_found" as const };
+
+    const onwards = await countOnwardsForNode(tx, chainId, forkNode);
+    if (onwards >= MAX_ONWARD_BRANCHES) return { ok: false as const, reason: "at_limit" as const };
+
+    await tx.chainLink.create({
+      data: {
+        chainId,
+        branchKey: randomUUID(),
+        position: 0,
+        forkFromLinkId: forkNode.id,
+        createdByUserId: userId,
+        ...stubFields(stub),
+      },
+    });
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  return { ok: true, chain: (await getChainV2(chainId))! };
 }
 
 export async function updateChainLinkStub(
@@ -1082,8 +1175,14 @@ export async function updateChainLinkStub(
 }
 
 export async function removeChainLink(linkId: string, chainId: string): Promise<void> {
+  // Repack only the branch the removed link belonged to (spine = ""), so removing
+  // a branch stub never renumbers the spine or another branch.
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: { branchKey: true },
+  });
   await prisma.chainLink.delete({ where: { id: linkId } });
-  await repackPositions(chainId);
+  await repackPositions(chainId, link?.branchKey ?? "");
 }
 
 /**

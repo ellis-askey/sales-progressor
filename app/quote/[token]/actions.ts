@@ -296,9 +296,17 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
             },
           });
         }
-      } catch {
+      } catch (err) {
         // Last-resort guard: even a queue-insert failure must not crash the
         // submit. The QuoteRequest row persists; admin sees no emailSentAt.
+        // But DON'T fail silently — log with context so a future insert /
+        // constraint failure surfaces in observability instead of vanishing.
+        // (This block silently ate every provider-quote email in prod until
+        // the recipient CHECK constraint was relaxed, 2026-09-01.)
+        console.error(
+          `[quote] provider email failed for quote ${q.id} → ${validFirms[idx]?.email}:`,
+          err,
+        );
       }
     }),
   );

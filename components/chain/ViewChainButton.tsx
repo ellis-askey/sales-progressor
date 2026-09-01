@@ -20,11 +20,17 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
     direction: "above" | "below";
     chainId: string;
     editingLink?: EditingLinkData;
+    forkFromLinkId?: string;
   } | null>(null);
   const { toast } = useAgentToast();
 
-  function handleOpenAddNode(direction: "above" | "below", chainId: string, link?: EditingLinkData) {
-    setAddNode({ direction, chainId, editingLink: link });
+  function handleOpenAddNode(
+    direction: "above" | "below",
+    chainId: string,
+    link?: EditingLinkData,
+    forkFromLinkId?: string,
+  ) {
+    setAddNode({ direction, chainId, editingLink: link, forkFromLinkId });
   }
 
   function handleCloseAddNode() {
@@ -70,6 +76,7 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
           transactionId={transactionId}
           direction={addNode.direction}
           editingLink={addNode.editingLink}
+          forkFromLinkId={addNode.forkFromLinkId}
           onClose={handleCloseAddNode}
           onSaved={handleNodeSaved}
         />

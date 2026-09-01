@@ -89,6 +89,9 @@ type LinkCardProps = {
   /** Which end of the chain this link sits at, for the "· top / · bottom"
    *  position tag. Omitted for interior links and by the demo pages. */
   edge?: "top" | "bottom";
+  /** Replaces the "Position X of N" line. Used for onward branches, which are
+   *  not on the numbered spine (e.g. "Onward purchase"). */
+  positionLabelOverride?: string;
   onResendInvite?: (linkId: string) => void;
   onEditStub?: (link: ChainLinkV2) => void;
   onDeleteStub?: (linkId: string) => void;
@@ -439,6 +442,7 @@ export function LinkCard({
   onDeleteStub,
   onSaveIntel,
   directional,
+  positionLabelOverride,
 }: LinkCardProps) {
   const status = getChainLinkStatus(
     {
@@ -527,8 +531,8 @@ export function LinkCard({
         <div className="chain-body-top">
           <div className="chain-cmain">
             <div className="chain-cpos">
-              Position {displayChainPosition(link.position, totalLinks)} of {totalLinks}
-              {positionTag && <span className="chain-cpos-tag"> · {positionTag}</span>}
+              {positionLabelOverride ?? `Position ${displayChainPosition(link.position, totalLinks)} of ${totalLinks}`}
+              {!positionLabelOverride && positionTag && <span className="chain-cpos-tag"> · {positionTag}</span>}
             </div>
             <p className="chain-caddr">{address1}</p>
             {(address2 || agencyName) && (
@@ -656,7 +660,11 @@ export function LinkCard({
             </Link>
           )}
 
-          {isOriginator && isUnclaimed && (
+          {/* Stub actions: prefer the server-computed permission (internal team,
+              the stub's creator, or a director in the creating agency); fall back
+              to the old originator check for hand-built demo/legacy links that
+              carry no canEditStub flag. */}
+          {(link.canEditStub ?? (isOriginator && isUnclaimed)) && (
             <>
               {status.kind === "unclaimed_no_email" && onEditStub && (
                 <button onClick={() => onEditStub(link)} className="chain-act-link chain-act-primary">

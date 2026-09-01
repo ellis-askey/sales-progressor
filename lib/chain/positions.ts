@@ -32,15 +32,18 @@ export function positionForInsertAbove(aboveLinkPosition: number): number {
   return aboveLinkPosition;
 }
 
-// Shift all links in a chain that have position >= threshold up by 1.
-// Must be called inside a DB transaction.
+// Shift all links in ONE branch that have position >= threshold up by 1.
+// branchKey scopes the shift to a single ladder (default "" = the main spine),
+// so inserting into one branch never disturbs another. Must be called inside a
+// DB transaction.
 export async function shiftPositionsUp(
   chainId: string,
   fromPosition: number,
+  branchKey = "",
 ): Promise<void> {
   // Shift in descending order to avoid temporary unique constraint violations
   const links = await prisma.chainLink.findMany({
-    where: { chainId, position: { gte: fromPosition } },
+    where: { chainId, branchKey, position: { gte: fromPosition } },
     orderBy: { position: "desc" },
   });
 
@@ -52,11 +55,12 @@ export async function shiftPositionsUp(
   }
 }
 
-// Repack positions after a deletion so they stay contiguous.
+// Repack positions in ONE branch after a deletion so they stay contiguous.
+// branchKey scopes it to a single ladder (default "" = the main spine).
 // (Optional — only needed if contiguity is relied on elsewhere.)
-export async function repackPositions(chainId: string): Promise<void> {
+export async function repackPositions(chainId: string, branchKey = ""): Promise<void> {
   const links = await prisma.chainLink.findMany({
-    where: { chainId },
+    where: { chainId, branchKey },
     orderBy: { position: "asc" },
   });
 

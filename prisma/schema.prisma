@@ -1830,6 +1830,13 @@ model ChainLink {
   id              String  @id @default(cuid())
   chainId         String
   position        Int
+  // Branching (2026-09-01, docs/active/chain-branching/00-spec.md). "" = the main
+  // spine (every existing row). A non-empty key groups the links of ONE onward
+  // branch. Positions are unique per (chain, branch), so each branch keeps its own
+  // 0..n ladder. forkFromLinkId is set on a branch's BOTTOM link: the spine link
+  // it sits directly above (the fork node). Null on spine links.
+  branchKey       String  @default("")
+  forkFromLinkId  String?
   createdByUserId String?
 
   // Claim state
@@ -1910,7 +1917,8 @@ model ChainLink {
   neighbourUpdates       ChainNeighbourUpdate[]
   prospects              Prospect[] // acquisition prospects sourced from this chain invite (Command Centre → Prospects)
 
-  @@unique([chainId, position])
+  @@unique([chainId, branchKey, position])
+  @@index([forkFromLinkId])
   @@index([transactionId])
   @@index([claimedByUserId])
   @@index([stubAgentEmail])
