@@ -18,6 +18,11 @@ export type TeamMember = {
   email: string;
   role: string;
   canViewAllFiles: boolean;
+  image?: string | null;
+  imageFocusX?: number | null;
+  imageFocusY?: number | null;
+  jobTitle?: string | null;
+  directMobile?: string | null;
 };
 
 export type PendingNegotiatorInvitation = {
@@ -34,6 +39,7 @@ type Props = {
   currentUserId?: string;
   onToggleViewAll?: (member: TeamMember) => void;
   onRemove?: (id: string, name: string) => void;
+  onManage?: (member: TeamMember) => void;
   onAddClick?: () => void;
   pendingInvitations?: PendingNegotiatorInvitation[];
   onResendInvitation?: (id: string) => void;
@@ -115,6 +121,7 @@ export function TeamListViewPlain({
   currentUserId,
   onToggleViewAll,
   onRemove,
+  onManage,
   pendingInvitations = [],
   onResendInvitation,
   onCancelInvitation,
@@ -160,13 +167,14 @@ export function TeamListViewPlain({
       )}
 
       {negotiators.map((m) => {
-        const actions: RowAction[] =
-          onRemove && m.id !== currentUserId
-            ? [{ label: "Remove from team", onClick: () => onRemove(m.id, m.name), danger: true }]
-            : [];
+        const actions: RowAction[] = [];
+        if (onManage) actions.push({ label: "Manage member", onClick: () => onManage(m) });
+        if (onRemove && m.id !== currentUserId) {
+          actions.push({ label: "Remove from team", onClick: () => onRemove(m.id, m.name), danger: true });
+        }
         return (
           <div key={m.id} style={ROW_STYLE}>
-            <UserAvatar user={{ name: m.name }} size={34} />
+            <UserAvatar user={{ name: m.name, image: m.image ?? null, imageFocusX: m.imageFocusX ?? undefined, imageFocusY: m.imageFocusY ?? undefined }} size={34} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {m.name}

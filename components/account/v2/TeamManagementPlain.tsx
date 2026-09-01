@@ -21,6 +21,7 @@ import {
   TeamListViewPlain,
   type PendingNegotiatorInvitation,
 } from "@/components/account/v2/TeamListViewPlain";
+import { MemberManageDrawer } from "@/components/account/v2/MemberManageDrawer";
 import {
   inviteNegotiator,
   resendNegotiatorInvitation,
@@ -33,6 +34,11 @@ type TeamMember = {
   email: string;
   role: string;
   canViewAllFiles: boolean;
+  image?: string | null;
+  imageFocusX?: number | null;
+  imageFocusY?: number | null;
+  jobTitle?: string | null;
+  directMobile?: string | null;
 };
 
 export function TeamManagementPlain({
@@ -50,6 +56,7 @@ export function TeamManagementPlain({
   const [email, setEmail] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [managing, setManaging] = useState<TeamMember | null>(null);
 
   const loadTeam = useCallback(async () => {
     const res = await fetch("/api/agent/team");
@@ -189,10 +196,19 @@ export function TeamManagementPlain({
         currentUserId={currentUserId}
         onToggleViewAll={toggleViewAll}
         onRemove={removeMember}
+        onManage={(m) => setManaging(m)}
         pendingInvitations={pending}
         onResendInvitation={handleResend}
         onCancelInvitation={handleCancel}
       />
+
+      {managing && (
+        <MemberManageDrawer
+          member={managing}
+          onClose={() => setManaging(null)}
+          onSaved={loadTeam}
+        />
+      )}
 
       {showAdd && (
         <div

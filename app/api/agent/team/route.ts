@@ -24,7 +24,7 @@ export async function GET() {
 
   const team = await prisma.user.findMany({
     where: teamWhere,
-    select: { id: true, name: true, email: true, role: true, canViewAllFiles: true, createdAt: true, password: true },
+    select: { id: true, name: true, email: true, role: true, canViewAllFiles: true, createdAt: true, password: true, image: true, imageFocusX: true, imageFocusY: true, jobTitle: true, directMobile: true },
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 
