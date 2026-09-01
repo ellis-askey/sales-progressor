@@ -100,54 +100,101 @@ export type EpcData = {
   floorArea: number | null;
   builtForm: string;
   inspectionDate: string;
+  // Domestic EPCs are valid for 10 years from inspection. Derived, not a raw
+  // field, so the card can flag an expired certificate.
+  validUntil: string | null;
 };
 
-export async function fetchEpc(postcode: string, paon?: string | null): Promise<EpcData | null> {
-  const email = process.env.EPC_API_EMAIL;
-  const key = process.env.EPC_API_KEY;
-  if (!email || !key) return null;
+// Distinguishes a reachable-but-no-certificate result from an outright lookup
+// failure, so the card can say "no certificate on record" vs "couldn't reach
+// the register" instead of collapsing both to "No EPC found".
+export type EpcResult =
+  | { status: "ok"; data: EpcData | null }
+  | { status: "error" };
 
-  const auth = Buffer.from(`${email}:${key}`).toString("base64");
+const EPC_ROW_LIMIT = 25;
 
-  // Include the house number/name in the search to pin to the right property
-  const addressParam = paon ? `&address=${encodeURIComponent(paon)}` : "";
-  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}${addressParam}&size=1`;
+function epcValidUntil(inspectionDate: string): string | null {
+  if (!inspectionDate) return null;
+  const d = new Date(inspectionDate);
+  if (isNaN(d.getTime())) return null;
+  d.setFullYear(d.getFullYear() + 10);
+  return d.toISOString().slice(0, 10);
+}
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Basic ${auth}`,
-      Accept: "application/json",
-    },
-    next: { revalidate: 86400 },
-  });
-
-  if (!res.ok) return null;
-
-  const json = await res.json();
-  const row = json?.rows?.[0];
-  if (!row) return null;
-
-  // If we searched for a specific PAON, verify the returned record actually matches.
-  // The EPC API may return the nearest result at the postcode even if the address doesn't exist.
-  if (paon) {
-    const returnedAddr = ((row["address1"] as string | undefined) ?? "").toUpperCase().trim();
-    const searchPaon = paon.toUpperCase().trim();
-    // Compare first token (house number/name) — "21A" must match "21A", not "22"
-    const returnedFirst = returnedAddr.split(/[\s,]+/)[0] ?? "";
-    const searchFirst = searchPaon.split(/[\s,]+/)[0] ?? "";
-    if (searchFirst && returnedFirst !== searchFirst) {
-      return null; // EPC is for a different property at this postcode, not this address
-    }
-  }
-
+function mapEpcRow(row: Record<string, string>): EpcData {
+  const inspectionDate = row["inspection-date"] ?? "";
   return {
     rating: row["current-energy-rating"] ?? "",
     score: row["current-energy-efficiency"] ? parseInt(row["current-energy-efficiency"], 10) : null,
     propertyType: row["property-type"] ?? "",
     floorArea: row["total-floor-area"] ? parseFloat(row["total-floor-area"]) : null,
     builtForm: row["built-form"] ?? "",
-    inspectionDate: row["inspection-date"] ?? "",
+    inspectionDate,
+    validUntil: epcValidUntil(inspectionDate),
   };
+}
+
+// How well an EPC row's address matches the searched house number/name.
+// Numeric PAONs ("21A") demand an exact first-token match — "21" and "21A" are
+// different homes. Named properties ("The Old Rectory") match forgivingly, since
+// the register and Land Registry often format the same name differently.
+function epcMatchScore(address1: string, searchPaon: string): number {
+  const a = (address1 ?? "").toUpperCase().trim();
+  const s = (searchPaon ?? "").toUpperCase().trim();
+  if (!a || !s) return 0;
+  const aFirst = a.split(/[\s,]+/)[0] ?? "";
+  const sFirst = s.split(/[\s,]+/)[0] ?? "";
+  if (/^\d/.test(sFirst)) return aFirst === sFirst ? 3 : 0; // numeric: exact only
+  if (aFirst === sFirst) return 3;
+  if (a.includes(s)) return 2;
+  if (sFirst.length >= 4 && a.includes(sFirst)) return 1;
+  return 0;
+}
+
+// Fetch the best-matching domestic EPC for a property. Pulls a page of the
+// postcode's certificates (not just the single nearest, which was the main
+// cause of false "No EPC found" results) and picks the row that best matches
+// the house number/name.
+export async function fetchEpcStatus(postcode: string, paon?: string | null): Promise<EpcResult> {
+  const email = process.env.EPC_API_EMAIL;
+  const key = process.env.EPC_API_KEY;
+  if (!email || !key) return { status: "ok", data: null };
+
+  const auth = Buffer.from(`${email}:${key}`).toString("base64");
+  const addressParam = paon ? `&address=${encodeURIComponent(paon)}` : "";
+  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}${addressParam}&size=${EPC_ROW_LIMIT}`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+    next: { revalidate: 86400 },
+  });
+
+  if (!res.ok) return { status: "error" };
+
+  const json = await res.json();
+  const rows: Record<string, string>[] = json?.rows ?? [];
+  if (rows.length === 0) return { status: "ok", data: null };
+
+  // No house number/name to pin to: take the register's nearest result.
+  if (!paon) return { status: "ok", data: mapEpcRow(rows[0]) };
+
+  // Pick the best-scoring row. A zero best-score means none of the returned
+  // certificates are for this specific address (a genuine "no certificate").
+  let best: Record<string, string> | null = null;
+  let bestScore = 0;
+  for (const row of rows) {
+    const score = epcMatchScore(row["address1"] ?? "", paon);
+    if (score > bestScore) { best = row; bestScore = score; }
+  }
+  return { status: "ok", data: best ? mapEpcRow(best) : null };
+}
+
+// Backward-compatible wrapper (EpcData | null) for callers that don't need the
+// error/absent distinction — e.g. the new-sale property lookup.
+export async function fetchEpc(postcode: string, paon?: string | null): Promise<EpcData | null> {
+  const result = await fetchEpcStatus(postcode, paon);
+  return result.status === "ok" ? result.data : null;
 }
 
 export function buildRightmoveUrl(address: string, postcode: string): string {

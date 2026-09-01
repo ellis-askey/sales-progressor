@@ -1352,8 +1352,13 @@ select {
    is caught by the same descendant rule). */
 .chain-fork-col .chain-photo { width: 60px; height: 60px; }
 .chain-fork-col .chain-body-top { flex-direction: column; gap: 8px; }
-.chain-fork-col .chain-cright { flex-direction: row; align-items: center; align-self: stretch;
-  justify-content: flex-end; gap: 8px; }
+/* Keep the status pill + ⋯ menu + chevron pinned top-right on the narrow
+   fork-column cards too (they used to drop to a row beneath the address). The
+   address reserves room so it doesn't run under the cluster. */
+.chain-fork-col .chain-cmain { padding-right: 108px; }
+.chain-fork-col .chain-cright { position: absolute; top: 12px; right: 12px;
+  flex-direction: row; align-items: center; align-self: auto;
+  justify-content: flex-end; gap: 6px; }
 /* On mobile the fork can't sit side by side. Stack the onward columns, label
    each branch, and drop the fanning connector (the stacked order reads top→down
    as branch 1, 2, 3 into the shared sale). */

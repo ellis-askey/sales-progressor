@@ -392,13 +392,13 @@ export async function getChaseTimeline(
     const n = et.chaseCount;
     const state: ChaseThreadState = closed ? "completed" : snoozeAt ? "snoozed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
     const events: ChaseThreadEvent[] = [{
-      at: et.openedAt.toISOString(), kind: "scheduled", title: "Reply loop opened",
+      at: et.openedAt.toISOString(), kind: "scheduled", title: "Enquiries opened",
       detail: et.outstandingNote ? `Waiting on: ${et.outstandingNote}` : "Enquiries raised, awaiting replies.", actor: "System",
     }];
     if (et.lastChasedAt && n > 0) events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", title: `Chased ${who}`, detail: `${n} chase${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
     if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries outstanding after repeated chases.", actor: "System" });
     if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
-    if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Loop closed.", actor: "System" });
+    if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Nothing left to chase.", actor: "System" });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
     threads.push({
       id: "enquiry-tracker", title: "Outstanding enquiries", side, track: "enquiry",

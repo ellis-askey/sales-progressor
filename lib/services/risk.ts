@@ -48,7 +48,7 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
     {
       label: "Escalated chases",
       detail: escalatedTaskCount > 0
-        ? `${escalatedTaskCount} task${escalatedTaskCount > 1 ? "s" : ""} escalated — repeated chases unanswered`
+        ? `${escalatedTaskCount} task${escalatedTaskCount > 1 ? "s" : ""} escalated after repeated chases went unanswered`
         : "No escalated chases",
       triggered: escalatedTaskCount > 0,
       impact: "high",
@@ -68,7 +68,7 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
     {
       label: "Multiple overdue tasks",
       detail: overdueTaskCount >= 2
-        ? `${overdueTaskCount} overdue chase tasks — solicitor unresponsive`
+        ? `${overdueTaskCount} overdue chase tasks, the other side is not responding`
         : overdueTaskCount === 1
         ? "1 overdue chase task"
         : "No overdue tasks",

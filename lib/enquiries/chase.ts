@@ -25,9 +25,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
-
-const CHASE_WORKING_DAYS = 7; // nudge cadence
-const ESCALATE_WORKING_DAYS = 13; // ~2.5 weeks of silence -> hand to a human
+import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "./cadence";
 
 // Pure decision: given a tracker's timestamps and "now", is a chase or an
 // escalation due? Extracted so the cadence logic is unit-testable without a

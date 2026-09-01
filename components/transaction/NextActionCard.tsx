@@ -108,14 +108,19 @@ export function NextActionCard({
         )}
       </div>
 
-      {/* Title + description */}
-      <p style={{
-        margin: 0,
-        fontSize: 15,
-        fontWeight: 600,
-        color: "var(--agent-text-primary)",
-        lineHeight: 1.35,
-      }}>{title}</p>
+      {/* Title, with the due pill to its right on wide screens */}
+      <div className="na-titlerow">
+        <p className="na-title" style={{
+          margin: 0,
+          fontSize: 15,
+          fontWeight: 600,
+          color: "var(--agent-text-primary)",
+          lineHeight: 1.35,
+        }}>{title}</p>
+        <span className="na-due-inline">
+          <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
+        </span>
+      </div>
       {description && (
         <p style={{
           margin: "4px 0 0",
@@ -125,8 +130,8 @@ export function NextActionCard({
         }}>{description}</p>
       )}
 
-      {/* Due badge */}
-      <div style={{ margin: "10px 0 12px" }}>
+      {/* Due badge — drops below on the tablet/mobile breakpoint */}
+      <div className="na-due-block" style={{ marginTop: 10 }}>
         <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
       </div>
 
@@ -136,6 +141,7 @@ export function NextActionCard({
         alignItems: "center",
         gap: 8,
         flexWrap: "wrap",
+        marginTop: 14,
       }}>
         {onPrimary && (
           <ActionButton
@@ -173,6 +179,17 @@ export function NextActionCard({
           {belowActions}
         </div>
       )}
+
+      <style>{`
+        .na-titlerow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .na-title{flex:1;min-width:0}
+        .na-due-inline{flex-shrink:0;margin-top:1px}
+        .na-due-block{display:none}
+        @media (max-width:767px){
+          .na-due-inline{display:none}
+          .na-due-block{display:block}
+        }
+      `}</style>
     </GlassCard>
   );
 }

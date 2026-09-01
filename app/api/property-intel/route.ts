@@ -7,7 +7,7 @@ import {
   extractPostcode,
   extractPaon,
   fetchPricePaid,
-  fetchEpc,
+  fetchEpcStatus,
   buildRightmoveUrl,
   buildZooplaUrl,
   buildLandRegUrl,
@@ -32,16 +32,19 @@ export async function GET(req: NextRequest) {
 
   const paon = extractPaon(tx.propertyAddress);
 
-  const [pricePaid, epc] = await Promise.all([
+  const [pricePaid, epcResult] = await Promise.all([
     fetchPricePaid(postcode, paon).catch(() => []),
-    fetchEpc(postcode, paon).catch(() => null),
+    fetchEpcStatus(postcode, paon).catch(() => ({ status: "error" as const })),
   ]);
 
   return NextResponse.json({
     postcode,
     address: tx.propertyAddress,
     pricePaid,
-    epc,
+    epc: epcResult.status === "ok" ? epcResult.data : null,
+    // True only when the lookup itself failed (network / register down), so the
+    // card can say "couldn't reach the register" rather than "no certificate".
+    epcError: epcResult.status === "error",
     epcConfigured: !!(process.env.EPC_API_EMAIL && process.env.EPC_API_KEY),
     links: {
       rightmove: buildRightmoveUrl(tx.propertyAddress, postcode),

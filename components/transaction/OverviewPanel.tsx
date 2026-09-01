@@ -474,6 +474,7 @@ export async function OverviewPanel({
       <PropertyChainCard
         transactionId={transaction.id}
         thisSaleAddress={transaction.propertyAddress}
+        photoUrl={photoUrl}
         onward={{ view: onwardView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
         related={{ view: relatedView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
         showRelated={relatedView.exists || relatedSignal.selling}
