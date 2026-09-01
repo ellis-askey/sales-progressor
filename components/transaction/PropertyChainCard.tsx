@@ -6,7 +6,9 @@
 // the onward-purchase card and the related-sale card) with a single card that
 // reads as a chain: what's up the chain (the seller's onward purchase), this
 // sale in the middle, and what's down the chain (the buyer's related sale),
-// threaded on one spine, with the uninvited-neighbours nudge as a footer.
+// threaded on one continuous spine line, with the uninvited-neighbours nudge as
+// a footer. This sale's node is the property photo (or the chain house
+// fallback), sitting on the centre line.
 //
 // The onward/related nodes reuse OnwardPurchaseCard in `embedded` mode (Law 4).
 // The chain drawer itself is untouched — `openChain` is the existing
@@ -22,6 +24,7 @@ type Side = { view: OnwardTrackerView; signalActive: boolean; address: string | 
 export function PropertyChainCard({
   transactionId,
   thisSaleAddress,
+  photoUrl = null,
   onward,
   related,
   showRelated,
@@ -30,6 +33,8 @@ export function PropertyChainCard({
 }: {
   transactionId: string;
   thisSaleAddress: string;
+  // Signed URL for this file's property photo, or null → chain house fallback.
+  photoUrl?: string | null;
   onward: Side;
   related: Side;
   // Related sale only shows once the buyer signals they're selling or a tracker
@@ -40,15 +45,9 @@ export function PropertyChainCard({
 }) {
   return (
     <Card id="chain-section" padding="none">
-      {/* Header */}
+      {/* Header — sized to match Contacts / Activity & notes */}
       <div className="cspine-hd">
-        <p className="cspine-kicker">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-            <path d="M9 12a3 3 0 0 1 3-3h1a3 3 0 0 1 0 6h-1" />
-            <path d="M15 12a3 3 0 0 1-3 3h-1a3 3 0 0 1 0-6h1" />
-          </svg>
-          Property chain
-        </p>
+        <h3 className="cspine-heading">Property chain</h3>
         {openChain}
       </div>
 
@@ -57,12 +56,13 @@ export function PropertyChainCard({
         {/* Up the chain — the seller's onward purchase */}
         <SpineRow
           pos="first"
-          icon={
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 19V5M6 11l6-6 6 6" />
-            </svg>
+          node={
+            <span className="cspine-node node-up" aria-hidden>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19V5M6 11l6-6 6 6" />
+              </svg>
+            </span>
           }
-          iconClass="ico-up"
           kicker="Up the chain"
           title="Onward purchase"
           address={onward.address}
@@ -77,14 +77,12 @@ export function PropertyChainCard({
           />
         </SpineRow>
 
-        {/* This sale */}
+        {/* This sale — the property photo / fallback on the centre line */}
         <div className="cspine-row">
           <div className="cspine-rail" data-pos={showRelated ? "mid" : "last"}>
-            <span className="cspine-ico ico-here" aria-hidden>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 10.5 12 4l9 6.5" />
-                <path d="M5 9.5V20h14V9.5" />
-              </svg>
+            <span className="cspine-node node-here" aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoUrl ?? "/chain-empty-photo.png"} alt="" className="cspine-photo" />
             </span>
           </div>
           <div className="cspine-content">
@@ -99,12 +97,13 @@ export function PropertyChainCard({
         {showRelated && (
           <SpineRow
             pos="last"
-            icon={
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M12 5v14M6 13l6 6 6-6" />
-              </svg>
+            node={
+              <span className="cspine-node node-down" aria-hidden>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M6 13l6 6 6-6" />
+                </svg>
+              </span>
             }
-            iconClass="ico-down"
             kicker="Down the chain"
             title="Related sale"
             address={related.address}
@@ -133,28 +132,31 @@ export function PropertyChainCard({
       )}
 
       <style>{`
-        .cspine-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px}
-        .cspine-kicker{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;font-weight:600;color:var(--agent-text-secondary)}
-        .cspine-kicker svg{color:var(--agent-coral, #FF6B4A)}
+        .cspine-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px}
+        .cspine-heading{margin:0;font-size:14px;font-weight:600;color:var(--agent-text-primary)}
 
         .cspine{padding:2px 16px 12px}
-        .cspine-row{display:flex;gap:13px;align-items:flex-start;padding:11px 0}
-        .cspine-rail{position:relative;width:34px;flex-shrink:0;display:flex;justify-content:center}
-        .cspine-rail::before{content:"";position:absolute;top:-11px;bottom:-11px;left:50%;transform:translateX(-50%);width:2px;background:rgba(255,107,74,0.18)}
-        .cspine-rail[data-pos="first"]::before{top:17px}
-        .cspine-rail[data-pos="last"]::before{bottom:calc(100% - 17px)}
-        .cspine-ico{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-        .cspine-ico.ico-up{background:var(--agent-coral-bg-tint, rgba(255,107,74,0.10));color:var(--agent-coral-deep, #E8542F)}
-        .cspine-ico.ico-here{background:var(--agent-coral, #FF6B4A);color:#fff}
-        .cspine-ico.ico-down{background:var(--agent-info-bg, rgba(62,99,232,0.10));color:var(--agent-info, #3E63E8)}
+        .cspine-row{display:flex;gap:14px;align-items:center;padding:13px 0}
+        /* Continuous centre line through every node's middle. */
+        .cspine-rail{position:relative;width:44px;flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center}
+        .cspine-rail::before{content:"";position:absolute;left:50%;top:0;bottom:0;transform:translateX(-50%);width:2px;background:rgba(255,107,74,0.22)}
+        .cspine-row:first-child .cspine-rail::before{top:50%}
+        .cspine-row:last-child .cspine-rail::before{bottom:50%}
 
-        .cspine-content{flex:1;min-width:0}
+        .cspine-node{position:relative;z-index:1;width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+        .cspine-node.node-up{background:var(--agent-coral-bg-tint, rgba(255,107,74,0.10));color:var(--agent-coral-deep, #E8542F)}
+        .cspine-node.node-down{background:var(--agent-info-bg, rgba(62,99,232,0.10));color:var(--agent-info, #3E63E8)}
+        .cspine-node.node-here{overflow:hidden;background:var(--agent-coral-bg-tint, rgba(255,107,74,0.12));box-shadow:0 0 0 2px var(--agent-coral, #FF6B4A)}
+        .cspine-photo{width:100%;height:100%;object-fit:cover;display:block}
+
+        .cspine-content{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
+        .cspine-main{flex:1 1 230px;min-width:0}
+        .cspine-action{flex:0 1 auto;min-width:0}
         .cspine-lvl{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--agent-text-muted)}
         .cspine-title{font-size:14px;font-weight:640;color:var(--agent-text-primary);margin-top:1px}
         .cspine-addr{font-size:12px;color:var(--agent-text-secondary);margin-top:1px}
-        .cspine-body{margin-top:9px}
 
-        .cspine-here{background:var(--agent-coral-bg-tint, rgba(255,107,74,0.10));border:1px solid rgba(255,107,74,0.22);border-radius:12px;padding:9px 12px}
+        .cspine-here{flex:1 1 auto;background:var(--agent-coral-bg-tint, rgba(255,107,74,0.10));border:1px solid rgba(255,107,74,0.22);border-radius:12px;padding:9px 12px}
 
         .cspine-nudge{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:550;color:var(--agent-warning, #93590A);background:rgba(213,153,41,0.14);border-top:1px solid rgba(213,153,41,0.34);padding:10px 16px}
         .cspine-nudge svg{flex-shrink:0}
@@ -165,16 +167,14 @@ export function PropertyChainCard({
 
 function SpineRow({
   pos,
-  icon,
-  iconClass,
+  node,
   kicker,
   title,
   address,
   children,
 }: {
   pos: "first" | "last";
-  icon: ReactNode;
-  iconClass: string;
+  node: ReactNode;
   kicker: string;
   title: string;
   address: string | null;
@@ -182,14 +182,15 @@ function SpineRow({
 }) {
   return (
     <div className="cspine-row">
-      <div className="cspine-rail" data-pos={pos}>
-        <span className={`cspine-ico ${iconClass}`} aria-hidden>{icon}</span>
-      </div>
+      <div className="cspine-rail" data-pos={pos}>{node}</div>
       <div className="cspine-content">
-        <div className="cspine-lvl">{kicker}</div>
-        <div className="cspine-title">{title}</div>
-        {address && <div className="cspine-addr">{address}</div>}
-        <div className="cspine-body">{children}</div>
+        <div className="cspine-main">
+          <div className="cspine-lvl">{kicker}</div>
+          <div className="cspine-title">{title}</div>
+          {address && <div className="cspine-addr">{address}</div>}
+        </div>
+        {/* Buttons / tracker on the right; wraps below the text when cramped. */}
+        <div className="cspine-action">{children}</div>
       </div>
     </div>
   );
