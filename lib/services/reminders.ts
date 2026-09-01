@@ -292,7 +292,10 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   } else if (vis.internalMode === "assigned") {
     txWhere = { assignedUserId: vis.userId, status: "active" as const, serviceType: "outsourced" as const };
   } else {
-    const baseTxWhere = { agencyId: vis.agencyId, status: "active" as const, serviceType: { not: "outsourced" as const } };
+    // isDemo:false — the demo showcase file now carries seeded reminders (so
+    // its own Reminders tab is alive); they must not spill into the agency's
+    // cross-file reminder queue. Mirrors the work-queue guard.
+    const baseTxWhere = { agencyId: vis.agencyId, status: "active" as const, serviceType: { not: "outsourced" as const }, isDemo: false };
     txWhere = vis.seeAll
       ? vis.firmName
         ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }

@@ -47,7 +47,7 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
       where: {
         // Weekly report excludes migrated files so "milestones completed
         // this week" reflects work actually progressed in-system.
-        transaction: { agencyId, isMigrated: false },
+        transaction: { agencyId, isMigrated: false, isDemo: false },
         state: "complete",
         completedAt: { gte: periodStart },
       },
@@ -59,19 +59,21 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
       orderBy: { completedAt: "desc" },
     }),
     prisma.propertyTransaction.findMany({
-      where: { agencyId, status: { not: "draft" }, isMigrated: false, createdAt: { gte: periodStart } },
+      where: { agencyId, status: { not: "draft" }, isMigrated: false, isDemo: false, createdAt: { gte: periodStart } },
       select: { id: true, propertyAddress: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.chaseTask.count({
       where: {
-        transaction: { agencyId },
+        // isDemo:false — demo files carry seeded chase tasks that must not
+        // inflate the weekly "overdue chases" figure.
+        transaction: { agencyId, isDemo: false },
         status: "pending",
         dueDate: { lt: now },
       },
     }),
     prisma.propertyTransaction.findMany({
-      where: { agencyId, status: "active" },
+      where: { agencyId, status: "active", isDemo: false },
       select: { purchasePrice: true },
     }),
   ]);
