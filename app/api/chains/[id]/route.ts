@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     claimedByUserId: l.claimedByUserId,
     createdByUserId: l.createdByUserId,
   }));
-  if (!canViewChain(allLinks, session.user.id)) {
+  if (!canViewChain(allLinks, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
