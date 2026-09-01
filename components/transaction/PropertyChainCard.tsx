@@ -58,7 +58,7 @@ export function PropertyChainCard({
           pos="first"
           node={
             <span className="cspine-node node-up" aria-hidden>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 19V5M6 11l6-6 6 6" />
               </svg>
             </span>
@@ -99,7 +99,7 @@ export function PropertyChainCard({
             pos="last"
             node={
               <span className="cspine-node node-down" aria-hidden>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 5v14M6 13l6 6 6-6" />
                 </svg>
               </span>
@@ -137,11 +137,9 @@ export function PropertyChainCard({
 
         .cspine{padding:2px 16px 12px}
         .cspine-row{display:flex;gap:14px;align-items:center;padding:13px 0}
-        /* Continuous centre line through every node's middle. */
+        /* Rail is just the node's column now — the connecting line was removed
+           (it sat behind the content and read as clutter). Nodes stay put. */
         .cspine-rail{position:relative;width:44px;flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center}
-        .cspine-rail::before{content:"";position:absolute;left:50%;top:0;bottom:0;transform:translateX(-50%);width:2px;background:rgba(255,107,74,0.22)}
-        .cspine-row:first-child .cspine-rail::before{top:50%}
-        .cspine-row:last-child .cspine-rail::before{bottom:50%}
 
         .cspine-node{position:relative;z-index:1;width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
         .cspine-node.node-up{background:var(--agent-coral-bg-tint, rgba(255,107,74,0.10));color:var(--agent-coral-deep, #E8542F)}
