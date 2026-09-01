@@ -36,6 +36,7 @@
 import type { ReactNode, HTMLAttributes } from "react";
 import { useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { X } from "@phosphor-icons/react";
 
 type Size = "sm" | "md" | "lg" | "xl";
@@ -54,7 +55,7 @@ const sizeMaxWidth: Record<Size, string> = {
 // AddBrokerModal opened on top of RelistFileModal (1500). deep — confirmation
 // on top of an escalated modal (2000).
 const zIndex: Record<ZLayer, number> = {
-  default: 50,
+  default: 210,   // above the sticky agent nav (z-index 200)
   escalated: 1500,
   deep: 2000,
 };
@@ -89,6 +90,10 @@ export function Modal({
 }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // The modal portals to document.body — a sibling of .agent-shell-root — so it
+  // inherits none of the shell's --agent-* theme tokens. Re-stamp the active
+  // theme (+ dark mode) on the portal root so every var(--agent-*) resolves.
+  const { theme, isNight } = usePortalTheme();
 
   // Capture the element that had focus when the modal opens, then restore it
   // on close. Matches OS-modal behaviour — closing returns the user to
@@ -159,7 +164,9 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="agent-backdrop-overlay"
+      className="agent-backdrop-overlay nv2-night"
+      data-theme={theme}
+      data-night={isNight ? "" : undefined}
       onClick={handleBackdropClick}
       style={{
         position: "fixed",
@@ -168,7 +175,9 @@ export function Modal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        // Extra top room clears the sticky nav (z-index 200) so the modal never
+        // butts up against it.
+        padding: "88px 16px 24px",
       }}
     >
       <div
@@ -180,7 +189,7 @@ export function Modal({
           ...cardBackground,
           width: "100%",
           maxWidth: sizeMaxWidth[size],
-          maxHeight: "88vh",
+          maxHeight: "calc(100dvh - 120px)",
           borderRadius: 16,
           // 2px coral accent line on the top edge.
           borderTop: "2px solid var(--agent-coral-deep, #FF6B4A)",

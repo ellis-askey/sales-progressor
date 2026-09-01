@@ -364,7 +364,7 @@ export function WhatsappGroupModal({
                   onClick={openWhatsApp}
                   className="agent-btn agent-btn-sm"
                   style={{
-                    background: "#fff", color: "#1FA855", border: "1.5px solid #25D366",
+                    background: "#fff", color: "#1FA855", border: "1.5px solid #25D366", borderRadius: 10,
                     display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, fontWeight: 600,
                   }}
                 >
