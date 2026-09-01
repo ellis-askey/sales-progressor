@@ -1547,9 +1547,20 @@
     box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb, 255,107,74), 0.15);
   }
 
+  /* Coral-outline settings button (e.g. Add team member): coral tint on hover,
+     press-down on active. */
+  .account-btn-coral-outline { transition: background 130ms ease, transform 90ms ease, border-color 130ms ease; }
+  .account-btn-coral-outline:hover:not(:disabled) { background: rgba(var(--agent-coral-rgb, 255,107,74), 0.07); border-color: rgba(var(--agent-coral-rgb, 255,107,74), 0.7); }
+  .account-btn-coral-outline:active:not(:disabled) { transform: scale(0.97); }
+
+  /* Toggle switch interaction: subtle hover ring + press-down (pairs with the
+     knob slide already on the switch). */
+  .account-switch:hover:not(:disabled) { box-shadow: 0 0 0 3px rgba(15,23,42,0.06); }
+  .account-switch:active:not(:disabled) { transform: scale(0.94); }
+
   @media (prefers-reduced-motion: reduce) {
-    .account-btn-primary, .account-press { transition: none; }
-    .account-btn-primary:active:not(:disabled), .account-press:active:not(:disabled) { transform: none; }
+    .account-btn-primary, .account-press, .account-btn-coral-outline { transition: none; }
+    .account-btn-primary:active:not(:disabled), .account-press:active:not(:disabled), .account-btn-coral-outline:active:not(:disabled), .account-switch:active:not(:disabled) { transform: none; }
   }
 
   /* Warning/attention row hover — for items flagging an issue (stalled files, overdue, etc.) */

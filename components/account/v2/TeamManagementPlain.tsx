@@ -156,7 +156,7 @@ export function TeamManagementPlain({
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="account-btn-outline"
+          className="account-btn-coral-outline"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -169,7 +169,6 @@ export function TeamManagementPlain({
             border: "0.5px solid rgba(255,107,74,0.5)",
             borderRadius: 9,
             cursor: "pointer",
-            transition: "background 130ms",
           }}
         >
           <UserPlus size={15} weight="bold" /> Add team member
@@ -209,6 +208,7 @@ export function TeamManagementPlain({
             onChange={(e) => setName(e.target.value)}
             placeholder="Full name"
             autoFocus
+            className="account-input"
             style={fieldStyle}
           />
           <input
@@ -217,6 +217,7 @@ export function TeamManagementPlain({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             onKeyDown={(e) => e.key === "Enter" && sendInvite()}
+            className="account-input"
             style={fieldStyle}
           />
           <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af" }}>
@@ -229,17 +230,8 @@ export function TeamManagementPlain({
             <button
               onClick={sendInvite}
               disabled={adding || !name.trim() || !email.trim()}
-              style={{
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                color: "#fff",
-                background: "var(--agent-coral, #FF6B4A)",
-                border: "none",
-                borderRadius: 8,
-                cursor: adding || !name.trim() || !email.trim() ? "default" : "pointer",
-                opacity: adding || !name.trim() || !email.trim() ? 0.45 : 1,
-              }}
+              className="account-btn-primary"
+              style={{ padding: "8px 14px", fontSize: 13, fontWeight: 500, cursor: adding || !name.trim() || !email.trim() ? "default" : "pointer" }}
             >
               {adding ? "Sending…" : "Send invitation"}
             </button>
