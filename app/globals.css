@@ -903,6 +903,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* Date/time inputs must lean on the app input treatment (.agent-input /
+   .glass-input soft border + focus ring), never the browser's heavy native
+   focus outline. Kills the crisp 2px accent border Chrome draws on a focused
+   date field, everywhere in the app. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  outline: none;
+}
+input[type="date"]:focus,
+input[type="date"]:focus-visible,
+input[type="time"]:focus,
+input[type="time"]:focus-visible,
+input[type="datetime-local"]:focus,
+input[type="datetime-local"]:focus-visible {
+  outline: none;
+}
+
 select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

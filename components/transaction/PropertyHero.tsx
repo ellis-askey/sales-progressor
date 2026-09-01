@@ -204,7 +204,7 @@ function HeroStatCell({
         justifyContent: "center",
         flexShrink: 0,
       }}>
-        <Icon size={20} weight="regular" />
+        <Icon size={22} weight="regular" />
       </span>
       <span style={{ minWidth: 0 }}>
         <span
@@ -593,7 +593,7 @@ export function PropertyHero({
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                }}><Clock size={19} /></span>
+                }}><Clock size={21} /></span>
                 <span>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>
                     {elapsedText.replace(" elapsed", "")}

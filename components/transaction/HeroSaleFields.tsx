@@ -84,7 +84,7 @@ const LABEL_STYLE: CSSProperties = { display: "block", fontSize: 11, color: "var
 function CellFrame({ Icon, children }: { Icon: typeof CurrencyGbp; children: ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, position: "relative" }}>
-      <span style={ICON_CHIP}><Icon size={20} weight="regular" /></span>
+      <span style={ICON_CHIP}><Icon size={22} weight="regular" /></span>
       <span style={{ minWidth: 0, flex: 1 }}>{children}</span>
     </div>
   );
