@@ -1317,24 +1317,27 @@ select {
 .chain-addbtn-above { margin-bottom: 12px; }
 .chain-addbtn-below { margin-top: 12px; }
 
-/* Onward branches (a sale funding more than one onward purchase) grouped just
-   above their fork node. Dashed accent + indent signals "these branch off". */
-.chain-branch-group { margin: 0 0 12px; padding: 10px; border: 1px dashed var(--agent-border-strong);
-  border-radius: 12px; background: var(--agent-glass-bg-subtle);
-  display: flex; flex-direction: column; gap: 8px; }
-.chain-branch-group .chain-addbtn-above { margin-bottom: 0; }
-.chain-branch-label { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--agent-text-muted); }
-/* The onward purchases sit side by side above their fork node (the "V"). Each
-   column is a full onward card; the add-another control is a matching column.
-   They wrap when the drawer is narrow and stack outright on mobile. */
-.chain-branch-cols { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
-.chain-branch-col { flex: 1 1 260px; min-width: 260px; }
-.chain-branch-addcol { display: flex; align-items: center; justify-content: center;
-  min-height: 96px; margin-bottom: 0; }
+/* Fork geometry: a sale funding 2-3 onward purchases. The onward columns sit
+   side by side ABOVE the fork-node card; a fanning SVG connector (V for two,
+   trident for three) joins each column down to the card's top centre. Each
+   column is itself a recursive node, so nested forks fall out for free. */
+.chain-fork { display: flex; flex-direction: column; }
+.chain-fork-cols { display: flex; gap: 14px; align-items: flex-end; justify-content: center; }
+.chain-fork-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
+  justify-content: flex-end; }
+/* On mobile the fork can't sit side by side. Stack the onward columns, label
+   each branch, and drop the fanning connector (the stacked order reads top→down
+   as branch 1, 2, 3 into the shared sale). */
 @media (max-width: 700px) {
-  .chain-branch-cols { flex-direction: column; }
-  .chain-branch-col, .chain-branch-addcol { min-width: 0; flex-basis: auto; }
+  .chain-fork-cols { flex-direction: column; align-items: stretch; gap: 12px; }
+  .chain-fork-col { counter-increment: chain-branch; position: relative; }
+  .chain-fork-col::before {
+    content: "Branch " counter(chain-branch);
+    display: block; margin: 0 0 6px; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--agent-text-muted);
+  }
+  .chain-fork-cols { counter-reset: chain-branch; }
+  .chain-fork > svg { display: none; }
 }
 
 /* 4. Tab bar (when detached from hero) */

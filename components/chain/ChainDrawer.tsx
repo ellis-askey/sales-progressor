@@ -45,6 +45,24 @@ function ChainIcon() {
   );
 }
 
+// The fork connector: lines fanning from the fork-node card (bottom centre) up
+// to each onward column above it — a V for 2, a trident for 3. The SVG stretches
+// to the columns' width (preserveAspectRatio none), and non-scaling strokes keep
+// the lines crisp at any width.
+function ForkConnector({ count }: { count: number }) {
+  const H = 26;
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible" }}>
+      {Array.from({ length: count }).map((_, i) => {
+        const x = ((i + 0.5) / count) * 100;
+        return (
+          <line key={i} x1={50} y1={H} x2={x} y2={0} stroke="var(--agent-border-strong)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        );
+      })}
+    </svg>
+  );
+}
+
 // "Late Sept" style month band — coarse on purpose (a chain-level completion
 // forecast is never precise). Only ever rendered when MEDIANS_READY has already
 // gated the date to a real prediction inside computeChainSummary.
@@ -336,11 +354,28 @@ export function ChainDrawer({
   // Any fork present → the drawer widens so the side-by-side onward columns fit.
   const hasForks = branchesByFork.size > 0;
   const MAX_ONWARDS = 3;
-  // Onwards a spine node already has: the spine link directly above it (its
-  // onward #1) plus any branches forking from it.
-  const onwardCountFor = (node: ChainV2["links"][number], spineIndex: number): number => {
-    const hasSpineOnward = spineIndex > 0 ? 1 : 0;
-    return hasSpineOnward + (branchesByFork.get(node.id)?.length ?? 0);
+
+  // Tree model for the fork render. Group every link by its branch ladder
+  // (sorted top→bottom by position), so we can find "the sale directly above"
+  // within any ladder and walk the chain as a tree from the spine bottom up.
+  const linksByBranch = new Map<string, ChainV2["links"]>();
+  for (const l of allChainLinks) {
+    const bk = l.branchKey ?? "";
+    const arr = linksByBranch.get(bk);
+    if (arr) arr.push(l);
+    else linksByBranch.set(bk, [l]);
+  }
+  for (const arr of linksByBranch.values()) arr.sort((a, b) => a.position - b.position);
+  const spineLadder = linksByBranch.get("") ?? [];
+  const spineBottom = spineLadder.length > 0 ? spineLadder[spineLadder.length - 1] : null;
+  // The onward purchases directly above a sale = the next sale up its own ladder
+  // (position − 1) plus any branches forking from it. 2+ ⇒ a fork (V / trident).
+  const onwardsAbove = (link: ChainV2["links"][number]): ChainV2["links"] => {
+    const ladder = linksByBranch.get(link.branchKey ?? "") ?? [];
+    const idx = ladder.findIndex((l) => l.id === link.id);
+    const up = idx > 0 ? ladder[idx - 1] : null;
+    const forks = branchesByFork.get(link.id) ?? [];
+    return [up, ...forks].filter(Boolean) as ChainV2["links"];
   };
   const topLink = links[0] ?? null;
   const bottomLink = links[links.length - 1] ?? null;
@@ -444,6 +479,64 @@ export function ChainDrawer({
         onMoveDown={opts.onMoveDown}
         onAddOnward={opts.onAddOnward}
       />
+    );
+  };
+
+  // Recursive tree render: a sale with its onward purchase(s) above it.
+  //   0 onwards → just the card (top of a line)
+  //   1 onward  → linear: onward stacked above + connector + card
+  //   2-3       → a fork: the onward columns side by side, a fanning connector,
+  //               then the card. Nested forks fall out because each column is
+  //               itself a renderNode. Walk starts at the spine bottom.
+  const renderNode = (link: ChainV2["links"][number], chainId: string): React.ReactNode => {
+    const onwards = onwardsAbove(link);
+    const isSpine = (link.branchKey ?? "") === "";
+    const spineIdx = isSpine ? links.findIndex((l) => l.id === link.id) : -1;
+    const canAddBranch =
+      onwards.length >= 1 &&
+      onwards.length < MAX_ONWARDS &&
+      (isInternal || canAddAbove(link, currentUserId, currentUserRole));
+
+    const card = (
+      <div className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
+        {renderChainLink(link, chainId, {
+          totalLinks: isSpine ? links.length : 1,
+          positionLabel: isSpine ? undefined : "Onward purchase",
+          edge:
+            link.id === spineBottom?.id
+              ? "bottom"
+              : isSpine && onwards.length === 0
+                ? "top"
+                : undefined,
+          onMoveUp: isSpine && canReorder && spineIdx > 0 ? () => { void handleMove(link.id, "up"); } : undefined,
+          onMoveDown: isSpine && canReorder && spineIdx >= 0 && spineIdx < links.length - 1 ? () => { void handleMove(link.id, "down"); } : undefined,
+          onAddOnward: canAddBranch ? () => onOpenAddNode?.("above", chainId, undefined, link.id) : undefined,
+        })}
+      </div>
+    );
+
+    if (onwards.length === 0) return <div key={link.id}>{card}</div>;
+    if (onwards.length === 1) {
+      return (
+        <div key={link.id}>
+          {renderNode(onwards[0], chainId)}
+          <ChainConnector />
+          {card}
+        </div>
+      );
+    }
+    return (
+      <div key={link.id} className="chain-fork">
+        <div className="chain-fork-cols">
+          {onwards.map((o) => (
+            <div key={o.id} className="chain-fork-col">
+              {renderNode(o, chainId)}
+            </div>
+          ))}
+        </div>
+        <ForkConnector count={onwards.length} />
+        {card}
+      </div>
     );
   };
 
@@ -777,56 +870,10 @@ export function ChainDrawer({
                 </button>
               )}
 
-              {/* Link cards (main spine). Onward branches for a fork node render
-                  grouped just above that node. */}
-              {links.map((link, i) => {
-                const branches = branchesByFork.get(link.id) ?? [];
-                const onwards = onwardCountFor(link, i);
-                const canAddBranch =
-                  onwards >= 1 &&
-                  onwards < MAX_ONWARDS &&
-                  (isInternal || canAddAbove(link, currentUserId, currentUserRole));
-                return (
-                  <div key={link.id} className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
-                    {/* Extra onward branches (only when they actually exist —
-                        adding one is now via the card's ⋯ menu, so a plain
-                        linear chain has no clutter here). Side-by-side v1; the
-                        V/trident geometry is the next step. */}
-                    {branches.length > 0 && (
-                      <div className="chain-branch-group">
-                        <p className="chain-branch-label">
-                          Onward purchases from this sale{onwards > 0 ? ` · ${onwards} of ${MAX_ONWARDS}` : ""}
-                        </p>
-                        <div className="chain-branch-cols">
-                          {branches.map((b) => (
-                            <div key={b.id} className={`chain-branch-col${newLinkIds.has(b.id) ? " agent-reveal-in" : ""}`}>
-                              {renderChainLink(b, chain.id, { totalLinks: 1, positionLabel: "Onward purchase" })}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {renderChainLink(link, chain.id, {
-                      totalLinks: links.length,
-                      edge:
-                        links.length > 1
-                          ? i === 0
-                            ? "top"
-                            : i === links.length - 1
-                              ? "bottom"
-                              : undefined
-                          : undefined,
-                      // Move within the spine ladder. "Up" = toward the top of
-                      // the drawer (earlier in the list); only while unlocked.
-                      onMoveUp: canReorder && i > 0 ? () => { void handleMove(link.id, "up"); } : undefined,
-                      onMoveDown: canReorder && i < links.length - 1 ? () => { void handleMove(link.id, "down"); } : undefined,
-                      // "Add another onward purchase" lives in the card's ⋯ menu.
-                      onAddOnward: canAddBranch ? () => onOpenAddNode?.("above", chain.id, undefined, link.id) : undefined,
-                    })}
-                    {i < links.length - 1 && <ChainConnector />}
-                  </div>
-                );
-              })}
+              {/* The chain as a tree: walk from the spine bottom up. A sale with
+                  2-3 onward purchases renders them side by side (V / trident)
+                  above it; linear runs stay a single column. */}
+              {spineBottom && renderNode(spineBottom, chain.id)}
 
               {/* Add below button */}
               {showAddBelow && (
