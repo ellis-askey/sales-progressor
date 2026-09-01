@@ -32,7 +32,6 @@ export function TrialBannerWithModal({
   termsSections,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [pressed, setPressed] = useState(false);
 
   return (
     <>
@@ -41,10 +40,17 @@ export function TrialBannerWithModal({
         // override at the CSS layer means no inline guard needed.
         className="agent-reveal-in"
         style={{
-          background: "var(--agent-card-bg, white)",
-          border: "1px solid var(--agent-border, #e5e7eb)",
+          // --agent-banner-bg is theme-aware (white in light, dark slate in
+          // the dark/obsidian shell); the previous --agent-card-bg was
+          // undefined so it fell back to hard white and never darkened, which
+          // also left the near-white text unreadable. Blur + coral (→ cyan in
+          // the dark shell) accent mirror the canonical AgentBanner recipe.
+          background: "var(--agent-banner-bg)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(var(--agent-coral-base-rgb), 0.22)",
           borderLeft: "4px solid var(--agent-coral)",
-          borderRadius: 8,
+          borderRadius: 10,
           padding: "14px 18px",
           margin: "0",
           display: "flex",
@@ -53,33 +59,20 @@ export function TrialBannerWithModal({
         }}
       >
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--agent-text-primary, #111827)" }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--agent-text-primary)" }}>
             Add a card to outsource more sales
           </div>
-          <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 3, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 13, color: "var(--agent-text-secondary)", marginTop: 3, lineHeight: 1.5 }}>
             Your first outsourced sale is free. To send us another, add a payment card. You&rsquo;ll only be charged when the sale exchanges.
           </div>
         </div>
+        {/* Canonical themed button — coral in light, cyan in the dark shell,
+            with the shared press/hover states. Matches the header's New sale. */}
         <button
           type="button"
           onClick={() => setOpen(true)}
-          onPointerDown={() => setPressed(true)}
-          onPointerUp={() => setPressed(false)}
-          onPointerLeave={() => setPressed(false)}
-          onPointerCancel={() => setPressed(false)}
-          style={{
-            background: "var(--agent-coral)",
-            color: "white",
-            padding: "9px 16px",
-            borderRadius: 10,
-            fontSize: 13,
-            fontWeight: 600,
-            whiteSpace: "nowrap",
-            border: "none",
-            cursor: "pointer",
-            transform: pressed ? "scale(0.96)" : "scale(1)",
-            transition: "transform 100ms ease",
-          }}
+          className="agent-btn agent-btn-primary agent-btn-sm"
+          style={{ flexShrink: 0, whiteSpace: "nowrap" }}
         >
           Add card →
         </button>

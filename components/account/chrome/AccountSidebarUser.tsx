@@ -9,12 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CaretUp, SignOut } from "@phosphor-icons/react";
 import { signOut } from "next-auth/react";
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-}
+import { UserAvatar } from "@/components/ui/Avatar";
 
 const ROLE_LABEL: Record<string, string> = {
   director: "Director",
@@ -117,30 +112,9 @@ export function AccountSidebarUser({
           transition: "background 120ms",
         }}
       >
-        <span
-          aria-hidden
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            flexShrink: 0,
-            overflow: "hidden",
-            background: image ? "transparent" : "linear-gradient(135deg, #FBBF77 0%, #F59E5B 100%)",
-            color: "#fff",
-            fontSize: 12.5,
-            fontWeight: 700,
-          }}
-        >
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            initials(name)
-          )}
-        </span>
+        {/* Matches the top-nav user chip: uploaded photo, else the branded
+            default avatar art (not initials). */}
+        <UserAvatar user={{ name, image }} size={34} />
         <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
           <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {name}

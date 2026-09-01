@@ -258,6 +258,12 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   const { toast } = useAgentToast();
   const { theme, isNight } = usePortalTheme();
   const [collapsed, setCollapsed] = useState(initialEmpty);
+  // `showCleared` drives the all-caught-up header copy; it lags `allClear` so
+  // the card slides up first, then the text crossfades. `flash` is a one-shot
+  // green pulse over the card as it collapses. Both start settled when the
+  // page loads already empty (no animation on first paint).
+  const [showCleared, setShowCleared] = useState(initialEmpty);
+  const [flash, setFlash] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [, startTransition] = useTransition();
   const [listRef] = useAutoAnimate<HTMLDivElement>();
@@ -380,19 +386,25 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
 
   const allClear = rows.length === 0;
 
-  // When the last item is cleared, keep the all-clear line visible briefly,
-  // then slide the card shut. Starts from initialEmpty so this only fires on
-  // the populated → empty transition, not on a first load that was already
-  // empty (which is collapsed from the start).
+  // Clearing the last item: flash the card green as it slides up, then fade the
+  // header + subtext to the all-caught-up copy. Only fires on the populated →
+  // empty transition (wasClearRef seeded from initialEmpty), so a first load
+  // that was already empty stays settled — collapsed, cleared copy, no motion.
   const wasClearRef = useRef(initialEmpty);
   useEffect(() => {
     if (allClear && !wasClearRef.current) {
       wasClearRef.current = true;
-      const t = setTimeout(() => setCollapsed(true), 3000);
-      return () => clearTimeout(t);
+      setFlash(true);
+      setCollapsed(true);
+      // Fade the copy once the ~200ms slide has landed; drop the flash after it.
+      const fadeT = setTimeout(() => setShowCleared(true), 220);
+      const flashT = setTimeout(() => setFlash(false), 750);
+      return () => { clearTimeout(fadeT); clearTimeout(flashT); };
     }
     if (!allClear && wasClearRef.current) {
       wasClearRef.current = false;
+      setShowCleared(false);
+      setFlash(false);
       setCollapsed(false);
     }
   }, [allClear]);
@@ -404,8 +416,23 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
       glassId="hub-attention"
       label="Hub · Needs your attention"
       defaultVariant="v27"
-      style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
+      style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden", position: "relative" }}
     >
+      <style>{`
+        @keyframes attn-flash-kf {
+          0%   { background: rgba(var(--agent-success-rgb), 0); }
+          35%  { background: rgba(var(--agent-success-rgb), 0.16); }
+          100% { background: rgba(var(--agent-success-rgb), 0); }
+        }
+        .attn-flash { animation: attn-flash-kf 750ms ease-out both; }
+        @keyframes attn-copy-fade-kf { from { opacity: 0; } to { opacity: 1; } }
+        .attn-copy-fade { animation: attn-copy-fade-kf 300ms ease both; }
+      `}</style>
+      {/* Green pulse as the card collapses on the last item being cleared. */}
+      {flash && (
+        <span aria-hidden className="attn-flash" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 3 }} />
+      )}
+
       {/* ── Header ── */}
       <button
         type="button"
@@ -442,8 +469,13 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
-              Needs your attention
+            {/* Keyed so the title crossfades when the state flips. */}
+            <span
+              key={showCleared ? "title-clear" : "title-active"}
+              className="agent-card-title-emphasis attn-copy-fade"
+              style={{ margin: 0 }}
+            >
+              {showCleared ? "You're all caught up" : "Needs your attention"}
             </span>
             {rows.length > 0 && (
               <span
@@ -465,8 +497,12 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
               </span>
             )}
           </span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            {summary}
+          <span
+            key={showCleared ? "sub-clear" : "sub-active"}
+            className="attn-copy-fade"
+            style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}
+          >
+            {showCleared ? "Nothing needs your attention right now." : summary}
           </span>
         </span>
         {reminders.length > 0 && (
@@ -502,10 +538,12 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
       <div className={`agent-acc${collapsed ? "" : " open"}`}>
         <div className="agent-acc-in">
           {allClear ? (
+            // Expanded-empty state. The header already says all-clear, so this
+            // explains what would appear here rather than repeating the line.
             <div style={{ padding: "20px 20px 24px", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--agent-success)", flexShrink: 0 }} />
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-                Nothing needs your attention right now.
+                New reminders, holds and anything waiting on you will show up here.
               </p>
             </div>
           ) : (
