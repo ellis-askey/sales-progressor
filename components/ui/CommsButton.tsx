@@ -33,7 +33,7 @@ export function CommsButton({
     minWidth: 88,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.5 : 1,
-    transition: "background 140ms ease, border-color 140ms ease",
+    transition: "background 140ms ease, border-color 140ms ease, transform 120ms ease",
   };
   if (disabled || !href) {
     return (
@@ -44,7 +44,15 @@ export function CommsButton({
     );
   }
   return (
-    <a href={href} title={title} style={style}>
+    <a
+      href={href}
+      title={title}
+      style={style}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(15,23,42,0.045)"; e.currentTarget.style.borderColor = "rgba(15,23,42,0.20)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--agent-surface-elevated)"; e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.transform = "none"; }}
+      onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.95)"; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+    >
       {icon}
       <span>{label}</span>
     </a>
