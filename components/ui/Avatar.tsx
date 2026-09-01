@@ -34,6 +34,33 @@ const SIDE_STYLES = {
 
 type Side = keyof typeof SIDE_STYLES;
 
+// ─── Default agent art ───────────────────────────────────────────────────────
+// Branded fallback used for staff/agent avatars with no uploaded photo (client
+// contacts keep their initials). Inlined so the three coral tones can be
+// re-themed via CSS custom properties — they default to the source artwork's
+// hexes, so a later per-agency primary-colour change can retint the avatar
+// without touching this file. Source: Images/tsp-avatar.svg.
+function DefaultAgentAvatarArt({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 512 512" style={{ display: "block" }} aria-hidden>
+      <rect width="512" height="512" fill="var(--tsp-avatar-base, #FC9C50)" />
+      <path
+        d="M0 374 C72 392 116 394 166 379 C233 359 278 303 326 248 C376 191 425 164 512 149 L512 512 L0 512 Z"
+        fill="var(--tsp-avatar-mid, #FF5E1F)"
+      />
+      <path
+        d="M101 512 C156 468 209 414 280 367 C330 334 375 305 422 318 C460 328 489 358 512 391 L512 512 Z"
+        fill="var(--tsp-avatar-deep, #FF2D0F)"
+      />
+      <circle cx="252" cy="181" r="55" fill="#FFFFFF" />
+      <path
+        d="M252 258 C197 258 159 296 159 352 C159 373 171 386 190 386 H314 C333 386 345 373 345 352 C345 296 307 258 252 258 Z"
+        fill="#FFFFFF"
+      />
+    </svg>
+  );
+}
+
 // Maps ContactRole to avatar side
 function contactRoleToSide(roleType: string): Side {
   if (roleType === "vendor") return "vendor";
@@ -56,9 +83,12 @@ type AvatarBaseProps = {
   // portrait fills a circle. Defaults to dead centre (50/50).
   focusX?: number;
   focusY?: number;
+  // When no image is set, render the branded default agent art instead of
+  // initials. Used for staff/agent avatars, not client contacts.
+  defaultArt?: boolean;
 };
 
-function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50 }: AvatarBaseProps) {
+function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50, defaultArt = false }: AvatarBaseProps) {
   const { bg, color } = SIDE_STYLES[side];
   const fontSize = Math.round(size * 0.375);
 
@@ -88,6 +118,8 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
           height={size}
           style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block" }}
         />
+      ) : defaultArt ? (
+        <DefaultAgentAvatarArt size={size} />
       ) : (
         initials
       )}
@@ -128,6 +160,7 @@ export function UserAvatar({ user, size = 32, className }: UserAvatarProps) {
       image={user.image ?? null}
       focusX={user.imageFocusX ?? 50}
       focusY={user.imageFocusY ?? 50}
+      defaultArt
     />
   );
 }
@@ -152,6 +185,9 @@ function actorRoleToSide(role: ActorRole): Side {
 export function ActorAvatar({
   name, role, image, size = 24, className,
 }: { name: string; role: ActorRole; image?: string | null; size?: number; className?: string }) {
+  // Staff/agent actors (customer-agency agent or internal progressor) fall back
+  // to the branded default art; clients (seller/buyer/solicitor) keep initials.
+  const isStaff = role === "agent" || role === "progressor";
   return (
     <AvatarBase
       initials={getInitials({ name: name || "?" })}
@@ -159,6 +195,7 @@ export function ActorAvatar({
       size={size}
       className={className}
       image={image ?? null}
+      defaultArt={isStaff}
     />
   );
 }
