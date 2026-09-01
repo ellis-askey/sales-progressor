@@ -25,7 +25,9 @@
 // the medium breakpoint (~720px). The Portal card stays inside the row
 // on both breakpoints so the visual grouping is preserved.
 
-import { useState, useTransition, useCallback, useEffect } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
@@ -288,12 +290,39 @@ function RowKebab({
   onIntroCall?: () => void;
   contactName: string;
 }) {
+  const { theme } = usePortalTheme();
   const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    }
+    setOpen((o) => !o);
+  }
+
+  // The menu is portalled to <body> so it clears the card's overflow + stacking
+  // context — inline it used to get clipped behind the next contact card. Close
+  // on scroll/resize so the fixed menu never drifts away from its button.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
   return (
-    <div style={{ position: "relative", flexShrink: 0 }}>
+    <div style={{ flexShrink: 0 }}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Actions for ${contactName}`}
@@ -312,25 +341,25 @@ function RowKebab({
       >
         <DotsThreeVertical size={16} weight="bold" />
       </button>
-      {open && (
-        <>
+      {open && pos && createPortal(
+        <div data-theme={theme}>
           <div
             onClick={() => setOpen(false)}
-            style={{ position: "fixed", inset: 0, zIndex: 1499 }}
+            style={{ position: "fixed", inset: 0, zIndex: 1600 }}
           />
           <div
             role="menu"
             style={{
-              position: "absolute",
-              top: "calc(100% + 4px)",
-              right: 0,
-              minWidth: 140,
+              position: "fixed",
+              top: pos.top,
+              right: pos.right,
+              minWidth: 150,
               padding: 4,
               borderRadius: 10,
               border: "0.5px solid var(--agent-border-default)",
               background: "var(--agent-surface-elevated)",
-              boxShadow: "0 8px 24px rgba(15,23,42,0.10)",
-              zIndex: 1500,
+              boxShadow: "0 12px 32px rgba(15,23,42,0.16)",
+              zIndex: 1601,
             }}
           >
             {onIntroCall && (
@@ -369,7 +398,8 @@ function RowKebab({
               Remove
             </button>
           </div>
-        </>
+        </div>,
+        document.body,
       )}
     </div>
   );
