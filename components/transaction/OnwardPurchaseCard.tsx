@@ -9,11 +9,14 @@
 //     below, the property they're selling to fund the purchase). Tracks vendor
 //     (VM) steps; tenure only, no buying axis.
 //
-// Shows on the internal file beside the property-chain card. An internal user can
-// open the tracker, set the type facts, and report the steps in the same
-// prerequisite order the real engine enforces. Everything is labelled "reported"
-// and never leaves our side.
+// Two shells:
+//   - standalone (default): its own Card with a title header. Kept for dev
+//     galleries and any direct use.
+//   - embedded: renders only the action area (no Card, no title), compact, so
+//     PropertyChainCard can slot it into a chain-spine node. When a tracker is
+//     active, the step list collapses behind a "Reported X/Y" summary.
 //
+// Everything is labelled "reported" and never leaves our side.
 // Spec: docs/active/onward-visibility/00-discovery.md + docs/active/related-sale/00-spec.md.
 
 import { useState, useTransition } from "react";
@@ -60,6 +63,7 @@ const cardHeaderStyle: React.CSSProperties = {
   gap: 8,
 };
 const titleStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: SECONDARY, margin: 0 };
+const errStyle: React.CSSProperties = { color: "var(--agent-danger, #c0392b)", fontSize: 12, marginTop: 8 };
 
 export function OnwardPurchaseCard({
   transactionId,
@@ -67,12 +71,16 @@ export function OnwardPurchaseCard({
   signalActive = false,
   onwardAddress = null,
   direction = "onward",
+  embedded = false,
 }: {
   transactionId: string;
   initialView: OnwardTrackerView;
   signalActive?: boolean;
   onwardAddress?: string | null;
   direction?: Direction;
+  // When true, drops the Card + title and renders a compact action area for the
+  // chain spine (PropertyChainCard). The step list collapses by default.
+  embedded?: boolean;
 }) {
   const isRelated = direction === "related";
   const gateCode = isRelated ? "VM18" : "PM25";
@@ -145,6 +153,9 @@ export function OnwardPurchaseCard({
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
 
+  // Embedded step list starts collapsed behind the "Reported X/Y" summary.
+  const [stepsOpen, setStepsOpen] = useState(false);
+
   function run(fn: () => Promise<OnwardTrackerView>) {
     setError(null);
     startTransition(async () => {
@@ -157,61 +168,65 @@ export function OnwardPurchaseCard({
     });
   }
 
-  // ── Superseded: the tracked property is now a live file with its own agent,
-  //    whose real file owns the truth. This reported stand-in is read-only. ────
-  if (view.exists && view.status === "superseded") {
+  // Wrap a state's body in the right shell: bare div when embedded (the spine
+  // supplies the title + padding), the full Card + title header otherwise.
+  function shell(body: React.ReactNode, tag?: React.ReactNode) {
+    if (embedded) return <div style={{ padding: "0 4px" }}>{body}</div>;
     return (
       <Card id={sectionId} padding="none">
         <div style={cardHeaderStyle}>
           <h3 style={titleStyle}>{txt.title}</h3>
-          <span style={{ fontSize: 11, color: MUTED }}>{txt.supersededTag}</span>
+          {tag && <span style={{ fontSize: 11, color: MUTED }}>{tag}</span>}
         </div>
-        <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
-          <p style={{ margin: 0 }}>{txt.supersededBody}</p>
-        </div>
+        <div style={{ padding: "0 16px 14px" }}>{body}</div>
       </Card>
     );
   }
 
-  // ── Retired (withdrawn, or the client marked it no longer happening) ─────────
+  // ── Superseded / abandoned: read-only status text ────────────────────────────
+  if (view.exists && view.status === "superseded") {
+    return shell(<p style={{ margin: 0, fontSize: 13, color: MUTED }}>{txt.supersededBody}</p>, txt.supersededTag);
+  }
   if (view.exists && view.status === "abandoned") {
-    return (
-      <Card id={sectionId} padding="none">
-        <div style={cardHeaderStyle}>
-          <h3 style={titleStyle}>{txt.title}</h3>
-          <span style={{ fontSize: 11, color: MUTED }}>{txt.abandonedTag}</span>
-        </div>
-        <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
-          <p style={{ margin: 0 }}>{txt.abandonedBody}</p>
-        </div>
-      </Card>
-    );
+    return shell(<p style={{ margin: 0, fontSize: 13, color: MUTED }}>{txt.abandonedBody}</p>, txt.abandonedTag);
   }
 
   // ── Not opened yet ─────────────────────────────────────────────────────────
   if (!view.exists) {
-    return (
-      <Card id={sectionId} padding="none">
-        <div style={cardHeaderStyle}>
-          <h3 style={titleStyle}>{txt.title}</h3>
-        </div>
-        <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
-          {signalActive ? (
-            <p style={{ margin: "0 0 10px", color: "var(--agent-text-primary, #111)" }}>{txt.signalPrompt}</p>
-          ) : (
-            <p style={{ margin: "0 0 10px" }}>{txt.passivePrompt}</p>
+    const cta = (
+      <>
+        <Button
+          variant={signalActive ? "primary" : "secondary"}
+          size="sm"
+          loading={pending}
+          onClick={() => run(() => actions.open(transactionId))}
+        >
+          {txt.setupCta}
+        </Button>
+        {error && <p style={errStyle}>{error}</p>}
+      </>
+    );
+    // Embedded: the spine node header already carries the address, so we skip
+    // the long prompt and show just the CTA (a short hint only when passive).
+    if (embedded) {
+      return (
+        <div style={{ padding: "0 4px" }}>
+          {!signalActive && (
+            <p style={{ margin: "0 0 8px", fontSize: 12, color: MUTED }}>Not confirmed yet. Set up tracking if they are.</p>
           )}
-          <Button
-            variant={signalActive ? "primary" : "secondary"}
-            size="sm"
-            loading={pending}
-            onClick={() => run(() => actions.open(transactionId))}
-          >
-            {txt.setupCta}
-          </Button>
-          {error && <p style={{ color: "var(--agent-danger, #c0392b)", fontSize: 12, marginTop: 8 }}>{error}</p>}
+          {cta}
         </div>
-      </Card>
+      );
+    }
+    return shell(
+      <>
+        {signalActive ? (
+          <p style={{ margin: "0 0 10px", color: "var(--agent-text-primary, #111)" }}>{txt.signalPrompt}</p>
+        ) : (
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.passivePrompt}</p>
+        )}
+        {cta}
+      </>,
     );
   }
 
@@ -219,66 +234,61 @@ export function OnwardPurchaseCard({
   const showFactsForm = !view.typeFactsSet || editingFacts;
   if (showFactsForm) {
     const canSave = tenure !== null && (isRelated || purchaseType !== null) && !pending;
-    return (
-      <Card id={sectionId} padding="none">
-        <div style={cardHeaderStyle}>
-          <h3 style={titleStyle}>{txt.title}</h3>
-          <span style={{ fontSize: 11, color: MUTED }}>Reported</span>
-        </div>
-        <div style={{ padding: "0 16px 14px", fontSize: 13, color: MUTED }}>
-          <p style={{ margin: "0 0 10px" }}>{txt.factsPrompt}</p>
+    const factsForm = (
+      <>
+        <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.factsPrompt}</p>
 
-          <FactRow label="Property type">
-            <Pill on={tenure === "freehold"} onClick={() => { setTenure("freehold"); setShareOfFreehold(false); }}>Freehold</Pill>
-            <Pill on={tenure === "leasehold"} onClick={() => setTenure("leasehold")}>Leasehold</Pill>
+        <FactRow label="Property type">
+          <Pill on={tenure === "freehold"} onClick={() => { setTenure("freehold"); setShareOfFreehold(false); }}>Freehold</Pill>
+          <Pill on={tenure === "leasehold"} onClick={() => setTenure("leasehold")}>Leasehold</Pill>
+        </FactRow>
+
+        {tenure === "leasehold" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12 }}>
+            <input type="checkbox" checked={shareOfFreehold} onChange={(e) => setShareOfFreehold(e.target.checked)} />
+            Share of freehold
+          </label>
+        )}
+
+        {!isRelated && (
+          <FactRow label="Buying with">
+            <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType("mortgage")}>Mortgage</Pill>
+            <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType("cash_buyer")}>Cash</Pill>
+            <Pill on={purchaseType === "cash_from_proceeds"} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from proceeds</Pill>
           </FactRow>
+        )}
 
-          {tenure === "leasehold" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12 }}>
-              <input type="checkbox" checked={shareOfFreehold} onChange={(e) => setShareOfFreehold(e.target.checked)} />
-              Share of freehold
-            </label>
-          )}
-
-          {!isRelated && (
-            <FactRow label="Buying with">
-              <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType("mortgage")}>Mortgage</Pill>
-              <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType("cash_buyer")}>Cash</Pill>
-              <Pill on={purchaseType === "cash_from_proceeds"} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from proceeds</Pill>
-            </FactRow>
-          )}
-
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <Button
-              variant="primary"
-              size="sm"
-              loading={pending}
-              disabled={!canSave}
-              onClick={() =>
-                run(async () => {
-                  const next = await actions.setFacts({
-                    transactionId,
-                    tenure: tenure as Tenure,
-                    purchaseType: purchaseType as PurchaseType,
-                    isShareOfFreehold: shareOfFreehold,
-                  });
-                  setEditingFacts(false);
-                  return next;
-                })
-              }
-            >
-              Save
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={pending}
+            disabled={!canSave}
+            onClick={() =>
+              run(async () => {
+                const next = await actions.setFacts({
+                  transactionId,
+                  tenure: tenure as Tenure,
+                  purchaseType: purchaseType as PurchaseType,
+                  isShareOfFreehold: shareOfFreehold,
+                });
+                setEditingFacts(false);
+                return next;
+              })
+            }
+          >
+            Save
+          </Button>
+          {view.typeFactsSet && (
+            <Button variant="ghost" size="sm" disabled={pending} onClick={() => setEditingFacts(false)}>
+              Cancel
             </Button>
-            {view.typeFactsSet && (
-              <Button variant="ghost" size="sm" disabled={pending} onClick={() => setEditingFacts(false)}>
-                Cancel
-              </Button>
-            )}
-          </div>
-          {error && <p style={{ color: "var(--agent-danger, #c0392b)", fontSize: 12, marginTop: 8 }}>{error}</p>}
+          )}
         </div>
-      </Card>
+        {error && <p style={errStyle}>{error}</p>}
+      </>
     );
+    return shell(factsForm, "Reported");
   }
 
   // ── Step list ──────────────────────────────────────────────────────────────
@@ -289,6 +299,152 @@ export function OnwardPurchaseCard({
   ]
     .filter(Boolean)
     .join(" ");
+
+  const editTypeBtn = (
+    <button
+      type="button"
+      onClick={() => { setEditingFacts(true); setTenure(view.tenure); setPurchaseType(view.purchaseType); setShareOfFreehold(view.isShareOfFreehold); }}
+      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: SECONDARY, textDecoration: "underline" }}
+    >
+      Edit type
+    </button>
+  );
+
+  const stepList = (
+    <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 10px" }}>
+      {view.steps.map((step) => (
+        <li key={step.code} style={{ padding: "8px 8px", borderTop: "1px solid var(--agent-border, rgba(0,0,0,0.06))" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: step.isComplete ? "var(--agent-text-primary, #111)" : step.isAvailable ? "var(--agent-text-primary, #111)" : MUTED,
+                  fontWeight: step.isComplete ? 500 : 400,
+                }}
+              >
+                {step.name}
+              </div>
+              {step.isComplete ? (
+                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
+                  Reported{step.confirmedByName ? ` by ${step.confirmedByName}` : ""}
+                  {step.eventDate ? ` · ${ukDate(step.eventDate)}` : " · date not given"}
+                </div>
+              ) : !step.isAvailable ? (
+                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Waiting on {blockingLabel(step, view.steps)}</div>
+              ) : null}
+            </div>
+
+            <div style={{ flexShrink: 0 }}>
+              {step.isComplete ? (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  disabled={pending}
+                  onClick={() =>
+                    run(async () => {
+                      const { result, view: next } = await actions.undo({ transactionId, milestoneCode: step.code });
+                      if (result.ok === false && result.reason === "has_dependents") {
+                        setError("Undo the later reported step first.");
+                      }
+                      return next;
+                    })
+                  }
+                >
+                  Undo
+                </Button>
+              ) : step.isAvailable && confirmingCode !== step.code ? (
+                <Button variant="secondary" size="xs" disabled={pending} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
+                  Confirm
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          {confirmingCode === step.code && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 11, color: MUTED }}>
+                {step.eventDateRequired ? "Date it happened" : "Date (optional)"}
+              </label>
+              <input
+                type="date"
+                value={confirmDate}
+                onChange={(e) => setConfirmDate(e.target.value)}
+                style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--agent-border, rgba(0,0,0,0.15))", borderRadius: 6 }}
+              />
+              <Button
+                variant="primary"
+                size="xs"
+                loading={pending}
+                onClick={() =>
+                  run(async () => {
+                    const { result, view: next } = await actions.confirm({
+                      transactionId,
+                      milestoneCode: step.code,
+                      eventDate: confirmDate || null,
+                    });
+                    if (result.ok === false) {
+                      setError(
+                        result.reason === "locked"
+                          ? "Confirm the earlier step first."
+                          : result.reason === "awaiting_our_completion"
+                            ? "The onward can't complete until this sale completes."
+                            : "Could not report this step.",
+                      );
+                    } else {
+                      setConfirmingCode(null);
+                    }
+                    return next;
+                  })
+                }
+              >
+                Save reported
+              </Button>
+              <Button variant="ghost" size="xs" disabled={pending} onClick={() => setConfirmingCode(null)}>
+                Cancel
+              </Button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+
+  // Embedded: a compact "Reported X/Y" summary with a slim progress bar; the
+  // step list expands on demand so the spine stays tight.
+  if (embedded) {
+    const pct = view.applicableCount > 0 ? Math.round((view.completeCount / view.applicableCount) * 100) : 0;
+    return (
+      <div style={{ padding: "0 4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: SECONDARY, fontVariantNumeric: "tabular-nums" }}>
+            Reported {view.completeCount}/{view.applicableCount}
+          </span>
+          <span style={{ width: 96, height: 6, borderRadius: 99, background: "var(--agent-border, rgba(0,0,0,0.10))", overflow: "hidden" }}>
+            <span style={{ display: "block", height: "100%", borderRadius: 99, width: `${pct}%`, background: "var(--agent-coral, #FF6B4A)" }} />
+          </span>
+          <button
+            type="button"
+            onClick={() => setStepsOpen((o) => !o)}
+            style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--agent-blue, #3E63E8)" }}
+          >
+            {stepsOpen ? "Hide steps" : "View steps"}
+          </button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+          <span style={{ fontSize: 11, color: MUTED }}>{factsSummary}</span>
+          {editTypeBtn}
+        </div>
+        {stepsOpen && (
+          <>
+            <p style={{ margin: "6px 0 0", fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
+            {stepList}
+          </>
+        )}
+        {error && <p style={errStyle}>{error}</p>}
+      </div>
+    );
+  }
 
   return (
     <Card id={sectionId} padding="none">
@@ -301,114 +457,12 @@ export function OnwardPurchaseCard({
 
       <div style={{ padding: "0 16px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 12, color: MUTED }}>{factsSummary}</span>
-        <button
-          type="button"
-          onClick={() => { setEditingFacts(true); setTenure(view.tenure); setPurchaseType(view.purchaseType); setShareOfFreehold(view.isShareOfFreehold); }}
-          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: SECONDARY, textDecoration: "underline" }}
-        >
-          Edit type
-        </button>
+        {editTypeBtn}
       </div>
 
       <p style={{ padding: "0 16px 8px", margin: 0, fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
 
-      <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 10px" }}>
-        {view.steps.map((step) => (
-          <li key={step.code} style={{ padding: "8px 8px", borderTop: "1px solid var(--agent-border, rgba(0,0,0,0.06))" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: step.isComplete ? "var(--agent-text-primary, #111)" : step.isAvailable ? "var(--agent-text-primary, #111)" : MUTED,
-                    fontWeight: step.isComplete ? 500 : 400,
-                  }}
-                >
-                  {step.name}
-                </div>
-                {step.isComplete ? (
-                  <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-                    Reported{step.confirmedByName ? ` by ${step.confirmedByName}` : ""}
-                    {step.eventDate ? ` · ${ukDate(step.eventDate)}` : " · date not given"}
-                  </div>
-                ) : !step.isAvailable ? (
-                  <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Waiting on {blockingLabel(step, view.steps)}</div>
-                ) : null}
-              </div>
-
-              <div style={{ flexShrink: 0 }}>
-                {step.isComplete ? (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    disabled={pending}
-                    onClick={() =>
-                      run(async () => {
-                        const { result, view: next } = await actions.undo({ transactionId, milestoneCode: step.code });
-                        if (result.ok === false && result.reason === "has_dependents") {
-                          setError("Undo the later reported step first.");
-                        }
-                        return next;
-                      })
-                    }
-                  >
-                    Undo
-                  </Button>
-                ) : step.isAvailable && confirmingCode !== step.code ? (
-                  <Button variant="secondary" size="xs" disabled={pending} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
-                    Confirm
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-
-            {confirmingCode === step.code && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                <label style={{ fontSize: 11, color: MUTED }}>
-                  {step.eventDateRequired ? "Date it happened" : "Date (optional)"}
-                </label>
-                <input
-                  type="date"
-                  value={confirmDate}
-                  onChange={(e) => setConfirmDate(e.target.value)}
-                  style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--agent-border, rgba(0,0,0,0.15))", borderRadius: 6 }}
-                />
-                <Button
-                  variant="primary"
-                  size="xs"
-                  loading={pending}
-                  onClick={() =>
-                    run(async () => {
-                      const { result, view: next } = await actions.confirm({
-                        transactionId,
-                        milestoneCode: step.code,
-                        eventDate: confirmDate || null,
-                      });
-                      if (result.ok === false) {
-                        setError(
-                          result.reason === "locked"
-                            ? "Confirm the earlier step first."
-                            : result.reason === "awaiting_our_completion"
-                              ? "The onward can't complete until this sale completes."
-                              : "Could not report this step.",
-                        );
-                      } else {
-                        setConfirmingCode(null);
-                      }
-                      return next;
-                    })
-                  }
-                >
-                  Save reported
-                </Button>
-                <Button variant="ghost" size="xs" disabled={pending} onClick={() => setConfirmingCode(null)}>
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      {stepList}
 
       {error && <p style={{ padding: "0 16px 12px", margin: 0, color: "var(--agent-danger, #c0392b)", fontSize: 12 }}>{error}</p>}
     </Card>
