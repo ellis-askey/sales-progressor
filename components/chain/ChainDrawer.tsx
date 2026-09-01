@@ -333,6 +333,8 @@ export function ChainDrawer({
       branchesByFork.set(l.forkFromLinkId, arr);
     }
   }
+  // Any fork present → the drawer widens so the side-by-side onward columns fit.
+  const hasForks = branchesByFork.size > 0;
   const MAX_ONWARDS = 3;
   // Onwards a spine node already has: the spine link directly above it (its
   // onward #1) plus any branches forking from it.
@@ -342,6 +344,26 @@ export function ChainDrawer({
   };
   const topLink = links[0] ?? null;
   const bottomLink = links[links.length - 1] ?? null;
+
+  // Move up/down is offered only while the chain is entirely the creator's own
+  // unclaimed stubs — the initial agent can fix the order before others join,
+  // and it locks the moment one other sale is claimed.
+  const canReorder =
+    links.length >= 2 &&
+    allChainLinks.every(
+      (l) => l.createdByUserId === currentUserId && (l.claimedByUserId == null || l.claimedByUserId === currentUserId),
+    );
+
+  async function handleMove(linkId: string, direction: "up" | "down") {
+    if (!chain) return;
+    const res = await fetch(`/api/chains/${chain.id}/links/${linkId}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction }),
+    });
+    if (res.ok) await fetchChain();
+    else toast.error("Couldn't move this sale");
+  }
 
   const userLink = links.find(
     (l) => l.claimedByUserId === currentUserId || l.createdByUserId === currentUserId,
@@ -371,7 +393,7 @@ export function ChainDrawer({
   const renderChainLink = (
     link: ChainV2["links"][number],
     chainId: string,
-    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string },
+    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string; onMoveUp?: () => void; onMoveDown?: () => void },
   ) => {
     const mayEditStub = link.canEditStub ?? canEditLink(link, currentUserId, currentUserRole);
     if (confirmingDeleteId === link.id) {
@@ -418,6 +440,8 @@ export function ChainDrawer({
         onEditStub={mayEditStub ? (l) => { onOpenAddNode?.("above", chainId, l); } : undefined}
         onDeleteStub={mayEditStub ? (id) => setConfirmingDeleteId(id) : undefined}
         onSaveIntel={handleSaveIntel}
+        onMoveUp={opts.onMoveUp}
+        onMoveDown={opts.onMoveDown}
       />
     );
   };
@@ -433,7 +457,8 @@ export function ChainDrawer({
         aria-label="Chain"
         className="relative z-10 flex flex-col h-full"
         style={{
-          width: "min(760px, 100vw)",
+          width: `min(${hasForks ? 960 : 760}px, 100vw)`,
+          transition: "width 260ms cubic-bezier(0.25,0,0,1)",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
@@ -767,19 +792,23 @@ export function ChainDrawer({
                         <p className="chain-branch-label">
                           Onward purchases from this sale{onwards > 0 ? ` · ${onwards} of ${MAX_ONWARDS}` : ""}
                         </p>
-                        {branches.map((b) => (
-                          <div key={b.id} className={newLinkIds.has(b.id) ? "agent-reveal-in" : undefined}>
-                            {renderChainLink(b, chain.id, { totalLinks: 1, positionLabel: "Onward purchase" })}
-                          </div>
-                        ))}
-                        {canAddBranch && (
-                          <button
-                            onClick={() => onOpenAddNode?.("above", chain.id, undefined, link.id)}
-                            className="chain-addbtn chain-addbtn-above"
-                          >
-                            + Add another onward purchase
-                          </button>
-                        )}
+                        {/* Side-by-side onward columns — the fork. Wraps / stacks
+                            on narrow widths (see .chain-branch-cols). */}
+                        <div className="chain-branch-cols">
+                          {branches.map((b) => (
+                            <div key={b.id} className={`chain-branch-col${newLinkIds.has(b.id) ? " agent-reveal-in" : ""}`}>
+                              {renderChainLink(b, chain.id, { totalLinks: 1, positionLabel: "Onward purchase" })}
+                            </div>
+                          ))}
+                          {canAddBranch && (
+                            <button
+                              onClick={() => onOpenAddNode?.("above", chain.id, undefined, link.id)}
+                              className="chain-addbtn chain-addbtn-above chain-branch-col chain-branch-addcol"
+                            >
+                              + Add another onward purchase
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                     {renderChainLink(link, chain.id, {
@@ -792,6 +821,10 @@ export function ChainDrawer({
                               ? "bottom"
                               : undefined
                           : undefined,
+                      // Move within the spine ladder. "Up" = toward the top of
+                      // the drawer (earlier in the list); only while unlocked.
+                      onMoveUp: canReorder && i > 0 ? () => { void handleMove(link.id, "up"); } : undefined,
+                      onMoveDown: canReorder && i < links.length - 1 ? () => { void handleMove(link.id, "down"); } : undefined,
                     })}
                     {i < links.length - 1 && <ChainConnector />}
                   </div>

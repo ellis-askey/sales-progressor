@@ -1186,6 +1186,51 @@ export async function removeChainLink(linkId: string, chainId: string): Promise<
 }
 
 /**
+ * Move a chain link one step up or down within its own ladder (branchKey),
+ * swapping positions with the adjacent link. Only permitted while the whole
+ * chain is still the creator's own work — every link created by this user and
+ * none claimed by anyone else — so the initial agent can correct the order
+ * before others join, and it locks the moment one other sale is claimed.
+ * "up" = toward the top of the chain (a lower position). 2026-09-01.
+ */
+export async function moveChainLinkAdjacent(
+  chainId: string,
+  linkId: string,
+  direction: "up" | "down",
+  userId: string,
+): Promise<{ ok: true } | { ok: false; reason: "not_found" | "locked" | "no_neighbour" }> {
+  const links = await prisma.chainLink.findMany({
+    where: { chainId },
+    select: { id: true, position: true, branchKey: true, createdByUserId: true, claimedByUserId: true },
+  });
+  const moving = links.find((l) => l.id === linkId);
+  if (!moving) return { ok: false, reason: "not_found" };
+
+  // Locked once anyone else is involved: reorder only while every link is this
+  // user's own stub and no one else has claimed a sale.
+  const allMineUnclaimed = links.every(
+    (l) => l.createdByUserId === userId && (l.claimedByUserId == null || l.claimedByUserId === userId),
+  );
+  if (!allMineUnclaimed) return { ok: false, reason: "locked" };
+
+  const branchKey = moving.branchKey ?? "";
+  const neighbour = links
+    .filter((l) => (l.branchKey ?? "") === branchKey && l.id !== linkId)
+    .filter((l) => (direction === "up" ? l.position < moving.position : l.position > moving.position))
+    .sort((a, b) => (direction === "up" ? b.position - a.position : a.position - b.position))[0];
+  if (!neighbour) return { ok: false, reason: "no_neighbour" };
+
+  // Swap via a temporary position (-1) so the (chainId, branchKey, position)
+  // unique index is never transiently violated.
+  await prisma.$transaction([
+    prisma.chainLink.update({ where: { id: moving.id }, data: { position: -1 } }),
+    prisma.chainLink.update({ where: { id: neighbour.id }, data: { position: moving.position } }),
+    prisma.chainLink.update({ where: { id: moving.id }, data: { position: neighbour.position } }),
+  ]);
+  return { ok: true };
+}
+
+/**
  * Write a client's neighbour stub (the property + agent above or below them in
  * the chain), creating the chain / link as needed. Shared by the portal
  * "add / edit my agent" flow and the "my onward changed to a different place"

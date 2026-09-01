@@ -1325,6 +1325,17 @@ select {
 .chain-branch-group .chain-addbtn-above { margin-bottom: 0; }
 .chain-branch-label { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; color: var(--agent-text-muted); }
+/* The onward purchases sit side by side above their fork node (the "V"). Each
+   column is a full onward card; the add-another control is a matching column.
+   They wrap when the drawer is narrow and stack outright on mobile. */
+.chain-branch-cols { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.chain-branch-col { flex: 1 1 260px; min-width: 260px; }
+.chain-branch-addcol { display: flex; align-items: center; justify-content: center;
+  min-height: 96px; margin-bottom: 0; }
+@media (max-width: 700px) {
+  .chain-branch-cols { flex-direction: column; }
+  .chain-branch-col, .chain-branch-addcol { min-width: 0; flex-basis: auto; }
+}
 
 /* 4. Tab bar (when detached from hero) */
 [data-solid] .glass-nav {

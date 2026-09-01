@@ -315,11 +315,13 @@ export function PropertyHero({
     // Property photo (2026-08-21, animated). Empty state: a narrow left zone
     // holding the hollow add-circle, so the content sits further left. Adding a
     // photo widens the zone 168px -> 380px (flex-basis transition) — the
-    // content column reflows rightward as one motion — while the photo, pinned
-    // at its full 380px width and left-anchored inside an overflow-hidden zone,
-    // is revealed left-to-right by the widening AND fades in; the circle fades
-    // out. Removing runs the exact reverse. displayUrl lags hasPhoto so the
-    // photo can wipe out before its <img> unmounts.
+    // content column reflows rightward as one motion — while the photo fills
+    // the zone (width 100%) and fades in; the circle fades out. The photo width
+    // tracks the zone so the soft right-edge fade always lands at the visible
+    // edge (a fixed 380px width used to be clipped by the fluid zone, cutting
+    // the fade short and making the photo look hard-edged at 100% zoom).
+    // Removing runs the exact reverse. displayUrl lags hasPhoto so the photo
+    // can wipe out before its <img> unmounts.
     const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
     const photoColumnDesktop = transactionId ? (
       <div className="hidden md:block" style={{
@@ -335,7 +337,7 @@ export function PropertyHero({
         {photo.displayUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo.displayUrl} alt="" style={{
-            position: "absolute", left: 0, top: 0, height: "100%", width: 380, maxWidth: "none",
+            position: "absolute", left: 0, top: 0, height: "100%", width: "100%",
             objectFit: "cover",
             opacity: photo.hasPhoto ? 1 : 0,
             maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",

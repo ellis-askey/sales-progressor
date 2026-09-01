@@ -8,6 +8,7 @@ import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { formatChainPriceFull } from "@/lib/chain/summary";
 import { Pill, type PillProps } from "@/components/ui/Pill";
+import { parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import type { ChainLinkV2, ChainNodeIntel } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 
@@ -95,6 +96,11 @@ type LinkCardProps = {
   onResendInvite?: (linkId: string) => void;
   onEditStub?: (link: ChainLinkV2) => void;
   onDeleteStub?: (linkId: string) => void;
+  /** Move this link one step up/down the chain. Present only while the creator
+   *  may reorder (all links still their own unclaimed stubs) and there's a
+   *  neighbour in that direction. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   /** Save this node's private chain intel. Present only where the viewer may
    *  edit; the card also gates on link.canEditIntel. */
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
@@ -196,7 +202,7 @@ function IntelReadRows({ intel }: { intel: ChainNodeIntel }) {
   if (sl) rows.push({ label: "Breaking the chain", value: sl });
   if (intel.breakChainConditions) rows.push({ label: "Conditions", value: intel.breakChainConditions });
   if (intel.expectedTimescale) rows.push({ label: "Timescale", value: intel.expectedTimescale });
-  if (intel.chainNotes) rows.push({ label: "Notes", value: intel.chainNotes });
+  // Notes are rendered once via the unified NotesBlock (see unifiedNotes), not here.
   if (intel.lastChainCheckAt) rows.push({ label: "Last checked", value: formatCheckDate(intel.lastChainCheckAt) });
   return (
     <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", margin: 0, fontSize: 12 }}>
@@ -207,6 +213,50 @@ function IntelReadRows({ intel }: { intel: ChainNodeIntel }) {
         </Fragment>
       ))}
     </dl>
+  );
+}
+
+// Read-only view of the stub details entered in the add/edit drawer (agent
+// contact + notes), so clicking a card shows what was typed without opening
+// Edit. Only rendered to whoever may edit the stub — these are private to the
+// creator (the notes field is "only you see this"). 2026-09-01.
+function StubDetailsRows({ link }: { link: ChainLinkV2 }) {
+  const rows: { label: string; value: string }[] = [];
+  if (link.stubAgentName) rows.push({ label: "Agent", value: link.stubAgentName });
+  if (link.stubAgentEmail) rows.push({ label: "Email", value: link.stubAgentEmail });
+  if (link.stubAgentPhone) rows.push({ label: "Phone", value: link.stubAgentPhone });
+  if (rows.length === 0) return null;
+  return (
+    <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", margin: 0, fontSize: 12 }}>
+      {rows.map((r) => (
+        <Fragment key={r.label}>
+          <dt style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>{r.label}</dt>
+          <dd style={{ margin: 0, color: "var(--agent-text)", whiteSpace: "pre-wrap" }}>{r.value}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
+function hasStubContactValues(link: ChainLinkV2): boolean {
+  return Boolean(link.stubAgentName || link.stubAgentEmail || link.stubAgentPhone);
+}
+
+// The single, unified notes value for a link. Notes live in two places by link
+// lifecycle — stubNotes (unclaimed, from the add form) and intel.chainNotes
+// (claimed own file, from the details form) — but the user only ever sees one
+// per link. Prefer the intel note (the editable one on your own file) and fall
+// back to the stub note, so what you typed always shows here. 2026-09-01.
+function unifiedNotes(link: ChainLinkV2): string {
+  return ((link.intel?.chainNotes || link.stubNotes || "") as string).trim();
+}
+
+function NotesBlock({ text }: { text: string }) {
+  return (
+    <div style={{ fontSize: 12 }}>
+      <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Notes</div>
+      <div style={{ color: "var(--agent-text)", marginTop: 2, whiteSpace: "pre-wrap" }}>{text}</div>
+    </div>
   );
 }
 
@@ -346,7 +396,7 @@ function ChainIntelBody({
         </label>
 
         <label style={intelLabelStyle}>
-          Chain notes
+          Notes
           <textarea
             value={form.chainNotes ?? ""}
             onChange={(e) => setForm((f) => ({ ...f, chainNotes: e.target.value }))}
@@ -441,6 +491,8 @@ export function LinkCard({
   onEditStub,
   onDeleteStub,
   onSaveIntel,
+  onMoveUp,
+  onMoveDown,
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
@@ -468,7 +520,15 @@ export function LinkCard({
   const intelForCard = link.intel ?? null;
   const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
   const onwardForCard = link.onwardSummary ?? null;
-  const expandable = showIntel || !!onwardForCard;
+  // The stub contact details are private to whoever may edit the stub; show them
+  // on the card so you don't have to open Edit to read them.
+  const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
+  // One unified Notes value (stub note or intel note), visible to whoever may
+  // edit either surface.
+  const notesText = unifiedNotes(link);
+  const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
+  const onwardForCardTruthy = !!onwardForCard;
+  const expandable = showIntel || onwardForCardTruthy || showStubDetails || showNotes;
   const [expanded, setExpanded] = useState(false);
 
   // Whole card toggles, but never when the tap lands on an interactive control
@@ -482,9 +542,12 @@ export function LinkCard({
 
   const addressRaw = link.transaction?.propertyAddress ?? link.stubPropertyAddress ?? "";
   const agencyName = link.claimedBy?.firmName ?? link.stubAgencyName ?? "";
-  const addressParts = addressRaw.split(",");
-  const address1 = addressParts[0].trim() || "Sale to be added";
-  const address2 = addressParts.slice(1).join(",").trim();
+  // Use the same parser the edit form uses (strips postcode + town off the end,
+  // keeps the rest as the street) so a comma inside the street line — e.g.
+  // "46, across Oak Road" — no longer truncates line 1 to just "46".
+  const parsedAddress = parseAddressForEdit(addressRaw);
+  const address1 = parsedAddress.streetAddress.trim() || addressRaw.split(",")[0]?.trim() || "Sale to be added";
+  const address2 = [parsedAddress.city, parsedAddress.postcode].map((s) => s.trim()).filter(Boolean).join(", ");
 
   // Real weighted progress (pooled vendor + purchaser, applicable-only) computed
   // server-side in getChainV2. Falls back to 0 only when there's no claimed
@@ -519,12 +582,11 @@ export function LinkCard({
       onClick={expandable ? handleCardToggle : undefined}
       style={expandable ? { cursor: "pointer" } : undefined}
     >
-      {/* Property photo / illustration */}
-      <div className={`chain-photo${photoUrl ? "" : " chain-photo-illus"}`}>
-        {photoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt="" loading="lazy" />
-        )}
+      {/* Property photo — real signed URL on claimed links, else the chain
+          placeholder illustration. */}
+      <div className="chain-photo">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photoUrl ?? "/chain-empty-photo.png"} alt="" loading="lazy" />
       </div>
 
       <div className="chain-body">
@@ -651,6 +713,17 @@ export function LinkCard({
         <div className="chain-acts">
           {meta && <span className="chain-acts-meta">{meta}</span>}
 
+          {(onMoveUp || onMoveDown) && (
+            <span style={{ display: "inline-flex", gap: 2 }}>
+              {onMoveUp && (
+                <button type="button" onClick={onMoveUp} className="chain-act-link" aria-label="Move up the chain" title="Move up">↑ Up</button>
+              )}
+              {onMoveDown && (
+                <button type="button" onClick={onMoveDown} className="chain-act-link" aria-label="Move down the chain" title="Move down">↓ Down</button>
+              )}
+            </span>
+          )}
+
           {isYourFile && link.transaction && (
             <Link
               href={`/agent/transactions/${link.transaction.id}`}
@@ -668,7 +741,7 @@ export function LinkCard({
             <>
               {status.kind === "unclaimed_no_email" && onEditStub && (
                 <button onClick={() => onEditStub(link)} className="chain-act-link chain-act-primary">
-                  Add email &amp; invite
+                  Add email
                 </button>
               )}
               {status.kind === "unclaimed_unsent" && onResendInvite && (
@@ -731,6 +804,8 @@ export function LinkCard({
                   {onwardForCard && (
                     <OnwardSummaryLine summary={onwardForCard} fileId={link.transaction?.id ?? null} />
                   )}
+                  {showStubDetails && <StubDetailsRows link={link} />}
+                  {showNotes && <NotesBlock text={notesText} />}
                   {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
                 </div>
               </div>

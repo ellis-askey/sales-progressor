@@ -2,10 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, PhoneCall, ClipboardText, CheckCircle, Plus } from "@phosphor-icons/react";
+import { X, PhoneCall, CheckCircle, Plus } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import {
-  getIntroCallDataAction,
   saveClientCostsAgentAction,
   saveMoveInfoAgentAction,
   completeIntroCallAction,
@@ -188,7 +187,7 @@ const TENURE_OPTS = [{ value: "freehold", label: "Freehold" }, { value: "leaseho
 const STANCE_OPTS = [{ value: "PREPARED", label: "Prepared to break the chain" }, { value: "IF_REQUIRED", label: "Would break if required" }, { value: "UNWILLING", label: "Not willing to break the chain" }];
 
 // ── the drawer ───────────────────────────────────────────────────────────────
-export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCallData; onClose: () => void; onCompleted: () => void }) {
+export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }: { data: IntroCallData; onClose: () => void; onCompleted: () => void; focusSide?: "vendor" | "purchaser" | null }) {
   const { theme } = usePortalTheme();
   const [page, setPage] = useState<"script" | "questions">("script");
   const [closing, setClosing] = useState(false);
@@ -255,8 +254,12 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
     }
   }
 
-  const showBuyer = data.hasPurchaser;
-  const showSeller = data.hasVendor;
+  // When launched from a specific contact card, focusSide scopes the drawer to
+  // just that side (vendor card -> seller sections, buyer card -> buyer
+  // sections). No focusSide (fallback) shows both. Either way it's one intro
+  // record; this only controls what's on screen.
+  const showBuyer = data.hasPurchaser && focusSide !== "vendor";
+  const showSeller = data.hasVendor && focusSide !== "purchaser";
   const isCashBuyer = data.purchaseType === "cash_buyer";
   const prog = computeProgress(data);
 
@@ -358,9 +361,9 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
             <div style={{ width: "50%", height: "100%", overflowY: "auto", padding: "22px 24px" }}>
               <div style={{ display: "grid", gap: 24 }}>
                 {/* Contacts */}
-                {(data.vendor || data.purchaser) && (
+                {((showSeller && data.vendor) || (showBuyer && data.purchaser)) && (
                   <Group title="Who we're speaking to">
-                    {data.vendor && (
+                    {showSeller && data.vendor && (
                       <Row>
                         <TextField label={`Seller phone (${data.vendor.name})`} initial={data.vendor.phone ?? ""} type="tel"
                           onSave={(v) => run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email }))} />
@@ -368,7 +371,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
                           onSave={(v) => run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: data.vendor!.phone, email: v || null }))} />
                       </Row>
                     )}
-                    {data.purchaser && (
+                    {showBuyer && data.purchaser && (
                       <Row>
                         <TextField label={`Buyer phone (${data.purchaser.name})`} initial={data.purchaser.phone ?? ""} type="tel"
                           onSave={(v) => run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email }))} />
@@ -536,56 +539,5 @@ export function IntroCallDrawer({ data, onClose, onCompleted }: { data: IntroCal
       )}
     </div>,
     document.body,
-  );
-}
-
-// ── the opener (lives on the client card) ────────────────────────────────────
-// Fetches its own state; shows "Start intro call" only while the file's intro
-// isn't done (one-time per file). Internal-team gating is the caller's job.
-export function IntroCallLauncher({ transactionId }: { transactionId: string }) {
-  const [data, setData] = useState<IntroCallData | null>(null);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setData(await getIntroCallDataAction(transactionId));
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [transactionId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  async function openDrawer() {
-    // Refresh to prefill from the latest saved values.
-    await load();
-    setOpen(true);
-  }
-
-  if (!data || data.introDone) return null;
-
-  return (
-    <>
-      <button type="button" onClick={() => void openDrawer()} disabled={loading}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9,
-          fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-          border: "1px solid var(--agent-coral)", background: "var(--agent-coral-bg-tint)", color: "var(--agent-coral-darker)",
-        }}>
-        <ClipboardText size={15} weight="fill" />
-        Start intro call
-      </button>
-      {open && data && (
-        <IntroCallDrawer
-          data={data}
-          onClose={() => setOpen(false)}
-          onCompleted={() => { setOpen(false); setData((d) => (d ? { ...d, introDone: true } : d)); }}
-        />
-      )}
-    </>
   );
 }

@@ -25,7 +25,7 @@
 // the medium breakpoint (~720px). The Portal card stays inside the row
 // on both breakpoints so the visual grouping is preserved.
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback, useEffect } from "react";
 import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
@@ -34,9 +34,10 @@ import { CommsButton } from "@/components/ui/CommsButton";
 import { RoleIcon, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
-import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo, ClipboardText } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
-import { IntroCallLauncher } from "@/components/transaction/IntroCallDrawer";
+import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
+import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -279,10 +280,12 @@ function PortalStatusCard({
 function RowKebab({
   onEdit,
   onDelete,
+  onIntroCall,
   contactName,
 }: {
   onEdit: () => void;
   onDelete: () => void;
+  onIntroCall?: () => void;
   contactName: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -330,6 +333,19 @@ function RowKebab({
               zIndex: 1500,
             }}
           >
+            {onIntroCall && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpen(false); onIntroCall(); }}
+                style={menuItemStyle("var(--agent-coral-darker)")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,107,74,0.08)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <ClipboardText size={14} weight="regular" />
+                Intro call
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -377,6 +393,60 @@ function menuItemStyle(color: string): React.CSSProperties {
   };
 }
 
+// Small animated checkbox for the contact form. The native input stays for
+// accessibility and keyboard; the visible box fills coral and the tick draws
+// in (and retracts) via stroke-dashoffset when toggled. Colour is the brand
+// coral by design. Local to this form; promote to components/ui if reused.
+function AnimatedCheckbox({
+  checked,
+  onChange,
+  className = "",
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <span className={className} style={{ position: "relative", display: "inline-flex", width: 18, height: 18, flexShrink: 0 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", margin: 0, opacity: 0, cursor: "pointer", zIndex: 1 }}
+      />
+      <span
+        aria-hidden
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 5,
+          border: `1.5px solid ${checked ? "var(--agent-coral)" : "rgba(15,23,42,0.28)"}`,
+          background: checked ? "var(--agent-coral)" : "transparent",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "background 160ms ease, border-color 160ms ease",
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 6.4 L4.9 8.8 L9.5 3.4"
+            stroke="#fff"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              strokeDasharray: 14,
+              strokeDashoffset: checked ? 0 : 14,
+              transition: "stroke-dashoffset 200ms cubic-bezier(0.65,0,0.35,1) 40ms",
+            }}
+          />
+        </svg>
+      </span>
+    </span>
+  );
+}
+
 export function ContactsSection({
   transactionId,
   contacts,
@@ -391,8 +461,8 @@ export function ContactsSection({
 }: {
   transactionId: string;
   contacts: Contact[];
-  // Internal team only: shows the "Start intro call" opener until the file's
-  // introduction is done (the launcher fetches that state itself).
+  // Internal team only: gates the per-contact "Intro call" action in each
+  // client card's kebab menu (shown until the file's introduction is done).
   isInternalStaff?: boolean;
   // When true, render without the outer GlassCard shell (the PeoplePanel
   // wrapper provides the card + toggle). 2026-08-10.
@@ -426,6 +496,26 @@ export function ContactsSection({
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+
+  // Intro call: internal-team-only. Launched per client card from the kebab
+  // menu; the drawer scopes to that contact's side (vendor -> seller sections,
+  // buyer -> buyer sections) but it stays one intro record for the file. We
+  // preload the state so the menu item hides once the intro is done.
+  const [introData, setIntroData] = useState<IntroCallData | null>(null);
+  const [introSide, setIntroSide] = useState<"vendor" | "purchaser" | null>(null);
+
+  const loadIntro = useCallback(async () => {
+    if (!isInternalStaff) return;
+    try { setIntroData(await getIntroCallDataAction(transactionId)); }
+    catch { setIntroData(null); }
+  }, [isInternalStaff, transactionId]);
+
+  useEffect(() => { void loadIntro(); }, [loadIntro]);
+
+  async function openIntro(side: "vendor" | "purchaser") {
+    await loadIntro(); // refresh to prefill from the latest saved values
+    setIntroSide(side);
+  }
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -632,19 +722,19 @@ export function ContactsSection({
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</span>
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, flexShrink: 0 }}>
-          {isInternalStaff && <IntroCallLauncher transactionId={transactionId} />}
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "stretch", gap: 6, flexShrink: 0 }}>
           {!showForm && (
             <button
               type="button"
               onClick={() => setShowForm(true)}
               className="agent-btn agent-btn-sm agent-btn-primary"
+              style={{ flex: 1 }}
             >
               + Add contact
             </button>
           )}
           {whatsappGroupInviteUrl ? (
-            <div style={{ display: "flex", alignItems: "stretch", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "stretch", gap: 6, flex: 1 }}>
               <a
                 href={whatsappGroupInviteUrl}
                 target="_blank"
@@ -672,7 +762,7 @@ export function ContactsSection({
               type="button"
               onClick={() => setWhatsappOpen(true)}
               className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}
               title="Set up a WhatsApp group for this sale"
             >
               <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
@@ -834,6 +924,11 @@ export function ContactsSection({
                           contactName={contact.name}
                           onEdit={() => startEdit(contact)}
                           onDelete={() => requestDelete(contact)}
+                          onIntroCall={
+                            isInternalStaff && (role === "vendor" || role === "purchaser") && !introData?.introDone
+                              ? () => void openIntro(role as "vendor" | "purchaser")
+                              : undefined
+                          }
                         />
                       </div>
                       {portalState !== "none" && (
@@ -880,14 +975,14 @@ export function ContactsSection({
                     />
                     {(editForm.roleType === "vendor" || editForm.roleType === "purchaser") && (
                       <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                        <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={editForm.isHelper} onChange={(e) => setEditForm((f) => ({ ...f, isHelper: e.target.checked }))} className="mt-0.5" />
-                          <span>They&rsquo;re helping, not the actual {editForm.roleType === "vendor" ? "seller" : "buyer"} (a relative, an assistant, or a representative). We won&rsquo;t name them in confirmations.</span>
+                        <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
+                          <AnimatedCheckbox checked={editForm.isHelper} onChange={(v) => setEditForm((f) => ({ ...f, isHelper: v }))} className="mt-0.5" />
+                          <span>They&rsquo;re helping on the {editForm.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {editForm.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
                         </label>
                         {editForm.isHelper && (
-                          <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer pl-[26px]">
-                            <input type="checkbox" checked={editForm.givePortal} onChange={(e) => setEditForm((f) => ({ ...f, givePortal: e.target.checked }))} className="mt-0.5" />
-                            <span>Give them their own portal login and updates.</span>
+                          <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
+                            <AnimatedCheckbox checked={editForm.givePortal} onChange={(v) => setEditForm((f) => ({ ...f, givePortal: v }))} className="mt-0.5" />
+                            <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
                           </label>
                         )}
                       </div>
@@ -960,14 +1055,14 @@ export function ContactsSection({
 
             {(form.roleType === "vendor" || form.roleType === "purchaser") && (
               <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={form.isHelper} onChange={(e) => setForm((p) => ({ ...p, isHelper: e.target.checked }))} className="mt-0.5" />
-                  <span>They&rsquo;re helping, not the actual {form.roleType === "vendor" ? "seller" : "buyer"} (a relative, an assistant, or a representative). We won&rsquo;t name them in confirmations.</span>
+                <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
+                  <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
+                  <span>They&rsquo;re helping on the {form.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {form.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
                 </label>
                 {form.isHelper && (
-                  <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer pl-[26px]">
-                    <input type="checkbox" checked={form.givePortal} onChange={(e) => setForm((p) => ({ ...p, givePortal: e.target.checked }))} className="mt-0.5" />
-                    <span>Give them their own portal login and updates.</span>
+                  <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
+                    <AnimatedCheckbox checked={form.givePortal} onChange={(v) => setForm((p) => ({ ...p, givePortal: v }))} className="mt-0.5" />
+                    <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
                   </label>
                 )}
               </div>
@@ -1048,6 +1143,16 @@ export function ContactsSection({
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone, roleType: c.roleType }))}
         currentInviteUrl={whatsappGroupInviteUrl}
       />
+
+      {/* Intro call drawer (internal team), scoped to the launching side */}
+      {introSide && introData && !introData.introDone && (
+        <IntroCallDrawer
+          data={introData}
+          focusSide={introSide}
+          onClose={() => setIntroSide(null)}
+          onCompleted={() => { setIntroSide(null); setIntroData((d) => (d ? { ...d, introDone: true } : d)); }}
+        />
+      )}
 
       {/* Mobile responsive rules */}
       <style jsx>{`

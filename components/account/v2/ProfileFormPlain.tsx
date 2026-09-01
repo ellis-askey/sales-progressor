@@ -46,6 +46,7 @@ export function ProfileFormPlain({
   const [directMobile, setDirectMobile] = useState(initialDirectMobile);
   const [image, setImage] = useState<string | null>(initialImage);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -71,6 +72,25 @@ export function ProfileFormPlain({
       setError(err instanceof Error ? err.message : "Couldn't upload that photo.");
     } finally {
       setUploadingPhoto(false);
+    }
+  }
+
+  async function handleRemovePhoto() {
+    setRemovingPhoto(true);
+    setError("");
+    try {
+      const res = await fetch("/api/agent/upload-avatar", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Couldn't remove that photo.");
+      }
+      setImage(null);
+      toast.success("Photo removed");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't remove that photo.");
+    } finally {
+      setRemovingPhoto(false);
     }
   }
 
@@ -154,42 +174,56 @@ export function ProfileFormPlain({
         {/* Identity block — avatar + live name + role + upload. The name here
             mirrors the Name field below (editing it updates this live). */}
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {image ? (
-            <UserAvatar user={{ name: name || initialName, image }} size={64} />
-          ) : (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+            <div className="account-avatar-lift" data-lift={image ? "" : undefined}>
+              {image ? (
+                <UserAvatar user={{ name: name || initialName, image }} size={64} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="account-avatar-btn"
+                  aria-label="Upload photo"
+                  style={{
+                    position: "relative",
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    padding: 0,
+                    border: "0.5px solid rgba(0,0,0,0.08)",
+                    background: "rgba(255,107,74,0.10)",
+                    cursor: uploadingPhoto ? "default" : "pointer",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/agent-avatar-fallback.png"
+                    alt=""
+                    aria-hidden
+                    style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 32%", display: "block" }}
+                  />
+                  <span className="account-avatar-cam" aria-hidden>
+                    <span className="account-avatar-cam-badge">
+                      <Camera size={16} weight="fill" />
+                    </span>
+                  </span>
+                </button>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingPhoto}
-              className="account-avatar-btn"
-              aria-label="Upload photo"
-              style={{
-                position: "relative",
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
-                overflow: "hidden",
-                flexShrink: 0,
-                padding: 0,
-                border: "0.5px solid rgba(0,0,0,0.08)",
-                background: "rgba(255,107,74,0.10)",
-                cursor: uploadingPhoto ? "default" : "pointer",
-              }}
+              onClick={handleRemovePhoto}
+              disabled={uploadingPhoto || removingPhoto}
+              className="account-avatar-remove"
+              data-show={image ? "" : undefined}
+              tabIndex={image ? 0 : -1}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/agent-avatar-fallback.png"
-                alt=""
-                aria-hidden
-                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 32%", display: "block" }}
-              />
-              <span className="account-avatar-cam" aria-hidden>
-                <span className="account-avatar-cam-badge">
-                  <Camera size={16} weight="fill" />
-                </span>
-              </span>
+              {removingPhoto ? "Removing…" : "Remove"}
             </button>
-          )}
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ fontSize: 16.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
@@ -341,6 +375,21 @@ export function ProfileFormPlain({
           background: rgba(0,0,0,0.42); color: #fff;
           box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
+        /* When a photo exists, the avatar lifts a touch and the Remove link
+           fades in below it (and fades back out on removal). */
+        .account-avatar-lift { transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+        .account-avatar-lift[data-lift] { transform: translateY(-4px); }
+        .account-avatar-remove {
+          padding: 2px 4px; border: none; background: transparent;
+          font-size: 11.5px; font-weight: 500; color: #6b7280; cursor: pointer;
+          opacity: 0; max-height: 0; margin-top: 0; overflow: hidden; pointer-events: none;
+          transform: translateY(-4px);
+          transition: opacity 220ms ease, max-height 260ms ease, margin-top 260ms ease, transform 260ms ease, color 150ms ease;
+        }
+        .account-avatar-remove[data-show] {
+          opacity: 1; max-height: 22px; margin-top: 3px; transform: translateY(0); pointer-events: auto;
+        }
+        .account-avatar-remove:hover { color: #dc2626; }
         .profile-save-mobile { display: none; }
         @media (max-width: 640px) {
           .profile-save-desktop { display: none !important; }
@@ -372,7 +421,9 @@ export function ProfileFormPlain({
           .profile-fields-grid .pf-mobile { grid-column: auto; }
         }
 
-        @media (prefers-reduced-motion: reduce) { .account-avatar-cam { transition: none; } }
+        @media (prefers-reduced-motion: reduce) {
+          .account-avatar-cam, .account-avatar-lift, .account-avatar-remove { transition: none; }
+        }
       `}</style>
     </AccountCard>
   );
