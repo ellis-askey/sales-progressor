@@ -7,6 +7,9 @@
 // on User.image. Every "who did it" surface reads User.image, so a fresh
 // upload shows everywhere on the next render.
 //
+// DELETE /api/agent/upload-avatar clears User.image (back to the default
+// avatar). The stored file is left in place; the next upload upserts over it.
+//
 // Validation: session required; image mime only; under 5 MB.
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -49,4 +52,10 @@ export async function POST(req: NextRequest) {
   await prisma.user.update({ where: { id: session.user.id }, data: { image: url } });
 
   return NextResponse.json({ url });
+}
+
+export async function DELETE() {
+  const session = await requireSession();
+  await prisma.user.update({ where: { id: session.user.id }, data: { image: null } });
+  return NextResponse.json({ ok: true });
 }
