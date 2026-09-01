@@ -57,7 +57,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
     <GlassCard glassId="overview-property-intel" label="Overview · Property intel" defaultVariant="v05" className="overflow-hidden rounded-[12px]">
       <div className="agent-card-hdr">
         <div>
-          <p className="agent-card-title">Property Intel</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Property Intel</p>
           <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>
             {data?.postcode ?? "Land Registry · EPC · Search links"}
           </p>

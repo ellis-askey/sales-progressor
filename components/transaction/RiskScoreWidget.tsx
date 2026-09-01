@@ -18,7 +18,7 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
     // Design Lab: `overview-risk`. Default v05 (final pick set 2026-08-08).
     <GlassCard glassId="overview-risk" label="Overview · Fall-through risk" defaultVariant="v05" id="risk-score" className="overflow-hidden" style={{ scrollMarginTop: 100, borderRadius: 12 }}>
       <div className="agent-card-hdr">
-        <h3 className="agent-card-title">Fall-through risk</h3>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Fall-through risk</h3>
       </div>
 
       <div style={{ padding: "14px 16px" }}>
