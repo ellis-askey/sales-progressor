@@ -234,7 +234,7 @@ export function AddNodeDrawer({
     // honestly rather than promising an invite that won't go out.
     if (isEditMode) return "Changes saved. To invite them, use Send invite on their card.";
     if (!form.stubAgentEmail.trim()) return "No invite sent yet. You can add an email later.";
-    if (isExistingChain) return "Invite sent on save.";
+    if (isExistingChain) return "Saved without an invite. Use Send invite on their card when you're ready.";
     return "Invite sent when you save the chain.";
   }
 
@@ -270,7 +270,6 @@ export function AddNodeDrawer({
           stubAgentEmail: form.stubAgentEmail.trim().toLowerCase() || null,
           stubAgentPhone: form.stubAgentPhone.trim() || null,
           stubNotes: form.stubNotes.trim() || null,
-          sendInviteNow: isExistingChain && hasValidEmail && !isEditMode,
         }),
       });
 

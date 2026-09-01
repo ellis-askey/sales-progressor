@@ -3,11 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChainV2, addChainLink } from "@/lib/services/chains";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
-import { prisma } from "@/lib/prisma";
-import { sendChainInvite } from "@/lib/chain/invite";
 import { normaliseAddressString } from "@/lib/utils/address";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -25,7 +21,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     claimedByUserId: l.claimedByUserId,
     createdByUserId: l.createdByUserId,
   }));
-  if (!canViewChain(allLinks, session.user.id)) {
+  if (!canViewChain(allLinks, session.user.id, session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -37,7 +33,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     stubAgentName?: string | null;
     stubAgentPhone?: string | null;
     stubNotes?: string | null;
-    sendInviteNow?: boolean;
   };
 
   if (!body.direction || !body.stubPropertyAddress || !body.stubAgencyName) {
@@ -86,61 +81,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     stubNotes: body.stubNotes ?? null,
   });
 
-  // Auto-send invite when client requested it AND a valid email is present.
-  // Mirrors the client's EMAIL_RE so the auto-send + the manual "Send invite"
-  // button accept the same set of addresses.
-  let inviteSent = false;
-  const email = body.stubAgentEmail?.trim().toLowerCase() ?? "";
-  if (body.sendInviteNow && email && EMAIL_RE.test(email)) {
-    const newLink = await prisma.chainLink.findFirst({
-      where: {
-        chainId,
-        createdByUserId: session.user.id,
-        stubAgentEmail: email,
-        transactionId: null,
-        inviteStatus: "NOT_SENT",
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        stubAgentEmail: true,
-        stubAgentName: true,
-        stubPropertyAddress: true,
-        stubAgencyName: true,
-        inviteStatus: true,
-        inviteResendCount: true,
-        chain: {
-          select: {
-            createdByUserId: true,
-            links: {
-              orderBy: { position: "asc" },
-              select: {
-                position: true,
-                transactionId: true,
-                stubPropertyAddress: true,
-                transaction: { select: { propertyAddress: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (newLink) {
-      try {
-        await sendChainInvite({
-          link: newLink,
-          sentByUserId: session.user.id,
-          sentByName: session.user.name ?? "",
-        });
-        inviteSent = true;
-      } catch (err) {
-        // Don't fail the POST if the invite send itself errors — the stub is
-        // already created and the agent can retry via the manual resend button.
-        console.error("sendChainInvite failed", err);
-      }
-    }
-  }
-
-  return NextResponse.json({ chain: updatedChain, inviteSent }, { status: 201 });
+  // Adding a link to an existing chain never auto-sends the invite. Invites go
+  // out automatically only when a sale is first created (see the chain-stub loop
+  // in app/actions/transactions.ts). A link added any other way is invited
+  // manually via Send invite on its card. (Ellis, 2026-09-01.)
+  return NextResponse.json({ chain: updatedChain, inviteSent: false }, { status: 201 });
 }
