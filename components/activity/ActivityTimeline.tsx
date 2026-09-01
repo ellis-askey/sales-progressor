@@ -45,33 +45,34 @@ function isPortalView(entry: { kind: string; content?: string }) {
   return entry.kind === "comm" && typeof entry.content === "string" && entry.content.includes("viewed their client portal");
 }
 
-// Automated/system rows get a robot chip instead of a person avatar.
+// Automated/system rows carry the Sales Progressor brand mark instead of a
+// person avatar. The asset is already a circle.
 function SystemAvatar({ size = 22 }: { size?: number }) {
   return (
-    <span
-      aria-hidden
-      style={{
-        width: size, height: size, borderRadius: "50%", flexShrink: 0,
-        background: "linear-gradient(135deg,#EAE7F5 0%,#C9C2E8 100%)", color: "#4B3F7A",
-        display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.5),
-      }}
-    >
-      🤖
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand-icon.png"
+      alt="The Sales Progressor"
+      width={size}
+      height={size}
+      style={{ display: "block", width: size, height: size, borderRadius: "50%", flexShrink: 0 }}
+    />
   );
 }
 
 // Shared row footer: who it's from (photo/initials + name + optional role
 // sub-label) on the left, timestamp bottom-right. Used by comm + milestone rows.
 function ActorFooter({
-  role, name, image, sublabel, at, isEdited,
-}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean }) {
+  role, name, image, sublabel, at, isEdited, placement = "bottom",
+}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; placement?: "top" | "bottom" }) {
+  // System rows read as "TSP" (The Sales Progressor), not the internal "System".
+  const displayName = role === "system" ? "TSP" : name;
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: placement === "bottom" ? 8 : 0, marginBottom: placement === "top" ? 8 : 0, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
         {role === "system" ? <SystemAvatar /> : <ActorAvatar name={name} role={role} image={image} size={22} />}
         <span style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {name}
+          {displayName}
         </span>
         {sublabel && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>· {sublabel}</span>}
       </div>
@@ -381,9 +382,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                         ) : (
                           <ActorAvatar name={entry.byName ?? entry.actorName} role={entry.actorRole} image={entry.byImage} size={22} />
                         )}
-                        <p style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.45 }}>
-                          {entry.sentence}
-                        </p>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.45 }}>
+                            {entry.sentence}
+                          </p>
+                          {entry.subtext && (
+                            <p style={{ marginTop: 3, fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+                              {entry.subtext}
+                            </p>
+                          )}
+                        </div>
                         {entry.at && (
                           <time style={{ flexShrink: 0, fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", marginTop: 3 }}>
                             {formatTimestamp(entry.at)}
@@ -426,20 +434,17 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           className="relative group"
                           style={{ padding: "10px 14px", borderRadius: 10 }}
                         >
-                          {/* Top row: badge + contact pills */}
-                          <div style={{ display: "flex", gap: 5, marginBottom: 5, flexWrap: "wrap", alignItems: "center" }}>
-                            <span style={{
-                              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 10,
-                              background: badge.bg, color: badge.color,
-                              display: "inline-flex", alignItems: "center", gap: 4,
-                            }}>
-                              <span>{badge.icon}</span>
-                              {badge.label}
-                            </span>
-                            {!isEditing && displayContactNames.map((name) => (
-                              <ContactPill key={name} name={name} />
-                            ))}
-                          </div>
+                          {/* Who did it — the actor sits at the top of the card
+                              (swapped above the channel badge, 2026-09-01). */}
+                          <ActorFooter
+                            role={entry.actorRole}
+                            name={entry.actorName}
+                            image={entry.actorImage}
+                            sublabel={entry.actorSubLabel}
+                            at={entry.at}
+                            isEdited={isEdited}
+                            placement="top"
+                          />
 
                           {/* Content — either static paragraph or editable form */}
                           {isEditing && editDraft && contacts ? (
@@ -580,15 +585,22 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                             <MediaAttachment url={entry.mediaUrl} type={entry.mediaType} />
                           )}
 
-                          {/* Footer: avatar + name + role sub-label (left), timestamp bottom-right */}
-                          <ActorFooter
-                            role={entry.actorRole}
-                            name={entry.actorName}
-                            image={entry.actorImage}
-                            sublabel={entry.actorSubLabel}
-                            at={entry.at}
-                            isEdited={isEdited}
-                          />
+                          {/* Type + who-to — the channel badge and contact pills
+                              now sit at the foot of the card (swapped below the
+                              actor, 2026-09-01). */}
+                          <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 10,
+                              background: badge.bg, color: badge.color,
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                            }}>
+                              <span>{badge.icon}</span>
+                              {badge.label}
+                            </span>
+                            {!isEditing && displayContactNames.map((name) => (
+                              <ContactPill key={name} name={name} />
+                            ))}
+                          </div>
 
                           {/* Action buttons — hidden during edit to keep the form clean */}
                           {!isEditing && (

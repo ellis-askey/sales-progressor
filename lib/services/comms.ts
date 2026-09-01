@@ -14,6 +14,7 @@ import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-sco
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
 import { confirmationSentence, resolveConfirmer } from "@/lib/updates-copy";
+import { confirmationSubtext, confirmerBucket } from "@/lib/milestone-confirmation-subtext";
 import { getWhatsAppMediaSignedUrlMap } from "@/lib/supabase-storage";
 import type { ActorRole } from "@/components/ui/Avatar";
 
@@ -42,6 +43,11 @@ export type ActivityEntry =
       actorRole: ActorRole;
       actorName: string;
       actorImage: string | null;
+      // Approved one-line progress note shown under the sentence. Keyed by
+      // milestone code + who confirmed. Null for skipped steps or any
+      // code/confirmer pairing with no supplied line. See
+      // lib/milestone-confirmation-subtext.ts.
+      subtext: string | null;
     }
   | {
       kind: "comm";
@@ -252,6 +258,11 @@ export async function getActivityTimeline(
       actorRole: confirmedByClient ? "other" : c.completedBy ? userRoleToActor(c.completedBy.role) : c.confirmedBySolicitorFirmId ? "other" : "system",
       actorName: byName ?? "System",
       actorImage: byImage,
+      // Skipped steps carry no subtext; completed steps take the approved
+      // line for their code + confirmer bucket (null when none supplied).
+      subtext: c.state === "not_required"
+        ? null
+        : confirmationSubtext(c.milestoneDefinition.code, confirmerBucket(confirmer)),
     };
   });
 
