@@ -135,6 +135,16 @@ export type DueChaseTuple = {
   // clock stays where it was, so unpausing picks up the schedule from
   // there.
   pausedScope?: "agency" | "file" | "contact";
+  // When set, this chase CANNOT run because the whole recipient side is
+  // unreachable (no email / no portal token / opted out) at the point the
+  // chase became due. The cron routes these to the fallback path with the
+  // matching chip so the agent sees "add buyer email to enable updates"
+  // instead of the client being silently never chased. Mutually exclusive
+  // with a normal (reachable) tuple: blocked tuples carry no contactEmail.
+  blockedKind?: "no_email_on_contact" | "no_portalToken_on_contact" | "client_opted_out";
+  // The opted-out date, carried only for the "client_opted_out" block reason
+  // so the handback's activity note can render "opted out on <date>".
+  blockedOptedOutAt?: Date | null;
 };
 
 export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
@@ -265,18 +275,24 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
         OR mc."buyerRoundId" = pt."activeBuyerRoundId"
       )
   `;
+  // Fetch ALL vendor/purchaser contacts (not just reachable ones). Previously
+  // this query filtered to email/token present + not-unsubscribed, which meant
+  // an unreachable client was dropped before the walk and silently never
+  // chased. We now load everyone and split reachable vs blocked in memory, so
+  // a due chase whose whole side is unreachable can be handed back to the
+  // agent (fail-soft) rather than vanishing. portalToken + unsubscribedAt are
+  // selected so we can classify the block reason.
   const rawContacts = await prisma.contact.findMany({
     where: {
       propertyTransactionId: { in: txIds },
       roleType: { in: ["vendor", "purchaser"] },
-      unsubscribedAt: null,
-      email: { not: null },
-      portalToken: { not: null },
     },
     select: {
       id: true,
       name: true,
       email: true,
+      portalToken: true,
+      unsubscribedAt: true,
       propertyTransactionId: true,
       roleType: true,
       buyerRoundId: true,
@@ -291,10 +307,18 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
   // buyer's contact row stays attached to the file with the archived
   // round's id — those contacts must NOT be chased. Vendor side is
   // unaffected (vendors carry across rounds).
-  const contacts = rawContacts.filter((c) => {
+  const roundScopedContacts = rawContacts.filter((c) => {
     if (c.roleType !== "purchaser") return true;
     return c.buyerRoundId === activeRoundByTx.get(c.propertyTransactionId);
   });
+  // Reachable = has an email, has a portal token, not opted out. Everyone else
+  // is "blocked": on the file but unreachable by automated chase. Reachable
+  // contacts drive the digest path (unchanged); blocked contacts drive the
+  // fail-soft handback when their side's chase becomes due.
+  const isReachable = (c: (typeof roundScopedContacts)[number]) =>
+    !!c.email && !!c.portalToken && c.unsubscribedAt == null;
+  const contacts = roundScopedContacts.filter(isReachable);
+  const blockedContacts = roundScopedContacts.filter((c) => !isReachable(c));
   const states = await prisma.clientChaseState.findMany({
     where: { transactionId: { in: txIds } },
     select: {
@@ -344,6 +368,12 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     arr.push(c);
     contactsByTx.set(c.propertyTransactionId, arr);
   }
+  const blockedByTx = new Map<string, typeof blockedContacts>();
+  for (const c of blockedContacts) {
+    const arr = blockedByTx.get(c.propertyTransactionId) ?? [];
+    arr.push(c);
+    blockedByTx.set(c.propertyTransactionId, arr);
+  }
   const stateByKey = new Map<string, typeof states[number]>();
   for (const s of states) {
     stateByKey.set(`${s.transactionId}:${s.contactId}:${s.milestoneCode}`, s);
@@ -379,7 +409,11 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     // independently. agencyOff is file-wide and computed here.
 
     const txContacts = contactsByTx.get(transaction.id) ?? [];
-    if (txContacts.length === 0) continue;
+    const txBlocked = blockedByTx.get(transaction.id) ?? [];
+    // Skip only when there is NO ONE to consider on this file — neither a
+    // reachable contact (digest) nor a blocked one (handback). A file with
+    // only blocked contacts still needs walking so its due chases hand back.
+    if (txContacts.length === 0 && txBlocked.length === 0) continue;
 
     for (const rule of chaseableRules) {
       const targetCode = rule.targetMilestoneCode!;
@@ -433,6 +467,45 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       // vendorEmailsPaused / purchaserEmailsPaused reads are replaced by
       // the per-contact flag (backfilled at migration time).
       const fileOff = transaction.clientEmailsPaused;
+
+      // Fail-soft handback: the chase is due but the WHOLE recipient side is
+      // unreachable (every contact on that side is blocked — no email, no
+      // portal token, or opted out). Instead of silently skipping, emit a
+      // blocked tuple so the cron hands it to the agent with an actionable
+      // chip. Skipped when chasing is switched off / paused at agency or file
+      // level (the agent opted out of chasing, so a nudge would be noise) and
+      // when the chase isn't due yet. Partial reachability (some contacts on
+      // the side ARE reachable) is deliberately NOT handed back: the milestone
+      // is still being chased, so a "no email" chip would mislead.
+      if (recipients.length === 0 && !agencyOff && !fileOff && now >= firstDueDate) {
+        const blockedRecipients = txBlocked.filter((c) => c.roleType === side);
+        if (blockedRecipients.length > 0) {
+          // Surface the most fixable reason first: a missing email (agent can
+          // add it) over a missing token over an opted-out client (nothing to
+          // add, just chase manually).
+          const noEmail = blockedRecipients.find((c) => !c.email);
+          const noToken = blockedRecipients.find((c) => c.email && !c.portalToken);
+          const picked = noEmail ?? noToken ?? blockedRecipients[0];
+          const blockedKind: DueChaseTuple["blockedKind"] = !picked.email
+            ? "no_email_on_contact"
+            : !picked.portalToken
+              ? "no_portalToken_on_contact"
+              : "client_opted_out";
+          due.push({
+            transactionId: transaction.id,
+            contactId: picked.id,
+            contactEmail: "",
+            contactName: picked.name,
+            milestoneCode: targetCode,
+            anchorDate,
+            firstDueDate,
+            reason: "first_chase",
+            blockedKind,
+            blockedOptedOutAt: blockedKind === "client_opted_out" ? picked.unsubscribedAt : null,
+          });
+        }
+        continue; // nothing reachable to iterate for this side
+      }
 
       for (const contact of recipients) {
         if (!contact.email) continue; // belt+braces
@@ -658,6 +731,10 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   contactsChased: number;
   escalations: number;
   pausedFallbacks: number;
+  // Data-gap handbacks created this pass: a chase was due but the whole
+  // recipient side was unreachable (no email / no token / opted out), so it
+  // was handed to the agent instead of silently skipped.
+  blockedFallbacks: number;
   // Manual-handoff markers cleared this pass because the milestone became
   // chaseable again (data added / resubscribed / unpaused). Observable so we
   // can see the fail-soft net self-healing rather than leaving stale chips.
@@ -677,8 +754,10 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   // schedule resumes from where it was when unpaused.
   const activeChases: DueChaseTuple[] = [];
   const pausedChases: DueChaseTuple[] = [];
+  const blockedChases: DueChaseTuple[] = [];
   for (const d of due) {
-    if (d.pausedScope) pausedChases.push(d);
+    if (d.blockedKind) blockedChases.push(d);
+    else if (d.pausedScope) pausedChases.push(d);
     else activeChases.push(d);
   }
 
@@ -766,6 +845,41 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
     }
   }
 
+  // BLOCKED tuples → fail-soft handback. The chase was due but the whole
+  // recipient side is unreachable (no email / no portal token / opted out).
+  // Hand it to the agent with an actionable chip instead of silently skipping.
+  // Dedupe by (transactionId, milestoneCode) — one handback per milestone per
+  // file, matching the per-milestone chip. createAgentChaseTaskForMilestone is
+  // idempotent, so re-runs across passes update the same task.
+  const seenBlocked = new Set<string>();
+  let blockedFallbacks = 0;
+  for (const b of blockedChases) {
+    const key = `${b.transactionId}:${b.milestoneCode}`;
+    if (seenBlocked.has(key)) continue;
+    seenBlocked.add(key);
+    try {
+      const base = {
+        transactionId: b.transactionId,
+        milestoneCode: b.milestoneCode,
+        contactName: b.contactName,
+      };
+      const input =
+        b.blockedKind === "client_opted_out"
+          ? { ...base, kind: "client_opted_out" as const, optedOutAt: b.blockedOptedOutAt ?? now }
+          : b.blockedKind === "no_portalToken_on_contact"
+            ? { ...base, kind: "no_portalToken_on_contact" as const }
+            : { ...base, kind: "no_email_on_contact" as const };
+      const result = await createAgentChaseTaskForMilestone(input);
+      if (result) blockedFallbacks += 1;
+    } catch (err) {
+      failures += 1;
+      console.error(
+        `[client-chase] blocked handback failed for tx=${b.transactionId} milestone=${b.milestoneCode}:`,
+        err,
+      );
+    }
+  }
+
   // Escalation pass. Done AFTER the chase pass so that a row chased TODAY
   // (chaseCount incremented from 1→2) doesn't immediately escalate in the
   // same run — its second window must close (repeatEveryDays from today)
@@ -799,6 +913,7 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
     contactsChased: byContact.size,
     escalations,
     pausedFallbacks,
+    blockedFallbacks,
     fallbacksCleared,
     failures,
     byReason: {

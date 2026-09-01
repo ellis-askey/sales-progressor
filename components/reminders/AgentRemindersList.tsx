@@ -42,11 +42,11 @@ const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; lab
 // catch the exhaustiveness gap at compile time too).
 function fallbackChipText(kind: string): string {
   switch (kind) {
-    case "client_opted_out":          return "Client opted out (manual)";
+    case "client_opted_out":          return "Opted out, chase manually";
     case "max_chases_exhausted":      return "Chased twice (manual)";
     case "days_cap_exhausted":        return "14d silent (manual)";
-    case "no_email_on_contact":       return "No email (manual)";
-    case "no_portalToken_on_contact": return "No portal (manual)";
+    case "no_email_on_contact":       return "Add email to send updates";
+    case "no_portalToken_on_contact": return "Portal access needed";
     case "client_emails_paused":      return "Client emails paused (manual)";
     default:                          return "Manual handoff";
   }
@@ -54,15 +54,15 @@ function fallbackChipText(kind: string): string {
 function fallbackChipTitle(kind: string): string {
   switch (kind) {
     case "client_opted_out":
-      return "We chased the client, then they opted out. Follow up manually.";
+      return "This client opted out of automated updates. Follow up manually.";
     case "max_chases_exhausted":
       return "We chased the client twice with no response. Follow up manually.";
     case "days_cap_exhausted":
       return "Client has been silent for 14 days since the first chase. Follow up manually.";
     case "no_email_on_contact":
-      return "We can't chase this client: no email on file. Follow up manually.";
+      return "We can't send this client automated updates yet. Add an email to switch chasing back on, or follow up manually.";
     case "no_portalToken_on_contact":
-      return "We can't chase this client: no portal access. Follow up manually.";
+      return "This client has no portal access yet, so we can't send automated updates. Follow up manually.";
     case "client_emails_paused":
       return "Client emails are paused on this file. Chase manually if needed.";
     default:
