@@ -47,6 +47,9 @@ type Props = {
   // When set, this adds an EXTRA onward purchase (a branch) forking above the
   // given sale, rather than a normal above/below stub.
   forkFromLinkId?: string;
+  // When set, this adds a sale at the TOP of that link's column (the spine or a
+  // branch) — "add above" scoped to one ladder rather than the whole chain.
+  aboveOfLinkId?: string;
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;
@@ -138,6 +141,7 @@ export function AddNodeDrawer({
   direction,
   editingLink,
   forkFromLinkId,
+  aboveOfLinkId,
   onSaveToMemory,
   onClose,
   onSaved,
@@ -268,9 +272,13 @@ export function AddNodeDrawer({
         method: isEditMode ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Branch add sends forkFromLinkId (an extra onward); otherwise a normal
-          // above/below stub.
-          ...(isBranch ? { forkFromLinkId } : { direction }),
+          // Three add shapes: a branch (extra onward, forkFromLinkId), a
+          // column-top add (aboveOfLinkId), or a plain spine above/below stub.
+          ...(isBranch
+            ? { forkFromLinkId }
+            : aboveOfLinkId
+              ? { aboveOfLinkId }
+              : { direction }),
           stubPropertyAddress: stubPropertyAddress.trim(),
           stubAgencyName: form.stubAgencyName.trim(),
           stubAgentName: form.stubAgentName.trim() || null,

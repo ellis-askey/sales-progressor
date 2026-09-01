@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getChainV2, addChainLink, addChainBranch } from "@/lib/services/chains";
+import { getChainV2, addChainLink, addChainBranch, addAboveLink } from "@/lib/services/chains";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
 import { normaliseAddressString } from "@/lib/utils/address";
 
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const body = await req.json() as {
     direction?: "above" | "below";
     forkFromLinkId?: string;
+    aboveOfLinkId?: string;
     stubPropertyAddress: string;
     stubAgencyName: string;
     stubAgentEmail?: string | null;
@@ -73,6 +74,34 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: msg }, { status: branchResult.reason === "at_limit" ? 409 : 400 });
     }
     return NextResponse.json({ chain: branchResult.chain, inviteSent: false }, { status: 201 });
+  }
+
+  // Add-above-a-column mode: insert a sale at the top of a specific ladder (the
+  // spine or a branch). Uses the same add-above permission on that column's top
+  // link. This is how each column in a split grows upward independently.
+  if (body.aboveOfLinkId) {
+    const anchor = chain.links.find((l) => l.id === body.aboveOfLinkId);
+    if (!anchor) {
+      return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
+    }
+    if (!canAddAbove(anchor, session.user.id, session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const aboveResult = await addAboveLink({
+      chainId,
+      userId: session.user.id,
+      aboveLinkId: body.aboveOfLinkId,
+      stubPropertyAddress: normaliseAddressString(body.stubPropertyAddress),
+      stubAgencyName: body.stubAgencyName,
+      stubAgentEmail: body.stubAgentEmail ?? null,
+      stubAgentName: body.stubAgentName ?? null,
+      stubAgentPhone: body.stubAgentPhone ?? null,
+      stubNotes: body.stubNotes ?? null,
+    });
+    if (!aboveResult.ok) {
+      return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
+    }
+    return NextResponse.json({ chain: aboveResult.chain, inviteSent: false }, { status: 201 });
   }
 
   if (!body.direction) {
