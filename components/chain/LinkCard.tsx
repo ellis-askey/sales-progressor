@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useState, useEffect, useRef, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import { getChainLinkStatus, chainLinkStatusLabel } from "@/lib/chain/status";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
@@ -101,6 +101,9 @@ type LinkCardProps = {
    *  neighbour in that direction. */
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  /** Add another onward purchase forking above this sale (in the ⋯ menu).
+   *  Present when the viewer may add and the fork isn't at the 3-onward cap. */
+  onAddOnward?: () => void;
   /** Save this node's private chain intel. Present only where the viewer may
    *  edit; the card also gates on link.canEditIntel. */
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
@@ -481,6 +484,75 @@ function ChainIntelBody({
   );
 }
 
+// Per-card ⋯ menu — the structural actions (Edit / Add another onward / Remove)
+// live here so the chain isn't cluttered with inline buttons. A small popup
+// anchored to the button; closes on outside click or Escape. 2026-09-01.
+type MenuItem = { label: string; onClick: () => void; danger?: boolean };
+function CardMenu({ items }: { items: MenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  if (items.length === 0) return null;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 24, height: 24, borderRadius: 6, border: "none", cursor: "pointer",
+          background: open ? "var(--agent-glass-bg-hover)" : "transparent",
+          color: "var(--agent-text-muted)", fontSize: 16, lineHeight: 1,
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 30,
+            minWidth: 190, padding: 4, borderRadius: 10,
+            background: "var(--agent-surface-elevated)",
+            border: "0.5px solid var(--agent-border-default)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.16)",
+          }}
+        >
+          {items.map((it, i) => (
+            <button
+              key={i}
+              type="button"
+              role="menuitem"
+              onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick(); }}
+              className="agent-hover-row"
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "8px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+                background: "none", fontSize: 12.5, fontWeight: 600,
+                color: it.danger ? "var(--agent-danger)" : "var(--agent-text-primary)",
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LinkCard({
   link,
   totalLinks,
@@ -493,6 +565,7 @@ export function LinkCard({
   onSaveIntel,
   onMoveUp,
   onMoveDown,
+  onAddOnward,
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
@@ -575,6 +648,15 @@ export function LinkCard({
   else if (status.kind === "unclaimed_no_email") meta = "Email needed";
   else if (status.kind === "claimed_other") meta = link.claimedBy?.name ? `Claimed by ${link.claimedBy.name}` : "Claimed";
   else if (status.kind === "claimed_own" || status.kind === "your_transaction") meta = "Your file";
+
+  // ⋯ menu: the structural actions. Edit / Remove gate on the same stub-edit
+  // permission the old inline buttons used; "Add another onward" appears when
+  // the drawer says a fork can still be added here.
+  const canStubActions = link.canEditStub ?? (isOriginator && isUnclaimed);
+  const menuItems: MenuItem[] = [];
+  if (canStubActions && onEditStub) menuItems.push({ label: "Edit", onClick: () => onEditStub(link) });
+  if (onAddOnward) menuItems.push({ label: "Add another onward purchase", onClick: onAddOnward });
+  if (canStubActions && onDeleteStub) menuItems.push({ label: "Remove", onClick: () => onDeleteStub(link.id), danger: true });
 
   return (
     <div
@@ -670,8 +752,9 @@ export function LinkCard({
             {priceLabel && (
               <div className={`chain-price${price == null ? " chain-price-tbc" : ""}`}>{priceLabel}</div>
             )}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
               <ChainStatusBadge status={status} label={label} />
+              <CardMenu items={menuItems} />
               {expandable && (
                 <button
                   type="button"
@@ -764,16 +847,7 @@ export function LinkCard({
                   Resend
                 </button>
               )}
-              {onEditStub && status.kind !== "unclaimed_no_email" && (
-                <button onClick={() => onEditStub(link)} className="chain-act-link">
-                  Edit
-                </button>
-              )}
-              {onDeleteStub && (
-                <button onClick={() => onDeleteStub(link.id)} className="chain-act-link chain-act-danger">
-                  Remove
-                </button>
-              )}
+              {/* Edit / Remove now live in the ⋯ menu (top-right). */}
             </>
           )}
         </div>
