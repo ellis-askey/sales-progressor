@@ -11,7 +11,7 @@
 //   same UK day    green dot, "Contacted today"
 //   1-21d ago      neutral grey, "Contacted Nd ago" / "Contacted Nw ago"
 //   > 21d ago      amber dot, "Last contacted Nw ago"
-//   never          muted grey + dashed border, "Not contacted yet"
+//   never          muted grey glass pill, "Not contacted yet"
 
 import { toUKDateStr } from "@/lib/utils";
 import { Pill } from "@/components/ui/Pill";
@@ -48,11 +48,10 @@ export function LastContactedPill({ lastContactedAt }: Props) {
   if (!lastContactedAt) {
     return (
       <Pill
+        glass
         tone="muted"
         size="sm"
-        outline
         title="No outbound contact recorded yet for this contact"
-        style={{ borderStyle: "dashed" }}
       >
         Not contacted yet
       </Pill>
