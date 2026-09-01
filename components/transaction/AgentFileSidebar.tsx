@@ -254,7 +254,7 @@ export function AgentFileSidebar({
             width: 26, height: 26,
             color: health.color,
           }}>
-            <Heartbeat size={17} weight="regular" />
+            <Heartbeat size={18} weight="regular" />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Sale health</p>
@@ -348,7 +348,7 @@ export function AgentFileSidebar({
             width: 26, height: 26,
             color: "var(--agent-coral-deep)",
           }}>
-            <CalendarBlank size={17} weight="regular" />
+            <CalendarBlank size={18} weight="regular" />
           </span>
           <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Key dates</p>
         </div>
@@ -431,7 +431,7 @@ export function AgentFileSidebar({
               width: 26, height: 26,
               color: "var(--agent-text-secondary)",
             }}>
-              <Storefront size={17} weight="regular" />
+              <Storefront size={18} weight="regular" />
             </span>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Agent</p>
           </div>
@@ -475,7 +475,7 @@ export function AgentFileSidebar({
               width: 26, height: 26,
               color: "var(--agent-text-secondary)",
             }}>
-              <CurrencyGbp size={17} weight="regular" />
+              <CurrencyGbp size={18} weight="regular" />
             </span>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Fees</p>
           </div>

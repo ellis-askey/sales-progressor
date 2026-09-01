@@ -55,7 +55,7 @@ export function AllFilesEmptyState() {
           glassId="empty-allfiles-risk"
           label="All Files empty · At-risk sales"
           tint="coral"
-          icon={<ShieldWarning size={22} weight="regular" />}
+          icon={<ShieldWarning size={20} weight="regular" />}
           title="Spot at-risk sales early"
           desc="Every sale gets a live risk read, so the ones drifting towards falling through stand out before it's too late."
         />
@@ -63,7 +63,7 @@ export function AllFilesEmptyState() {
           glassId="empty-allfiles-next"
           label="All Files empty · Next step"
           tint="blue"
-          icon={<ListChecks size={22} weight="regular" />}
+          icon={<ListChecks size={20} weight="regular" />}
           title="See each sale's next step"
           desc="Each file shows the exact next thing to do to move it forward, so you can work your list without opening a single one."
         />
@@ -71,7 +71,7 @@ export function AllFilesEmptyState() {
           glassId="empty-allfiles-exchange"
           label="All Files empty · Exchanging when"
           tint="green"
-          icon={<CalendarCheck size={22} weight="regular" />}
+          icon={<CalendarCheck size={20} weight="regular" />}
           title="Know what's exchanging when"
           desc="See every sale's target exchange date and filter to what's landing this week or this month."
         />

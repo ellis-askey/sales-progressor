@@ -70,7 +70,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             glassId="empty-hub-place"
             label="Hub empty · One place"
             tint="coral"
-            icon={<FolderOpen size={22} weight="regular" />}
+            icon={<FolderOpen size={20} weight="regular" />}
             title="Everything starts in one place"
             desc="Buyers, sellers, solicitors, milestones and documents stay attached to the file."
           />
@@ -78,7 +78,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             glassId="empty-hub-attention"
             label="Hub empty · Needs attention"
             tint="blue"
-            icon={<ListChecks size={22} weight="regular" />}
+            icon={<ListChecks size={20} weight="regular" />}
             title="Know what needs attention"
             desc="See what's outstanding, what needs chasing and which sales are starting to drift."
           />
@@ -86,7 +86,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             glassId="empty-hub-picture"
             label="Hub empty · In the picture"
             tint="green"
-            icon={<UsersThree size={22} weight="regular" />}
+            icon={<UsersThree size={20} weight="regular" />}
             title="Keep everyone in the picture"
             desc="Give clients live progress while updates and solicitor replies come back into the file."
           />

@@ -52,7 +52,7 @@ export function SetupCard({ iconSrc, icon, tint, title, desc, cta, href, onClick
             <span aria-hidden style={{ color: t.fg, display: "flex" }}>{icon}</span>
           ) : (
             <span aria-hidden style={{
-              width: 22, height: 22, display: "block", background: t.fg,
+              width: 20, height: 20, display: "block", background: t.fg,
               WebkitMaskImage: `url(${iconSrc})`, maskImage: `url(${iconSrc})`,
               WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
               WebkitMaskPosition: "center", maskPosition: "center",
