@@ -523,11 +523,10 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26, borderRadius: 7,
-            background: "rgba(var(--agent-coral-rgb), 0.12)",
+            width: 26, height: 26,
             color: "var(--agent-coral-deep)",
           }}>
-            <Scales size={14} weight="regular" />
+            <Scales size={17} weight="regular" />
           </span>
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Solicitors</h3>
           {assignedCount > 0 && (

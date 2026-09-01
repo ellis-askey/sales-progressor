@@ -57,12 +57,10 @@ function QuickLinkRow({ link }: { link: QuickLinkItem }) {
           justifyContent: "center",
           width: 26,
           height: 26,
-          borderRadius: 7,
-          background: "rgba(15,23,42,0.05)",
           color: "var(--agent-text-secondary)",
           flexShrink: 0,
         }}>
-          <Icon size={14} weight="regular" />
+          <Icon size={17} weight="regular" />
         </span>
         <span style={{
           fontSize: 13,

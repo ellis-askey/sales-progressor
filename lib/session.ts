@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 
 export async function requireSession() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
   // OAuth user who hasn't completed the signup form yet — must finish before
   // accessing any part of the app. Redirect instead of throwing so the user
   // gets a clear path forward rather than a dead end.
@@ -20,7 +20,7 @@ export async function requireSession() {
 // Use in routes that require an agency-scoped user (admin/sales_progressor have no agencyId)
 export async function requireAgencySession() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
   if (!session.user.agencyId) redirect("/login");
   return session;
 }

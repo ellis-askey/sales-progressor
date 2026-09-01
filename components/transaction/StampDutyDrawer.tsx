@@ -58,10 +58,10 @@ export function StampDutyQuickAction({ priceGBP }: { priceGBP: number }) {
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26, borderRadius: 7,
-            background: "rgba(15,23,42,0.05)", color: "var(--agent-text-secondary)",
+            width: 26, height: 26,
+            color: "var(--agent-text-secondary)",
           }}>
-            <Calculator size={14} weight="regular" />
+            <Calculator size={17} weight="regular" />
           </span>
           <span style={{ fontSize: 13, color: "var(--agent-text-primary)", fontWeight: 500 }}>
             Stamp duty calculator

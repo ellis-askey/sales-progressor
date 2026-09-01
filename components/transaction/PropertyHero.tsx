@@ -198,15 +198,13 @@ function HeroStatCell({
       <span style={{
         width: 32,
         height: 32,
-        borderRadius: 999,
-        background: "rgba(var(--agent-coral-rgb), 0.12)",
         color: "var(--agent-coral-deep)",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
       }}>
-        <Icon size={16} weight="regular" />
+        <Icon size={20} weight="regular" />
       </span>
       <span style={{ minWidth: 0 }}>
         <span
@@ -590,14 +588,12 @@ export function PropertyHero({
                 <span aria-hidden style={{
                   width: 32,
                   height: 32,
-                  borderRadius: 999,
-                  background: "var(--agent-surface-overlay)",
                   color: "var(--agent-text-muted)",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                }}><Clock size={15} /></span>
+                }}><Clock size={19} /></span>
                 <span>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>
                     {elapsedText.replace(" elapsed", "")}

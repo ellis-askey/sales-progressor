@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { GoogleIcon } from "./GoogleIcon"
 import { MicrosoftIcon } from "./MicrosoftIcon"
+import { loginPrecheck } from "@/app/actions/login-precheck"
 
 export function WarmLoginForm() {
   const router = useRouter()
@@ -14,20 +15,47 @@ export function WarmLoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [stage, setStage] = useState<"password" | "totp">("password")
+  const [totp, setTotp] = useState("")
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-    const result = await signIn("credentials", { email: email.trim(), password, redirect: false })
+  async function completeSignIn(code?: string) {
+    const result = await signIn("credentials", { email: email.trim(), password, totp: code ?? "", redirect: false })
     if (result?.error || !result?.ok) {
       setLoading(false)
-      setError("Incorrect email or password.")
+      setError(code !== undefined ? "That code isn't right. Try again, or use a backup code." : "Incorrect email or password.")
     } else {
       router.push("/")
       // loading stays true — component unmounts on navigation, no flash
     }
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    if (stage === "totp") {
+      await completeSignIn(totp.trim())
+      return
+    }
+
+    // Check the password first so we only ask for a 2FA code when the account
+    // actually has it on. authorize() still enforces the code independently.
+    const pre = await loginPrecheck({ email: email.trim(), password })
+    if (!pre.ok) {
+      setLoading(false)
+      setError("Incorrect email or password.")
+      return
+    }
+    if (pre.needs2fa) {
+      setLoading(false)
+      setStage("totp")
+      return
+    }
+    await completeSignIn()
+  }
+
+  const submitDisabled = loading || (stage === "password" ? (!email.trim() || !password) : !totp.trim())
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -91,6 +119,8 @@ export function WarmLoginForm() {
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
+        {stage === "password" && (
+        <>
         {/* SSO buttons — top of form */}
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <button
@@ -176,6 +206,38 @@ export function WarmLoginForm() {
             </button>
           </div>
         </div>
+        </>
+        )}
+
+        {stage === "totp" && (
+          <div>
+            <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#7A4A2E", marginBottom: "6px", letterSpacing: "0.01em" }}>
+              Authenticator code
+            </label>
+            <input
+              className="wi"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={totp}
+              onChange={e => setTotp(e.target.value)}
+              autoFocus
+              placeholder="123 456"
+              style={inputStyle}
+            />
+            <p style={{ margin: "8px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)" }}>
+              Enter the 6-digit code from your authenticator app, or one of your backup codes.
+            </p>
+            <button
+              type="button"
+              onClick={() => { setStage("password"); setTotp(""); setError(null); }}
+              className="wlink"
+              style={{ marginTop: "10px", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "#7A4A2E" }}
+            >
+              ← Back
+            </button>
+          </div>
+        )}
 
         {error && (
           <p style={{ fontSize: "12px", color: "#8B2500", background: "rgba(255,210,190,0.55)", padding: "8px 12px", borderRadius: "8px", margin: 0 }}>
@@ -183,39 +245,43 @@ export function WarmLoginForm() {
           </p>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Link href="/forgot-password" className="wlink" style={{ fontSize: "11px", color: "#7A4A2E", textDecoration: "none", transition: "color 0.12s ease" }}>
-            Forgot password?
-          </Link>
-        </div>
+        {stage === "password" && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Link href="/forgot-password" className="wlink" style={{ fontSize: "11px", color: "#7A4A2E", textDecoration: "none", transition: "color 0.12s ease" }}>
+              Forgot password?
+            </Link>
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={loading || !email.trim() || !password}
+          disabled={submitDisabled}
           className="wbtn"
           style={{
             width: "100%",
             padding: "12px",
             borderRadius: "8px",
-            background: loading || !email.trim() || !password ? "rgba(220,90,55,0.45)" : "#D85A35",
+            background: submitDisabled ? "rgba(220,90,55,0.45)" : "#D85A35",
             color: "white",
             fontSize: "14px",
             fontWeight: 500,
             border: "none",
-            cursor: loading || !email.trim() || !password ? "not-allowed" : "pointer",
+            cursor: submitDisabled ? "not-allowed" : "pointer",
             boxShadow: "0 4px 20px rgba(216,90,53,0.35)",
             transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
           }}
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? "Signing in…" : stage === "totp" ? "Verify code" : "Sign in"}
         </button>
 
-        <p style={{ textAlign: "center", fontSize: "12px", color: "#7A4A2E", margin: 0 }}>
-          Estate agent?{" "}
-          <Link href="/register" className="wcreate" style={{ color: "#D2553A", fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
-            Create an account
-          </Link>
-        </p>
+        {stage === "password" && (
+          <p style={{ textAlign: "center", fontSize: "12px", color: "#7A4A2E", margin: 0 }}>
+            Estate agent?{" "}
+            <Link href="/register" className="wcreate" style={{ color: "#D2553A", fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
+              Create an account
+            </Link>
+          </p>
+        )}
 
       </form>
     </>

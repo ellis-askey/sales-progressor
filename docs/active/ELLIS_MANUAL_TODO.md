@@ -749,3 +749,9 @@ Once all three steps complete, PR 6 + PR 7 are both fully live in production.
 The pricing migration went live on prod 2026-08-31 (self-progress now free; JSON-LD `Offer` self price is now `"0"`; FAQ + /pricing copy rewritten). Google will keep showing the old **£59** rich result until it re-crawls.
 
 **Action:** in Google Search Console, request re-indexing of `https://www.thesalesprogressor.co.uk/pricing` and the homepage. Optionally resubmit the sitemap.
+
+## Restore local Prisma client after security-schema change (added 2026-09-01)
+
+The `20260901160000_account_security` migration added `User.totpBackupCodes` + `User.sessionVersion`. Regenerating the Prisma client locally failed with EPERM because the `:3001` dev server holds the query-engine DLL, so it was regenerated with `--no-engine` (types only). The runtime client is therefore engine-less until a full regenerate.
+
+**Action:** stop the `:3001` dev server, then run `npx prisma generate` (restores the engine-equipped client). Otherwise a dev-server restart hits P6001 on DB calls. Staging/prod are unaffected — the Vercel build runs a full `prisma generate` + `migrate deploy`.

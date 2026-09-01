@@ -10,9 +10,11 @@ import { useRouter } from "next/navigation";
 import { CalendarBlank, PencilSimple } from "@phosphor-icons/react";
 import { saveOverrideDateAction } from "@/app/actions/transactions";
 
+// No background — bare icon in an unchanged 32×32 footprint (matches
+// HeroSaleFields so the editable + static hero cells stay identical).
 const ICON_CHIP: CSSProperties = {
-  width: 32, height: 32, borderRadius: 999,
-  background: "rgba(var(--agent-coral-rgb), 0.12)", color: "var(--agent-coral-deep)",
+  width: 32, height: 32,
+  color: "var(--agent-coral-deep)",
   display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 };
 const VALUE_STYLE: CSSProperties = {
@@ -58,7 +60,7 @@ export function HeroExchangeCell({
 
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
-      <span style={ICON_CHIP}><CalendarBlank size={16} weight="regular" /></span>
+      <span style={ICON_CHIP}><CalendarBlank size={20} weight="regular" /></span>
       <span style={{ minWidth: 0, flex: 1 }}>
         {editing ? (
           <>

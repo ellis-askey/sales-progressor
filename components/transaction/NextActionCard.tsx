@@ -91,11 +91,9 @@ export function NextActionCard({
             justifyContent: "center",
             width: 26,
             height: 26,
-            borderRadius: 7,
-            background: "rgba(var(--agent-coral-rgb), 0.12)",
             color: "var(--agent-coral-deep)",
           }}>
-            <Fire size={14} weight="fill" />
+            <Fire size={17} weight="fill" />
           </span>
           <span className="agent-eyebrow" style={{ margin: 0 }}>
             Next action

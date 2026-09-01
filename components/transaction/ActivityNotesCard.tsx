@@ -266,11 +266,11 @@ function Empty({ label }: { label: string }) {
 }
 
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
-  const { Icon: EntryIcon, color, bg } = iconFor(entry);
+  const { Icon: EntryIcon, color } = iconFor(entry);
   return (
     <div className="agent-hover-row" style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 7, background: bg, color, flexShrink: 0 }}>
-        <EntryIcon size={14} weight="regular" />
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, color, flexShrink: 0 }}>
+        <EntryIcon size={17} weight="regular" />
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -298,8 +298,8 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
       {author ? (
         <UserAvatar user={{ name: author, image: authorImage }} size={28} />
       ) : (
-        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 7, background: "rgba(59, 130, 246, 0.10)", color: "#1d4ed8", flexShrink: 0 }}>
-          <NoteBlank size={14} weight="regular" />
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, color: "#1d4ed8", flexShrink: 0 }}>
+          <NoteBlank size={17} weight="regular" />
         </span>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>

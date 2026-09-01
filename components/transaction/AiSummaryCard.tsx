@@ -63,11 +63,10 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26, borderRadius: 7,
-            background: "rgba(var(--agent-coral-rgb), 0.12)",
+            width: 26, height: 26,
             color: "var(--agent-coral-deep)",
           }}>
-            <Robot size={14} weight="fill" />
+            <Robot size={17} weight="fill" />
           </span>
           <p className="agent-eyebrow" style={{ margin: 0 }}>AI summary</p>
         </div>

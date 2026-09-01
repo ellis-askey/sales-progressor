@@ -10,7 +10,8 @@ async function requireDirector() {
   return { session, error: null };
 }
 
-// PATCH /api/agent/team/[id] — update canViewAllFiles
+// PATCH /api/agent/team/[id] — update a negotiator's file access and/or their
+// details (name / job title / direct mobile). Director-only, same agency.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,7 +20,7 @@ export async function PATCH(
   if (error) return error;
 
   const { id } = await params;
-  const { canViewAllFiles } = await req.json();
+  const body = await req.json();
 
   // Ensure target is a negotiator in the same agency
   const target = await prisma.user.findFirst({
@@ -28,10 +29,19 @@ export async function PATCH(
   });
   if (!target) return NextResponse.json({ error: "Negotiator not found" }, { status: 404 });
 
+  const data: Record<string, unknown> = {};
+  if (typeof body.canViewAllFiles === "boolean") data.canViewAllFiles = body.canViewAllFiles;
+  if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
+  if (typeof body.jobTitle === "string") data.jobTitle = body.jobTitle.trim() || null;
+  if (typeof body.directMobile === "string") data.directMobile = body.directMobile.trim() || null;
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
   const updated = await prisma.user.update({
     where: { id },
-    data: { canViewAllFiles: Boolean(canViewAllFiles) },
-    select: { id: true, name: true, email: true, role: true, canViewAllFiles: true },
+    data,
+    select: { id: true, name: true, email: true, role: true, canViewAllFiles: true, jobTitle: true, directMobile: true, image: true, imageFocusX: true, imageFocusY: true },
   });
 
   return NextResponse.json(updated);
