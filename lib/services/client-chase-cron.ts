@@ -655,6 +655,12 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   contactsChased: number;
   escalations: number;
   pausedFallbacks: number;
+  // Per-item failures that were caught and skipped so one bad file can't
+  // abort the whole pass. Non-zero here means the run completed but N items
+  // errored — surfaced in the cron payload + JobRun record, and each is
+  // console.error'd with its (transaction, contact/milestone) context. The
+  // run itself still returns success; observability lives in this count.
+  failures: number;
   byReason: { first_chase: number; repeat_due: number; chase_count: number; silence_14d: number };
 }> {
   const due = await findDueClientChases(now);
@@ -679,14 +685,25 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   }
 
   let digestsEnqueued = 0;
+  let failures = 0;
   for (const tuples of byContact.values()) {
     const first = tuples[0];
-    const result = await enqueueClientChaseDigest({
-      transactionId: first.transactionId,
-      contactId: first.contactId,
-      milestoneCodes: tuples.map((t) => t.milestoneCode),
-    });
-    if (result.enqueued) digestsEnqueued += 1;
+    try {
+      const result = await enqueueClientChaseDigest({
+        transactionId: first.transactionId,
+        contactId: first.contactId,
+        milestoneCodes: tuples.map((t) => t.milestoneCode),
+      });
+      if (result.enqueued) digestsEnqueued += 1;
+    } catch (err) {
+      // Per-contact isolation: a single malformed file (bad snapshot, enqueue
+      // failure) must not abort the remaining digests. Count + log; continue.
+      failures += 1;
+      console.error(
+        `[client-chase] digest enqueue failed for tx=${first.transactionId} contact=${first.contactId}:`,
+        err,
+      );
+    }
   }
 
   // PAUSED tuples → manual-handoff ChaseTask with the "client_emails_paused"
@@ -700,14 +717,22 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
     const key = `${p.transactionId}:${p.milestoneCode}`;
     if (seenPaused.has(key)) continue;
     seenPaused.add(key);
-    const result = await createAgentChaseTaskForMilestone({
-      kind: "client_emails_paused",
-      transactionId: p.transactionId,
-      milestoneCode: p.milestoneCode,
-      contactName: p.contactName,
-      pausedScope: p.pausedScope!,
-    });
-    if (result) pausedFallbacks += 1;
+    try {
+      const result = await createAgentChaseTaskForMilestone({
+        kind: "client_emails_paused",
+        transactionId: p.transactionId,
+        milestoneCode: p.milestoneCode,
+        contactName: p.contactName,
+        pausedScope: p.pausedScope!,
+      });
+      if (result) pausedFallbacks += 1;
+    } catch (err) {
+      failures += 1;
+      console.error(
+        `[client-chase] paused fallback failed for tx=${p.transactionId} milestone=${p.milestoneCode}:`,
+        err,
+      );
+    }
   }
 
   // Escalation pass. Done AFTER the chase pass so that a row chased TODAY
@@ -719,11 +744,19 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   let chaseCountReason = 0;
   let silenceReason = 0;
   for (const c of candidates) {
-    const { escalated } = await escalateClientChaseState(c);
-    if (escalated) {
-      escalations += 1;
-      if (c.reason === "chase_count") chaseCountReason += 1;
-      else silenceReason += 1;
+    try {
+      const { escalated } = await escalateClientChaseState(c);
+      if (escalated) {
+        escalations += 1;
+        if (c.reason === "chase_count") chaseCountReason += 1;
+        else silenceReason += 1;
+      }
+    } catch (err) {
+      failures += 1;
+      console.error(
+        `[client-chase] escalation failed for state=${c.stateId} tx=${c.transactionId}:`,
+        err,
+      );
     }
   }
 
@@ -735,6 +768,7 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
     contactsChased: byContact.size,
     escalations,
     pausedFallbacks,
+    failures,
     byReason: {
       first_chase: firstChaseCount,
       repeat_due: repeatDueCount,
