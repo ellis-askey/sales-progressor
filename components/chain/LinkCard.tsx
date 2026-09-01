@@ -536,11 +536,11 @@ function CardMenu({ items }: { items: MenuItem[] }) {
               type="button"
               role="menuitem"
               onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick(); }}
-              className="agent-hover-row"
+              className="chain-menu-item"
               style={{
                 display: "block", width: "100%", textAlign: "left",
                 padding: "8px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-                background: "none", fontSize: 12.5, fontWeight: 600,
+                fontSize: 12.5, fontWeight: 600,
                 color: it.danger ? "var(--agent-danger)" : "var(--agent-text-primary)",
               }}
             >
