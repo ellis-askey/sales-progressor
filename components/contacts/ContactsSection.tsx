@@ -393,6 +393,60 @@ function menuItemStyle(color: string): React.CSSProperties {
   };
 }
 
+// Small animated checkbox for the contact form. The native input stays for
+// accessibility and keyboard; the visible box fills coral and the tick draws
+// in (and retracts) via stroke-dashoffset when toggled. Colour is the brand
+// coral by design. Local to this form; promote to components/ui if reused.
+function AnimatedCheckbox({
+  checked,
+  onChange,
+  className = "",
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <span className={className} style={{ position: "relative", display: "inline-flex", width: 18, height: 18, flexShrink: 0 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", margin: 0, opacity: 0, cursor: "pointer", zIndex: 1 }}
+      />
+      <span
+        aria-hidden
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 5,
+          border: `1.5px solid ${checked ? "var(--agent-coral)" : "rgba(15,23,42,0.28)"}`,
+          background: checked ? "var(--agent-coral)" : "transparent",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "background 160ms ease, border-color 160ms ease",
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 6.4 L4.9 8.8 L9.5 3.4"
+            stroke="#fff"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              strokeDasharray: 14,
+              strokeDashoffset: checked ? 0 : 14,
+              transition: "stroke-dashoffset 200ms cubic-bezier(0.65,0,0.35,1) 40ms",
+            }}
+          />
+        </svg>
+      </span>
+    </span>
+  );
+}
+
 export function ContactsSection({
   transactionId,
   contacts,
@@ -921,14 +975,14 @@ export function ContactsSection({
                     />
                     {(editForm.roleType === "vendor" || editForm.roleType === "purchaser") && (
                       <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                        <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={editForm.isHelper} onChange={(e) => setEditForm((f) => ({ ...f, isHelper: e.target.checked }))} className="mt-0.5" />
-                          <span>They&rsquo;re helping, not the actual {editForm.roleType === "vendor" ? "seller" : "buyer"} (a relative, an assistant, or a representative). We won&rsquo;t name them in confirmations.</span>
+                        <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
+                          <AnimatedCheckbox checked={editForm.isHelper} onChange={(v) => setEditForm((f) => ({ ...f, isHelper: v }))} className="mt-0.5" />
+                          <span>They&rsquo;re helping on the {editForm.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {editForm.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
                         </label>
                         {editForm.isHelper && (
-                          <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer pl-[26px]">
-                            <input type="checkbox" checked={editForm.givePortal} onChange={(e) => setEditForm((f) => ({ ...f, givePortal: e.target.checked }))} className="mt-0.5" />
-                            <span>Give them their own portal login and updates.</span>
+                          <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
+                            <AnimatedCheckbox checked={editForm.givePortal} onChange={(v) => setEditForm((f) => ({ ...f, givePortal: v }))} className="mt-0.5" />
+                            <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
                           </label>
                         )}
                       </div>
@@ -1001,14 +1055,14 @@ export function ContactsSection({
 
             {(form.roleType === "vendor" || form.roleType === "purchaser") && (
               <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={form.isHelper} onChange={(e) => setForm((p) => ({ ...p, isHelper: e.target.checked }))} className="mt-0.5" />
-                  <span>They&rsquo;re helping, not the actual {form.roleType === "vendor" ? "seller" : "buyer"} (a relative, an assistant, or a representative). We won&rsquo;t name them in confirmations.</span>
+                <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
+                  <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
+                  <span>They&rsquo;re helping on the {form.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {form.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
                 </label>
                 {form.isHelper && (
-                  <label className="flex items-start gap-2.5 text-[13px] text-slate-700 cursor-pointer pl-[26px]">
-                    <input type="checkbox" checked={form.givePortal} onChange={(e) => setForm((p) => ({ ...p, givePortal: e.target.checked }))} className="mt-0.5" />
-                    <span>Give them their own portal login and updates.</span>
+                  <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
+                    <AnimatedCheckbox checked={form.givePortal} onChange={(v) => setForm((p) => ({ ...p, givePortal: v }))} className="mt-0.5" />
+                    <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
                   </label>
                 )}
               </div>
