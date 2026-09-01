@@ -7,7 +7,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
-import { createTransaction } from "@/lib/services/transactions";
+import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2 } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
@@ -171,6 +171,21 @@ export async function createTransactionAction(input: {
   const hasMigrationOverride = !!(input.migrationCreatedAt || input.migrationAgencyId || input.migrationAssignedUserId || input.migrationAgentUserId);
   if (hasMigrationOverride && !isAdmin) {
     throw new Error("Forbidden: migration overrides require admin role");
+  }
+
+  // Outsourced handover gate (Resilience audit II.4). A file the SP team will
+  // progress must meet the minimum information standard at creation. Migration
+  // imports (admin, historical) are exempt — they backfill historical records
+  // that legitimately may be sparse. Self-progress files are never gated.
+  if (resolvedProgressedBy === "progressor" && !hasMigrationOverride) {
+    const readiness = checkOutsourcedHandoverReadiness({
+      tenure: input.tenure,
+      purchaseType: input.purchaseType,
+      contacts: input.contacts,
+    });
+    if (!readiness.ready) {
+      throw new Error(handoverReadinessMessage(readiness.missing));
+    }
   }
   const effectiveAgencyId = input.migrationAgencyId ?? session.user.agencyId;
   if (!effectiveAgencyId) {
@@ -1144,7 +1159,14 @@ export async function switchServiceTypeAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, serviceType: true, status: true },
+    select: {
+      id: true,
+      serviceType: true,
+      status: true,
+      tenure: true,
+      purchaseType: true,
+      contacts: { select: { roleType: true, name: true, phone: true, email: true } },
+    },
   });
   if (!tx) {
     return { ok: false, error: "Transaction not found" };
@@ -1154,6 +1176,21 @@ export async function switchServiceTypeAction(
   }
   if (tx.serviceType === target) {
     return { ok: true };
+  }
+
+  // Outsourced handover gate (Resilience audit II.4). Closes the founder's
+  // suspected loophole: creating a thin self-progress file and later switching
+  // it to outsourced bypassed the creation-time standard. Validate the
+  // PERSISTED data before accepting the file for progression.
+  if (target === "outsourced") {
+    const readiness = checkOutsourcedHandoverReadiness({
+      tenure: tx.tenure,
+      purchaseType: tx.purchaseType,
+      contacts: tx.contacts,
+    });
+    if (!readiness.ready) {
+      return { ok: false, error: handoverReadinessMessage(readiness.missing) };
+    }
   }
 
   const SERVICE_LABEL = { self_managed: "Self-managed", outsourced: "Outsourced" } as const;
@@ -1621,6 +1658,21 @@ export async function promoteDraftAction(
     ? (data.progressedBy === "agent" ? "self_managed" : "outsourced")
     : draft.serviceType;
   const promotedFreeReason = finalServiceType === "self_managed" ? "permanent_free_self" : null;
+
+  // Outsourced handover gate (Resilience audit II.4). Promoting a draft to a
+  // live outsourced file is an accept-the-file point too. tenure + purchaseType
+  // are required by this action's signature (always present), so in practice
+  // this catches a promote with no reachable buyer/seller.
+  if (finalServiceType === "outsourced") {
+    const readiness = checkOutsourcedHandoverReadiness({
+      tenure: data.tenure,
+      purchaseType: data.purchaseType,
+      contacts: data.contacts,
+    });
+    if (!readiness.ready) {
+      throw new Error(handoverReadinessMessage(readiness.missing));
+    }
+  }
 
   // Defensive Round-1 backfill for drafts that pre-date the
   // saveDraftAction wiring (Phase 1 follow-up commit). Idempotent —
