@@ -9,6 +9,7 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
@@ -59,7 +60,7 @@ export async function sendQuoteLinkToBuyerAction(
 
   const origin = process.env.NEXT_PUBLIC_APP_URL ?? "https://portal.thesalesprogressor.co.uk";
   const link = `${origin}/quote/${buyer.portalToken}`;
-  const firstName = buyer.name.split(/\s+/)[0] || buyer.name;
+  const firstName = extractFirstName(buyer.name);
 
   const subject = `Get a survey quote for ${tx.propertyAddress}`;
   const text = `Hi ${firstName},

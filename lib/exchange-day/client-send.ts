@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import {
@@ -44,7 +45,7 @@ function ukMinutes(d: Date): number {
   const m = Number(parts.find((p) => p.type === "minute")!.value);
   return h * 60 + m;
 }
-function firstName(name: string): string { return name.trim().split(/\s+/)[0] || name; }
+function firstName(name: string): string { return extractFirstName(name); }
 function longDate(d: Date): string { return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); }
 
 type SlotFields = {

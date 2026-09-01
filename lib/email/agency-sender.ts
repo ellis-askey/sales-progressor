@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 
@@ -109,7 +110,7 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
   // they gave us, e.g. ellis@akeman-residential.co.uk); the sending address is
   // their verified domain when set, otherwise our shared updates@ fallback.
   const acting = tx.agentUser;
-  const firstName = acting?.name?.trim().split(/\s+/)[0] || undefined;
+  const firstName = acting?.name?.trim() ? extractFirstName(acting.name) : undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
   const logo = {

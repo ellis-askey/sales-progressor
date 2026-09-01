@@ -24,7 +24,10 @@
 function isWhitespaceSplitArg(arg) {
   if (!arg) return false;
   if (arg.type === "Literal" && arg.regex && arg.regex.pattern === "\\s+") return true;
-  if (arg.type === "Literal" && typeof arg.value === "string" && /^\s+$/.test(arg.value)) return true;
+  // Only a SPACE literal is a naive name split (`.split(" ")[0]`). Newline/tab
+  // literals (`.split("\n")[0]`) are line/field splits, never name splits — do
+  // not flag them.
+  if (arg.type === "Literal" && typeof arg.value === "string" && /^ +$/.test(arg.value)) return true;
   return false;
 }
 

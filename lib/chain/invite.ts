@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender, resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { agencyLogoBand } from "@/lib/email/agency-logo-band";
@@ -85,7 +86,7 @@ export async function resolveChainInviteSender(
   originatorTransactionId: string | null,
   fallback: { name: string; agencyId: string | null; agencyName: string },
 ): Promise<{ from: string; replyTo: string; displayFirstName: string; displayAgency: string }> {
-  const firstOf = (n: string) => n.trim().split(/\s+/)[0] || n;
+  const firstOf = (n: string) => extractFirstName(n);
 
   if (originatorTransactionId) {
     const otx = await prisma.propertyTransaction.findUnique({

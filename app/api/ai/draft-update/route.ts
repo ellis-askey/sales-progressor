@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { checkAiLimit, rateLimitJson } from "@/lib/ratelimit";
 import { callClaude } from "@/lib/anthropic";
 import { prisma } from "@/lib/prisma";
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   const buyers = tx.contacts.filter((c) => c.roleType === "purchaser");
   const sellers = tx.contacts.filter((c) => c.roleType === "vendor");
   const principal = [...buyers, ...sellers].find((c) => c.isPrincipal) ?? buyers[0] ?? sellers[0] ?? null;
-  const clientFirstName = principal ? (principal.name.trim().split(/\s+/)[0] || "there") : "there";
+  const clientFirstName = principal && principal.name.trim() ? extractFirstName(principal.name) : "there";
 
   const userMessage = `Property (street only): ${shortAddress}
 Client first name: ${clientFirstName}

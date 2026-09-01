@@ -14,7 +14,7 @@
 // Reviewed + approved by Ellis 2026-08-12.
 
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { extractFirstName, getTitlePrefix } from "@/lib/contacts/displayName";
 
 // Possessive client label from a side's contact names, first-names only, so a
 // notification reads with the real people rather than "the buyer". Handles one
@@ -232,7 +232,7 @@ function clientPronoun(contacts: SideContact[]): "his" | "her" | "their" {
   // (a title field, or a leading "Mr/Mrs/Ms/Miss/Dr" on the name), else "their".
   if (contacts.length !== 1) return "their";
   const c = contacts[0];
-  const t = (c.title ?? c.name.trim().split(/\s+/)[0] ?? "").toLowerCase().replace(/\./g, "");
+  const t = (c.title ?? getTitlePrefix(c.name) ?? "").toLowerCase().replace(/\./g, "");
   if (t === "mr") return "his";
   if (t === "mrs" || t === "ms" || t === "miss") return "her";
   return "their";

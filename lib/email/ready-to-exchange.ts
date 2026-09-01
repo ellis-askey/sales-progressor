@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 
@@ -95,7 +96,7 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;
-    const first = c.name.trim().split(/\s+/)[0] || c.name;
+    const first = extractFirstName(c.name);
     const email = buildReadyToExchangeEmail({ first, address: tx.propertyAddress, agencyName });
     await enqueueEmail({
       emailType: "READY_TO_EXCHANGE",
