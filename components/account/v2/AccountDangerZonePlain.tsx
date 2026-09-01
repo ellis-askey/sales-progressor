@@ -11,6 +11,7 @@
 // canvas).
 
 import { useState, useTransition, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { signOut } from "next-auth/react";
 import { X, DownloadSimple, Trash, CaretRight } from "@phosphor-icons/react";
 import { deleteMyAccount } from "@/app/actions/delete-my-account";
@@ -175,7 +176,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
         `}</style>
       </div>
 
-      {showModal && (
+      {showModal && typeof document !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -336,7 +337,8 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
