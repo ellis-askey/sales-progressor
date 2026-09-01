@@ -56,7 +56,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
               style={{ gap: 8, color: "var(--agent-coral-deep)" }}
             >
               Explore a demo sale
-              <ArrowRight size={15} weight="bold" />
+              <ArrowRight size={15} weight="bold" className="agent-arrow-i" />
             </button>
           </div>
         </div>
@@ -70,7 +70,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             glassId="empty-hub-place"
             label="Hub empty · One place"
             tint="coral"
-            icon={<FolderOpen size={22} weight="regular" />}
+            icon={<FolderOpen size={20} weight="regular" />}
             title="Everything starts in one place"
             desc="Buyers, sellers, solicitors, milestones and documents stay attached to the file."
           />
@@ -78,7 +78,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             glassId="empty-hub-attention"
             label="Hub empty · Needs attention"
             tint="blue"
-            icon={<ListChecks size={22} weight="regular" />}
+            icon={<ListChecks size={20} weight="regular" />}
             title="Know what needs attention"
             desc="See what's outstanding, what needs chasing and which sales are starting to drift."
           />
@@ -86,7 +86,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             glassId="empty-hub-picture"
             label="Hub empty · In the picture"
             tint="green"
-            icon={<UsersThree size={22} weight="regular" />}
+            icon={<UsersThree size={20} weight="regular" />}
             title="Keep everyone in the picture"
             desc="Give clients live progress while updates and solicitor replies come back into the file."
           />
@@ -96,7 +96,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
       {/* Finish setting up your workspace — opens the Getting-started checklist */}
       <GlassCard glassId="empty-hub-finish" label="Hub empty · Finish setup" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <UserCircle size={20} weight="regular" />
           </span>
           <div style={{ minWidth: 0 }}>
@@ -117,7 +117,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
           }}
         >
           Continue setup
-          <ArrowRight size={15} weight="bold" />
+          <ArrowRight size={15} weight="bold" className="agent-arrow-i" />
         </button>
       </GlassCard>
 

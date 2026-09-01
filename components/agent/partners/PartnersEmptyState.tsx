@@ -24,7 +24,7 @@ type AllFirm = { id: string; name: string };
 type PopupMode = "chooser" | "broker" | "solicitor";
 
 function Arrow() {
-  return <ArrowRight size={14} weight="bold" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} />;
+  return <ArrowRight size={14} weight="bold" className="agent-arrow-i" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} />;
 }
 
 // A card matching the SetupCard shell, but able to fill in once a partner is
@@ -44,7 +44,7 @@ function PartnerCard({
   const body = (
     <>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
-        <span style={{ width: 40, height: 40, borderRadius: "50%", background: tint.bg, color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {icon}
         </span>
         <div style={{ minWidth: 0 }}>
@@ -191,7 +191,7 @@ export function PartnersEmptyState({
           glassId="empty-partners-broker"
           label="Partners empty · Mortgage broker"
           tint={{ bg: "rgba(var(--agent-coral-rgb), 0.12)", fg: "var(--agent-coral-deep)" }}
-          icon={<UserCircle size={22} weight="regular" />}
+          icon={<UserCircle size={20} weight="regular" />}
           title="Set your mortgage broker"
           desc="Choose the broker your agency works with. We'll make them easy to select on new sales and track any referral fees in your analytics."
           footer={broker
@@ -212,7 +212,7 @@ export function PartnersEmptyState({
           glassId="empty-partners-solicitor"
           label="Partners empty · Solicitor firms"
           tint={{ bg: "rgba(59,130,246,0.12)", fg: "#2f74e0" }}
-          icon={<Bank size={22} weight="regular" />}
+          icon={<Bank size={20} weight="regular" />}
           title="Recommend solicitor firms"
           desc="Add the firms you recommend to clients and set a default referral fee for each one."
           footer={recommended.length > 0
@@ -238,7 +238,7 @@ export function PartnersEmptyState({
           glassId="empty-partners-network"
           label="Partners empty · Network builds itself"
           tint={{ bg: "rgba(16,185,129,0.14)", fg: "#0f9d6b" }}
-          icon={<LinkSimple size={22} weight="regular" />}
+          icon={<LinkSimple size={20} weight="regular" />}
           title="Your network builds itself"
           desc="Solicitors and brokers involved in your sales automatically appear here, giving you one place to keep track of them."
         />
@@ -247,7 +247,7 @@ export function PartnersEmptyState({
       {/* No partners from sales yet */}
       <GlassCard glassId="empty-partners-nosales" label="Partners empty · No sales yet" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(15,23,42,0.06)", color: "var(--agent-text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <UsersThree size={20} weight="regular" />
           </span>
           <div style={{ minWidth: 0 }}>

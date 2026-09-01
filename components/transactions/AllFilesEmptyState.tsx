@@ -55,7 +55,7 @@ export function AllFilesEmptyState() {
           glassId="empty-allfiles-risk"
           label="All Files empty · At-risk sales"
           tint="coral"
-          icon={<ShieldWarning size={22} weight="regular" />}
+          icon={<ShieldWarning size={20} weight="regular" />}
           title="Spot at-risk sales early"
           desc="Every sale gets a live risk read, so the ones drifting towards falling through stand out before it's too late."
         />
@@ -63,7 +63,7 @@ export function AllFilesEmptyState() {
           glassId="empty-allfiles-next"
           label="All Files empty · Next step"
           tint="blue"
-          icon={<ListChecks size={22} weight="regular" />}
+          icon={<ListChecks size={20} weight="regular" />}
           title="See each sale's next step"
           desc="Each file shows the exact next thing to do to move it forward, so you can work your list without opening a single one."
         />
@@ -71,7 +71,7 @@ export function AllFilesEmptyState() {
           glassId="empty-allfiles-exchange"
           label="All Files empty · Exchanging when"
           tint="green"
-          icon={<CalendarCheck size={22} weight="regular" />}
+          icon={<CalendarCheck size={20} weight="regular" />}
           title="Know what's exchanging when"
           desc="See every sale's target exchange date and filter to what's landing this week or this month."
         />
@@ -80,7 +80,7 @@ export function AllFilesEmptyState() {
       {/* Explore demo sale — real, reuses the shared flow */}
       <GlassCard glassId="empty-allfiles-demo" label="All Files empty · Demo card" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Eye size={20} weight="regular" />
           </span>
           <div style={{ minWidth: 0 }}>
@@ -102,7 +102,7 @@ export function AllFilesEmptyState() {
         >
           <Eye size={15} weight="bold" />
           Explore demo sale
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg className="agent-arrow-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <line x1="4" y1="12" x2="19" y2="12" />
             <polyline points="13 6 19 12 13 18" />
           </svg>
