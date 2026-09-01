@@ -34,7 +34,7 @@ import { prisma } from "@/lib/prisma";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { enqueueClientChaseDigest } from "@/lib/email/client-chase-digest";
-import { createAgentChaseTaskForMilestone } from "@/lib/services/reminders";
+import { createAgentChaseTaskForMilestone, clearFallbackForMilestone } from "@/lib/services/reminders";
 import type { ContactRole } from "@prisma/client";
 
 export const CLIENT_CHASE_GRACE_FLOOR_DAYS = 1;
@@ -655,6 +655,10 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   contactsChased: number;
   escalations: number;
   pausedFallbacks: number;
+  // Manual-handoff markers cleared this pass because the milestone became
+  // chaseable again (data added / resubscribed / unpaused). Observable so we
+  // can see the fail-soft net self-healing rather than leaving stale chips.
+  fallbacksCleared: number;
   // Per-item failures that were caught and skipped so one bad file can't
   // abort the whole pass. Non-zero here means the run completed but N items
   // errored — surfaced in the cron payload + JobRun record, and each is
@@ -701,6 +705,30 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
       failures += 1;
       console.error(
         `[client-chase] digest enqueue failed for tx=${first.transactionId} contact=${first.contactId}:`,
+        err,
+      );
+    }
+  }
+
+  // Auto-clear stale manual-handoff markers. Any (transaction, milestone) that
+  // is chaseable again this pass (contact now reachable / resubscribed / emails
+  // unpaused → it's in activeChases) should shed the amber "handed to agent"
+  // chip its earlier fallback left behind. Without this, a chip lingers after
+  // the agent fixes the data until the milestone closes. Deduped per milestone;
+  // clearFallbackForMilestone is a no-op when nothing was flagged.
+  const clearedSeen = new Set<string>();
+  let fallbacksCleared = 0;
+  for (const d of activeChases) {
+    const key = `${d.transactionId}:${d.milestoneCode}`;
+    if (clearedSeen.has(key)) continue;
+    clearedSeen.add(key);
+    try {
+      const cleared = await clearFallbackForMilestone(d.transactionId, d.milestoneCode);
+      if (cleared) fallbacksCleared += 1;
+    } catch (err) {
+      failures += 1;
+      console.error(
+        `[client-chase] fallback auto-clear failed for tx=${d.transactionId} milestone=${d.milestoneCode}:`,
         err,
       );
     }
@@ -768,6 +796,7 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
     contactsChased: byContact.size,
     escalations,
     pausedFallbacks,
+    fallbacksCleared,
     failures,
     byReason: {
       first_chase: firstChaseCount,

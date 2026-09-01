@@ -1492,3 +1492,56 @@ export async function createAgentChaseTaskForMilestone(
 
   return { logId: log.id, taskId: task.id };
 }
+
+// Auto-clear the manual-handoff marker once a milestone is genuinely chaseable
+// again (email added, contact resubscribed, emails unpaused). The fallback
+// never created a SEPARATE task — it decorated the milestone's existing pending
+// ChaseTask with `fallbackKind` and stamped a FALLBACK_REASON on the log. So
+// clearing = revert both back to an ordinary reminder: null the `fallbackKind`
+// and drop the fallback statusReason. The reminder itself stays (the agent may
+// still want it); only the amber "handed to agent" chip disappears.
+//
+// Called from the client-chase cron for every milestone that re-enters the
+// chaseable set on a pass. Idempotent: a no-op when nothing was flagged.
+// Returns true only when it actually cleared a marker (for observable counts).
+export async function clearFallbackForMilestone(
+  transactionId: string,
+  milestoneCode: string,
+): Promise<boolean> {
+  const rule = await prisma.reminderRule.findFirst({
+    where: { isActive: true, targetMilestoneCode: milestoneCode },
+    select: { id: true },
+  });
+  if (!rule) return false;
+
+  const log = await prisma.reminderLog.findFirst({
+    where: { transactionId, reminderRuleId: rule.id, status: "active" },
+    select: { id: true, statusReason: true },
+  });
+  if (!log) return false;
+
+  // Only clear a pending task that actually carries a fallback marker.
+  const flagged = await prisma.chaseTask.findFirst({
+    where: { reminderLogId: log.id, status: "pending", fallbackKind: { not: null } },
+    select: { id: true },
+  });
+  if (!flagged) return false;
+
+  await prisma.chaseTask.update({
+    where: { id: flagged.id },
+    data: { fallbackKind: null },
+  });
+
+  // Drop the fallback statusReason so the chase-history panel stops reading
+  // "handed to agent" once auto-chasing has resumed. Only clears if the log's
+  // reason is one of the known fallback strings (don't stomp an unrelated one).
+  const fallbackReasons = new Set<string>(Object.values(FALLBACK_REASON));
+  if (log.statusReason && fallbackReasons.has(log.statusReason)) {
+    await prisma.reminderLog.update({
+      where: { id: log.id },
+      data: { statusReason: null },
+    });
+  }
+
+  return true;
+}
