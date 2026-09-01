@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { compare } from "bcryptjs";
+import { verifyTotp, consumeBackupCode } from "@/lib/security/totp";
 import { prisma } from "@/lib/prisma";
 import { checkAuthLimit } from "@/lib/ratelimit";
 import type { UserRole } from "@prisma/client";
@@ -55,6 +56,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        totp: { label: "Authenticator code", type: "text" },
       },
       async authorize(credentials, req) {
         const headers = req?.headers as Record<string, string | string[]> | undefined;
@@ -85,6 +87,26 @@ export const authOptions: NextAuthOptions = {
         if (!valid) {
           console.log(`[AUDIT] login_failed userId=${user.id} ip=${ip} reason=wrong_password`);
           return null;
+        }
+
+        // Two-factor: once activated, require a valid TOTP code or a one-time
+        // backup code. Enforced here so it can't be bypassed by signing in
+        // without the code; the login form asks for it (via loginPrecheck)
+        // only when the account has 2FA on.
+        if (user.totpActivatedAt && user.totpSecret) {
+          const code = (credentials.totp ?? "").trim();
+          let twoFaOk = code ? verifyTotp(user.totpSecret, code) : false;
+          if (!twoFaOk && code && user.totpBackupCodes.length > 0) {
+            const remaining = await consumeBackupCode(code, user.totpBackupCodes);
+            if (remaining) {
+              twoFaOk = true;
+              await prisma.user.update({ where: { id: user.id }, data: { totpBackupCodes: remaining } });
+            }
+          }
+          if (!twoFaOk) {
+            console.log(`[AUDIT] login_failed userId=${user.id} ip=${ip} reason=bad_2fa`);
+            return null;
+          }
         }
 
         console.log(`[AUDIT] login_success userId=${user.id} agencyId=${user.agencyId} ip=${ip}`);

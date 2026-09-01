@@ -6,6 +6,7 @@
 import { requireSession } from "@/lib/session";
 import { notFound } from "next/navigation";
 import { ChangePasswordCard } from "@/components/account/v2/ChangePasswordCard";
+import { TwoFactorCard } from "@/components/account/v2/TwoFactorCard";
 
 export default async function AccountSecurityPage() {
   const session = await requireSession();
@@ -31,6 +32,7 @@ export default async function AccountSecurityPage() {
       </div>
 
       <ChangePasswordCard />
+      <TwoFactorCard />
     </div>
   );
 }
