@@ -91,6 +91,21 @@ export default async function QuoteInboxPage({
     commandDb.quoteRequest.count({ where: { status: "pending", submittedAt: { lt: staleBefore }, ...firmScope } }),
   ]);
 
+  // Email deliverability for each request's send. Quote emails route through
+  // OutboundEmailQueue (sourceId "quote:{id}", emailType PROVIDER_QUOTE) and
+  // the SendGrid webhook stamps delivered/bounced/blocked there. One batched
+  // read so the inbox can flag a silent bounce or send failure at a glance
+  // (the failure mode behind the recent "surveyor quote emails silently
+  // failed" fix) without opening each quote.
+  const quoteSourceIds = rows.map((r) => `quote:${r.id}`);
+  const emailLogs = quoteSourceIds.length
+    ? await commandDb.outboundEmailQueue.findMany({
+        where: { emailType: "PROVIDER_QUOTE", sourceId: { in: quoteSourceIds } },
+        select: { sourceId: true, sentAt: true, deliveredAt: true, bouncedAt: true, blockedAt: true, errorAt: true },
+      })
+    : [];
+  const emailBySource = new Map(emailLogs.map((e) => [e.sourceId, e]));
+
   const countByStatus = new Map(counts.map((c) => [c.status, c._count._all]));
   const n = (s: QuoteRequestStatus) => countByStatus.get(s) ?? 0;
   const wonN = n("won"), notChosenN = n("not_chosen"), lostN = n("lost"), bookedN = n("booked");
@@ -197,6 +212,7 @@ export default async function QuoteInboxPage({
                 <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-left">Postcode</th>
                 <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-left">Urgency</th>
                 <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Submitted</th>
+                <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Email</th>
                 <th className="text-[10px] font-bold text-[#525252] uppercase tracking-widest px-3 py-2 text-right">Status</th>
               </tr>
             </thead>
@@ -245,6 +261,7 @@ export default async function QuoteInboxPage({
                         );
                       })()}
                     </td>
+                    <td className="px-3 py-2 text-right"><EmailDeliveryBadge log={emailBySource.get(`quote:${r.id}`)} /></td>
                     <td className="px-3 py-2 text-right"><StatusBadge status={r.status} /></td>
                   </tr>
                 );
@@ -283,6 +300,38 @@ function QuoteStat({
       <p className={`text-[18px] font-semibold tabular-nums leading-none ${tone === "warn" && value !== "£0" ? "text-[#fcd34d]" : "text-[#fafafa]"}`}>{value}</p>
       <p className="text-[10px] text-[#525252] mt-1">{sub}</p>
     </div>
+  );
+}
+
+// Delivery outcome of the quote-request email, read off the linked
+// OutboundEmailQueue row. Failure states (send error / bounce / block) take
+// precedence over delivered so a silent failure never hides behind a stale
+// "delivered". No linked row means it sent inline before tracking, or wasn't
+// emailed — shown as a quiet dash rather than a false negative.
+function EmailDeliveryBadge({
+  log,
+}: {
+  log?: { sentAt: Date | null; deliveredAt: Date | null; bouncedAt: Date | null; blockedAt: Date | null; errorAt: Date | null };
+}) {
+  if (!log) return <span className="text-[11px] text-[#525252]">—</span>;
+  const state = log.errorAt
+    ? { text: "Failed", bg: "#2a1010", fg: "#fca5a5" }
+    : log.bouncedAt
+    ? { text: "Bounced", bg: "#2a1010", fg: "#fca5a5" }
+    : log.blockedAt
+    ? { text: "Blocked", bg: "#2a1010", fg: "#fca5a5" }
+    : log.deliveredAt
+    ? { text: "Delivered", bg: "#0c2418", fg: "#86efac" }
+    : log.sentAt
+    ? { text: "Sent", bg: "#1a2540", fg: "#93c5fd" }
+    : { text: "Queued", bg: "#1a1a1a", fg: "#a3a3a3" };
+  return (
+    <span
+      className="text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wide"
+      style={{ background: state.bg, color: state.fg }}
+    >
+      {state.text}
+    </span>
   );
 }
 
