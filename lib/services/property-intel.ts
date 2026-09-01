@@ -112,7 +112,9 @@ export type EpcResult =
   | { status: "ok"; data: EpcData | null }
   | { status: "error" };
 
-const EPC_ROW_LIMIT = 25;
+// A whole postcode's domestic certificates. 100 comfortably covers even a
+// flat-heavy postcode, so ours is always in the set to match locally.
+const EPC_ROW_LIMIT = 100;
 
 function epcValidUntil(inspectionDate: string): string | null {
   if (!inspectionDate) return null;
@@ -162,18 +164,35 @@ export async function fetchEpcStatus(postcode: string, paon?: string | null): Pr
   if (!email || !key) return { status: "ok", data: null };
 
   const auth = Buffer.from(`${email}:${key}`).toString("base64");
-  const addressParam = paon ? `&address=${encodeURIComponent(paon)}` : "";
-  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}${addressParam}&size=${EPC_ROW_LIMIT}`;
+  // Search by POSTCODE ONLY and match the house number/name locally. The
+  // register's own &address= filter is unreliable — it 404s for addresses it
+  // actually holds (e.g. "21 Mandelyns") — so we pull the postcode's whole set
+  // of certificates and pick ours from it.
+  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}&size=${EPC_ROW_LIMIT}`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
-    next: { revalidate: 86400 },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+      next: { revalidate: 86400 },
+    });
+  } catch {
+    return { status: "error" };
+  }
 
+  // The register returns 404 (and sometimes 200 with no rows) when a postcode
+  // has no domestic certificates. That's a genuine "none on record", not an
+  // outage — so it's an ok result with null data, not an error.
+  if (res.status === 404) return { status: "ok", data: null };
   if (!res.ok) return { status: "error" };
 
-  const json = await res.json();
-  const rows: Record<string, string>[] = json?.rows ?? [];
+  let rows: Record<string, string>[] = [];
+  try {
+    const json = await res.json();
+    rows = json?.rows ?? [];
+  } catch {
+    return { status: "error" };
+  }
   if (rows.length === 0) return { status: "ok", data: null };
 
   // No house number/name to pin to: take the register's nearest result.
