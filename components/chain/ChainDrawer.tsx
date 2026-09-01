@@ -345,6 +345,26 @@ export function ChainDrawer({
   const topLink = links[0] ?? null;
   const bottomLink = links[links.length - 1] ?? null;
 
+  // Move up/down is offered only while the chain is entirely the creator's own
+  // unclaimed stubs — the initial agent can fix the order before others join,
+  // and it locks the moment one other sale is claimed.
+  const canReorder =
+    links.length >= 2 &&
+    allChainLinks.every(
+      (l) => l.createdByUserId === currentUserId && (l.claimedByUserId == null || l.claimedByUserId === currentUserId),
+    );
+
+  async function handleMove(linkId: string, direction: "up" | "down") {
+    if (!chain) return;
+    const res = await fetch(`/api/chains/${chain.id}/links/${linkId}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction }),
+    });
+    if (res.ok) await fetchChain();
+    else toast.error("Couldn't move this sale");
+  }
+
   const userLink = links.find(
     (l) => l.claimedByUserId === currentUserId || l.createdByUserId === currentUserId,
   ) ?? null;
@@ -373,7 +393,7 @@ export function ChainDrawer({
   const renderChainLink = (
     link: ChainV2["links"][number],
     chainId: string,
-    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string },
+    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string; onMoveUp?: () => void; onMoveDown?: () => void },
   ) => {
     const mayEditStub = link.canEditStub ?? canEditLink(link, currentUserId, currentUserRole);
     if (confirmingDeleteId === link.id) {
@@ -420,6 +440,8 @@ export function ChainDrawer({
         onEditStub={mayEditStub ? (l) => { onOpenAddNode?.("above", chainId, l); } : undefined}
         onDeleteStub={mayEditStub ? (id) => setConfirmingDeleteId(id) : undefined}
         onSaveIntel={handleSaveIntel}
+        onMoveUp={opts.onMoveUp}
+        onMoveDown={opts.onMoveDown}
       />
     );
   };
@@ -799,6 +821,10 @@ export function ChainDrawer({
                               ? "bottom"
                               : undefined
                           : undefined,
+                      // Move within the spine ladder. "Up" = toward the top of
+                      // the drawer (earlier in the list); only while unlocked.
+                      onMoveUp: canReorder && i > 0 ? () => { void handleMove(link.id, "up"); } : undefined,
+                      onMoveDown: canReorder && i < links.length - 1 ? () => { void handleMove(link.id, "down"); } : undefined,
                     })}
                     {i < links.length - 1 && <ChainConnector />}
                   </div>

@@ -96,6 +96,11 @@ type LinkCardProps = {
   onResendInvite?: (linkId: string) => void;
   onEditStub?: (link: ChainLinkV2) => void;
   onDeleteStub?: (linkId: string) => void;
+  /** Move this link one step up/down the chain. Present only while the creator
+   *  may reorder (all links still their own unclaimed stubs) and there's a
+   *  neighbour in that direction. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   /** Save this node's private chain intel. Present only where the viewer may
    *  edit; the card also gates on link.canEditIntel. */
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
@@ -486,6 +491,8 @@ export function LinkCard({
   onEditStub,
   onDeleteStub,
   onSaveIntel,
+  onMoveUp,
+  onMoveDown,
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
@@ -705,6 +712,17 @@ export function LinkCard({
          *  Every action + its gating condition is carried over unchanged. */}
         <div className="chain-acts">
           {meta && <span className="chain-acts-meta">{meta}</span>}
+
+          {(onMoveUp || onMoveDown) && (
+            <span style={{ display: "inline-flex", gap: 2 }}>
+              {onMoveUp && (
+                <button type="button" onClick={onMoveUp} className="chain-act-link" aria-label="Move up the chain" title="Move up">↑ Up</button>
+              )}
+              {onMoveDown && (
+                <button type="button" onClick={onMoveDown} className="chain-act-link" aria-label="Move down the chain" title="Move down">↓ Down</button>
+              )}
+            </span>
+          )}
 
           {isYourFile && link.transaction && (
             <Link
