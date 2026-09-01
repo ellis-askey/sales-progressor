@@ -77,6 +77,13 @@ export function TeamManagementPlain({
           m.id === member.id ? { ...m, canViewAllFiles: !m.canViewAllFiles } : m,
         ),
       );
+      toast.success(
+        !member.canViewAllFiles
+          ? `${member.name} can now see all files`
+          : `${member.name} can now see only their files`,
+      );
+    } else {
+      toast.error("Couldn't update access. Try again.");
     }
   }
 

@@ -1558,6 +1558,11 @@
   .account-switch:hover:not(:disabled) { box-shadow: 0 0 0 3px rgba(15,23,42,0.06); }
   .account-switch:active:not(:disabled) { transform: scale(0.94); }
 
+  /* Segmented-control button: hover tint on the inactive segment, press-down on
+     any segment. Mark the active one with .account-seg-on to skip its hover. */
+  .account-seg:hover:not(.account-seg-on):not(:disabled) { background: rgba(15,23,42,0.05) !important; }
+  .account-seg:active:not(:disabled) { transform: scale(0.96); }
+
   @media (prefers-reduced-motion: reduce) {
     .account-btn-primary, .account-press, .account-btn-coral-outline { transition: none; }
     .account-btn-primary:active:not(:disabled), .account-press:active:not(:disabled), .account-btn-coral-outline:active:not(:disabled), .account-switch:active:not(:disabled) { transform: none; }

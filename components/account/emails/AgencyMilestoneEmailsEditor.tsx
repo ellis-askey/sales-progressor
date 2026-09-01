@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Pencil, ArrowCounterClockwise, Warning, CircleNotch } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type StepMeta = {
   code: string;
@@ -93,6 +94,7 @@ export function AgencyMilestoneEmailsEditor({ steps }: { steps: StepMeta[] }) {
   const [tenureScope, setTenureScope] = useState<"this" | "any">("this");
   const [methodScope, setMethodScope] = useState<"this" | "any">("this");
   const [saving, setSaving] = useState(false);
+  const { toast } = useAgentToast();
   const [resetting, setResetting] = useState(false);
 
   const step = steps.find((s) => s.code === code);
@@ -151,6 +153,9 @@ export function AgencyMilestoneEmailsEditor({ steps }: { steps: StepMeta[] }) {
       if (res.ok) {
         setEditing(false);
         await load();
+        toast.success("Saved. Clients see your version from the next send.");
+      } else {
+        toast.error("Couldn't save. Try again.");
       }
     } finally {
       setSaving(false);
