@@ -393,7 +393,7 @@ export function ChainDrawer({
   const renderChainLink = (
     link: ChainV2["links"][number],
     chainId: string,
-    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string; onMoveUp?: () => void; onMoveDown?: () => void },
+    opts: { edge?: "top" | "bottom"; totalLinks: number; positionLabel?: string; onMoveUp?: () => void; onMoveDown?: () => void; onAddOnward?: () => void },
   ) => {
     const mayEditStub = link.canEditStub ?? canEditLink(link, currentUserId, currentUserRole);
     if (confirmingDeleteId === link.id) {
@@ -442,6 +442,7 @@ export function ChainDrawer({
         onSaveIntel={handleSaveIntel}
         onMoveUp={opts.onMoveUp}
         onMoveDown={opts.onMoveDown}
+        onAddOnward={opts.onAddOnward}
       />
     );
   };
@@ -787,27 +788,21 @@ export function ChainDrawer({
                   (isInternal || canAddAbove(link, currentUserId, currentUserRole));
                 return (
                   <div key={link.id} className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
-                    {(branches.length > 0 || canAddBranch) && (
+                    {/* Extra onward branches (only when they actually exist —
+                        adding one is now via the card's ⋯ menu, so a plain
+                        linear chain has no clutter here). Side-by-side v1; the
+                        V/trident geometry is the next step. */}
+                    {branches.length > 0 && (
                       <div className="chain-branch-group">
                         <p className="chain-branch-label">
                           Onward purchases from this sale{onwards > 0 ? ` · ${onwards} of ${MAX_ONWARDS}` : ""}
                         </p>
-                        {/* Side-by-side onward columns — the fork. Wraps / stacks
-                            on narrow widths (see .chain-branch-cols). */}
                         <div className="chain-branch-cols">
                           {branches.map((b) => (
                             <div key={b.id} className={`chain-branch-col${newLinkIds.has(b.id) ? " agent-reveal-in" : ""}`}>
                               {renderChainLink(b, chain.id, { totalLinks: 1, positionLabel: "Onward purchase" })}
                             </div>
                           ))}
-                          {canAddBranch && (
-                            <button
-                              onClick={() => onOpenAddNode?.("above", chain.id, undefined, link.id)}
-                              className="chain-addbtn chain-addbtn-above chain-branch-col chain-branch-addcol"
-                            >
-                              + Add another onward purchase
-                            </button>
-                          )}
                         </div>
                       </div>
                     )}
@@ -825,6 +820,8 @@ export function ChainDrawer({
                       // the drawer (earlier in the list); only while unlocked.
                       onMoveUp: canReorder && i > 0 ? () => { void handleMove(link.id, "up"); } : undefined,
                       onMoveDown: canReorder && i < links.length - 1 ? () => { void handleMove(link.id, "down"); } : undefined,
+                      // "Add another onward purchase" lives in the card's ⋯ menu.
+                      onAddOnward: canAddBranch ? () => onOpenAddNode?.("above", chain.id, undefined, link.id) : undefined,
                     })}
                     {i < links.length - 1 && <ChainConnector />}
                   </div>

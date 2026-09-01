@@ -3,30 +3,30 @@
 //
 // Two-phase helper for setting up + using a WhatsApp group for a sale.
 //
-// Phase 1 — Create the group (shown when no invite URL is saved yet):
-//   - Suggested group name pre-filled + one-click copy
-//   - All client WhatsApp numbers in a copyable block + one-click copy
-//   - "Open WhatsApp" button (whatsapp:// on mobile, web.whatsapp.com on desktop)
-//   - Input for the invite URL once the group is created
-//   - Save button persists the URL via setWhatsappGroupInviteUrlAction
+// Phase 1 — Create the group (numbered stepper: name → people → create →
+//   connect). A Sale/Purchase toggle frames the group for the seller or the
+//   buyer side: it drives the name, the title wording and which clients are
+//   listed. Persistence is a single invite URL per sale (not per side).
 //
-// Phase 2 — Invite clients (shown when the URL is saved):
+// Phase 2 — Invite clients (shown once an invite URL is saved):
 //   - Group status + link with "Open group" and "Copy link"
-//   - For each contact with a phone number: one-tap "Send invite via
-//     WhatsApp" button that opens a pre-composed message
-//   - "Replace link" / "Remove link" secondary actions
+//   - Per-client one-tap "Send invite via WhatsApp"
+//   - "Replace link" / "Remove link"
 //
-// Not for solicitor / broker / other roles — buttons filter to vendor +
-// purchaser contacts, matching the existing portal-invite policy.
+// Not for solicitor / broker / other roles — filters to vendor + purchaser
+// contacts, matching the existing portal-invite policy.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { Pill } from "@/components/ui/Pill";
+import { ContactAvatar } from "@/components/ui/Avatar";
+import { RoleIcon, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {
   setWhatsappGroupInviteUrlAction,
   removeWhatsappGroupInviteUrlAction,
 } from "@/app/actions/property-extras";
-import { WhatsappLogo, Copy, ArrowSquareOut, Trash, PencilSimple } from "@phosphor-icons/react";
+import { WhatsappLogo, Copy, ArrowSquareOut, Trash, PencilSimple, Lock } from "@phosphor-icons/react";
 
 type Contact = {
   id: string;
@@ -34,6 +34,8 @@ type Contact = {
   phone: string | null;
   roleType: string;
 };
+
+type Side = "sale" | "purchase";
 
 // Normalise a UK phone into wa.me / group-message format (no leading zeros,
 // no spaces, no punctuation, starts with country code).
@@ -48,6 +50,22 @@ function toWaDigits(phone: string): string {
 // Luton, LU3 2LA" → "1 The Kiplings".
 function shortAddress(address: string): string {
   return address.split(",")[0]?.trim() || address;
+}
+
+// Vendor carries the brand (coral), purchaser the info blue (same mapping as
+// the contact rows).
+function roleTone(role: string): "brand" | "info" | "muted" {
+  return role === "vendor" ? "brand" : role === "purchaser" ? "info" : "muted";
+}
+
+function RolePill({ roleType }: { roleType: string }) {
+  const r = asRole(roleType) ?? "other";
+  return (
+    <Pill glass tone={roleTone(roleType)} size="sm" style={{ flexShrink: 0 }}>
+      <RoleIcon role={r} size={11} />
+      {roleLabel(r)}
+    </Pill>
+  );
 }
 
 export function WhatsappGroupModal({
@@ -66,6 +84,7 @@ export function WhatsappGroupModal({
   currentInviteUrl: string | null;
 }) {
   const { toast } = useAgentToast();
+  const [side, setSide] = useState<Side>("sale");
   const [linkInput, setLinkInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,11 +94,14 @@ export function WhatsappGroupModal({
   const clientContacts = contacts.filter(
     (c) => (c.roleType === "vendor" || c.roleType === "purchaser") && c.phone,
   );
+  // Which side the group is for. The toggle picks it; the people list, the name
+  // and the title all follow.
+  const wantRole = side === "sale" ? "vendor" : "purchaser";
+  const sideWord = side === "sale" ? "seller" : "buyer";
+  const sideContacts = clientContacts.filter((c) => c.roleType === wantRole);
 
-  const suggestedName = `Sale of ${shortAddress(address)}`;
-  const numbersBlock = clientContacts
-    .map((c) => `+${toWaDigits(c.phone!)}`)
-    .join("\n");
+  const suggestedName = `${side === "sale" ? "Sale" : "Purchase"} of ${shortAddress(address)}`;
+  const numbersBlock = sideContacts.map((c) => `+${toWaDigits(c.phone!)}`).join("\n");
 
   function copy(text: string, key: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -89,10 +111,8 @@ export function WhatsappGroupModal({
   }
 
   function openWhatsApp() {
-    // Try the app scheme first; fall back to web. Browsers ignore the
-    // unknown scheme silently, so we open web.whatsapp.com in parallel.
-    // On mobile the app handler fires; on desktop the app URL is a no-op
-    // and the user lands on web.whatsapp.com.
+    // Try the app scheme first; fall back to web. On mobile the app handler
+    // fires; on desktop the app URL is a no-op and web.whatsapp.com opens.
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     if (isMobile) {
       window.location.href = "whatsapp://";
@@ -142,24 +162,33 @@ export function WhatsappGroupModal({
   return (
     <Modal open={open} onClose={onClose} size="lg" ariaLabel="WhatsApp group helper">
       <Modal.Header>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 34, height: 34, borderRadius: 9,
+              width: 38, height: 38, borderRadius: 10, flexShrink: 0,
               background: "rgba(37,211,102,0.12)", color: "#25D366",
             }}
           >
-            <WhatsappLogo size={20} weight="fill" />
+            <WhatsappLogo size={22} weight="fill" />
           </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              WhatsApp group
+              Set up {sideWord} WhatsApp group
             </h2>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {shortAddress(address)}
             </p>
           </div>
+          {/* Done moved up into the header (marginRight clears the modal's X). */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="agent-btn agent-btn-sm agent-btn-primary"
+            style={{ flexShrink: 0, marginRight: 28 }}
+          >
+            Done
+          </button>
         </div>
       </Modal.Header>
 
@@ -182,7 +211,7 @@ export function WhatsappGroupModal({
           <>
             <div style={sectionStyle}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                   <span style={sectionLabelStyle}>Group set up</span>
                   <a
                     href={currentInviteUrl!}
@@ -222,15 +251,21 @@ export function WhatsappGroupModal({
                   <div
                     key={c.id}
                     style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
                       padding: "8px 10px", borderRadius: 8,
                       border: "0.5px solid var(--agent-border-default)",
                       background: "var(--agent-surface-elevated)",
                     }}
                   >
-                    <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{c.name}</span>
-                      <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{c.phone}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={34} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                          <RolePill roleType={c.roleType} />
+                        </div>
+                        <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{c.phone}</span>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -238,7 +273,7 @@ export function WhatsappGroupModal({
                       className="agent-btn agent-btn-xs"
                       style={{
                         background: "#25D366", color: "white", borderColor: "#25D366",
-                        display: "inline-flex", alignItems: "center", gap: 5,
+                        display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
                       }}
                     >
                       <WhatsappLogo size={12} weight="fill" />
@@ -271,12 +306,12 @@ export function WhatsappGroupModal({
           </>
         )}
 
-        {/* ── PHASE 1: create-group helper ──────────────────── */}
+        {/* ── PHASE 1: create-group helper (numbered stepper) ── */}
         {(!showInviteFlow || editing) && clientContacts.length > 0 && (
-          <>
-            <div style={sectionStyle}>
-              <span style={sectionLabelStyle}>1. Group name</span>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <Step num="01" title="Group name">
+              <SideToggle side={side} onChange={setSide} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   readOnly
                   value={suggestedName}
@@ -293,56 +328,88 @@ export function WhatsappGroupModal({
                   {copiedKey === "name" ? "Copied" : "Copy"}
                 </button>
               </div>
-            </div>
+            </Step>
 
-            <div style={sectionStyle}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={sectionLabelStyle}>2. Numbers to add ({clientContacts.length})</span>
+            <Step num="02" title="People to add">
+              {sideContacts.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                  No {sideWord} phone numbers on file. Add one to the {sideWord} contact first.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {sideContacts.map((c) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                        padding: "8px 10px", borderRadius: 8,
+                        border: "0.5px solid var(--agent-border-default)",
+                        background: "var(--agent-surface-elevated)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={34} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                            <RolePill roleType={c.roleType} />
+                          </div>
+                          <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{c.phone}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copy(`+${toWaDigits(c.phone!)}`, `num-${c.id}`)}
+                        className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}
+                      >
+                        <Copy size={12} />
+                        {copiedKey === `num-${c.id}` ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => copy(numbersBlock, "numbers")}
+                    className="agent-link"
+                    style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, marginTop: 2 }}
+                  >
+                    <Copy size={12} />
+                    {copiedKey === "numbers" ? "Copied" : "Copy all"}
+                  </button>
+                </div>
+              )}
+            </Step>
+
+            <Step num="03" title="Create in WhatsApp">
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5, flex: 1, minWidth: 180 }}>
+                  Create a new WhatsApp group, then paste in the people above.
+                </p>
                 <button
                   type="button"
-                  onClick={() => copy(numbersBlock, "numbers")}
-                  className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+                  onClick={openWhatsApp}
+                  className="agent-btn agent-btn-sm"
+                  style={{
+                    background: "#25D366", color: "white", borderColor: "#25D366",
+                    display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+                  }}
                 >
-                  <Copy size={13} />
-                  {copiedKey === "numbers" ? "Copied" : "Copy all"}
+                  <WhatsappLogo size={14} weight="fill" />
+                  Open WhatsApp
                 </button>
               </div>
-              <pre
-                style={{
-                  margin: "8px 0 0", padding: "10px 12px",
-                  borderRadius: 8, border: "0.5px solid var(--agent-border-default)",
-                  background: "var(--agent-surface-elevated)",
-                  fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                  color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap",
-                }}
-              >
-                {numbersBlock || "(no phone numbers on file)"}
-              </pre>
-            </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11, color: "var(--agent-text-muted)" }}>
+                <Lock size={12} weight="regular" />
+                Opens in WhatsApp, where you&rsquo;ll create the group.
+              </div>
+            </Step>
 
-            <div style={sectionStyle}>
-              <span style={sectionLabelStyle}>3. Create the group</span>
-              <p style={{ margin: "6px 0 8px", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-                In WhatsApp: New group → paste the numbers above → paste the group name. Add a group photo if you have one uploaded on the file.
+            <Step num="04" title="Connect the group" last>
+              <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                Paste the WhatsApp group invite link so we know which conversation belongs to this sale.
               </p>
-              <button
-                type="button"
-                onClick={openWhatsApp}
-                className="agent-btn agent-btn-sm"
-                style={{
-                  background: "#25D366", color: "white", borderColor: "#25D366",
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                }}
-              >
-                <WhatsappLogo size={14} weight="fill" />
-                Open WhatsApp
-              </button>
-            </div>
-
-            <div style={sectionStyle}>
-              <span style={sectionLabelStyle}>4. Paste the invite link here when the group is set up</span>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   value={linkInput}
                   onChange={(e) => setLinkInput(e.target.value)}
@@ -355,8 +422,9 @@ export function WhatsappGroupModal({
                   onClick={saveLink}
                   disabled={saving || !linkInput.trim()}
                   className="agent-btn agent-btn-sm agent-btn-primary"
+                  style={{ flexShrink: 0 }}
                 >
-                  {saving ? "Saving…" : "Save link"}
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
               {error && (
@@ -372,21 +440,90 @@ export function WhatsappGroupModal({
                   Cancel
                 </button>
               )}
-            </div>
-          </>
+            </Step>
+          </div>
         )}
       </Modal.Body>
-
-      <Modal.Footer>
-        <button
-          type="button"
-          onClick={onClose}
-          className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-        >
-          Close
-        </button>
-      </Modal.Footer>
     </Modal>
+  );
+}
+
+// Sale / Purchase segmented toggle with a sliding highlight (the carousel
+// motion). Picking a side re-frames the whole create flow.
+function SideToggle({ side, onChange }: { side: Side; onChange: (s: Side) => void }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Group side"
+      style={{
+        position: "relative", display: "flex",
+        background: "var(--agent-surface-elevated)",
+        border: "0.5px solid var(--agent-border-default)",
+        borderRadius: 10, padding: 3, marginBottom: 8,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          position: "absolute", top: 3, bottom: 3, left: 3,
+          width: "calc(50% - 3px)", borderRadius: 8,
+          background: "var(--agent-coral)",
+          transform: side === "sale" ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 280ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      />
+      {(["sale", "purchase"] as const).map((s) => (
+        <button
+          key={s}
+          type="button"
+          role="tab"
+          aria-selected={side === s}
+          onClick={() => onChange(s)}
+          style={{
+            position: "relative", zIndex: 1, flex: 1,
+            padding: "6px 10px", borderRadius: 8, border: "none",
+            background: "transparent", cursor: "pointer",
+            fontSize: 12.5, fontWeight: 600,
+            color: side === s ? "#fff" : "var(--agent-text-secondary)",
+            transition: "color 200ms ease",
+          }}
+        >
+          {s === "sale" ? "Sale" : "Purchase"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// One numbered step in the create flow: a coral circle + a dashed connector
+// running down to the next step (hidden on the last).
+function Step({ num, title, last = false, children }: { num: string; title: string; last?: boolean; children: ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 14, alignItems: "stretch" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+        <span
+          style={{
+            width: 28, height: 28, borderRadius: 999, flexShrink: 0,
+            border: "1.5px solid var(--agent-coral)",
+            color: "var(--agent-coral-deep)", background: "var(--agent-coral-bg-tint)",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 700,
+          }}
+        >
+          {num}
+        </span>
+        {!last && (
+          <span
+            aria-hidden
+            style={{ flex: 1, borderLeft: "1.5px dashed var(--agent-coral)", opacity: 0.35, margin: "4px 0", minHeight: 14 }}
+          />
+        )}
+      </div>
+      <div style={{ flex: 1, minWidth: 0, paddingBottom: last ? 0 : 22 }}>
+        <h3 style={{ margin: "4px 0 10px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{title}</h3>
+        {children}
+      </div>
+    </div>
   );
 }
 
