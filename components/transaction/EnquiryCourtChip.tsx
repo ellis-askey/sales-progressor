@@ -110,11 +110,11 @@ export function EnquiryCourtChip({
   return (
     <span
       style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-      title={`Enquiries with ${FULL[side]}. Tap a side to hand the ball over.`}
+      title={`Enquiries with ${FULL[side]}. Tap a side to move it there.`}
     >
       <span
         role="group"
-        aria-label="Whose court the enquiries are in"
+        aria-label="Which side the enquiries are with"
         style={{
           display: "inline-flex",
           alignItems: "center",

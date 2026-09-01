@@ -5,8 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
-
-const CHASE_WORKING_DAYS = 9;
+import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS } from "./cadence";
 
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryTrackerStatus = "closed" | "snoozed" | "stalled" | "chasing";

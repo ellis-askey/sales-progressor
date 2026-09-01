@@ -1,14 +1,14 @@
 "use client";
 
-// Internal enquiries tracker panel (Stage 1.6b). Shows whose court the ball is
-// in, the chase status, the movement history and the outstanding note, and
-// drives the movement/outstanding/snooze actions. Only rendered when the
-// enquiries loop is open (the page passes null otherwise).
+// Internal enquiries tracker panel (Stage 1.6b). Shows which solicitor it's
+// currently with, the chase status, the movement history and the outstanding
+// note, and drives the movement/outstanding/snooze actions. Only rendered while
+// enquiries are open (the page passes null otherwise).
 //
 // The movement controls carry three plain-language intents (2026-08-18):
-//   - handover: a reply is in, the ball moves to the other side (resets the clock)
-//   - touch: they've been in touch but still hold the ball (resets the clock)
-//   - relabel: correct who has it without disturbing the chase clock
+//   - handover: a reply is in, it moves to the other side (resets the timer)
+//   - touch: they've been in touch but it stays with them (resets the timer)
+//   - relabel: correct which side it's with without disturbing the chase timer
 // The hero slider is the one-tap handover; this panel is the full desk.
 
 import { useState, useTransition } from "react";
@@ -35,7 +35,6 @@ export type EnquiryTrackerPanelData = {
 };
 
 const courtLabel = (c: Court) => (c === "seller_solicitor" ? "the seller's solicitor" : "the buyer's solicitor");
-const shortLabel = (c: Court) => (c === "seller_solicitor" ? "seller’s sol" : "buyer’s sol");
 const fmtDate = (d: Date | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
 
@@ -78,14 +77,14 @@ export function EnquiryTrackerPanel({
   // Status banner
   const banner =
     data.status === "closed"
-      ? { tone: "done", text: "Enquiries satisfied. The loop is closed." }
+      ? { tone: "done", text: "Enquiries satisfied. Nothing left to chase." }
       : data.status === "snoozed"
-        ? { tone: "muted", text: `Snoozed until ${fmtDate(data.snoozedUntil)}. No nudges until then.` }
+        ? { tone: "muted", text: `Chasing paused until ${fmtDate(data.snoozedUntil)}.` }
         : data.status === "stalled"
-          ? { tone: "warn", text: "Stalled. No movement in 3 weeks. Time to call them." }
+          ? { tone: "warn", text: `No reply from ${courtLabel(data.currentlyWith)} in three weeks. Worth a direct call.` }
           : {
               tone: "ok",
-              text: `Chasing ${courtLabel(data.currentlyWith)}${data.nextChaseAt ? `. Next nudge ${fmtDate(data.nextChaseAt)}.` : "."}`,
+              text: `Waiting on ${courtLabel(data.currentlyWith)}${data.nextChaseAt ? `. We'll chase again on ${fmtDate(data.nextChaseAt)}.` : "."}`,
             };
   const bannerBg =
     banner.tone === "warn"
@@ -101,7 +100,7 @@ export function EnquiryTrackerPanel({
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-slate-900/80">Enquiries</h3>
         <span className="text-xs text-slate-900/40">
-          Ball with {courtLabel(data.currentlyWith)}
+          With {courtLabel(data.currentlyWith)}
         </span>
       </div>
 
@@ -119,38 +118,38 @@ export function EnquiryTrackerPanel({
             className="w-full text-[13px] rounded-xl border border-slate-900/10 bg-white/50 px-3 py-2 outline-none focus:border-[#FF6B4A]/50 resize-none"
           />
 
-          {/* The ball has moved */}
-          <p className="text-xs font-medium text-slate-900/40 mt-3 mb-1.5">The ball has moved</p>
+          {/* Log an update — a reply came in, or they were in touch */}
+          <p className="text-xs font-medium text-slate-900/40 mt-3 mb-1.5">Log an update</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={pending}
               onClick={() => move("handover", other)}
-              title={`Flips the court to ${courtLabel(other)} and restarts the chase clock`}
+              title={`Marks it as now with ${courtLabel(other)} and restarts the chase timer`}
               className="text-xs font-semibold text-white bg-[#FF6B4A] hover:bg-[#f2593a] disabled:opacity-40 rounded-full px-3.5 py-1.5"
             >
-              {pending ? "Saving…" : `Reply in, hand to ${shortLabel(other)}`}
+              {pending ? "Saving…" : `Replies in, now with ${courtLabel(other)}`}
             </button>
             <button
               type="button"
               disabled={pending}
               onClick={() => move("touch", null)}
-              title="Restarts the chase clock, but keeps the ball where it is"
+              title="Restarts the chase timer but keeps it on the same side"
               className="text-xs font-semibold rounded-full px-3.5 py-1.5 border border-slate-900/15 text-slate-900/70 enabled:hover:bg-slate-900/5 disabled:opacity-40"
             >
-              They’ve been in touch, ball stays
+              They’ve replied, still with {courtLabel(data.currentlyWith)}
             </button>
           </div>
 
-          {/* Correction: flips the court without touching the clock */}
+          {/* Correction: switches the side without touching the chase timer */}
           <button
             type="button"
             disabled={pending}
             onClick={() => move("relabel", other)}
-            title="Corrects who has the ball without resetting the chase clock"
+            title="Corrects who it's with without resetting the chase timer"
             className="mt-2.5 text-xs text-slate-900/45 underline underline-offset-2 hover:text-slate-900/70 disabled:opacity-40"
           >
-            Wrong side? Correct it to {shortLabel(other)} (keeps the clock)
+            Wrong side? Switch to {courtLabel(other)}
           </button>
 
           {/* Outstanding note */}
@@ -181,7 +180,7 @@ export function EnquiryTrackerPanel({
               onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: 5 }))}
               className="text-xs px-2.5 py-1 rounded-full border border-slate-900/15 text-slate-900/60 hover:bg-slate-900/5 disabled:opacity-40"
             >
-              Snooze 5 working days
+              Pause chasing for 5 working days
             </button>
             {data.status === "snoozed" && (
               <button
@@ -212,7 +211,7 @@ export function EnquiryTrackerPanel({
                   <span className="text-slate-900/35">
                     {" "}
                     · {fmtDate(m.occurredAt)}
-                    {m.flipsCourtTo ? ` · handed to ${m.flipsCourtTo === "seller_solicitor" ? "seller’s sol" : "buyer’s sol"}` : ""}
+                    {m.flipsCourtTo ? ` · now with ${courtLabel(m.flipsCourtTo)}` : ""}
                   </span>
                 </div>
               </li>

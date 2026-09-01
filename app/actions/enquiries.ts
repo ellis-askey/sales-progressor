@@ -48,14 +48,14 @@ export async function logEnquiryMovementAction(input: {
   const note =
     (input.note ?? "").trim() ||
     (mode === "touch"
-      ? "They've been in touch, ball stays"
+      ? "They've been in touch, still with them"
       : mode === "relabel"
-        ? `Corrected: ball is with ${flip ? courtLabel(flip) : "the other side"}`
-        : `Ball handed to ${flip ? courtLabel(flip) : "the other side"}`);
+        ? `Corrected: now with ${flip ? courtLabel(flip) : "the other side"}`
+        : `Now with ${flip ? courtLabel(flip) : "the other side"}`);
   const ok = await logEnquiryMovement({
     transactionId: input.transactionId,
     note,
-    // "touch" never moves the ball, whatever the caller sends.
+    // "touch" never moves it to the other side, whatever the caller sends.
     flipsCourtTo: mode === "touch" ? null : flip,
     mode,
     createdByUserId: userId,
