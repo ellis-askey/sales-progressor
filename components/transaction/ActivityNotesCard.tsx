@@ -25,7 +25,7 @@ type Props = { transactionId: string; entries: ActivityEntry[]; currentUserName:
 
 type OptimisticNote = { id: string; content: string; createdByName: string | null; createdByImage: string | null; at: Date };
 
-const FEED_PREVIEW = 6;
+const FEED_PREVIEW = 4;
 const NOTES_PREVIEW = 5;
 
 function bandFor(when: Date): { key: string; label: string } {

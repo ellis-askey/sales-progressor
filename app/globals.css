@@ -1257,6 +1257,23 @@ select {
 .chain-act-primary { color: var(--agent-coral-darker); }
 .chain-act-warn { color: var(--agent-warning); }
 .chain-act-danger { color: var(--agent-text-muted); }
+
+/* ⋯ card-menu item. Base transparent + hover tint as a class (not inline) so the
+   hover actually paints — inline background would beat a :hover rule. */
+.chain-menu-item { background: transparent; transition: background-color .15s var(--agent-ease); }
+.chain-menu-item:hover { background: var(--agent-hover-tint); }
+
+/* Add-node drawer mode toggle (placeholder vs one of my sales). The drawer is a
+   fixed light surface regardless of theme, so this uses the same light palette
+   (white active pill on a faint track) rather than agent theme tokens. */
+.chain-addmode { display: flex; gap: 4px; padding: 4px; border-radius: 12px;
+  background: rgba(0,0,0,0.04); border: 1px solid rgba(255,255,255,0.5); }
+.chain-addmode-tab { flex: 1; padding: 7px 10px; border-radius: 9px; border: none; cursor: pointer;
+  background: transparent; font-size: 12.5px; font-weight: 600; color: rgba(15,23,42,0.55);
+  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease; }
+.chain-addmode-tab:hover { color: rgba(15,23,42,0.85); }
+.chain-addmode-tab.is-active { background: #fff; color: rgba(15,23,42,0.95);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.10); }
 .chain-act-danger:hover { color: var(--agent-danger); opacity: 1; }
 .chain-act-link:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); border-radius: 4px; }
 
@@ -1322,9 +1339,21 @@ select {
    trident for three) joins each column down to the card's top centre. Each
    column is itself a recursive node, so nested forks fall out for free. */
 .chain-fork { display: flex; flex-direction: column; }
-.chain-fork-cols { display: flex; gap: 14px; align-items: flex-end; justify-content: center; }
-.chain-fork-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
+/* Columns keep a readable minimum. When two/three can't sit at that width they
+   wrap (and ultimately stack on mobile below), so a fork never crushes its
+   cards to half-width one-word-per-line. */
+.chain-fork-cols { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: center; }
+.chain-fork-col { flex: 1 1 300px; min-width: 300px; display: flex; flex-direction: column;
   justify-content: flex-end; }
+/* Inside a fork column every card is narrow, so it stacks its own internals:
+   the address takes the full width on its own row, and the price/status/menu
+   row sits beneath it rather than stealing horizontal space. The photo shrinks
+   to buy the text more room. This cascades into nested forks (each column card
+   is caught by the same descendant rule). */
+.chain-fork-col .chain-photo { width: 60px; height: 60px; }
+.chain-fork-col .chain-body-top { flex-direction: column; gap: 8px; }
+.chain-fork-col .chain-cright { flex-direction: row; align-items: center; align-self: stretch;
+  justify-content: flex-end; gap: 8px; }
 /* On mobile the fork can't sit side by side. Stack the onward columns, label
    each branch, and drop the fanning connector (the stacked order reads top→down
    as branch 1, 2, 3 into the shared sale). */

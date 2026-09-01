@@ -34,8 +34,8 @@ import type { MilestoneSideState } from "@/components/transaction/NextMilestoneW
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
-import { UninvitedNeighboursNote } from "@/components/chain/UninvitedNeighboursNote";
-import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
+import { PropertyChainCard } from "@/components/transaction/PropertyChainCard";
+import { getUninvitedNeighbourCount } from "@/lib/services/chains";
 import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow";
@@ -372,6 +372,7 @@ export async function OverviewPanel({
   const onwardSignal = await getOnwardSignalForFile(transaction.id);
   const relatedView = await getOnwardTrackerView(transaction.id, "related_sale");
   const relatedSignal = await getRelatedSaleSignalForFile(transaction.id);
+  const uninvitedCount = await getUninvitedNeighbourCount(transaction.id);
 
   // Client's own broker (portal-entered), shown in the Professionals tab beside
   // the solicitors. Both sides: purchaser for buyers, vendor for a seller's onward.
@@ -467,12 +468,17 @@ export async function OverviewPanel({
         currentUserImage={currentUserImage}
       />
 
-      <Card id="chain-section" padding="none">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-          <div>
-            <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
-            <UninvitedNeighboursNote transactionId={transaction.id} />
-          </div>
+      {/* The chain, onward purchase and related sale as one "chain spine" card:
+          onward above, this sale in the middle, related below, neighbours nudge
+          in the footer. The chain drawer itself is unchanged (ViewChainButton). */}
+      <PropertyChainCard
+        transactionId={transaction.id}
+        thisSaleAddress={transaction.propertyAddress}
+        onward={{ view: onwardView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
+        related={{ view: relatedView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
+        showRelated={relatedView.exists || relatedSignal.selling}
+        uninvitedCount={uninvitedCount}
+        openChain={
           <ViewChainButton
             transactionId={transaction.id}
             currentUserId={currentUserId}
@@ -487,28 +493,8 @@ export async function OverviewPanel({
                 : null
             }
           />
-        </div>
-      </Card>
-
-      <OnwardPurchaseCard
-        transactionId={transaction.id}
-        initialView={onwardView}
-        signalActive={onwardSignal.buyingOnward}
-        onwardAddress={onwardSignal.onwardAddress}
+        }
       />
-
-      {/* Related sale: the buyer on this file is also selling (the link below).
-          Shows only once there's a signal or an opened tracker, so it stays quiet
-          on files where the buyer isn't selling. */}
-      {(relatedView.exists || relatedSignal.selling) && (
-        <OnwardPurchaseCard
-          transactionId={transaction.id}
-          initialView={relatedView}
-          signalActive={relatedSignal.selling}
-          onwardAddress={relatedSignal.relatedAddress}
-          direction="related"
-        />
-      )}
 
       {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
 

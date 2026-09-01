@@ -47,6 +47,9 @@ type Props = {
   // When set, this adds an EXTRA onward purchase (a branch) forking above the
   // given sale, rather than a normal above/below stub.
   forkFromLinkId?: string;
+  // When set, this adds a sale at the TOP of that link's column (the spine or a
+  // branch) — "add above" scoped to one ladder rather than the whole chain.
+  aboveOfLinkId?: string;
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;
@@ -138,6 +141,7 @@ export function AddNodeDrawer({
   direction,
   editingLink,
   forkFromLinkId,
+  aboveOfLinkId,
   onSaveToMemory,
   onClose,
   onSaved,
@@ -187,6 +191,33 @@ export function AddNodeDrawer({
   const [emailError, setEmailError] = useState("");
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState("");
+
+  // Add mode: a hand-typed placeholder ("stub") or one of your own live files
+  // ("own"). Self-linking only makes sense on an existing chain (there's an API
+  // to hit) and never while editing an existing link.
+  const canSelfLink = isExistingChain && !isEditMode;
+  const [mode, setMode] = useState<"stub" | "own">("stub");
+  const [fileQuery, setFileQuery] = useState("");
+  const [fileResults, setFileResults] = useState<{ id: string; propertyAddress: string }[]>([]);
+  const [selectedFile, setSelectedFile] = useState<{ id: string; propertyAddress: string } | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Debounced search over your own eligible files when in "own" mode.
+  useEffect(() => {
+    if (mode !== "own" || !chainId) return;
+    let active = true;
+    setSearching(true);
+    const t = setTimeout(() => {
+      fetch(`/api/chains/${chainId}/link-candidates?q=${encodeURIComponent(fileQuery.trim())}`)
+        .then((r) => r.json().catch(() => ({ files: [] })))
+        .then((data: { files?: { id: string; propertyAddress: string }[] }) => {
+          if (active) setFileResults(data.files ?? []);
+        })
+        .catch(() => { if (active) setFileResults([]); })
+        .finally(() => { if (active) setSearching(false); });
+    }, 220);
+    return () => { active = false; clearTimeout(t); };
+  }, [mode, fileQuery, chainId]);
 
   // Esc key
   useEffect(() => {
@@ -244,6 +275,36 @@ export function AddNodeDrawer({
   }
 
   async function handleSave() {
+    // Self-link mode: drop one of your own files in as a claimed node.
+    if (mode === "own") {
+      if (!chainId || !selectedFile) return;
+      setSaving(true);
+      setServerError("");
+      try {
+        const res = await fetch(`/api/chains/${chainId}/links`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            linkTransactionId: selectedFile.id,
+            ...(isBranch
+              ? { forkFromLinkId }
+              : aboveOfLinkId
+                ? { aboveOfLinkId }
+                : { direction }),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({})) as { error?: string };
+          setServerError(data.error ?? "Something went wrong. Try again.");
+          return;
+        }
+        onSaved({ kind: "added", inviteSent: false });
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     if (!requiredFilled) return;
     if (!validateEmail()) return;
 
@@ -268,9 +329,13 @@ export function AddNodeDrawer({
         method: isEditMode ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Branch add sends forkFromLinkId (an extra onward); otherwise a normal
-          // above/below stub.
-          ...(isBranch ? { forkFromLinkId } : { direction }),
+          // Three add shapes: a branch (extra onward, forkFromLinkId), a
+          // column-top add (aboveOfLinkId), or a plain spine above/below stub.
+          ...(isBranch
+            ? { forkFromLinkId }
+            : aboveOfLinkId
+              ? { aboveOfLinkId }
+              : { direction }),
           stubPropertyAddress: stubPropertyAddress.trim(),
           stubAgencyName: form.stubAgencyName.trim(),
           stubAgentName: form.stubAgentName.trim() || null,
@@ -305,13 +370,19 @@ export function AddNodeDrawer({
     ? "Add sale above"
     : "Add sale below";
 
-  const submitLabel = isEditMode
+  const submitLabel = mode === "own"
+    ? "Add to chain"
+    : isEditMode
     ? "Save changes"
     : isBranch
     ? "Save onward purchase"
     : direction === "above"
     ? "Save and add above"
     : "Save and add below";
+
+  // Whether the primary button is enabled: a picked file in own mode, or the
+  // required stub fields in stub mode.
+  const canSubmit = mode === "own" ? !!selectedFile : requiredFilled;
 
   const directionPill = !isEditMode && (
     <Pill glass tone="info" size="sm">
@@ -352,7 +423,90 @@ export function AddNodeDrawer({
 
         {/* Form body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* Mode toggle — placeholder vs one of your own files. Only on an
+              existing chain (self-link needs the API). */}
+          {canSelfLink && (
+            <div className="chain-addmode" role="tablist" aria-label="What to add">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "stub"}
+                onClick={() => setMode("stub")}
+                className={`chain-addmode-tab${mode === "stub" ? " is-active" : ""}`}
+              >
+                Add a placeholder
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "own"}
+                onClick={() => setMode("own")}
+                className={`chain-addmode-tab${mode === "own" ? " is-active" : ""}`}
+              >
+                One of my sales
+              </button>
+            </div>
+          )}
+
+          {/* Own-file search (self-link) */}
+          {mode === "own" && (
+            <div>
+              <SectionLabel>Your sale</SectionLabel>
+              {selectedFile ? (
+                <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3 flex items-center gap-3">
+                  <p className="text-sm font-semibold text-slate-900/90 flex-1 min-w-0 truncate">
+                    {selectedFile.propertyAddress}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedFile(null); setFileQuery(""); }}
+                    className="text-xs font-semibold text-slate-900/55 hover:text-slate-900/80 transition-colors"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3 space-y-2">
+                  <input
+                    type="text"
+                    value={fileQuery}
+                    onChange={(e) => setFileQuery(e.target.value)}
+                    placeholder="Search your files by address…"
+                    className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
+                    autoFocus
+                  />
+                  <div className="max-h-52 overflow-y-auto -mx-1">
+                    {searching && fileResults.length === 0 && (
+                      <p className="px-2 py-2 text-xs text-slate-900/45">Searching…</p>
+                    )}
+                    {!searching && fileResults.length === 0 && (
+                      <p className="px-2 py-2 text-xs text-slate-900/45">
+                        {fileQuery.trim()
+                          ? "No matching files that can be added."
+                          : "No files ready to add. Only active sales not already in a chain show here."}
+                      </p>
+                    )}
+                    {fileResults.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setSelectedFile(f)}
+                        className="chain-menu-item block w-full text-left px-2 py-2 rounded-lg text-sm text-slate-900/85"
+                      >
+                        {f.propertyAddress}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-[11px] text-slate-900/45">
+                We&apos;ll link your file directly, with its real progress. No invite needed.
+              </p>
+            </div>
+          )}
+
           {/* Property section */}
+          {mode === "stub" && (
           <div>
             <SectionLabel>Property</SectionLabel>
             <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
@@ -366,8 +520,10 @@ export function AddNodeDrawer({
               />
             </div>
           </div>
+          )}
 
           {/* Agency section */}
+          {mode === "stub" && (
           <div>
             <SectionLabel>Agency</SectionLabel>
             <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
@@ -382,8 +538,10 @@ export function AddNodeDrawer({
               />
             </div>
           </div>
+          )}
 
           {/* Agent contact section */}
+          {mode === "stub" && (
           <div>
             <SectionLabel>
               Agent contact{" "}
@@ -424,8 +582,10 @@ export function AddNodeDrawer({
               />
             </div>
           </div>
+          )}
 
           {/* Notes section */}
+          {mode === "stub" && (
           <div>
             <SectionLabel>
               Notes <span className="normal-case font-normal">(only you see this)</span>
@@ -441,6 +601,7 @@ export function AddNodeDrawer({
               />
             </div>
           </div>
+          )}
 
           {serverError && (
             <p className="text-xs text-red-600 bg-red-50/60 border border-red-100 rounded-lg px-3 py-2">
@@ -460,13 +621,17 @@ export function AddNodeDrawer({
             </button>
             <button
               onClick={() => { void handleSave(); }}
-              disabled={!requiredFilled || saving}
+              disabled={!canSubmit || saving}
               className="flex-1 py-2.5 text-sm font-semibold rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? "Saving…" : submitLabel}
             </button>
           </div>
-          <p className="text-[11px] text-slate-900/45 text-center">{helperText()}</p>
+          <p className="text-[11px] text-slate-900/45 text-center">
+            {mode === "own"
+              ? (selectedFile ? "We'll link this file to the chain now." : "Pick one of your files to add.")
+              : helperText()}
+          </p>
         </div>
       </div>
     </div>,

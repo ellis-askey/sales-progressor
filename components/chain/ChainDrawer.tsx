@@ -31,6 +31,7 @@ type ChainDrawerProps = {
     chainId: string,
     editingLink?: EditingLinkData,
     forkFromLinkId?: string,
+    aboveOfLinkId?: string,
   ) => void;
   declineNotification?: { address: string; at: string } | null;
   refreshKey?: number;
@@ -377,7 +378,6 @@ export function ChainDrawer({
     const forks = branchesByFork.get(link.id) ?? [];
     return [up, ...forks].filter(Boolean) as ChainV2["links"];
   };
-  const topLink = links[0] ?? null;
   const bottomLink = links[links.length - 1] ?? null;
 
   // Move up/down is offered only while the chain is entirely the creator's own
@@ -405,15 +405,8 @@ export function ChainDrawer({
   ) ?? null;
 
   // Internal staff own no link on an outsourced file, so they can't anchor an
-  // add on "their" link — allow them to add at the chain's top/bottom directly.
-  const showAddAbove =
-    !!onOpenAddNode &&
-    (isInternal
-      ? !!topLink
-      : !!userLink &&
-        canAddAbove(userLink, currentUserId, currentUserRole) &&
-        (topLink === null || topLink.id === userLink.id || topLink.transactionId === null));
-
+  // add on "their" link — allow them to add at the chain's bottom directly.
+  // ("Add above" now lives at the top of each column in renderNode.)
   const showAddBelow =
     !!onOpenAddNode &&
     (isInternal
@@ -515,7 +508,27 @@ export function ChainDrawer({
       </div>
     );
 
-    if (onwards.length === 0) return <div key={link.id}>{card}</div>;
+    if (onwards.length === 0) {
+      // A bare column top (spine or branch): offer "Add sale above" here so each
+      // column grows upward independently. Gated per-link — you can only add
+      // above a sale you originated or claimed (internal staff always may).
+      const canAddTop =
+        !!onOpenAddNode &&
+        (isInternal || canAddAbove(link, currentUserId, currentUserRole));
+      return (
+        <div key={link.id}>
+          {canAddTop && (
+            <button
+              onClick={() => onOpenAddNode?.("above", chainId, undefined, undefined, link.id)}
+              className="chain-addbtn chain-addbtn-above"
+            >
+              + Add sale above
+            </button>
+          )}
+          {card}
+        </div>
+      );
+    }
     if (onwards.length === 1) {
       return (
         <div key={link.id}>
@@ -860,19 +873,11 @@ export function ChainDrawer({
                 );
               })()}
 
-              {/* Add above button */}
-              {showAddAbove && (
-                <button
-                  onClick={() => onOpenAddNode?.("above", chain.id)}
-                  className="chain-addbtn chain-addbtn-above"
-                >
-                  + Add sale above
-                </button>
-              )}
-
               {/* The chain as a tree: walk from the spine bottom up. A sale with
                   2-3 onward purchases renders them side by side (V / trident)
-                  above it; linear runs stay a single column. */}
+                  above it; linear runs stay a single column. "Add sale above"
+                  now lives at the top of each column (see renderNode), so a
+                  split can grow every branch independently. */}
               {spineBottom && renderNode(spineBottom, chain.id)}
 
               {/* Add below button */}

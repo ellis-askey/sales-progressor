@@ -1084,21 +1084,77 @@ export type AddBranchInput = {
   stubNotes?: string | null;
 };
 
-// How many onward purchases a fork node already has: the single spine link
-// directly above it (if any) counts as onward #1, plus every branch that forks
-// from it. Used to enforce MAX_ONWARD_BRANCHES.
+// How many onward purchases a fork node already has: the link directly above it
+// in its OWN ladder (if any) counts as onward #1, plus every branch that forks
+// from it. Ladder-aware so it's correct for a nested fork (a branch node forking
+// again), not just the spine. Used to enforce MAX_ONWARD_BRANCHES.
 async function countOnwardsForNode(
   tx: Pick<typeof prisma, "chainLink">,
   chainId: string,
-  forkNode: { id: string; position: number },
+  forkNode: { id: string; position: number; branchKey: string },
 ): Promise<number> {
-  const spineAbove = await tx.chainLink.count({
-    where: { chainId, branchKey: "", position: forkNode.position - 1 },
+  const ladderAbove = await tx.chainLink.count({
+    where: { chainId, branchKey: forkNode.branchKey, position: forkNode.position - 1 },
   });
   const branches = await tx.chainLink.count({
     where: { forkFromLinkId: forkNode.id },
   });
-  return spineAbove + branches;
+  return ladderAbove + branches;
+}
+
+// Add a sale directly above a given link, within that link's OWN ladder (the
+// spine when branchKey is "", or a branch otherwise). Generalises the spine
+// "add above": every link in that ladder shifts down one and the new sale takes
+// the top (position 0). A branch's fork link keeps its forkFromLinkId and simply
+// moves to the new ladder bottom, so the fork anchor never changes. This is what
+// lets each column in a split grow upward independently.
+export async function addAboveLink(input: {
+  chainId: string;
+  userId: string;
+  aboveLinkId: string;
+  stubPropertyAddress: string;
+  stubAgencyName: string;
+  stubAgentEmail?: string | null;
+  stubAgentName?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+}): Promise<{ ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" }> {
+  const { chainId, userId, aboveLinkId, ...stub } = input;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const anchor = await tx.chainLink.findFirst({
+      where: { id: aboveLinkId, chainId },
+      select: { id: true, branchKey: true },
+    });
+    if (!anchor) return { ok: false as const, reason: "not_found" as const };
+
+    const ladderKey = anchor.branchKey ?? "";
+    const ladder = await tx.chainLink.findMany({
+      where: { chainId, branchKey: ladderKey },
+      orderBy: { position: "asc" },
+    });
+    // Shift the whole ladder down (highest position first, so no unique-position
+    // collision), then drop the new sale in at the top.
+    for (const link of [...ladder].reverse()) {
+      await tx.chainLink.update({
+        where: { id: link.id },
+        data: { position: link.position + 1 },
+      });
+    }
+    await tx.chainLink.create({
+      data: {
+        chainId,
+        branchKey: ladderKey,
+        position: 0,
+        createdByUserId: userId,
+        ...stubFields(stub),
+      },
+    });
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  return { ok: true, chain: (await getChainV2(chainId))! };
 }
 
 // Add an extra onward purchase (a branch) above a sale. The first onward is a
@@ -1112,9 +1168,12 @@ export async function addChainBranch(
   const { chainId, forkFromLinkId, userId, ...stub } = input;
 
   const result = await prisma.$transaction(async (tx) => {
+    // A fork can now hang off ANY sale, not just the spine — that's what lets a
+    // branch fork again (a nested onward). The new branch is still its own
+    // ladder (fresh branchKey), anchored to this node via forkFromLinkId.
     const forkNode = await tx.chainLink.findFirst({
-      where: { id: forkFromLinkId, chainId, branchKey: "" },
-      select: { id: true, position: true },
+      where: { id: forkFromLinkId, chainId },
+      select: { id: true, position: true, branchKey: true },
     });
     if (!forkNode) return { ok: false as const, reason: "not_found" as const };
 
@@ -1130,6 +1189,109 @@ export async function addChainBranch(
         createdByUserId: userId,
         ...stubFields(stub),
       },
+    });
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  return { ok: true, chain: (await getChainV2(chainId))! };
+}
+
+// Where in the chain a self-linked own sale should slot. Mirrors the three stub
+// add shapes: a spine above/below, the top of a specific column, or a new branch
+// forking off a sale.
+export type SelfLinkContext =
+  | { kind: "spine"; direction: "above" | "below" }
+  | { kind: "column"; aboveOfLinkId: string }
+  | { kind: "branch"; forkFromLinkId: string };
+
+// Link one of the adder's OWN live files into the chain as a real, claimed node
+// (instead of a hand-typed stub). This is a self-claim: the new link points at
+// the transaction and is claimed by the adder, and the file's active chainLinkId
+// is set so it can't be double-linked. Silent by design — no invite, no chain
+// notifications (Ellis, 2026-09-01). Positioning reuses the same rules as the
+// stub adds. The route is responsible for the agency-scope check (Law 7); the
+// chainLinkId-null guard here is the final backstop against double-linking.
+export async function selfLinkOwnSale(input: {
+  chainId: string;
+  userId: string;
+  transactionId: string;
+  context: SelfLinkContext;
+}): Promise<
+  { ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" | "at_limit" | "ineligible" }
+> {
+  const { chainId, userId, transactionId, context } = input;
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Final eligibility backstop: the file must not already be a link in any
+    // chain (its active chainLinkId must be null).
+    const txn = await tx.propertyTransaction.findFirst({
+      where: { id: transactionId, chainLinkId: null },
+      select: { id: true },
+    });
+    if (!txn) return { ok: false as const, reason: "ineligible" as const };
+
+    let branchKey = "";
+    let position = 0;
+    let forkFromLinkId: string | null = null;
+
+    if (context.kind === "spine") {
+      const spine = await tx.chainLink.findMany({
+        where: { chainId, branchKey: "" },
+        orderBy: { position: "asc" },
+      });
+      if (context.direction === "above") {
+        for (const l of [...spine].reverse()) {
+          await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+        }
+        position = 0;
+      } else {
+        position = spine.length > 0 ? Math.max(...spine.map((l) => l.position)) + 1 : 0;
+      }
+    } else if (context.kind === "column") {
+      const anchor = await tx.chainLink.findFirst({
+        where: { id: context.aboveOfLinkId, chainId },
+        select: { branchKey: true },
+      });
+      if (!anchor) return { ok: false as const, reason: "not_found" as const };
+      branchKey = anchor.branchKey ?? "";
+      const ladder = await tx.chainLink.findMany({
+        where: { chainId, branchKey },
+        orderBy: { position: "asc" },
+      });
+      for (const l of [...ladder].reverse()) {
+        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+      }
+      position = 0;
+    } else {
+      const forkNode = await tx.chainLink.findFirst({
+        where: { id: context.forkFromLinkId, chainId },
+        select: { id: true, position: true, branchKey: true },
+      });
+      if (!forkNode) return { ok: false as const, reason: "not_found" as const };
+      const onwards = await countOnwardsForNode(tx, chainId, forkNode);
+      if (onwards >= MAX_ONWARD_BRANCHES) return { ok: false as const, reason: "at_limit" as const };
+      branchKey = randomUUID();
+      position = 0;
+      forkFromLinkId = forkNode.id;
+    }
+
+    const created = await tx.chainLink.create({
+      data: {
+        chainId,
+        branchKey,
+        position,
+        forkFromLinkId,
+        createdByUserId: userId,
+        transactionId,
+        claimedByUserId: userId,
+        claimedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    await tx.propertyTransaction.update({
+      where: { id: transactionId },
+      data: { chainLinkId: created.id },
     });
     return { ok: true as const };
   });
