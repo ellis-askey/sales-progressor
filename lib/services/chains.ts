@@ -1023,14 +1023,17 @@ export async function addChainLink(input: AddLinkInput): Promise<ChainV2> {
   const { chainId, userId, direction, ...stub } = input;
 
   await prisma.$transaction(async (tx) => {
+    // addChainLink extends the MAIN SPINE (branchKey ""). Branch links are added
+    // via the branch flow (step 2), so we scope positioning to the spine and
+    // never renumber a branch when a spine node is inserted above.
     const links = await tx.chainLink.findMany({
-      where: { chainId },
+      where: { chainId, branchKey: "" },
       orderBy: { position: "asc" },
     });
 
     let newPosition: number;
     if (direction === "above") {
-      // Shift all existing links down, new link gets position 0
+      // Shift all existing spine links down, new link gets position 0
       for (const link of [...links].reverse()) {
         await tx.chainLink.update({
           where: { id: link.id },
@@ -1094,8 +1097,14 @@ export async function updateChainLinkStub(
 }
 
 export async function removeChainLink(linkId: string, chainId: string): Promise<void> {
+  // Repack only the branch the removed link belonged to (spine = ""), so removing
+  // a branch stub never renumbers the spine or another branch.
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: { branchKey: true },
+  });
   await prisma.chainLink.delete({ where: { id: linkId } });
-  await repackPositions(chainId);
+  await repackPositions(chainId, link?.branchKey ?? "");
 }
 
 /**
