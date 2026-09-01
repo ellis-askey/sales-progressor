@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
@@ -75,7 +76,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       if (!contact.email) continue;
 
       const roleLabel = contact.roleType === "purchaser" ? "purchase" : "sale";
-      const firstName = contact.name.trim().split(/\s+/)[0] || contact.name;
+      const firstName = extractFirstName(contact.name);
       const interpVars = { firstName, address: tx.propertyAddress, roleLabel };
       const subject = wu.subject ? interpWeekly(wu.subject, interpVars) : `An update on your ${roleLabel} at ${tx.propertyAddress}`;
 

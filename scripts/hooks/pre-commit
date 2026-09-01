@@ -2,15 +2,20 @@
 #
 # Sales Progressor pre-commit hook — Phase 5 MVP.
 #
-# Runs three checks against the staged files:
+# Runs four checks against the staged files:
 #   1. tsc --noEmit (Law 2: verify before claiming done)
 #   2. em-dash sweep in user-facing strings (Law 21: voice gate)
 #   3. new scripts/ file must have a SCRIPTS_REGISTRY.md entry (Law 15)
+#   4. naive name-split guard — HARD BLOCK (see Check 4)
 #
-# Ships in WARN-ONLY mode until 2026-07-15 (2 weeks after install).
-# During warn-only, all failures print but the commit proceeds.
-# Flip to BLOCK: set PHASE5_ENFORCE=1 in your environment, or
+# Checks 1-3 ship in WARN-ONLY mode until 2026-07-15 (2 weeks after
+# install). During warn-only, their failures print but the commit
+# proceeds. Flip to BLOCK: set PHASE5_ENFORCE=1 in your environment, or
 # uncomment the `exit 1` calls below.
+#
+# Check 4 ALWAYS blocks, regardless of warn-only mode: the tree is clean
+# of the pattern as of 2026-09-01, so any new hit is a real regression
+# that leaks a title ("Mrs") into copy and is cheap to fix on the spot.
 #
 # Uninstall: `scripts/hooks/uninstall.sh` OR `rm .git/hooks/pre-commit`
 
@@ -27,6 +32,7 @@ RESET=$(printf '\033[0m')
 
 ENFORCE="${PHASE5_ENFORCE:-0}"
 FAILED=0
+HARDFAIL=0  # Check 4 blocks regardless of warn-only mode.
 
 # Fire on ANY problem the hook detects. In warn-only mode we
 # collect but never exit non-zero. In enforce mode we `exit 1` at end.
@@ -88,7 +94,28 @@ if [ -n "$new_scripts" ]; then
   done
 fi
 
+# ── Check 4: naive name-split guard (HARD BLOCK) ───────────────────────
+# A `.split(" ")[0]` / `.split(/\s+/)[0]` on a person's name returns the
+# title ("Mrs Lauren" → "Mrs") and leaks it into emails, updates, and the
+# client portal. Use extractFirstName() from @/lib/contacts/displayName.
+# We run the AST-accurate ESLint rule on staged .ts/.tsx files (archived
+# scripts are excluded) — the single source of truth, so this can't drift.
+name_files=$(printf "%s\n" "$staged_tsx" | grep -vE '^scripts/_archive/' || true)
+if [ -n "$name_files" ]; then
+  ns_hits=$(printf "%s\n" "$name_files" | xargs npx eslint -f compact 2>/dev/null | grep 'no-naive-name-split' || true)
+  if [ -n "$ns_hits" ]; then
+    printf "%sBLOCKED%s [name-split] naive first-name extraction leaks titles. Use extractFirstName() from @/lib/contacts/displayName:\n" "$RED" "$RESET" >&2
+    printf "%s\n" "$ns_hits" >&2
+    HARDFAIL=1
+  fi
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────
+if [ "$HARDFAIL" = "1" ]; then
+  printf "\n%sCommit blocked%s by the name-split guard (Check 4). Replace the naive split with extractFirstName().\n" "$RED" "$RESET" >&2
+  exit 1
+fi
+
 if [ "$FAILED" = "1" ]; then
   if [ "$ENFORCE" = "1" ]; then
     printf "\n%sCommit blocked%s. Fix the issues above or use LAWS-OVERRIDE (see docs/LAW_OVERRIDES.md).\n" "$RED" "$RESET" >&2

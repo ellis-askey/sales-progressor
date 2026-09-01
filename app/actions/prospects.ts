@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
@@ -281,7 +282,7 @@ export async function draftFollowUpAction(prospectId: string, templateKey?: stri
   if (!p) throw new Error("Prospect not found.");
   const primary = p.contacts[0] ?? null;
   const to = primary?.email ?? p.generalEmail ?? null;
-  const firstName = (primary?.name ?? "").trim().split(/\s+/)[0] ?? "";
+  const firstName = primary?.name?.trim() ? extractFirstName(primary.name) : "";
   const ctx = { firstName, agencyName: p.agencyName, senderName: "Ellis" };
 
   if (templateKey) {

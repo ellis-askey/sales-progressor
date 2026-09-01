@@ -2,6 +2,9 @@
 module.exports = {
   extends: ["next/core-web-vitals"],
   plugins: ["local-rules"],
+  // Archived scripts are frozen deletion-candidates (Law 15) — not maintained,
+  // so they don't need to satisfy current lint rules.
+  ignorePatterns: ["scripts/_archive/**"],
   rules: {
     // Prevent mutating the append-only AdminAuditLog table directly via Prisma.
     // All writes must go through recordAdminAction() in lib/command/audit/write.ts.

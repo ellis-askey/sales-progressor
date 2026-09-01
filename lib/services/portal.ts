@@ -2617,7 +2617,7 @@ export async function getPortalTimeline(
       prisma.outboundMessage.findMany({
         where: messageWhere,
         orderBy: { createdAt: "desc" },
-        select: { id: true, content: true, method: true, createdAt: true },
+        select: { id: true, content: true, method: true, createdAt: true, selfNoteActorContactId: true, selfNoteSelfText: true },
       }),
       prisma.transactionDocument.findMany({
         where: documentWhere,
@@ -2680,7 +2680,9 @@ export async function getPortalTimeline(
     const updateEntries: TimelineEntry[] = updates.map((u) => ({
       type: "update" as const,
       id: u.id,
-      content: u.content,
+      // Self-note swap: the actor reads "You updated…"; everyone else reads the
+      // name-led form stored in `content`.
+      content: u.selfNoteActorContactId === contactId && u.selfNoteSelfText ? u.selfNoteSelfText : u.content,
       method: u.method,
       createdAt: u.createdAt,
     }));
@@ -3015,9 +3017,17 @@ export async function getPortalUpdates(
         OR: [{ buyerRoundId: null }, { buyerRoundId: opts.buyerRoundId }],
       }
     : { transactionId, visibleToClient: true };
-  return withRetry(() => prisma.outboundMessage.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: { id: true, content: true, method: true, createdAt: true },
-  }));
+  return withRetry(async () => {
+    const rows = await prisma.outboundMessage.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, content: true, method: true, createdAt: true, selfNoteActorContactId: true, selfNoteSelfText: true },
+    });
+    // Self-note swap: the actor reads "You updated…"; co-clients read the
+    // name-led form stored in `content`.
+    return rows.map(({ selfNoteActorContactId, selfNoteSelfText, ...u }) => ({
+      ...u,
+      content: selfNoteActorContactId === contactId && selfNoteSelfText ? selfNoteSelfText : u.content,
+    }));
+  });
 }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
@@ -552,7 +553,7 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
     },
   });
 
-  const firstName = (n: string) => n.trim().split(/\s+/)[0] || n;
+  const firstName = (n: string) => extractFirstName(n);
   // One row per file — the earliest-detected (longest-standing) flag wins.
   const seen = new Set<string>();
   const items: GoneQuietItem[] = [];

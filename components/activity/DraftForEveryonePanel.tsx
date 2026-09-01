@@ -8,11 +8,12 @@
 import { useState, useTransition } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { sendDraftClientUpdateAction, saveDraftNoteAction } from "@/app/actions/draft-update";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 type ClientContact = { id: string; name: string; roleType: string };
 
 function firstName(n: string): string {
-  return n.trim().split(/\s+/)[0] || n;
+  return extractFirstName(n);
 }
 
 export function DraftForEveryonePanel({

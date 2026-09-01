@@ -36,6 +36,19 @@ export function getDisplayName(contact: NameLike): string {
 }
 
 /**
+ * The honorific/professional title at the front of a name, if any — else null.
+ * For when the caller genuinely wants the TITLE (e.g. to pick a pronoun), not
+ * the first name. Returns the title as written ("Mrs", "Dr").
+ * e.g. "Mrs Lauren Saunders" → "Mrs"
+ *      "Dr Brown"            → "Dr"
+ *      "Rachel Whitfield"    → null
+ *      "Lauren"              → null
+ */
+export function getTitlePrefix(name: string): string | null {
+  return parseName(name).prefix;
+}
+
+/**
  * Short reference for use in inline sentences.
  * Skips honorific prefixes when a first name is available; keeps any title
  * (honorific or professional) when only a surname follows it, so we never

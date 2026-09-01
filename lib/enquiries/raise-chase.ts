@@ -12,6 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, solicitorCc } from "@/lib/email";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
@@ -20,7 +21,7 @@ import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "./raise-chase-em
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
 
 function firstNameOf(full: string): string {
-  return full.trim().split(/\s+/)[0] || "there";
+  return full.trim() ? extractFirstName(full) : "there";
 }
 
 export async function runRaiseChaseCron(now: Date): Promise<{

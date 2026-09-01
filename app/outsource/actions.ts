@@ -6,6 +6,7 @@
 // No DB model yet — the tracking dashboard + OutsourceLead table come next.
 
 import { sendEmail } from "@/lib/email";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 // Where new leads land. A monitored internal inbox; change in setup if needed.
 const LEADS_INBOX = process.env.OUTSOURCE_LEADS_INBOX ?? "support@thesalesprogressor.co.uk";
@@ -62,7 +63,7 @@ export async function submitOutsourceLead(input: OutsourceLeadInput): Promise<{ 
   }
 
   // Confirmation to the agent — best-effort, never blocks the lead.
-  const firstName = name.split(/\s+/)[0] || name;
+  const firstName = extractFirstName(name);
   await sendEmail({
     to: email,
     subject: "We've got your sale",

@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { PropertyScene } from "../PropertyScene";
 import { PhaseIcon } from "../PhaseIcon";
 import { detailFile, chainLinks, chainIntel, phases } from "../data";
@@ -1126,7 +1127,7 @@ function ActivityTab() {
         <div className={styles.activityComposeFoot}>
           <div className={styles.activityComposePills}>
             {fileContacts.map((c) => {
-              const short = c.name.split(" ")[0];
+              const short = extractFirstName(c.name);
               return (
                 <button
                   key={c.name}

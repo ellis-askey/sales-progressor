@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 /**
  * Generic primitive. Most callers should use the typed event helpers below
@@ -54,8 +55,12 @@ export async function addPortalClientSelfNote(opts: {
     select: { id: true },
   });
   if (sameSide.length === 0) return;
-  const firstName = opts.actorName.trim().split(/\s+/)[0] || opts.actorName.trim();
-  const content = sameSide.length > 1 ? opts.plural(firstName) : opts.singular;
+  // One shared row addressed to everyone on the side. `content` is the name-led
+  // form ("Lauren updated…") — what co-clients (and the agent view) should see.
+  // `selfNoteSelfText` is the second-person form; the portal reader swaps to it
+  // when the VIEWER is the actor, so a client never reads about themselves in
+  // the third person on their own portal.
+  const firstName = extractFirstName(opts.actorName);
   // internal_note + visibleToClient:true: shows in the client's own timeline
   // (the updates feed is type-agnostic on visibleToClient) without counting as
   // an `outbound` comm, which would pollute chase-timing queries.
@@ -65,7 +70,9 @@ export async function addPortalClientSelfNote(opts: {
       type: "internal_note",
       visibleToClient: true,
       contactIds: sameSide.map((c) => c.id),
-      content,
+      content: opts.plural(firstName),
+      selfNoteActorContactId: opts.actorContactId,
+      selfNoteSelfText: opts.singular,
     },
   });
 }

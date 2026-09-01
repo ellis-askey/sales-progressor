@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail, solicitorCc } from "@/lib/email";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { buildExchangeDaySolicitorEmail, type ExchangeDaySlot } from "@/lib/exchange-day/emails";
@@ -36,7 +37,7 @@ function ukMinutes(d: Date): number {
 }
 
 function firstName(name: string): string {
-  return name.trim().split(/\s+/)[0] || name;
+  return extractFirstName(name);
 }
 function longDate(d: Date): string {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });

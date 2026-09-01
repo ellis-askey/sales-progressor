@@ -1445,6 +1445,13 @@ model OutboundMessage {
   subject    String?
   bodyFormat String      @default("plain")
 
+  // Client self-notes ("You updated…" for the actor vs "Lauren updated…" for
+  // co-clients) render from ONE shared row. `content` holds the name-led form;
+  // when the viewing contact IS the actor we show `selfNoteSelfText` instead.
+  // Null on every non-self-note row. See addPortalClientSelfNote.
+  selfNoteActorContactId String?
+  selfNoteSelfText       String?
+
   // Legacy AI fields
   generatedText   String?
   tone            String?
