@@ -143,6 +143,10 @@ model User {
   password            String?
   totpSecret          String?
   totpActivatedAt     DateTime?
+  // One-time recovery codes (hashed) for 2FA lockout, and a per-user token
+  // version bumped by "sign out of all other devices" (JWT invalidation).
+  totpBackupCodes     String[]   @default([])
+  sessionVersion      Int        @default(0)
   role                UserRole   @default(viewer)
   agencyId            String?
   firmName            String?
