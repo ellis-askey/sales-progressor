@@ -121,7 +121,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                         {/* Change / set completion date */}
                         {openDatePickerId === f.id && (
                           <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                            <input type="date" className="glass-input px-2 py-1.5 text-sm" min={today} value={dateValue} onChange={(e) => setDateValue(e.target.value)} autoFocus />
+                            <input type="date" className="agent-input agent-input-sm" style={{ width: "auto", fontSize: 13 }} min={today} value={dateValue} onChange={(e) => setDateValue(e.target.value)} autoFocus />
                             <Button
                               size="sm"
                               disabled={!dateValue || isPending}
@@ -143,7 +143,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                         {openCompleteId === f.id && (
                           <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                             <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>Mark completed as of</span>
-                            <input type="date" className="glass-input px-2 py-1.5 text-sm" value={completeDate} onChange={(e) => setCompleteDate(e.target.value)} autoFocus />
+                            <input type="date" className="agent-input agent-input-sm" style={{ width: "auto", fontSize: 13 }} value={completeDate} onChange={(e) => setCompleteDate(e.target.value)} autoFocus />
                             <Button
                               size="sm"
                               disabled={!completeDate || isPending}

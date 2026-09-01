@@ -931,21 +931,21 @@ export function ContactsSection({
                         <CommsButton
                           href={contact.phone ? `tel:${contact.phone}` : undefined}
                           label="Call"
-                          icon={<Phone size={13} weight="regular" />}
+                          icon={<Phone size={15} weight="regular" />}
                           disabled={!contact.phone}
                           title={contact.phone ? "Call" : "No phone number on file"}
                         />
                         <CommsButton
                           href={contact.phone ? whatsappHref(contact.phone) : undefined}
                           label="WhatsApp"
-                          icon={<ChatCircleText size={13} weight="regular" />}
+                          icon={<ChatCircleText size={15} weight="regular" />}
                           disabled={!contact.phone}
                           title={contact.phone ? "WhatsApp" : "No phone number on file"}
                         />
                         <CommsButton
                           href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined}
                           label="Email"
-                          icon={<EnvelopeSimple size={13} weight="regular" />}
+                          icon={<EnvelopeSimple size={15} weight="regular" />}
                           disabled={!contact.email}
                           title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"}
                         />

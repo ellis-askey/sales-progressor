@@ -66,7 +66,7 @@ export function AiSummaryCard({ transactionId }: { transactionId: string }) {
             width: 26, height: 26,
             color: "var(--agent-coral-deep)",
           }}>
-            <Robot size={18} weight="fill" />
+            <Robot size={20} weight="fill" />
           </span>
           <p className="agent-eyebrow" style={{ margin: 0 }}>AI summary</p>
         </div>
