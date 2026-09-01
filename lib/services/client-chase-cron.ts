@@ -176,7 +176,10 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
   //   - chaseRuleSnapshot: per-transaction grace/repeat values at creation time
   //   - agencyId: needed for the agency-wide master toggle lookup
   const allActive = await prisma.propertyTransaction.findMany({
-    where: { status: "active" },
+    // isDemo excluded: demo files carry portal-eligible @example.com contacts
+    // and old milestone anchors, so they'd otherwise qualify for real client
+    // chase emails at rest. Demo sales never chase anyone.
+    where: { status: "active", isDemo: false },
     select: {
       id: true,
       createdAt: true,

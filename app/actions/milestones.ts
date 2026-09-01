@@ -67,7 +67,7 @@ export async function confirmMilestoneAction(input: {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true, suppressPortalConfirmEmails: true },
+    select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true, suppressPortalConfirmEmails: true, isDemo: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -187,11 +187,17 @@ export async function confirmMilestoneAction(input: {
   const anchorCodesForEval = [def?.code, counterCode].filter(
     (c): c is string => typeof c === "string",
   );
-  await evaluateTransactionReminders(input.transactionId, {
-    anchorCodes: anchorCodesForEval,
-  }).catch((err) => {
-    console.error("[confirmMilestoneAction] reminder re-eval failed", err);
-  });
+  // Demo files never run the reminder engine: it would write live
+  // ReminderLog/ChaseTask rows that leak into the cross-file work queue
+  // (work-queue.ts doesn't filter isDemo). The completion itself is already
+  // written above, so the demo file still updates visually.
+  if (!tx.isDemo) {
+    await evaluateTransactionReminders(input.transactionId, {
+      anchorCodes: anchorCodesForEval,
+    }).catch((err) => {
+      console.error("[confirmMilestoneAction] reminder re-eval failed", err);
+    });
+  }
 
   // Refresh the stored expectedExchangeDate from the live phase-aware
   // prediction so the hub/diary date self-adjusts as the file progresses.
@@ -204,12 +210,16 @@ export async function confirmMilestoneAction(input: {
   // Single revalidate after all DB writes (primary + bilateral counterpart)
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
-  void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_CONFIRMED, {
-    transactionId: input.transactionId,
-    milestoneId:   input.milestoneDefinitionId,
-    milestoneCode: def?.code ?? undefined,
-    agencyId:      session.user.agencyId || undefined,
-  });
+  // Demo confirms are not real product activity — no PostHog (unlike the
+  // internal event log + activation events, PostHog isn't isDemo-filtered).
+  if (!tx.isDemo) {
+    void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_CONFIRMED, {
+      transactionId: input.transactionId,
+      milestoneId:   input.milestoneDefinitionId,
+      milestoneCode: def?.code ?? undefined,
+      agencyId:      session.user.agencyId || undefined,
+    });
+  }
 
   // Completion: sync the transaction completionDate if the confirmed date differs
   if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {
@@ -261,7 +271,14 @@ export async function confirmMilestoneAction(input: {
   }
 
   // Push to subscribed portal contacts (fire-and-forget)
-  if (def) {
+  //
+  // Demo files emit NOTHING outbound: no push, no portal/counterpart/
+  // completion-pack/ready-to-exchange emails, no retention email, no SP bell.
+  // The reserved-@example.com backstop in lib/email.ts would drop the sends
+  // anyway, but skipping the whole block avoids the wasted work + keeps demo
+  // confirms side-effect-free. All the local DB writes (completion, status
+  // flip, date syncs) already ran above, so the file still updates.
+  if (def && !tx.isDemo) {
     const code  = def.code;
     const label = getMilestoneCopy(code).label;
     const short = tx.propertyAddress.split(",")[0];
@@ -523,7 +540,7 @@ export async function reverseMilestoneAction(input: {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true },
+    select: { id: true, isDemo: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -541,15 +558,19 @@ export async function reverseMilestoneAction(input: {
   // cascaded reinstatements) get their chase rules re-seeded immediately.
   // Without this, the user has to wait for the next cron tick — but the
   // click on "Reinstate" is an explicit request for the chase to resume.
-  await evaluateTransactionReminders(input.transactionId).catch((err) => {
-    console.error(`[reverseMilestoneAction] evaluate failed:`, err);
-  });
+  // Demo files skip this (and the PostHog event below) for the same reasons
+  // as confirmMilestoneAction: no leaked reminder rows, no polluted metrics.
+  if (!tx.isDemo) {
+    await evaluateTransactionReminders(input.transactionId).catch((err) => {
+      console.error(`[reverseMilestoneAction] evaluate failed:`, err);
+    });
 
-  void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_UNCONFIRMED, {
-    transactionId: input.transactionId,
-    milestoneId:   input.milestoneDefinitionId,
-    agencyId:      session.user.agencyId || undefined,
-  });
+    void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_UNCONFIRMED, {
+      transactionId: input.transactionId,
+      milestoneId:   input.milestoneDefinitionId,
+      agencyId:      session.user.agencyId || undefined,
+    });
+  }
 
   // Reversing a milestone lengthens the remaining critical path — refresh the
   // stored prediction so the hub date pushes back out. Best-effort.
