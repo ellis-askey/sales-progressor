@@ -1197,6 +1197,109 @@ export async function addChainBranch(
   return { ok: true, chain: (await getChainV2(chainId))! };
 }
 
+// Where in the chain a self-linked own sale should slot. Mirrors the three stub
+// add shapes: a spine above/below, the top of a specific column, or a new branch
+// forking off a sale.
+export type SelfLinkContext =
+  | { kind: "spine"; direction: "above" | "below" }
+  | { kind: "column"; aboveOfLinkId: string }
+  | { kind: "branch"; forkFromLinkId: string };
+
+// Link one of the adder's OWN live files into the chain as a real, claimed node
+// (instead of a hand-typed stub). This is a self-claim: the new link points at
+// the transaction and is claimed by the adder, and the file's active chainLinkId
+// is set so it can't be double-linked. Silent by design — no invite, no chain
+// notifications (Ellis, 2026-09-01). Positioning reuses the same rules as the
+// stub adds. The route is responsible for the agency-scope check (Law 7); the
+// chainLinkId-null guard here is the final backstop against double-linking.
+export async function selfLinkOwnSale(input: {
+  chainId: string;
+  userId: string;
+  transactionId: string;
+  context: SelfLinkContext;
+}): Promise<
+  { ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" | "at_limit" | "ineligible" }
+> {
+  const { chainId, userId, transactionId, context } = input;
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Final eligibility backstop: the file must not already be a link in any
+    // chain (its active chainLinkId must be null).
+    const txn = await tx.propertyTransaction.findFirst({
+      where: { id: transactionId, chainLinkId: null },
+      select: { id: true },
+    });
+    if (!txn) return { ok: false as const, reason: "ineligible" as const };
+
+    let branchKey = "";
+    let position = 0;
+    let forkFromLinkId: string | null = null;
+
+    if (context.kind === "spine") {
+      const spine = await tx.chainLink.findMany({
+        where: { chainId, branchKey: "" },
+        orderBy: { position: "asc" },
+      });
+      if (context.direction === "above") {
+        for (const l of [...spine].reverse()) {
+          await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+        }
+        position = 0;
+      } else {
+        position = spine.length > 0 ? Math.max(...spine.map((l) => l.position)) + 1 : 0;
+      }
+    } else if (context.kind === "column") {
+      const anchor = await tx.chainLink.findFirst({
+        where: { id: context.aboveOfLinkId, chainId },
+        select: { branchKey: true },
+      });
+      if (!anchor) return { ok: false as const, reason: "not_found" as const };
+      branchKey = anchor.branchKey ?? "";
+      const ladder = await tx.chainLink.findMany({
+        where: { chainId, branchKey },
+        orderBy: { position: "asc" },
+      });
+      for (const l of [...ladder].reverse()) {
+        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+      }
+      position = 0;
+    } else {
+      const forkNode = await tx.chainLink.findFirst({
+        where: { id: context.forkFromLinkId, chainId },
+        select: { id: true, position: true, branchKey: true },
+      });
+      if (!forkNode) return { ok: false as const, reason: "not_found" as const };
+      const onwards = await countOnwardsForNode(tx, chainId, forkNode);
+      if (onwards >= MAX_ONWARD_BRANCHES) return { ok: false as const, reason: "at_limit" as const };
+      branchKey = randomUUID();
+      position = 0;
+      forkFromLinkId = forkNode.id;
+    }
+
+    const created = await tx.chainLink.create({
+      data: {
+        chainId,
+        branchKey,
+        position,
+        forkFromLinkId,
+        createdByUserId: userId,
+        transactionId,
+        claimedByUserId: userId,
+        claimedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    await tx.propertyTransaction.update({
+      where: { id: transactionId },
+      data: { chainLinkId: created.id },
+    });
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  return { ok: true, chain: (await getChainV2(chainId))! };
+}
+
 export async function updateChainLinkStub(
   linkId: string,
   data: {
