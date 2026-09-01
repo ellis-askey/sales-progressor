@@ -194,21 +194,27 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   const [err, setErr] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closingRef = useRef(false);
 
+  // Guard via a ref, not `closing` state, so doClose stays stable. If it
+  // depended on `closing`, setClosing(true) would recreate doClose, re-run the
+  // keydown effect below, and its cleanup would clear the pending close timer —
+  // leaving the blurred backdrop stuck on screen after a click-off.
   const doClose = useCallback(() => {
-    if (closing) return;
+    if (closingRef.current) return;
+    closingRef.current = true;
     setClosing(true);
     closeTimer.current = setTimeout(onClose, 200);
-  }, [closing, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") doClose(); }
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      if (closeTimer.current) clearTimeout(closeTimer.current);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [doClose]);
+
+  // Clear the close timer only on unmount, never on a doClose change.
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   const run = (fn: () => Promise<unknown>) => {
     setErr(null);
