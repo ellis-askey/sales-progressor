@@ -178,6 +178,12 @@ export type ChainLinkV2 = {
   // Whether the current viewer may edit this node's intel. False when no viewer
   // context is passed.
   canEditIntel?: boolean;
+  // Whether the current viewer may edit this node's STUB details (address,
+  // agency, agent contact, notes). Only ever true for an UNCLAIMED link, and
+  // only for the same owner set as intel (internal team, the stub's creator, or
+  // a director in the creating agency). Lets the internal team fix an
+  // agent-added stub whose real-world details changed. False when no viewer.
+  canEditStub?: boolean;
   // Compact onward summary — populated only on the viewer's own sale node, and
   // only while the onward is still a reported stand-in (not superseded/abandoned).
   // Null everywhere else. Optional so hand-built demo links are unaffected.
@@ -641,6 +647,10 @@ export async function getChainV2(
         txAgentUserId: rawTx?.agentUserId ?? null,
       };
       const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
+      // Stub details are editable only on an UNCLAIMED link, by the same owner
+      // set as intel. A claimed link is a real file — its details live there, not
+      // on the stub. This is what lets the internal team edit an agent-added stub.
+      const canEditStub = l.transactionId === null && canEditIntel;
       const intelVisible = viewer ? canViewNodeIntel(viewer, ownership) : false;
       const intel: ChainNodeIntel | null = intelVisible
         ? {
@@ -668,6 +678,7 @@ export async function getChainV2(
           stuckMilestoneLabel: null,
           intel,
           canEditIntel,
+          canEditStub,
           onwardSummary: null,
         };
       }
@@ -721,6 +732,7 @@ export async function getChainV2(
         stuckMilestoneLabel,
         intel,
         canEditIntel,
+        canEditStub,
         onwardSummary: l.transactionId ? onwardByTx.get(l.transactionId) ?? null : null,
       };
     }),

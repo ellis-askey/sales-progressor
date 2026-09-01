@@ -656,7 +656,11 @@ export function LinkCard({
             </Link>
           )}
 
-          {isOriginator && isUnclaimed && (
+          {/* Stub actions: prefer the server-computed permission (internal team,
+              the stub's creator, or a director in the creating agency); fall back
+              to the old originator check for hand-built demo/legacy links that
+              carry no canEditStub flag. */}
+          {(link.canEditStub ?? (isOriginator && isUnclaimed)) && (
             <>
               {status.kind === "unclaimed_no_email" && onEditStub && (
                 <button onClick={() => onEditStub(link)} className="chain-act-link chain-act-primary">
