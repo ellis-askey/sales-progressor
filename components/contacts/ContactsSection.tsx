@@ -197,7 +197,8 @@ function PortalStatusCard({
         minWidth: 0,
       }}
     >
-      {/* Icon square */}
+      {/* Portal-status icon — no background box; the icon colour still carries
+          the state (green active / amber invited / grey not invited). */}
       <span
         style={{
           display: "inline-flex",
@@ -205,13 +206,11 @@ function PortalStatusCard({
           justifyContent: "center",
           width: 32,
           height: 32,
-          borderRadius: 8,
-          background: state === "active" ? "rgba(22,163,74,0.10)" : state === "invited" ? "rgba(217,119,6,0.10)" : "rgba(148,163,184,0.14)",
           color: state === "active" ? "#16a34a" : state === "invited" ? "#d97706" : "#64748b",
           flexShrink: 0,
         }}
       >
-        <GlobeSimple size={16} weight="regular" />
+        <GlobeSimple size={20} weight="regular" />
       </span>
 
       {/* Status text */}

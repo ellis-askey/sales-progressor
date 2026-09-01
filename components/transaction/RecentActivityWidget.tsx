@@ -148,15 +148,14 @@ export function RecentActivityWidget({ entries }: Props) {
                 letterSpacing: "0.06em",
               }}>{band.label}</div>
               {band.items.map(({ entry, when }) => {
-                const { Icon: EntryIcon, color, bg } = iconFor(entry);
+                const { Icon: EntryIcon, color } = iconFor(entry);
                 const title = titleFor(entry);
                 const subtitle = subtitleFor(entry);
                 return (
                   <ActivityRow
                     key={entry.id}
-                    IconEl={<EntryIcon size={14} weight="regular" />}
+                    IconEl={<EntryIcon size={17} weight="regular" />}
                     iconColor={color}
-                    iconBg={bg}
                     title={title}
                     subtitle={subtitle}
                     time={when.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
@@ -175,11 +174,10 @@ export function RecentActivityWidget({ entries }: Props) {
 // already reads "Internal note" for those entries, so the right-side pill
 // said the same thing twice on the same line.
 function ActivityRow({
-  IconEl, iconColor, iconBg, title, subtitle, time,
+  IconEl, iconColor, title, subtitle, time,
 }: {
   IconEl: ReactNode;
   iconColor: string;
-  iconBg: string;
   title: string;
   subtitle: string;
   time: string;
@@ -198,8 +196,6 @@ function ActivityRow({
         justifyContent: "center",
         width: 28,
         height: 28,
-        borderRadius: 7,
-        background: iconBg,
         color: iconColor,
         flexShrink: 0,
       }}>{IconEl}</span>

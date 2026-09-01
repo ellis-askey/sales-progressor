@@ -251,10 +251,10 @@ export function AgentFileSidebar({
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26, borderRadius: 7,
-            background: health.bg, color: health.color,
+            width: 26, height: 26,
+            color: health.color,
           }}>
-            <Heartbeat size={14} weight="regular" />
+            <Heartbeat size={17} weight="regular" />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Sale health</p>
@@ -345,11 +345,10 @@ export function AgentFileSidebar({
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26, borderRadius: 7,
-            background: "rgba(var(--agent-coral-rgb), 0.10)",
+            width: 26, height: 26,
             color: "var(--agent-coral-deep)",
           }}>
-            <CalendarBlank size={14} weight="regular" />
+            <CalendarBlank size={17} weight="regular" />
           </span>
           <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Key dates</p>
         </div>
@@ -429,11 +428,10 @@ export function AgentFileSidebar({
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 26, height: 26, borderRadius: 7,
-              background: "rgba(15, 23, 42, 0.05)",
+              width: 26, height: 26,
               color: "var(--agent-text-secondary)",
             }}>
-              <Storefront size={14} weight="regular" />
+              <Storefront size={17} weight="regular" />
             </span>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Agent</p>
           </div>
@@ -474,11 +472,10 @@ export function AgentFileSidebar({
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 26, height: 26, borderRadius: 7,
-              background: "rgba(15, 23, 42, 0.05)",
+              width: 26, height: 26,
               color: "var(--agent-text-secondary)",
             }}>
-              <CurrencyGbp size={14} weight="regular" />
+              <CurrencyGbp size={17} weight="regular" />
             </span>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Fees</p>
           </div>
@@ -656,10 +653,10 @@ function QuickLinkExternal({
       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
         <span style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 26, height: 26, borderRadius: 7,
-          background: "rgba(15,23,42,0.05)", color: "var(--agent-text-secondary)",
+          width: 26, height: 26,
+          color: "var(--agent-text-secondary)",
         }}>
-          <Icon size={14} weight="regular" />
+          <Icon size={17} weight="regular" />
         </span>
         <span style={{ fontSize: 13, color: "var(--agent-text-primary)", fontWeight: 500 }}>{label}</span>
       </span>
@@ -758,10 +755,10 @@ function QuickLinkButton({
       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
         <span style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 26, height: 26, borderRadius: 7,
-          background: "rgba(15,23,42,0.05)", color: "var(--agent-text-secondary)",
+          width: 26, height: 26,
+          color: "var(--agent-text-secondary)",
         }}>
-          <Icon size={14} weight="regular" />
+          <Icon size={17} weight="regular" />
         </span>
         <span style={{ fontSize: 13, color: "var(--agent-text-primary)", fontWeight: 500 }}>{label}</span>
       </span>

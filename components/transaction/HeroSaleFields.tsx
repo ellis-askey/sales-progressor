@@ -67,9 +67,11 @@ function tenureLabel(t: Tenure | null): string {
 
 // Styles lifted verbatim from HeroStatCell so the editable cells are visually
 // indistinguishable from the static "Expected exchange" cell beside them.
+// No background — the icon sits bare in its 32×32 footprint (unchanged, so
+// nothing around it moves). Colour kept so it still reads as a coral accent.
 const ICON_CHIP: CSSProperties = {
-  width: 32, height: 32, borderRadius: 999,
-  background: "rgba(var(--agent-coral-rgb), 0.12)", color: "var(--agent-coral-deep)",
+  width: 32, height: 32,
+  color: "var(--agent-coral-deep)",
   display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 };
 const VALUE_STYLE: CSSProperties = {
@@ -82,7 +84,7 @@ const LABEL_STYLE: CSSProperties = { display: "block", fontSize: 11, color: "var
 function CellFrame({ Icon, children }: { Icon: typeof CurrencyGbp; children: ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, position: "relative" }}>
-      <span style={ICON_CHIP}><Icon size={16} weight="regular" /></span>
+      <span style={ICON_CHIP}><Icon size={20} weight="regular" /></span>
       <span style={{ minWidth: 0, flex: 1 }}>{children}</span>
     </div>
   );
