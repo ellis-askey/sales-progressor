@@ -2666,6 +2666,11 @@ export async function relistTransactionImpl(
         activeBuyerRoundId: newRound.id,
         fallThroughReason: null,
         expectedExchangeDate: forecastExpected,
+        // Reset the 12-week TARGET too (was previously left at the original
+        // submission + 84d, so it went stale against the new buyer). A relist
+        // restarts the sale clock, so the SLA target restarts from relist too,
+        // matching the expectedExchangeDate reset above. (Resilience audit II.1.)
+        twelveWeekTarget: forecastExpected,
         completionDate: null,
         purchasePrice: updatedPrice,
         // Closed-loop chain arc (2026-06-05): the new buyer's purchaseType

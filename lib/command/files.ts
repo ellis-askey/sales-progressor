@@ -137,7 +137,6 @@ export async function getFilesList(opts: {
       status: true,
       photoStoragePath: true,
       expectedExchangeDate: true,
-      predictedExchangeDate: true,
       overridePredictedDate: true,
       agency: { select: { name: true } },
     },
@@ -170,7 +169,10 @@ export async function getFilesList(opts: {
   let rows: FileListRow[] = files.map((f) => {
     const hasPhoto = !!f.photoStoragePath || stored.has(f.id);
     const lastTeamActivityAt = lastMap.get(f.id) ?? null;
-    const exchangeDate = f.overridePredictedDate ?? f.predictedExchangeDate ?? f.expectedExchangeDate ?? null;
+    // NB: PropertyTransaction.predictedExchangeDate is a dead column (never
+    // written), so it was dropped from this fallback — it was always null.
+    // overridePredictedDate (manual) wins over the persisted prediction.
+    const exchangeDate = f.overridePredictedDate ?? f.expectedExchangeDate ?? null;
     const daysToExchange = exchangeDate
       ? Math.round((new Date(exchangeDate).getTime() - now) / 86_400_000)
       : null;
