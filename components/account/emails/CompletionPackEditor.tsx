@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Content = { subject: string; opening: string; bullets: string[] };
 type Resolved = { exists: true; source: "agency" | "default"; effective: Content; base: Content };
@@ -59,6 +60,7 @@ export function CompletionPackEditor({
   const [draft, setDraft] = useState<Content | null>(null);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const { toast } = useAgentToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,6 +95,9 @@ export function CompletionPackEditor({
       if (res.ok) {
         setEditing(false);
         await load();
+        toast.success("Saved. Clients see your version from the next send.");
+      } else {
+        toast.error("Couldn't save. Try again.");
       }
     } finally {
       setSaving(false);
@@ -179,6 +184,7 @@ function Segmented({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
+            className={active ? "account-seg account-seg-on" : "account-seg"}
             style={{
               borderRadius: 6,
               border: "none",
@@ -186,7 +192,7 @@ function Segmented({
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
-              transition: "background 120ms, color 120ms, box-shadow 120ms",
+              transition: "background 120ms, color 120ms, box-shadow 120ms, transform 90ms",
               color: active ? "var(--agent-coral-deep, #E2452A)" : MUTED,
               background: active ? "#fff" : "transparent",
               boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",

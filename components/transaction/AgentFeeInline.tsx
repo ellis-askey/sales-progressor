@@ -101,8 +101,8 @@ export function AgentFeeInline({
       >
         <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Agent fee</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{displayValue}</span>
           <PencilSimple size={11} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{displayValue}</span>
         </span>
       </button>
     );

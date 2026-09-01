@@ -7,6 +7,7 @@
 // slide/fade animation, focus moves into the panel on open. Light register.
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 
 export function AccountDrawer({
@@ -41,9 +42,13 @@ export function AccountDrawer({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portalled to <body> so the fixed overlay escapes the AccountCard it's
+  // mounted inside — that card's backdrop-filter + mount transform make it a
+  // containing block for position:fixed, which otherwise traps the drawer
+  // inside the card ("tucked into its own card").
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -113,10 +118,13 @@ export function AccountDrawer({
       </div>
 
       <style>{`
+        .account-drawer-close { transition: background 120ms, transform 120ms; }
         .account-drawer-close:hover { background: rgba(0,0,0,0.05); }
+        .account-drawer-close:active { transform: scale(0.9); }
         @keyframes account-drawer-fade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes account-drawer-slide { from { transform: translateX(24px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }

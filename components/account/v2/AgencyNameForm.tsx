@@ -74,18 +74,8 @@ export function AgencyNameForm({ initialName }: { initialName: string }) {
           type="button"
           onClick={handleSave}
           disabled={saving || !dirty || !valid}
-          style={{
-            padding: "9px 18px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#fff",
-            background: "var(--agent-coral, #FF6B4A)",
-            border: "none",
-            borderRadius: 8,
-            cursor: saving || !dirty || !valid ? "default" : "pointer",
-            opacity: saving || !dirty || !valid ? 0.45 : 1,
-            transition: "opacity 150ms, filter 150ms",
-          }}
+          className="account-btn-primary"
+          style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: saving || !dirty || !valid ? "default" : "pointer" }}
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
@@ -99,6 +89,7 @@ export function AgencyNameForm({ initialName }: { initialName: string }) {
         onBlur={(e) => { if (e.target.value.trim()) setName(titleCase(e.target.value)); }}
         placeholder="e.g. Hartwell & Partners"
         autoComplete="organization"
+        className="account-input"
         style={fieldStyle}
       />
       {error && <p style={{ fontSize: 12.5, color: "#dc2626", margin: "10px 0 0" }}>{error}</p>}

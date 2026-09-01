@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Variant = "morning" | "authority";
 type MorningContent = { subject: string; paragraphs: string[] };
@@ -51,6 +52,7 @@ export function ExchangeDayClientEditor() {
   const [draft, setDraft] = useState<MorningContent | AuthorityContent | null>(null);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const { toast } = useAgentToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,6 +90,9 @@ export function ExchangeDayClientEditor() {
       if (res.ok) {
         setEditing(false);
         await load();
+        toast.success("Saved. Clients see your version from the next send.");
+      } else {
+        toast.error("Couldn't save. Try again.");
       }
     } finally {
       setSaving(false);

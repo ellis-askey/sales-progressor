@@ -116,6 +116,7 @@ export function EmailNotificationsSectionPlain({ initialPrefs }: { initialPrefs:
                 aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
                 disabled={saving}
                 onClick={() => handleToggle(t.key)}
+                className="account-switch"
                 style={{
                   position: "relative",
                   display: "inline-flex",
@@ -127,7 +128,7 @@ export function EmailNotificationsSectionPlain({ initialPrefs }: { initialPrefs:
                   border: "none",
                   cursor: saving ? "default" : "pointer",
                   opacity: saving ? 0.6 : 1,
-                  transition: "background 150ms",
+                  transition: "background 150ms, box-shadow 130ms, transform 90ms",
                   padding: 0,
                 }}
               >
