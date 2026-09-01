@@ -25,7 +25,7 @@
 // the medium breakpoint (~720px). The Portal card stays inside the row
 // on both breakpoints so the visual grouping is preserved.
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback, useEffect } from "react";
 import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
@@ -34,9 +34,10 @@ import { CommsButton } from "@/components/ui/CommsButton";
 import { RoleIcon, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
-import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo, ClipboardText } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
-import { IntroCallLauncher } from "@/components/transaction/IntroCallDrawer";
+import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
+import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -279,10 +280,12 @@ function PortalStatusCard({
 function RowKebab({
   onEdit,
   onDelete,
+  onIntroCall,
   contactName,
 }: {
   onEdit: () => void;
   onDelete: () => void;
+  onIntroCall?: () => void;
   contactName: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -330,6 +333,19 @@ function RowKebab({
               zIndex: 1500,
             }}
           >
+            {onIntroCall && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpen(false); onIntroCall(); }}
+                style={menuItemStyle("var(--agent-coral-darker)")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,107,74,0.08)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <ClipboardText size={14} weight="regular" />
+                Intro call
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -391,8 +407,8 @@ export function ContactsSection({
 }: {
   transactionId: string;
   contacts: Contact[];
-  // Internal team only: shows the "Start intro call" opener until the file's
-  // introduction is done (the launcher fetches that state itself).
+  // Internal team only: gates the per-contact "Intro call" action in each
+  // client card's kebab menu (shown until the file's introduction is done).
   isInternalStaff?: boolean;
   // When true, render without the outer GlassCard shell (the PeoplePanel
   // wrapper provides the card + toggle). 2026-08-10.
@@ -426,6 +442,26 @@ export function ContactsSection({
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+
+  // Intro call: internal-team-only. Launched per client card from the kebab
+  // menu; the drawer scopes to that contact's side (vendor -> seller sections,
+  // buyer -> buyer sections) but it stays one intro record for the file. We
+  // preload the state so the menu item hides once the intro is done.
+  const [introData, setIntroData] = useState<IntroCallData | null>(null);
+  const [introSide, setIntroSide] = useState<"vendor" | "purchaser" | null>(null);
+
+  const loadIntro = useCallback(async () => {
+    if (!isInternalStaff) return;
+    try { setIntroData(await getIntroCallDataAction(transactionId)); }
+    catch { setIntroData(null); }
+  }, [isInternalStaff, transactionId]);
+
+  useEffect(() => { void loadIntro(); }, [loadIntro]);
+
+  async function openIntro(side: "vendor" | "purchaser") {
+    await loadIntro(); // refresh to prefill from the latest saved values
+    setIntroSide(side);
+  }
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -632,19 +668,19 @@ export function ContactsSection({
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</span>
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, flexShrink: 0 }}>
-          {isInternalStaff && <IntroCallLauncher transactionId={transactionId} />}
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "stretch", gap: 6, flexShrink: 0 }}>
           {!showForm && (
             <button
               type="button"
               onClick={() => setShowForm(true)}
               className="agent-btn agent-btn-sm agent-btn-primary"
+              style={{ flex: 1 }}
             >
               + Add contact
             </button>
           )}
           {whatsappGroupInviteUrl ? (
-            <div style={{ display: "flex", alignItems: "stretch", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "stretch", gap: 6, flex: 1 }}>
               <a
                 href={whatsappGroupInviteUrl}
                 target="_blank"
@@ -672,7 +708,7 @@ export function ContactsSection({
               type="button"
               onClick={() => setWhatsappOpen(true)}
               className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}
               title="Set up a WhatsApp group for this sale"
             >
               <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
@@ -834,6 +870,11 @@ export function ContactsSection({
                           contactName={contact.name}
                           onEdit={() => startEdit(contact)}
                           onDelete={() => requestDelete(contact)}
+                          onIntroCall={
+                            isInternalStaff && (role === "vendor" || role === "purchaser") && !introData?.introDone
+                              ? () => void openIntro(role as "vendor" | "purchaser")
+                              : undefined
+                          }
                         />
                       </div>
                       {portalState !== "none" && (
@@ -1048,6 +1089,16 @@ export function ContactsSection({
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone, roleType: c.roleType }))}
         currentInviteUrl={whatsappGroupInviteUrl}
       />
+
+      {/* Intro call drawer (internal team), scoped to the launching side */}
+      {introSide && introData && !introData.introDone && (
+        <IntroCallDrawer
+          data={introData}
+          focusSide={introSide}
+          onClose={() => setIntroSide(null)}
+          onCompleted={() => { setIntroSide(null); setIntroData((d) => (d ? { ...d, introDone: true } : d)); }}
+        />
+      )}
 
       {/* Mobile responsive rules */}
       <style jsx>{`
