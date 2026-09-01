@@ -31,6 +31,7 @@ declare module "next-auth" {
     role: UserRole;
     agencyId: string;
     firmName: string | null;
+    sessionVersion?: number;
   }
 }
 
@@ -41,6 +42,7 @@ declare module "next-auth/jwt" {
     agencyId: string;
     firmName: string | null;
     needsSignupCompletion: boolean;
+    sessionVersion?: number;
   }
 }
 
@@ -121,6 +123,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           agencyId: user.agencyId ?? "",
           firmName: user.firmName ?? null,
+          sessionVersion: user.sessionVersion,
         };
       },
     }),
@@ -168,17 +171,19 @@ export const authOptions: NextAuthOptions = {
           token.agencyId = (user as { agencyId: string | null }).agencyId ?? "";
           token.firmName = (user as { firmName: string | null }).firmName;
           token.needsSignupCompletion = false;
+          token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0;
         } else if (account) {
           // OAuth: fetch role/agencyId/firmName from DB.
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            select: { role: true, agencyId: true, firmName: true },
+            select: { role: true, agencyId: true, firmName: true, sessionVersion: true },
           });
           token.role = dbUser?.role ?? "viewer";
           token.agencyId = dbUser?.agencyId ?? "";
           token.firmName = dbUser?.firmName ?? null;
           // viewer + no agencyId = net-new OAuth user who hasn't completed signup
           token.needsSignupCompletion = !dbUser?.agencyId && dbUser?.role === "viewer";
+          token.sessionVersion = dbUser?.sessionVersion ?? 0;
         }
 
         // Command Centre event log — fires only on initial sign-in (when
@@ -209,6 +214,26 @@ export const authOptions: NextAuthOptions = {
           token.agencyId = dbUser.agencyId;
           token.firmName = dbUser.firmName ?? null;
           token.needsSignupCompletion = false;
+        }
+      }
+
+      // Session invalidation for "sign out of all devices": the action bumps
+      // User.sessionVersion; any token minted before is stale. Pre-existing
+      // tokens (no sessionVersion) adopt the current value rather than being
+      // logged out on deploy. Fail-open on a read error so a transient DB blip
+      // can't lock everyone out.
+      if (!user && token.id) {
+        try {
+          const cur = await prisma.user.findUnique({ where: { id: token.id }, select: { sessionVersion: true } });
+          if (cur) {
+            if (token.sessionVersion === undefined) {
+              token.sessionVersion = cur.sessionVersion;
+            } else if (token.sessionVersion !== cur.sessionVersion) {
+              token.id = "";
+            }
+          }
+        } catch {
+          // ignore — never lock users out on a transient read failure
         }
       }
 
