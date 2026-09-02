@@ -3,7 +3,8 @@
 // Chase Timeline — the read-only "live map" of everything the file is trying to
 // get from other people. Left: scannable thread list. Right: progressive-
 // disclosure detail (history + escalation path) for the selected thread.
-// Client + manual tracks (v1). See docs/active/chase-timeline-SPEC.md.
+// Client, manual, solicitor, enquiry + exchange tracks. See
+// docs/active/chase-consolidation/00-spec.md.
 
 import { useMemo, useState } from "react";
 import {

@@ -1,9 +1,11 @@
 // lib/services/chase-timeline.ts
 //
 // Read-only assembler for the Chase Timeline tab (docs/active/chase-timeline-SPEC.md).
-// Merges the client auto-chase track (ClientChaseState) and the manual/agent
-// track (ChaseTask + OutboundMessage) into one per-file view organised by
-// THREAD (one ReminderLog = one thread). Solicitor track + enquiries land in v2.
+// Merges every chase track into one per-file thread view: the client auto-chase
+// (ClientChaseState) + manual/agent (ChaseTask + OutboundMessage) lanes (one
+// ReminderLog = one thread), the solicitor lane (SolicitorChaseState, with
+// completion truth from MilestoneCompletion), the enquiry trackers, and the
+// exchange-day overlay. See docs/active/chase-consolidation/00-spec.md.
 //
 // Pure read: no writes, no schema of its own. The file page already enforces
 // access (getTransactionByScope / agencyId), so this scopes by transactionId.
@@ -11,6 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 // The client auto-chase pipeline stops after this many emails, then hands the
 // file to the team. Mirrors CLIENT_CHASE_COUNT_CAP in client-chase-cron.ts;
@@ -115,6 +118,7 @@ export async function getChaseTimeline(
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: {
       id: true,
+      activeBuyerRoundId: true,
       completionDate: true,
       exchangeDayStartedAt: true,
       exchangeDayCancelledAt: true,
@@ -128,7 +132,7 @@ export async function getChaseTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker] = await Promise.all([
+  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions] = await Promise.all([
     prisma.reminderLog.findMany({
       where: { transactionId, status: { in: ["active", "completed", "cancelled"] } },
       select: {
@@ -167,7 +171,7 @@ export async function getChaseTimeline(
     }),
     prisma.solicitorChaseState.findMany({
       where: { transactionId },
-      select: { milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, snoozeUntil: true, status: true, statusReason: true },
+      select: { side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, resolvedAt: true, status: true, statusReason: true, createdAt: true },
     }),
     // Enquiries run on their own trackers (not ReminderLogs): the raise-chase
     // (get enquiries raised) then the reply-loop tracker (whose court is it in).
@@ -179,7 +183,22 @@ export async function getChaseTimeline(
       where: { transactionId },
       select: { currentlyWith: true, openedAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, outstandingNote: true },
     }),
+    // Active-round milestone completions — the source of truth for whether a
+    // solicitor step is still outstanding (SolicitorChaseState.status is stale:
+    // confirming a step never closes the row) and for the solicitor snooze
+    // (expectedDate), plus the step name for the thread title.
+    prisma.milestoneCompletion.findMany({
+      where: { transactionId, ...milestoneScopeWhere(forRound(tx.activeBuyerRoundId ?? null, transactionId)) },
+      select: { state: true, expectedDate: true, milestoneDefinition: { select: { code: true, side: true, name: true } } },
+    }),
   ]);
+
+  // Milestone completion keyed by "side|code" (side matches SolicitorChaseState.side).
+  const completionByKey = new Map<string, (typeof completions)[number]>();
+  for (const mc of completions) {
+    const def = mc.milestoneDefinition;
+    if (def) completionByKey.set(`${def.side}|${def.code}`, mc);
+  }
 
   const buyerName = contacts.find((c) => c.roleType === "purchaser")?.name ?? "the buyer";
   const sellerName = contacts.find((c) => c.roleType === "vendor")?.name ?? "the seller";
@@ -226,9 +245,10 @@ export async function getChaseTimeline(
     const totalChases = autoChases + manualChases;
     const escalated = task?.priority === "escalated";
 
-    // Snooze can come from the solicitor state (a date the firm gave) or the
-    // reminder log (client "set a date").
-    const solSnooze = sol?.snoozeUntil ?? null;
+    // Snooze can come from the solicitor's expected date (on the milestone
+    // completion — the real solicitor snooze; SolicitorChaseState.snoozeUntil is
+    // dead/never written) or the reminder log (client "set a date").
+    const solSnooze = sol && code ? (completionByKey.get(`${side}|${code}`)?.expectedDate ?? null) : null;
     const snoozeAt = solSnooze && new Date(solSnooze).getTime() > nowMs ? solSnooze
       : log.snoozedUntil && new Date(log.snoozedUntil).getTime() > nowMs ? log.snoozedUntil
       : null;
@@ -491,6 +511,78 @@ export async function getChaseTimeline(
       snoozedUntil: null,
       startedAt: startedAt.toISOString(),
       events,
+    });
+  }
+
+  // ── Solicitor threads for solicitor-owned steps with NO client ReminderLog
+  //    (VM5/VM7/VM8/PM7/PM13/… — chased to the solicitor, not the client). The
+  //    logs.map above only surfaces a solicitor thread when a client ReminderLog
+  //    happens to share the code; these steps have none, so project them here
+  //    from SolicitorChaseState. Completion + snooze truth come from the active-
+  //    round MilestoneCompletion (the state row's `status` is stale — confirming
+  //    a step never closes it). Read-only; no writes, no sends.
+  const codesWithThread = new Set(
+    logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c),
+  );
+  for (const row of solStates) {
+    if (codesWithThread.has(row.milestoneCode)) continue; // already threaded via a client log
+    const mc = completionByKey.get(`${row.side}|${row.milestoneCode}`);
+    if (!mc?.milestoneDefinition) continue; // no active-round completion → stale cross-round state
+    const side: "vendor" | "purchaser" = row.side === "vendor" ? "vendor" : "purchaser";
+    const done = mc.state === "complete" || mc.state === "not_required" || row.status === "resolved";
+    const snoozeAt = !done && mc.expectedDate && mc.expectedDate.getTime() > nowMs ? mc.expectedDate : null;
+    const escalated = row.status === "escalated";
+    const n = row.chaseCount;
+    const capped = n >= SOLICITOR_CHASE_CAP;
+    const state: ChaseThreadState = done ? "completed"
+      : snoozeAt ? "snoozed"
+      : escalated ? "escalated"
+      : capped ? "handed_to_team"
+      : n > 0 ? "auto_chasing"
+      : "scheduled";
+    const who = side === "vendor" ? "the seller's solicitor" : "the buyer's solicitor";
+
+    const events: ChaseThreadEvent[] = [{
+      at: row.createdAt.toISOString(), kind: "scheduled", title: "Chase scheduled",
+      detail: "Chasing the solicitor to confirm this step.", actor: "System",
+    }];
+    const autoDates = [row.firstChasedAt, n >= 2 ? row.lastChasedAt : null].filter(Boolean) as Date[];
+    autoDates.forEach((d, i) => events.push({
+      at: d.toISOString(), kind: "auto_chase", title: `Auto-chased ${who}`,
+      detail: "Reminder email sent automatically.", actor: "System", delivery: "sent",
+      ordinal: { n: i + 1, of: Math.min(n, SOLICITOR_CHASE_CAP), by: "auto" },
+    }));
+    if (capped && !done && row.lastChasedAt) events.push({
+      at: row.lastChasedAt.toISOString(), kind: "handed", title: "Autopilot done, handed to your team",
+      detail: `Solicitor auto-chase reached its limit of ${SOLICITOR_CHASE_CAP}. Now in your work queue.`, actor: "System",
+    });
+    if (escalated && row.lastChasedAt) events.push({
+      at: row.lastChasedAt.toISOString(), kind: "escalated", title: "Escalated to file owner",
+      detail: "Solicitor unresponsive after repeated chases.", actor: "System",
+    });
+    if (done) events.push({
+      at: (row.resolvedAt ?? row.lastChasedAt ?? row.createdAt).toISOString(), kind: "resolved",
+      title: "Confirmed", detail: "Step confirmed. Chase closed.", actor: "System",
+    });
+    if (snoozeAt) events.push({
+      at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`,
+      detail: "The solicitor gave an expected date.", actor: "System",
+    });
+    events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+    threads.push({
+      id: `sol-${row.side}-${row.milestoneCode}`,
+      title: stripChase(mc.milestoneDefinition.name),
+      side, track: "solicitor",
+      trackLabel: side === "vendor" ? "Seller's solicitor" : "Buyer's solicitor",
+      state, waitingOn: who,
+      autoChases: n, manualChases: 0, totalChases: n,
+      lastChasedAt: row.lastChasedAt?.toISOString() ?? null,
+      nextDueAt: null, // precise next-due prediction lands with the next-email work
+      nextIsAutomated: !done && !snoozeAt && !escalated && n < SOLICITOR_CHASE_CAP,
+      escalatesAfter: SOLICITOR_CHASE_CAP,
+      escalated, snoozedUntil: snoozeAt?.toISOString() ?? null,
+      startedAt: row.createdAt.toISOString(), events,
     });
   }
 
