@@ -29,5 +29,5 @@ export async function ChaseTimelinePanel({
     );
   }
 
-  return <ChaseTimeline stats={timeline.stats} threads={timeline.threads} />;
+  return <ChaseTimeline stats={timeline.stats} threads={timeline.threads} transactionId={transactionId} />;
 }

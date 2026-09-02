@@ -14,6 +14,7 @@ import {
 import type {
   ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery,
 } from "@/lib/services/chase-timeline";
+import { NextChaseControl } from "@/components/transaction/NextChaseControl";
 
 // ── meta maps ──────────────────────────────────────────────────────────────
 const STATE_META: Record<ChaseThreadState, { label: string; color: string; rgb: string }> = {
@@ -223,7 +224,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 // ── detail pane ──────────────────────────────────────────────────────────────
-function ThreadDetail({ thread }: { thread: ChaseThread }) {
+function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transactionId: string }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -275,6 +276,14 @@ function ThreadDetail({ thread }: { thread: ChaseThread }) {
               </>
             )}
           </div>
+          {thread.overrideTarget && thread.state !== "completed" && thread.state !== "cancelled" && (
+            <NextChaseControl
+              transactionId={transactionId}
+              target={thread.overrideTarget}
+              edited={thread.overrideEdited}
+              skipped={thread.overrideSkipped}
+            />
+          )}
           {thread.track !== "exchange" && <EscalationPath thread={thread} />}
         </div>
       </div>
@@ -283,7 +292,7 @@ function ThreadDetail({ thread }: { thread: ChaseThread }) {
 }
 
 // ── root ─────────────────────────────────────────────────────────────────────
-export function ChaseTimeline({ stats, threads }: { stats: ChaseTimelineStats; threads: ChaseThread[] }) {
+export function ChaseTimeline({ stats, threads, transactionId }: { stats: ChaseTimelineStats; threads: ChaseThread[]; transactionId: string }) {
   const activeStates: ChaseThreadState[] = ["escalated", "manual_chasing", "handed_to_team", "auto_chasing", "scheduled", "snoozed"];
   const active = threads.filter((t) => activeStates.includes(t.state));
   const done = threads.filter((t) => t.state === "completed" || t.state === "cancelled");
@@ -341,7 +350,7 @@ export function ChaseTimeline({ stats, threads }: { stats: ChaseTimelineStats; t
 
         {/* Right: detail */}
         <div style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: "18px 20px", minHeight: 200 }}>
-          {selected ? <ThreadDetail thread={selected} /> : (
+          {selected ? <ThreadDetail thread={selected} transactionId={transactionId} /> : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, gap: 8, color: "var(--agent-text-muted)" }}>
               <Clock size={16} /> <span style={{ fontSize: 13 }}>Select a thread to see its history.</span>
             </div>

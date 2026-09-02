@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { getChaseOverridesForTimeline } from "@/lib/services/chase-overrides";
 
 // The client auto-chase pipeline stops after this many emails, then hands the
 // file to the team. Mirrors CLIENT_CHASE_COUNT_CAP in client-chase-cron.ts;
@@ -74,6 +75,14 @@ export type ChaseThread = {
   snoozedUntil: string | null;
   startedAt: string; // ReminderLog.createdAt
   events: ChaseThreadEvent[];
+  // Override target — lets the timeline edit/skip this thread's NEXT chase.
+  // Null for enquiry / exchange threads (they aren't client/solicitor chases).
+  overrideTarget:
+    | { kind: "client"; contactId: string; milestoneCode: string }
+    | { kind: "solicitor"; side: "vendor" | "purchaser"; milestoneCode: string }
+    | null;
+  overrideEdited: boolean;  // a subject/body edit is staged for the next chase
+  overrideSkipped: boolean; // the next chase is set to skip
 };
 
 export type ChaseTimelineStats = {
@@ -158,11 +167,11 @@ export async function getChaseTimeline(
     }),
     prisma.contact.findMany({
       where: { propertyTransactionId: transactionId },
-      select: { name: true, roleType: true, exchangeAuthorityGivenAt: true },
+      select: { id: true, name: true, roleType: true, exchangeAuthorityGivenAt: true },
     }),
     prisma.clientChaseState.findMany({
       where: { transactionId },
-      select: { milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, statusReason: true },
+      select: { contactId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, statusReason: true },
     }),
     prisma.outboundMessage.findMany({
       where: { transactionId, purpose: "chase", isAutomated: false },
@@ -198,6 +207,16 @@ export async function getChaseTimeline(
   for (const mc of completions) {
     const def = mc.milestoneDefinition;
     if (def) completionByKey.set(`${def.side}|${def.code}`, mc);
+  }
+
+  // Agent edit/skip overrides keyed "targetKey|code" (contact:<id>|CODE, sol:<side>|CODE).
+  const overrideRows = await getChaseOverridesForTimeline(transactionId);
+  const overrideByKey = new Map<string, { edited: boolean; skipped: boolean }>();
+  for (const o of overrideRows) {
+    overrideByKey.set(`${o.targetKey}|${o.milestoneCode}`, {
+      edited: !!(o.subjectOverride || o.bodyOverride),
+      skipped: o.skipNext,
+    });
   }
 
   const buyerName = contacts.find((c) => c.roleType === "purchaser")?.name ?? "the buyer";
@@ -348,6 +367,18 @@ export async function getChaseTimeline(
 
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
+    // Override target for edit/skip-the-next-chase from the timeline.
+    const clientContactId = cs?.contactId ?? contacts.find((c) => c.roleType === side)?.id ?? null;
+    const overrideTarget: ChaseThread["overrideTarget"] =
+      !code ? null
+      : track === "solicitor" ? { kind: "solicitor", side, milestoneCode: code }
+      : clientContactId ? { kind: "client", contactId: clientContactId, milestoneCode: code }
+      : null;
+    const ovKey = overrideTarget
+      ? `${overrideTarget.kind === "solicitor" ? `sol:${overrideTarget.side}` : `contact:${overrideTarget.contactId}`}|${code}`
+      : null;
+    const ov = ovKey ? overrideByKey.get(ovKey) : undefined;
+
     return {
       id: log.id,
       title: stripChase(rule.name),
@@ -367,6 +398,9 @@ export async function getChaseTimeline(
       snoozedUntil: snoozeAt ? snoozeAt.toISOString() : null,
       startedAt: log.createdAt.toISOString(),
       events,
+      overrideTarget,
+      overrideEdited: ov?.edited ?? false,
+      overrideSkipped: ov?.skipped ?? false,
     };
   });
 
@@ -398,6 +432,7 @@ export async function getChaseTimeline(
       nextDueAt: null, nextIsAutomated: !closed && !esc,
       escalatesAfter: 0, escalated: esc, snoozedUntil: null,
       startedAt: raiseChase.openedAt.toISOString(), events,
+      overrideTarget: null, overrideEdited: false, overrideSkipped: false,
     });
   }
 
@@ -428,6 +463,7 @@ export async function getChaseTimeline(
       nextDueAt: null, nextIsAutomated: !closed && !esc && !snoozeAt,
       escalatesAfter: 0, escalated: esc, snoozedUntil: snoozeAt?.toISOString() ?? null,
       startedAt: et.openedAt.toISOString(), events,
+      overrideTarget: null, overrideEdited: false, overrideSkipped: false,
     });
   }
 
@@ -511,6 +547,7 @@ export async function getChaseTimeline(
       snoozedUntil: null,
       startedAt: startedAt.toISOString(),
       events,
+      overrideTarget: null, overrideEdited: false, overrideSkipped: false,
     });
   }
 
@@ -583,6 +620,9 @@ export async function getChaseTimeline(
       escalatesAfter: SOLICITOR_CHASE_CAP,
       escalated, snoozedUntil: snoozeAt?.toISOString() ?? null,
       startedAt: row.createdAt.toISOString(), events,
+      overrideTarget: { kind: "solicitor", side, milestoneCode: row.milestoneCode },
+      overrideEdited: overrideByKey.get(`sol:${side}|${row.milestoneCode}`)?.edited ?? false,
+      overrideSkipped: overrideByKey.get(`sol:${side}|${row.milestoneCode}`)?.skipped ?? false,
     });
   }
 
