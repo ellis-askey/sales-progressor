@@ -20,6 +20,7 @@ type SolicitorIntel = {
   resolvedFiles: number;
   fallThroughCount: number;
   fallThroughRate: number | null;
+  stalledUnresolved: number;
 };
 
 type SolicitorInfo = {
@@ -44,6 +45,9 @@ type Props = {
   referralFee?: number | null;
   address?: string;
   contacts?: Array<{ name: string; roleType: string }>;
+  // Internal staff see the full coverage denominator ("6 of 40 sales") on the
+  // firm intel; agents just see the count it's based on ("6 sales"). PR 11.
+  isInternalStaff?: boolean;
   // When true, render without the outer GlassCard shell (PeoplePanel wraps it
   // with the card + Clients/Professionals toggle). 2026-08-10.
   embedded?: boolean;
@@ -81,7 +85,7 @@ const RATING_LABEL: Record<string, string> = {
   fast: "Fast", average: "Average", slow: "Slow", unknown: "—",
 };
 
-function SolicitorIntelChips({ firmId }: { firmId: string }) {
+function SolicitorIntelChips({ firmId, isInternalStaff = false }: { firmId: string; isInternalStaff?: boolean }) {
   const [intel, setIntel] = useState<SolicitorIntel | null>(null);
 
   useEffect(() => {
@@ -98,28 +102,50 @@ function SolicitorIntelChips({ firmId }: { firmId: string }) {
   // rating label only joins the chip if it's a real rating (fast /
   // average / slow).
   const ratingLabel = intel.rating === "unknown" ? null : RATING_LABEL[intel.rating];
+  // Honest coverage (PR 11): the "Typical Xw" median is based only on files that
+  // actually exchanged (completedFiles), not every file, so show that basis
+  // rather than the misleading total. Internal staff also see the total ("of Y")
+  // so they can judge how representative it is; agents just see the count it's
+  // based on.
+  const coverageText = intel.medianWeeksToExchange !== null
+    ? (isInternalStaff
+        ? `${intel.completedFiles} of ${intel.totalFiles} sales`
+        : `${intel.completedFiles} sale${intel.completedFiles !== 1 ? "s" : ""}`)
+    : `${intel.totalFiles} file${intel.totalFiles !== 1 ? "s" : ""}`;
   const parts = [
     ratingLabel,
-    `${intel.totalFiles} file${intel.totalFiles !== 1 ? "s" : ""}`,
     intel.medianWeeksToExchange !== null ? `Typical ${intel.medianWeeksToExchange}w` : null,
+    coverageText,
   ].filter(Boolean).join(" · ");
   const intelTone: "success" | "danger" | "muted" =
     intel.rating === "fast" ? "success" : intel.rating === "slow" ? "danger" : "muted";
 
   // Fall-through chip: only once there are enough resolved sales to be honest.
   // Zero fall-throughs is a positive signal; anything above just states the fact
-  // in a low-key tone (we can dial the colour up later if it proves useful).
+  // in a low-key tone. Stalled-unresolved files (PR 11) are surfaced so a clean
+  // rate next to rotting deals can't be read as a genuinely clean record.
+  const stalledSuffix = intel.stalledUnresolved > 0
+    ? ` · ${intel.stalledUnresolved} stalled, unresolved`
+    : "";
   const showFallThrough = intel.fallThroughRate !== null;
   const fallThroughText = intel.fallThroughRate === 0
-    ? `No fall-throughs across ${intel.resolvedFiles} sales`
-    : `${intel.fallThroughRate}% fell through (${intel.fallThroughCount} of ${intel.resolvedFiles} sales)`;
+    ? `No fall-throughs across ${intel.resolvedFiles} sales${stalledSuffix}`
+    : `${intel.fallThroughRate}% fell through (${intel.fallThroughCount} of ${intel.resolvedFiles} sales)${stalledSuffix}`;
   const fallThroughTone: "success" | "muted" = intel.fallThroughRate === 0 ? "success" : "muted";
+  // When there aren't enough resolved sales for a rate but deals are stalling,
+  // still surface that on its own so the firm doesn't read as untested-but-safe.
+  const showStalledOnly = intel.fallThroughRate === null && intel.stalledUnresolved > 0;
 
   return (
     <div className="agent-reveal-in" style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
       <Pill glass tone={intelTone} size="sm" style={{ alignSelf: "flex-start" }}>{parts}</Pill>
       {showFallThrough && (
         <Pill glass tone={fallThroughTone} size="sm" style={{ alignSelf: "flex-start" }}>{fallThroughText}</Pill>
+      )}
+      {showStalledOnly && (
+        <Pill glass tone="warning" size="sm" style={{ alignSelf: "flex-start" }}>
+          {`${intel.stalledUnresolved} sale${intel.stalledUnresolved !== 1 ? "s" : ""} stalled, outcome unresolved`}
+        </Pill>
       )}
       {intel.warning && (
         <Pill glass tone="warning" size="sm" style={{ alignSelf: "flex-start" }}>{intel.warning}</Pill>
@@ -167,6 +193,7 @@ function SolicitorTile({
   recommendedFirms,
   address,
   clientNames,
+  isInternalStaff,
   referralFee,
   showReferralFee,
   onChange,
@@ -177,6 +204,7 @@ function SolicitorTile({
   recommendedFirms?: RecommendedFirm[];
   address?: string;
   clientNames?: string[];
+  isInternalStaff?: boolean;
   // Referral fee (in pence) - only rendered when showReferralFee=true.
   // Passed through unconditionally so the caller controls when it applies.
   referralFee?: number | null;
@@ -297,7 +325,7 @@ function SolicitorTile({
               {info.contact && (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{info.contact.name}</p>
               )}
-              <SolicitorIntelChips firmId={info.firm.id} />
+              <SolicitorIntelChips firmId={info.firm.id} isInternalStaff={isInternalStaff} />
               {showReferralFee && referralFee != null && (
                 <span style={{
                   alignSelf: "flex-start",
@@ -429,7 +457,7 @@ function SolicitorTile({
   );
 }
 
-export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts, embedded = false }: Props) {
+export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts, isInternalStaff = false, embedded = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
@@ -548,6 +576,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           recommendedFirms={recommendedFirms}
           address={address}
           clientNames={clientNames}
+          isInternalStaff={isInternalStaff}
           referralFee={referralFee ?? null}
           showReferralFee={vendorHasReferral}
           onChange={handleVendorChange}
@@ -559,6 +588,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           recommendedFirms={recommendedFirms}
           address={address}
           clientNames={clientNames}
+          isInternalStaff={isInternalStaff}
           referralFee={referralFee ?? null}
           showReferralFee={purchaserHasReferral}
           onChange={handlePurchaserChange}

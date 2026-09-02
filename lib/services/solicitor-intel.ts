@@ -19,6 +19,12 @@ export type SolicitorIntel = {
   resolvedFiles: number;
   fallThroughCount: number;
   fallThroughRate: number | null; // percent 0–100, null below the sample floor
+  // Active files with no milestone progress in 60+ days: deals that have likely
+  // died but were never marked withdrawn, so they sit OUTSIDE the fall-through
+  // denominator. Surfaced (resilience audit PR 11) so poor status hygiene can't
+  // flatter a firm's fall-through record — a clean rate next to several stalled
+  // files is not the same as a genuinely clean record.
+  stalledUnresolved: number;
 };
 
 const BASELINE_EXCHANGE_WEEKS = 12;
@@ -138,6 +144,24 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
     ? Math.round((withdrawnFiles / resolvedFiles) * 100)
     : null;
 
+  // Stalled-unresolved hygiene (PR 11): active files with no milestone
+  // progress in 60+ days. These sit outside resolvedFiles, so a firm whose
+  // deals quietly rot can show a clean fall-through rate; surfacing the count
+  // keeps that honest.
+  const STALLED_UNRESOLVED_DAYS = 60;
+  const nowMs = Date.now();
+  let stalledUnresolved = 0;
+  for (const tx of allTx) {
+    if (tx.status !== "active") continue;
+    const lastCompletedAt = tx.milestoneCompletions
+      .map((c) => c.completedAt)
+      .filter((d): d is Date => d != null)
+      .reduce<Date | null>((latest, d) => (!latest || d > latest ? d : latest), null);
+    const effectiveLast = lastCompletedAt ?? tx.createdAt;
+    const daysSince = (nowMs - new Date(effectiveLast).getTime()) / 86400000;
+    if (daysSince >= STALLED_UNRESOLVED_DAYS) stalledUnresolved += 1;
+  }
+
   // Rating
   let rating: SolicitorIntel["rating"] = "unknown";
   let warning: string | null = null;
@@ -167,6 +191,7 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
     resolvedFiles,
     fallThroughCount: withdrawnFiles,
     fallThroughRate,
+    stalledUnresolved,
   };
 }
 

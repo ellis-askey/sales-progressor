@@ -457,6 +457,7 @@ export async function OverviewPanel({
               referralFee={transaction.referralFee ?? null}
               address={transaction.propertyAddress}
               contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
+              isInternalStaff={isInternalStaff}
               embedded
             />
             <ClientOwnBrokerRow brokers={ownBrokers} />
