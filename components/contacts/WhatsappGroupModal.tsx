@@ -2,10 +2,10 @@
 // components/contacts/WhatsappGroupModal.tsx
 //
 // Two-phase helper for setting up + using a WhatsApp group for a sale.
-// Rebuilt to the approved mock 2026-09-02: green brand square + side pill +
-// house sketch in the header, numbered stepper, outlined "Open WhatsApp",
+// Rebuilt to the approved mock 2026-09-02: green brand square + side pill,
+// numbered stepper, outlined "Open WhatsApp",
 // shield footer with a Done action, and a sheen that sweeps the step number
-// when its Copy / Copy all / Open WhatsApp is pressed.
+// when its Copy / Open WhatsApp is pressed.
 //
 // Phase 1 — Create the group (name → people → create → connect). The header
 //   "Seller / Buyer" pill switches the side: it drives the name, the title and
@@ -52,27 +52,6 @@ function friendlyRole(roleType: string): string {
   return roleType === "vendor" ? "Seller" : roleType === "purchaser" ? "Buyer" : "Contact";
 }
 
-// Faint house line-drawing that bleeds off the top-right of the header.
-function HouseSketch() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 180 140"
-      style={{ position: "absolute", top: -14, right: -6, width: 172, height: 132, opacity: 0.5, pointerEvents: "none" }}
-    >
-      <g fill="none" stroke="var(--agent-coral)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" opacity={0.55}>
-        <path d="M14 74 L90 20 L166 74" />
-        <path d="M28 66 L28 126 L152 126 L152 66" />
-        <rect x={120} y={30} width={14} height={26} />
-        <rect x={44} y={92} width={26} height={34} />
-        <rect x={92} y={80} width={34} height={26} />
-        <path d="M109 80 L109 106 M92 93 L126 93" />
-        <path d="M57 92 L57 126" />
-      </g>
-    </svg>
-  );
-}
-
 export function WhatsappGroupModal({
   open,
   onClose,
@@ -95,7 +74,7 @@ export function WhatsappGroupModal({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  // Which step number is mid-sheen. Set on a Copy / Copy all / Open WhatsApp
+  // Which step number is mid-sheen. Set on a Copy / Open WhatsApp
   // press, cleared after the sweep so it can re-fire on the next press.
   const [sheenStep, setSheenStep] = useState<string | null>(null);
 
@@ -107,7 +86,6 @@ export function WhatsappGroupModal({
   const sideContacts = clientContacts.filter((c) => c.roleType === wantRole);
 
   const suggestedName = `${side === "sale" ? "Sale" : "Purchase"} of ${shortAddress(address)}`;
-  const numbersBlock = sideContacts.map((c) => `+${toWaDigits(c.phone!)}`).join("\n");
 
   function pulseStep(num: string) {
     setSheenStep(num);
@@ -182,8 +160,7 @@ export function WhatsappGroupModal({
       `}</style>
 
       <Modal.Header>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, position: "relative", overflow: "hidden", paddingRight: 28 }}>
-          <HouseSketch />
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, position: "relative", paddingRight: 28 }}>
           <span
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -313,7 +290,10 @@ export function WhatsappGroupModal({
                   readOnly
                   value={suggestedName}
                   className="agent-input"
-                  style={{ flex: 1, height: 40, fontSize: 13 }}
+                  // Explicit border: .agent-input[readonly] zeroes the border to
+                  // transparent (a flat display look), which left this copy field
+                  // borderless until hover. Force a static, always-visible box.
+                  style={{ flex: 1, height: 40, fontSize: 13, border: "0.5px solid var(--agent-border-default)" }}
                 />
                 <CopyBtn
                   label={copiedKey === "name" ? "Copied" : "Copy"}
@@ -341,15 +321,6 @@ export function WhatsappGroupModal({
                       }
                     />
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => copy(numbersBlock, "numbers", "02")}
-                    className="agent-link"
-                    style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, marginTop: 2, color: "var(--agent-coral-deep)" }}
-                  >
-                    <Copy size={12} />
-                    {copiedKey === "numbers" ? "Copied" : "Copy all"}
-                  </button>
                 </div>
               )}
             </Step>

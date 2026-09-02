@@ -230,7 +230,7 @@ export async function getActivityTimeline(
     const sentence = c.state === "not_required"
       ? (c.summaryText ?? c.milestoneDefinition.name)
       : confirmer
-        ? confirmationSentence({ code: c.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: c.milestoneDefinition.name })
+        ? confirmationSentence({ code: c.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: c.milestoneDefinition.name, isDesktopValuation: c.milestoneDefinition.code === "PM6" && !c.eventDate })
         : (c.summaryText ?? c.milestoneDefinition.name);
 
     // The confirmer's name + photo for the inline avatar. For a portal confirm

@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         id: m.id,
         txId: m.transaction.id,
         address: m.transaction.propertyAddress,
-        sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name }),
+        sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name, isDesktopValuation: m.milestoneDefinition.code === "PM6" && !m.eventDate }),
         who: confirmer.kind,
         avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
           : confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.image ?? null)

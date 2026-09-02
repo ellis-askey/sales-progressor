@@ -352,8 +352,6 @@ export function ChainDrawer({
       branchesByFork.set(l.forkFromLinkId, arr);
     }
   }
-  // Any fork present → the drawer widens so the side-by-side onward columns fit.
-  const hasForks = branchesByFork.size > 0;
   const MAX_ONWARDS = 3;
 
   // Tree model for the fork render. Group every link by its branch ladder
@@ -379,6 +377,12 @@ export function ChainDrawer({
     return [up, ...forks].filter(Boolean) as ChainV2["links"];
   };
   const bottomLink = links[links.length - 1] ?? null;
+
+  // Widest fan-out anywhere in the chain: 1 = a linear ladder, 2 = a V split,
+  // 3 = a trident. Drives the drawer width so side-by-side onward columns never
+  // bunch up — the more branches from one sale, the wider the drawer, up to
+  // almost full width for a trident.
+  const maxFanout = allChainLinks.reduce((m, l) => Math.max(m, onwardsAbove(l).length), 1);
 
   // Move up/down is offered only while the chain is entirely the creator's own
   // unclaimed stubs — the initial agent can fix the order before others join,
@@ -564,7 +568,9 @@ export function ChainDrawer({
         aria-label="Chain"
         className="relative z-10 flex flex-col h-full"
         style={{
-          width: `min(${hasForks ? 960 : 760}px, 100vw)`,
+          // Scale with the widest fork so columns never bunch: linear stays
+          // narrow, a V split gets more room, a trident opens almost full width.
+          width: maxFanout >= 3 ? "min(1440px, 96vw)" : maxFanout === 2 ? "min(1120px, 96vw)" : "min(760px, 100vw)",
           transition: "width 260ms cubic-bezier(0.25,0,0,1)",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
