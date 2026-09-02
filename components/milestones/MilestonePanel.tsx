@@ -424,7 +424,7 @@ export function MilestonePanel({
 
       {gateReady && (
         <p className="mt-3 text-xs text-emerald-600 text-center">
-          ✓ {activeTab === "vendor" ? "Vendor" : "Purchaser"} side ready. The last step before exchange is now available
+          ✓ {activeTab === "vendor" ? "Vendor" : "Purchaser"} side ready. You can now confirm the final step before exchange.
         </p>
       )}
     </section>

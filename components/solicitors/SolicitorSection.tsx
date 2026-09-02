@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Scales, Phone, ChatCircleText, EnvelopeSimple } from "@phosphor-icons/react";
+import { Phone, ChatCircleText, EnvelopeSimple } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -516,23 +516,21 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
 
   return shell(
     <>
-      {/* Header - mirrors the Contacts card: small coral icon square +
-          title + count on the left. Saving pulse tucks in next to the
-          title for save-in-flight feedback. */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 26, height: 26,
-            color: "var(--agent-coral-deep)",
-          }}>
-            <Scales size={17} weight="regular" />
-          </span>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Solicitors</h3>
-          {assignedCount > 0 && (
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" }}>{assignedCount}</span>
-          )}
-          {(saving || isPending) && <SavingPulse />}
+      {/* Header - mirrors the Contacts card exactly: no icon, title + count
+          pill on top, subtext beneath, so Clients and Professionals read
+          identically. Saving pulse tucks in next to the title. */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "12px 16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Solicitors</h3>
+            {assignedCount > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", padding: "1px 7px", borderRadius: 10, background: "rgba(15,23,42,0.06)" }}>
+                {assignedCount}
+              </span>
+            )}
+            {(saving || isPending) && <SavingPulse />}
+          </div>
+          <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Solicitors acting on this transaction</span>
         </div>
       </div>
 

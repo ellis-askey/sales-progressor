@@ -2,6 +2,14 @@
 
 ---
 
+## AI summary card hidden on the property file (filed 2026-09-02)
+
+The AI summary card on the property file Overview (`AiSummaryCard`, rendered in
+`components/transaction/OverviewPanel.tsx`) is HIDDEN behind `{false && isEllis && ...}`
+because it isn't polished yet. The chain spine card now occupies the slot it used
+to sit in. To bring it back: polish the card, then remove the `false &&` guard
+(it will return to being Ellis-only via `isEllis` until it's ready for all agents).
+
 ## Completions "View all steps" setup modal (filed 2026-08-30)
 
 The Completions empty state for brand-new agency users has a "Track your setup

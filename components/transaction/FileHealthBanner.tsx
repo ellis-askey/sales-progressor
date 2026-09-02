@@ -75,7 +75,7 @@ export function FileHealthBanner({ transactionId, actionableCount, overdueCount,
             ? { label: "View reminders →", onClick: () => setActiveTab("reminders") }
             : undefined
         }
-        actionPlacement="inline-responsive"
+        actionPlacement="bottom-right"
         dismissible={{ onDismiss: handleDismiss }}
       />
     );
