@@ -161,6 +161,11 @@ export async function getActivityTimeline(
       where: {
         transactionId,
         state: { in: ["complete", "not_required"] },
+        // Hide VM21 ("all enquiries satisfied", seller side): it's a pure
+        // reflection of the buyer's PM20 and completes in the same write, so
+        // surfacing both here double-reports the one confirmation. Mirrors the
+        // global updates feed (lib/services/agent.ts).
+        milestoneDefinition: { code: { notIn: ["VM21"] } },
         ...milestoneScopeWhere(scope),
       },
       orderBy: { completedAt: "desc" },
