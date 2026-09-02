@@ -96,6 +96,11 @@ export async function fetchPricePaid(postcode: string, paon?: string | null): Pr
 export type EpcData = {
   rating: string;
   score: number | null;
+  // Potential rating/score the certificate estimates after recommended
+  // improvements — same EPC row, so free to surface. Lets the card show
+  // "current vs potential" energy efficiency.
+  potentialRating: string;
+  potentialScore: number | null;
   propertyType: string;
   floorArea: number | null;
   builtForm: string;
@@ -129,6 +134,8 @@ function mapEpcRow(row: Record<string, string>): EpcData {
   return {
     rating: row["current-energy-rating"] ?? "",
     score: row["current-energy-efficiency"] ? parseInt(row["current-energy-efficiency"], 10) : null,
+    potentialRating: row["potential-energy-rating"] ?? "",
+    potentialScore: row["potential-energy-efficiency"] ? parseInt(row["potential-energy-efficiency"], 10) : null,
     propertyType: row["property-type"] ?? "",
     floorArea: row["total-floor-area"] ? parseFloat(row["total-floor-area"]) : null,
     builtForm: row["built-form"] ?? "",

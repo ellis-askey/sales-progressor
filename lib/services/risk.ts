@@ -16,6 +16,10 @@ export type RiskScore = {
   factors: RiskFactor[];
 };
 
+// Points each triggered factor adds to the score, by impact. Exported so the
+// widget can show the per-factor contribution without re-deriving the weights.
+export const RISK_POINTS: Record<RiskFactor["impact"], number> = { high: 40, medium: 20, low: 10 };
+
 export type RiskInput = {
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
   escalatedTaskCount: number;
