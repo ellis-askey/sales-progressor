@@ -348,6 +348,31 @@ export async function drainOutboundQueue(): Promise<{
               mirrorErr,
             );
           });
+
+          // Send-time chase bookkeeping (D1, 2026-09-02): count the chase +
+          // advance the cadence ONLY now the email has actually left. A chase
+          // that was edited-skipped or errored never reaches here, so it's
+          // never counted. milestoneCodes ride on the payload from enqueue.
+          // Best-effort — the email is already sent, so a bookkeeping failure
+          // must not break the drain (worst case the next cron re-chases; logged
+          // loudly for triage). Dynamic import avoids a static import cycle.
+          const chaseCodes = Array.isArray(payload.milestoneCodes)
+            ? (payload.milestoneCodes as unknown[]).filter((c): c is string => typeof c === "string")
+            : [];
+          if (chaseCodes.length > 0 && recipientContact) {
+            try {
+              const { commitClientChaseSend } = await import("./client-chase-digest");
+              await commitClientChaseSend({
+                transactionId,
+                contactId: record.recipientContactId,
+                recipientRole: recipientContact.roleType,
+                contactRoundId: recipientContact.buyerRoundId,
+                milestoneCodes: chaseCodes,
+              });
+            } catch (bookErr: unknown) {
+              console.error(`[client-chase commit] failed for queue id=${record.id}:`, bookErr);
+            }
+          }
         }
       }
 

@@ -511,6 +511,11 @@ export async function enqueueClientChaseDigest(input: {
       respondUrl: payload.respondUrl,
       unsubscribeUrl: payload.unsubscribeUrl,
       pauseUrl: buildContactPauseUrl(contact.id),
+      // Which milestone(s) this digest chases — carried so the send-time
+      // bookkeeping (commitClientChaseSend, run by the drain) knows which
+      // ClientChaseState rows + chase tasks to advance. See D1 in
+      // docs/active/chase-consolidation/00-spec.md.
+      milestoneCodes,
     },
   });
 
@@ -544,38 +549,47 @@ export async function enqueueClientChaseDigest(input: {
     },
   });
 
-  // Update ClientChaseState for each milestone in the digest. Upsert so the
-  // first chase for a (transaction, contact, milestone) tuple creates the
-  // row; subsequent chases bump chaseCount + lastChasedAt.
-  //
-  // Phase 1 commit 4c attribution: stamp the active round on rows where
-  // the contact is a purchaser (Phase 0 backfill rule). Vendor and
-  // solicitor rows stay file-level. Read activeBuyerRoundId off the
-  // transaction parameter rather than re-fetching — the caller already
-  // selected it (or, for callers that don't, we degrade to null which
-  // is the file-level / legacy behaviour).
-  const activeBuyerRoundId =
-    (transaction as { activeBuyerRoundId?: string | null }).activeBuyerRoundId ?? null;
-  const stampRoundId = contact.roleType === "purchaser" ? activeBuyerRoundId : null;
+  // NOTE (D1, 2026-09-02): the chase bookkeeping — bumping ClientChaseState
+  // (chaseCount / lastChasedAt) and advancing the chase task + ReminderLog
+  // nextDueDate — has MOVED to send-time (commitClientChaseSend, called by the
+  // outbound drain when the email actually leaves). A chase that is edited/
+  // skipped before it sends is therefore never counted and never advances the
+  // clock. Enqueue only stages the email. See docs/active/chase-consolidation.
+  return { enqueued: true, rowId: row.id };
+}
+
+// ─── commitClientChaseSend ──────────────────────────────────────────────────
+// The send-time half of a client chase (D1). Called by the outbound drain the
+// moment a CLIENT_CHASE row is actually sent — NOT at enqueue — so a skipped or
+// errored send never counts as a chase or advances the cadence.
+//
+// Bumps ClientChaseState per chased milestone (chaseCount + lastChasedAt;
+// firstChasedAt on create), then advances the matching pending chase tasks via
+// applyChaseToTask (which also pushes ReminderLog.nextDueDate forward by the
+// repeat interval so the file drops out of "due" once the email has gone).
+export async function commitClientChaseSend(args: {
+  transactionId: string;
+  contactId: string;
+  recipientRole: string;        // contact.roleType
+  contactRoundId: string | null; // the contact's own buyerRoundId
+  milestoneCodes: string[];
+}): Promise<void> {
+  const { transactionId, contactId, recipientRole, contactRoundId, milestoneCodes } = args;
+  if (milestoneCodes.length === 0) return;
+
+  // Purchaser rows stamp the contact's active round; vendor/solicitor stay
+  // file-level (matches the OutboundMessage mirror stamp in the drain).
+  const stampRoundId = recipientRole === "purchaser" ? contactRoundId : null;
 
   const now = new Date();
   for (const code of milestoneCodes) {
     await prisma.clientChaseState.upsert({
       where: {
-        transactionId_contactId_milestoneCode: {
-          transactionId,
-          contactId,
-          milestoneCode: code,
-        },
+        transactionId_contactId_milestoneCode: { transactionId, contactId, milestoneCode: code },
       },
       create: {
-        transactionId,
-        contactId,
-        milestoneCode: code,
-        chaseCount: 1,
-        firstChasedAt: now,
-        lastChasedAt: now,
-        status: "active",
+        transactionId, contactId, milestoneCode: code,
+        chaseCount: 1, firstChasedAt: now, lastChasedAt: now, status: "active",
         buyerRoundId: stampRoundId,
       },
       update: {
@@ -586,45 +600,23 @@ export async function enqueueClientChaseDigest(input: {
     });
   }
 
-  // Honest-chase-count: an enqueued client digest is a real chase from the
-  // agent's POV. Apply the same write the manual "Chased" button uses, via
-  // applyChaseToTask. That helper bumps chaseCount, stamps lastChasedAt,
-  // resets priority to normal, AND advances the ReminderLog.nextDueDate
-  // forward by repeatEveryDays — all in one atomic transaction.
-  //
-  // Pre-2026-06-03 this path used a raw chaseTask.updateMany that only
-  // touched the task; the underlying ReminderLog.nextDueDate stayed put,
-  // so the agent saw a "due today" row in the work queue even when the
-  // auto-chase had already gone out that morning. Bug surfaced via Ellis
-  // hitting the file at 09:00 to find it still flagged as needing a chase.
-  //
-  // We resolve ChaseTask via ReminderLog → ReminderRule → targetMilestoneCode.
-  // Only pending tasks advance; cancelled/done are left alone.
-  if (milestoneCodes.length > 0) {
-    const now = new Date();
-    const pendingTasks = await prisma.chaseTask.findMany({
-      where: {
-        transactionId,
-        status: "pending",
-        reminderLog: {
-          reminderRule: { targetMilestoneCode: { in: milestoneCodes } },
-        },
-      },
-      select: { id: true, lastChasedAt: true },
-    });
-    for (const task of pendingTasks) {
-      // One apply per task per UK day. This fn runs once per contact, so
-      // without this guard a multi-contact file inflates chaseCount and
-      // over-advances nextDueDate. See chaseAlreadyAppliedToday above.
-      if (chaseAlreadyAppliedToday(task.lastChasedAt, now)) continue;
-      // origin:"auto" — this bumps the total chaseCount and advances the
-      // next-due date, but NOT manualChaseCount, so an autopilot send never
-      // arms escalation on its own. See docs/active/honest-chase-count.
-      await applyChaseToTask(task.id, { origin: "auto" });
-    }
+  // Advance the matching pending chase tasks (bumps chaseCount, pushes
+  // ReminderLog.nextDueDate forward). One apply per task per UK day so a
+  // multi-contact file's two sends don't double-advance the shared task.
+  const pendingTasks = await prisma.chaseTask.findMany({
+    where: {
+      transactionId,
+      status: "pending",
+      reminderLog: { reminderRule: { targetMilestoneCode: { in: milestoneCodes } } },
+    },
+    select: { id: true, lastChasedAt: true },
+  });
+  for (const task of pendingTasks) {
+    if (chaseAlreadyAppliedToday(task.lastChasedAt, now)) continue;
+    // origin:"auto" — bumps total chaseCount + advances next-due, but NOT
+    // manualChaseCount, so an autopilot send never arms escalation on its own.
+    await applyChaseToTask(task.id, { origin: "auto" });
   }
-
-  return { enqueued: true, rowId: row.id };
 }
 
 // ─── renderEditedChaseEmailHtml ─────────────────────────────────────────────
