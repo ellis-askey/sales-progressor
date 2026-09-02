@@ -2539,3 +2539,15 @@
 [data-theme="dark"] .agent-pill-glass .pill-dot {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.10);
 }
+
+/* Demo mode: fade the global "Getting started" checklist out while the agent
+   is on the demo file (the DemoTourController stamps body[data-demo-file] on
+   mount), so it doesn't compete with the walkthrough. It fades back in on any
+   real page. */
+[data-onboarding-checklist] {
+  transition: opacity 200ms ease;
+}
+body[data-demo-file] [data-onboarding-checklist] {
+  opacity: 0;
+  pointer-events: none;
+}

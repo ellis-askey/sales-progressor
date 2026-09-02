@@ -1,14 +1,13 @@
 "use client";
 
-// A subtle, persistent "Demo sale" pill on a demo showcase file, alongside a
-// "Replay walkthrough" trigger that (re)starts the guided tour. The tour itself
-// is the first-run intro (it auto-starts once per teammate, decided server-side
-// and mounted by DemoTourMount), so this component no longer pops its own
-// sample-data explainer — it just keeps the demo clearly labelled and gives an
-// always-available way back into the walkthrough.
+// A persistent "Demo sale" pill on a demo showcase file, alongside a "Replay
+// walkthrough" trigger that (re)starts the guided tour. The tour is the
+// first-run intro (auto-starts once per teammate, mounted by DemoTourMount), so
+// this just keeps the demo clearly labelled and offers a way back in.
 // See lib/services/demo-sale.ts and docs/DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md.
 
-import { Sparkle, Play } from "@phosphor-icons/react";
+import { Play } from "@phosphor-icons/react";
+import { Pill } from "@/components/ui/Pill";
 import { DEMO_TOUR_EVENTS } from "@/components/transaction/demo-tour/types";
 
 export function DemoFileMarker({ transactionId: _transactionId }: { transactionId: string }) {
@@ -18,24 +17,35 @@ export function DemoFileMarker({ transactionId: _transactionId }: { transactionI
 
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-      <span
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 7,
-          padding: "5px 12px", borderRadius: 999,
-          fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-          color: "var(--agent-coral-deep)",
-          background: "rgba(var(--agent-coral-rgb), 0.12)",
-          border: "1px solid rgba(var(--agent-coral-rgb), 0.28)",
-        }}
-      >
-        <Sparkle size={13} weight="fill" />
-        Demo sale
-      </span>
-      <button
-        onClick={replay}
-        className="agent-btn agent-btn-ghost"
-        style={{ fontSize: 12.5, fontWeight: 600, padding: "5px 10px", gap: 6 }}
-      >
+      <style>{`
+        .demo-replay-btn {
+          display: inline-flex; align-items: center; gap: 7px;
+          padding: 6px 13px; border-radius: 10px;
+          font-size: 12.5px; font-weight: 600;
+          color: var(--agent-coral-deep);
+          background: rgba(var(--agent-coral-rgb), 0.08);
+          border: 1px solid rgba(var(--agent-coral-rgb), 0.30);
+          cursor: pointer;
+          transition: background 160ms ease, border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+        }
+        .demo-replay-btn:hover {
+          background: rgba(var(--agent-coral-rgb), 0.16);
+          border-color: rgba(var(--agent-coral-rgb), 0.48);
+          box-shadow: 0 3px 12px rgba(var(--agent-coral-rgb), 0.20);
+        }
+        .demo-replay-btn:active { transform: scale(0.97); }
+        .demo-replay-btn:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+        .demo-replay-btn svg { transition: transform 160ms ease; }
+        .demo-replay-btn:hover svg { transform: translateX(1px); }
+        @media (prefers-reduced-motion: reduce) {
+          .demo-replay-btn, .demo-replay-btn svg { transition: none; }
+          .demo-replay-btn:active { transform: none; }
+        }
+      `}</style>
+
+      <Pill tone="brand" glass dot>Demo sale</Pill>
+
+      <button type="button" onClick={replay} className="demo-replay-btn">
         <Play size={13} weight="fill" aria-hidden />
         Replay walkthrough
       </button>

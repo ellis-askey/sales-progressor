@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { useTabContext } from "@/components/transaction/TabContext";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import * as analytics from "@/lib/analytics/posthog";
 import { useReducedMotion } from "./useReducedMotion";
 import { DEMO_TOUR_EVENTS, DEMO_TOUR_STEPS, type TourStep } from "./types";
@@ -103,6 +104,10 @@ export function DemoTourController({
 }) {
   const { setActiveTab } = useTabContext();
   const reducedMotion = useReducedMotion();
+  // The overlay portals to document.body — a sibling of .agent-shell-root — so
+  // it must stamp the theme on its own root or every var(--agent-*) resolves to
+  // nothing (transparent card, unstyled buttons). Canonical portal pattern.
+  const { theme, isNight } = usePortalTheme();
 
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false); // terminal finish card
@@ -269,9 +274,13 @@ export function DemoTourController({
     return () => window.removeEventListener(DEMO_TOUR_EVENTS.start, onStart);
   }, [start]);
 
-  // The controller mounts only on a demo file, so mount == demo opened.
+  // The controller mounts only on a demo file, so mount == demo opened. Flag
+  // the body so global chrome (the Getting-started checklist) can fade out
+  // while we're on the demo, and reappear when the agent leaves it.
   useEffect(() => {
     emit("demo_opened", { autoStart });
+    document.body.setAttribute("data-demo-file", "1");
+    return () => { document.body.removeAttribute("data-demo-file"); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -306,7 +315,12 @@ export function DemoTourController({
   const isMobile = typeof window !== "undefined" && window.innerWidth < MOBILE_MAX;
 
   return createPortal(
-    <div aria-live="polite" style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}>
+    <div
+      data-theme={theme}
+      data-night={isNight ? "" : undefined}
+      aria-live="polite"
+      style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}
+    >
       {running && rect && (
         <SpotlightOverlay
           rect={rect}
