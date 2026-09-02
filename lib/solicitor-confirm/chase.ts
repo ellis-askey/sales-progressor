@@ -9,6 +9,7 @@ import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from ".
 import { signSolicitorToken } from "./token";
 import { buildSolicitorDigestEmail, solicitorDigestSubject } from "./digest-email";
 import { logChaseSend } from "@/lib/enquiries/chase-log";
+import { getChaseOverridesForBuild, consumeSkip } from "@/lib/services/chase-overrides";
 
 // ── The solicitor confirmation chase engine ──────────────────────────────────
 // Mirrors the client chase (lib/services/client-chase-cron.ts) but keyed by
@@ -327,6 +328,22 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
   return out;
 }
 
+// Skip-semantics A (D2): the agent skipped this step's next solicitor chase
+// from the timeline. Advance the clock (lastChasedAt) so it resumes one
+// repeat-interval later, WITHOUT counting or sending. The step stays outstanding.
+async function skipSolicitorChase(
+  transactionId: string,
+  side: SolicitorSide,
+  milestoneCode: string,
+  now: Date,
+): Promise<void> {
+  await prisma.solicitorChaseState.upsert({
+    where: { transactionId_side_milestoneCode: { transactionId, side, milestoneCode } },
+    create: { transactionId, side, milestoneCode, chaseCount: 0, lastChasedAt: now, status: "active" },
+    update: { lastChasedAt: now }, // clock only — no chaseCount bump
+  });
+}
+
 async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: group.transactionId },
@@ -362,6 +379,27 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const ownClientNames = side === "vendor" ? sellerNames : buyerNames;
   const brand = tx.agency?.name ?? "Sales Progression";
 
+  // Agent overrides (D2/D3): edit or skip the upcoming solicitor chase from the
+  // timeline. Skipped steps drop out + advance the clock without counting; a
+  // subject/body edit rewrites the outgoing email. Dormant with no overrides.
+  const overrides = await getChaseOverridesForBuild(tx.id);
+  const targetKey = `sol:${side}`;
+  let editSubject: string | null = null;
+  let editBody: string | null = null;
+  const sendSteps: typeof group.steps = [];
+  for (const step of group.steps) {
+    const ov = overrides.get(`${targetKey}|${step.code}`);
+    if (ov?.skipNext) {
+      await skipSolicitorChase(tx.id, side, step.code, now);
+      await consumeSkip(tx.id, targetKey, step.code);
+      continue;
+    }
+    if (ov?.subjectOverride) editSubject = ov.subjectOverride;
+    if (ov?.bodyOverride) editBody = ov.bodyOverride;
+    sendSteps.push(step);
+  }
+  if (sendSteps.length === 0) return false;
+
   const token = signSolicitorToken(tx.id, side);
   const base = baseUrl();
   // Signature = the person looking after the file: the assigned progressor on
@@ -377,7 +415,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     side,
     firmName,
     ownClientNames: ownClientNames || tx.propertyAddress,
-    steps: group.steps.map((s) => ({ label: s.label })),
+    steps: sendSteps.map((s) => ({ label: s.label })),
     confirmUrl: `${base}/s/${token}`,
     stopUrl: `${base}/s/${token}/stop`,
     qrUrl: `${base}/s/${token}/qr`,
@@ -392,7 +430,14 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const agentId = tx.assignedUserId ?? tx.agentUserId;
   const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
 
-  await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject, text, html, from, replyTo });
+  // Apply an agent edit (D3). When the body is edited we can't rebuild the
+  // branded solicitor shell from free text, so we send the edited text and let
+  // sendChainEmail wrap it — what the agent saved is what sends. Unedited sends
+  // keep the branded html.
+  const finalSubject = editSubject ?? subject;
+  const finalText = editBody ?? text;
+  const finalHtml = editBody ? undefined : html;
+  await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo });
 
   // Effectiveness log for the Chasing hub — one ChaseSend per digest send,
   // stamped opened/responded when the solicitor uses their /s/ link (opens via
@@ -404,8 +449,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     recipientName: firmName,
   }).catch(() => {});
 
-  // Bookkeeping: bump SolicitorChaseState per step + mirror an activity record.
-  for (const step of group.steps) {
+  // Bookkeeping: bump SolicitorChaseState per SENT step + mirror an activity record.
+  for (const step of sendSteps) {
     await prisma.solicitorChaseState.upsert({
       where: {
         transactionId_side_milestoneCode: {
@@ -444,8 +489,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
         isAutomated: true,
         recipientEmail: email,
         recipientName: firmName ?? undefined,
-        subject,
-        content: `Automated confirmation request sent to ${firmName ?? "the solicitor"} for: ${group.steps.map((s) => s.label).join(", ")}.`,
+        subject: finalSubject,
+        content: `Automated confirmation request sent to ${firmName ?? "the solicitor"} for: ${sendSteps.map((s) => s.label).join(", ")}.`,
         contactIds: [],
         createdById: agentId,
         createdByRole: "director",

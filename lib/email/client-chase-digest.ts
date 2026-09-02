@@ -38,6 +38,7 @@ import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/un
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
+import { getChaseOverridesForBuild, consumeSkip } from "@/lib/services/chase-overrides";
 import { toUKDateStr } from "@/lib/utils";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
@@ -461,13 +462,37 @@ export async function enqueueClientChaseDigest(input: {
   // shortest-path: don't even queue.
   if (contact.unsubscribedAt) return { enqueued: false, rowId: null };
 
+  // Agent overrides (chase-consolidation D2): the agent may have edited or
+  // skipped the upcoming chase from the timeline. Dropped-skip codes advance
+  // the chase clock (lastChasedAt) WITHOUT counting — the step legitimately
+  // stays in the work queue (the auto-nudge was skipped, the step is still
+  // outstanding). A subject/body edit rewrites the digest below.
+  const overrides = await getChaseOverridesForBuild(transactionId);
+  const targetKey = `contact:${contactId}`;
+  const stampRoundId = contact.roleType === "purchaser" ? transaction.activeBuyerRoundId : null;
+  let editSubject: string | null = null;
+  let editBody: string | null = null;
+  const sendCodes: string[] = [];
+  for (const code of milestoneCodes) {
+    const ov = overrides.get(`${targetKey}|${code}`);
+    if (ov?.skipNext) {
+      await skipClientChase(transactionId, contactId, code, stampRoundId);
+      await consumeSkip(transactionId, targetKey, code);
+      continue; // drop this step from the digest
+    }
+    if (ov?.subjectOverride) editSubject = ov.subjectOverride;
+    if (ov?.bodyOverride) editBody = ov.bodyOverride;
+    sendCodes.push(code);
+  }
+  if (sendCodes.length === 0) return { enqueued: false, rowId: null };
+
   // Agency personalisation for the chase (subject override + optional intro/outro).
   const agencyCopy = await resolveClientChaseContent(transaction.agencyId);
 
   const payload = assembleDigestPayload({
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
-    milestones: milestoneCodes.map((code) => ({ code })),
+    milestones: sendCodes.map((code) => ({ code })),
     agencyName: transaction.agency?.name ?? "Sales Progressor",
     // Drives sale/purchase word in the body openers. Defaults to vendor
     // defensively — should never apply since the cron filters contacts
@@ -475,6 +500,21 @@ export async function enqueueClientChaseDigest(input: {
     recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
     agencyCopy,
   });
+
+  // Apply an agent edit (D2): swap subject/body and rebuild the branded chase
+  // HTML so what the agent saved in the timeline is what actually sends.
+  if (editSubject) payload.subject = editSubject;
+  if (editBody) {
+    payload.text = editBody;
+    payload.html = renderEditedChaseEmailHtml({
+      agencyName: transaction.agency?.name ?? "Sales Progressor",
+      subject: payload.subject,
+      text: editBody,
+      respondUrl: payload.respondUrl,
+      pauseUrl: buildContactPauseUrl(contact.id),
+      unsubscribeUrl: payload.unsubscribeUrl,
+    });
+  }
 
   const today = new Date();
   const yyyymmdd = today.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -513,9 +553,10 @@ export async function enqueueClientChaseDigest(input: {
       pauseUrl: buildContactPauseUrl(contact.id),
       // Which milestone(s) this digest chases — carried so the send-time
       // bookkeeping (commitClientChaseSend, run by the drain) knows which
-      // ClientChaseState rows + chase tasks to advance. See D1 in
+      // ClientChaseState rows + chase tasks to advance. Skipped codes are
+      // already dropped, so this is the codes that actually send. See D1/D2 in
       // docs/active/chase-consolidation/00-spec.md.
-      milestoneCodes,
+      milestoneCodes: sendCodes,
     },
   });
 
@@ -556,6 +597,29 @@ export async function enqueueClientChaseDigest(input: {
   // skipped before it sends is therefore never counted and never advances the
   // clock. Enqueue only stages the email. See docs/active/chase-consolidation.
   return { enqueued: true, rowId: row.id };
+}
+
+// ─── skipClientChase ────────────────────────────────────────────────────────
+// Skip-semantics A (D2): the agent skipped this milestone's next chase from the
+// timeline. Advance the chase clock (lastChasedAt) so the auto-chase resumes one
+// repeat-interval later, WITHOUT counting it (chaseCount untouched) and WITHOUT
+// sending. The step deliberately stays in the work queue — only the auto-nudge
+// was skipped; the step itself is still outstanding.
+async function skipClientChase(
+  transactionId: string,
+  contactId: string,
+  milestoneCode: string,
+  stampRoundId: string | null,
+): Promise<void> {
+  const now = new Date();
+  await prisma.clientChaseState.upsert({
+    where: { transactionId_contactId_milestoneCode: { transactionId, contactId, milestoneCode } },
+    create: {
+      transactionId, contactId, milestoneCode,
+      chaseCount: 0, lastChasedAt: now, status: "active", buyerRoundId: stampRoundId,
+    },
+    update: { lastChasedAt: now }, // clock only — no chaseCount bump
+  });
 }
 
 // ─── commitClientChaseSend ──────────────────────────────────────────────────
