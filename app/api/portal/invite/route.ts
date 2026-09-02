@@ -10,6 +10,8 @@ import { buildGreeting } from "@/lib/portal-copy";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { getSession } from "@/lib/session";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export async function POST(req: NextRequest) {
   const { token } = await req.json();
@@ -96,6 +98,35 @@ export async function POST(req: NextRequest) {
 </div>
 </body></html>`,
   });
+
+  // Record the send so the contacts card can show a truthful "Invite sent"
+  // (resilience audit PR 7). Logged as a normal outbound email BY the acting
+  // agent (not a system email) so the file's activity timeline attributes it
+  // to whoever pressed the button — their avatar + name at the top of the
+  // entry, date top-right, an "Outbound email" channel pill at the foot. The
+  // hidden subject "Portal invite" is the marker the link-sent signal reads.
+  const session = await getSession();
+  const firstName = extractFirstName(contact.name);
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId: contact.transaction.id,
+      agencyId: contact.transaction.agencyId,
+      type: "outbound",
+      channel: "email",
+      method: "email",
+      purpose: "notification",
+      status: "sent",
+      isAutomated: false,
+      subject: "Portal invite",
+      content: `Portal invite emailed to ${firstName} (${contact.email}).`,
+      contactIds: [contact.id],
+      recipientName: contact.name,
+      recipientEmail: contact.email,
+      createdById: session?.user?.id ?? null,
+      createdByRole: session?.user?.role ?? null,
+      sentAt: new Date(),
+    },
+  }).catch((err) => console.error("[portal/invite] failed to log invite OutboundMessage", err));
 
   void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_LINK_SENT, {
     contactId: contact.id,

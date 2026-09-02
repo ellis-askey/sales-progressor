@@ -22,6 +22,7 @@ import {
   getActivityTimelineCached,
   getAutomatedEmailCountsCached,
   getLastContactedByContactCached,
+  getPortalLinkSentByContactCached,
 } from "@/lib/services/cached-fetchers";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { totalHoldMs } from "@/lib/services/hold-duration";
@@ -176,6 +177,7 @@ export async function OverviewPanel({
     activityEntries,
     automatedEmailCounts,
     lastContactedByContactId,
+    linkSentByContactId,
     brokerRow,
     currentUserNotifications,
   ] = await Promise.all([
@@ -204,6 +206,7 @@ export async function OverviewPanel({
     getActivityTimelineCached(transaction.id, agencyId).catch(() => []),
     getAutomatedEmailCountsCached(transaction.id).catch(() => ({} as Record<string, number>)),
     getLastContactedByContactCached(transaction.id).catch(() => ({} as Record<string, string>)),
+    getPortalLinkSentByContactCached(transaction.id).catch(() => ({} as Record<string, boolean>)),
 
     prisma.propertyTransaction.findFirst({
       where: isInternalStaff ? { id: transaction.id } : { id: transaction.id, agencyId },
@@ -431,6 +434,7 @@ export async function OverviewPanel({
             )}
             automatedEmailCounts={automatedEmailCounts}
             lastContactedByContactId={lastContactedByContactId}
+            linkSentByContactId={linkSentByContactId}
             whatsappGroupInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
             photoUrl={photoUrl}
             embedded

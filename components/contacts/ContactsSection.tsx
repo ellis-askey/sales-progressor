@@ -9,10 +9,12 @@
 //
 // Vendors always render before purchasers; other roles fall to the bottom.
 //
-// Portal card has three states:
-//   - not_invited: grey dot,  "Not invited yet",  CTA: Send invite
-//   - invited:     amber dot, "Invite sent",      CTA: Resend invite + copy-link
-//   - active:      green dot, "Active",           info: last viewed relative
+// Portal card states (truthful, resilience audit PR 7 — the label reflects what
+// actually happened, not just "does a link exist"):
+//   - ready_to_invite: grey dot,  "Ready to invite",   CTA: Send invite
+//   - invited:         amber dot, "Invite sent",       CTA: Resend invite + copy-link
+//   - link_ready:      grey dot,  "Portal link ready", CTA: copy-link (no email on file)
+//   - active:          green dot, "Active",            info: last viewed relative
 //
 // Opted-out contacts (Contact.unsubscribedAt) show a small "Opted out"
 // pill next to the email row. Email button stays functional so the agent
@@ -132,17 +134,26 @@ function roleTone(r: string): "brand" | "info" | "muted" {
 // ── Portal state resolver ──────────────────────────────────────────────
 // Three visible states + a "no portal at all" case for non-vendor/purchaser
 // roles (solicitors, brokers etc.). Consumers read this once per row.
-type PortalState = "none" | "not_invited" | "invited" | "active";
+// Truthful portal states (resilience audit PR 7). Previously "invited" was
+// returned for any contact with a token (always minted at creation), so every
+// client read "Invite sent" from birth. Now the state reflects what actually
+// happened:
+//   active          - they've opened their portal (lastVisitedPortalAt)
+//   invited          - a portal-link email has genuinely gone to them
+//   ready_to_invite  - they have an email, but nothing has been sent yet
+//   link_ready       - no email on file, so we can't email them (share manually)
+type PortalState = "none" | "ready_to_invite" | "link_ready" | "invited" | "active";
 
-function resolvePortalState(contact: Contact, lastViewed: Date | undefined): PortalState {
+function resolvePortalState(contact: Contact, lastViewed: Date | undefined, linkSent: boolean): PortalState {
   const role = asRole(contact.roleType);
   if (role !== "vendor" && role !== "purchaser") return "none";
   // Note B: a helper without portal access (isPrincipal false, not opted in)
   // has a token minted at creation but no portal/emails — hide the portal card.
   if (contact.isPrincipal === false && contact.portalEligible === false) return "none";
-  if (!contact.portalToken) return "not_invited";
-  if (lastViewed) return "active";
-  return "invited";
+  if (lastViewed) return "active";              // they've opened it
+  if (linkSent) return "invited";               // a link email actually went out
+  if (contact.email) return "ready_to_invite";  // can be invited, nothing sent yet
+  return "link_ready";                          // no email; link exists to share manually
 }
 
 // ── Communication action button ────────────────────────────────────────
@@ -179,8 +190,10 @@ function PortalStatusCard({
   const statusLabel = state === "active"
     ? "Active"
     : state === "invited"
-      ? (hasEmail ? "Invite sent" : "Portal link ready")
-      : "Not invited yet";
+      ? "Invite sent"
+      : state === "ready_to_invite"
+        ? "Ready to invite"
+        : "Portal link ready";
   const subLabel = state === "active" && lastViewed ? `Last viewed ${fmtRelative(lastViewed)}` : null;
 
   return (
@@ -225,15 +238,27 @@ function PortalStatusCard({
 
       {/* CTA cluster */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        {state === "not_invited" && (
+        {state === "ready_to_invite" && (
           <button
             type="button"
-            onClick={onSetupToken}
-            disabled={generatingToken}
+            onClick={onSendInvite}
+            disabled={inviting}
             className="agent-btn agent-btn-xs agent-btn-primary"
-            title={hasEmail ? "Generate portal link and email the invite to this contact" : "Generate portal link so you can share it manually (no email on file to send an invite to)"}
+            title="Email this client their portal link"
           >
-            {generatingToken ? "Setting up…" : (hasEmail ? "Send invite" : "Set up link")}
+            {inviteSent ? "✓ Sent" : inviting ? "Sending…" : "Send invite"}
+          </button>
+        )}
+        {state === "link_ready" && (
+          <button
+            type="button"
+            onClick={onCopyLink}
+            title="No email on file, so copy the portal link to share it manually"
+            aria-label="Copy portal link"
+            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+            style={{ minWidth: 34, padding: "0 8px" }}
+          >
+            {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
           </button>
         )}
         {state === "invited" && (
@@ -483,6 +508,7 @@ export function ContactsSection({
   portalViewDates = {},
   automatedEmailCounts = {},
   lastContactedByContactId = {},
+  linkSentByContactId = {},
   whatsappGroupInviteUrl = null,
   photoUrl = null,
   embedded = false,
@@ -500,6 +526,10 @@ export function ContactsSection({
   portalViewDates?: Record<string, Date>;
   automatedEmailCounts?: Record<string, number>;
   lastContactedByContactId?: Record<string, string>;
+  // Per-contact "a portal-link email has actually been sent to them" signal
+  // (resilience audit PR 7). Drives the truthful "Invite sent" vs "Ready to
+  // invite" portal state. Absent contacts default to "not sent".
+  linkSentByContactId?: Record<string, boolean>;
   // Optional WhatsApp group invite link the agent has already saved.
   // Null when the agent hasn't set one up yet — Phase 1 of the modal.
   whatsappGroupInviteUrl?: string | null;
@@ -881,7 +911,7 @@ export function ContactsSection({
             const isEditing = editingId === contact.id;
             const isExiting = exitingId === contact.id;
             const lastViewed = portalViewDates[contact.id];
-            const portalState = resolvePortalState(contact, lastViewed);
+            const portalState = resolvePortalState(contact, lastViewed, !!linkSentByContactId[contact.id]);
             const optedOut = contact.unsubscribedAt != null;
             const autoCount = automatedEmailCounts[contact.id] ?? 0;
             const autoTone = autoEmailTone(autoCount);

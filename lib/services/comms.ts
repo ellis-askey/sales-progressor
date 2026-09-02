@@ -574,6 +574,32 @@ export async function getAutomatedEmailCountsByContact(
 // Returns a record keyed by contactId. Contacts with no qualifying event
 // are absent from the map; callers should treat undefined as "never
 // contacted" and render the empty-state pill.
+// Portal-link-sent signal (resilience audit PR 7). A contact has "been sent
+// their link" when a client-facing EMAIL carrying the portal link has actually
+// gone to them: any automated client email (milestone updates, weekly, etc. all
+// embed each client's portal link) OR the manual "Send invite" (logged with the
+// marker subject "Portal invite"). Deliberately NOT any old outbound email — a
+// one-off manual email that didn't carry the link shouldn't read as "invited".
+// Powers the truthful "Invite sent" vs "Ready to invite" state on the contacts
+// card. No new DB column: it reads records we already keep.
+export async function getPortalLinkSentByContact(
+  transactionId: string,
+): Promise<Record<string, boolean>> {
+  const rows = await prisma.outboundMessage.findMany({
+    where: {
+      transactionId,
+      method: "email",
+      OR: [{ isAutomated: true }, { subject: "Portal invite" }],
+    },
+    select: { contactIds: true },
+  });
+  const sent: Record<string, boolean> = {};
+  for (const r of rows) {
+    for (const id of r.contactIds) sent[id] = true;
+  }
+  return sent;
+}
+
 export async function getLastContactedByContact(
   transactionId: string,
 ): Promise<Record<string, string>> {

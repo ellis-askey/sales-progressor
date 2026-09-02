@@ -16,7 +16,7 @@ import { cache } from "react";
 import { getTransaction, getTransactionByScope } from "@/lib/services/transactions";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
-import { getActivityTimeline, getAutomatedEmailCountsByContact, getLastContactedByContact } from "@/lib/services/comms";
+import { getActivityTimeline, getAutomatedEmailCountsByContact, getLastContactedByContact, getPortalLinkSentByContact } from "@/lib/services/comms";
 import { getLastUpdate } from "@/lib/services/summary";
 import { listManualTasksForTransaction, listInternalSelfAssignedTasksForTransaction } from "@/lib/services/manual-tasks";
 import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
@@ -33,3 +33,4 @@ export const getGraceDaysCached              = cache(getGraceDaysByMilestoneCode
 export const getClientChaseStatesCached      = cache(getClientChaseStatesForTransaction);
 export const getAutomatedEmailCountsCached   = cache(getAutomatedEmailCountsByContact);
 export const getLastContactedByContactCached = cache(getLastContactedByContact);
+export const getPortalLinkSentByContactCached = cache(getPortalLinkSentByContact);
