@@ -465,23 +465,15 @@ function ColumnSection({
                   );
                 })()}
                 {task?.fallbackKind && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      marginTop: 3,
-                      padding: "1px 6px",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "#92400e",
-                      background: "#fef3c7",
-                      border: "0.5px solid #fcd34d",
-                      borderRadius: 4,
-                      lineHeight: 1.4,
-                    }}
+                  <Pill
+                    glass
+                    tone="warning"
+                    size="sm"
+                    style={{ marginTop: 3 }}
                     title={fallbackChipTitle(task.fallbackKind)}
                   >
                     {fallbackChipText(task.fallbackKind)}
-                  </span>
+                  </Pill>
                 )}
               </div>
               {task && (

@@ -802,6 +802,76 @@ export function ContactsSection({
         </div>
       </div>
 
+      {/* Add contact form — above the cards so it's visible the moment Add is
+          pressed (it used to render below the list, off-screen). Fades in. */}
+      {showForm && (
+        <div className="agent-reveal-in p-5 border-b border-white/20">
+          <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
+          <form onSubmit={handleAdd} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
+                  Full name <span className="text-red-500">*</span>
+                </label>
+                <input type="text" name="name" value={form.name} onChange={handleChange} required placeholder="Full name or company" className={INPUT} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
+                  Role <span className="text-red-500">*</span>
+                </label>
+                <select name="roleType" value={form.roleType} onChange={handleChange} className={SELECT}>
+                  {CONTACT_ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Email</label>
+                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" className={INPUT} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Phone</label>
+                <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="07700 900 000" className={INPUT} />
+              </div>
+            </div>
+
+            {(form.roleType === "vendor" || form.roleType === "purchaser") && (
+              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
+                <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
+                  <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
+                  <span>They&rsquo;re helping on the {form.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {form.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
+                </label>
+                {form.isHelper && (
+                  <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
+                    <AnimatedCheckbox checked={form.givePortal} onChange={(v) => setForm((p) => ({ ...p, givePortal: v }))} className="mt-0.5" />
+                    <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
+                  </label>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button type="submit" disabled={loading || isPending} className="agent-btn agent-btn-sm agent-btn-primary">
+                {loading ? "Adding…" : "Add contact"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setError(null); setForm(EMPTY_FORM); }}
+                className="agent-btn agent-btn-sm agent-btn-ghost"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Contact cards, stacked full-width */}
       {sortedContacts.length > 0 && (
         <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1050,74 +1120,7 @@ export function ContactsSection({
         />
       )}
 
-      {/* Add contact form */}
-      {showForm && (
-        <div className={`p-5${contacts.length > 0 ? " border-t border-white/20" : ""}`}>
-          <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
-          <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
-                  Full name <span className="text-red-500">*</span>
-                </label>
-                <input type="text" name="name" value={form.name} onChange={handleChange} required placeholder="Full name or company" className={INPUT} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
-                  Role <span className="text-red-500">*</span>
-                </label>
-                <select name="roleType" value={form.roleType} onChange={handleChange} className={SELECT}>
-                  {CONTACT_ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Email</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" className={INPUT} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Phone</label>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="07700 900 000" className={INPUT} />
-              </div>
-            </div>
-
-            {(form.roleType === "vendor" || form.roleType === "purchaser") && (
-              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
-                  <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
-                  <span>They&rsquo;re helping on the {form.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {form.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
-                </label>
-                {form.isHelper && (
-                  <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
-                    <AnimatedCheckbox checked={form.givePortal} onChange={(v) => setForm((p) => ({ ...p, givePortal: v }))} className="mt-0.5" />
-                    <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
-                  </label>
-                )}
-              </div>
-            )}
-
-            {error && (
-              <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600">
-                {error}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button type="submit" disabled={loading || isPending} className="agent-btn agent-btn-sm agent-btn-primary">
-                {loading ? "Adding…" : "Add contact"}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setError(null); setForm(EMPTY_FORM); }}
-                className="agent-btn agent-btn-sm agent-btn-ghost"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Add contact form now renders above the cards — see the header area. */}
 
       {/* Delete confirmation modal */}
       {confirmDelete && (

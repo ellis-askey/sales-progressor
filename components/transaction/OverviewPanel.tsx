@@ -480,18 +480,11 @@ export async function OverviewPanel({
         totalActive={actionableCount}
       />
 
-      {/* Ellis-only AI summary card. Same gate as the header modal button
-          at app/agent/transactions/[id]/page.tsx line 357-361. */}
-      {isEllis && <AiSummaryCard transactionId={transaction.id} />}
+      {/* AI summary hidden 2026-09-02 — not polished enough to show yet.
+          Re-enable by removing the `false &&`. Tracked in docs/active/TODO.md. */}
+      {false && isEllis && <AiSummaryCard transactionId={transaction.id} />}
 
-      <ActivityNotesCard
-        transactionId={transaction.id}
-        entries={activityEntries}
-        currentUserName={currentUserName}
-        currentUserImage={currentUserImage}
-      />
-
-      {/* The chain, onward purchase and related sale as one "chain spine" card:
+      {/* Chain spine card, moved up into the old AI-summary slot (2026-09-02):
           onward above, this sale in the middle, related below, neighbours nudge
           in the footer. The chain drawer itself is unchanged (ViewChainButton). */}
       <PropertyChainCard
@@ -520,6 +513,15 @@ export async function OverviewPanel({
           />
         }
       />
+
+      <ActivityNotesCard
+        transactionId={transaction.id}
+        entries={activityEntries}
+        currentUserName={currentUserName}
+        currentUserImage={currentUserImage}
+      />
+
+      {/* Chain spine card moved up into the AI-summary slot (2026-09-02). */}
 
       {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
 

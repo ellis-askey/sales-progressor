@@ -31,11 +31,11 @@ type CostsPatch = {
 // ── The script (talking points for the team to deliver) ──────────────────────
 // Copy is Ellis-approved (voice rules apply). Kept as data so it's easy to tune.
 const SCRIPT_POINTS: { title: string; body: string }[] = [
-  { title: "Speak to your solicitor regularly", body: "At least once a fortnight, and chase anything you're waiting on. It keeps things moving." },
-  { title: "Keep us in the loop", body: "Tell us the moment anything changes your end, however small. The more we know, the more we can do." },
-  { title: "We'll tell you when to act", body: "Watch for our nudges. When something needs you, we'll let you know exactly what and when." },
-  { title: "Use the portal, and use us", body: "Everything's in one place, and we're on hand. The more you use both, the smoother this goes." },
-  { title: "If it's stuck, tell us", body: "Sorting the hold-ups is what we're here for. Nothing's too small to flag." },
+  { title: "Keep in touch with your solicitor", body: "Try to speak to them at least once a fortnight, and follow up on anything they're waiting for from you. We'll do plenty of chasing too, but keeping that direct relationship going really helps." },
+  { title: "Keep us in the loop", body: "If anything changes, tell us. A survey issue, a change of plan, something your solicitor has mentioned, even something that seems minor. The more we know, the more useful we can be." },
+  { title: "We'll tell you when we need you", body: "You don't need to constantly wonder what you should be doing next. When something needs your attention, we'll let you know what it is and what you need to do." },
+  { title: "Make the most of your portal", body: "Your portal is the easiest place to see where things stand, what's happened and what comes next. And if something doesn't make sense, just ask us. That's what we're here for." },
+  { title: "If something feels stuck, tell us", body: "Don't assume we already know. If you've been waiting too long, can't get an answer or something just doesn't feel right, let us know. Getting hold-ups unstuck is a big part of what we do." },
 ];
 
 // ── field primitives ─────────────────────────────────────────────────────────
@@ -342,9 +342,9 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
           <div style={{ display: "flex", width: "200%", height: "100%", transform: page === "script" ? "translateX(0)" : "translateX(-50%)", transition: "transform 0.28s cubic-bezier(0.25,0,0,1)" }}>
             {/* Page 1 — script */}
             <div style={{ width: "50%", height: "100%", overflowY: "auto", padding: "22px 24px" }}>
-              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Set the tone</p>
+              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>A few things that make a real difference</p>
               <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
-                The key things to get across so they know how this works and how to get the best from us.
+                We'll keep an eye on the bigger picture and help keep things moving. There are a few simple things you can do along the way that make our job much easier and help us get you to exchange.
               </p>
               <div style={{ display: "grid", gap: 12 }}>
                 {SCRIPT_POINTS.map((s, i) => (
