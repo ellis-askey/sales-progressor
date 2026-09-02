@@ -37,6 +37,29 @@ function deviceClass(): "mobile" | "tablet" | "desktop" {
   return w < MOBILE_MAX ? "mobile" : w < 1024 ? "tablet" : "desktop";
 }
 
+// Keep keyboard focus inside the guide/finish card while a step is active, so
+// Tab doesn't wander into the dimmed-but-still-focusable file behind the veil.
+function trapTab(e: React.KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== "Tab") return;
+  const focusables = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>('button, [href], input, [tabindex]:not([tabindex="-1"])'),
+  ).filter((el) => !el.hasAttribute("disabled"));
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const activeEl = document.activeElement;
+  if (activeEl === e.currentTarget) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  } else if (e.shiftKey && activeEl === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && activeEl === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 export function DemoTourController({
   autoStart = false,
   onClose,
@@ -349,6 +372,7 @@ function SpotlightOverlay({
         aria-modal="false"
         aria-label={`Walkthrough step ${index + 1} of ${total}: ${step.title}`}
         tabIndex={-1}
+        onKeyDown={trapTab}
         className="agent-glass-strong"
         style={{
           ...cardStyle,
@@ -414,6 +438,8 @@ function FinishCard({
       <div
         role="dialog"
         aria-label="Walkthrough complete"
+        tabIndex={-1}
+        onKeyDown={trapTab}
         className="agent-glass-strong"
         style={{
           position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
@@ -430,7 +456,7 @@ function FinishCard({
           Add a real sale and we'll start building this for you, step by step. This demo stays here while you find your feet.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-          <button onClick={onAddSale} className="agent-btn agent-btn-color-primary" style={{ justifyContent: "center", padding: "11px 16px", fontSize: 14, fontWeight: 700 }}>
+          <button autoFocus onClick={onAddSale} className="agent-btn agent-btn-color-primary" style={{ justifyContent: "center", padding: "11px 16px", fontSize: 14, fontWeight: 700 }}>
             Add my first sale
           </button>
           <button onClick={onExplore} className="agent-btn agent-btn-ghost" style={{ justifyContent: "center", padding: "10px 16px", fontSize: 13.5 }}>
