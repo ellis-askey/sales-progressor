@@ -102,15 +102,9 @@ type Props = {
   transactionStatus?: "active" | "on_hold" | "completed" | "withdrawn" | "draft" | string;
 };
 
+// Urgency ranking drives the flat priority-stack order (worst first) and the
+// per-row chip. Same buckets the tab-badge count uses, kept in lock-step.
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
-
-const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; labelCls: string; badgeCls: string }> = {
-  escalated: { label: "Escalated",  headerCls: "bg-red-50/70 border border-red-200",       labelCls: "text-red-700",      badgeCls: "bg-red-100 text-red-700"       },
-  overdue:   { label: "Overdue",    headerCls: "bg-orange-50/70 border border-orange-100", labelCls: "text-orange-700",   badgeCls: "bg-orange-100 text-orange-700" },
-  due_today: { label: "Due today",  headerCls: "bg-amber-50/60 border border-amber-100",   labelCls: "text-amber-700",    badgeCls: "bg-amber-100 text-amber-700"   },
-  upcoming:  { label: "Coming up",  headerCls: "bg-white/30 border border-white/50",        labelCls: "text-slate-900/60", badgeCls: "bg-white/60 text-slate-900/60" },
-};
-
 
 const SNOOZE_OPTIONS = [
   { label: "24 h",   hours: 24 },
@@ -317,24 +311,14 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
   );
 }
 
-function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
-  const isSeller = side === "seller";
-  return (
-    <div style={{ flex: 1, minWidth: 0, borderRadius: 14, background: isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)", border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`, display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "8px 12px", borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`, display: "flex", alignItems: "center", gap: 6 }}>
-        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: isSeller ? "#ea580c" : "#3b82f6" }}>{isSeller ? "Seller" : "Buyer"}</span>
-      </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
-        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontStyle: "italic" }}>{isSeller ? "Seller" : "Buyer"} is all up to date</span>
-      </div>
-    </div>
-  );
-}
-
-function ColumnSection({
+// Priority stack — one flat, worst-first list of all active reminders (no
+// Seller/Buyer columns; side rides on a per-row tag instead). Presentation
+// only: every handler, optimistic overlay and the ChaseDrawer are the same as
+// before. Each row carries its own coloured Chase (composer for that task);
+// a Chase-all stays at the foot. Logic (buckets, cadence, escalation) is
+// unchanged — see RemindersSection.
+function PriorityList({
   logs,
-  side,
   transactionId,
   propertyAddress,
   contacts,
@@ -346,7 +330,6 @@ function ColumnSection({
   optimisticNextDuePerLog,
 }: {
   logs: ReminderLog[];
-  side: "seller" | "buyer";
   transactionId: string;
   propertyAddress: string;
   contacts: Contact[];
@@ -365,6 +348,9 @@ function ColumnSection({
   // the same ChaseDrawer component can render it as a single-log chase.
   const [earlyChase, setEarlyChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number } | null>(null);
   const [earlyChaseLoading, setEarlyChaseLoading] = useState<string | null>(null);
+  // Per-row chase composer — the coloured Chase on a single row opens the
+  // same ChaseDrawer for just that task.
+  const [rowChase, setRowChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; contacts: Contact[] } | null>(null);
   // Optimistic chase-count overlay per task. Click the ↻ Chased button →
   // counter bumps in the UI immediately; the server action runs in
   // background. When the props refresh (server data lands), the prop
@@ -374,9 +360,14 @@ function ColumnSection({
     setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
     handleChased(taskId, logId);
   }
-  const isSeller = side === "seller";
-  const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
-  const labelColor = isSeller ? "#ea580c" : "#3b82f6";
+  // Contacts to preselect when chasing — filtered to the row's own side,
+  // falling back to all if that side has none (same rule the columns used).
+  function contactsForSide(isBuyer: boolean): Contact[] {
+    const filtered = contacts.filter((c) =>
+      isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
+    );
+    return filtered.length > 0 ? filtered : contacts;
+  }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
@@ -395,27 +386,15 @@ function ColumnSection({
   const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
   const allTaskIds = openTasks.map(({ task }) => task.id);
   const allLogIds  = openTasks.map(({ log })  => log.id);
-  const chaseContacts = contacts.filter((c) =>
-    isSeller
-      ? ["vendor", "solicitor"].includes(c.roleType)
-      : ["purchaser", "broker", "solicitor"].includes(c.roleType)
-  );
-  const effectiveContacts = chaseContacts.length > 0 ? chaseContacts : contacts;
 
   return (
-    <div style={{ flex: 1, minWidth: 0, borderRadius: 14, background: columnBg, border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`, display: "flex", flexDirection: "column" }}>
-      {/* Column header */}
-      <div style={{ padding: "8px 12px", borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`, display: "flex", alignItems: "center", gap: 6 }}>
-        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>{isSeller ? "Seller" : "Buyer"}</span>
-        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>{logs.length} {logs.length === 1 ? "item" : "items"}</span>
-      </div>
-
-      {/* Rows */}
-      <div ref={rowsRef} style={{ flex: 1, padding: "6px 0" }}>
+    <Card glassId="reminders-group" glassLabel="Reminders · Active" glassDefault="v05" padding="none">
+      {/* Rows — one flat worst-first list, side shown per row */}
+      <div ref={rowsRef} style={{ padding: "6px 0" }}>
         {logs.map((log, i) => {
           const task = log.chaseTasks.find((t) => t.status === "pending");
           const name = stripChase(log.reminderRule.name);
+          const isBuyer = !!log.reminderRule.targetMilestoneCode?.startsWith("PM");
           // Optimistic override — chased rows show the new next-due-date
           // immediately (the prop's nextDueDate updates after the server
           // confirms a few seconds later).
@@ -438,6 +417,11 @@ function ColumnSection({
             : isDueToday ? "Due today"
             : task ? `Next ${formatDate(log.nextDueDate)}`
             : `From ${formatDate(log.nextDueDate)}`;
+          const chipBg = task?.priority === "escalated" ? "rgba(220,38,38,0.14)"
+            : hasBeenChased ? "rgba(148,163,184,0.14)"
+            : isOverdue ? "rgba(234,88,12,0.14)"
+            : isDueToday ? "rgba(217,119,6,0.14)"
+            : "rgba(148,163,184,0.14)";
 
           return (
             <div
@@ -445,7 +429,13 @@ function ColumnSection({
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="reminders-title" style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 999, color: urgencyColor, background: chipBg, whiteSpace: "nowrap" }}>{urgencyLabel}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: isBuyer ? "#3b82f6" : "#ea580c" }}>
+                    <RoleIcon role={isBuyer ? "purchaser" : "vendor"} size={11} />{isBuyer ? "Buyer" : "Seller"}
+                  </span>
+                </div>
+                <p className="reminders-title" style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
                 {(() => {
                   // Optimistic overlay tracks the human ("you") count; auto is
                   // the remainder of the total. Keeps the two visible so an
@@ -453,16 +443,9 @@ function ColumnSection({
                   const manualChases = task ? Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount) : 0;
                   const autoChases = task ? Math.max(0, task.chaseCount - task.manualChaseCount) : 0;
                   const chaseBadge = chaseBadgeLabel(autoChases, manualChases);
-                  return (urgencyLabel || chaseBadge) && (
-                    <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
-                      {urgencyLabel}
-                      {chaseBadge && (
-                        <span style={{ display: "block", color: "var(--agent-text-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>
-                          {chaseBadge}
-                        </span>
-                      )}
-                    </p>
-                  );
+                  return chaseBadge ? (
+                    <p style={{ margin: "2px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>{chaseBadge}</p>
+                  ) : null;
                 })()}
                 {task?.fallbackKind && (
                   <Pill
@@ -477,8 +460,13 @@ function ColumnSection({
                 )}
               </div>
               {task && (
-                <>
-                  <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  <Button
+                    size="sm"
+                    onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer) })}
+                  >
+                    Chase
+                  </Button>
                   <button
                     onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
                     title="Mark as chased. Advances the next chase date without sending an email"
@@ -494,7 +482,8 @@ function ColumnSection({
                   >
                     ✓ Done
                   </button>
-                </>
+                  <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
+                </div>
               )}
               {!task && log.status === "active" && (
                 <button
@@ -543,13 +532,30 @@ function ColumnSection({
           propertyAddress={propertyAddress}
           milestoneName={milestones[0]?.name ?? ""}
           chaseCount={maxChaseCount}
-          contacts={effectiveContacts}
+          contacts={contacts}
           milestones={milestones.length > 1 ? milestones : undefined}
           onClose={() => setDrawerOpen(false)}
           onSent={() => {
             // Bulk chase via drawer — pass log IDs too so all rows hide.
             openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
             setDrawerOpen(false);
+          }}
+        />
+      )}
+
+      {/* Per-row chase — same composer, scoped to the one task. */}
+      {rowChase && (
+        <ChaseDrawer
+          chaseTaskId={rowChase.taskId}
+          transactionId={transactionId}
+          propertyAddress={propertyAddress}
+          milestoneName={rowChase.name}
+          chaseCount={rowChase.chaseCount}
+          contacts={rowChase.contacts}
+          onClose={() => setRowChase(null)}
+          onSent={() => {
+            handleChased(rowChase.taskId, rowChase.logId);
+            setRowChase(null);
           }}
         />
       )}
@@ -561,7 +567,7 @@ function ColumnSection({
           propertyAddress={propertyAddress}
           milestoneName={earlyChase.name}
           chaseCount={earlyChase.chaseCount}
-          contacts={effectiveContacts}
+          contacts={contacts}
           onClose={() => setEarlyChase(null)}
           onSent={() => {
             handleChased(earlyChase.taskId, earlyChase.logId);
@@ -569,7 +575,7 @@ function ColumnSection({
           }}
         />
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -674,6 +680,19 @@ export function RemindersSection({
   useEffect(() => {
     if (updateTabBadge) updateTabBadge("reminders", activeCount);
   }, [activeCount, updateTabBadge]);
+
+  // Flat priority stack: worst bucket first (escalated → overdue → due today →
+  // upcoming), and within a bucket the nearest due date first. Same buckets as
+  // the badge count, just concatenated into one list for the single-column UI.
+  const byDue = (a: ReminderLog, b: ReminderLog) =>
+    new Date(optimisticNextDueDate.get(a.id) ?? a.nextDueDate).getTime() -
+    new Date(optimisticNextDueDate.get(b.id) ?? b.nextDueDate).getTime();
+  const activeSorted = [
+    ...grouped.escalated.slice().sort(byDue),
+    ...grouped.overdue.slice().sort(byDue),
+    ...grouped.due_today.slice().sort(byDue),
+    ...grouped.upcoming.slice().sort(byDue),
+  ];
 
   function act(id: string, fn: () => Promise<unknown>) {
     setLoading(id);
@@ -837,64 +856,22 @@ export function RemindersSection({
         * Completed appear/disappear (e.g. first snooze adds the Snoozed
         * card) the siblings shift smoothly instead of pop-in. */}
       <div ref={allSectionsRef} className="space-y-3">
-      {/* Urgency groups — inner wrapper so individual groups animate
-        * out smoothly when emptied. */}
+      {/* Active reminders — one flat priority stack (worst first), side per row. */}
       <div ref={groupsRef} className="space-y-3">
-      {(["escalated", "overdue", "due_today", "upcoming"] as const).map((groupKey) => {
-        const logs = grouped[groupKey];
-        if (logs.length === 0) return null;
-        const cfg = GROUP_CONFIG[groupKey];
-        const isCollapsed = collapsed[groupKey];
-
-        const buyerLogs   = logs.filter((l) => l.reminderRule.targetMilestoneCode?.startsWith("PM"));
-        const sellerLogs  = logs.filter((l) => !l.reminderRule.targetMilestoneCode?.startsWith("PM"));
-
-        return (
-          <Card key={groupKey} glassId="reminders-group" glassLabel="Reminders · Urgency groups" glassDefault="v05" padding="none">
-            {/* Whole-bar disclosure header (2026-08-11 drawer-consistency
-                pass): chevron + click-anywhere, replacing the old
-                Show/Hide text link. Urgency label colours unchanged.
-                ANIMATION_STANDARDS E1 amended in the same commit. */}
-            <div
-              className="agent-acc-hdr"
-              style={{ borderBottom: "none" }}
-              role="button"
-              tabIndex={0}
-              aria-expanded={!isCollapsed}
-              onClick={() => toggleCollapse(groupKey)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse(groupKey); } }}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`agent-acc-title ${cfg.labelCls}`}>{cfg.label}</span>
-                <span className="agent-badge">{logs.length}</span>
-              </div>
-              <CaretDown
-                size={12}
-                weight="bold"
-                aria-hidden
-                style={{
-                  flexShrink: 0,
-                  color: "var(--agent-text-muted)",
-                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-                  transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)",
-                }}
-              />
-            </div>
-            <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
-              <div className="agent-acc-in">
-                <div className="reminders-columns" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
-                  {sellerLogs.length > 0
-                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} optimisticNextDuePerLog={optimisticNextDueDate} />
-                    : <EmptyColumn side="seller" />}
-                  {buyerLogs.length > 0
-                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} optimisticNextDuePerLog={optimisticNextDueDate} />
-                    : <EmptyColumn side="buyer" />}
-                </div>
-              </div>
-            </div>
-          </Card>
-        );
-      })}
+        {activeSorted.length > 0 && (
+          <PriorityList
+            logs={activeSorted}
+            transactionId={transactionId}
+            propertyAddress={propertyAddress}
+            contacts={contacts}
+            loading={loading}
+            handleComplete={handleComplete}
+            handleSnooze={handleSnooze}
+            handleSnoozeAll={handleSnoozeAll}
+            handleChased={handleChased}
+            optimisticNextDuePerLog={optimisticNextDueDate}
+          />
+        )}
       </div>
 
       {/* Snoozed */}
