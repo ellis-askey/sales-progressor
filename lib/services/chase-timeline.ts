@@ -92,9 +92,18 @@ export type ChaseTimelineStats = {
   completed: number;
 };
 
+// Client-chase pause state (re-homed from the Reminders auto-emails card,
+// chase-consolidation D4). null = chasing is live. Mirrors the honesty logic in
+// lib/services/automated-emails-preview.ts (global > agency > file precedence).
+export type ChasePauseState = {
+  reason: "global" | "agency" | "file";
+  agencyName: string | null;
+} | null;
+
 export type ChaseTimeline = {
   stats: ChaseTimelineStats;
   threads: ChaseThread[];
+  pause: ChasePauseState;
 };
 
 function stripChase(name: string): string {
@@ -128,6 +137,8 @@ export async function getChaseTimeline(
     select: {
       id: true,
       activeBuyerRoundId: true,
+      clientEmailsPaused: true,
+      agency: { select: { chaseEmailsEnabled: true, name: true } },
       completionDate: true,
       exchangeDayStartedAt: true,
       exchangeDayCancelledAt: true,
@@ -647,5 +658,16 @@ export async function getChaseTimeline(
     completed: statThreads.filter((t) => t.state === "completed").length,
   };
 
-  return { stats, threads };
+  // Pause pill (D4): honest client-chase pause state, global > agency > file.
+  // Anything other than the literal string "true" leaves chases globally dormant.
+  const pause: ChasePauseState =
+    process.env.CLIENT_CHASE_ENABLED !== "true"
+      ? { reason: "global", agencyName: tx.agency?.name ?? null }
+      : tx.agency?.chaseEmailsEnabled === false
+        ? { reason: "agency", agencyName: tx.agency?.name ?? null }
+        : tx.clientEmailsPaused === true
+          ? { reason: "file", agencyName: tx.agency?.name ?? null }
+          : null;
+
+  return { stats, threads, pause };
 }

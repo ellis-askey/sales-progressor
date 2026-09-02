@@ -12,7 +12,7 @@ import {
   PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight,
 } from "@phosphor-icons/react";
 import type {
-  ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery,
+  ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState,
 } from "@/lib/services/chase-timeline";
 import { NextChaseControl } from "@/components/transaction/NextChaseControl";
 
@@ -74,6 +74,33 @@ function ChaseCountBadge({ auto, you }: { auto: number; you: number }) {
   if (auto <= 0 && you <= 0) return null;
   const label = auto > 0 && you > 0 ? `Auto ${auto}× · you ${you}×` : auto > 0 ? `Auto ${auto}×` : `You ${you}×`;
   return <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500 }}>{label}</span>;
+}
+
+// ── pause pill (re-homed from the Reminders auto-emails card, D4) ─────────────
+function PauseBanner({ pause }: { pause: NonNullable<ChasePauseState> }) {
+  const msg =
+    pause.reason === "global"
+      ? "Chasing is switched off across the platform right now. Nothing will send until it's back on."
+      : pause.reason === "agency"
+        ? `Chasing is switched off for ${pause.agencyName ?? "this agency"}. Nothing will send on this file until it's back on.`
+        : "Chasing is paused for this file. Nothing will send until you resume it.";
+  return (
+    <div
+      role="status"
+      style={{
+        display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", borderRadius: 12,
+        background: "rgba(var(--agent-warning-rgb), 0.10)", border: "0.5px solid rgba(var(--agent-warning-rgb), 0.35)",
+      }}
+    >
+      <PauseCircle size={17} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0, marginTop: 1 }} />
+      <div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-warning)" }}>
+          {pause.reason === "file" ? "Chasing paused for this file" : "Chasing is off"}
+        </div>
+        <p style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.45 }}>{msg}</p>
+      </div>
+    </div>
+  );
 }
 
 // ── overview stats ───────────────────────────────────────────────────────────
@@ -292,7 +319,7 @@ function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transact
 }
 
 // ── root ─────────────────────────────────────────────────────────────────────
-export function ChaseTimeline({ stats, threads, transactionId }: { stats: ChaseTimelineStats; threads: ChaseThread[]; transactionId: string }) {
+export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats: ChaseTimelineStats; threads: ChaseThread[]; transactionId: string; pause: ChasePauseState }) {
   const activeStates: ChaseThreadState[] = ["escalated", "manual_chasing", "handed_to_team", "auto_chasing", "scheduled", "snoozed"];
   const active = threads.filter((t) => activeStates.includes(t.state));
   const done = threads.filter((t) => t.state === "completed" || t.state === "cancelled");
@@ -303,6 +330,8 @@ export function ChaseTimeline({ stats, threads, transactionId }: { stats: ChaseT
 
   return (
     <div data-tour="chase-threads" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {pause && <PauseBanner pause={pause} />}
+
       {/* Overview stats */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <StatCard n={stats.active} label="Active chases" color="var(--agent-text-primary)" />
