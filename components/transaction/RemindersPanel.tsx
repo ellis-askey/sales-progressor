@@ -1,8 +1,12 @@
 // Async server component for the Reminders tab on the file detail page.
 // Fetches the reminder logs + milestone codes (for the completedCodes
-// filter) and renders RemindersSection. The AutomatedEmailsCardAsync
-// preview card is mounted below in its own Suspense (already deferred
-// before this refactor).
+// filter) and renders RemindersSection.
+//
+// The AutomatedEmailsCardAsync preview card was retired here on 2026-09-02
+// (chase-consolidation D4): its next-chase view + edit/skip live in the Chase
+// timeline tab, its pause pill re-homed to that tab's header, and its
+// not-yet-started forecast stays in the full /agent/automated-emails log. The
+// card was duplicating the timeline. See docs/active/chase-consolidation/00-spec.md.
 //
 // Reports the actionable-reminders count up to the tabs strip via
 // TabBadgeReporter.
@@ -11,7 +15,6 @@ import type { TransactionStatus } from "@prisma/client";
 import { getMilestonesCached, getReminderLogsCached } from "@/lib/services/cached-fetchers";
 import { countActionable } from "@/lib/reminders/classify";
 import { RemindersSection } from "@/components/reminders/RemindersSection";
-import { AutomatedEmailsCardAsync } from "@/components/reminders/AutomatedEmailsCardAsync";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
 
 type ContactProp = {
@@ -56,13 +59,6 @@ export async function RemindersPanel({
   return (
     <div className="space-y-4">
       <TabBadgeReporter tabKey="reminders" count={actionableCount} />
-      {/* Auto-emails preview pinned to the TOP of the tab. Was previously
-        * rendered below RemindersSection (legacy of the streaming
-        * refactor); moved up so the next-chase summary is the first
-        * thing the agent sees on the tab. Suspense fallback={null}
-        * means a brief layout shift when it streams in — small card,
-        * worth it for the visual hierarchy. */}
-      <AutomatedEmailsCardAsync transactionId={transactionId} fileOnHold={onHold} />
       <RemindersSection
         transactionId={transactionId}
         reminderLogs={reminderLogs}
