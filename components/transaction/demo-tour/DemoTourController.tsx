@@ -24,7 +24,7 @@ import * as analytics from "@/lib/analytics/posthog";
 import { useReducedMotion } from "./useReducedMotion";
 import { DEMO_TOUR_EVENTS, DEMO_TOUR_STEPS, type TourStep } from "./types";
 
-type Rect = { top: number; left: number; width: number; height: number };
+type Rect = { top: number; left: number; width: number; height: number; radius: number };
 
 const Z = 1500; // "escalated" rung — above top bar (200) + sidebar (100)
 const HOLE_PAD = 8;
@@ -150,7 +150,11 @@ export function DemoTourController({
     const el = targetElRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    // Match the ring to the target's own corner radius so it hugs rounded
+    // cards instead of drawing a square box. Falls back to 16 if unreadable.
+    const parsed = parseFloat(getComputedStyle(el).borderTopLeftRadius);
+    const radius = Number.isFinite(parsed) ? parsed : 16;
+    setRect({ top: r.top, left: r.left, width: r.width, height: r.height, radius });
   }, []);
 
   const detachStep = useCallback(() => {
@@ -421,7 +425,9 @@ function SpotlightOverlay({
         style={{
           position: "fixed",
           top: hole.t, left: hole.l, width: hole.w, height: hole.h,
-          borderRadius: 16,
+          // Grow the target's radius by the hole padding so the ring's curve
+          // stays concentric with the card's rounded corner.
+          borderRadius: rect.radius + HOLE_PAD,
           boxShadow: "0 0 0 2px var(--agent-coral), 0 0 0 6px rgba(var(--agent-coral-rgb), 0.22)",
           pointerEvents: "none",
           transition: reducedMotion ? "none" : "all 240ms cubic-bezier(0.22,1,0.36,1)",
