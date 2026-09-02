@@ -216,6 +216,12 @@ export function DemoTourController({
     return () => window.removeEventListener(DEMO_TOUR_EVENTS.start, onStart);
   }, [start]);
 
+  // The controller mounts only on a demo file, so mount == demo opened.
+  useEffect(() => {
+    emit("demo_opened", { autoStart });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (autoStart) {
       const t = window.setTimeout(() => start(), 600);

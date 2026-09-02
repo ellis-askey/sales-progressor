@@ -66,6 +66,15 @@ export const ALLOWED_EVENT_NAMES = new Set([
   // R2 — analytics interactions
   "analytics_period_changed",
   "analytics_filter_changed",
+
+  // Demo guided-walkthrough funnel (kept in its own namespace so it never
+  // mixes with real sale/product analytics). See DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md §14.
+  "demo_opened",
+  "demo_tour_started",
+  "demo_tour_step_viewed",
+  "demo_tour_step_completed",
+  "demo_tour_skipped",
+  "demo_tour_completed",
 ]);
 
 // Allow-list of property names. Any property not here is stripped before capture.
@@ -110,6 +119,13 @@ const ALLOWED_PROPS = new Set([
   "signupSource",
   "fieldName",
   "theme",
+
+  // Demo guided-walkthrough. deviceClass (D8) = mobile / tablet / desktop split.
+  "stepId",
+  "stepNumber",
+  "totalSteps",
+  "interactionType",
+  "deviceClass",
 ]);
 
 // Person-profile-only props — allowed on identify() (PostHog person
