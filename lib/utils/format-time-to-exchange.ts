@@ -1,8 +1,9 @@
-// Countdown to the predicted exchange, shown in the file sidebar's "Time to
-// exchange" row. Deliberately soft: exchange is never "overdue" (it exchanges
+// Countdown to the predicted exchange, shown in the file sidebar's "Est. time
+// to exchange" row. Deliberately soft: exchange is never "overdue" (it exchanges
 // when it exchanges), so once the estimate passes we say "Any day now" rather
-// than counting up an overdue figure. The leading "~" carries the "it's an
-// estimate, it can move" meaning without a sentence of explanation.
+// than counting up an overdue figure. The row label ("Est.") carries the "it's
+// an estimate, it can move" meaning, so the figure itself is shown plainly (no
+// leading "~").
 
 export function formatTimeToExchange(
   predicted: Date | null | undefined,
@@ -21,5 +22,5 @@ export function formatTimeToExchange(
     d > 0 ? `${d} day${d === 1 ? "" : "s"}` : "",
   ].filter(Boolean);
 
-  return { text: `~${parts.join(", ") || "1 day"}`, amber: days <= 14 };
+  return { text: parts.join(", ") || "1 day", amber: days <= 14 };
 }

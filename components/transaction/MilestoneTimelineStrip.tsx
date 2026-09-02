@@ -56,7 +56,10 @@ const STAGE_TONES: Record<StageStatus, {
   // Skipped (not_required) — quiet + muted, mirroring the Activity tab's
   // "Skipped" treatment. The stage was passed over, not ticked off.
   skipped: {
-    ring: "rgba(15, 23, 42, 0.12)",
+    // Theme-aware border token (not a hard-coded dark rgba) so the ring is
+    // visible in dark mode too — a fixed dark rgba disappears on the dark
+    // backdrop and leaves the number looking like it floats.
+    ring: "var(--agent-border-default)",
     bg: "transparent",
     iconColor: "var(--agent-text-muted)",
     labelColor: "var(--agent-text-muted)",
@@ -70,14 +73,17 @@ const STAGE_TONES: Record<StageStatus, {
     dateColor: "var(--agent-coral-deep)",
   },
   up_next: {
-    ring: "rgba(15, 23, 42, 0.15)",
+    // Theme-aware ring (see skipped note) — visible in light + dark.
+    ring: "var(--agent-border-strong)",
     bg: "transparent",
     iconColor: "var(--agent-text-secondary)",
     labelColor: "var(--agent-text-primary)",
     dateColor: "var(--agent-coral-deep)",
   },
   pending: {
-    ring: "rgba(15, 23, 42, 0.15)",
+    // Theme-aware ring (see skipped note) — a hard-coded dark rgba was
+    // invisible in dark mode, making the pending number look like it floats.
+    ring: "var(--agent-border-strong)",
     bg: "transparent",
     iconColor: "var(--agent-text-muted)",
     labelColor: "var(--agent-text-secondary)",
@@ -266,7 +272,7 @@ function StageConnector({ prevComplete }: { prevComplete: boolean }) {
         width: "100%",
         borderTop: prevComplete
           ? "2px solid rgba(16, 185, 129, 0.45)"
-          : "2px dashed rgba(15, 23, 42, 0.12)",
+          : "2px dashed var(--agent-border-default)",
       }} />
     </div>
   );

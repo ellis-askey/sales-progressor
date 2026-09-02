@@ -382,7 +382,7 @@ export function AgentFileSidebar({
           const t = formatTimeToExchange(progress.predictedExchangeDate ?? null, progress.weeksRemaining);
           return (
             <SidebarRow
-              label="Time to exchange"
+              label="Est. time to exchange"
               value={<span style={{ color: t.amber ? "#b45309" : "var(--agent-text-primary)" }}>{t.text}</span>}
             />
           );
