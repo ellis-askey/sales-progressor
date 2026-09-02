@@ -326,15 +326,8 @@ function EmailSettingsDrawer({
 // anything is paused or the file is on hold. Clicking opens the drawer.
 export function EmailSettingsButton({
   transactionId,
-  hasPhoto = false,
 }: {
   transactionId: string;
-  // When the hero has a property photo behind it, the pill mirrors the
-  // "Back to files" control: a dark translucent fill + blur so the label
-  // stays legible over imagery. Without a photo it uses the solid overlay
-  // surface. Either way it's never transparent (the old resting state was
-  // invisible over the warm hero on mobile).
-  hasPhoto?: boolean;
 }) {
   const [state, setState] = useState<EmailSettingsState | null>(null);
   const [open, setOpen] = useState(false);
@@ -366,17 +359,18 @@ export function EmailSettingsButton({
         ? "Some emails paused"
         : "Emails on";
 
-  // Solid fill in every state, matching the "Back to files" pill: dark blur
-  // over a photo, overlay surface otherwise. Attention (paused / on hold) is
-  // carried by an amber border + amber label, not by the fill — so the pill
-  // is always legible instead of a transparent chip that vanishes on mobile.
-  const fill = hasPhoto ? "rgba(15,23,42,0.38)" : "var(--agent-surface-overlay)";
-  const accent = hasPhoto ? "#fdba74" : "#9a3412";
-  const rest = hasPhoto ? "#fff" : "var(--agent-text-secondary, #475569)";
-  const tone = attention ? accent : rest;
+  // Theme-aware, not photo-aware: the pill sits on the hero surface (top-
+  // right), never over the photo, so it follows light/dark. A clean light chip
+  // in light mode; the agent tokens flip the fill + amber for dark mode.
+  // Attention (paused / on hold) is carried by the amber label + border, not
+  // the fill — so the pill is always legible, never a chip that vanishes.
+  const fill = "var(--agent-surface-overlay)";
+  const tone = attention
+    ? "var(--agent-warning, #C97D1A)"
+    : "var(--agent-text-secondary, #475569)";
   const borderColor = attention
-    ? (hasPhoto ? "rgba(253,186,116,0.55)" : "rgba(234,88,12,0.45)")
-    : (hasPhoto ? "rgba(255,255,255,0.28)" : "var(--agent-border-default, rgba(15,23,42,0.12))");
+    ? "var(--agent-warning-border-strong, rgba(201,125,26,0.50))"
+    : "var(--agent-border-default, rgba(15,23,42,0.12))";
 
   return (
     <>
@@ -391,8 +385,6 @@ export function EmailSettingsButton({
           padding: "5px 12px",
           borderRadius: 999,
           background: fill,
-          backdropFilter: hasPhoto ? "blur(8px)" : undefined,
-          WebkitBackdropFilter: hasPhoto ? "blur(8px)" : undefined,
           border: `0.5px solid ${borderColor}`,
           cursor: "pointer",
           flexShrink: 0,

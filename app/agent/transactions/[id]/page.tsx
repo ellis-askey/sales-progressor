@@ -330,7 +330,6 @@ export default async function AgentTransactionDetailPage({
     return (
       <EmailSettingsButton
         transactionId={transaction.id}
-        hasPhoto={!!heroPhotoUrl}
       />
     );
   })();
