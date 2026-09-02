@@ -786,8 +786,8 @@
    * Uses !important on border-color to override inline-style borders during focus */
   .agent-focus:focus {
     outline: none;
-    border-color: var(--agent-border-focus) !important;
-    box-shadow: var(--agent-focus-ring);
+    border-color: var(--agent-coral-deep) !important;
+    box-shadow: none;
   }
 
   /* Themed section label — replaces divergent all-caps grey label implementations.
