@@ -27,10 +27,40 @@ type Rect = { top: number; left: number; width: number; height: number };
 
 const Z = 1500; // "escalated" rung — above top bar (200) + sidebar (100)
 const HOLE_PAD = 8;
-const CARD_W = 340;
+const CARD_W = 344;
 const CARD_GAP = 14;
 const MOBILE_MAX = 640;
 const RESOLVE_TIMEOUT = 1600; // ms to wait for a target to mount before skipping
+
+// The overlay renders through a portal at document.body, OUTSIDE the agent CSS
+// scope, so the scoped .agent-btn / .agent-glass classes don't reach it. Style
+// the card + buttons inline so they render solid (not dimmed like the veil) and
+// look like real buttons wherever they mount.
+const CARD_STYLE: React.CSSProperties = {
+  background: "var(--agent-surface-elevated)",
+  border: "1px solid var(--agent-border-default)",
+  borderRadius: 22,
+  boxShadow: "0 24px 64px rgba(15, 23, 42, 0.32)",
+};
+const PRIMARY_BTN: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+  background: "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
+  color: "var(--agent-text-on-coral)",
+  border: "none", borderRadius: 12, cursor: "pointer",
+  boxShadow: "0 4px 16px rgba(var(--agent-coral-rgb), 0.28)",
+};
+const SECONDARY_BTN: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+  background: "transparent",
+  color: "var(--agent-text-primary)",
+  border: "1px solid var(--agent-border-default)",
+  borderRadius: 12, cursor: "pointer",
+};
+const GHOST_BTN: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--agent-text-muted)",
+  border: "none", cursor: "pointer",
+};
 
 function deviceClass(): "mobile" | "tablet" | "desktop" {
   const w = window.innerWidth;
@@ -373,30 +403,28 @@ function SpotlightOverlay({
         aria-label={`Walkthrough step ${index + 1} of ${total}: ${step.title}`}
         tabIndex={-1}
         onKeyDown={trapTab}
-        className="agent-glass-strong"
         style={{
           ...cardStyle,
+          ...CARD_STYLE,
           pointerEvents: "auto",
-          padding: "16px 18px",
-          borderRadius: "var(--agent-radius-lg)",
-          boxShadow: "0 16px 48px rgba(15,23,42,0.22)",
+          padding: "17px 19px",
           outline: "none",
           animation: reducedMotion ? "none" : "agent-modal-in 200ms cubic-bezier(0.22,1,0.36,1) both",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-coral-deep)" }}>
-            {index + 1} of {total}
+            Step {index + 1} of {total}
           </span>
           <button
             onClick={onSkip}
-            className="agent-icon-btn agent-icon-btn-sm"
             aria-label="Skip walkthrough"
+            style={{ ...GHOST_BTN, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 8, padding: 0 }}
           >
-            <X size={13} weight="bold" />
+            <X size={14} weight="bold" />
           </button>
         </div>
-        <p style={{ margin: "0 0 5px", fontSize: 14.5, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>
+        <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>
           {step.title}
         </p>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
@@ -407,15 +435,11 @@ function SpotlightOverlay({
             {step.actionHint}
           </p>
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, gap: 10 }}>
-          <button onClick={onSkip} className="agent-btn agent-btn-ghost" style={{ fontSize: 12.5, padding: "7px 10px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, gap: 10 }}>
+          <button onClick={onSkip} style={{ ...GHOST_BTN, fontSize: 12.5, fontWeight: 600, padding: "8px 4px" }}>
             Skip tour
           </button>
-          <button
-            onClick={onAdvance}
-            className="agent-btn agent-btn-color-primary"
-            style={{ fontSize: 13, fontWeight: 700, padding: "9px 16px", justifyContent: "center" }}
-          >
+          <button onClick={onAdvance} style={{ ...PRIMARY_BTN, fontSize: 13, fontWeight: 700, padding: "10px 18px" }}>
             {isAction ? "Skip this step" : index + 1 === total ? "Finish" : "Continue"}
           </button>
         </div>
@@ -440,26 +464,25 @@ function FinishCard({
         aria-label="Walkthrough complete"
         tabIndex={-1}
         onKeyDown={trapTab}
-        className="agent-glass-strong"
         style={{
+          ...CARD_STYLE,
           position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-          width: "min(420px, calc(100vw - 32px))",
-          padding: "24px 26px", borderRadius: "var(--agent-radius-lg)",
-          boxShadow: "0 20px 60px rgba(15,23,42,0.26)", pointerEvents: "auto",
+          width: "min(430px, calc(100vw - 32px))",
+          padding: "26px 28px", pointerEvents: "auto",
           animation: reducedMotion ? "none" : "agent-modal-in 220ms cubic-bezier(0.22,1,0.36,1) both",
         }}
       >
-        <p style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-          That's the file
+        <p style={{ margin: "0 0 7px", fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+          That&rsquo;s your sale in Sales Progressor
         </p>
-        <p style={{ margin: "0 0 18px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
-          Add a real sale and we'll start building this for you, step by step. This demo stays here while you find your feet.
+        <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
+          Add a real sale and we&rsquo;ll start building this the moment it&rsquo;s instructed. This demo stays put while you get your bearings.
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-          <button autoFocus onClick={onAddSale} className="agent-btn agent-btn-color-primary" style={{ justifyContent: "center", padding: "11px 16px", fontSize: 14, fontWeight: 700 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <button autoFocus onClick={onAddSale} style={{ ...PRIMARY_BTN, padding: "12px 18px", fontSize: 14, fontWeight: 700 }}>
             Add my first sale
           </button>
-          <button onClick={onExplore} className="agent-btn agent-btn-ghost" style={{ justifyContent: "center", padding: "10px 16px", fontSize: 13.5 }}>
+          <button onClick={onExplore} style={{ ...SECONDARY_BTN, padding: "11px 18px", fontSize: 13.5, fontWeight: 600 }}>
             Keep exploring the demo
           </button>
         </div>
