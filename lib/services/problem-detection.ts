@@ -11,7 +11,13 @@ export type FlagKind =
   | "on_hold_extended"
   | "no_portal_activity"
   | "portal_gone_quiet"
-  | "overdue_milestone";
+  | "overdue_milestone"
+  // Resilience audit PR 6: a file that has never got going. Distinct from
+  // "stalled" (which implies it was moving and stopped) — this is "we can't
+  // even assess it, and it's been long enough that the emptiness itself is the
+  // problem". Fills the gap where every other detector gates on completedCount
+  // > 0, so a genuinely dormant/empty file used to read as fine.
+  | "needs_setup";
 
 const FLAG_LABELS: Record<FlagKind, string> = {
   long_silence: "No recent contact",
@@ -22,6 +28,7 @@ const FLAG_LABELS: Record<FlagKind, string> = {
   no_portal_activity: "No portal engagement",
   portal_gone_quiet: "Client gone quiet",
   overdue_milestone: "Overdue milestone",
+  needs_setup: "Needs setting up",
 };
 
 export { FLAG_LABELS };
@@ -38,6 +45,11 @@ export { FLAG_LABELS };
 const ACTIVE_MILESTONE_COUNT = 38;
 const NEAR_EXCHANGE_MIN_COMPLETE = 25;
 const STALL_MAX_COMPLETE = 35;
+// Grace before a file with zero progress AND no logged activity reads as
+// "needs setting up" rather than "just started" (PR 6). Two weeks: long enough
+// that a brand-new file isn't nagged, short enough that a genuinely dormant one
+// stops hiding behind a green "on track".
+const NEEDS_SETUP_DAYS = 14;
 
 type TxData = {
   id: string;
@@ -95,6 +107,26 @@ function detectFlags(tx: TxData): DetectedFlag[] {
       : Math.floor((now - new Date(fileStartAnchor).getTime()) / 86400000);
     if (daysSilent >= 10) {
       flags.push({ kind: "long_silence", context: `No communication recorded in ${daysSilent} days` });
+    }
+  }
+
+  // Needs setting up (resilience audit PR 6): a file that has never got going.
+  // Every stall/overdue detector below gates on completedCount > 0, so a file
+  // with ZERO milestones and no logged activity used to slip through as fine.
+  // Surface it — calmly, and only after a grace period so brand-new files
+  // ("just started") aren't nagged. Zero progress + no comms + 2+ weeks old.
+  // Suppressed once exchanged (nothing to set up) and while mid-enquiries.
+  if (tx.status === "active" && !hasExchanged && !tx.hasOpenEnquiryTracker) {
+    const completedCount = tx._count.milestoneCompletions;
+    if (completedCount === 0) {
+      const hasAnyComm = tx.communications.some((c) => c.type === "outbound" || c.type === "inbound");
+      const daysSinceStart = Math.floor((now - new Date(fileStartAnchor).getTime()) / 86400000);
+      if (!hasAnyComm && daysSinceStart >= NEEDS_SETUP_DAYS) {
+        flags.push({
+          kind: "needs_setup",
+          context: `No milestones or logged activity ${daysSinceStart} days after the file was created`,
+        });
+      }
     }
   }
 

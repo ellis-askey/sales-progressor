@@ -37,6 +37,9 @@ const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
   portal_gone_quiet:         "watch",
   no_portal_activity:        "attention",
   overdue_milestone:         "attention",
+  // Resilience audit PR 6: a dormant/empty file needs a look to get going, but
+  // it isn't time-critical — medium "attention", never "overdue".
+  needs_setup:               "attention",
 };
 
 // Matches the established pattern from listTransactions (dashboard)
