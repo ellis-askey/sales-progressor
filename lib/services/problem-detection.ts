@@ -46,6 +46,11 @@ type TxData = {
   createdAt: Date;
   updatedAt: Date;
   expectedExchangeDate: Date | null;
+  // Exchange = the finish line for the engagement-quiet flags. Once a file has
+  // exchanged, client portal silence is expected (nothing left for them to do
+  // until completion), so we stop reading it as a wobble. Non-null once the
+  // file has exchanged. See getGoneQuietFiles for the matching hub guard.
+  exchangedAt: Date | null;
   // Pass 3 B4: active round's createdAt is the anchor for "weeks elapsed" /
   // "days silent" / "days active" on relisted files. Null on legacy
   // pre-Phase-1 files; callers fall back to tx.createdAt.
@@ -70,9 +75,14 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   // Pass 3 B4: anchor "since the file started" metrics on the active sale's
   // createdAt when present. Legacy pre-Phase-1 files fall back to tx.createdAt.
   const fileStartAnchor = tx.activeRoundCreatedAt ?? tx.createdAt;
+  // Once a file has exchanged, client silence is expected (nothing left for
+  // them to do until completion), so the engagement-quiet flags below are
+  // suppressed. Genuine stall signals (milestone_stalled / overdue_milestone /
+  // chase_unanswered) still fire — a dragging completion is still worth knowing.
+  const hasExchanged = tx.exchangedAt != null;
 
-  // Long silence: no outbound/inbound comm in ≥10 days (active files only)
-  if (tx.status === "active") {
+  // Long silence: no outbound/inbound comm in ≥10 days (active, pre-exchange)
+  if (tx.status === "active" && !hasExchanged) {
     const commsSorted = tx.communications
       .filter((c) => c.type === "outbound" || c.type === "inbound")
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -135,7 +145,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   }
 
   // No portal activity: active ≥14 days, contacts have tokens, zero inbound comms
-  if (tx.status === "active") {
+  if (tx.status === "active" && !hasExchanged) {
     const daysActive = Math.floor((now - new Date(fileStartAnchor).getTime()) / 86400000);
     const hasPortalContacts = tx.contacts.some((c) => c.portalToken);
     const hasInbound = tx.communications.some((c) => c.type === "inbound");
@@ -149,7 +159,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   // early sign of a wobble. Distinct from no_portal_activity (which is "never
   // engaged"). Portal-only signal — WhatsApp isn't reliably logged, so we
   // don't try to infer engagement from it. (Audit #6.)
-  if (tx.status === "active") {
+  if (tx.status === "active" && !hasExchanged) {
     const ENGAGED_DISTINCT_DAYS = 3;
     const QUIET_DAYS = 14;
     for (const c of tx.contacts) {
@@ -255,6 +265,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       createdAt: true,
       updatedAt: true,
       expectedExchangeDate: true,
+      exchangedAt: true,
       activeBuyerRoundId: true,
       // Pass 3 B4: relist-aware "weeks elapsed" / "days silent" anchor.
       activeBuyerRound: { select: { createdAt: true } },

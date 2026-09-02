@@ -529,6 +529,12 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       kind: { in: [...GONE_QUIET_KINDS] },
       transaction: {
         status: "active",
+        // Exchange is the finish line for "gone quiet": once a file has
+        // exchanged, client portal silence is expected (nothing left for them
+        // to do until completion). The detector stops raising the quiet flags
+        // post-exchange (lib/services/problem-detection.ts); this guard also
+        // hides any stale flag that lingers between nightly runs.
+        exchangedAt: null,
         ...txNested,
         // Don't repeat a file that's already in "Needs your attention".
         ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
