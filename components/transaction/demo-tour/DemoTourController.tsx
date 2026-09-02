@@ -43,25 +43,45 @@ const CARD_STYLE: React.CSSProperties = {
   borderRadius: 22,
   boxShadow: "0 24px 64px rgba(15, 23, 42, 0.32)",
 };
-const PRIMARY_BTN: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-  background: "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
-  color: "var(--agent-text-on-coral)",
-  border: "none", borderRadius: 12, cursor: "pointer",
-  boxShadow: "0 4px 16px rgba(var(--agent-coral-rgb), 0.28)",
-};
-const SECONDARY_BTN: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-  background: "transparent",
-  color: "var(--agent-text-primary)",
-  border: "1px solid var(--agent-border-default)",
-  borderRadius: 12, cursor: "pointer",
-};
-const GHOST_BTN: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--agent-text-muted)",
-  border: "none", cursor: "pointer",
-};
+
+// Button styles live in a stylesheet (injected into the portal) rather than
+// inline, so they get real :hover / :active states — every tour button lifts
+// on hover and presses on click, reduced-motion aware.
+const TOUR_STYLES = `
+  .dtour-btn-primary, .dtour-btn-secondary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border-radius: 12px; cursor: pointer;
+    transition: filter 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+  }
+  .dtour-btn-primary {
+    background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light));
+    color: var(--agent-text-on-coral); border: none;
+    box-shadow: 0 4px 16px rgba(var(--agent-coral-rgb), 0.28);
+  }
+  .dtour-btn-primary:hover { filter: brightness(1.06); box-shadow: 0 6px 22px rgba(var(--agent-coral-rgb), 0.40); transform: translateY(-1px); }
+  .dtour-btn-primary:active { transform: scale(0.98); }
+  .dtour-btn-secondary {
+    background: transparent; color: var(--agent-text-primary);
+    border: 1px solid var(--agent-border-default);
+  }
+  .dtour-btn-secondary:hover { background: var(--agent-surface-nested, rgba(15, 23, 42, 0.04)); border-color: var(--agent-text-muted); }
+  .dtour-btn-secondary:active { transform: scale(0.98); }
+  .dtour-btn-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 8px; padding: 0;
+    background: transparent; color: var(--agent-text-muted); border: none; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease, transform 120ms ease;
+  }
+  .dtour-btn-icon:hover { background: var(--agent-surface-nested, rgba(15, 23, 42, 0.06)); color: var(--agent-text-primary); }
+  .dtour-btn-icon:active { transform: scale(0.9); }
+  .dtour-btn-primary:focus-visible, .dtour-btn-secondary:focus-visible, .dtour-btn-icon:focus-visible {
+    outline: 2px solid var(--agent-coral); outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dtour-btn-primary, .dtour-btn-secondary, .dtour-btn-icon { transition: none; }
+    .dtour-btn-primary:hover, .dtour-btn-primary:active, .dtour-btn-secondary:active, .dtour-btn-icon:active { transform: none; }
+  }
+`;
 
 function deviceClass(): "mobile" | "tablet" | "desktop" {
   const w = window.innerWidth;
@@ -321,6 +341,7 @@ export function DemoTourController({
       aria-live="polite"
       style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}
     >
+      <style>{TOUR_STYLES}</style>
       {running && rect && (
         <SpotlightOverlay
           rect={rect}
@@ -386,8 +407,6 @@ function SpotlightOverlay({
         ...(placeBelow ? { top: hole.t + hole.h + CARD_GAP } : { bottom: vh - hole.t + CARD_GAP }),
       };
 
-  const isAction = step.advance === "click-target";
-
   return (
     <>
       {/* Dim frame — four panels leave the target hole open + clickable. */}
@@ -430,11 +449,7 @@ function SpotlightOverlay({
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-coral-deep)" }}>
             Step {index + 1} of {total}
           </span>
-          <button
-            onClick={onSkip}
-            aria-label="Skip walkthrough"
-            style={{ ...GHOST_BTN, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 8, padding: 0 }}
-          >
+          <button onClick={onSkip} aria-label="Skip walkthrough" className="dtour-btn-icon">
             <X size={14} weight="bold" />
           </button>
         </div>
@@ -444,19 +459,13 @@ function SpotlightOverlay({
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
           {step.body}
         </p>
-        {isAction && step.actionHint && (
-          <p style={{ margin: "8px 0 0", fontSize: 12.5, fontWeight: 600, color: "var(--agent-coral-deep)", lineHeight: 1.5 }}>
-            {step.actionHint}
-          </p>
-        )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, gap: 10 }}>
-          <button onClick={onSkip} style={{ ...GHOST_BTN, fontSize: 12.5, fontWeight: 600, padding: "8px 4px" }}>
-            Skip tour
-          </button>
-          <button onClick={onAdvance} style={{ ...PRIMARY_BTN, fontSize: 13, fontWeight: 700, padding: "10px 18px" }}>
-            {isAction ? "Skip this step" : index + 1 === total ? "Finish" : "Continue"}
-          </button>
-        </div>
+        <button
+          onClick={onAdvance}
+          className="dtour-btn-primary"
+          style={{ marginTop: 16, width: "100%", fontSize: 13.5, fontWeight: 700, padding: "11px 18px" }}
+        >
+          {index + 1 === total ? "Finish" : "Continue"}
+        </button>
       </div>
     </>
   );
@@ -487,17 +496,17 @@ function FinishCard({
         }}
       >
         <p style={{ margin: "0 0 7px", fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-          That&rsquo;s your sale in Sales Progressor
+          That&rsquo;s a sale in Sales Progressor
         </p>
         <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
-          Add a real sale and we&rsquo;ll start building this the moment it&rsquo;s instructed. This demo stays put while you get your bearings.
+          Add your first sale and we&rsquo;ll start doing the same for you. The demo will stay here if you want to come back and explore.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button autoFocus onClick={onAddSale} style={{ ...PRIMARY_BTN, padding: "12px 18px", fontSize: 14, fontWeight: 700 }}>
+          <button autoFocus onClick={onAddSale} className="dtour-btn-primary" style={{ padding: "12px 18px", fontSize: 14, fontWeight: 700 }}>
             Add my first sale
           </button>
-          <button onClick={onExplore} style={{ ...SECONDARY_BTN, padding: "11px 18px", fontSize: 13.5, fontWeight: 600 }}>
-            Keep exploring the demo
+          <button onClick={onExplore} className="dtour-btn-secondary" style={{ padding: "11px 18px", fontSize: 13.5, fontWeight: 600 }}>
+            Keep exploring
           </button>
         </div>
       </div>
