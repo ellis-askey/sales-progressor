@@ -84,7 +84,7 @@ export const DEMO_TOUR_STEPS: TourStep[] = [
   },
   {
     id: "clients",
-    target: '[data-tour="people-clients"]',
+    target: '[data-glass-id="overview-people"]',
     placement: "auto",
     title: "Your clients stay in the loop",
     body: "Your buyer and seller see this same progress in their own portal, so they're not calling you for updates. You can even see when they last looked.",

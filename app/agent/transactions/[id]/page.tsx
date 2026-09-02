@@ -79,6 +79,7 @@ import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerCont
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray";
+import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount";
 
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
 type Timing = { label: string; ms: number };
@@ -412,6 +413,17 @@ export default async function AgentTransactionDetailPage({
     />
   ) : null;
 
+  // Demo guided-walkthrough: auto-start once per teammate on their first visit
+  // to the demo file. One extra query, only for demos. Finished/skipped state
+  // lives on User (set by markDemoTourSeenAction).
+  let demoTourAutoStart = false;
+  if (transaction.isDemo) {
+    const tourUser = await prisma.user
+      .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
+      .catch(() => null);
+    demoTourAutoStart = !tourUser?.demoTourCompletedAt && !tourUser?.demoTourSkippedAt;
+  }
+
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
       {perfEnabled && (
@@ -509,6 +521,7 @@ export default async function AgentTransactionDetailPage({
         sidebar={sidebar}
         initialTab={initialTab}
         heroConnected
+        tourSlot={transaction.isDemo ? <DemoTourMount autoStart={demoTourAutoStart} /> : undefined}
         beforeContent={
           <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" style={{
             borderRadius: 10,

@@ -292,7 +292,7 @@ export function ChaseTimeline({ stats, threads }: { stats: ChaseTimelineStats; t
   const selected = useMemo(() => threads.find((t) => t.id === selectedId) ?? threads[0], [threads, selectedId]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div data-tour="chase-threads" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Overview stats */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <StatCard n={stats.active} label="Active chases" color="var(--agent-text-primary)" />

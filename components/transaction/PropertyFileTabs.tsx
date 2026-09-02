@@ -41,12 +41,15 @@ type Props = {
   // the content grid, spanning full width. Used by the file-detail page
   // for the always-visible milestone journey strip.
   beforeContent?: React.ReactNode;
+  // Rendered inside TabContext (so it can drive setActiveTab) but outside the
+  // visible layout. Used by the demo file for the guided-walkthrough controller.
+  tourSlot?: React.ReactNode;
 };
 
 // Module-scoped: persists across SPA navigations for the browser session
 let _sessionSidebarOpen = false;
 
-export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected, rightSlot, beforeContent }: Props) {
+export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected, rightSlot, beforeContent, tourSlot }: Props) {
   const [active, setActive] = useState(() => {
     if (initialTab && tabs.some((t) => t.key === initialTab)) return initialTab;
     return tabs[0].key;
@@ -238,6 +241,9 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
             {sidebar}
           </div>
         </div>
+        {/* Guided-walkthrough controller (demo file only). Inside the provider
+            so it can drive setActiveTab; renders its own portal overlay. */}
+        {tourSlot}
       </TabBadgeContext.Provider>
     </TabContext.Provider>
   );

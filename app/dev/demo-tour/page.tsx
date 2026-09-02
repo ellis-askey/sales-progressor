@@ -18,7 +18,7 @@ const TARGETS: { anchor: Record<string, string>; label: string }[] = [
   { anchor: { "data-glass-id": "overview-next-action" }, label: "Next-action card (step 3, click me)" },
   { anchor: { "data-tour": "chase-threads" }, label: "Chase threads (step 4)" },
   { anchor: { id: "risk-score" }, label: "Risk widget (step 5)" },
-  { anchor: { "data-tour": "people-clients" }, label: "People / clients (step 6)" },
+  { anchor: { "data-glass-id": "overview-people" }, label: "People / clients (step 6)" },
 ];
 
 export default function DemoTourHarness() {
