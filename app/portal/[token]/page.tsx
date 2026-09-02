@@ -431,28 +431,34 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
     return "";
   })();
 
-  // Hero "Expected exchange" — prefer what the AGENT explicitly set on
-  // the file (transaction.expectedExchangeDate or overridePredictedDate)
-  // over the algorithmic median prediction. If the agent set a target,
-  // the client should see that everywhere it appears (matches the
-  // "Target exchange" row further down the page). Only fall back to
-  // the algo if no agent value exists.
-  const heroExchangeDate: Date | null =
-    transaction.overridePredictedDate
-      ? new Date(transaction.overridePredictedDate)
-      : transaction.expectedExchangeDate
-        ? new Date(transaction.expectedExchangeDate)
-        : progress.predictedExchangeDate
-          ? new Date(progress.predictedExchangeDate)
-          : null;
+  // Portal date card (Resilience audit PR 5b). Three DISTINCT concepts, no
+  // longer muddled into one "target"-labelled value:
+  //   targetDate   = the fixed 12-week TARGET (twelveWeekTarget). Never moves.
+  //   plannedDate  = a firm AGREED date the agent set (overridePredictedDate).
+  //   estimateDate = the live, progress-based prediction (expectedExchangeDate,
+  //                  refreshed by the milestone engine; falls back to the
+  //                  computed prediction). Shown soft (month-level) in the card.
+  // "Days to go" counts against the headline when: planned date if set, else
+  // the estimate.
+  const targetDate: Date | null = transaction.twelveWeekTarget
+    ? new Date(transaction.twelveWeekTarget)
+    : null;
+  const plannedDate: Date | null = transaction.overridePredictedDate
+    ? new Date(transaction.overridePredictedDate)
+    : null;
+  const estimateDate: Date | null = transaction.expectedExchangeDate
+    ? new Date(transaction.expectedExchangeDate)
+    : progress.predictedExchangeDate
+      ? new Date(progress.predictedExchangeDate)
+      : null;
 
-  // Days until the hero's exchange date (UK-timezone comparison, whole
-  // days only). Null when there's no date to count against.
+  // Days until the headline "when" (UK-timezone comparison, whole days only).
+  const headlineWhen = plannedDate ?? estimateDate;
   const daysUntilPredicted = (() => {
-    if (!heroExchangeDate) return null;
+    if (!headlineWhen) return null;
     const now = new Date();
     const startOfNow = new Date(now); startOfNow.setUTCHours(0, 0, 0, 0);
-    const startOfTgt = new Date(heroExchangeDate); startOfTgt.setUTCHours(0, 0, 0, 0);
+    const startOfTgt = new Date(headlineWhen); startOfTgt.setUTCHours(0, 0, 0, 0);
     return Math.round((startOfTgt.getTime() - startOfNow.getTime()) / 86_400_000);
   })();
 
@@ -474,7 +480,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       currentStage4={currentStage4}
       currentStageSubLabel={currentStageSubLabel}
       tiles={overviewTiles}
-      predictedExchangeDate={heroExchangeDate}
+      targetDate={targetDate}
+      estimateDate={estimateDate}
+      plannedDate={plannedDate}
       daysUntilPredicted={daysUntilPredicted}
       progressHref={`/portal/${token}/progress`}
       beforeProgress={!hasExchanged && !hasCompleted ? <PortalExchangeDaySection token={token} /> : null}
