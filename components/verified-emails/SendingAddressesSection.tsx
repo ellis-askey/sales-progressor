@@ -177,7 +177,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
             placeholder="you@youragency.co.uk"
-            className="glass-input w-full px-3 py-2.5 text-sm"
+            className="agent-input"
             autoFocus
             onKeyDown={(e) => e.key === "Enter" && startAddEmail()}
           />

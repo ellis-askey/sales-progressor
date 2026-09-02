@@ -109,8 +109,8 @@ const EMPTY_FORM = {
   givePortal: false,
 };
 
-const INPUT = "glass-input w-full px-3 py-2 text-sm";
-const SELECT = "glass-input w-full px-3 py-2 text-sm pr-8";
+const INPUT = "agent-input";
+const SELECT = "agent-input pr-8";
 
 // Rolling-7-day chase-email thresholds, unchanged from previous impl.
 const AUTO_EMAIL_AMBER_AT = 3;
