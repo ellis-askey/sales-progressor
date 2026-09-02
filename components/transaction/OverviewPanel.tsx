@@ -35,8 +35,8 @@ import { NextActionCardConsumer } from "@/components/transaction/NextActionCardC
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { PropertyChainCard } from "@/components/transaction/PropertyChainCard";
-import { getUninvitedNeighbourCount } from "@/lib/services/chains";
 import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } from "@/lib/services/onward";
+import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
@@ -372,7 +372,30 @@ export async function OverviewPanel({
   const onwardSignal = await getOnwardSignalForFile(transaction.id);
   const relatedView = await getOnwardTrackerView(transaction.id, "related_sale");
   const relatedSignal = await getRelatedSaleSignalForFile(transaction.id);
-  const uninvitedCount = await getUninvitedNeighbourCount(transaction.id);
+
+  // Current-sale status + a short "what's happening now" line for the chain
+  // card's middle node. Status from the file status; the sub-line is the live
+  // display stage (so it self-updates as the file moves).
+  const chainStages = milestoneData
+    ? resolveDisplayStages(
+        [...milestoneData.vendor, ...milestoneData.purchaser],
+        {
+          expectedExchangeDate: transaction.expectedExchangeDate ?? null,
+          overridePredictedDate: transaction.overridePredictedDate ?? null,
+          targetCompletionDate: transaction.completionDate ?? null,
+        },
+      )
+    : [];
+  const activeStage =
+    chainStages.find((s) => s.status === "in_progress") ??
+    chainStages.find((s) => s.status === "up_next");
+  let chainCurrentStatus: { label: string; tone: "active" | "hold" | "done" | "off" } = { label: "In progress", tone: "active" };
+  let chainCurrentSubtext = activeStage
+    ? `${activeStage.name} ${activeStage.status === "in_progress" ? "in progress" : "up next"}`
+    : "Getting started";
+  if (transaction.status === "on_hold") { chainCurrentStatus = { label: "On hold", tone: "hold" }; chainCurrentSubtext = "Paused"; }
+  else if (transaction.status === "completed") { chainCurrentStatus = { label: "Completed", tone: "done" }; chainCurrentSubtext = "Sale complete"; }
+  else if (transaction.status === "withdrawn") { chainCurrentStatus = { label: "Withdrawn", tone: "off" }; chainCurrentSubtext = "Sale withdrawn"; }
 
   // Client's own broker (portal-entered), shown in the Professionals tab beside
   // the solicitors. Both sides: purchaser for buyers, vendor for a seller's onward.
@@ -475,10 +498,11 @@ export async function OverviewPanel({
         transactionId={transaction.id}
         thisSaleAddress={transaction.propertyAddress}
         photoUrl={photoUrl}
+        currentStatus={chainCurrentStatus}
+        currentSubtext={chainCurrentSubtext}
         onward={{ view: onwardView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
         related={{ view: relatedView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
         showRelated={relatedView.exists || relatedSignal.selling}
-        uninvitedCount={uninvitedCount}
         openChain={
           <ViewChainButton
             transactionId={transaction.id}
