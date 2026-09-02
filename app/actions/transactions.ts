@@ -1268,6 +1268,50 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   revalidateTx(transactionId);
 }
 
+// Recover a file that reached the DB WITHOUT tenure/purchaseType (a non-form
+// creation path: admin migrate, API, an un-promoted draft). Such a file has
+// ZERO MilestoneCompletion rows, so the whole milestone engine, chase, and
+// exchange gate have nothing to act on, and no existing edit path re-initialises
+// them (savePurchaseTypeAction writes only the column; confirmSaleDetailsAction
+// only mutates existing rows). This sets the missing field(s) and, once BOTH
+// are present, runs the idempotent initialiser to backfill the milestone rows.
+// Idempotent: a file that already has rows is a no-op on the milestone side.
+// (Resilience audit PR 8.)
+export async function recoverSaleSetupAction(
+  transactionId: string,
+  patch: { tenure?: Tenure; purchaseType?: PurchaseType; isShareOfFreehold?: boolean },
+) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, tenure: true, purchaseType: true, activeBuyerRoundId: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const nextTenure = patch.tenure ?? tx.tenure;
+  const nextPurchaseType = patch.purchaseType ?? tx.purchaseType;
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: {
+      ...(patch.tenure !== undefined ? { tenure: patch.tenure } : {}),
+      ...(patch.purchaseType !== undefined ? { purchaseType: patch.purchaseType } : {}),
+      ...(patch.isShareOfFreehold !== undefined ? { isShareOfFreehold: patch.isShareOfFreehold } : {}),
+    },
+  });
+
+  // Once both are present, backfill the milestone rows (idempotent) and kick the
+  // reminder engine so the file's chase scaffold comes to life.
+  if (nextTenure && nextPurchaseType) {
+    await initializeMilestoneCompletions(transactionId, nextTenure, nextPurchaseType, session.user.id, tx.activeBuyerRoundId);
+    void evaluateTransactionReminders(transactionId).catch(() => {});
+  }
+
+  await logActivity(transactionId, `${session.user.name} set up the sale details`, session.user.id);
+  revalidateTx(transactionId);
+}
+
 export async function savePurchaseTypeAction(transactionId: string, purchaseType: PurchaseType) {
   const session = await requireSession();
   const scope = getAccessScope(session);

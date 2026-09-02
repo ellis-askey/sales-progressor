@@ -24,7 +24,7 @@ import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phos
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction } from "@/app/actions/transactions";
+import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction, recoverSaleSetupAction } from "@/app/actions/transactions";
 import type { SaleDetailsDelta } from "@/app/actions/transactions";
 import { SaleDetailChangeModal } from "./SaleDetailChangeModal";
 
@@ -279,7 +279,12 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
   const [confirming, setConfirming] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  const typeTenureLocked = exchanged || purchaseType == null || tenure == null;
+  // Only truly locked after exchange. When tenure/purchaseType are null (a file
+  // that reached the DB without them, e.g. a non-form create), the cells stay
+  // editable so the agent can set them up from here and repair the file
+  // (Resilience audit PR 8) — the first set routes through recoverSaleSetupAction.
+  const typeTenureLocked = exchanged;
+  const inRecovery = !exchanged && (purchaseType == null || tenure == null);
 
   function openPopover(field: "type" | "tenure") {
     const ref = field === "type" ? typeBtnRef : tenureBtnRef;
@@ -302,6 +307,29 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
 
   async function pickOption(field: "type" | "tenure", value: string) {
     setOpenField(null);
+
+    // Recovery path: the file is missing tenure and/or purchaseType, so there
+    // is no from->to delta to preview. Just set the picked value; once both are
+    // present recoverSaleSetupAction backfills the milestone rows.
+    if (inRecovery) {
+      try {
+        if (field === "type") {
+          await recoverSaleSetupAction(transactionId, { purchaseType: value as PurchaseType });
+        } else {
+          const { tenure: newTenure, share: newShare } = tenureChoiceToState(value as TenureChoice);
+          await recoverSaleSetupAction(transactionId, { tenure: newTenure, isShareOfFreehold: newShare });
+        }
+        toast.success("Sale details updated");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Couldn't save the change");
+      }
+      return;
+    }
+
+    // Past here both are set (inRecovery covered the null case; exchanged files
+    // render the cells locked so pickOption isn't reachable). Narrows the types
+    // for the delta/confirm flow below.
     if (purchaseType == null || tenure == null) return;
 
     let next: PendingChange;
