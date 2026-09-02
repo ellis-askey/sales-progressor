@@ -677,13 +677,13 @@
     color: var(--agent-text-muted);
   }
   .agent-input:hover:not(:disabled):not(:focus) {
-    border-color: var(--agent-border-strong);
+    border-color: var(--agent-border-focus);
   }
   .agent-input:focus {
     outline: none;
-    border-color: var(--agent-border-focus);
+    border-color: var(--agent-coral-deep);
     background: rgba(255, 255, 255, 0.72);
-    box-shadow: var(--agent-focus-ring);
+    box-shadow: none;
   }
   .agent-input:disabled {
     background: var(--agent-glass-bg-subtle);
@@ -769,12 +769,12 @@
                 box-shadow   var(--agent-transition-fast);
   }
   .agent-textarea::placeholder { color: var(--agent-text-muted); }
-  .agent-textarea:hover:not(:disabled):not(:focus) { border-color: var(--agent-border-strong); }
+  .agent-textarea:hover:not(:disabled):not(:focus) { border-color: var(--agent-border-focus); }
   .agent-textarea:focus {
     outline: none;
-    border-color: var(--agent-border-focus);
+    border-color: var(--agent-coral-deep);
     background: rgba(255, 255, 255, 0.72);
-    box-shadow: var(--agent-focus-ring);
+    box-shadow: none;
   }
   .agent-textarea:disabled {
     background: var(--agent-glass-bg-subtle);
