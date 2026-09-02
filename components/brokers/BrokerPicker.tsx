@@ -246,7 +246,7 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
             }}
             onBlur={() => { if (!showDropdown) setInputBlurred(true); }}
             placeholder="Search broker name…"
-            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
+            className={`agent-input${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
           />
           {unconfirmed && (
             <p className="agent-helper-warning">Brokerage not saved — choose from results or add as new</p>
@@ -266,7 +266,7 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
                   if (h) selectHandler(h);
                   else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
                 }}
-                className="glass-input w-full px-3 py-2.5 text-sm"
+                className="agent-input"
               >
                 <option value="">
                   {handlers.length === 0 ? "No contacts saved yet" : "Select broker contact…"}

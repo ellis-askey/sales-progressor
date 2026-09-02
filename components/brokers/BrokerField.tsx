@@ -256,7 +256,7 @@ export function BrokerField({
                       onChange={(e) => setForm({ ...form, firmName: e.target.value })}
                       onBlur={() => setForm((f) => ({ ...f, firmName: titleCaseKeepAcronyms(f.firmName) }))}
                       placeholder="e.g. Bright Future Mortgages"
-                      className="glass-input w-full px-3 py-2.5 text-sm"
+                      className="agent-input"
                     />
                   </div>
                   <div>
@@ -266,7 +266,7 @@ export function BrokerField({
                       onChange={(e) => setForm({ ...form, contactName: e.target.value })}
                       onBlur={() => setForm((f) => ({ ...f, contactName: titleCaseKeepAcronyms(f.contactName) }))}
                       placeholder="e.g. Aisha Rahman"
-                      className="glass-input w-full px-3 py-2.5 text-sm"
+                      className="agent-input"
                     />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -278,7 +278,7 @@ export function BrokerField({
                         onBlur={() => setForm((f) => ({ ...f, phone: formatUKPhone(f.phone) }))}
                         placeholder="020 …"
                         inputMode="tel"
-                        className="glass-input w-full px-3 py-2.5 text-sm"
+                        className="agent-input"
                       />
                     </div>
                     <div>
@@ -288,7 +288,7 @@ export function BrokerField({
                         onChange={(e) => setForm({ ...form, email: e.target.value.toLowerCase() })}
                         placeholder="name@firm.co.uk"
                         inputMode="email"
-                        className="glass-input w-full px-3 py-2.5 text-sm"
+                        className="agent-input"
                       />
                     </div>
                   </div>

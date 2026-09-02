@@ -298,7 +298,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
   if (pathname === "/agent/hub" && !effectiveProgress.hasSale && !forceShow) return null;
 
   return (
-    <div style={{
+    <div data-onboarding-checklist="" style={{
       position: "fixed",
       bottom: 24,
       right: 24,

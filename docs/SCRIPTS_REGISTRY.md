@@ -64,6 +64,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete after Ellis has walked the demo and the seeded demo files are removed from staging.
 - **Justification:** a throwaway walk-through seeder, staging-only (refuses to run against the prod DB host before any write). Not a feature or test — it fabricates demo state that must never ship to real users (Law 20 keeps demo strings in seed files like this).
 
+### scripts/upload-demo-house-photo.ts
+
+- **Purpose:** Uploads Images/House.png into the `transaction-documents` bucket at `demo/house.png` (the path `DEMO_PRESET.photoStoragePath` points at) so the demo showcase hero shows the property photo instead of the empty "Add photo" state. The asset existed on prod storage but not staging, so demos on staging rendered photo-less.
+- **Lifetime:** `one-shot`
+- **Author:** CC (demo guided-experience), 2026-09-02
+- **Deletion criteria:** delete once demo storage assets (house / mos / agent avatar) are seeded into every environment as part of the demo build, so no manual upload is needed.
+- **Justification:** a one-off asset upload to whichever Supabase the env points at; idempotent (upsert). Not a feature or test — it provisions a static demo asset. Related to [[demo-sale]].
+
 ### scripts/seed-playwright-director.ts
 
 - **Purpose:** Creates or refreshes a dedicated staging director user (`playwright-baseline@thesalesprogressor.test`) with a known password matching `TEST_PASSWORD`. Used by `e2e/baseline-file-detail.spec.ts` for autonomous Playwright screenshot capture and surface-1 E2E coverage.

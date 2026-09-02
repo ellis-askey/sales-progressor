@@ -484,7 +484,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 onChange={(e) => setHoldDate(e.target.value)}
                 min={tomorrow()}
                 autoFocus
-                className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                className="agent-input"
               />
               {holdDateInPast && (
                 <p style={{ fontSize: 11, color: "#b45309", margin: "6px 0 0", fontWeight: 500 }}>
@@ -501,7 +501,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 onChange={(e) => setHoldReason(e.target.value)}
                 maxLength={500}
                 placeholder="Waiting for buyer searches, probate, chain issue…"
-                className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                className="agent-input"
               />
 
               <div className="flex gap-3 pt-5">

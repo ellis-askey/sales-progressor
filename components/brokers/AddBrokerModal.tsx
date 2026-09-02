@@ -128,7 +128,7 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
                   onBlur={blurFirm}
                   placeholder="e.g. Bright Future Mortgages"
                   required
-                  className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                  className="agent-input"
                 />
               </div>
 
@@ -148,7 +148,7 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
                         onChange={(e) => setHandlerName(e.target.value)}
                         onBlur={blurName}
                         placeholder="e.g. James Morris"
-                        className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                        className="agent-input"
                       />
                     </div>
                     <div>
@@ -162,7 +162,7 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
                         onChange={(e) => setHandlerPhone(e.target.value)}
                         onBlur={blurPhone}
                         placeholder="07700 900 000"
-                        className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                        className="agent-input"
                       />
                     </div>
                   </div>
@@ -178,7 +178,7 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
                       onChange={(e) => { setHandlerEmail(e.target.value); setEmailError(null); }}
                       onBlur={blurEmail}
                       placeholder="j.morris@broker.co.uk"
-                      className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${emailError ? " agent-input-error" : ""}`}
+                      className={`agent-input${emailError ? " agent-input-error" : ""}`}
                     />
                     {emailError && <p className="agent-helper-error">{emailError}</p>}
                   </div>

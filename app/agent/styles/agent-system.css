@@ -677,13 +677,13 @@
     color: var(--agent-text-muted);
   }
   .agent-input:hover:not(:disabled):not(:focus) {
-    border-color: var(--agent-border-strong);
+    border-color: var(--agent-border-focus);
   }
   .agent-input:focus {
     outline: none;
-    border-color: var(--agent-border-focus);
+    border-color: var(--agent-coral-deep);
     background: rgba(255, 255, 255, 0.72);
-    box-shadow: var(--agent-focus-ring);
+    box-shadow: none;
   }
   .agent-input:disabled {
     background: var(--agent-glass-bg-subtle);
@@ -769,12 +769,12 @@
                 box-shadow   var(--agent-transition-fast);
   }
   .agent-textarea::placeholder { color: var(--agent-text-muted); }
-  .agent-textarea:hover:not(:disabled):not(:focus) { border-color: var(--agent-border-strong); }
+  .agent-textarea:hover:not(:disabled):not(:focus) { border-color: var(--agent-border-focus); }
   .agent-textarea:focus {
     outline: none;
-    border-color: var(--agent-border-focus);
+    border-color: var(--agent-coral-deep);
     background: rgba(255, 255, 255, 0.72);
-    box-shadow: var(--agent-focus-ring);
+    box-shadow: none;
   }
   .agent-textarea:disabled {
     background: var(--agent-glass-bg-subtle);
@@ -786,8 +786,8 @@
    * Uses !important on border-color to override inline-style borders during focus */
   .agent-focus:focus {
     outline: none;
-    border-color: var(--agent-border-focus) !important;
-    box-shadow: var(--agent-focus-ring);
+    border-color: var(--agent-coral-deep) !important;
+    box-shadow: none;
   }
 
   /* Themed section label — replaces divergent all-caps grey label implementations.
@@ -2538,4 +2538,16 @@
 }
 [data-theme="dark"] .agent-pill-glass .pill-dot {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.10);
+}
+
+/* Demo mode: fade the global "Getting started" checklist out while the agent
+   is on the demo file (the DemoTourController stamps body[data-demo-file] on
+   mount), so it doesn't compete with the walkthrough. It fades back in on any
+   real page. */
+[data-onboarding-checklist] {
+  transition: opacity 200ms ease;
+}
+body[data-demo-file] [data-onboarding-checklist] {
+  opacity: 0;
+  pointer-events: none;
 }
