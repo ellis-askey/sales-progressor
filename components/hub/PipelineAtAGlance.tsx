@@ -2,7 +2,8 @@
 
 // Hub polish PR 2 — Pipeline at a glance visualization.
 //
-// Five connected stage circles: New → Legals → Ready → Exchanging → Completed.
+// Seven connected stage circles: New → Onboarding → Searches → Enquiries →
+// Ready → Exchanged → Completed.
 // Each shows the count for that bucket per getHubPipelineStages(vis), and on
 // hover / focus / tap reveals a glass bubble with per-stage stats (medians,
 // value locked, overdue counts, SLA hit rate). Data is already scoped to the
@@ -13,7 +14,7 @@
 // on the outer container.
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { HouseSimple, FileText, Handshake, ArrowsClockwise, Key } from "@phosphor-icons/react/dist/ssr";
+import { HouseSimple, FolderOpen, MagnifyingGlass, ChatCircleDots, Handshake, ArrowsClockwise, Key } from "@phosphor-icons/react/dist/ssr";
 import type { HubPipelineStages } from "@/lib/services/hub";
 import { PipelineStageHover, type StageKey } from "./PipelineStageHover";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -28,15 +29,19 @@ type Stage = {
 };
 
 const STAGES: Stage[] = [
-  { key: "new",        label: "New",        Icon: HouseSimple,      iconBg: "rgba(16, 185, 129, 0.10)", iconColor: "#047857", ringColor: "rgba(16, 185, 129, 0.35)" },
-  { key: "legals",     label: "Legals",     Icon: FileText,          iconBg: "rgba(59, 130, 246, 0.10)", iconColor: "#1d4ed8", ringColor: "rgba(59, 130, 246, 0.35)" },
-  { key: "ready",      label: "Ready",      Icon: Handshake,         iconBg: "rgba(245, 158, 11, 0.10)", iconColor: "#b45309", ringColor: "rgba(245, 158, 11, 0.35)" },
-  { key: "exchanging", label: "Exchanged",  Icon: ArrowsClockwise,   iconBg: "rgba(139, 92, 246, 0.10)", iconColor: "#6d28d9", ringColor: "rgba(139, 92, 246, 0.35)" },
-  { key: "completed",  label: "Completed",  Icon: Key,               iconBg: "rgba(16, 185, 129, 0.12)", iconColor: "#065f46", ringColor: "rgba(16, 185, 129, 0.35)" },
+  { key: "new",        label: "New",        Icon: HouseSimple,     iconBg: "rgba(16, 185, 129, 0.10)", iconColor: "#047857", ringColor: "rgba(16, 185, 129, 0.35)" },
+  { key: "onboarding", label: "Onboarding", Icon: FolderOpen,      iconBg: "rgba(8, 145, 178, 0.10)",  iconColor: "#0e7490", ringColor: "rgba(8, 145, 178, 0.35)" },
+  { key: "searches",   label: "Searches",   Icon: MagnifyingGlass, iconBg: "rgba(59, 130, 246, 0.10)", iconColor: "#1d4ed8", ringColor: "rgba(59, 130, 246, 0.35)" },
+  { key: "enquiries",  label: "Enquiries",  Icon: ChatCircleDots,  iconBg: "rgba(79, 70, 229, 0.10)",  iconColor: "#4338ca", ringColor: "rgba(79, 70, 229, 0.35)" },
+  { key: "ready",      label: "Ready",      Icon: Handshake,       iconBg: "rgba(245, 158, 11, 0.10)", iconColor: "#b45309", ringColor: "rgba(245, 158, 11, 0.35)" },
+  { key: "exchanging", label: "Exchanged",  Icon: ArrowsClockwise, iconBg: "rgba(139, 92, 246, 0.10)", iconColor: "#6d28d9", ringColor: "rgba(139, 92, 246, 0.35)" },
+  { key: "completed",  label: "Completed",  Icon: Key,             iconBg: "rgba(16, 185, 129, 0.12)", iconColor: "#065f46", ringColor: "rgba(16, 185, 129, 0.35)" },
 ];
 
 export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
-  const totalActive = stages.new.count + stages.legals.count + stages.ready.count + stages.exchanging.count;
+  const totalActive =
+    stages.new.count + stages.onboarding.count + stages.searches.count +
+    stages.enquiries.count + stages.ready.count + stages.exchanging.count;
   const anyProgress = totalActive > 0 || stages.completed.count > 0;
 
   // Which stage's bubble is currently open. On desktop, mouseover sets it,
@@ -171,7 +176,7 @@ function StageNode({
         alignItems: "center",
         gap: 8,
         flex: "0 0 auto",
-        minWidth: 78,
+        minWidth: 62,
         opacity: dim ? 0.6 : 1,
         transition: "opacity 200ms ease",
         cursor: "pointer",
@@ -179,7 +184,7 @@ function StageNode({
       }}
     >
       <div style={{
-        width: 56, height: 56, borderRadius: "50%",
+        width: 50, height: 50, borderRadius: "50%",
         background: stage.iconBg,
         border: `1.5px solid ${stage.ringColor}`,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -194,7 +199,7 @@ function StageNode({
             : "0 1px 3px rgba(15,23,42,0.06)",
         transition: "box-shadow 160ms ease",
       }}>
-        <Icon size={22} weight="regular" />
+        <Icon size={20} weight="regular" />
       </div>
       <p style={{
         margin: 0,
@@ -223,7 +228,9 @@ function StageNode({
 
 function renderHover(key: StageKey, stages: HubPipelineStages, anchor: DOMRect | null) {
   if (key === "new")        return <PipelineStageHover stage="new"        stats={stages.new}        anchor={anchor} />;
-  if (key === "legals")     return <PipelineStageHover stage="legals"     stats={stages.legals}     anchor={anchor} />;
+  if (key === "onboarding") return <PipelineStageHover stage="onboarding" stats={stages.onboarding} anchor={anchor} />;
+  if (key === "searches")   return <PipelineStageHover stage="searches"   stats={stages.searches}   anchor={anchor} />;
+  if (key === "enquiries")  return <PipelineStageHover stage="enquiries"  stats={stages.enquiries}  anchor={anchor} />;
   if (key === "ready")      return <PipelineStageHover stage="ready"      stats={stages.ready}      anchor={anchor} />;
   if (key === "exchanging") return <PipelineStageHover stage="exchanging" stats={stages.exchanging} anchor={anchor} />;
   return                          <PipelineStageHover stage="completed"  stats={stages.completed}  anchor={anchor} />;
@@ -233,8 +240,8 @@ function StageConnector() {
   return (
     <div style={{
       flex: 1,
-      minWidth: 12,
-      marginTop: 28, // vertical align with circle midpoint (56/2)
+      minWidth: 10,
+      marginTop: 25, // vertical align with circle midpoint (50/2)
       height: 1,
       display: "flex",
       alignItems: "center",

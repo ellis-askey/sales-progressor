@@ -566,13 +566,44 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, lastActivityAt: true,
           expectedExchangeDate: true, overridePredictedDate: true,
-          contacts: { select: { name: true, roleType: true } },
+          contacts: { select: { id: true, name: true, roleType: true } },
         },
       },
     },
   });
 
   const firstName = (n: string) => extractFirstName(n);
+
+  // Name the actual client who went quiet (item 1). The flag doesn't record
+  // which contact stopped visiting, so re-derive it the way the detector does:
+  // a contact who visited the portal on 3+ days then went quiet for 14+. One
+  // grouped read across every quiet file's contacts, then match per file.
+  const QUIET_DAYS = 14, ENGAGED_DAYS = 3;
+  const quietContactIds = flags
+    .filter((f) => f.kind === "portal_gone_quiet")
+    .flatMap((f) => f.transaction.contacts.map((c) => c.id));
+  const visitAgg = quietContactIds.length
+    ? await prisma.portalVisit.groupBy({
+        by: ["contactId"],
+        where: { contactId: { in: quietContactIds } },
+        _count: { day: true },
+        _max: { day: true },
+      })
+    : [];
+  const visitByContact = new Map(visitAgg.map((v) => [v.contactId, { days: v._count.day, lastDay: v._max.day }]));
+  // The engaged-then-quiet contact on a file, most-engaged first, or null.
+  const quietClientName = (contacts: { id: string; name: string }[]): string | null => {
+    const candidates = contacts
+      .map((c) => ({ c, v: visitByContact.get(c.id) }))
+      .filter((x): x is { c: { id: string; name: string }; v: { days: number; lastDay: string | null } } => {
+        if (!x.v || !x.v.lastDay || x.v.days < ENGAGED_DAYS) return false;
+        const daysSince = Math.floor((now.getTime() - new Date(`${x.v.lastDay}T00:00:00Z`).getTime()) / 86400000);
+        return daysSince >= QUIET_DAYS;
+      })
+      .sort((a, b) => b.v.days - a.v.days);
+    return candidates[0] ? firstName(candidates[0].c.name) : null;
+  };
+
   // One row per file — the earliest-detected (longest-standing) flag wins.
   const seen = new Set<string>();
   const items: GoneQuietItem[] = [];
@@ -588,7 +619,10 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       ? Math.floor((now.getTime() - new Date(tx.lastActivityAt).getTime()) / 86400000)
       : null;
     if (f.kind === "portal_gone_quiet") {
-      subtext = `${who ?? "A client"} was checking the portal regularly, then stopped.`;
+      // Prefer the specific person who went quiet; fall back to the sole buyer,
+      // then a generic label.
+      const named = quietClientName(tx.contacts) ?? who;
+      subtext = `${named ?? "A client"} was checking the portal regularly, then stopped.`;
     } else if (f.kind === "no_portal_activity") {
       subtext = who ? `${who} hasn't opened the portal since it was set up.` : "No client has opened the portal since it was set up.";
     } else {
@@ -1057,12 +1091,29 @@ export type StageStatsNew = {
   quietFiles: number;
 };
 
-export type StageStatsLegals = {
+// The old single "legals" bucket is split into three real conveyancing phases
+// (chase-consolidation hub work, 2026-09-02): onboarding → searches →
+// enquiries. A file sits in the FURTHEST phase either side has reached.
+export type StageStatsOnboarding = {
   count: number;
-  vendorBlocking: number;
-  buyerBlocking: number;
-  bothBlocking: number;
-  medianDaysInLegals: number | null;
+  // Files still without the draft contract pack (VM7 / PM7).
+  awaitingDraftPack: number;
+  // Longest a file has been on the books in this stage (days since created).
+  oldestDays: number | null;
+};
+
+export type StageStatsSearches = {
+  count: number;
+  // Searches ordered (PM8) but results (PM13) not yet in.
+  awaitingResults: number;
+  oldestDays: number | null;
+};
+
+export type StageStatsEnquiries = {
+  count: number;
+  // Files with an enquiry loop still open (tracker not yet closed).
+  openLoops: number;
+  oldestDays: number | null;
 };
 
 export type StageStatsReady = {
@@ -1088,11 +1139,24 @@ export type StageStatsCompleted = {
 
 export type HubPipelineStages = {
   new: StageStatsNew;
-  legals: StageStatsLegals;
+  onboarding: StageStatsOnboarding;
+  searches: StageStatsSearches;
+  enquiries: StageStatsEnquiries;
   ready: StageStatsReady;
   exchanging: StageStatsExchanging;
   completed: StageStatsCompleted;
 };
+
+// Phase-entry milestone codes — a file is bucketed into the furthest phase
+// whose entry milestones (either side) it has reached. Onboarding = solicitor
+// set-up through the draft contract pack; Searches = buyer's solicitor ordering
+// searches / getting results; Enquiries = the enquiry-and-contract back-and-
+// forth (also driven by the EnquiryTracker). Ready/Exchange/Completion use the
+// gate + confirmation milestones. See getHubPipelineStages.
+const ONBOARDING_CODES = ["VM3", "VM4", "VM5", "VM6", "VM7", "VM8", "VM9", "PM3", "PM4", "PM5", "PM6", "PM7"];
+const SEARCHES_CODES = ["PM8", "PM13"];
+const ENQUIRIES_CODES = ["VM10", "VM16", "VM17", "PM14", "PM20", "PM21", "PM22", "PM23", "PM24"];
+const DRAFT_PACK_CODES = ["VM7", "PM7"];
 
 function daysBetween(a: Date, b: Date): number {
   return Math.floor((a.getTime() - b.getTime()) / 86400000);
@@ -1115,7 +1179,9 @@ function sumPence(values: Array<number | null>): number | null {
 
 const EMPTY_STAGES: HubPipelineStages = {
   new: { count: 0, oldestDays: null, newThisWeek: 0, quietFiles: 0 },
-  legals: { count: 0, vendorBlocking: 0, buyerBlocking: 0, bothBlocking: 0, medianDaysInLegals: null },
+  onboarding: { count: 0, awaitingDraftPack: 0, oldestDays: null },
+  searches: { count: 0, awaitingResults: 0, oldestDays: null },
+  enquiries: { count: 0, openLoops: 0, oldestDays: null },
   ready: { count: 0, overdueToExchange: 0, medianDaysToExchange: null, totalValueLocked: null },
   exchanging: { count: 0, completingThisWeek: 0, medianDaysSinceExchange: null, totalValueClosing: null },
   completed: { count: 0, totalValueClosed: null, medianDaysToComplete: null, slaHitRate: null },
@@ -1141,24 +1207,16 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
   //   PM25 = purchaser "ready to exchange" gate
   //   VM19 / PM26 = exchange confirmation
   //   VM20 / PM27 = completion confirmation
-  const [readyDefs, exchangeDefs, completionDefs] = await Promise.all([
-    prisma.milestoneDefinition.findMany({
-      where: { code: { in: ["VM18", "PM25"] } },
-      select: { id: true, code: true },
-    }),
-    prisma.milestoneDefinition.findMany({
-      where: { code: { in: ["VM19", "PM26"] } },
-      select: { id: true },
-    }),
-    prisma.milestoneDefinition.findMany({
-      where: { code: { in: ["VM20", "PM27"] } },
-      select: { id: true },
-    }),
-  ]);
-  const vm18Id = readyDefs.find((d) => d.code === "VM18")?.id;
-  const pm25Id = readyDefs.find((d) => d.code === "PM25")?.id;
-  const exchangeDefIds = exchangeDefs.map((d) => d.id);
-  const completionDefIds = completionDefs.map((d) => d.id);
+  // One load of every definition → an id→code map, so the active-pool
+  // bucketing can classify a file by the CODES it has completed (not just the
+  // ready gates). Cheap: ~48 rows, unfiltered.
+  const allDefs = await prisma.milestoneDefinition.findMany({ select: { id: true, code: true } });
+  const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
+  const idsForCodes = (codes: string[]) => allDefs.filter((d) => codes.includes(d.code)).map((d) => d.id);
+  const vm18Id = allDefs.find((d) => d.code === "VM18")?.id;
+  const pm25Id = allDefs.find((d) => d.code === "PM25")?.id;
+  const exchangeDefIds = idsForCodes(["VM19", "PM26"]);
+  const completionDefIds = idsForCodes(["VM20", "PM27"]);
 
   if (!vm18Id || !pm25Id || exchangeDefIds.length < 2 || completionDefIds.length < 2) {
     // Milestone engine hasn't been seeded — return empty stats rather than crash.
@@ -1264,6 +1322,9 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         lastActivityAt: true,
         expectedExchangeDate: true,
         purchasePrice: true,
+        // Enquiries are tracker-driven since the enquiries rework — an open
+        // tracker (closedAt null) means the enquiry loop is still live.
+        enquiryTracker: { select: { closedAt: true } },
         milestoneCompletions: {
           where: {
             state: "complete",
@@ -1276,45 +1337,49 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
     }),
   ]);
 
-  // Bucket the active-not-yet-exchanging pool + accumulate per-stage stats.
+  // Bucket the active-not-yet-exchanging pool into the four pre-exchange phases
+  // by the FURTHEST phase either side has reached: ready > enquiries > searches
+  // > onboarding > new. Mutually exclusive — a file appears in exactly one.
   const newFiles: typeof activePool = [];
-  const legalsFiles: typeof activePool = [];
+  const onboardingFiles: typeof activePool = [];
+  const searchesFiles: typeof activePool = [];
+  const enquiriesFiles: typeof activePool = [];
   const readyFiles: typeof activePool = [];
 
-  let vendorBlocking = 0, buyerBlocking = 0, bothBlocking = 0;
-
   for (const tx of activePool) {
-    const completions = tx.milestoneCompletions;
-    const completeIds = new Set(completions.map((m) => m.milestoneDefinitionId));
-    const vm18Done = completeIds.has(vm18Id);
-    const pm25Done = completeIds.has(pm25Id);
-    if (vm18Done && pm25Done) {
-      readyFiles.push(tx);
-    } else if (completions.length < 5) {
-      newFiles.push(tx);
-    } else {
-      legalsFiles.push(tx);
-      // In legals: PM25 missing = buyer-side, VM18 missing = vendor-side.
-      // If both missing, count as "both" so the three add up to legals.count.
-      if (!vm18Done && !pm25Done) bothBlocking++;
-      else if (!vm18Done) vendorBlocking++;
-      else buyerBlocking++;
-    }
+    const completeCodes = new Set(
+      tx.milestoneCompletions.map((m) => codeById.get(m.milestoneDefinitionId)).filter((c): c is string => !!c),
+    );
+    const reached = (codes: string[]) => codes.some((c) => completeCodes.has(c));
+    const vm18Done = completeCodes.has("VM18");
+    const pm25Done = completeCodes.has("PM25");
+    const enquiriesReached = !!tx.enquiryTracker || reached(ENQUIRIES_CODES);
+
+    if (vm18Done && pm25Done) readyFiles.push(tx);
+    else if (enquiriesReached) enquiriesFiles.push(tx);
+    else if (reached(SEARCHES_CODES)) searchesFiles.push(tx);
+    else if (reached(ONBOARDING_CODES)) onboardingFiles.push(tx);
+    else newFiles.push(tx);
   }
 
+  const oldestDays = (files: typeof activePool) =>
+    files.length > 0 ? Math.max(...files.map((t) => daysBetween(now, t.createdAt))) : null;
+  const hasCode = (tx: (typeof activePool)[number], codes: string[]) =>
+    tx.milestoneCompletions.some((m) => { const c = codeById.get(m.milestoneDefinitionId); return !!c && codes.includes(c); });
+
   // NEW stats
-  const newOldest = newFiles.length > 0
-    ? Math.max(...newFiles.map((t) => daysBetween(now, t.createdAt)))
-    : null;
+  const newOldest = oldestDays(newFiles);
   const newThisWeek = newFiles.filter((t) => t.createdAt >= sevenDaysAgo).length;
   const quietFiles = newFiles.filter((t) => !t.lastActivityAt || t.lastActivityAt < sevenDaysAgo).length;
 
-  // LEGALS stats — median days since first completion (proxy for "days in legals")
-  const legalsDurations = legalsFiles
-    .map((t) => t.milestoneCompletions[0]?.completedAt)
-    .filter((d): d is Date => d != null)
-    .map((d) => daysBetween(now, d));
-  const medianDaysInLegals = median(legalsDurations);
+  // ONBOARDING stats — how many are still waiting on the draft contract pack.
+  const onboardingAwaitingPack = onboardingFiles.filter((t) => !hasCode(t, DRAFT_PACK_CODES)).length;
+
+  // SEARCHES stats — ordered (PM8) but results (PM13) not yet in.
+  const searchesAwaitingResults = searchesFiles.filter((t) => hasCode(t, ["PM8"]) && !hasCode(t, ["PM13"])).length;
+
+  // ENQUIRIES stats — files whose enquiry loop is still open.
+  const enquiriesOpenLoops = enquiriesFiles.filter((t) => t.enquiryTracker && t.enquiryTracker.closedAt == null).length;
 
   // READY stats
   const readyOverdue = readyFiles.filter((t) => t.expectedExchangeDate && t.expectedExchangeDate < now).length;
@@ -1355,12 +1420,20 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       newThisWeek,
       quietFiles,
     },
-    legals: {
-      count: legalsFiles.length,
-      vendorBlocking,
-      buyerBlocking,
-      bothBlocking,
-      medianDaysInLegals,
+    onboarding: {
+      count: onboardingFiles.length,
+      awaitingDraftPack: onboardingAwaitingPack,
+      oldestDays: oldestDays(onboardingFiles),
+    },
+    searches: {
+      count: searchesFiles.length,
+      awaitingResults: searchesAwaitingResults,
+      oldestDays: oldestDays(searchesFiles),
+    },
+    enquiries: {
+      count: enquiriesFiles.length,
+      openLoops: enquiriesOpenLoops,
+      oldestDays: oldestDays(enquiriesFiles),
     },
     ready: {
       count: readyFiles.length,

@@ -541,9 +541,9 @@ function fmtShortDate(d: Date): string {
 function exchangeMeta(exchangeDate: Date | null): { text: string | null; tone: "muted" | "warning" } {
   if (!exchangeDate) return { text: null, tone: "muted" };
   const days = Math.floor((exchangeDate.getTime() - Date.now()) / 86400000);
-  if (days < 0) return { text: "Exchange date has passed", tone: "warning" };
-  if (days <= 30) return { text: `Near exchange · ~${fmtShortDate(exchangeDate)}`, tone: "warning" };
-  return { text: `Exchange ~${fmtShortDate(exchangeDate)}`, tone: "muted" };
+  if (days < 0) return { text: "Past its exchange target", tone: "warning" };
+  if (days <= 30) return { text: `Near exchange · around ${fmtShortDate(exchangeDate)}`, tone: "warning" };
+  return { text: `Exchange around ${fmtShortDate(exchangeDate)}`, tone: "muted" };
 }
 
 function buildGoneQuietRows(

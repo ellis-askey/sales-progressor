@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import type { CSSProperties, ReactNode } from "react";
 import type {
   StageStatsNew,
-  StageStatsLegals,
+  StageStatsOnboarding,
+  StageStatsSearches,
+  StageStatsEnquiries,
   StageStatsReady,
   StageStatsExchanging,
   StageStatsCompleted,
@@ -18,11 +20,13 @@ import type {
 // Data is already scoped to the viewer's visibility upstream, so every
 // number here is safe to render as-is — nothing role-specific in the copy.
 
-export type StageKey = "new" | "legals" | "ready" | "exchanging" | "completed";
+export type StageKey = "new" | "onboarding" | "searches" | "enquiries" | "ready" | "exchanging" | "completed";
 
 export type StageHoverProps =
   | { stage: "new"; stats: StageStatsNew; anchor: DOMRect | null }
-  | { stage: "legals"; stats: StageStatsLegals; anchor: DOMRect | null }
+  | { stage: "onboarding"; stats: StageStatsOnboarding; anchor: DOMRect | null }
+  | { stage: "searches"; stats: StageStatsSearches; anchor: DOMRect | null }
+  | { stage: "enquiries"; stats: StageStatsEnquiries; anchor: DOMRect | null }
   | { stage: "ready"; stats: StageStatsReady; anchor: DOMRect | null }
   | { stage: "exchanging"; stats: StageStatsExchanging; anchor: DOMRect | null }
   | { stage: "completed"; stats: StageStatsCompleted; anchor: DOMRect | null };
@@ -217,16 +221,43 @@ function renderBody(props: StageHoverProps): ReactNode {
     );
   }
 
-  if (props.stage === "legals") {
+  if (props.stage === "onboarding") {
     const s = props.stats;
-    if (s.count === 0) return <Empty label="No files in legals" />;
+    if (s.count === 0) return <Empty label="Nothing in onboarding" />;
     return (
       <>
-        <Header title="In legals" count={s.count} />
+        <Header title="Getting set up" count={s.count} />
         <StatList>
-          <StatRow label="Waiting on vendor" value={String(s.vendorBlocking + s.bothBlocking)} />
-          <StatRow label="Waiting on buyer" value={String(s.buyerBlocking + s.bothBlocking)} />
-          <StatRow label="Median time here" value={formatDays(s.medianDaysInLegals)} />
+          <StatRow label="Awaiting draft pack" value={String(s.awaitingDraftPack)} tone={s.awaitingDraftPack > 0 ? "warn" : "neutral"} />
+          <StatRow label="Oldest here" value={formatDays(s.oldestDays)} />
+        </StatList>
+      </>
+    );
+  }
+
+  if (props.stage === "searches") {
+    const s = props.stats;
+    if (s.count === 0) return <Empty label="No files in searches" />;
+    return (
+      <>
+        <Header title="Searches" count={s.count} />
+        <StatList>
+          <StatRow label="Awaiting results" value={String(s.awaitingResults)} tone={s.awaitingResults > 0 ? "warn" : "neutral"} />
+          <StatRow label="Oldest here" value={formatDays(s.oldestDays)} />
+        </StatList>
+      </>
+    );
+  }
+
+  if (props.stage === "enquiries") {
+    const s = props.stats;
+    if (s.count === 0) return <Empty label="No files in enquiries" />;
+    return (
+      <>
+        <Header title="Enquiries" count={s.count} />
+        <StatList>
+          <StatRow label="Loop still open" value={String(s.openLoops)} tone={s.openLoops > 0 ? "warn" : "neutral"} />
+          <StatRow label="Oldest here" value={formatDays(s.oldestDays)} />
         </StatList>
       </>
     );
