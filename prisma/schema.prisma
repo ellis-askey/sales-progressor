@@ -562,6 +562,7 @@ model PropertyTransaction {
   notifications                    Notification[]
   clientChaseStates                ClientChaseState[]
   solicitorChaseStates             SolicitorChaseState[]
+  chaseEmailOverrides              ChaseEmailOverride[]
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
   enquiryRaiseChase                EnquiryRaiseChase?
@@ -3180,6 +3181,33 @@ model SolicitorChaseState {
 
   @@unique([transactionId, side, milestoneCode])
   @@index([status, lastChasedAt])
+  @@index([transactionId])
+}
+
+// Per-(file, chase target, milestone) override for an UPCOMING chase email
+// (chase-consolidation D2, 2026-09). The agent edits or skips the next chase
+// from the Chase timeline; the client + solicitor cron builds read this at fire
+// time. subject/body override the generated copy; skipNext skips the next send
+// (skip-semantics A: one occurrence, cadence resumes — the builder advances the
+// clock without counting). One-shot fields are consumed once the chase fires.
+// targetKey discriminates the target: "contact:<id>" (client) | "sol:vendor" |
+// "sol:purchaser". See docs/active/chase-consolidation/00-spec.md.
+model ChaseEmailOverride {
+  id              String   @id @default(cuid())
+  transactionId   String
+  recipientKind   String   // "client" | "solicitor"
+  targetKey       String   // "contact:<id>" | "sol:vendor" | "sol:purchaser"
+  milestoneCode   String
+  subjectOverride String?
+  bodyOverride    String?
+  skipNext        Boolean  @default(false)
+  editedById      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, targetKey, milestoneCode])
   @@index([transactionId])
 }
 
