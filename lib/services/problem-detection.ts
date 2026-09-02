@@ -48,9 +48,12 @@ type TxData = {
   expectedExchangeDate: Date | null;
   // Exchange = the finish line for the engagement-quiet flags. Once a file has
   // exchanged, client portal silence is expected (nothing left for them to do
-  // until completion), so we stop reading it as a wobble. Non-null once the
-  // file has exchanged. See getGoneQuietFiles for the matching hub guard.
-  exchangedAt: Date | null;
+  // until completion), so we stop reading it as a wobble. "Exchanged" is the
+  // exchange milestone (VM19/PM26) being complete on the active round — the
+  // SAME signal the hub pipeline uses (getHubPipelineStages), NOT exchangedAt,
+  // which is only stamped by the exchange-day flow and is often null on files
+  // that confirmed exchange via the milestone. See getGoneQuietFiles.
+  hasExchanged: boolean;
   // Pass 3 B4: active round's createdAt is the anchor for "weeks elapsed" /
   // "days silent" / "days active" on relisted files. Null on legacy
   // pre-Phase-1 files; callers fall back to tx.createdAt.
@@ -79,7 +82,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   // them to do until completion), so the engagement-quiet flags below are
   // suppressed. Genuine stall signals (milestone_stalled / overdue_milestone /
   // chase_unanswered) still fire — a dragging completion is still worth knowing.
-  const hasExchanged = tx.exchangedAt != null;
+  const hasExchanged = tx.hasExchanged;
 
   // Long silence: no outbound/inbound comm in ≥10 days (active, pre-exchange)
   if (tx.status === "active" && !hasExchanged) {
@@ -265,7 +268,6 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       createdAt: true,
       updatedAt: true,
       expectedExchangeDate: true,
-      exchangedAt: true,
       activeBuyerRoundId: true,
       // Pass 3 B4: relist-aware "weeks elapsed" / "days silent" anchor.
       activeBuyerRound: { select: { createdAt: true } },
@@ -293,7 +295,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
     // count of complete rows (for _count.milestoneCompletions) and the
     // most-recent completedAt (for milestoneCompletions[0]?.completedAt).
     const scope = forRound(tx.activeBuyerRoundId, tx.id);
-    const [completedCount, lastCompleted] = await Promise.all([
+    const [completedCount, lastCompleted, exchangeCompletes] = await Promise.all([
       prisma.milestoneCompletion.count({
         where: {
           transactionId: tx.id,
@@ -312,6 +314,17 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
         },
         orderBy: { completedAt: "desc" },
         select: { completedAt: true },
+      }),
+      // Has the file exchanged? Exchange milestone (VM19 vendor / PM26 buyer)
+      // complete on the active round — the same definition the hub pipeline
+      // uses. Drives the post-exchange suppression of the gone-quiet flags.
+      prisma.milestoneCompletion.count({
+        where: {
+          transactionId: tx.id,
+          state: "complete",
+          milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          ...milestoneScopeWhere(scope),
+        },
       }),
     ]);
 
@@ -345,6 +358,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
     const enriched: TxData = {
       ...tx,
       activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
+      hasExchanged: exchangeCompletes > 0,
       hasOpenEnquiryTracker: !!openEnquiryTracker,
       _count: { milestoneCompletions: completedCount },
       milestoneCompletions: lastCompleted ? [lastCompleted] : [],

@@ -523,18 +523,31 @@ const GONE_QUIET_PILL: Record<string, string> = {
 export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<GoneQuietItem[]> {
   const txNested = buildTxNested(vis);
   const now = new Date();
+  // Exchange = the finish line for "gone quiet" (see below). "Exchanged" is the
+  // exchange milestone (VM19/PM26) complete on the ACTIVE round — the same
+  // definition the pipeline uses (getHubPipelineStages), round-scoped so an
+  // archived round's exchange on a relisted file doesn't wrongly suppress.
+  const activeRoundIds = await loadActiveRoundIds(buildTxWhere(vis));
   const flags = await prisma.transactionFlag.findMany({
     where: {
       resolvedAt: null,
       kind: { in: [...GONE_QUIET_KINDS] },
       transaction: {
         status: "active",
-        // Exchange is the finish line for "gone quiet": once a file has
-        // exchanged, client portal silence is expected (nothing left for them
-        // to do until completion). The detector stops raising the quiet flags
-        // post-exchange (lib/services/problem-detection.ts); this guard also
-        // hides any stale flag that lingers between nightly runs.
-        exchangedAt: null,
+        // Once a file has exchanged, client portal silence is expected (nothing
+        // left for them to do until completion). The detector stops raising the
+        // quiet flags post-exchange (lib/services/problem-detection.ts) and
+        // auto-resolves stale ones on its next run; this guard hides them
+        // immediately, without waiting for that run.
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+              state: "complete",
+              OR: roundScopedOR(activeRoundIds),
+            },
+          },
+        },
         ...txNested,
         // Don't repeat a file that's already in "Needs your attention".
         ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
