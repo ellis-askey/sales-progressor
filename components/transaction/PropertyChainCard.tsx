@@ -12,6 +12,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
+import { Pill } from "@/components/ui/Pill";
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
 import { useTabContext } from "@/components/transaction/TabContext";
 import type { OnwardTrackerView } from "@/lib/services/onward";
@@ -100,7 +101,7 @@ export function PropertyChainCard({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photoUrl ?? "/chain-empty-photo.png"} alt="" className="cx-photo" />
               <div className="cx-here-main">
-                <span className="cx-here-pill">Current sale</span>
+                <Pill glass tone="brand" size="sm" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>Current sale</Pill>
                 <div className="cx-title cx-title-lg">{here.title}</div>
                 {here.rest && <div className="cx-addr">{here.rest}</div>}
               </div>
@@ -139,15 +140,17 @@ export function PropertyChainCard({
               </svg>
               Tracking gives you visibility and progress updates on the linked properties.
             </span>
-            <button type="button" className="cx-learn" onClick={() => setLearnOpen((o) => !o)}>
+            <button type="button" className="cx-learn" onClick={() => setLearnOpen((o) => !o)} aria-expanded={learnOpen}>
               Learn more<ArrowGlyph />
             </button>
           </div>
-          {learnOpen && (
-            <p className="cx-learn-body">
-              Set up tracking on a link and we&rsquo;ll keep its reported progress here, so you and your client can see where the chain is up to. Reported progress stays on your file and isn&rsquo;t shared with other agencies.
-            </p>
-          )}
+          <div className="cx-learn-wrap" data-open={learnOpen ? "true" : undefined}>
+            <div className="cx-learn-inner">
+              <p className="cx-learn-body">
+                Set up tracking on a link and we&rsquo;ll keep its reported progress here. Your client can also keep you updated on their related sale or purchase through their portal. Anything reported stays on your file and isn&rsquo;t shared with other agencies.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -173,9 +176,9 @@ export function PropertyChainCard({
         /* Direction rows (onward / related) */
         .cx-dirrow{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;flex-wrap:wrap}
         .cx-kicker{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--agent-text-muted)}
-        .cx-title{font-size:19px;font-weight:700;letter-spacing:-0.01em;color:var(--agent-text-primary);margin-top:3px}
-        .cx-title-lg{font-size:22px}
-        .cx-addr{font-size:14px;color:var(--agent-text-secondary);margin-top:3px}
+        .cx-title{font-size:17px;font-weight:600;letter-spacing:-0.01em;color:var(--agent-text-primary);margin-top:2px}
+        .cx-title-lg{font-size:22px;font-weight:700}
+        .cx-addr{font-size:14px;color:var(--agent-text-secondary);margin-top:2px}
 
         /* Right-hand tracking status */
         .cx-track{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
@@ -184,10 +187,10 @@ export function PropertyChainCard({
         .cx-dot[data-tone="active"],.cx-dot[data-tone="done"]{background:var(--agent-success, #16a34a)}
         .cx-dot[data-tone="hold"]{background:var(--agent-warning, #D59929)}
         .cx-dot[data-tone="off"]{background:var(--agent-text-muted)}
-        .cx-status-label{font-size:15px;color:var(--agent-text-primary)}
+        .cx-status-label{font-size:14px;color:var(--agent-text-primary)}
         .cx-status-muted .cx-status-label{color:var(--agent-text-secondary)}
         .cx-status-sub{font-size:13px;color:var(--agent-text-secondary)}
-        .cx-track-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:15px;font-weight:600;color:var(--agent-coral-deep, #E8542F)}
+        .cx-track-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--agent-coral-deep, #E8542F)}
         .cx-track-btn:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px;border-radius:4px}
 
         /* Current-sale highlighted row */
@@ -198,8 +201,7 @@ export function PropertyChainCard({
         .cx-here:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px}
         .cx-photo{width:88px;height:72px;border-radius:12px;object-fit:cover;flex-shrink:0;display:block;background:var(--agent-surface-nested, rgba(15,23,42,0.04))}
         .cx-here-main{flex:1;min-width:0}
-        .cx-here-pill{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-coral-deep, #E8542F);background:rgba(255,107,74,0.14);padding:3px 9px;border-radius:999px}
-        .cx-here-main .cx-title-lg{margin-top:7px}
+        .cx-here-main .cx-title-lg{margin-top:5px}
         .cx-here-status{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
         .cx-chev{color:var(--agent-text-muted);flex-shrink:0;transition:transform 200ms cubic-bezier(0.22,1,0.36,1)}
         .cx-here:hover .cx-chev{transform:translateX(3px)}
@@ -214,7 +216,13 @@ export function PropertyChainCard({
         .cx-foot-left svg{flex-shrink:0;color:var(--agent-text-muted)}
         .cx-learn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:14px;font-weight:600;color:var(--agent-coral-deep, #E8542F);flex-shrink:0}
         .cx-learn:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px;border-radius:4px}
-        .cx-learn-body{margin:10px 0 0;font-size:13px;color:var(--agent-text-secondary);line-height:1.5;max-width:640px}
+        /* Smooth reveal: animate the grid row from 0fr to 1fr so the panel
+           slides open/closed instead of snapping. */
+        .cx-learn-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows 260ms cubic-bezier(0.22,1,0.36,1)}
+        .cx-learn-wrap[data-open="true"]{grid-template-rows:1fr}
+        .cx-learn-inner{overflow:hidden;min-height:0}
+        .cx-learn-body{margin:0;padding-top:10px;font-size:13px;color:var(--agent-text-secondary);line-height:1.5;max-width:640px}
+        @media (prefers-reduced-motion: reduce){.cx-learn-wrap{transition:none}}
 
         @media (max-width: 560px){
           .cx-hd,.cx-spine,.cx-foot{padding-left:16px;padding-right:16px}
