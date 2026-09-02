@@ -61,7 +61,7 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             <Pill glass tone="danger" size="md">{overdueCount} overdue exchange</Pill>
           )}
           {missingCount > 0 && (
-            <Pill glass tone="warning" size="md">{missingCount} missing solicitor</Pill>
+            <Pill glass tone="warning" size="md">{missingCount} solicitor unreachable</Pill>
           )}
           {staleCount > 0 && (
             // "not progressing" (not the dev shorthand "stale"); matches the

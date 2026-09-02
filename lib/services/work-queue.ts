@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { AgentVisibility } from "./agent";
 import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { VENDOR_SOLICITOR_CODES, PURCHASER_SOLICITOR_CODES } from "@/lib/solicitor-confirm/codes";
 
 const DRAFT = "draft" as TransactionStatus;
 
@@ -26,8 +27,8 @@ export type WorkQueueItem = {
 
 export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg: string; border: string }> = {
   overdue_exchange:          { label: "Exchange date overdue",       color: "var(--agent-danger)",  bg: "var(--agent-danger-bg)",  border: "var(--agent-danger-border)"  },
-  missing_vendor_solicitor:  { label: "No vendor solicitor",         color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
-  missing_purchaser_solicitor: { label: "No purchaser solicitor",    color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
+  missing_vendor_solicitor:  { label: "Vendor solicitor unreachable",    color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
+  missing_purchaser_solicitor: { label: "Purchaser solicitor unreachable", color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
   stale:                     { label: "No progress in 14+ days",     color: "var(--agent-info)",    bg: "var(--agent-info-bg)",    border: "var(--agent-info-border)"    },
 };
 
@@ -68,6 +69,18 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
   });
   const exchangeDefIds = new Set(exchangeDefs.map((d) => d.id));
 
+  // Stage-aware solicitor alert (Resilience audit PR 4, Trigger A). We only
+  // alert about an unreachable solicitor once that side has a solicitor step
+  // LIVE (available) — the point our chase engine would begin chasing them,
+  // not from day one.
+  const solicitorDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: [...VENDOR_SOLICITOR_CODES, ...PURCHASER_SOLICITOR_CODES] } },
+    select: { id: true, code: true },
+  });
+  const vendorSolicitorDefIds = new Set(solicitorDefs.filter((d) => VENDOR_SOLICITOR_CODES.has(d.code)).map((d) => d.id));
+  const purchaserSolicitorDefIds = new Set(solicitorDefs.filter((d) => PURCHASER_SOLICITOR_CODES.has(d.code)).map((d) => d.id));
+  const allSolicitorDefIds = solicitorDefs.map((d) => d.id);
+
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
       ...txWhereWorkQueue(vis),
@@ -83,6 +96,8 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       overridePredictedDate: true,
       vendorSolicitorFirmId: true,
       purchaserSolicitorFirmId: true,
+      vendorSolicitorContact: { select: { email: true } },
+      purchaserSolicitorContact: { select: { email: true } },
       createdAt: true,
       agentUser: { select: { id: true, name: true } },
       contacts: { select: { name: true, roleType: true } },
@@ -103,6 +118,28 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       },
     },
   });
+
+  // Which sides have a solicitor step currently AVAILABLE (live, awaiting
+  // confirmation) — the "we'd be chasing this solicitor now" signal.
+  const txIds = transactions.map((t) => t.id);
+  const availableSolicitorSteps = txIds.length
+    ? await prisma.milestoneCompletion.findMany({
+        where: {
+          transactionId: { in: txIds },
+          milestoneDefinitionId: { in: allSolicitorDefIds },
+          state: "available",
+          OR: roundScopedOR(await loadActiveRoundIds({ ...txWhereWorkQueue(vis), status: "active" as TransactionStatus })),
+        },
+        select: { transactionId: true, milestoneDefinitionId: true },
+      })
+    : [];
+  const solicitorStageByTx = new Map<string, { vendor: boolean; purchaser: boolean }>();
+  for (const s of availableSolicitorSteps) {
+    const e = solicitorStageByTx.get(s.transactionId) ?? { vendor: false, purchaser: false };
+    if (vendorSolicitorDefIds.has(s.milestoneDefinitionId)) e.vendor = true;
+    if (purchaserSolicitorDefIds.has(s.milestoneDefinitionId)) e.purchaser = true;
+    solicitorStageByTx.set(s.transactionId, e);
+  }
 
   const items: WorkQueueItem[] = [];
 
@@ -150,9 +187,14 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       }
     }
 
-    // Missing solicitors — any active file
-    if (!tx.vendorSolicitorFirmId) alerts.push("missing_vendor_solicitor");
-    if (!tx.purchaserSolicitorFirmId) alerts.push("missing_purchaser_solicitor");
+    // Solicitor unreachable (Resilience audit PR 4, Trigger A). Replaces the
+    // old day-one "no firm" nag: fire ONLY once that side has a solicitor step
+    // live (available) AND we still can't reach a solicitor there (no contact
+    // email — covers both "no solicitor at all" and "firm but no email").
+    // Recomputed live each load, so it self-clears the moment details land.
+    const solicitorStage = solicitorStageByTx.get(tx.id) ?? { vendor: false, purchaser: false };
+    if (solicitorStage.vendor && !tx.vendorSolicitorContact?.email) alerts.push("missing_vendor_solicitor");
+    if (solicitorStage.purchaser && !tx.purchaserSolicitorContact?.email) alerts.push("missing_purchaser_solicitor");
 
     if (alerts.length === 0) continue;
 
