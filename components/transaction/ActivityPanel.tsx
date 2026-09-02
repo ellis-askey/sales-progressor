@@ -55,7 +55,7 @@ export async function ActivityPanel({
 }: Props) {
   // MOS doc + signed URL chain. Same shape as the page used to do,
   // just relocated into the panel that consumes it.
-  const [activityEntries, mosDocBundle] = await Promise.all([
+  const [activityEntries, mosDocBundle, me] = await Promise.all([
     getActivityTimelineCached(transactionId, agencyId).catch(() => []),
     (async () => {
       const doc = await prisma.transactionDocument.findFirst({
@@ -68,6 +68,9 @@ export async function ActivityPanel({
       const url = await getSignedUrl(doc.storagePath, 86400).catch(() => null);
       return url;
     })(),
+    // Current user's avatar — session doesn't carry it, so the optimistic
+    // note render can show the real picture instead of the fallback SVG.
+    prisma.user.findUnique({ where: { id: currentUserId }, select: { image: true } }).catch(() => null),
   ]);
 
   return (
@@ -84,6 +87,7 @@ export async function ActivityPanel({
         ]}
         canPasteChat={isProgressor || isAdminRole}
         currentUserName={currentUserName}
+        currentUserImage={me?.image ?? null}
         currentUserRole={currentUserRole}
       />
       {(!isInternal || spSenderIdentity !== undefined) && (

@@ -196,22 +196,32 @@ export async function getActivityTimeline(
         // internal_note with no chaseTaskId. The fallback "handed back to
         // agent" notes carry a chaseTaskId and stay — they're actionable.
         NOT: { type: "internal_note", isAutomated: true, chaseTaskId: null },
-        // WhatsApp is surfaced on its own surface, not the activity timeline
-        // (founder decision 2026-08-22) — keep this tab uncluttered.
-        method: { not: "whatsapp" },
-        ...(tx.activeBuyerRoundId
-          ? {
-              OR: [
-                {
-                  buyerRoundId: null,
-                  ...(tx.activeBuyerRound?.createdAt
-                    ? { createdAt: { gte: tx.activeBuyerRound.createdAt } }
-                    : {}),
-                },
-                { buyerRoundId: tx.activeBuyerRoundId },
-              ],
-            }
-          : { buyerRoundId: null }),
+        // Two AND'd OR-groups (kept in an AND array so the two ORs don't
+        // collide on the same key).
+        AND: [
+          // WhatsApp is surfaced on its own surface, not the activity timeline
+          // (founder decision 2026-08-22). Exclude it — but NULL-SAFE: notes and
+          // most manual comms have method = NULL, and Prisma's `not` on a
+          // nullable column DROPS null rows (verified against the engine), which
+          // had been hiding every note from this feed since the whatsapp split.
+          // The explicit `method: null` arm keeps them in.
+          { OR: [{ method: null }, { method: { not: "whatsapp" } }] },
+          // Round scoping: buyer-attributed comms scope to the active round;
+          // file-level (NULL) rows pass if they post-date the active round.
+          ...(tx.activeBuyerRoundId
+            ? [{
+                OR: [
+                  {
+                    buyerRoundId: null,
+                    ...(tx.activeBuyerRound?.createdAt
+                      ? { createdAt: { gte: tx.activeBuyerRound.createdAt } }
+                      : {}),
+                  },
+                  { buyerRoundId: tx.activeBuyerRoundId },
+                ],
+              }]
+            : [{ buyerRoundId: null }]),
+        ],
       },
       orderBy: { createdAt: "desc" },
       include: {

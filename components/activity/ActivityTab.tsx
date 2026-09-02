@@ -29,6 +29,7 @@ type Props = {
   // For building optimistic entries — these aren't on session client-side,
   // so the parent page passes them in from the server session.
   currentUserName: string;
+  currentUserImage: string | null;
   currentUserRole: string;
 };
 
@@ -75,7 +76,7 @@ export function ActivityTab(props: Props) {
         content,
         createdById: null,
         createdByName: props.currentUserName,
-        createdByImage: null,
+        createdByImage: props.currentUserImage,
         createdByRole: props.currentUserRole,
         contactNames,
         contactIds,
@@ -90,7 +91,7 @@ export function ActivityTab(props: Props) {
         mediaType: null,
         actorRole: "progressor",
         actorName: "You",
-        actorImage: null,
+        actorImage: props.currentUserImage,
         actorSubLabel: null,
       },
       ...prev,
