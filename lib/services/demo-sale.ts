@@ -20,6 +20,7 @@ import type { PurchaseType, Tenure, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
+import { evaluateTransactionReminders } from "@/lib/services/reminders";
 import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { hasSolicitorClause } from "@/lib/updates-copy";
@@ -175,11 +176,13 @@ async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: 
 
   await prisma.propertyTransaction.update({
     where: { id: tx.id },
-    // demoExpiresAt: null — the demo stays available while the account has no
-    // genuine sales; we no longer auto-remove it after a fixed period (Ellis,
-    // 2026-08-30). Removal is handled separately. createTransaction stamps a
-    // +7d expiry for demos, so we null it here.
-    data: { photoStoragePath: DEMO_PRESET.photoStoragePath, lastActivityAt: daysAgo(1), demoExpiresAt: null },
+    // Keep createTransaction's +7d expiry (stamped from real now, not the
+    // backdated createdAt): the demo auto-removes after ~1 week via the daily
+    // demo-cleanup cron. By then the agency has usually added a real sale (so
+    // the "Explore demo" affordance is already gone); if they haven't, the
+    // demo clears and the button reappears. Restores SPEC.md behaviour after a
+    // 2026-08-30 experiment that nulled it. (Decision D7, 2026-09-02.)
+    data: { photoStoragePath: DEMO_PRESET.photoStoragePath, lastActivityAt: daysAgo(1) },
   });
 
   const vendor = await prisma.contact.create({
@@ -357,7 +360,42 @@ export async function createDemoSale(opts: { agencyId: string; agentUserId: stri
   const middle = await buildDemoFile(MIDDLE, opts.agencyId, demoAgentId, sols);
   const bottom = await buildDemoFile(BOTTOM, opts.agencyId, demoAgentId, sols);
   await buildChain(top.txId, middle.txId, bottom.txId, opts.agencyId, demoAgentId);
+
+  // The star file (the one the agent opens) is brought fully to life: run the
+  // real reminder engine once so the Reminders tab and the Chase timeline show
+  // live threads driven off the seeded milestone state, and add one open To-Do.
+  // Nothing sends — demo files are excluded from the client/solicitor chase
+  // crons, and the reserved-@example.com backstop drops any stray send.
+  await seedStarFileActivity(middle.txId, opts.agencyId, demoAgentId);
+
   return middle.txId;
+}
+
+// Bring the opened demo file to life on the three tabs the base seed leaves
+// empty (Reminders / Chase timeline / To-Do). Star file only — the top and
+// bottom of the chain stay quieter, which reads fine (they aren't opened).
+async function seedStarFileActivity(txId: string, agencyId: string, agentUserId: string) {
+  // Real chase engine: creates ReminderLog rows (each = one chase thread) from
+  // the file's available milestones. Best-effort; a demo must still stand up if
+  // the reminder rules aren't seeded in this environment.
+  await evaluateTransactionReminders(txId).catch((e) => console.error("[demo] reminder eval failed", e));
+
+  // One open To-Do so the tab isn't empty. isAgentRequest:false — a normal
+  // agent task, not an internal-team request. Cascades on file delete.
+  await prisma.manualTask
+    .create({
+      data: {
+        agencyId,
+        transactionId: txId,
+        title: "Confirm preferred exchange date with Sarah",
+        notes: "She asked to avoid the last week of the month. Call once the final enquiries are signed off.",
+        status: "open",
+        isAgentRequest: false,
+        createdById: agentUserId,
+        dueDate: daysAgo(-3), // a few days out
+      },
+    })
+    .catch((e) => console.error("[demo] manual task seed failed", e));
 }
 
 // ── Removal (chain-aware: links → chain → transactions, per seed teardown) ────

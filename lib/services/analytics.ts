@@ -28,13 +28,16 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
   // Internal staff paths — checked first; agent callers have internalMode undefined.
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
   if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
-  // Agent paths unchanged.
+  // Agent paths. isDemo:false — the demo showcase file is never real activity
+  // and must not count toward the agency's analytics (deal counts, pipeline
+  // value, overdue chases). Its own tabs still show its seeded data; the
+  // aggregate views don't.
   if (vis.seeAll) {
     return vis.firmName
-      ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
-      : { agencyId: vis.agencyId, agentUserId: { not: null } };
+      ? { agencyId: vis.agencyId, isDemo: false, agentUser: { firmName: vis.firmName } }
+      : { agencyId: vis.agencyId, isDemo: false, agentUserId: { not: null } };
   }
-  return { agencyId: vis.agencyId, agentUserId: vis.userId };
+  return { agencyId: vis.agencyId, isDemo: false, agentUserId: vis.userId };
 }
 
 export type MonthVolume = {
@@ -69,7 +72,7 @@ export type AnalyticsData = {
 export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
   // Phase-3 (a)-CLASS resolved: pre-load active round ids for the cross-tx
   // MC include below.
-  const txWhere = { agencyId, status: { not: "draft" as const }, isMigrated: false };
+  const txWhere = { agencyId, status: { not: "draft" as const }, isMigrated: false, isDemo: false };
   const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   const [transactions, exchangeDefs] = await Promise.all([

@@ -6,6 +6,29 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
 const DEFAULT_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
+// Reserved / non-deliverable recipient guard (2026-09). Demo showcase files
+// seed every contact with an @example.com address precisely "so nothing sends"
+// (docs/active/demo-sale/SPEC.md). But the send layer never honoured that
+// intent — a demo milestone confirm still handed the address to SendGrid,
+// which processed and BOUNCED it, harming sender reputation and burning quota.
+// This is the universal backstop: RFC 2606 / RFC 6761 reserve these domains and
+// TLDs for documentation/testing, so no real recipient ever has one. Any send
+// to a reserved address is dropped before it reaches SendGrid, on EVERY path
+// (confirm, reverse, claim wizard, chase crons, queue drains). The isDemo
+// guards in the confirm/reverse actions + chase crons stop most demo sends
+// upstream; this catches anything they miss.
+const RESERVED_EMAIL_DOMAINS = new Set(["example.com", "example.net", "example.org"]);
+const RESERVED_EMAIL_TLDS = [".example", ".test", ".invalid", ".localhost"];
+
+export function isNonDeliverableRecipient(to: string): boolean {
+  const addr = to.trim().toLowerCase();
+  const at = addr.lastIndexOf("@");
+  if (at === -1) return false;
+  const domain = addr.slice(at + 1);
+  if (RESERVED_EMAIL_DOMAINS.has(domain)) return true;
+  return RESERVED_EMAIL_TLDS.some((tld) => domain === tld.slice(1) || domain.endsWith(tld));
+}
+
 // SendGrid analytics tagging (audit #17 — "start measuring email performance
 // properly"). `categories` is SendGrid's built-in aggregation dimension: the
 // dashboard breaks opens / clicks / bounces down by category. We stamp:
@@ -63,6 +86,10 @@ export async function sendEmail({
   emailType?: string;
   templateVersion?: string;
 }) {
+  if (isNonDeliverableRecipient(to)) {
+    console.log(`[email] skipped reserved recipient to=${to} subject="${subject}"`);
+    return;
+  }
   const tags = analyticsTags(emailType, templateVersion);
   const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
   return sgMail.send({
@@ -124,6 +151,10 @@ export async function sendChainEmail({
   // unreliable signal; see the Chasing hub notes.
   trackOpens?: boolean;
 }): Promise<void> {
+  if (isNonDeliverableRecipient(to)) {
+    console.log(`[chain-email] skipped reserved recipient to=${to} subject="${subject}"`);
+    return;
+  }
   const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
   const asmGroupId = process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID
     ? parseInt(process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID, 10)

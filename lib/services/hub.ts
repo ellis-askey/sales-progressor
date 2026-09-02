@@ -1478,7 +1478,9 @@ export async function getHubAttentionItems(
   const txLogFilter: Prisma.PropertyTransactionWhereInput =
     vis.internalMode
       ? { status: "active", ...txNested }
-      : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", ...txNested };
+      // isDemo:false — the demo file's seeded reminders must not appear as hub
+      // attention items on the agency's real hub.
+      : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", isDemo: false, ...txNested };
 
   // Due today or overdue, not snoozed — scoped to this agent/firm
   const logs = await prisma.reminderLog.findMany({

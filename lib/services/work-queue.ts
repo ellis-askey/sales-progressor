@@ -44,13 +44,17 @@ export function txWhereWorkQueue(vis: AgentVisibility) {
   // files are the SP team's job, so their file-alerts / reminders don't
   // belong on the agency's work queue. Mirrors getAgentReminderLogs, whose
   // agent path already excludes outsourced files.
+  // isDemo:false on every agent path — the demo showcase file is self_managed
+  // and same-agency, so without this its seeded reminders would surface on the
+  // director's cross-file work queue the moment they add a real self-managed
+  // file. The demo is a teaching aid, never real work.
   if (vis.seeAll) {
     if (vis.firmName) {
-      return { agencyId: vis.agencyId, serviceType: "self_managed" as const, agentUser: { firmName: vis.firmName } };
+      return { agencyId: vis.agencyId, serviceType: "self_managed" as const, isDemo: false, agentUser: { firmName: vis.firmName } };
     }
-    return { agencyId: vis.agencyId, serviceType: "self_managed" as const };
+    return { agencyId: vis.agencyId, serviceType: "self_managed" as const, isDemo: false };
   }
-  return { agentUserId: vis.userId, serviceType: "self_managed" as const };
+  return { agentUserId: vis.userId, serviceType: "self_managed" as const, isDemo: false };
 }
 
 export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueueItem[]> {

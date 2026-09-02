@@ -161,6 +161,12 @@ model User {
   directMobile        String?
   canViewAllFiles     Boolean    @default(false)
   hasSeenAgentWelcome Boolean    @default(false)
+  // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
+  // gets their own first-run auto-start. Set when the tour is finished or
+  // skipped; either being non-null suppresses the auto-start (a "Replay
+  // walkthrough" control still runs it on demand). See DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md §13.
+  demoTourCompletedAt DateTime?
+  demoTourSkippedAt   DateTime?
   isInternal          Boolean    @default(false)
   // Made-up staff member who "manages" the demo showcase files, so a demo is
   // never presented as the real user's own file. Excluded from team pickers.

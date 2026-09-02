@@ -531,6 +531,7 @@ export function PropertyHero({
             {assignedUserName ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
                 <span aria-hidden style={{
+                  position: "relative",
                   width: 32,
                   height: 32,
                   borderRadius: 999,
@@ -544,9 +545,21 @@ export function PropertyHero({
                   flexShrink: 0,
                   overflow: "hidden",
                 }}>
-                  {assignedUserImage
-                    ? <img src={assignedUserImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    : initials}
+                  {/* Initials sit behind the photo. If the image URL 404s (e.g.
+                      the demo agent's avatar not uploaded to this environment),
+                      onError hides the <img> and the initials show through —
+                      never a broken-image glyph. */}
+                  <span style={{ position: "absolute", inset: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                    {initials}
+                  </span>
+                  {assignedUserImage && (
+                    <img
+                      src={assignedUserImage}
+                      alt=""
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      style={{ position: "relative", width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  )}
                 </span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>

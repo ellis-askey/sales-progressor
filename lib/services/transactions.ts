@@ -15,6 +15,15 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { normaliseAddressString } from "@/lib/utils/address";
 
+// Outsourced handover readiness gate lives in its own dependency-free module
+// so it is unit-testable in isolation. Re-exported here for service-layer
+// callers that already import from this file.
+export {
+  checkOutsourcedHandoverReadiness,
+  handoverReadinessMessage,
+  type HandoverReadiness,
+} from "@/lib/services/handover-readiness";
+
 export async function listTransactions(
   agencyId: string,
   agentUserId?: string,
