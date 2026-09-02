@@ -92,6 +92,14 @@ const GENERAL: Record<string, string> = {
   PM20: "all enquiries are now satisfied",
 };
 
+// PM6 has two shapes: a booked physical valuation (has an eventDate) and a
+// desktop valuation (no date, no visit). The default core "lender's valuation
+// has been booked" reads wrong for a desktop one, so swap the core when it's
+// desktop. It slots under the same possessive wrap as the physical core:
+//   client: "her lender is carrying out a desktop valuation, so there's no visit to arrange"
+//   agent:  "that Joanne's lender is carrying out a desktop valuation, so there's no visit to arrange"
+const PM6_DESKTOP_CORE = "lender is carrying out a desktop valuation, so there's no visit to arrange";
+
 // Bespoke, possessive, pronoun-driven clauses for the onward-neighbour email —
 // the onward agent hearing that their buyer has progressed. "{poss}" becomes
 // his / her / their (from any title on the name, else "their"). Purpose-written
@@ -247,10 +255,13 @@ export function confirmationSentence(opts: {
   confirmer: UpdateConfirmer;
   sideContacts: SideContact[];
   milestoneName: string;
+  // PM6 only: true when the lender ran a desktop valuation (no eventDate), so
+  // the sentence doesn't wrongly imply a physical visit was booked.
+  isDesktopValuation?: boolean;
 }): string {
-  const { code, side, confirmer, sideContacts, milestoneName } = opts;
+  const { code, side, confirmer, sideContacts, milestoneName, isDesktopValuation } = opts;
   const general = GENERAL[code];
-  const core = CORES[code];
+  const core = code === "PM6" && isDesktopValuation ? PM6_DESKTOP_CORE : CORES[code];
 
   if (confirmer.kind === "client") {
     const name = allClientNames(sideContacts, side);
@@ -327,12 +338,14 @@ export function portalConfirmationSentence(opts: {
   milestoneName: string;
   // Command Centre override for the confirmation clause (client portal only).
   coreOverride?: string | null;
+  // PM6 only: desktop valuation (no visit) — see confirmationSentence.
+  isDesktopValuation?: boolean;
 }): string {
-  const { code, side, viewerSide, confirmer, milestoneName, coreOverride } = opts;
+  const { code, side, viewerSide, confirmer, milestoneName, coreOverride, isDesktopValuation } = opts;
   const isGeneral = GENERAL[code] !== undefined;
   const clause = coreOverride && coreOverride.trim()
     ? coreOverride.trim()
-    : (GENERAL[code] ?? CORES[code] ?? null);
+    : (code === "PM6" && isDesktopValuation ? PM6_DESKTOP_CORE : (GENERAL[code] ?? CORES[code] ?? null));
 
   // The other party's progress — generic, no name, no confirmer.
   if (side !== viewerSide) {

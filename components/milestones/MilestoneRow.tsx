@@ -519,7 +519,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               onClick={(e) => e.stopPropagation()}
               style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--agent-border-default)" }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, color: "var(--agent-text-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, color: "var(--agent-text-secondary)", minWidth: 0 }}>
                 <span>
                   <span style={{ color: "var(--agent-text-muted)" }}>Confirmed by </span>
                   {def.completion.confirmedByPortal
@@ -549,7 +550,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   <span style={{ color: "var(--agent-warning)" }}>Confirmed out of order</span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexShrink: 0, flexWrap: "wrap" }}>
                 {def.completion.confirmedByPortal && (
                   <Pill glass tone="info" size="sm">
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -570,6 +571,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 >
                   {loading ? "…" : "Undo"}
                 </button>
+                </div>
               </div>
             </div>
           )}

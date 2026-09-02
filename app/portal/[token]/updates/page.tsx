@@ -182,6 +182,7 @@ export default async function PortalUpdatesPage({
                                 : { kind: "agent", name: entry.completedByName ?? "Your team" },
                             milestoneName: entry.label,
                             coreOverride: updateOverrides.get(entry.code)?.core ?? null,
+                            isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
                           })}
                         </p>
                         {(() => {

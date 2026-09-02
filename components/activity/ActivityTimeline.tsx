@@ -10,6 +10,7 @@ import { getCommBadge } from "@/lib/agent/comms-display";
 import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { Pill } from "@/components/ui/Pill";
 
 type Props = {
   entries: ActivityEntry[];
@@ -137,13 +138,22 @@ function dotColor(entry: ActivityEntry): string {
 
 function ContactPill({ name }: { name: string }) {
   return (
-    <span style={{
-      fontSize: 10, fontWeight: 500, padding: "1px 7px", borderRadius: 10,
-      background: "rgba(15,23,42,0.06)", color: "var(--agent-text-muted)",
-    }}>
+    <Pill glass tone="default" size="sm">
       {extractFirstName(name)}
-    </span>
+    </Pill>
   );
+}
+
+// Automated emails lead with a "Subject: …" line. Surface the subject as a bold
+// heading (without the "Subject:" prefix) with the body below; leave any other
+// content untouched.
+function splitSubject(text: string): { subject: string | null; body: string } {
+  const nl = text.indexOf("\n");
+  const firstLine = (nl === -1 ? text : text.slice(0, nl)).trim();
+  const m = firstLine.match(/^subject:\s*(.+)$/i);
+  if (!m) return { subject: null, body: text };
+  const body = (nl === -1 ? "" : text.slice(nl + 1)).replace(/^\s+/, "");
+  return { subject: m[1].trim(), body };
 }
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
@@ -349,29 +359,6 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     // Default v05 per Ellis, 2026-08-09. Surface (bg/border)
                     // comes from the variant; padding/radius stay inline.
                     <GlassCard glassId="activity-timeline-entry" label="Activity · Timeline entries" defaultVariant="v05" style={{ padding: "10px 14px", borderRadius: 10 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
-                          background: entry.isNotRequired ? "var(--agent-surface-glass)" : "rgba(16,185,129,0.1)",
-                          color: entry.isNotRequired ? "var(--agent-text-muted)" : "#059669",
-                        }}>
-                          {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
-                        </span>
-                        {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
-                          <a
-                            href={mosDocUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-shrink-0 flex items-center gap-1 transition-colors whitespace-nowrap"
-                            style={{ fontSize: 11, fontWeight: 500, color: "#3b82f6" }}
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            View Memo
-                          </a>
-                        )}
-                      </div>
                       {/* One line: avatar + the full "{who} confirmed {clause}"
                           sentence (who = agent/progressor full name, client
                           name(s), or solicitor firm). The name is inside the
@@ -396,6 +383,26 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           <time style={{ flexShrink: 0, fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", marginTop: 3 }}>
                             {formatTimestamp(entry.at)}
                           </time>
+                        )}
+                      </div>
+                      {/* Status pill at the foot of the card + memo link (if any). */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                        <Pill glass tone={entry.isNotRequired ? "default" : "success"} size="sm">
+                          {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
+                        </Pill>
+                        {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
+                          <a
+                            href={mosDocUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 transition-colors whitespace-nowrap"
+                            style={{ fontSize: 11, fontWeight: 500, color: "#3b82f6", marginLeft: "auto" }}
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            View Memo
+                          </a>
                         )}
                       </div>
                     </GlassCard>
@@ -544,10 +551,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                             const stripped = entry.isAutomated
                               ? stripCommsLinksForAgent(displayContent)
                               : { text: displayContent, portalLinks: [] };
+                            const { subject, body } = splitSubject(stripped.text);
                             return (
                               <>
+                                {subject && (
+                                  <p style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.4, marginBottom: 4 }}>
+                                    {subject}
+                                  </p>
+                                )}
                                 <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
-                                  {stripped.text}
+                                  {body}
                                 </p>
                                 {stripped.portalLinks.length > 0 && (
                                   <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -589,14 +602,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               now sit at the foot of the card (swapped below the
                               actor, 2026-09-01). */}
                           <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                            <span style={{
-                              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 10,
-                              background: badge.bg, color: badge.color,
-                              display: "inline-flex", alignItems: "center", gap: 4,
-                            }}>
-                              <span>{badge.icon}</span>
+                            <Pill glass tone={badge.tone} size="sm">
+                              <span aria-hidden>{badge.icon}</span>
                               {badge.label}
-                            </span>
+                            </Pill>
                             {!isEditing && displayContactNames.map((name) => (
                               <ContactPill key={name} name={name} />
                             ))}

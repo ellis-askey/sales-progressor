@@ -935,6 +935,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                             : { kind: "agent", name: entry.completedByName ?? "Your team" },
                         milestoneName: entry.label,
                         coreOverride: updateOverrides.get(entry.code)?.core ?? null,
+                        isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
                       })}
                     </p>
                     {(() => {

@@ -17,7 +17,8 @@ export type CommBadgeInput = {
   senderLabel?: string | null;
 };
 
-export type BadgeInfo = { label: string; icon: string; bg: string; color: string };
+// tone maps onto the canonical Pill primitive's tones (glass treatment).
+export type BadgeInfo = { label: string; icon: string; bg: string; color: string; tone: "info" | "warning" | "brand" | "success" | "default" };
 
 const BADGE_LABELS: Record<string, [string, string]> = {
   // [outbound, inbound]
@@ -46,22 +47,22 @@ const CHANNEL_ICONS: Record<string, string> = {
 
 export function getCommBadge(entry: CommBadgeInput): BadgeInfo {
   if (entry.isAutomated) {
-    return { label: "System email", icon: "✉", bg: "rgba(99,102,241,0.1)", color: "#4f46e5" };
+    return { label: "System email", icon: "✉", bg: "rgba(99,102,241,0.1)", color: "#4f46e5", tone: "info" };
   }
   if (entry.type === "internal_note") {
     // A solicitor-left update carries the firm on senderLabel — render it as an
     // "Update" (distinct blue), not a plain amber internal note.
     if (entry.senderLabel) {
-      return { label: "Update", icon: "💬", bg: "rgba(37,99,235,0.10)", color: "#2563eb" };
+      return { label: "Update", icon: "💬", bg: "rgba(37,99,235,0.10)", color: "#2563eb", tone: "info" };
     }
-    return { label: "Internal note", icon: "📝", bg: "rgba(217,119,6,0.1)", color: "#d97706" };
+    return { label: "Internal note", icon: "📝", bg: "rgba(217,119,6,0.1)", color: "#d97706", tone: "warning" };
   }
   const isOut = entry.type === "outbound";
   const bg    = isOut ? "rgba(255,107,74,0.1)"  : "rgba(16,185,129,0.1)";
   const color = isOut ? "var(--agent-coral)"    : "#059669";
   const key   = entry.method ?? "email";
   const [outLabel, inLabel] = BADGE_LABELS[key] ?? ["Outbound", "Inbound"];
-  return { label: isOut ? outLabel : inLabel, icon: CHANNEL_ICONS[key] ?? "•", bg, color };
+  return { label: isOut ? outLabel : inLabel, icon: CHANNEL_ICONS[key] ?? "•", bg, color, tone: isOut ? "brand" : "success" };
 }
 
 export function AuthorPill({ name, role }: { name: string | null; role?: string | null }) {
