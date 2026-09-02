@@ -82,8 +82,17 @@ export async function GET(req: NextRequest) {
         ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
           ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
         : null;
+    // A staff confirmation the viewer made themselves still shows in the
+    // dropdown, but shouldn't drive the red unread badge — otherwise every
+    // confirm you make re-alerts you about your own action. Client/helper
+    // (portal) confirmations are someone else's and always count.
+    const mine =
+      m.completedById === session.user.id &&
+      confirmer.kind !== "client" &&
+      confirmer.kind !== "helper";
     return {
       at: new Date(m.completedAt ?? 0),
+      countable: !mine,
       item: {
         id: m.id,
         txId: m.transaction.id,
@@ -114,6 +123,7 @@ export async function GET(req: NextRequest) {
     const payload = (n.payload ?? {}) as Record<string, unknown>;
     return {
       at: n.createdAt,
+      countable: true,
       item: {
         id: n.id,
         txId: n.transactionId ?? "",
@@ -134,8 +144,10 @@ export async function GET(req: NextRequest) {
   const all = [...milestoneRows, ...notifRows].sort((a, b) => b.at.getTime() - a.at.getTime());
   const items = all.slice(0, MENU_LIMIT).map((r) => r.item);
   // Unread = everything newer than the last-read stamp (across the full set,
-  // not just the menu slice, so the badge is accurate even past 12).
-  const count = all.filter((r) => r.at > since).length;
+  // not just the menu slice, so the badge is accurate even past 12), EXCLUDING
+  // the viewer's own staff confirmations — those still appear in the list but
+  // don't re-alert you about an action you just took.
+  const count = all.filter((r) => r.countable && r.at > since).length;
 
   return NextResponse.json({ count, items });
 }
