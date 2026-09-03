@@ -603,6 +603,13 @@
     transform: scaleX(1);
     opacity: 1;
   }
+  /* Arrow links: when a link carries a nudging arrow icon (.agent-arrow-i),
+   * the arrow IS the hover affordance — suppress the spreading underline so
+   * they don't double up. Plain (arrow-less) links keep the underline.
+   * Agent/internal only (this stylesheet). 2026-09-03. */
+  .agent-link:has(.agent-arrow-i)::after {
+    content: none;
+  }
   .agent-link:focus-visible {
     outline: none;
     box-shadow: var(--agent-focus-ring);
