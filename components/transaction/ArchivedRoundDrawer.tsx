@@ -55,6 +55,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Drawer } from "@/components/ui/Drawer";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
 
 type Props = {
@@ -142,21 +143,6 @@ type ArchivedRoundPayload = {
 };
 
 // ─── Helpers (verbatim from the audited components) ──────────────────
-
-// getInitials — copied from components/contacts/ContactsSection.tsx so
-// the drawer's initials chip behaves identically to the file detail's
-// contacts list (handles titles, multi-word names, single names).
-const TITLE_RE = /^(dr|mr|mrs|miss|ms|prof|rev|sir|lady|lord|mx)\.?\s+/i;
-function getInitials(name: string): string {
-  const trimmed = name.trim();
-  const titleMatch = trimmed.match(TITLE_RE);
-  const withoutTitle = trimmed.replace(TITLE_RE, "").trim();
-  const parts = withoutTitle.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  if (parts.length === 1 && titleMatch) return (titleMatch[0].trim()[0] + parts[0][0]).toUpperCase();
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return trimmed[0]?.toUpperCase() ?? "?";
-}
 
 // formatPrice — copied from components/transaction/PropertyHero.tsx so
 // the agreed price renders identically (£475,000, no decimals).
@@ -435,7 +421,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                 <div style={{ padding: "16px 16px 12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                   {buyer ? (
                     <>
-                      <div className="agent-avatar agent-avatar-md">{getInitials(buyer.name)}</div>
+                      <ContactAvatar contact={{ name: buyer.name, roleType: buyer.roleType }} size={40} />
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                           {buyer.name}

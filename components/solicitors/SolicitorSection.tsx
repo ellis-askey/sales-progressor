@@ -9,6 +9,7 @@ import { Pill } from "@/components/ui/Pill";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CommsButton } from "@/components/ui/CommsButton";
+import { ContactAvatar } from "@/components/ui/Avatar";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -64,12 +65,6 @@ function toSelection(info: SolicitorInfo): SolicitorSelection | null {
     email: info.contact?.email ?? null,
     secondaryEmail: info.contact?.secondaryEmail ?? null,
   };
-}
-
-function getFirmInitials(name: string): string {
-  const words = name.split(/\s+/).filter((w) => w.length > 2 && w !== "&");
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
 }
 
 function solicitorEmailSubject(address: string, clientNames: string[]): string {
@@ -310,12 +305,7 @@ function SolicitorTile({
         <div style={{ padding: "14px 16px", display: "flex", gap: 16, alignItems: "flex-start" }}>
           {/* ── Left column: identity + contact details (matches ContactsSection) ── */}
           <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 0 }}>
-            <div
-              className="agent-avatar agent-avatar-md"
-              style={{ flexShrink: 0, background: tileTone.avatarBg, color: tileTone.avatarColor }}
-            >
-              {getFirmInitials(info.firm.name)}
-            </div>
+            <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} />
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
               {/* Firm name + role */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

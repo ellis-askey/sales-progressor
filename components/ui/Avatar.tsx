@@ -72,6 +72,28 @@ function DefaultAgentAvatarArt({ size }: { size: number }) {
   );
 }
 
+// ID-card art for solicitors/professionals. Same 3-tone background as the
+// person art, with an ID-card motif; all coral hexes route through the same
+// --tsp-avatar-* vars, so it retints as a unit (grey for solicitors). White
+// card stays white. Source: Images/tsp-id-card-avatar.svg.
+function DefaultIdCardAvatarArt({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 512 512" style={{ display: "block" }} aria-hidden>
+      <rect width="512" height="512" fill="var(--tsp-avatar-base, #FC9C50)" />
+      <path d="M0 374 C72 392 116 394 166 379 C233 359 278 303 326 248 C376 191 425 164 512 149 L512 512 L0 512 Z" fill="var(--tsp-avatar-mid, #FF5E1F)" />
+      <path d="M101 512 C156 468 209 414 280 367 C330 334 375 305 422 318 C460 328 489 358 512 391 L512 512 Z" fill="var(--tsp-avatar-deep, #FF2D0F)" />
+      <path d="M256 120 C233 120 215 138 215 161 L215 179 H143 C122 179 106 196 106 217 V344 C106 365 122 382 143 382 H369 C390 382 406 365 406 344 V217 C406 196 390 179 369 179 H297 V161 C297 138 279 120 256 120 Z" fill="#FFFFFF" />
+      <circle cx="256" cy="152" r="13" fill="var(--tsp-avatar-base, #FC9C50)" />
+      <rect x="106" y="240" width="300" height="8" fill="var(--tsp-avatar-base, #FC9C50)" />
+      <circle cx="173" cy="287" r="21" fill="var(--tsp-avatar-mid, #FF5E1F)" />
+      <path d="M173 314 C151 314 133 329 133 345 C133 353 139 357 148 357 H198 C207 357 213 353 213 345 C213 329 195 314 173 314 Z" fill="var(--tsp-avatar-mid, #FF5E1F)" />
+      <rect x="285" y="266" width="93" height="16" rx="8" fill="var(--tsp-avatar-base, #FC9C50)" />
+      <rect x="285" y="303" width="93" height="16" rx="8" fill="var(--tsp-avatar-mid, #FF5E1F)" />
+      <rect x="242" y="340" width="136" height="16" rx="8" fill="var(--tsp-avatar-deep, #FF2D0F)" />
+    </svg>
+  );
+}
+
 // Maps ContactRole to avatar side
 function contactRoleToSide(roleType: string): Side {
   if (roleType === "vendor") return "vendor";
@@ -94,12 +116,14 @@ type AvatarBaseProps = {
   // portrait fills a circle. Defaults to dead centre (50/50).
   focusX?: number;
   focusY?: number;
-  // When no image is set, render the branded default agent art instead of
-  // initials. Used for staff/agent avatars, not client contacts.
+  // When no image is set, render the branded default art instead of initials.
   defaultArt?: boolean;
+  // Which art to use for the default: "person" (clients/staff) or "idcard"
+  // (solicitors/professionals). Ignored unless defaultArt is set.
+  artKind?: "person" | "idcard";
 };
 
-function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50, defaultArt = false }: AvatarBaseProps) {
+function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50, defaultArt = false, artKind = "person" }: AvatarBaseProps) {
   const { bg, color } = SIDE_STYLES[side];
   const fontSize = Math.round(size * 0.375);
   // When showing the branded art for a contact side, retint its layers.
@@ -139,7 +163,7 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
           style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block" }}
         />
       ) : defaultArt ? (
-        <DefaultAgentAvatarArt size={size} />
+        artKind === "idcard" ? <DefaultIdCardAvatarArt size={size} /> : <DefaultAgentAvatarArt size={size} />
       ) : (
         initials
       )}
@@ -162,7 +186,8 @@ type ContactAvatarProps = {
 export function ContactAvatar({ contact, size = 32, className, art = true }: ContactAvatarProps) {
   const initials = getInitials(contact);
   const side = contact.roleType ? contactRoleToSide(contact.roleType) : "fallback";
-  return <AvatarBase initials={initials} side={side} size={size} className={className} defaultArt={art} />;
+  const artKind = contact.roleType === "solicitor" ? "idcard" : "person";
+  return <AvatarBase initials={initials} side={side} size={size} className={className} defaultArt={art} artKind={artKind} />;
 }
 
 // ─── UserAvatar ───────────────────────────────────────────────────────────────
@@ -220,6 +245,7 @@ export function ActorAvatar({
       className={className}
       image={image ?? null}
       defaultArt
+      artKind={role === "solicitor" ? "idcard" : "person"}
     />
   );
 }
