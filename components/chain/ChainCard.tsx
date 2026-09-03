@@ -56,6 +56,13 @@ export function ChainCard({
   const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length } = chain;
   const agencyName = showAgency ? chain.ourAgencyName : null;
 
+  // Split the address like the rest of the app: street on line 1, town/postcode
+  // smaller underneath.
+  const full = chain.ourAddress ?? "Your sale";
+  const commaIdx = full.indexOf(",");
+  const addrLine1 = commaIdx >= 0 ? full.slice(0, commaIdx).trim() : full;
+  const addrLine2 = commaIdx >= 0 ? full.slice(commaIdx + 1).trim() : "";
+
   // Connected = a link with a real transaction (matches the drawer's claim rate).
   // "All agents connected" only when every link is claimed — never inferred from
   // the invite count.
@@ -91,26 +98,30 @@ export function ChainCard({
 
   return (
     <GlassCard glassId="chains-card" label="Chains · chain card" defaultVariant="v05" style={{ padding: 16, borderRadius: 14 }}>
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-        <PropertyThumb photoUrl={chain.ourPhotoUrl} size={62} />
-
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 11 }}>
-          {/* Header: our address + Your sale tag, and the open-chain action */}
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Header: photo + address, and the open-chain action */}
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <PropertyThumb photoUrl={chain.ourPhotoUrl} size={60} />
+          <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 <span
                   data-sensitive="true"
                   style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}
                 >
-                  {chain.ourAddress ?? "Your sale"}
+                  {addrLine1}
                 </span>
                 {chain.ourPosition != null && (
                   <Pill glass tone="brand" size="sm" style={{ flexShrink: 0 }}>Your sale</Pill>
                 )}
               </div>
+              {addrLine2 && (
+                <div data-sensitive="true" style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {addrLine2}
+                </div>
+              )}
               {(agreed || agencyName) && (
-                <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: 10.5, color: "var(--agent-text-muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {[agreed, agencyName].filter(Boolean).join("  ·  ")}
                 </div>
               )}
@@ -123,19 +134,19 @@ export function ChainCard({
               <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />
             </div>
           </div>
+        </div>
 
-          {/* Chain visual */}
-          <ChainMiniMap spine={chain.spine} branches={chain.branches} />
+        {/* Chain visual — full width, first node left-aligned under the photo */}
+        <ChainMiniMap spine={chain.spine} branches={chain.branches} />
 
-          {/* Concise chain metadata */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
-            {meta.map((m, i) => (
-              <Fragment key={i}>
-                {i > 0 && <Divider />}
-                {m}
-              </Fragment>
-            ))}
-          </div>
+        {/* Concise chain metadata — full width */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
+          {meta.map((m, i) => (
+            <Fragment key={i}>
+              {i > 0 && <Divider />}
+              {m}
+            </Fragment>
+          ))}
         </div>
       </div>
     </GlassCard>

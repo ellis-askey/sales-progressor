@@ -440,7 +440,9 @@ export function ChainsWorkspace({
               placeholder="Search address, agent or chain"
               aria-label="Search chains"
               className="agent-input agent-input-sm"
-              style={{ width: "100%", paddingLeft: 32, paddingRight: query ? 30 : 12 }}
+              // Inline font-size beats the mobile ".agent-input {16px}" zoom-guard
+              // rule, so the placeholder stays compact like the top-nav search.
+              style={{ width: "100%", paddingLeft: 32, paddingRight: query ? 30 : 12, fontSize: "var(--agent-text-body-sm)" }}
             />
             {query && (
               <button

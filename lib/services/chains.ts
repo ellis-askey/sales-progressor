@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
-import { TransactionStatus } from "@prisma/client";
+import { TransactionStatus, ServiceType } from "@prisma/client";
 import { shiftPositionsUp, repackPositions } from "@/lib/chain/positions";
 import {
   calculatePhaseAwarePrediction,
@@ -1536,9 +1536,17 @@ export type NoChainSale = {
   search: string;
 };
 
+// Internal staff (admin / SP / superadmin, scope "all" or "assigned") only
+// progress OUTSOURCED files, so the workspace hides purely self-managed chains
+// from them — those are the agency's own to run. Agency users (scope "agency")
+// see all of their files, self-managed and outsourced alike.
+function serviceTypeFilter(scope: AccessScope) {
+  return scope.kind === "agency" ? {} : { serviceType: ServiceType.outsourced };
+}
+
 export async function listChainsForScope(scope: AccessScope): Promise<ChainsWorkspaceChain[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null } }] },
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
     select: {
       id: true,
       propertyAddress: true,
@@ -1707,7 +1715,7 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
 
 export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoChainSale[]> {
   const rows = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null }] },
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null, ...serviceTypeFilter(scope) }] },
     select: {
       id: true,
       propertyAddress: true,
