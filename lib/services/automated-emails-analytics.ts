@@ -90,3 +90,68 @@ export async function getChasePerformance(input: EmailScopeInput & { periodDays:
     chasesSentPeriod,
   };
 }
+
+// ── Email health ─────────────────────────────────────────────────────────────
+//
+// Deliverability of the automated email queue over the period, from the
+// SendGrid webhook columns. Covers the queue (client chases + notifications) —
+// the rich-webhook pipeline. Solicitor sends carry only a coarse status and low
+// volume, so they're left out to keep these rates precise rather than blended.
+//
+// "unknown" is honest: we handed the message to SendGrid but no delivery event
+// has come back yet (webhook confirmation is partial). It is NOT counted as
+// delivered — the delivery rate only claims what we've actually confirmed.
+
+export type EmailHealth = {
+  periodDays: number;
+  totalSent: number;
+  delivered: number;
+  deferred: number;   // deferred by the recipient server, not yet delivered
+  bounced: number;
+  blocked: number;
+  unknown: number;    // sent, no delivery event back yet
+  deliveryRatePct: number | null;  // delivered / totalSent
+  bounceRatePct: number | null;    // (bounced + blocked) / totalSent
+};
+
+export async function getEmailHealth(input: EmailScopeInput & { periodDays: number }): Promise<EmailHealth> {
+  const { txIds, queueScope } = await resolveEmailScope(input);
+  const empty: EmailHealth = {
+    periodDays: input.periodDays, totalSent: 0, delivered: 0, deferred: 0, bounced: 0, blocked: 0, unknown: 0,
+    deliveryRatePct: null, bounceRatePct: null,
+  };
+  if (txIds.length === 0) return empty;
+
+  const periodStart = new Date(Date.now() - input.periodDays * DAY);
+  const rows = await prisma.outboundEmailQueue.findMany({
+    where: { ...queueScope, sentAt: { gte: periodStart } },
+    select: { sentAt: true, emailType: true, recipientContactId: true, deliveredAt: true, deferredAt: true, bouncedAt: true, blockedAt: true },
+    take: 20000,
+  });
+
+  // Collapse milestone digests (N rows delivered as one email share the same
+  // recipient + sentAt) so a bundle counts once — matching the activity KPIs.
+  const seenDigest = new Set<string>();
+  let delivered = 0, deferred = 0, bounced = 0, blocked = 0, unknown = 0;
+  for (const r of rows) {
+    if (r.emailType === "MILESTONE_CONFIRMATION" && r.recipientContactId && r.sentAt) {
+      const key = `${r.recipientContactId}|${r.sentAt.getTime()}`;
+      if (seenDigest.has(key)) continue;
+      seenDigest.add(key);
+    }
+    // Most-bad-wins, mirroring deriveQueueDeliveryStatus for sent rows.
+    if (r.bouncedAt) bounced++;
+    else if (r.blockedAt) blocked++;
+    else if (r.deferredAt && !r.deliveredAt) deferred++;
+    else if (r.deliveredAt) delivered++;
+    else unknown++;
+  }
+  const totalSent = delivered + deferred + bounced + blocked + unknown;
+
+  return {
+    periodDays: input.periodDays,
+    totalSent, delivered, deferred, bounced, blocked, unknown,
+    deliveryRatePct: pct(delivered, totalSent),
+    bounceRatePct: pct(bounced + blocked, totalSent),
+  };
+}

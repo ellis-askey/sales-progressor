@@ -21,18 +21,19 @@ import { EmailDetailDrawer } from "@/components/automated-emails/EmailDetailDraw
 import { UpcomingView } from "@/components/automated-emails/UpcomingView";
 import { FilesView } from "@/components/automated-emails/FilesView";
 import { ChasePerformanceView } from "@/components/automated-emails/ChasePerformanceView";
+import { EmailHealthView } from "@/components/automated-emails/EmailHealthView";
 import { deliveryStatusMeta } from "@/components/automated-emails/deliveryStatus";
 import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import type { FileAutomationRow } from "@/lib/services/automated-emails-coverage";
-import type { ChasePerformance } from "@/lib/services/automated-emails-analytics";
+import type { ChasePerformance, EmailHealth } from "@/lib/services/automated-emails-analytics";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 
-// The Files + Chase-performance tabs live only in the UI (they render their own
-// content, not email rows), so they widen the list service's EmailListTab here
-// rather than there.
-type FeedTab = EmailListTab | "files" | "chase-performance";
+// The Files + Chase-performance + Email-health tabs live only in the UI (they
+// render their own content, not email rows), so they widen the list service's
+// EmailListTab here rather than there.
+type FeedTab = EmailListTab | "files" | "chase-performance" | "email-health";
 
 type Props = {
   rows: EmailRow[];
@@ -46,6 +47,7 @@ type Props = {
   forecast?: UpcomingForecast | null;
   fileRows?: FileAutomationRow[] | null;
   chasePerformance?: ChasePerformance | null;
+  emailHealth?: EmailHealth | null;
 };
 
 const TABS: { value: FeedTab; label: string }[] = [
@@ -55,6 +57,7 @@ const TABS: { value: FeedTab; label: string }[] = [
   { value: "upcoming", label: "Upcoming (14d)" },
   { value: "files", label: "Files" },
   { value: "chase-performance", label: "Chase performance" },
+  { value: "email-health", label: "Email health" },
 ];
 
 const ROLE_OPTIONS = [
@@ -86,7 +89,7 @@ function countForTab(t: FeedTab, counts: Props["counts"], rows: EmailRow[], acti
   if (t === "sent") return counts.sentLast30d;
   if (t === "errored") return counts.errored;
   if (t === "files") return fileCount ?? null;
-  if (t === "chase-performance") return null;
+  if (t === "chase-performance" || t === "email-health") return null;
   if (forecast) return forecast.predictedTotal;
   return t === activeTab ? rows.length : null;
 }
@@ -123,9 +126,9 @@ function groupByDay(rows: EmailRow[]): { key: string; label: string; rows: Email
 }
 
 export function AutomatedEmailsListView(props: Props) {
-  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast, fileRows, chasePerformance } = props;
+  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast, fileRows, chasePerformance, emailHealth } = props;
   const isFiles = tab === "files";
-  const isAnalytics = tab === "chase-performance";
+  const isAnalytics = tab === "chase-performance" || tab === "email-health";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<EmailRow | null>(null);
@@ -254,8 +257,10 @@ export function AutomatedEmailsListView(props: Props) {
       {/* Feed */}
       {isFiles ? (
         <FilesView rows={fileRows ?? []} />
-      ) : isAnalytics && chasePerformance ? (
-        <ChasePerformanceView data={chasePerformance} />
+      ) : tab === "chase-performance" ? (
+        chasePerformance ? <ChasePerformanceView data={chasePerformance} /> : <EmptyState title="No chase performance yet" compact />
+      ) : tab === "email-health" ? (
+        emailHealth ? <EmailHealthView data={emailHealth} /> : <EmptyState title="No automated email activity in this period" compact />
       ) : tab === "upcoming" && forecast ? (
         <UpcomingView forecast={forecast} />
       ) : rows.length === 0 ? (
@@ -357,6 +362,7 @@ function emptyTitle(tab: FeedTab, filtered: boolean): string {
     case "upcoming": return "No automated emails currently predicted in the next 14 days";
     case "files": return "No active files to monitor";
     case "chase-performance": return "No chase performance yet";
+    case "email-health": return "No automated email activity in this period";
   }
 }
 function emptyDescription(tab: FeedTab, filtered: boolean): string | undefined {
