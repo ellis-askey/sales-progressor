@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple } from "@phosphor-icons/react";
+import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple, GlobeSimple, ArrowSquareOut } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
-import { saveSolicitorsAction } from "@/app/actions/transactions";
+import { saveSolicitorsAction, getSolicitorPortalLinkAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { Pill } from "@/components/ui/Pill";
 import { SavingPulse } from "@/components/ui/SavingPulse";
@@ -151,6 +151,7 @@ function SolicitorIntelChips({ firmId, isInternalStaff = false }: { firmId: stri
 }
 
 function SolicitorTile({
+  transactionId,
   side,
   info,
   recommendedFirms,
@@ -162,6 +163,7 @@ function SolicitorTile({
   onChange,
   onRemove,
 }: {
+  transactionId: string;
   side: "vendor" | "purchaser";
   info: SolicitorInfo;
   recommendedFirms?: RecommendedFirm[];
@@ -178,7 +180,22 @@ function SolicitorTile({
   const [editing, setEditing] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [draft, setDraft] = useState<SolicitorSelection | null>(toSelection(info));
+
+  // Solicitors have no stored portal token — mint one via the server action
+  // (it's the same signed link our chase emails send) and copy it. There's no
+  // "invite" flow for solicitors, so the card's Invite button stays disabled.
+  async function copyPortalLink() {
+    try {
+      const token = await getSolicitorPortalLinkAction(transactionId, side);
+      await navigator.clipboard.writeText(`${window.location.origin}/s/${token}`);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // ignore — transient / permission
+    }
+  }
   const [referralFeeDraft, setReferralFeeDraft] = useState<number | null>(null);
 
   const selectedRecommended = draft?.firmId
@@ -341,6 +358,44 @@ function SolicitorTile({
                     <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>cc {info.contact.secondaryEmail}</span>
                   </div>
                 )}
+
+                {/* Portal access — mirrors the clients' Portal card. Solicitors
+                    reach it via chase-email links (no invite flow), so the
+                    Invite button is shown disabled and the link is copyable. */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-nested-strong)" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, color: "#64748b", flexShrink: 0 }}>
+                    <GlobeSimple size={28} weight="regular" />
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>Portal access</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-muted)" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#94a3b8", flexShrink: 0 }} />
+                      Portal link ready
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled
+                      title="Solicitors reach their portal through the links in our chase emails, so there's no separate invite to send."
+                      className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                      style={{ opacity: 0.45, cursor: "default", pointerEvents: "none" }}
+                    >
+                      Invite
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copyPortalLink}
+                      title="Copy the solicitor's portal link"
+                      aria-label="Copy portal link"
+                      className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                      style={{ minWidth: 34, padding: "0 8px" }}
+                    >
+                      {linkCopied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -517,6 +572,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
         padding: 12,
       }}>
         <SolicitorTile
+          transactionId={transactionId}
           side="vendor"
           info={vendorState}
           recommendedFirms={recommendedFirms}
@@ -529,6 +585,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           onRemove={handleVendorRemove}
         />
         <SolicitorTile
+          transactionId={transactionId}
           side="purchaser"
           info={purchaserState}
           recommendedFirms={recommendedFirms}

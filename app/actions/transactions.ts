@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
@@ -1267,6 +1268,24 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   );
 
   revalidateTx(transactionId);
+}
+
+// Mint the solicitor's portal link for the agent to copy/share. Solicitors have
+// no stored portalToken (a firm is reused across files) — the link is a signed,
+// per-transaction+side token, the same shape our chase emails send. Returns the
+// token only; the client builds the absolute /s/<token> URL.
+export async function getSolicitorPortalLinkAction(
+  transactionId: string,
+  side: "vendor" | "purchaser",
+): Promise<string> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  return signSolicitorToken(transactionId, side);
 }
 
 // Recover a file that reached the DB WITHOUT tenure/purchaseType (a non-form
