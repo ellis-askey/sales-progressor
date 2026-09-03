@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Phone, ChatCircleText, EnvelopeSimple } from "@phosphor-icons/react";
+import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -10,6 +10,7 @@ import { SavingPulse } from "@/components/ui/SavingPulse";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { RoleIcon } from "@/components/ui/RoleIcon";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -149,39 +150,6 @@ function SolicitorIntelChips({ firmId, isInternalStaff = false }: { firmId: stri
   );
 }
 
-// Role pill colours - mirrors ContactsSection.tsx so vendor/purchaser
-// solicitor tiles read as a family with the contacts card above.
-const ROLE_TILE_STYLE: Record<"vendor" | "purchaser", { pillBg: string; pillColor: string; avatarBg: string; avatarColor: string }> = {
-  vendor: {
-    pillBg: "rgba(var(--agent-coral-rgb), 0.12)",
-    pillColor: "var(--agent-coral-deep)",
-    avatarBg: "rgba(var(--agent-coral-rgb), 0.14)",
-    avatarColor: "var(--agent-coral-deep)",
-  },
-  purchaser: {
-    pillBg: "rgba(59, 130, 246, 0.12)",
-    pillColor: "#1d4ed8",
-    avatarBg: "rgba(59, 130, 246, 0.14)",
-    avatarColor: "#1d4ed8",
-  },
-};
-
-// Small square icon-button used for the phone/email/whatsapp actions on
-// each solicitor tile. Same shape + tokens as the ContactsSection grid
-// tile so the two cards visually match.
-const solicitorTileIconBtnStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 28,
-  height: 28,
-  borderRadius: 7,
-  background: "var(--agent-surface-overlay)",
-  color: "var(--agent-text-secondary)",
-  textDecoration: "none",
-  transition: "background 140ms ease",
-};
-
 function SolicitorTile({
   side,
   info,
@@ -209,6 +177,7 @@ function SolicitorTile({
 }) {
   const [editing, setEditing] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState<SolicitorSelection | null>(toSelection(info));
   const [referralFeeDraft, setReferralFeeDraft] = useState<number | null>(null);
 
@@ -253,7 +222,6 @@ function SolicitorTile({
     }, 150);
   }
 
-  const tileTone = ROLE_TILE_STYLE[side];
   // Vendor = seller-blue, purchaser = buyer-green, matching the side-tinted
   // avatars and the Contacts card pills.
   const roleTone: "info" | "success" = side === "vendor" ? "info" : "success";
@@ -279,22 +247,23 @@ function SolicitorTile({
     gridColumn: editing || exiting ? "1 / -1" : "auto",
   };
 
-  // Empty tile - no firm assigned yet
+  // Empty row - no firm assigned yet (roster-style, matches ContactsSection)
   if (!info.firm && !editing && !exiting) {
     return (
       <div style={tileWrapperStyle}>
-        <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Pill glass tone={roleTone} size="sm">{roleLabel} solicitor</Pill>
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px" }}>
+          <ContactAvatar contact={{ name: roleLabel, roleType: "solicitor" }} size={40} sideTint={side} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+              <Pill glass tone={roleTone} size="sm"><RoleIcon role={side} size={10} />{roleLabel}</Pill>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, fontStyle: "italic" }}>
+              No {side} solicitor yet
+            </div>
           </div>
-          <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
-            No {side} solicitor yet
-          </p>
-          <div>
-            <button type="button" onClick={openEdit} className="agent-link" style={{ fontSize: 12, fontWeight: 500 }}>
-              + Add {side} solicitor
-            </button>
-          </div>
+          <button type="button" onClick={openEdit} className="agent-link" style={{ fontSize: 12, fontWeight: 500, flexShrink: 0 }}>
+            + Add
+          </button>
         </div>
       </div>
     );
@@ -302,95 +271,80 @@ function SolicitorTile({
 
   return (
     <div style={tileWrapperStyle}>
-      {/* Display view - shown when NOT editing */}
+      {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
-        <div style={{ padding: "14px 16px", display: "flex", gap: 16, alignItems: "flex-start" }}>
-          {/* ── Left column: identity + contact details (matches ContactsSection) ── */}
-          <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 0 }}>
-            <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} sideTint={side} />
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-              {/* Firm name + role */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
-                <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
+            <button
+              type="button"
+              onClick={() => setExpanded((x) => !x)}
+              aria-expanded={expanded}
+              style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+            >
+              <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} sideTint={side} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
+                  <Pill glass tone={roleTone} size="sm"><RoleIcon role={side} size={10} />{roleLabel}</Pill>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {info.contact?.name ? info.contact.name : "No handler on file"}
+                </div>
               </div>
-              {info.contact && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{info.contact.name}</p>
-              )}
-              <SolicitorIntelChips firmId={info.firm.id} isInternalStaff={isInternalStaff} />
-              {showReferralFee && referralFee != null && (
-                <span style={{
-                  alignSelf: "flex-start",
-                  fontSize: 10, fontWeight: 500,
-                  borderRadius: 4, padding: "2px 7px",
-                  background: "rgba(16,185,129,0.12)", color: "#059669",
-                }}>
-                  Referral £{(referralFee / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </span>
-              )}
-              {/* Phone + email rows: icon + link, same as ContactsSection */}
-              {info.contact?.phone && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                  <a href={`tel:${info.contact.phone.replace(/\s/g, "")}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {info.contact.phone}
-                  </a>
-                </div>
-              )}
-              {info.contact?.email && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                  <a href={emailHref ?? `mailto:${info.contact.email}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {info.contact.email}
-                  </a>
-                </div>
-              )}
-              {info.contact?.secondaryEmail && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }} title="Assistant, cc'd on every email">
-                  <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", opacity: 0.6, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    cc {info.contact.secondaryEmail}
-                  </span>
-                </div>
-              )}
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+                <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {/* Comms + edit stay on the row (never hidden), like ContactsSection */}
+            <div style={{ display: "flex", gap: 5, alignItems: "center", flexShrink: 0 }}>
+              <CommsButton compact href={info.contact?.phone ? `tel:${info.contact.phone.replace(/\s/g, "")}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "Call" : "No phone number on file"} />
+              <CommsButton compact href={info.contact?.phone ? `https://wa.me/${info.contact.phone.replace(/[^\d]/g, "")}` : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "WhatsApp" : "No phone number on file"} />
+              <CommsButton compact href={emailHref ?? undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!info.contact?.email} title={info.contact?.email ? "Email" : "No email on file"} />
+              <button
+                type="button"
+                onClick={openEdit}
+                aria-label={`Edit ${side} solicitor`}
+                title="Edit"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer", flexShrink: 0 }}
+              >
+                <PencilSimple size={15} weight="regular" />
+              </button>
             </div>
           </div>
 
-          {/* ── Right column: comms actions + edit (matches ContactsSection) ── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", flexShrink: 0 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
-              <CommsButton
-                href={info.contact?.phone ? `tel:${info.contact.phone.replace(/\s/g, "")}` : undefined}
-                label="Call"
-                icon={<Phone size={13} weight="regular" />}
-                disabled={!info.contact?.phone}
-                title={info.contact?.phone ? "Call" : "No phone number on file"}
-              />
-              <CommsButton
-                href={info.contact?.phone ? `https://wa.me/${info.contact.phone.replace(/[^\d]/g, "")}` : undefined}
-                label="WhatsApp"
-                icon={<ChatCircleText size={13} weight="regular" />}
-                disabled={!info.contact?.phone}
-                title={info.contact?.phone ? "WhatsApp" : "No phone number on file"}
-              />
-              <CommsButton
-                href={emailHref ?? undefined}
-                label="Email"
-                icon={<EnvelopeSimple size={13} weight="regular" />}
-                disabled={!info.contact?.email}
-                title={info.contact?.email ? "Email" : "No email on file"}
-              />
+          {/* Expanded detail — intel, contact details, referral. Nothing lost;
+              the old always-open card's content lives here now. */}
+          <div className={`agent-acc${expanded ? " open" : ""}`}>
+            <div className="agent-acc-in">
+              <div style={{ padding: "0 12px 12px 63px", display: "flex", flexDirection: "column", gap: 10 }}>
+                <SolicitorIntelChips firmId={info.firm.id} isInternalStaff={isInternalStaff} />
+                {showReferralFee && referralFee != null && (
+                  <span style={{ alignSelf: "flex-start", fontSize: 10, fontWeight: 500, borderRadius: 4, padding: "2px 7px", background: "rgba(16,185,129,0.12)", color: "#059669" }}>
+                    Referral £{(referralFee / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+                {info.contact?.phone && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                    <a href={`tel:${info.contact.phone.replace(/\s/g, "")}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{info.contact.phone}</a>
+                  </div>
+                )}
+                {info.contact?.email && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                    <a href={emailHref ?? `mailto:${info.contact.email}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{info.contact.email}</a>
+                  </div>
+                )}
+                {info.contact?.secondaryEmail && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }} title="Assistant, cc'd on every email">
+                    <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", opacity: 0.6, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>cc {info.contact.secondaryEmail}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={openEdit}
-              className="agent-link"
-              style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-coral-deep)", background: "transparent", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Edit
-            </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* Edit form - shown when editing. Spans full width (via
