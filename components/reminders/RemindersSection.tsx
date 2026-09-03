@@ -202,7 +202,7 @@ function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: str
           if (open) { close(); } else { setClosing(false); setOpen(true); }
         }}
         title="Snooze this reminder"
-        style={{ fontSize: 10, color: "var(--agent-text-muted)", padding: "3px 7px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
+        style={{ fontSize: 12, color: "var(--agent-text-muted)", height: 28, padding: "0 10px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
       >
         🕐
       </button>
@@ -465,13 +465,14 @@ function PriorityList({
                   <Button
                     size="sm"
                     onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer) })}
+                    style={{ height: 28 }}
                   >
                     Chase
                   </Button>
                   <button
                     onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
                     title="Mark as chased. Advances the next chase date without sending an email"
-                    style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+                    style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", height: 28, padding: "0 9px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}
                   >
                     ↻ Chased
                   </button>
@@ -479,7 +480,7 @@ function PriorityList({
                     onClick={() => handleComplete(log.id, task.id)}
                     disabled={loading === task.id}
                     title="Confirm milestone done"
-                    style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+                    style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", height: 28, padding: "0 9px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}
                   >
                     ✓ Done
                   </button>
@@ -514,11 +515,10 @@ function PriorityList({
 
       {/* Footer: Chase + Snooze all */}
       {openTasks.length > 0 && (
-        <div style={{ padding: "8px 12px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ padding: "8px 12px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
           <Button
             onClick={() => setDrawerOpen(true)}
             size="sm"
-            className="flex-1"
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
           </Button>
