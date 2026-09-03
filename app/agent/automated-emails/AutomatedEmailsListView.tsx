@@ -20,16 +20,19 @@ import type { EmailRow, EmailListTab } from "@/lib/services/automated-emails-lis
 import { EmailDetailDrawer } from "@/components/automated-emails/EmailDetailDrawer";
 import { UpcomingView } from "@/components/automated-emails/UpcomingView";
 import { FilesView } from "@/components/automated-emails/FilesView";
+import { ChasePerformanceView } from "@/components/automated-emails/ChasePerformanceView";
 import { deliveryStatusMeta } from "@/components/automated-emails/deliveryStatus";
 import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import type { FileAutomationRow } from "@/lib/services/automated-emails-coverage";
+import type { ChasePerformance } from "@/lib/services/automated-emails-analytics";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 
-// The Files tab lives only in the UI (it renders a per-file rollup, not email
-// rows), so it widens the list service's EmailListTab here rather than there.
-type FeedTab = EmailListTab | "files";
+// The Files + Chase-performance tabs live only in the UI (they render their own
+// content, not email rows), so they widen the list service's EmailListTab here
+// rather than there.
+type FeedTab = EmailListTab | "files" | "chase-performance";
 
 type Props = {
   rows: EmailRow[];
@@ -42,6 +45,7 @@ type Props = {
   hasMore: boolean;
   forecast?: UpcomingForecast | null;
   fileRows?: FileAutomationRow[] | null;
+  chasePerformance?: ChasePerformance | null;
 };
 
 const TABS: { value: FeedTab; label: string }[] = [
@@ -50,6 +54,7 @@ const TABS: { value: FeedTab; label: string }[] = [
   { value: "errored", label: "Issues" },
   { value: "upcoming", label: "Upcoming (14d)" },
   { value: "files", label: "Files" },
+  { value: "chase-performance", label: "Chase performance" },
 ];
 
 const ROLE_OPTIONS = [
@@ -81,6 +86,7 @@ function countForTab(t: FeedTab, counts: Props["counts"], rows: EmailRow[], acti
   if (t === "sent") return counts.sentLast30d;
   if (t === "errored") return counts.errored;
   if (t === "files") return fileCount ?? null;
+  if (t === "chase-performance") return null;
   if (forecast) return forecast.predictedTotal;
   return t === activeTab ? rows.length : null;
 }
@@ -117,8 +123,9 @@ function groupByDay(rows: EmailRow[]): { key: string; label: string; rows: Email
 }
 
 export function AutomatedEmailsListView(props: Props) {
-  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast, fileRows } = props;
+  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast, fileRows, chasePerformance } = props;
   const isFiles = tab === "files";
+  const isAnalytics = tab === "chase-performance";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<EmailRow | null>(null);
@@ -176,7 +183,8 @@ export function AutomatedEmailsListView(props: Props) {
         })}
       </div>
 
-      {/* Toolbar: search + filters */}
+      {/* Toolbar: search + filters — hidden on analytics tabs (nothing to filter) */}
+      {!isAnalytics && (
       <div className="flex flex-wrap items-center gap-2">
         <form
           onSubmit={(e) => { e.preventDefault(); go({ q: searchDraft.trim() || null }); }}
@@ -223,6 +231,7 @@ export function AutomatedEmailsListView(props: Props) {
           Export
         </a>
       </div>
+      )}
 
       {/* Director toggle + file filter pill */}
       {(showMineToggle || fileId) && (
@@ -245,6 +254,8 @@ export function AutomatedEmailsListView(props: Props) {
       {/* Feed */}
       {isFiles ? (
         <FilesView rows={fileRows ?? []} />
+      ) : isAnalytics && chasePerformance ? (
+        <ChasePerformanceView data={chasePerformance} />
       ) : tab === "upcoming" && forecast ? (
         <UpcomingView forecast={forecast} />
       ) : rows.length === 0 ? (
@@ -345,6 +356,7 @@ function emptyTitle(tab: FeedTab, filtered: boolean): string {
     case "errored": return "No delivery issues";
     case "upcoming": return "No automated emails currently predicted in the next 14 days";
     case "files": return "No active files to monitor";
+    case "chase-performance": return "No chase performance yet";
   }
 }
 function emptyDescription(tab: FeedTab, filtered: boolean): string | undefined {
