@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
 import { DeltaPill } from "@/components/analytics/DeltaPill";
 import { KpiSparkline } from "@/components/analytics/KpiSparkline";
@@ -369,7 +370,7 @@ export function AnalyticsClientShell({
             onClick={() => handlePeriodChange("all")}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
           >
-            All time →
+            All time <LinkArrow />
           </button>
         </div>
       )}
@@ -490,7 +491,7 @@ export function AnalyticsClientShell({
             </p>
             {noFeeTransactionCount > 0 && (
               <a href="#missing-fees" style={{ display: "inline-block", marginTop: 4, fontSize: 10, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none" }}>
-                {noFeeTransactionCount} need fee →
+                {noFeeTransactionCount} need fee <LinkArrow />
               </a>
             )}
           </div>

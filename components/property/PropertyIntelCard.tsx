@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type PricePaid = { date: string; amount: number; propertyType: string; newBuild: boolean; estateType: string; paon?: string; saon?: string; street?: string };
 type Epc = { rating: string; score: number | null; potentialRating: string; potentialScore: number | null; propertyType: string; floorArea: number | null; builtForm: string; inspectionDate: string; validUntil: string | null };
@@ -209,7 +210,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                         href={`https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=${encodeURIComponent(data.postcode)}`}
                         target="_blank" rel="noopener noreferrer" className="agent-link" style={{ fontSize: 11.5, flexShrink: 0 }}
                       >
-                        GOV.UK →
+                        GOV.UK <LinkArrow />
                       </a>
                     )}
                   </div>

@@ -10,6 +10,7 @@ import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { formatChainPriceFull } from "@/lib/chain/summary";
 import { Pill, type PillProps } from "@/components/ui/Pill";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import type { ChainLinkV2, ChainNodeIntel } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
@@ -309,7 +310,7 @@ function OnwardSummaryLine({
           style={{ display: "inline-block", marginTop: 4, fontWeight: 600 }}
           onClick={(e) => e.stopPropagation()}
         >
-          View onward →
+          View onward <LinkArrow />
         </Link>
       )}
     </div>
@@ -838,7 +839,7 @@ export function LinkCard({
               href={`/agent/transactions/${link.transaction.id}`}
               className="chain-act-link chain-act-primary"
             >
-              Open file →
+              Open file <LinkArrow />
             </Link>
           )}
 

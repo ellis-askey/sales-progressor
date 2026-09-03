@@ -13,6 +13,7 @@
 // header, above the existing content.
 
 import Link from "next/link";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { getPaymentBlockState } from "@/lib/billing/payment-block";
 
 export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
@@ -56,7 +57,7 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
             alignSelf: "center", whiteSpace: "nowrap",
           }}
         >
-          Update card →
+          Update card <LinkArrow />
         </Link>
       </div>
     );

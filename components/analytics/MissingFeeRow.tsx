@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { saveAgentFeeAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type Props = {
   id: string;
@@ -187,7 +188,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
             onClick={handleOpen}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", padding: "6px 0", minHeight: 36, display: "flex", alignItems: "center" }}
           >
-            Set fee →
+            Set fee <LinkArrow />
           </button>
 
           {/* Desktop popover — portaled to body to escape stacking contexts */}
@@ -222,7 +223,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
           href={`${txBasePath}/${id}`}
           style={{ fontSize: 12, color: "var(--agent-text-muted)", textDecoration: "none", padding: "6px 0", minHeight: 36, display: "flex", alignItems: "center" }}
         >
-          View file →
+          View file <LinkArrow />
         </Link>
       </div>
 

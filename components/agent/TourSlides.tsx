@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "@phosphor-icons/react";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";
 
@@ -138,7 +139,7 @@ export function TourSlides({ onClose, onFinish, agencyModeProfile = "self_progre
           className="agent-btn agent-btn-primary agent-btn-sm"
           style={{ minWidth: 110, justifyContent: "center" }}
         >
-          {isLast ? "Get started →" : "Next →"}
+          {isLast ? <>Get started <LinkArrow /></> : <>Next <LinkArrow /></>}
         </button>
       </div>
     </div>

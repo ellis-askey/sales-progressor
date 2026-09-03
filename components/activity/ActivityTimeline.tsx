@@ -8,6 +8,7 @@ import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getCommBadge } from "@/lib/agent/comms-display";
 import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
@@ -584,7 +585,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                                           gap: 4,
                                         }}
                                       >
-                                        → Open response page
+                                        <LinkArrow leading />Open response page
                                       </a>
                                     ))}
                                   </div>

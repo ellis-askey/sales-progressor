@@ -13,6 +13,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Drawer } from "@/components/ui/Drawer";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -231,7 +232,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged }: { row: EmailRow |
       <Drawer.Footer>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%" }}>
           <Link href={`/agent/transactions/${txId}`} className="agent-link agent-link-muted" style={{ fontSize: 12 }}>
-            View file →
+            View file <LinkArrow />
           </Link>
           {mode === "view" && (
             <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>

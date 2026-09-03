@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { FilesAtRiskData } from "@/lib/services/analytics";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 interface RiskRowProps {
   label: string;
@@ -46,7 +47,7 @@ function RiskRow({ label, sublabel, count, href, first }: RiskRowProps) {
                 textDecoration: "none",
               }}
             >
-              View →
+              View <LinkArrow />
             </Link>
           </>
         ) : (

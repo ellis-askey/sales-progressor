@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { TrialExpiredModal } from "./TrialExpiredModal";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { TermsSection } from "@/lib/billing/terms-sections";
 
 type Props = {
@@ -74,7 +75,7 @@ export function TrialBannerWithModal({
           className="agent-btn agent-btn-primary agent-btn-sm"
           style={{ flexShrink: 0, whiteSpace: "nowrap" }}
         >
-          Add card →
+          Add card <LinkArrow />
         </button>
       </div>
 
