@@ -16,6 +16,7 @@ import { getMilestonesCached, getReminderLogsCached } from "@/lib/services/cache
 import { countActionable } from "@/lib/reminders/classify";
 import { RemindersSection } from "@/components/reminders/RemindersSection";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
+import type { SolicitorRef } from "@/lib/services/chase-recipients";
 
 type ContactProp = {
   id: string;
@@ -33,6 +34,10 @@ type Props = {
   propertyAddress: string;
   transactionStatus: TransactionStatus;
   contacts: ContactProp[];
+  // The file's solicitors, so the chase drawer can offer them as recipients.
+  // Resolved from the vendor/purchaser solicitor FK columns on the page.
+  vendorSolicitor?: SolicitorRef | null;
+  purchaserSolicitor?: SolicitorRef | null;
 };
 
 export async function RemindersPanel({
@@ -41,6 +46,8 @@ export async function RemindersPanel({
   propertyAddress,
   transactionStatus,
   contacts,
+  vendorSolicitor = null,
+  purchaserSolicitor = null,
 }: Props) {
   const [reminderLogs, milestoneData] = await Promise.all([
     getReminderLogsCached(transactionId, agencyId).catch(() => []),
@@ -63,6 +70,8 @@ export async function RemindersPanel({
         transactionId={transactionId}
         reminderLogs={reminderLogs}
         contacts={contacts}
+        vendorSolicitor={vendorSolicitor}
+        purchaserSolicitor={purchaserSolicitor}
         propertyAddress={propertyAddress}
         completedMilestoneCodes={completedMilestoneCodes}
         transactionStatus={transactionStatus}

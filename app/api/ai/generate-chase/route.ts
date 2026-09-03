@@ -64,12 +64,19 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { chaseTaskId, chaseTaskIds, channel, tone, includeSolicitorCc = true } = body as {
+  const { chaseTaskId, chaseTaskIds, channel, tone, includeCc = false, recipientId, recipientRole } = body as {
     chaseTaskId?: string;
     chaseTaskIds?: string[];
     channel: "email" | "whatsapp";
     tone: string;
-    includeSolicitorCc?: boolean;
+    // Opt-in CC (default off): CC the solicitor on a client send, or the client on
+    // a solicitor send. Which one is derived server-side from the recipient.
+    includeCc?: boolean;
+    // Recipient chosen in the drawer's "To" selector. recipientRole==="solicitor"
+    // means write TO the side's solicitor; otherwise recipientId is a Contact id.
+    // Both omitted (chase-all) -> fall back to milestone-side inference.
+    recipientId?: string;
+    recipientRole?: string;
   };
 
   const isMulti = Array.isArray(chaseTaskIds) && chaseTaskIds.length > 0;
@@ -85,6 +92,10 @@ export async function POST(req: NextRequest) {
       transaction: {
         include: {
           contacts: true,
+          // Real solicitors for CC / solicitor-recipient generation (they aren't
+          // Contact rows). Side = which FK column they sit in.
+          vendorSolicitorContact: { select: { id: true, name: true } },
+          purchaserSolicitorContact: { select: { id: true, name: true } },
           agency: { select: { name: true } },
           communications: {
             where: { type: "outbound" },
@@ -190,14 +201,64 @@ export async function POST(req: NextRequest) {
     ? Math.max(...allTasks.map((t) => t.chaseCount))
     : primaryTask.chaseCount;
 
-  const { client, solicitor } = getRecipientContext(recipientSide, tx.contacts);
-  const primaryRecipient = client ?? solicitor;
-  const showCc = channel === "email" && includeSolicitorCc && solicitor !== null;
+  const { client } = getRecipientContext(recipientSide, tx.contacts);
+  // Real solicitor for the milestone side comes from the FK columns, not from
+  // contacts (solicitors aren't Contact rows).
+  const sideSolicitor =
+    recipientSide === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+
+  // Resolve who this is written TO. The drawer's "To" selector supplies the
+  // recipient; when absent (chase-all) we fall back to the milestone-side client,
+  // then the side solicitor. resolvedRecipientSide starts at the milestone side
+  // and is overridden to the SELECTED solicitor's true side, so the role label and
+  // CC wording never disagree with who the agent actually picked.
+  let resolvedRecipientSide: "vendor" | "purchaser" = recipientSide === "purchaser" ? "purchaser" : "vendor";
+  let primaryRecipient: { name: string; roleType: string } | null = client
+    ? { name: client.name, roleType: client.roleType }
+    : null;
+  let primaryRecipientId: string | null = client?.id ?? null;
+  let recipientIsSolicitor = false;
+  if (recipientRole === "solicitor") {
+    // Trust the exact solicitor the agent picked: match the id across BOTH FK
+    // columns so we get the right person AND the right side, regardless of the
+    // milestone-side inference (which can disagree with the chosen solicitor).
+    let chosen: { name: string } | null = null;
+    if (tx.vendorSolicitorContact && tx.vendorSolicitorContact.id === recipientId) {
+      chosen = tx.vendorSolicitorContact;
+      resolvedRecipientSide = "vendor";
+    } else if (tx.purchaserSolicitorContact && tx.purchaserSolicitorContact.id === recipientId) {
+      chosen = tx.purchaserSolicitorContact;
+      resolvedRecipientSide = "purchaser";
+    } else {
+      chosen = sideSolicitor; // fallback: milestone-side solicitor
+    }
+    primaryRecipient = chosen ? { name: chosen.name, roleType: "solicitor" } : null;
+    primaryRecipientId = null;
+    recipientIsSolicitor = true;
+  } else if (recipientId) {
+    const picked = tx.contacts.find((c) => c.id === recipientId);
+    if (picked) {
+      primaryRecipient = { name: picked.name, roleType: picked.roleType };
+      primaryRecipientId = picked.id;
+    }
+  }
+  if (!primaryRecipient && sideSolicitor) {
+    primaryRecipient = { name: sideSolicitor.name, roleType: "solicitor" };
+    recipientIsSolicitor = true;
+  }
+
+  // CC is symmetric and opt-in (includeCc). Solicitor recipient -> CC the client
+  // on the resolved side; client recipient -> CC that side's solicitor.
+  const resolvedSideSolicitor =
+    resolvedRecipientSide === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
+  const { client: resolvedClient } = getRecipientContext(resolvedRecipientSide, tx.contacts);
+  const ccExists = recipientIsSolicitor ? resolvedClient !== null : resolvedSideSolicitor !== null;
+  const showCc = channel === "email" && includeCc && ccExists;
 
   const recipientFirstName = greetingName(primaryRecipient?.name ?? "");
-  const recipientRole = primaryRecipient
-    ? resolveRecipientRole(primaryRecipient.roleType, recipientSide)
-    : recipientSide;
+  const recipientRoleLabel = primaryRecipient
+    ? resolveRecipientRole(primaryRecipient.roleType, resolvedRecipientSide)
+    : resolvedRecipientSide;
 
   // Other contacts (exclude primary recipient AND the CC'd solicitor — that's
   // surfaced separately on its own line). PII minimisation: send role label +
@@ -207,8 +268,7 @@ export async function POST(req: NextRequest) {
   // in the system prompt already forbid surfacing other parties' internal status.
   const otherContactsByRole = new Map<string, number>();
   for (const c of tx.contacts) {
-    if (c.id === primaryRecipient?.id) continue;
-    if (showCc && solicitor && c.id === solicitor.id) continue;
+    if (c.id === primaryRecipientId) continue;
     const role = resolveRecipientRole(c.roleType, recipientSide);
     otherContactsByRole.set(role, (otherContactsByRole.get(role) ?? 0) + 1);
   }
@@ -394,7 +454,11 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
   //
   // Keep this list in sync with Terms §5 and the Privacy data-inventory.
   const recipientShortAddress = shortenAddress(tx.propertyAddress);
-  const ccRoleLabel = recipientSide === "vendor" ? "vendor's solicitor" : "purchaser's solicitor";
+  // Who's being CC'd, phrased for the AI. Solicitor recipient -> the client is
+  // CC'd; client recipient -> that side's solicitor is CC'd.
+  const ccRoleLabel = recipientIsSolicitor
+    ? (resolvedRecipientSide === "vendor" ? "the seller" : "the buyer")
+    : (resolvedRecipientSide === "vendor" ? "vendor's solicitor" : "purchaser's solicitor");
 
   const userMessageParts: string[] = [
     `Generate ${channel === "whatsapp" ? "a WhatsApp" : "an email"} chase message for the following situation.`,
@@ -421,8 +485,8 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     ``,
     `# Recipient`,
     `- First name: ${recipientFirstName}`,
-    `- Role: ${recipientRole}`,
-    ...(showCc && solicitor ? [`- Also CC: ${ccRoleLabel} — they will see this message`] : []),
+    `- Role: ${recipientRoleLabel}`,
+    ...(showCc ? [`- Also CC: ${ccRoleLabel} — they will see this message`] : []),
   ];
 
   if (otherContacts) {

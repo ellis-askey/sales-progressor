@@ -585,6 +585,16 @@ export default async function AgentTransactionDetailPage({
             propertyAddress={transaction.propertyAddress}
             transactionStatus={transaction.status}
             contacts={transaction.contacts}
+            vendorSolicitor={
+              transaction.vendorSolicitorContact
+                ? { ...transaction.vendorSolicitorContact, firm: transaction.vendorSolicitorFirm ?? null }
+                : null
+            }
+            purchaserSolicitor={
+              transaction.purchaserSolicitorContact
+                ? { ...transaction.purchaserSolicitorContact, firm: transaction.purchaserSolicitorFirm ?? null }
+                : null
+            }
           />
         </Suspense>
 

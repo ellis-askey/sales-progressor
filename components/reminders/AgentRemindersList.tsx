@@ -17,6 +17,7 @@ import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { Button } from "@/components/ui/Button";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
+import { withSolicitorRecipients, type SolicitorRef } from "@/lib/services/chase-recipients";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
@@ -310,6 +311,8 @@ function SideColumn({
   txId,
   address,
   contacts,
+  vendorSolicitor,
+  purchaserSolicitor,
   loading,
   exitingIds,
   handleComplete,
@@ -323,6 +326,8 @@ function SideColumn({
   txId: string;
   address: string;
   contacts: AgentReminderLog["transaction"]["contacts"];
+  vendorSolicitor?: SolicitorRef | null;
+  purchaserSolicitor?: SolicitorRef | null;
   loading: string | null;
   // Below allows the optimistic hide to also tell the parent which log to drop.
   // handleChased signature carries an optional logId.
@@ -368,7 +373,11 @@ function SideColumn({
       ? ["vendor", "solicitor"].includes(c.roleType)
       : ["purchaser", "broker", "solicitor"].includes(c.roleType)
   );
-  const effectiveContacts = chaseContacts.length > 0 ? chaseContacts : contacts;
+  // Inject this side's real solicitor (FK-sourced) as a selectable recipient.
+  const effectiveContacts = withSolicitorRecipients(
+    chaseContacts.length > 0 ? chaseContacts : contacts,
+    { vendorSolicitor, purchaserSolicitor, side: isSeller ? "vendor" : "purchaser" },
+  );
 
   return (
     <div
@@ -581,6 +590,7 @@ function SideColumn({
           milestoneName={milestones[0]?.name ?? ""}
           chaseCount={maxChaseCount}
           contacts={effectiveContacts}
+          defaultAddRole={isSeller ? "vendor" : "purchaser"}
           milestones={milestones.length > 1 ? milestones : undefined}
           onClose={() => setDrawerOpen(false)}
           onSent={() => {
@@ -669,6 +679,15 @@ function SplitFileCard({
   const effectiveSellerLogs = [...sellerLogs, ...otherLogs];
 
   const contacts = logs[0]?.transaction.contacts ?? [];
+  // The file's solicitors (from the vendor/purchaser solicitor FK columns) so the
+  // chase drawer can offer the right-side solicitor as a recipient.
+  const tx0 = logs[0]?.transaction;
+  const vendorSolicitor: SolicitorRef | null = tx0?.vendorSolicitorContact
+    ? { ...tx0.vendorSolicitorContact, firm: tx0.vendorSolicitorFirm ?? null }
+    : null;
+  const purchaserSolicitor: SolicitorRef | null = tx0?.purchaserSolicitorContact
+    ? { ...tx0.purchaserSolicitorContact, firm: tx0.purchaserSolicitorFirm ?? null }
+    : null;
 
   return (
     // Design Lab: `reminders-file-card`. Default v05 per Ellis's pick, 2026-08-09.
@@ -713,10 +732,10 @@ function SplitFileCard({
        * wq-split-body class enables mobile stacking via @media in globals.css. */}
       <div className="wq-split-body" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
         {effectiveSellerLogs.length > 0
-          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
+          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} vendorSolicitor={vendorSolicitor} purchaserSolicitor={purchaserSolicitor} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
           : <EmptyColumn side="seller" />}
         {buyerLogs.length > 0
-          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
+          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} vendorSolicitor={vendorSolicitor} purchaserSolicitor={purchaserSolicitor} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
           : <EmptyColumn side="buyer" />}
       </div>
     </GlassCard>

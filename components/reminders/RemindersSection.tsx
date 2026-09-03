@@ -11,6 +11,7 @@ import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTas
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
+import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
 import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -90,6 +91,10 @@ type Props = {
   reminderLogs: ReminderLog[];
   completedMilestoneCodes?: Set<string>;
   contacts?: Contact[];
+  // The file's solicitors (from the vendor/purchaser solicitor FK columns) so the
+  // chase drawer can offer the right-side solicitor as a recipient.
+  vendorSolicitor?: SolicitorRef | null;
+  purchaserSolicitor?: SolicitorRef | null;
   propertyAddress?: string;
   // Pending + sent-today + predicted-upcoming automated emails for this
   // file. Surfaces as a compact card at the top of the tab; clicking
@@ -323,6 +328,8 @@ function PriorityList({
   transactionId,
   propertyAddress,
   contacts,
+  vendorSolicitor,
+  purchaserSolicitor,
   loading,
   handleComplete,
   handleSnooze,
@@ -334,6 +341,8 @@ function PriorityList({
   transactionId: string;
   propertyAddress: string;
   contacts: Contact[];
+  vendorSolicitor?: SolicitorRef | null;
+  purchaserSolicitor?: SolicitorRef | null;
   loading: string | null;
   handleComplete: (logId: string, taskId: string) => void;
   handleSnooze: (logId: string, taskId: string, hours: number) => void;
@@ -347,11 +356,11 @@ function PriorityList({
   // "Chase now" drawer for reminders that don't have a task yet (start-early
   // path). Holds the freshly-created ChaseTask id returned by the server so
   // the same ChaseDrawer component can render it as a single-log chase.
-  const [earlyChase, setEarlyChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number } | null>(null);
+  const [earlyChase, setEarlyChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; isBuyer: boolean } | null>(null);
   const [earlyChaseLoading, setEarlyChaseLoading] = useState<string | null>(null);
   // Per-row chase composer — the coloured Chase on a single row opens the
   // same ChaseDrawer for just that task.
-  const [rowChase, setRowChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; contacts: Contact[] } | null>(null);
+  const [rowChase, setRowChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; contacts: ChaseContact[]; defaultAddRole: "vendor" | "purchaser" } | null>(null);
   // Optimistic chase-count overlay per task. Click the ↻ Chased button →
   // counter bumps in the UI immediately; the server action runs in
   // background. When the props refresh (server data lands), the prop
@@ -363,11 +372,15 @@ function PriorityList({
   }
   // Contacts to preselect when chasing — filtered to the row's own side,
   // falling back to all if that side has none (same rule the columns used).
-  function contactsForSide(isBuyer: boolean): Contact[] {
+  function contactsForSide(isBuyer: boolean): ChaseContact[] {
     const filtered = contacts.filter((c) =>
       isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
     );
-    return filtered.length > 0 ? filtered : contacts;
+    const base = filtered.length > 0 ? filtered : contacts;
+    // Inject this side's real solicitor (FK-sourced) as a selectable recipient.
+    return withSolicitorRecipients(base, {
+      vendorSolicitor, purchaserSolicitor, side: isBuyer ? "purchaser" : "vendor",
+    });
   }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -387,6 +400,11 @@ function PriorityList({
   const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
   const allTaskIds = openTasks.map(({ task }) => task.id);
   const allLogIds  = openTasks.map(({ log })  => log.id);
+  // The footer "Chase" opens this drawer for a single open task too (only "Chase
+  // all" when >1). For the single case we side-scope + inject that side's
+  // solicitor; a true multi keeps the plain client list (today's behaviour).
+  const soleOpen = openTasks.length === 1 ? openTasks[0] : null;
+  const soleIsBuyer = soleOpen ? !!soleOpen.log.reminderRule.targetMilestoneCode?.startsWith("PM") : false;
 
   return (
     <Card glassId="reminders-group" glassLabel="Reminders · Active" glassDefault="v05" padding="none">
@@ -465,7 +483,7 @@ function PriorityList({
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   <Button
                     size="sm"
-                    onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer) })}
+                    onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer), defaultAddRole: isBuyer ? "purchaser" : "vendor" })}
                     style={{ height: 28 }}
                   >
                     Chase
@@ -495,7 +513,7 @@ function PriorityList({
                     setEarlyChaseLoading(log.id);
                     try {
                       const { taskId } = await chaseNowFromLogAction(log.id, pathname);
-                      setEarlyChase({ logId: log.id, taskId, name: stripChase(log.reminderRule.name), chaseCount: 0 });
+                      setEarlyChase({ logId: log.id, taskId, name: stripChase(log.reminderRule.name), chaseCount: 0, isBuyer: !!log.reminderRule.targetMilestoneCode?.startsWith("PM") });
                     } catch (err) {
                       console.error("[RemindersSection] chaseNowFromLog failed", err);
                     } finally {
@@ -534,7 +552,8 @@ function PriorityList({
           propertyAddress={propertyAddress}
           milestoneName={milestones[0]?.name ?? ""}
           chaseCount={maxChaseCount}
-          contacts={contacts}
+          contacts={soleOpen ? contactsForSide(soleIsBuyer) : contacts}
+          defaultAddRole={soleOpen ? (soleIsBuyer ? "purchaser" : "vendor") : undefined}
           milestones={milestones.length > 1 ? milestones : undefined}
           onClose={() => setDrawerOpen(false)}
           onSent={() => {
@@ -554,6 +573,7 @@ function PriorityList({
           milestoneName={rowChase.name}
           chaseCount={rowChase.chaseCount}
           contacts={rowChase.contacts}
+          defaultAddRole={rowChase.defaultAddRole}
           onClose={() => setRowChase(null)}
           onSent={() => {
             handleChased(rowChase.taskId, rowChase.logId);
@@ -569,7 +589,8 @@ function PriorityList({
           propertyAddress={propertyAddress}
           milestoneName={earlyChase.name}
           chaseCount={earlyChase.chaseCount}
-          contacts={contacts}
+          contacts={contactsForSide(earlyChase.isBuyer)}
+          defaultAddRole={earlyChase.isBuyer ? "purchaser" : "vendor"}
           onClose={() => setEarlyChase(null)}
           onSent={() => {
             handleChased(earlyChase.taskId, earlyChase.logId);
@@ -585,6 +606,8 @@ export function RemindersSection({
   transactionId,
   reminderLogs,
   contacts = [],
+  vendorSolicitor = null,
+  purchaserSolicitor = null,
   propertyAddress = "",
   automatedEmails,
   transactionStatus,
@@ -866,6 +889,8 @@ export function RemindersSection({
             transactionId={transactionId}
             propertyAddress={propertyAddress}
             contacts={contacts}
+            vendorSolicitor={vendorSolicitor}
+            purchaserSolicitor={purchaserSolicitor}
             loading={loading}
             handleComplete={handleComplete}
             handleSnooze={handleSnooze}

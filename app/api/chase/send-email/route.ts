@@ -7,6 +7,14 @@ import { sendEmail, parseEmailMessage, resolveSenderForTransaction } from "@/lib
 import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { deriveChaseTargetSide } from "@/lib/services/comms";
+import { buildChaseSignatureHtml, buildChaseSignatureText } from "@/lib/email/chase-signature";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import type { LogoScale, LogoAlign } from "@/lib/image/logo";
+
+function escapeHtmlBody(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -26,7 +34,11 @@ export async function POST(req: NextRequest) {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { propertyAddress: true, activeBuyerRoundId: true },
+    select: {
+      propertyAddress: true,
+      activeBuyerRoundId: true,
+      agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
+    },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
@@ -37,8 +49,33 @@ export async function POST(req: NextRequest) {
 
   const { from, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
 
+  // White-label signature — assembled from the sending agent's identity + the
+  // file's agency. Renders only the fields on file (graceful when sparse). Body
+  // stays the agent's text; the signature is appended. See lib/email/chase-signature.
+  const sender = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, image: true, jobTitle: true, directMobile: true, phone: true },
+  });
+  const agencyLogoBandHtml = agencyLogoHeaderHtml({
+    logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
+    tileColor: tx.agency?.logoTileColor,
+    scale: (tx.agency?.logoScale ?? null) as LogoScale | null,
+    align: (tx.agency?.logoAlign ?? null) as LogoAlign | null,
+  });
+  const sigInput = {
+    agentName: sender?.name ?? session.user.name ?? "",
+    agentImageUrl: sender?.image ?? null,
+    jobTitle: sender?.jobTitle ?? null,
+    directMobile: sender?.directMobile ?? null,
+    phone: sender?.phone ?? null,
+    agencyName: tx.agency?.name ?? "",
+    agencyLogoBandHtml,
+  };
+  const bodyHtml = escapeHtmlBody(body).replace(/\r?\n/g, "<br>");
+  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${bodyHtml}${buildChaseSignatureHtml(sigInput)}</div>`;
+
   try {
-    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body, from, replyTo });
+    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + buildChaseSignatureText(sigInput), html, from, replyTo });
 
     const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
     // Phase 1 commit 4d post-fix — buyerRoundId stamping at the send-
