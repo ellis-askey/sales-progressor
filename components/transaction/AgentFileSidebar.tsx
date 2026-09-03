@@ -40,7 +40,18 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
-type KeyDate = { name: string; eventDate: Date };
+type KeyDate = { name: string; code?: string; eventDate: Date };
+
+// Concise labels for the compact "Milestone dates" list — the full milestone
+// names (e.g. "Buyer has booked a Level 2 or Level 3 survey") are too long for
+// a sidebar row. Only the four event-date milestones ever appear here. Falls
+// back to the full name if an unmapped code shows up.
+const KEY_DATE_LABEL: Record<string, string> = {
+  PM6: "Lender valuation booked",
+  PM9: "Level 2/3 survey booked",
+  PM26: "Contracts exchanged",
+  PM27: "Sale completed",
+};
 
 type Props = {
   transaction: {
@@ -404,18 +415,29 @@ export function AgentFileSidebar({
               textTransform: "uppercase",
               letterSpacing: "0.06em",
             }}>Milestone dates</p>
-            {keyDates.map((kd) => {
+            {keyDates.map((kd, i) => {
               const isPast = kd.eventDate < new Date();
+              const label = (kd.code && KEY_DATE_LABEL[kd.code]) || kd.name;
+              const day = kd.eventDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+              const year = kd.eventDate.getFullYear();
+              // Date-led calendar row (artifact option C): the date leads in a
+              // fixed column, step name to the right. Past reads muted; no
+              // repeated "(past)" tag.
               return (
-                <SidebarRow
-                  key={kd.name}
-                  label={kd.name}
-                  labelStyle={{ maxWidth: "60%", lineHeight: 1.35 }}
-                  value={<span style={{ color: isPast ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
-                    {kd.eventDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                    {isPast && <span style={{ marginLeft: 4, color: "var(--agent-text-muted)" }}>(past)</span>}
-                  </span>}
-                />
+                <div
+                  key={kd.code ?? kd.name}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 11, padding: "6px 0",
+                    borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                  }}
+                >
+                  <div style={{ flexShrink: 0, width: 48, textAlign: "center" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: isPast ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>{day}</div>
+                    <div style={{ fontSize: 9.5, marginTop: 2, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{year}</div>
+                  </div>
+                  <div style={{ width: 1, alignSelf: "stretch", background: "var(--agent-border-default)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, lineHeight: 1.3, color: isPast ? "var(--agent-text-secondary)" : "var(--agent-text-primary)" }}>{label}</span>
+                </div>
               );
             })}
           </div>

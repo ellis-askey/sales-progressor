@@ -249,7 +249,7 @@ export async function SidebarPanel({
 
   const keyDates = allMilestones
     .filter((m) => m.eventDateRequired && m.completion?.eventDate)
-    .map((m) => ({ name: m.name, eventDate: m.completion!.eventDate as Date }))
+    .map((m) => ({ name: m.name, code: m.code, eventDate: m.completion!.eventDate as Date }))
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
   // ── File-time tracker ──────────────────────────────────────────────────
