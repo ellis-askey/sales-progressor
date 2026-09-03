@@ -150,16 +150,17 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
       </div>
 
       {/* Composer — always present so a note is one click away */}
-      <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, padding: "0 16px 12px" }}>
+      <form onSubmit={handleAdd} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0 16px 12px" }}>
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAdd(e); }}
           placeholder="Add a note…  (Cmd/Ctrl + Enter to save)"
           className="agent-textarea"
-          style={{ flex: 1, minHeight: 44, resize: "none", fontSize: 13 }}
+          rows={1}
+          style={{ flex: 1, minHeight: 38, resize: "vertical", fontSize: 13 }}
         />
-        <button type="submit" disabled={isPending || !draft.trim()} className="agent-btn agent-btn-sm agent-btn-primary" style={{ alignSelf: "flex-end", display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <button type="submit" disabled={isPending || !draft.trim()} className="agent-btn agent-btn-sm agent-btn-primary" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>
           {isPending ? <SavingPulse label="Saving…" /> : <><Plus size={13} weight="bold" /> Add note</>}
         </button>
       </form>
