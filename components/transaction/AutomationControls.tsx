@@ -41,6 +41,12 @@ type Props = {
   // EmailSettingsDrawer, so this control is HOLD-only there. The toggle
   // then means active ⇄ on_hold, and the stop modal skips the pause option.
   hideEmailPause?: boolean;
+  // "pause" reframes the hold control as a "Pause this sale" toggle: it
+  // renders a BARE inverted switch (on = paused/held) with no row chrome,
+  // so a wrapping card owns the icon + title + subtitle. Same underlying
+  // state machine + stop modal; only the presentation flips. Requires
+  // hideEmailPause (the drawer passes both). Default "hold" is unchanged.
+  framing?: "hold" | "pause";
   // Called after any successful state change so a wrapping surface (the
   // email-settings drawer) can refresh its own summary.
   onModeChange?: (mode: Mode) => void;
@@ -65,6 +71,7 @@ export function AutomationControls({
   status,
   variant = "card",
   hideEmailPause = false,
+  framing = "hold",
   onModeChange,
 }: Props) {
   const [paused, setPaused] = useState(initialClientEmailsPaused);
@@ -136,6 +143,50 @@ export function AutomationControls({
         );
       }
     });
+  }
+
+  // "Pause this sale" framing (email-settings drawer): a bare, inverted
+  // switch — ON means the sale is paused (held). The wrapping SectionCard
+  // supplies the icon, title and subtitle. Click behaviour is unchanged
+  // (active → opens the stop modal; held → resumes directly).
+  if (framing === "pause") {
+    const pauseOn = mode === "on_hold";
+    return (
+      <>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={pauseOn}
+          onClick={handleToggleClick}
+          disabled={isPending}
+          className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50"
+          style={{
+            height: 24,
+            width: 42,
+            background: pauseOn ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
+          }}
+          aria-label={pauseOn ? "Resume this sale" : "Pause this sale"}
+        >
+          <span
+            className="inline-block rounded-full bg-white shadow transition-transform"
+            style={{
+              height: 18,
+              width: 18,
+              marginTop: 3,
+              transform: pauseOn ? "translateX(21px)" : "translateX(3px)",
+            }}
+          />
+        </button>
+        {modalOpen && (
+          <AutomationStopModal
+            onPick={handleChoice}
+            onClose={() => setModalOpen(false)}
+            isPending={isPending}
+            holdOnly={hideEmailPause}
+          />
+        )}
+      </>
+    );
   }
 
   const isRow = variant === "row";
