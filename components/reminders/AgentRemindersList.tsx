@@ -414,9 +414,12 @@ function SideColumn({
             : isOverdue ? "#ea580c"
             : isDueToday ? "var(--agent-warning)"
             : "var(--agent-text-muted)";
-          // Coming Up rows show the next-due date so the "Chased N×" badge
-          // has context (and the user can see when the next chase fires).
+          // Chased + still upcoming: show the next-due date so the "Chased N×"
+          // badge has context (when the next chase fires). Chased + already
+          // past due: read "Was due …" — a calm, past-tense fact rather than a
+          // "Next" date that's confusingly in the past under an Overdue header.
           const urgencyLabel = task.priority === "escalated" ? "Escalated"
+            : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
             : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"

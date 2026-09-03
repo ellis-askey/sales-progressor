@@ -412,6 +412,7 @@ function PriorityList({
             : isDueToday ? "#d97706"
             : "var(--agent-text-muted)";
           const urgencyLabel = task?.priority === "escalated" ? "Escalated"
+            : hasBeenChased && isOverdue ? `Was due ${formatDate(effectiveNextDue)}`
             : hasBeenChased ? `Next ${formatDate(effectiveNextDue)}`
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
