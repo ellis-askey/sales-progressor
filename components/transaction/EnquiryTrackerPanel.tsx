@@ -11,7 +11,7 @@
 //   - relabel: correct which side it's with without disturbing the chase timer
 // The hero slider is the one-tap handover; this panel is the full desk.
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   logEnquiryMovementAction,
@@ -74,144 +74,124 @@ export function EnquiryTrackerPanel({
     });
   }
 
-  // Status banner
-  const banner =
-    data.status === "closed"
-      ? { tone: "done", text: "Enquiries satisfied. Nothing left to chase." }
-      : data.status === "snoozed"
-        ? { tone: "muted", text: `Chasing paused until ${fmtDate(data.snoozedUntil)}.` }
-        : data.status === "stalled"
-          ? { tone: "warn", text: `No reply from ${courtLabel(data.currentlyWith)} in three weeks. Worth a direct call.` }
-          : {
-              tone: "ok",
-              text: `Waiting on ${courtLabel(data.currentlyWith)}${data.nextChaseAt ? `. We'll chase again on ${fmtDate(data.nextChaseAt)}.` : "."}`,
-            };
-  const bannerBg =
-    banner.tone === "warn"
-      ? "bg-amber-500/15 text-amber-900 border-amber-500/30"
-      : banner.tone === "done"
-        ? "bg-emerald-500/15 text-emerald-900 border-emerald-500/30"
-        : banner.tone === "muted"
-          ? "bg-slate-900/5 text-slate-900/60 border-slate-900/10"
-          : "bg-[#FF6B4A]/10 text-slate-900/80 border-[#FF6B4A]/25";
+  // Option B — status-first. Lead with a plain-English headline of where the
+  // enquiries stand; keep EVERY action on the card (handover / touch / relabel
+  // / outstanding note / pause / resume) — nothing hidden in a menu. Colours
+  // moved onto the --agent-* tokens so it reads in the dark file view too.
+  const headline = closed ? "Enquiries satisfied" : `With ${courtLabel(data.currentlyWith)}`;
+  const headlineColor =
+    data.status === "stalled" ? "var(--agent-warning)" : closed ? "var(--agent-success)" : "var(--agent-text-primary)";
+  const sub = closed
+    ? "Nothing left to chase."
+    : data.status === "snoozed"
+      ? `Chasing paused until ${fmtDate(data.snoozedUntil)}`
+      : data.status === "stalled"
+        ? "No reply in three weeks. Worth a direct call."
+        : `Chasing${data.chaseCount > 0 ? ` · chased ${data.chaseCount}×` : ""}${data.nextChaseAt ? ` · next chase ${fmtDate(data.nextChaseAt)}` : ""}`;
+  const STATUS_CHIP: Record<Status, { label: string; color: string }> = {
+    chasing: { label: "Chasing", color: "var(--agent-coral)" },
+    stalled: { label: "Stalled", color: "var(--agent-warning)" },
+    snoozed: { label: "Paused", color: "var(--agent-text-muted)" },
+    closed:  { label: "Done", color: "var(--agent-success)" },
+  };
+  const chip = STATUS_CHIP[data.status];
+
+  const secBtn: CSSProperties = {
+    fontSize: 11.5, fontWeight: 600, borderRadius: 8, padding: "6px 11px",
+    border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)",
+    color: "var(--agent-text-secondary)", cursor: "pointer", whiteSpace: "nowrap",
+  };
 
   return (
     <div className="glass-card p-5" style={{ clipPath: "inset(0 round 20px)" }}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-slate-900/80">Enquiries</h3>
-        <span className="text-xs text-slate-900/40">
-          With {courtLabel(data.currentlyWith)}
-        </span>
+      <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+        <h3 style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Enquiries</h3>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, color: chip.color, background: "rgba(148,163,184,0.14)" }}>{chip.label}</span>
       </div>
 
-      <div className={`text-[13px] rounded-xl border px-3.5 py-2.5 mb-4 ${bannerBg}`}>{banner.text}</div>
+      {/* Status headline */}
+      <div style={{ fontSize: 16, fontWeight: 750, letterSpacing: "-0.01em", color: headlineColor, lineHeight: 1.25 }}>{headline}</div>
+      <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)" }}>{sub}</p>
+
+      {data.status === "stalled" && (
+        <div style={{ marginTop: 11, padding: "8px 11px", borderRadius: 9, fontSize: 11.5, color: "var(--agent-warning)", background: "rgba(245,165,36,0.1)", border: "0.5px solid rgba(245,165,36,0.3)" }}>
+          {data.chaseCount > 0 ? `Chased ${data.chaseCount}×, no movement.` : "No movement."} A direct call may shift it.
+        </div>
+      )}
 
       {!closed && (
         <>
           {/* Shared, optional note: applies to whichever movement you log */}
-          <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Add a note (optional)</label>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", margin: "14px 0 6px" }}>Add a note (optional)</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Solicitor replied, replies sent across"
             rows={2}
-            className="w-full text-[13px] rounded-xl border border-slate-900/10 bg-white/50 px-3 py-2 outline-none focus:border-[#FF6B4A]/50 resize-none"
+            className="w-full resize-none"
+            style={{ fontSize: 12.5, borderRadius: 10, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)", padding: "8px 10px", outline: "none" }}
           />
 
-          {/* Log an update — a reply came in, or they were in touch */}
-          <p className="text-xs font-medium text-slate-900/40 mt-3 mb-1.5">Log an update</p>
-          <div className="flex flex-wrap gap-2">
+          {/* Actions — every control kept, all visible */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12, alignItems: "center" }}>
             <button
               type="button"
               disabled={pending}
               onClick={() => move("handover", other)}
               title={`Marks it as now with ${courtLabel(other)} and restarts the chase timer`}
-              className="text-xs font-semibold text-white bg-[#FF6B4A] hover:bg-[#f2593a] disabled:opacity-40 rounded-full px-3.5 py-1.5"
+              style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "7px 13px", border: "none", background: "var(--agent-coral)", color: "#fff", cursor: "pointer", whiteSpace: "nowrap", opacity: pending ? 0.5 : 1 }}
             >
-              {pending ? "Saving…" : `Replies in, now with ${courtLabel(other)}`}
+              {pending ? "Saving…" : `Replies in → ${courtLabel(other).replace("the ", "")}`}
             </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => move("touch", null)}
-              title="Restarts the chase timer but keeps it on the same side"
-              className="text-xs font-semibold rounded-full px-3.5 py-1.5 border border-slate-900/15 text-slate-900/70 enabled:hover:bg-slate-900/5 disabled:opacity-40"
-            >
-              They’ve replied, still with {courtLabel(data.currentlyWith)}
+            <button type="button" disabled={pending} onClick={() => move("touch", null)} title="Restarts the chase timer but keeps it on the same side" style={secBtn}>
+              Still with them
             </button>
+            <button type="button" disabled={pending} onClick={() => move("relabel", other)} title={`Corrects who it's with without resetting the chase timer — switch to ${courtLabel(other)}`} style={secBtn}>
+              Wrong side?
+            </button>
+            {data.status === "snoozed" ? (
+              <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: null }))} style={secBtn}>Resume now</button>
+            ) : (
+              <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: 5 }))} title="Pause chasing for 5 working days" style={secBtn}>⏸ Pause chasing</button>
+            )}
           </div>
 
-          {/* Correction: switches the side without touching the chase timer */}
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => move("relabel", other)}
-            title="Corrects who it's with without resetting the chase timer"
-            className="mt-2.5 text-xs text-slate-900/45 underline underline-offset-2 hover:text-slate-900/70 disabled:opacity-40"
-          >
-            Wrong side? Switch to {courtLabel(other)}
-          </button>
-
           {/* Outstanding note */}
-          <label className="block text-xs font-medium text-slate-900/50 mt-4 mb-1.5">What&rsquo;s outstanding (optional)</label>
-          <div className="flex items-center gap-2">
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", margin: "16px 0 6px" }}>What&rsquo;s outstanding (optional)</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
               value={outstanding}
               onChange={(e) => setOutstanding(e.target.value)}
               placeholder="e.g. waiting on the management pack"
-              className="flex-1 text-[13px] rounded-xl border border-slate-900/10 bg-white/50 px-3 py-2 outline-none focus:border-[#FF6B4A]/50"
+              className="flex-1"
+              style={{ fontSize: 12.5, borderRadius: 10, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)", padding: "8px 10px", outline: "none" }}
             />
             <button
               type="button"
               disabled={pending || outstanding === (data.outstandingNote ?? "")}
               onClick={() => run(() => setEnquiryOutstandingAction({ transactionId, note: outstanding }))}
-              className="text-xs font-semibold rounded-full px-3 py-2 border border-slate-900/15 text-slate-900/70 enabled:hover:bg-slate-900/5 disabled:opacity-40"
+              style={{ ...secBtn, opacity: (pending || outstanding === (data.outstandingNote ?? "")) ? 0.4 : 1 }}
             >
               Save
             </button>
-          </div>
-
-          {/* Snooze */}
-          <div className="flex items-center gap-2 mt-4">
-            <span className="text-xs text-slate-900/40">Chase:</span>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: 5 }))}
-              className="text-xs px-2.5 py-1 rounded-full border border-slate-900/15 text-slate-900/60 hover:bg-slate-900/5 disabled:opacity-40"
-            >
-              Pause chasing for 5 working days
-            </button>
-            {data.status === "snoozed" && (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: null }))}
-                className="text-xs px-2.5 py-1 rounded-full border border-slate-900/15 text-slate-900/60 hover:bg-slate-900/5 disabled:opacity-40"
-              >
-                Resume now
-              </button>
-            )}
           </div>
         </>
       )}
 
       {/* Movement history */}
-      <div className="mt-5 pt-4 border-t border-slate-900/10">
-        <p className="text-xs font-medium text-slate-900/40 mb-2">History</p>
+      <div style={{ marginTop: 18, paddingTop: 14, borderTop: "0.5px solid var(--agent-border-default)" }}>
+        <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--agent-text-muted)", margin: "0 0 9px" }}>History</p>
         {data.movements.length === 0 ? (
-          <p className="text-[13px] text-slate-900/40 italic">No updates logged yet.</p>
+          <p style={{ fontSize: 12.5, color: "var(--agent-text-muted)", fontStyle: "italic", margin: 0 }}>No updates logged yet.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
             {data.movements.map((m) => (
-              <li key={m.id} className="flex items-start gap-2.5 text-[13px]">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-slate-900/25 shrink-0" />
-                <div className="min-w-0">
-                  <span className="text-slate-900/80">{m.note}</span>
-                  <span className="text-slate-900/35">
-                    {" "}
-                    · {fmtDate(m.occurredAt)}
-                    {m.flipsCourtTo ? ` · now with ${courtLabel(m.flipsCourtTo)}` : ""}
+              <li key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 12.5 }}>
+                <span style={{ marginTop: 5, width: 6, height: 6, borderRadius: 999, background: "var(--agent-text-muted)", flexShrink: 0 }} />
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ color: "var(--agent-text-primary)" }}>{m.note}</span>
+                  <span style={{ color: "var(--agent-text-muted)" }}>
+                    {" "}· {fmtDate(m.occurredAt)}{m.flipsCourtTo ? ` · now with ${courtLabel(m.flipsCourtTo)}` : ""}
                   </span>
                 </div>
               </li>
