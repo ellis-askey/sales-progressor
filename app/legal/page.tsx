@@ -38,6 +38,11 @@ const DOCS: LegalDoc[] = [
     href: "/terms",
   },
   {
+    title: "Outsourced Sales Progression Terms",
+    description: "The terms that apply when an agency instructs us to progress a sale on its behalf — our role, how we chase, dates, fees, and liability.",
+    href: "/outsourced-terms",
+  },
+  {
     title: "Billing Terms",
     description: "Pricing and payment terms — what you pay, when, and how payment failures are handled. Shown to directors when adding a payment card.",
     href: "/billing-terms",
@@ -46,6 +51,11 @@ const DOCS: LegalDoc[] = [
     title: "Data Processing Agreement",
     description: "The UK GDPR Article 28 agreement between an estate agency (data controller) and us (data processor) for the personal data of the agency's clients. Available as a downloadable PDF.",
     href: "/legal/dpa",
+  },
+  {
+    title: "Provider Request Service Terms",
+    description: "The terms that apply when a buyer or seller asks to be put in touch with a third-party provider (such as a mortgage broker or surveyor) through us.",
+    href: "/provider-terms",
   },
 ];
 
