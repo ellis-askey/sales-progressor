@@ -6,7 +6,6 @@
 // card) inside this shared glass shell. 2026-08-10.
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
-import { HouseSimple, Scales } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 
 type Tab = "clients" | "professionals";
@@ -70,7 +69,7 @@ export function PeoplePanel({
               pointerEvents: "none",
             }}
           />
-          {([["clients", HouseSimple, "Clients"], ["professionals", Scales, "Professionals"]] as const).map(([id, Icon, label]) => {
+          {([["clients", "Clients"], ["professionals", "Professionals"]] as const).map(([id, label]) => {
             const on = tab === id;
             return (
               <button
@@ -83,15 +82,14 @@ export function PeoplePanel({
                 onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
                 style={{
                   position: "relative", zIndex: 1,
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                  display: "inline-flex", alignItems: "center",
+                  padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer",
                   fontSize: 13, fontWeight: 600, fontFamily: "inherit",
                   background: "transparent",
                   color: on ? "var(--agent-text-on-coral)" : "var(--agent-text-secondary)",
                   transition: "color 200ms ease",
                 }}
               >
-                <Icon size={14} weight="regular" />
                 {label}
               </button>
             );

@@ -522,7 +522,7 @@ export default async function AgentTransactionDetailPage({
         heroConnected
         tourSlot={transaction.isDemo ? <DemoTourMount autoStart={demoTourAutoStart} /> : undefined}
         beforeContent={
-          <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" style={{
+          <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" className="ms-timeline-lite" style={{
             borderRadius: 10,
             padding: "12px 18px",
           }}>

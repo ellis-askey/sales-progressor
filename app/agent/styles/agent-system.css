@@ -2551,3 +2551,13 @@ body[data-demo-file] [data-onboarding-checklist] {
   opacity: 0;
   pointer-events: none;
 }
+
+/* Milestone timeline strip: the v25 glass reads too milky in DARK mode (a
+   white 20%→5% overlay + blur(12px) over a dark ground). Dial the frost back
+   for this one card, dark only — lighter overlay + softer blur. Light mode is
+   untouched. See app/agent/transactions/[id]/page.tsx (className). */
+[data-theme="dark"] .ms-timeline-lite {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
+}

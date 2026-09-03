@@ -223,7 +223,7 @@ function PortalStatusCard({
           flexShrink: 0,
         }}
       >
-        <GlobeSimple size={20} weight="regular" />
+        <GlobeSimple size={28} weight="regular" />
       </span>
 
       {/* Status text */}
@@ -964,9 +964,23 @@ export function ContactsSection({
                               </Pill>
                             )}
                           </div>
-                          <div data-sensitive="true" style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
-                            {contact.phone || contact.email || "No contact details on file"}
-                          </div>
+                          {(() => {
+                            // Show ONE detail under the name — phone if we have
+                            // it, else email — with a matching icon. The other
+                            // detail (if any) shows in the expanded panel, so
+                            // it's never printed twice.
+                            const primary = contact.phone || contact.email;
+                            if (!primary) {
+                              return <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>No contact details on file</div>;
+                            }
+                            const PrimaryIcon = contact.phone ? Phone : EnvelopeSimple;
+                            return (
+                              <div data-sensitive="true" style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", marginTop: 1 }}>
+                                <PrimaryIcon size={11} weight="regular" style={{ flexShrink: 0 }} />
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{primary}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         {dotColor !== "transparent" && (
                           <span title={`Portal ${portalState.replace(/_/g, " ")}`} style={{ width: 7, height: 7, borderRadius: 999, background: dotColor, flexShrink: 0 }} />
@@ -1020,13 +1034,11 @@ export function ContactsSection({
                             )}
                           </div>
                         )}
-                        {contact.phone && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                            <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                            <a data-sensitive="true" href={`tel:${contact.phone}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.phone}</a>
-                          </div>
-                        )}
-                        {contact.email && (
+                        {/* Only the SECONDARY detail here — email, shown when a
+                            phone is already under the name (so nothing repeats).
+                            When email is the only detail it's under the name and
+                            nothing shows here. Actions stay on the comms icons. */}
+                        {contact.phone && contact.email && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                             <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
                             <a data-sensitive="true" href={emailHref(contact.email, contact.roleType, address)} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</a>
