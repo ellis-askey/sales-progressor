@@ -273,7 +273,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
   return (
     <div className="agent-hover-row" style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, color, flexShrink: 0 }}>
-        <EntryIcon size={17} weight="regular" />
+        <EntryIcon size={22} weight="regular" />
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
