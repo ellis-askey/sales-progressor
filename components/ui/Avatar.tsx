@@ -181,11 +181,15 @@ type ContactAvatarProps = {
   // initials. Default ON (2026-09-03) — a client with no photo shows the
   // side-coloured person everywhere. Pass art={false} to force initials.
   art?: boolean;
+  // Override the tint side. Used for solicitors, which have no side of their
+  // own — the solicitor card tints its id-card to the side it acts for
+  // (vendor blue / buyer green).
+  sideTint?: "vendor" | "purchaser";
 };
 
-export function ContactAvatar({ contact, size = 32, className, art = true }: ContactAvatarProps) {
+export function ContactAvatar({ contact, size = 32, className, art = true, sideTint }: ContactAvatarProps) {
   const initials = getInitials(contact);
-  const side = contact.roleType ? contactRoleToSide(contact.roleType) : "fallback";
+  const side = sideTint ?? (contact.roleType ? contactRoleToSide(contact.roleType) : "fallback");
   const artKind = contact.roleType === "solicitor" ? "idcard" : "person";
   return <AvatarBase initials={initials} side={side} size={size} className={className} defaultArt={art} artKind={artKind} />;
 }

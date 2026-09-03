@@ -305,7 +305,7 @@ function SolicitorTile({
         <div style={{ padding: "14px 16px", display: "flex", gap: 16, alignItems: "flex-start" }}>
           {/* ── Left column: identity + contact details (matches ContactsSection) ── */}
           <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 0 }}>
-            <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} />
+            <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} sideTint={side} />
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
               {/* Firm name + role */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
