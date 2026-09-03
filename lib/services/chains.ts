@@ -1478,28 +1478,36 @@ export async function deleteChain(chainId: string) {
 // files drop out of both lists.
 const CHAINS_LIVE_STATUSES: TransactionStatus[] = [TransactionStatus.active, TransactionStatus.on_hold];
 
-export type ChainsWorkspaceLink = {
-  label: string;                    // property address, stub address, or a generic onward label
-  isOurs: boolean;                  // the single representative "your sale" anchor (one per chain)
-  claimed: boolean;                 // connected agent — has a real transaction (vs a stub)
-  statusKind: ChainLinkStatusKind;  // canonical status (drives mini-map colour + counts)
+// One dot on the workspace card's mini chain-map.
+export type ChainMiniNode = {
+  level: number;                    // display level: bottom of chain = 1, counting up (matches the drawer)
+  statusKind: ChainLinkStatusKind;  // canonical status (drives the dot colour)
+  isOurs: boolean;                  // the single representative "your sale" anchor
+};
+
+// An onward split: a branch forking above a spine node (one level deep — the
+// card's scope; the drawer renders nested/complex shapes in full).
+export type ChainMiniBranch = {
+  forkLevel: number;                // the spine level this branch forks above
+  nodes: ChainMiniNode[];           // ordered bottom (forkLevel+1) → top
 };
 
 export type ChainsWorkspaceChain = {
   chainId: string;
   openTransactionId: string; // one of our files, so the ChainDrawer opens in context
-  length: number;
-  ourPosition: number | null; // 1-based index of our file within the run
-  // Links above / below our sale. Codebase convention (see getChainV2's
-  // detachedSegment inference): a LOWER position sits BELOW, a HIGHER position
-  // ABOVE. So below = links before ours, above = links after ours.
+  length: number;            // total links (spine + branches) — the "N links" count
+  ourPosition: number | null; // our spine display level (bottom = 1)
+  // Convention (lib/chain/positions.ts): spine position 0 = TOP of chain, and
+  // display counts up from the bottom. "Below" = spine links beneath us (buyer
+  // side). "Above" = everything up the chain: spine links above us PLUS every
+  // onward branch (they're all onward purchases we depend on).
   linksAbove: number;
   linksBelow: number;
-  agentsConnected: number; // claimed links across the WHOLE chain (spine + branches) — matches the drawer's claim rate
+  agentsConnected: number; // claimed links across the WHOLE chain — matches the drawer's claim rate
   needsInviteCount: number; // "send now" invites across the whole chain: stub-with-email, not yet sent
   ourFileCount: number; // in-scope files that sit in this chain (drives the "In chains" tile)
-  onwardCount: number; // branch links (extra onward purchases forking off the spine)
-  links: ChainsWorkspaceLink[]; // SPINE links only (top→bottom) — the main ladder the dot chain renders
+  spine: ChainMiniNode[]; // the main ladder (level asc) — the dot chain
+  branches: ChainMiniBranch[]; // onward splits forking off the spine
   // Our primary file within this chain — powers the card header. Null only in
   // the (filtered-out) case where no claimed link resolves.
   ourAddress: string | null;
@@ -1553,9 +1561,11 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
       links: {
         orderBy: [{ branchKey: "asc" }, { position: "asc" }],
         select: {
+          id: true,
           transactionId: true,
           branchKey: true,
           position: true,
+          forkFromLinkId: true,
           inviteStatus: true,
           stubPropertyAddress: true,
           stubAgencyName: true,
@@ -1599,14 +1609,12 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
         (l) => l.transactionId != null && ourTxIds.has(l.transactionId),
       ).length;
 
-      // The SPINE is the main vertical ladder (branchKey ""). Onward purchases sit
-      // on branches and are parallel columns, not part of the top-to-bottom line —
-      // so our position, above/below and the dot chain are all measured on the
-      // spine, exactly as the drawer numbers "POSITION x OF <spine length>".
+      // The SPINE is the main vertical ladder (branchKey ""), sorted position asc
+      // (top→bottom). Onward purchases sit on branches forking off it.
       const spine = withStatus
         .filter((x) => (x.l.branchKey ?? "") === "")
         .sort((a, b) => a.l.position - b.l.position);
-      const onwardCount = totalLinks - spine.length;
+      const spineLen = spine.length;
 
       // Anchor "you" to a spine file in our scope first (so position is a real
       // spine position), then any claimed-in-scope, then any claimed link.
@@ -1616,13 +1624,49 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
         ?? withStatus.find((x) => x.claimed)?.l.transactionId
         ?? "";
 
-      const links: ChainsWorkspaceLink[] = spine.map((x) => ({
-        label: x.l.transaction?.propertyAddress ?? x.l.stubPropertyAddress ?? "Onward sale",
-        isOurs: x.l.transactionId != null && x.l.transactionId === anchorTxId,
-        claimed: x.claimed,
-        statusKind: x.statusKind,
-      }));
-      const anchorIndex = links.findIndex((l) => l.isOurs);
+      // Display level: bottom of chain = 1, counting up (displayChainPosition).
+      // spine is position asc (top→bottom), so level = spineLen - index.
+      const spineLevelByLinkId = new Map<string, number>();
+      spine.forEach((x, i) => spineLevelByLinkId.set(x.l.id, spineLen - i));
+
+      const spineNodes: ChainMiniNode[] = spine
+        .map((x) => ({
+          level: spineLevelByLinkId.get(x.l.id)!,
+          statusKind: x.statusKind,
+          isOurs: x.l.transactionId != null && x.l.transactionId === anchorTxId,
+        }))
+        .sort((a, b) => a.level - b.level);
+
+      // Onward branches forking off a spine node (one level deep — the card's
+      // scope). Group by branchKey; a branch's bottom link carries forkFromLinkId.
+      const branchGroups = new Map<string, typeof withStatus>();
+      for (const x of withStatus) {
+        const bk = x.l.branchKey ?? "";
+        if (bk === "") continue;
+        const arr = branchGroups.get(bk);
+        if (arr) arr.push(x);
+        else branchGroups.set(bk, [x]);
+      }
+      const branchNodes: ChainMiniBranch[] = [];
+      for (const group of branchGroups.values()) {
+        const forkFromId = group.find((x) => x.l.forkFromLinkId)?.l.forkFromLinkId ?? null;
+        const forkLevel = forkFromId ? spineLevelByLinkId.get(forkFromId) : undefined;
+        if (forkLevel === undefined) continue; // forks off a branch (nested) — the drawer shows these
+        const bottomUp = group.slice().sort((a, b) => b.l.position - a.l.position);
+        branchNodes.push({
+          forkLevel,
+          nodes: bottomUp.map((x, i) => ({
+            level: forkLevel + 1 + i,
+            statusKind: x.statusKind,
+            isOurs: x.l.transactionId != null && x.l.transactionId === anchorTxId,
+          })),
+        });
+      }
+
+      const anchorLevel = spineNodes.find((n) => n.isOurs)?.level ?? null;
+      const spineAbove = anchorLevel != null ? spineNodes.filter((n) => n.level > anchorLevel).length : 0;
+      const spineBelow = anchorLevel != null ? spineNodes.filter((n) => n.level < anchorLevel).length : 0;
+      const branchLinkCount = totalLinks - spineLen;
 
       const ours = anchorTxId ? ourTxById.get(anchorTxId) : undefined;
       const ourPhotoUrl = ours?.photoStoragePath ? photoMap.get(ours.photoStoragePath) ?? null : null;
@@ -1640,16 +1684,16 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
         chainId: chain.id,
         openTransactionId: anchorTxId,
         length: totalLinks,
-        ourPosition: anchorIndex >= 0 ? anchorIndex + 1 : null,
-        // Convention (lib/chain/positions.ts): spine position 0 = TOP = above.
-        // Spine links before the anchor are above it; those after are below it.
-        linksAbove: anchorIndex >= 0 ? anchorIndex : 0,
-        linksBelow: anchorIndex >= 0 ? links.length - 1 - anchorIndex : 0,
+        ourPosition: anchorLevel,
+        // Everything up the chain is "above": spine links above us + every onward
+        // branch (all onward purchases). "Below" is only the spine beneath us.
+        linksAbove: spineAbove + branchLinkCount,
+        linksBelow: spineBelow,
         agentsConnected: claimedCount,
         needsInviteCount,
         ourFileCount,
-        onwardCount,
-        links,
+        spine: spineNodes,
+        branches: branchNodes,
         ourAddress: ours?.propertyAddress ?? null,
         ourPhotoUrl,
         ourAgencyName: ours?.agency?.name ?? null,

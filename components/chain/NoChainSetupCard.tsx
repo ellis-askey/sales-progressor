@@ -19,13 +19,16 @@ export function NoChainSetupCard({
   sale,
   currentUserId,
   currentUserRole,
+  showAgency,
 }: {
   sale: NoChainSale;
   currentUserId: string;
   currentUserRole?: string | null;
+  // Agency users only ever see their own agency, so the name is redundant.
+  showAgency: boolean;
 }) {
   const agreed = saleAgreedAgo(sale.createdAt);
-  const metaLine = [agreed, sale.agencyName].filter(Boolean).join("  ·  ");
+  const metaLine = [agreed, showAgency ? sale.agencyName : null].filter(Boolean).join("  ·  ");
 
   return (
     <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" style={{ padding: 14, borderRadius: 14 }}>

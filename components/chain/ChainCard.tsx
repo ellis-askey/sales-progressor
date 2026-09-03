@@ -7,7 +7,7 @@
 // opened via ViewChainButton. Used only by the chains workspace.
 
 import { Fragment } from "react";
-import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal, ArrowUpRight } from "@phosphor-icons/react";
+import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -43,13 +43,18 @@ export function ChainCard({
   chain,
   currentUserId,
   currentUserRole,
+  showAgency,
 }: {
   chain: ChainsWorkspaceChain;
   currentUserId: string;
   currentUserRole?: string | null;
+  // Agency users only ever see their own agency, so the name is redundant for
+  // them. Internal staff span agencies, so they keep it.
+  showAgency: boolean;
 }) {
   const agreed = saleAgreedAgo(chain.saleAgreedAt);
-  const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length, onwardCount } = chain;
+  const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length } = chain;
+  const agencyName = showAgency ? chain.ourAgencyName : null;
 
   // Connected = a link with a real transaction (matches the drawer's claim rate).
   // "All agents connected" only when every link is claimed — never inferred from
@@ -62,9 +67,6 @@ export function ChainCard({
   }
   if (linksAbove > 0) {
     meta.push(<MetaItem key="above" icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaItem>);
-  }
-  if (onwardCount > 0) {
-    meta.push(<MetaItem key="onward" icon={<ArrowUpRight size={12} weight="bold" />}>{onwardCount} onward</MetaItem>);
   }
   if (allConnected) {
     meta.push(
@@ -107,9 +109,9 @@ export function ChainCard({
                   <Pill glass tone="brand" size="sm" style={{ flexShrink: 0 }}>Your sale</Pill>
                 )}
               </div>
-              {(agreed || chain.ourAgencyName) && (
+              {(agreed || agencyName) && (
                 <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {[agreed, chain.ourAgencyName].filter(Boolean).join("  ·  ")}
+                  {[agreed, agencyName].filter(Boolean).join("  ·  ")}
                 </div>
               )}
             </div>
@@ -123,7 +125,7 @@ export function ChainCard({
           </div>
 
           {/* Chain visual */}
-          <ChainMiniMap links={chain.links} />
+          <ChainMiniMap spine={chain.spine} branches={chain.branches} />
 
           {/* Concise chain metadata */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>

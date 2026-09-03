@@ -20,6 +20,7 @@ import {
   CaretRight,
 } from "@phosphor-icons/react";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { isInternalStaff } from "@/lib/chain/permissions";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ChainCard } from "@/components/chain/ChainCard";
@@ -279,6 +280,11 @@ export function ChainsWorkspace({
   const [noneSort, setNoneSort] = useState<NoneSort>("oldest");
   const [hideNoChainRequired, setHideNoChainRequired] = useState(false);
 
+  // Internal staff (admin / SP / superadmin) see files across agencies, so the
+  // agency name is useful. Agency users (director / negotiator) only ever see
+  // their own, so it's redundant noise on the card.
+  const showAgency = isInternalStaff(currentUserRole);
+
   // Summary figures — derived, never hard-coded.
   const filesInChains = useMemo(() => chains.reduce((n, c) => n + c.ourFileCount, 0), [chains]);
   const agentsToInvite = useMemo(() => chains.reduce((n, c) => n + c.needsInviteCount, 0), [chains]);
@@ -477,7 +483,7 @@ export function ChainsWorkspace({
         ) : (
           <div className="chains-card-grid">
             {visibleChains.map((c) => (
-              <ChainCard key={c.chainId} chain={c} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+              <ChainCard key={c.chainId} chain={c} currentUserId={currentUserId} currentUserRole={currentUserRole} showAgency={showAgency} />
             ))}
           </div>
         )
@@ -493,7 +499,7 @@ export function ChainsWorkspace({
       ) : (
         <div className="chains-card-grid">
           {visibleNoChain.map((s) => (
-            <NoChainSetupCard key={s.transactionId} sale={s} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+            <NoChainSetupCard key={s.transactionId} sale={s} currentUserId={currentUserId} currentUserRole={currentUserRole} showAgency={showAgency} />
           ))}
         </div>
       )}
