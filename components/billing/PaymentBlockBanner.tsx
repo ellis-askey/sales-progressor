@@ -98,7 +98,7 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
           alignSelf: "center", whiteSpace: "nowrap",
         }}
       >
-        Update card →
+        Update card <LinkArrow />
       </Link>
     </div>
   );
