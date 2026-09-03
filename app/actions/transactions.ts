@@ -334,6 +334,7 @@ export async function createTransactionAction(input: {
         fileSize: input.mosFileSize,
         mimeType: input.mosMimeType,
         source: "mos",
+        uploadedById: session.user.id,
       },
     }).catch(console.error);
   }
@@ -1558,6 +1559,7 @@ export async function saveDraftAction(data: {
           fileSize: data.mosFileSize,
           mimeType: data.mosMimeType,
           source: "mos",
+          uploadedById: session.user.id,
         },
       }).catch(console.error);
     }

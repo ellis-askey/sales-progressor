@@ -432,7 +432,7 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       where: { transaction: txFilter, OR: roundOR },
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: { transaction: { select: FEED_TX_SELECT }, contact: { select: { name: true, roleType: true } } },
+      include: { transaction: { select: FEED_TX_SELECT }, contact: { select: { name: true, roleType: true } }, uploadedBy: { select: { name: true } } },
     }),
   ]);
 
@@ -535,7 +535,10 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       filename: d.filename,
       mimeType: d.mimeType,
       storagePath: d.storagePath,
-      byName: d.contact?.name ?? null,
+      // Client/portal uploads carry a contact; team uploads (memo of sale,
+      // admin) carry the uploading user. Null only for legacy rows predating
+      // the uploadedBy column — the feed shows a generic label then.
+      byName: d.contact?.name ?? d.uploadedBy?.name ?? null,
     });
   }
 

@@ -86,6 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       mimeType,
       source: "admin",
       docType,
+      uploadedById: session.user.id,
     },
   });
   await recordEvent({

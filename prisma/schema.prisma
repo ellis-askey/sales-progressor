@@ -188,6 +188,7 @@ model User {
   communications       OutboundMessage[]     @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
   acknowledgedRelists  BuyerRound[]          @relation("BuyerRoundRelistAck")
+  uploadedDocuments    TransactionDocument[] @relation("DocumentUploader")
 
   retentionEmailOptOut Boolean   @default(false)
   emailUnsubscribedAt  DateTime?
@@ -1611,6 +1612,11 @@ model TransactionDocument {
   fileSize      Int
   mimeType      String
   source        String   @default("portal")
+  // Who uploaded this from the agent/internal side (memo of sale, admin
+  // uploads, file-level paperwork). Null for client/portal uploads (those
+  // carry a contact instead) and for historical rows created before this
+  // column existed — the feed falls back to a generic label in that case.
+  uploadedById  String?
   // Client-portal document taxonomy (Batch 2): the specific-document key from
   // lib/portal-documents.ts. Null on legacy / uncategorised uploads.
   docType       String?
@@ -1628,6 +1634,7 @@ model TransactionDocument {
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   contact     Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  uploadedBy  User?               @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([transactionId, createdAt])
   @@index([buyerRoundId])
