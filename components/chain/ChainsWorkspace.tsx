@@ -1,13 +1,14 @@
 "use client";
 
 // The /agent/chains workspace — a high-level command centre for chain visibility.
-// A summary overview of the whole picture, two animated tabs (the chains our sales
-// sit in, and the live sales not yet in one), and a search + lightweight filter.
-// Each chain is a compact, property-led card; each unset sale a setup card. All
-// editing/inviting still happens in the ChainDrawer, opened per card via
-// ViewChainButton. Scoped upstream by the page.
+// A summary overview, three animated tabs (chains our sales sit in, sales still
+// needing a chain, and sales confirmed to need none), and a search + lightweight
+// filter. Each chain is a compact property-led card; each unset sale a setup card.
+// Setting up / inviting happens in the ChainDrawer; confirming "no chain" clears a
+// sale from the queue so it can reach zero. Scoped upstream by the page.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   MagnifyingGlass,
   FunnelSimple,
@@ -21,15 +22,21 @@ import {
 } from "@phosphor-icons/react";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { isInternalStaff } from "@/lib/chain/permissions";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ChainCard } from "@/components/chain/ChainCard";
 import { NoChainSetupCard } from "@/components/chain/NoChainSetupCard";
+import { confirmNoChainAction, undoNoChainAction } from "@/app/actions/chains";
 import type { ChainsWorkspaceChain, NoChainSale } from "@/lib/services/chains";
 
-type Tab = "chains" | "none";
+type Tab = "chains" | "needs" | "nochain";
 type ChainSort = "attention" | "length" | "recent";
-type NoneSort = "oldest" | "newest";
+type NeedsSort = "oldest" | "newest";
+
+// A confirmed no-chain sale — unless the client has since said they're buying
+// onward, in which case it's resurfaced back into the setup queue.
+const isConfirmedNoChain = (s: NoChainSale) => s.noChainConfirmedAt != null && !s.resurfaced;
 
 // ─── Summary tiles ────────────────────────────────────────────────────────────
 
@@ -123,10 +130,8 @@ function FilterPopover({
   setChainSort,
   onlyNeedsInvite,
   setOnlyNeedsInvite,
-  noneSort,
-  setNoneSort,
-  hideNoChainRequired,
-  setHideNoChainRequired,
+  needsSort,
+  setNeedsSort,
   active,
 }: {
   tab: Tab;
@@ -134,10 +139,8 @@ function FilterPopover({
   setChainSort: (s: ChainSort) => void;
   onlyNeedsInvite: boolean;
   setOnlyNeedsInvite: (v: boolean) => void;
-  noneSort: NoneSort;
-  setNoneSort: (s: NoneSort) => void;
-  hideNoChainRequired: boolean;
-  setHideNoChainRequired: (v: boolean) => void;
+  needsSort: NeedsSort;
+  setNeedsSort: (s: NeedsSort) => void;
   active: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -203,10 +206,8 @@ function FilterPopover({
           ) : (
             <>
               <FilterGroupLabel>Sort by</FilterGroupLabel>
-              <FilterRadio label="Oldest first" checked={noneSort === "oldest"} onClick={() => setNoneSort("oldest")} />
-              <FilterRadio label="Newest first" checked={noneSort === "newest"} onClick={() => setNoneSort("newest")} />
-              <FilterDivider />
-              <FilterCheck label="Hide no chain required" checked={hideNoChainRequired} onClick={() => setHideNoChainRequired(!hideNoChainRequired)} />
+              <FilterRadio label="Oldest first" checked={needsSort === "oldest"} onClick={() => setNeedsSort("oldest")} />
+              <FilterRadio label="Newest first" checked={needsSort === "newest"} onClick={() => setNeedsSort("newest")} />
             </>
           )}
         </div>
@@ -273,17 +274,34 @@ export function ChainsWorkspace({
   currentUserId: string;
   currentUserRole?: string | null;
 }) {
-  const [tab, setTab] = useState<Tab>(chains.length === 0 && noChain.length > 0 ? "none" : "chains");
+  const router = useRouter();
+  const { toast } = useAgentToast();
+
+  // Split the no-chain sales into the unresolved queue and the confirmed set.
+  const needsSetupAll = useMemo(() => noChain.filter((s) => !isConfirmedNoChain(s)), [noChain]);
+  const noChainAll = useMemo(() => noChain.filter((s) => isConfirmedNoChain(s)), [noChain]);
+
+  const [tab, setTab] = useState<Tab>(chains.length === 0 && needsSetupAll.length > 0 ? "needs" : "chains");
   const [query, setQuery] = useState("");
   const [chainSort, setChainSort] = useState<ChainSort>("attention");
   const [onlyNeedsInvite, setOnlyNeedsInvite] = useState(false);
-  const [noneSort, setNoneSort] = useState<NoneSort>("oldest");
-  const [hideNoChainRequired, setHideNoChainRequired] = useState(false);
+  const [needsSort, setNeedsSort] = useState<NeedsSort>("oldest");
 
   // Internal staff (admin / SP / superadmin) see files across agencies, so the
   // agency name is useful. Agency users (director / negotiator) only ever see
   // their own, so it's redundant noise on the card.
   const showAgency = isInternalStaff(currentUserRole);
+
+  function handleConfirmNoChain(id: string) {
+    confirmNoChainAction(id)
+      .then(() => { toast.success("Marked as no chain"); router.refresh(); })
+      .catch(() => toast.error("Couldn't update that sale"));
+  }
+  function handleUndoNoChain(id: string) {
+    undoNoChainAction(id)
+      .then(() => { toast.success("Back in the setup queue"); router.refresh(); })
+      .catch(() => toast.error("Couldn't update that sale"));
+  }
 
   // Summary figures — derived, never hard-coded.
   const filesInChains = useMemo(() => chains.reduce((n, c) => n + c.ourFileCount, 0), [chains]);
@@ -304,29 +322,38 @@ export function ChainsWorkspace({
     return sorted;
   }, [chains, q, onlyNeedsInvite, chainSort]);
 
-  const visibleNoChain = useMemo(() => {
-    let list = noChain;
+  const visibleNeeds = useMemo(() => {
+    let list = needsSetupAll;
     if (q) list = list.filter((s) => s.search.includes(q));
-    if (hideNoChainRequired) list = list.filter((s) => !s.noChainRequired);
-    // Service returns oldest-first with no-chain-required sunk to the bottom.
-    if (noneSort === "newest") {
-      const sorted = [...list];
-      sorted.sort((a, b) => Number(a.noChainRequired) - Number(b.noChainRequired) || b.createdAt.localeCompare(a.createdAt));
-      return sorted;
-    }
-    return list;
-  }, [noChain, q, hideNoChainRequired, noneSort]);
+    const sorted = [...list];
+    // Resurfaced (client now buying onward) first — it needs action — then by age.
+    sorted.sort((a, b) =>
+      Number(b.resurfaced) - Number(a.resurfaced) ||
+      (needsSort === "newest" ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt)),
+    );
+    return sorted;
+  }, [needsSetupAll, q, needsSort]);
 
-  const activeIdx = tab === "chains" ? 0 : 1;
-  const { btnRefs, ind } = useTabIndicator(activeIdx);
-  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  const filtersActive = tab === "chains" ? onlyNeedsInvite || chainSort !== "attention" : hideNoChainRequired || noneSort !== "oldest";
+  const visibleNoChain = useMemo(() => {
+    let list = noChainAll;
+    if (q) list = list.filter((s) => s.search.includes(q));
+    // Most recently confirmed first.
+    return [...list].sort((a, b) => (b.noChainConfirmedAt ?? "").localeCompare(a.noChainConfirmedAt ?? ""));
+  }, [noChainAll, q]);
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "chains", label: "In chains", count: chains.length },
-    { key: "none", label: "Needs chain setup", count: noChain.length },
+    { key: "needs", label: "Needs chain setup", count: needsSetupAll.length },
+    { key: "nochain", label: "No chain", count: noChainAll.length },
   ];
+  const activeIdx = Math.max(0, tabs.findIndex((t) => t.key === tab));
+  const { btnRefs, ind } = useTabIndicator(activeIdx);
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const filtersActive =
+    tab === "chains" ? onlyNeedsInvite || chainSort !== "attention"
+      : tab === "needs" ? needsSort !== "oldest"
+        : false;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -363,11 +390,11 @@ export function ChainsWorkspace({
           />
           <SummaryTile
             icon={<HouseLine size={20} weight="regular" />}
-            value={noChain.length}
+            value={needsSetupAll.length}
             label="Need chain setup"
-            sublabel="Chain not yet created"
+            sublabel="Chain not yet resolved"
             tone="warning"
-            onClick={() => setTab("none")}
+            onClick={() => setTab("needs")}
           />
           <SummaryTile
             icon={<UsersThree size={20} weight="regular" />}
@@ -383,7 +410,7 @@ export function ChainsWorkspace({
 
       {/* Tabs + search + filters */}
       <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
-        <div role="tablist" aria-label="Chains views" className="agent-tab-bar" style={{ position: "relative", flex: "1 1 240px", minWidth: 0, borderBottom: "1px solid var(--agent-border-subtle)" }}>
+        <div role="tablist" aria-label="Chains views" className="agent-tab-bar" style={{ position: "relative", flex: "1 1 300px", minWidth: 0, borderBottom: "1px solid var(--agent-border-subtle)" }}>
           {ind && (
             <div
               aria-hidden
@@ -456,18 +483,18 @@ export function ChainsWorkspace({
             )}
           </div>
 
-          <FilterPopover
-            tab={tab}
-            chainSort={chainSort}
-            setChainSort={setChainSort}
-            onlyNeedsInvite={onlyNeedsInvite}
-            setOnlyNeedsInvite={setOnlyNeedsInvite}
-            noneSort={noneSort}
-            setNoneSort={setNoneSort}
-            hideNoChainRequired={hideNoChainRequired}
-            setHideNoChainRequired={setHideNoChainRequired}
-            active={filtersActive}
-          />
+          {tab !== "nochain" && (
+            <FilterPopover
+              tab={tab}
+              chainSort={chainSort}
+              setChainSort={setChainSort}
+              onlyNeedsInvite={onlyNeedsInvite}
+              setOnlyNeedsInvite={setOnlyNeedsInvite}
+              needsSort={needsSort}
+              setNeedsSort={setNeedsSort}
+              active={filtersActive}
+            />
+          )}
         </div>
       </div>
 
@@ -489,19 +516,52 @@ export function ChainsWorkspace({
             ))}
           </div>
         )
-      ) : noChain.length === 0 ? (
+      ) : tab === "needs" ? (
+        needsSetupAll.length === 0 ? (
+          <EmptyState
+            compact
+            iconBg="var(--agent-success-bg)"
+            title="Nothing to set up"
+            description="Every live sale is either in a chain or confirmed as needing none."
+          />
+        ) : visibleNeeds.length === 0 ? (
+          <EmptyState compact title="No matches" description="No sales match your search." />
+        ) : (
+          <div className="chains-card-grid">
+            {visibleNeeds.map((s) => (
+              <NoChainSetupCard
+                key={s.transactionId}
+                sale={s}
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole}
+                showAgency={showAgency}
+                onConfirmNoChain={handleConfirmNoChain}
+                onUndoNoChain={handleUndoNoChain}
+              />
+            ))}
+          </div>
+        )
+      ) : noChainAll.length === 0 ? (
         <EmptyState
           compact
           iconBg="var(--agent-success-bg)"
-          title="Every sale is in a chain"
-          description="No live sales are sitting outside a chain right now."
+          title="No sales marked no chain"
+          description="Sales you confirm need no chain will show here, ready to reopen if things change."
         />
       ) : visibleNoChain.length === 0 ? (
-        <EmptyState compact title="No matches" description="No sales match your search or filters." />
+        <EmptyState compact title="No matches" description="No sales match your search." />
       ) : (
         <div className="chains-card-grid">
           {visibleNoChain.map((s) => (
-            <NoChainSetupCard key={s.transactionId} sale={s} currentUserId={currentUserId} currentUserRole={currentUserRole} showAgency={showAgency} />
+            <NoChainSetupCard
+              key={s.transactionId}
+              sale={s}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              showAgency={showAgency}
+              onConfirmNoChain={handleConfirmNoChain}
+              onUndoNoChain={handleUndoNoChain}
+            />
           ))}
         </div>
       )}

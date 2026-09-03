@@ -1505,6 +1505,8 @@ export type ChainsWorkspaceChain = {
   linksBelow: number;
   agentsConnected: number; // claimed links across the WHOLE chain — matches the drawer's claim rate
   needsInviteCount: number; // "send now" invites across the whole chain: stub-with-email, not yet sent
+  bouncedCount: number; // invites that bounced (dead neighbour email — needs fixing)
+  declinedCount: number; // invites a neighbour declined
   ourFileCount: number; // in-scope files that sit in this chain (drives the "In chains" tile)
   spine: ChainMiniNode[]; // the main ladder (level asc) — the dot chain
   branches: ChainMiniBranch[]; // onward splits forking off the spine
@@ -1533,6 +1535,15 @@ export type NoChainSale = {
   // Both are real fields — nothing invented. Conservative: only true when both
   // are known-positive.
   noChainRequired: boolean;
+  // The team confirmed this sale needs no chain (ISO of noChainNeededAt, else
+  // null). A confirmed sale drops out of the setup queue into the "No chain" tab.
+  noChainConfirmedAt: string | null;
+  // Was confirmed no-chain, but the client has since said they ARE buying onward
+  // — the confirmation is stale, so we put it back in the queue flagged.
+  resurfaced: boolean;
+  // Seller hasn't answered "are you buying onward?" in the portal yet, so we
+  // can't auto-suggest either way.
+  awaitingClientOnward: boolean;
   search: string;
 };
 
@@ -1613,6 +1624,8 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
       const totalLinks = chain.links.length;
       const claimedCount = withStatus.filter((x) => x.claimed).length;
       const needsInviteCount = withStatus.filter((x) => x.statusKind === "unclaimed_unsent").length;
+      const bouncedCount = withStatus.filter((x) => x.statusKind === "bounced").length;
+      const declinedCount = withStatus.filter((x) => x.statusKind === "declined").length;
       const ourFileCount = chain.links.filter(
         (l) => l.transactionId != null && ourTxIds.has(l.transactionId),
       ).length;
@@ -1699,6 +1712,8 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
         linksBelow: spineBelow,
         agentsConnected: claimedCount,
         needsInviteCount,
+        bouncedCount,
+        declinedCount,
         ourFileCount,
         spine: spineNodes,
         branches: branchNodes,
@@ -1724,6 +1739,7 @@ export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoCh
       photoStoragePath: true,
       purchaseType: true,
       clientFirstTimeBuyer: true,
+      noChainNeededAt: true,
       agency: { select: { name: true } },
     },
     // Oldest first — a sale that's been sitting without a chain the longest is
@@ -1734,16 +1750,14 @@ export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoCh
 
   const ids = rows.map((r) => r.id);
 
-  // Real "not buying onward" signal from the vendor's move info — the only
-  // grounded way to say a sale needs no chain above. buyingOnward is nullable;
-  // we treat only an explicit false as "not buying onward".
+  // The seller's "are you buying onward?" answer (portal → Information → Onward).
+  // true / false = answered; absent (no row) = not answered yet.
   const moveInfos = await prisma.clientMoveInfo.findMany({
     where: { transactionId: { in: ids }, side: "vendor" },
     select: { transactionId: true, buyingOnward: true },
   });
-  const notBuyingOnward = new Set(
-    moveInfos.filter((m) => m.buyingOnward === false).map((m) => m.transactionId),
-  );
+  const onwardByTx = new Map<string, boolean | null>();
+  for (const m of moveInfos) onwardByTx.set(m.transactionId, m.buyingOnward);
 
   const { getSignedUrlMap } = await import("@/lib/supabase-storage");
   const photoMap = await getSignedUrlMap(
@@ -1753,10 +1767,17 @@ export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoCh
 
   const mapped = rows.map((r) => {
     const buyerPosition = computeBuyerPosition(r.purchaseType, r.clientFirstTimeBuyer);
+    const onward = onwardByTx.has(r.id) ? onwardByTx.get(r.id)! : undefined;
     // Buyer is chain-free (nothing below) AND seller not buying onward (nothing
     // above) → genuinely no chain required. Grounded in existing fields only.
     const buyerChainFree = r.purchaseType === "cash_buyer" || r.clientFirstTimeBuyer === true;
-    const noChainRequired = buyerChainFree && notBuyingOnward.has(r.id);
+    const noChainRequired = buyerChainFree && onward === false;
+    const confirmed = r.noChainNeededAt != null;
+    // A stale confirmation: we marked "no chain", but the client has since said
+    // they ARE buying onward. Put it back in the queue, flagged.
+    const resurfaced = confirmed && onward === true;
+    // Not answered yet (no vendor move-info row) — we can't auto-suggest.
+    const awaitingClientOnward = onward === undefined;
     const photoUrl = r.photoStoragePath ? photoMap.get(r.photoStoragePath) ?? null : null;
     return {
       transactionId: r.id,
@@ -1767,11 +1788,13 @@ export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoCh
       agencyName: r.agency?.name ?? null,
       buyerPosition,
       noChainRequired,
+      noChainConfirmedAt: r.noChainNeededAt ? r.noChainNeededAt.toISOString() : null,
+      resurfaced,
+      awaitingClientOnward,
       search: [r.propertyAddress, r.agency?.name, buyerPosition].filter(Boolean).join(" ").toLowerCase(),
     };
   });
 
-  // Keep oldest-first for the files that still need action; drop the
-  // no-chain-required ones to the bottom (they need no work).
-  return mapped.sort((a, b) => Number(a.noChainRequired) - Number(b.noChainRequired));
+  // Oldest-first (from the query). The workspace splits confirmed vs unresolved.
+  return mapped;
 }

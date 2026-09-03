@@ -7,7 +7,7 @@
 // opened via ViewChainButton. Used only by the chains workspace.
 
 import { Fragment } from "react";
-import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal } from "@phosphor-icons/react";
+import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal, XCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -23,10 +23,13 @@ function MetaItem({
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
-  tone?: "muted" | "warning" | "success";
+  tone?: "muted" | "warning" | "success" | "danger";
 }) {
   const color =
-    tone === "warning" ? "var(--agent-warning)" : tone === "success" ? "var(--agent-success)" : "var(--agent-text-muted)";
+    tone === "warning" ? "var(--agent-warning)"
+      : tone === "success" ? "var(--agent-success)"
+        : tone === "danger" ? "var(--agent-danger)"
+          : "var(--agent-text-muted)";
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, color, fontWeight: tone === "muted" ? 500 : 600, whiteSpace: "nowrap" }}>
       <span style={{ display: "inline-flex", color }} aria-hidden>{icon}</span>
@@ -53,7 +56,7 @@ export function ChainCard({
   showAgency: boolean;
 }) {
   const agreed = saleAgreedAgo(chain.saleAgreedAt);
-  const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length } = chain;
+  const { linksAbove, linksBelow, agentsConnected, needsInviteCount, bouncedCount, declinedCount, length } = chain;
   const agencyName = showAgency ? chain.ourAgencyName : null;
 
   // Split the address like the rest of the app: street on line 1, town/postcode
@@ -94,6 +97,22 @@ export function ChainCard({
         </MetaItem>,
       );
     }
+  }
+  // A dead neighbour (bounced email / declined invite) is more urgent than a
+  // never-sent one — flag it in danger so it can't hide as a muted dot.
+  if (bouncedCount > 0) {
+    meta.push(
+      <MetaItem key="bounced" icon={<Warning size={12} weight="fill" />} tone="danger">
+        {bouncedCount} bounced
+      </MetaItem>,
+    );
+  }
+  if (declinedCount > 0) {
+    meta.push(
+      <MetaItem key="declined" icon={<XCircle size={13} weight="fill" />} tone="danger">
+        {declinedCount} declined
+      </MetaItem>,
+    );
   }
 
   return (

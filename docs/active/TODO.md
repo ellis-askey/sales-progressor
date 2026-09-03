@@ -2,6 +2,22 @@
 
 ---
 
+## Chains workspace — chain-risk signal on In-chains cards (deferred, filed 2026-09-03)
+
+DEFERRED. Surface a "chain at risk / weakest link / fallen-through" flag on the
+`/agent/chains` In-chains cards. The logic already exists (`lib/chain/summary.ts`
+`weakest` + `lib/chain/is-broken.ts`), but a risk score is only trustworthy once
+enough agents are actively on the chain to populate progress/movement. Revisit
+when chain adoption is high enough to compute meaningful risk. (Ellis, 2026-09-03.)
+
+## Chains workspace — stale-chain indicator on In-chains cards (deferred, filed 2026-09-03)
+
+DEFERRED for the same reason as the chain-risk signal above: a "chain gone quiet /
+no movement in X days" flag needs enough live multi-agent chains to be meaningful.
+Revisit alongside chain-risk. (Ellis, 2026-09-03.)
+
+---
+
 ## AI summary card hidden on the property file (filed 2026-09-02)
 
 The AI summary card on the property file Overview (`AiSummaryCard`, rendered in

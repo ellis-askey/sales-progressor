@@ -366,6 +366,13 @@ model PropertyTransaction {
   // resolves the onward chain (or confirms there is none). Cleared back to
   // false when the chain step is completed via the prompt.
   chainSetupPending           Boolean           @default(false)
+  // No-chain confirmation (2026-09-03): stamped when the team confirms a live
+  // sale needs no chain, so the /agent/chains "Needs chain setup" queue can reach
+  // zero. Cleared to re-open the file (undo, or auto-resurface if the client later
+  // says they're buying onward). noChainNeededById is the acting user's id (no
+  // relation; resolve name at read).
+  noChainNeededAt             DateTime?
+  noChainNeededById           String?
   // Intro-call onboarding (2026-08-29): stamped once when the team completes the
   // introduction for this file (from either side). Drives the "intro done" state
   // that removes the "Start intro call" opener from the client card.
