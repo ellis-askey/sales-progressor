@@ -283,7 +283,7 @@ export function MilestonePanel({
           No milestones found
         </Card>
       ) : (
-        <div className="space-y-3">
+        <Card glassId="steps-list" glassLabel="Steps · Checklist" glassDefault="v05" padding="none">
           {sectionDefs.map((section) => {
             const sc = SECTION_COLORS[section.label] ?? SECTION_COLORS["Onboarding"];
             const codeSet = new Set(section.codes);
@@ -300,7 +300,7 @@ export function MilestonePanel({
             const isCollapsed = collapsed[section.label] ?? false;
 
             return (
-              <Card key={section.label} glassId="steps-section" glassLabel="Steps · Milestone sections" glassDefault="v05" padding="none">
+              <div key={section.label} className="ms-check-section" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
                 <button
                   type="button"
                   onClick={() => toggleSection(section.label)}
@@ -378,13 +378,13 @@ export function MilestonePanel({
                     ) : null}
                   </div>
                 </div>
-              </Card>
+              </div>
             );
           })}
 
           {/* ── Skipped / Not-required section ──────────────────────────────── */}
           {nrMilestones.length > 0 && (
-            <Card glassId="steps-not-required" glassLabel="Steps · Skipped list" glassDefault="v10" padding="none">
+            <div className="ms-check-section" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
               <button
                 type="button"
                 onClick={() => setNrCollapsed((p) => !p)}
@@ -417,9 +417,9 @@ export function MilestonePanel({
                   ))}
                 </div>
               </div>
-            </Card>
+            </div>
           )}
-        </div>
+        </Card>
       )}
 
       {gateReady && (
