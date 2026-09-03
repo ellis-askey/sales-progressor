@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Bell, ArrowRight, Scales } from "@phosphor-icons/react";
+import { Bell, Scales } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Pill } from "@/components/ui/Pill";
 
 // Notification bell (rebuilt 2026-08-09). Polls the agent-scoped updates feed
@@ -227,7 +228,7 @@ export function AgentBell({ userKey }: { userKey: string }) {
             }}
           >
             View all updates
-            <ArrowRight size={12} weight="bold" />
+            <LinkArrow />
           </Link>
         </div>
       )}

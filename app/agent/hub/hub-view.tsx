@@ -49,7 +49,8 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1092,7 +1093,7 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
           style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
         >
           View file
-          <ArrowRight size={12} />
+          <LinkArrow />
         </Link>
       </GlassCard>
     </SectionReveal>
@@ -1225,7 +1226,7 @@ async function ProTipSlot({ ctx }: { ctx: Ctx }) {
         </p>
       </div>
       {tip.href && (
-        <ArrowRight size={16} color="var(--agent-text-muted)" weight="bold" style={{ flexShrink: 0 }} />
+        <LinkArrow size={16} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
       )}
     </>
   );

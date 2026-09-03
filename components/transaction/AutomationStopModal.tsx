@@ -12,7 +12,7 @@
 // with choice="pause" + plannedEndAt=null + reason=null.
 
 import { useState } from "react";
-import { ArrowRight } from "@phosphor-icons/react";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 
@@ -144,7 +144,7 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
                       disabled={isPending || !customDate}
                       className="agent-btn agent-btn-sm agent-btn-primary"
                     >
-                      Put on hold
+                      {holdOnly ? "Pause this sale" : "Put on hold"}
                     </button>
                   </div>
                 </div>
@@ -172,7 +172,7 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
                     className="agent-link"
                     style={{ fontSize: 12, color: "var(--agent-text-muted)", textAlign: "left", padding: "4px 0" }}
                   >
-                    Or hold indefinitely (won&apos;t auto-surface)
+                    {holdOnly ? "Or pause indefinitely (won" : "Or hold indefinitely (won"}&apos;t auto-surface)
                   </button>
                 </div>
               </div>
@@ -253,7 +253,7 @@ function ChooserCard({
         </p>
       </div>
       <span style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", marginTop: 2 }}>
-        <ArrowRight size={14} weight="bold" />
+        <LinkArrow size={14} />
       </span>
     </button>
   );

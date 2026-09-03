@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, ArrowRight, HouseSimple } from "@phosphor-icons/react/dist/ssr";
+import { Clock, HouseSimple } from "@phosphor-icons/react/dist/ssr";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 export type AttentionItem = {
   id: string;
@@ -57,7 +58,7 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
         {items.length > 0 && (
           <Link href="/agent/work-queue" className="agent-link" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
             All reminders
-            <ArrowRight size={12} />
+            <LinkArrow />
           </Link>
         )}
       </div>

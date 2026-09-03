@@ -32,10 +32,10 @@ import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { Pill } from "@/components/ui/Pill";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import {
   Warning,
   HouseSimple,
-  ArrowRight,
   CaretDown,
   Check,
   CalendarPlus,
@@ -513,7 +513,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
             onClick={(e) => e.stopPropagation()}
           >
             All reminders
-            <ArrowRight size={12} />
+            <LinkArrow />
           </Link>
         )}
         <span
@@ -803,7 +803,7 @@ function AttentionRow({
     return (
       <Link href={href} style={{ ...rowStyle, textDecoration: "none" }} className="agent-hover-row">
         {body}
-        <ArrowRight size={14} color="var(--agent-text-muted)" style={{ flexShrink: 0 }} />
+        <LinkArrow size={14} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
       </Link>
     );
   }
