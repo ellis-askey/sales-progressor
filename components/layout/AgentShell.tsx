@@ -15,7 +15,7 @@ import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
-  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
+  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple,
   ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
@@ -62,6 +62,7 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
     ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+    { href: "/agent/chains",      label: "Chains",      Icon: LinkSimple    },
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];

@@ -12,9 +12,12 @@ type Props = {
   currentUserId: string;
   currentUserRole?: string | null;
   declineNotification?: { address: string; at: string } | null;
+  // Override the button label (default "Open chain"). The chains workspace uses
+  // "Set up chain" on files that aren't in one yet.
+  label?: string;
 };
 
-export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification }: Props) {
+export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification, label }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [addNode, setAddNode] = useState<{
@@ -58,7 +61,7 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
         className="agent-link"
         style={{ fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 5 }}
       >
-        Open chain
+        {label ?? "Open chain"}
         <LinkArrow style={{ marginLeft: 0 }} />
       </button>
 

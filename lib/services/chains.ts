@@ -2,6 +2,8 @@
 
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
+import { TransactionStatus } from "@prisma/client";
 import { shiftPositionsUp, repackPositions } from "@/lib/chain/positions";
 import {
   calculatePhaseAwarePrediction,
@@ -1461,4 +1463,99 @@ export async function deleteChainLink(linkId: string) {
 
 export async function deleteChain(chainId: string) {
   return prisma.propertyChain.delete({ where: { id: chainId } });
+}
+
+// ─── Chains workspace (agent /agent/chains) ───────────────────────────────────
+// Lightweight lists for the chains overview. Deliberately cheaper than
+// getChainV2 (no photos / intel / predictions) — just enough to render the run
+// of properties, our file's place in it, and the invite-needed flag, then hand
+// off to the ChainDrawer for the full picture. Scoped via getAccessScope so it
+// serves agency staff (their agency), sales_progressor (assigned) and admin /
+// superadmin (all) — in-house and outsourced alike.
+
+// Live sales only — a chain is a thing you actively manage; completed/withdrawn
+// files drop out of both lists.
+const CHAINS_LIVE_STATUSES: TransactionStatus[] = [TransactionStatus.active, TransactionStatus.on_hold];
+
+export type ChainsWorkspaceLink = {
+  label: string;        // property address, stub address, or a generic onward label
+  isOurs: boolean;      // belongs to a file in the viewer's scope
+  claimed: boolean;     // has a real transaction (vs an uninvited stub)
+  needsInvite: boolean; // a stub with an email we haven't invited yet
+};
+
+export type ChainsWorkspaceChain = {
+  chainId: string;
+  openTransactionId: string; // one of our files, so the ChainDrawer opens in context
+  length: number;
+  ourPosition: number | null; // 1-based index of our file within the run
+  needsInviteCount: number;
+  links: ChainsWorkspaceLink[];
+};
+
+export type NoChainSale = {
+  transactionId: string;
+  address: string;
+  status: string;
+};
+
+export async function listChainsForScope(scope: AccessScope): Promise<ChainsWorkspaceChain[]> {
+  const ourTxns = await prisma.propertyTransaction.findMany({
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null } }] },
+    select: { id: true, chainLink: { select: { chainId: true } } },
+  });
+  const ourTxIds = new Set(ourTxns.map((t) => t.id));
+  const chainIds = [...new Set(ourTxns.map((t) => t.chainLink?.chainId).filter((x): x is string => !!x))];
+  if (chainIds.length === 0) return [];
+
+  const chains = await prisma.propertyChain.findMany({
+    where: { id: { in: chainIds } },
+    select: {
+      id: true,
+      links: {
+        orderBy: [{ branchKey: "asc" }, { position: "asc" }],
+        select: {
+          transactionId: true,
+          inviteStatus: true,
+          stubPropertyAddress: true,
+          stubAgentEmail: true,
+          transaction: { select: { id: true, propertyAddress: true } },
+        },
+      },
+    },
+  });
+
+  return chains
+    .map((chain) => {
+      const links: ChainsWorkspaceLink[] = chain.links.map((l) => {
+        const claimed = l.transactionId != null;
+        const isOurs = claimed && ourTxIds.has(l.transactionId!);
+        const needsInvite = !claimed && l.inviteStatus === "NOT_SENT" && !!l.stubAgentEmail?.includes("@");
+        const label = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "Onward sale";
+        return { label, isOurs, claimed, needsInvite };
+      });
+      const ourIndex = links.findIndex((l) => l.isOurs);
+      const openTransactionId =
+        chain.links.find((l) => l.transactionId != null && ourTxIds.has(l.transactionId))?.transactionId
+        ?? chain.links.find((l) => l.transactionId != null)?.transactionId
+        ?? "";
+      return {
+        chainId: chain.id,
+        openTransactionId,
+        length: links.length,
+        ourPosition: ourIndex >= 0 ? ourIndex + 1 : null,
+        needsInviteCount: links.filter((l) => l.needsInvite).length,
+        links,
+      };
+    })
+    .filter((c) => c.openTransactionId);
+}
+
+export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoChainSale[]> {
+  const rows = await prisma.propertyTransaction.findMany({
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null }] },
+    select: { id: true, propertyAddress: true, status: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map((r) => ({ transactionId: r.id, address: r.propertyAddress, status: r.status }));
 }
