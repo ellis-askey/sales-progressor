@@ -17,6 +17,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { listAutomatedEmails, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
+import { getAutomationCoverage } from "@/lib/services/automated-emails-coverage";
 import { getUpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,7 @@ import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
 import { AutomationActivityPanel } from "@/components/automated-emails/AutomationActivityPanel";
 import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentionPanel";
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
+import { AutomationCoveragePanel } from "@/components/automated-emails/AutomationCoveragePanel";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming"] as const;
 const VALID_PERIODS = [7, 30, 90];
@@ -113,10 +115,11 @@ export default async function AutomatedEmailsPage({
   // solicitor predictions + exhausted), so the list only needs its counts —
   // fetch cheap pending rows to avoid a second per-file prediction fan-out.
   const listTab = tab === "upcoming" ? "pending" : tab;
-  const [list, overview, needs, forecast] = await Promise.all([
+  const [list, overview, needs, coverage, forecast] = await Promise.all([
     listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
+    getAutomationCoverage(scopeBase).catch(() => null),
     tab === "upcoming" ? getUpcomingForecast(scopeBase).catch(() => null) : Promise.resolve(null),
   ]);
 
@@ -141,14 +144,18 @@ export default async function AutomatedEmailsPage({
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <div className="lg:col-span-2">
-          {overview && <AutomationActivityPanel overview={overview} />}
-        </div>
-        <div className="lg:col-span-1">
-          {needs && <NeedsAttentionPanel data={needs} />}
-        </div>
+      {/* Row A — what needs a person, and how well set up we are */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {needs && <NeedsAttentionPanel data={needs} />}
+        {coverage && <AutomationCoveragePanel coverage={coverage} />}
       </div>
+
+      {/* The trend — full width so the chart has room */}
+      {overview && (
+        <div className="mb-4">
+          <AutomationActivityPanel overview={overview} />
+        </div>
+      )}
 
       <AutomatedEmailsListView
         rows={list.rows}

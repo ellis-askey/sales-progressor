@@ -9,6 +9,7 @@ rather than in `components/ui/`.
 |---|---|---|
 | `deliveryStatus.ts` | Maps an email delivery status (`delivered`/`deferred`/`bounced`/`blocked`/`errored`/`pending`/`sent`/`failed`) to a canonical `Pill` tone + label. | The status vocabulary is specific to this feature's email pipeline; the underlying badge is the shared `ui/Pill`. |
 | `AutomationBanner.tsx` | At-a-glance health strip that leads the page: running/paused status + queued / chasing-today / needs-attention / files-monitored figures. | Composes the feature's `AutomationBanner` overview shape; the health taxonomy is feature-specific. |
+| `AutomationCoveragePanel.tsx` | Per-file coverage donut (covered / need-information / paused) + labelled legend. | Renders the feature's `AutomationCoverage` rollup; the file-health buckets are feature-specific. |
 | `EmailActivityChart.tsx` | Compact per-day **stacked** bar chart (chase vs notification) built on recharts. | First stacked chart in the repo. Data shape (`DayBucket`) is feature-specific. If a second stacked chart appears, promote a generic `StackedBarChart` to `components/analytics/`. |
 | `AutomationActivityPanel.tsx` | The "Automation activity" overview: KPI tiles + period control + the chart. | Composes feature KPIs (`AutomationOverview`) — not reusable outside this page. |
 | `NeedsAttentionPanel.tsx` | Actionable delivery-problem list (bounced/blocked/deferred/failed) with safe link-only actions. | Reads `NeedsAttention` from the feature service; problem taxonomy is feature-specific. |
