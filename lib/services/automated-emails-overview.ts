@@ -18,6 +18,22 @@ import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automate
 
 const DAY = 86_400_000;
 
+// The chase cron's own global gate (lib/services/automated-emails-preview.ts
+// mirrors this exact check). Anything other than the literal "true" leaves
+// every file's chases dormant — so the banner must read "paused", not "healthy".
+function chaseGloballyPaused(): boolean {
+  return process.env.CLIENT_CHASE_ENABLED !== "true";
+}
+
+// London start/end of today. Same UTC-midnight approximation the rest of this
+// surface uses (automated-emails-preview.ts: startOfTodayLondon) — good enough
+// for a "due today" bucket, degrades gracefully across the BST boundary.
+function todayBoundsLondon(now: Date): { start: Date; end: Date } {
+  const start = new Date(now);
+  start.setUTCHours(0, 0, 0, 0);
+  return { start, end: new Date(start.getTime() + DAY) };
+}
+
 export type OverviewInput = EmailScopeInput & { periodDays: number };
 
 export type AutomationMetrics = {
@@ -34,10 +50,23 @@ export type AutomationMetrics = {
 
 export type DayBucket = { key: string; label: string; chase: number; notification: number };
 
+// At-a-glance health strip that leads the page. Every figure is scope-derived
+// like the rest of this service, so it can never show more than the viewer may
+// see. `automationPaused` reflects the global chase gate only — per-agency and
+// per-file pauses are surfaced in the coverage rollup, not here.
+export type AutomationBanner = {
+  activeFiles: number;         // active transactions in scope (what we're watching)
+  automationPaused: boolean;   // global chase gate is off → nothing sends anywhere
+  nextSendAt: Date | null;     // earliest still-pending queued send
+  chasingTodayCount: number;   // client chases due to send by end of today
+  chasingTodayFiles: number;   // distinct files those chases land on
+};
+
 export type AutomationOverview = {
   periodDays: number;
   metrics: AutomationMetrics;
   perDay: DayBucket[];
+  banner: AutomationBanner;
 };
 
 const dayLabelFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
@@ -79,13 +108,19 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     emailsSent: 0, emailsSentDeltaPct: null, deliveryRatePct: null, issues: 0,
     issuesDeltaPct: null, queuedNow: 0, filesContacted: 0, chasesSent: 0, notificationsSent: 0,
   };
+  const emptyBanner: AutomationBanner = {
+    activeFiles: 0, automationPaused: chaseGloballyPaused(), nextSendAt: null,
+    chasingTodayCount: 0, chasingTodayFiles: 0,
+  };
   if (txIds.length === 0) {
-    return { periodDays: input.periodDays, metrics: emptyMetrics, perDay: buildEmptyDays(periodStart, now) };
+    return { periodDays: input.periodDays, metrics: emptyMetrics, perDay: buildEmptyDays(periodStart, now), banner: emptyBanner };
   }
+
+  const { end: endOfToday } = todayBoundsLondon(now);
 
   // Load current-period sent rows once (bounded) — perDay + category counts +
   // filesContacted + delivery failures all derive from these in memory.
-  const [queueSent, solSent, queuedNow, emailsSentPrev, issues, issuesPrev] = await Promise.all([
+  const [queueSent, solSent, queuedNow, emailsSentPrev, issues, issuesPrev, activeFiles, nextSend, chasingTodayRows] = await Promise.all([
     prisma.outboundEmailQueue.findMany({
       where: { ...queueScope, sentAt: { gte: periodStart } },
       select: {
@@ -116,7 +151,33 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
       prisma.outboundEmailQueue.count({ where: { ...queueScope, OR: queueProblemOr(prevStart, periodStart) } }),
       prisma.outboundMessage.count({ where: solicitorProblemWhere(solicitorScope, prevStart, periodStart) }),
     ]).then(([a, b]) => a + b),
+    // Banner — active files we're watching
+    prisma.propertyTransaction.count({ where: { id: { in: txIds }, status: "active" } }),
+    // Banner — earliest still-pending queued send (the "next in …" countdown)
+    prisma.outboundEmailQueue.findFirst({
+      where: { ...queueScope, sentAt: null, errorAt: null },
+      orderBy: { scheduledFor: "asc" },
+      select: { scheduledFor: true },
+    }),
+    // Banner — client chases due to go out by end of today (solicitor chases
+    // don't pass through the queue, so this is client-chase only, and honest).
+    prisma.outboundEmailQueue.findMany({
+      where: { ...queueScope, sentAt: null, errorAt: null, emailType: "CLIENT_CHASE", scheduledFor: { lt: endOfToday } },
+      select: { recipientContact: { select: { propertyTransactionId: true } } },
+      take: 5000,
+    }),
   ]);
+
+  const chasingTodayFiles = new Set(
+    chasingTodayRows.map((r) => r.recipientContact?.propertyTransactionId).filter((id): id is string => !!id),
+  );
+  const banner: AutomationBanner = {
+    activeFiles,
+    automationPaused: chaseGloballyPaused(),
+    nextSendAt: nextSend?.scheduledFor ?? null,
+    chasingTodayCount: chasingTodayRows.length,
+    chasingTodayFiles: chasingTodayFiles.size,
+  };
 
   // Aggregate the sent rows in memory.
   const days = buildEmptyDays(periodStart, now);
@@ -173,7 +234,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     notificationsSent,
   };
 
-  return { periodDays: input.periodDays, metrics, perDay: days };
+  return { periodDays: input.periodDays, metrics, perDay: days, banner };
 }
 
 function buildEmptyDays(from: Date, to: Date): DayBucket[] {

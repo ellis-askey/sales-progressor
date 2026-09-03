@@ -23,6 +23,7 @@ import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
 import { AutomationActivityPanel } from "@/components/automated-emails/AutomationActivityPanel";
 import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentionPanel";
+import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming"] as const;
 const VALID_PERIODS = [7, 30, 90];
@@ -131,6 +132,14 @@ export default async function AutomatedEmailsPage({
         title="Automated emails"
         subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
       />
+
+      {overview && (
+        <AutomationBanner
+          banner={overview.banner}
+          needsTotal={needs?.total ?? 0}
+          queuedNow={overview.metrics.queuedNow}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2">
