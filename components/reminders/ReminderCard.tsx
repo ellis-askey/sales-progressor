@@ -9,6 +9,7 @@ import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { chaseBadgeLabel } from "@/lib/reminders/classify";
 
 export type Contact = {
@@ -466,7 +467,7 @@ export function ReminderCard({
             href={`/agent/transactions/${transactionId}`}
             className="text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors block mb-2"
           >
-            {propertyAddress} →
+            {propertyAddress} <LinkArrow />
           </Link>
         )}
 

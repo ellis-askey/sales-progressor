@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 function stripChase(name: string): string {
   return name.replace(/^Chase:\s*/i, "");
@@ -181,7 +182,7 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
             href={`/agent/transactions/${task.transaction.id}`}
             className="ml-auto text-xs text-blue-500 hover:text-blue-600 transition-colors"
           >
-            View file →
+            View file <LinkArrow />
           </Link>
         </div>
       </div>

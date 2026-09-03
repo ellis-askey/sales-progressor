@@ -4,6 +4,7 @@ import { useState, useOptimistic, useTransition } from "react";
 import { useRouter } from "next/navigation"; // pending SA migration (onChased only)
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { formatDate, toUKDateStr } from "@/lib/utils";
@@ -140,7 +141,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
                         {loadingId === item.id ? "…" : "Wake up now"}
                       </button>
                       <Link href={`/agent/transactions/${item.transaction.id}`} className="ml-auto text-xs text-blue-500 hover:text-blue-600 transition-colors">
-                        View file →
+                        View file <LinkArrow />
                       </Link>
                     </div>
                   </div>

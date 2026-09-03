@@ -13,6 +13,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
 import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -505,7 +506,7 @@ function PriorityList({
                   title="Chase this client now, before its scheduled start date"
                   style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: earlyChaseLoading === log.id ? "wait" : "pointer", flexShrink: 0, whiteSpace: "nowrap", opacity: earlyChaseLoading === log.id ? 0.5 : 1 }}
                 >
-                  {earlyChaseLoading === log.id ? "…" : "→ Chase now"}
+                  {earlyChaseLoading === log.id ? "…" : <><LinkArrow leading />Chase now</>}
                 </button>
               )}
             </div>

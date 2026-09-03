@@ -7,13 +7,14 @@ import { Pill } from "@/components/ui/Pill";
 import { ALERT_CONFIG } from "@/lib/services/work-queue";
 import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 // Action copy and focus param per alert type
 // Alert types that exist: missing_vendor_solicitor, missing_purchaser_solicitor, overdue_exchange, stale
 const ALERT_ACTIONS: Partial<Record<AlertType, { label: string; focus: string }>> = {
-  missing_vendor_solicitor:   { label: "Add vendor solicitor →",     focus: "vendor-solicitor"    },
-  missing_purchaser_solicitor: { label: "Add purchaser solicitor →", focus: "purchaser-solicitor" },
-  overdue_exchange:            { label: "Update exchange date →",     focus: "exchange-date"       },
+  missing_vendor_solicitor:   { label: "Add vendor solicitor",     focus: "vendor-solicitor"    },
+  missing_purchaser_solicitor: { label: "Add purchaser solicitor", focus: "purchaser-solicitor" },
+  overdue_exchange:            { label: "Update exchange date",     focus: "exchange-date"       },
 };
 
 function getPrimaryAlert(alerts: AlertType[]): AlertType | null {
@@ -92,7 +93,7 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             let actionLabel: string | null = null;
             let deepLink: string;
             if (hasBothSolicitorsMissing) {
-              actionLabel = "Add solicitors →";
+              actionLabel = "Add solicitors";
               deepLink = `/agent/transactions/${item.id}`;
             } else {
               const primaryAlert = getPrimaryAlert(item.alerts);
@@ -148,7 +149,7 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
                       className="agent-link agent-link-muted"
                       style={{ fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
                     >
-                      {actionLabel}
+                      {actionLabel} <LinkArrow />
                     </Link>
                   )}
                 </div>
