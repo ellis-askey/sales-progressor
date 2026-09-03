@@ -739,6 +739,17 @@ export function ContactsSection({
 
   // ── Sorted contacts: vendor → purchaser → other, then createdAt ────
   const ROLE_ORDER: Record<string, number> = { vendor: 0, purchaser: 1 };
+  // Roster layout (2026-09): rows are collapsed by default; tapping one expands
+  // the full detail (status pills, phone/email, portal card) in place. Nothing
+  // is removed — the expanded panel holds everything the old big card showed.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
   const sortedContacts = [...contacts].sort((a, b) => {
     const oa = ROLE_ORDER[a.roleType] ?? 2;
     const ob = ROLE_ORDER[b.roleType] ?? 2;
@@ -904,8 +915,8 @@ export function ContactsSection({
 
       {/* Contact cards, stacked full-width */}
       {sortedContacts.length > 0 && (
-        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-          {sortedContacts.map((contact) => {
+        <div style={{ padding: "4px 12px 12px" }}>
+          {sortedContacts.map((contact, idx) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
             const isEditing = editingId === contact.id;
@@ -915,140 +926,60 @@ export function ContactsSection({
             const optedOut = contact.unsubscribedAt != null;
             const autoCount = automatedEmailCounts[contact.id] ?? 0;
             const autoTone = autoEmailTone(autoCount);
+            const expanded = expandedIds.has(contact.id);
+            // Portal status dot on the collapsed row (full portal card lives in
+            // the expanded panel).
+            const dotColor =
+              portalState === "active" ? "var(--agent-success)"
+              : portalState === "invited" ? "var(--agent-warning)"
+              : portalState === "ready_to_invite" || portalState === "link_ready" ? "var(--agent-text-muted)"
+              : "transparent";
 
             return (
-              <GlassCard
+              <div
                 key={contact.id}
-                glassId="contacts-person"
-                label="Contacts · Person card (nested)"
-                defaultVariant="v00"
-                className="contacts-row"
-                style={{
-                  // Keep the theme-aware border (variant borders would vanish
-                  // in dark); background comes from the variant so picks show.
-                  border: "0.5px solid var(--agent-border-default)",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  transition: "box-shadow 160ms ease, border-color 160ms ease",
-                }}
+                style={{ borderTop: idx > 0 ? "0.5px solid var(--agent-border-default)" : undefined }}
               >
                 {!isEditing && !isExiting && (
-                  <div
-                    className="contacts-row-body"
-                    style={{
-                      padding: "14px 16px",
-                      display: "flex",
-                      gap: 16,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    {/* ── Left column: identity + contact details ── */}
-                    <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 0 }}>
-                      <div className="agent-avatar agent-avatar-md" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
-                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                        {/* Name + role */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <span data-sensitive="true" style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
-                          <Pill glass tone={roleTone(r)} size="sm">
-                            <RoleIcon role={r} size={11} />
-                            {roleLabel(r)}
-                          </Pill>
-                          {contact.isPrincipal === false && (
-                            <Pill glass tone="muted" size="sm" title="A helper (not the actual client). We never name them in confirmations.">
-                              Helper
+                  <>
+                    {/* Compact roster row — tap the identity area to expand */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 2px" }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(contact.id)}
+                        aria-expanded={expanded}
+                        style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                      >
+                        <div className="agent-avatar agent-avatar-md" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                            <span data-sensitive="true" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
+                            <Pill glass tone={roleTone(r)} size="sm">
+                              <RoleIcon role={r} size={10} />
+                              {roleLabel(r)}
                             </Pill>
-                          )}
-                        </div>
-
-                        {/* Status pills row: last contacted, chase count, opted out */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
-                          {autoTone && (
-                            <Pill
-                              glass size="sm"
-                              tone={autoCount >= AUTO_EMAIL_RED_AT ? "danger" : autoCount >= AUTO_EMAIL_AMBER_AT ? "warning" : "muted"}
-                              title={autoCount >= AUTO_EMAIL_RED_AT
-                                ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Likely over-chasing, consider pausing client emails`
-                                : autoCount >= AUTO_EMAIL_AMBER_AT
-                                  ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Review the chase cadence`
-                                  : `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days`}
-                            >
-                              <Envelope size={11} weight="fill" />
-                              {`${autoCount} chase${autoCount === 1 ? "" : "s"} this week`}
-                            </Pill>
-                          )}
-                          {optedOut && (
-                            <Pill glass tone="muted" size="sm" title="This client has opted out of automated emails via the unsubscribe link.">
-                              Opted out
-                            </Pill>
-                          )}
-                        </div>
-
-                        {/* Phone + email rows */}
-                        {contact.phone && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                            <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                            <a
-                              data-sensitive="true"
-                              href={`tel:${contact.phone}`}
-                              className="agent-link agent-link-muted"
-                              style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                            >
-                              {contact.phone}
-                            </a>
+                            {contact.isPrincipal === false && (
+                              <Pill glass tone="muted" size="sm" title="A helper (not the actual client). We never name them in confirmations.">
+                                Helper
+                              </Pill>
+                            )}
                           </div>
-                        )}
-                        {contact.email && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                            <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                            <a
-                              data-sensitive="true"
-                              href={emailHref(contact.email, contact.roleType, address)}
-                              className="agent-link agent-link-muted"
-                              style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                            >
-                              {contact.email}
-                            </a>
+                          <div data-sensitive="true" style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                            {contact.phone || contact.email || "No contact details on file"}
                           </div>
+                        </div>
+                        {dotColor !== "transparent" && (
+                          <span title={`Portal ${portalState.replace(/_/g, " ")}`} style={{ width: 7, height: 7, borderRadius: 999, background: dotColor, flexShrink: 0 }} />
                         )}
-                      </div>
-                    </div>
-
-                    {/* ── Right column: comms actions + portal ── */}
-                    <div
-                      className="contacts-row-right"
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        alignItems: "stretch",
-                        minWidth: 340,
-                        maxWidth: 380,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
-                        <CommsButton
-                          href={contact.phone ? `tel:${contact.phone}` : undefined}
-                          label="Call"
-                          icon={<Phone size={15} weight="regular" />}
-                          disabled={!contact.phone}
-                          title={contact.phone ? "Call" : "No phone number on file"}
-                        />
-                        <CommsButton
-                          href={contact.phone ? whatsappHref(contact.phone) : undefined}
-                          label="WhatsApp"
-                          icon={<ChatCircleText size={15} weight="regular" />}
-                          disabled={!contact.phone}
-                          title={contact.phone ? "WhatsApp" : "No phone number on file"}
-                        />
-                        <CommsButton
-                          href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined}
-                          label="Email"
-                          icon={<EnvelopeSimple size={15} weight="regular" />}
-                          disabled={!contact.email}
-                          title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"}
-                        />
+                        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+                          <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {/* Comms + kebab stay on the row (never hidden) */}
+                      <div style={{ display: "flex", gap: 5, alignItems: "center", flexShrink: 0 }}>
+                        <CommsButton compact href={contact.phone ? `tel:${contact.phone}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
+                        <CommsButton compact href={contact.phone ? whatsappHref(contact.phone) : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "WhatsApp" : "No phone number on file"} />
+                        <CommsButton compact href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!contact.email} title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"} />
                         <RowKebab
                           contactName={contact.name}
                           onEdit={() => startEdit(contact)}
@@ -1060,22 +991,64 @@ export function ContactsSection({
                           }
                         />
                       </div>
-                      {portalState !== "none" && (
-                        <PortalStatusCard
-                          state={portalState}
-                          lastViewed={lastViewed}
-                          hasEmail={!!contact.email}
-                          onSendInvite={() => contact.portalToken && sendInvite(contact.portalToken, contact.id)}
-                          onSetupToken={() => setupPortalToken(contact.id)}
-                          onCopyLink={() => contact.portalToken && copyPortalLink(contact.portalToken)}
-                          inviting={inviting === contact.id}
-                          inviteSent={inviteSent === contact.id}
-                          generatingToken={generatingToken === contact.id}
-                          copied={copied === contact.portalToken}
-                        />
-                      )}
                     </div>
-                  </div>
+
+                    {/* Expanded detail — everything the old card showed */}
+                    {expanded && (
+                      <div className="agent-reveal-in" style={{ padding: "0 2px 12px 52px", display: "flex", flexDirection: "column", gap: 10 }}>
+                        {(lastContactedByContactId[contact.id] || autoTone || optedOut) && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
+                            {autoTone && (
+                              <Pill
+                                glass size="sm"
+                                tone={autoCount >= AUTO_EMAIL_RED_AT ? "danger" : autoCount >= AUTO_EMAIL_AMBER_AT ? "warning" : "muted"}
+                                title={autoCount >= AUTO_EMAIL_RED_AT
+                                  ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Likely over-chasing, consider pausing client emails`
+                                  : autoCount >= AUTO_EMAIL_AMBER_AT
+                                    ? `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days. Review the chase cadence`
+                                    : `${autoCount} automated chase email${autoCount === 1 ? "" : "s"} sent to this contact in the last 7 days`}
+                              >
+                                <Envelope size={11} weight="fill" />
+                                {`${autoCount} chase${autoCount === 1 ? "" : "s"} this week`}
+                              </Pill>
+                            )}
+                            {optedOut && (
+                              <Pill glass tone="muted" size="sm" title="This client has opted out of automated emails via the unsubscribe link.">
+                                Opted out
+                              </Pill>
+                            )}
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <Phone size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                            <a data-sensitive="true" href={`tel:${contact.phone}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.phone}</a>
+                          </div>
+                        )}
+                        {contact.email && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                            <a data-sensitive="true" href={emailHref(contact.email, contact.roleType, address)} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</a>
+                          </div>
+                        )}
+                        {portalState !== "none" && (
+                          <PortalStatusCard
+                            state={portalState}
+                            lastViewed={lastViewed}
+                            hasEmail={!!contact.email}
+                            onSendInvite={() => contact.portalToken && sendInvite(contact.portalToken, contact.id)}
+                            onSetupToken={() => setupPortalToken(contact.id)}
+                            onCopyLink={() => contact.portalToken && copyPortalLink(contact.portalToken)}
+                            inviting={inviting === contact.id}
+                            inviteSent={inviteSent === contact.id}
+                            generatingToken={generatingToken === contact.id}
+                            copied={copied === contact.portalToken}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Edit form — slides in below */}
@@ -1135,7 +1108,7 @@ export function ContactsSection({
                     </div>
                   </div>
                 )}
-              </GlassCard>
+              </div>
             );
           })}
         </div>
