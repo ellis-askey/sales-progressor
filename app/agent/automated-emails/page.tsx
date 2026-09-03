@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
-import { listAutomatedEmails, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
+import { listAutomatedEmails, getSendingToday, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
 import { getAutomationCoverage, getAutomationFiles } from "@/lib/services/automated-emails-coverage";
 import { getUpcomingForecast } from "@/lib/services/automated-emails-upcoming";
@@ -26,6 +26,7 @@ import { AutomationActivityPanel } from "@/components/automated-emails/Automatio
 import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentionPanel";
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 import { AutomationCoveragePanel } from "@/components/automated-emails/AutomationCoveragePanel";
+import { SendingTodayPanel } from "@/components/automated-emails/SendingTodayPanel";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming", "files"] as const;
 type PageTab = (typeof VALID_TABS)[number];
@@ -118,11 +119,12 @@ export default async function AutomatedEmailsPage({
   // Upcoming + Files don't need the email feed rows (they render their own
   // views), so the list only needs its counts there — fetch cheap pending rows.
   const listTab: EmailListTab = tab === "upcoming" || tab === "files" ? "pending" : tab;
-  const [list, overview, needs, coverage, forecast, fileRows] = await Promise.all([
+  const [list, overview, needs, coverage, sendingToday, forecast, fileRows] = await Promise.all([
     listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
     getAutomationCoverage(scopeBase).catch(() => null),
+    getSendingToday(scopeBase).catch(() => null),
     tab === "upcoming" ? getUpcomingForecast(scopeBase).catch(() => null) : Promise.resolve(null),
     tab === "files" ? getAutomationFiles(scopeBase, search).catch(() => null) : Promise.resolve(null),
   ]);
@@ -148,9 +150,10 @@ export default async function AutomatedEmailsPage({
         />
       )}
 
-      {/* Row A — what needs a person, and how well set up we are */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      {/* Row A — what needs a person, what's about to go out, how well set up we are */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         {needs && <NeedsAttentionPanel data={needs} />}
+        {sendingToday && <SendingTodayPanel rows={sendingToday} />}
         {coverage && <AutomationCoveragePanel coverage={coverage} />}
       </div>
 

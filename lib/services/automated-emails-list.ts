@@ -484,9 +484,64 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   return { rows, counts, hasMore };
 }
 
+// ── Sending today ────────────────────────────────────────────────────────────
+//
+// A short, action-focused list of queued sends due to go out by end of today
+// (including any overdue-but-not-yet-drained), so an agent can intercept an
+// imminent send at a glance. Distinct from the Pending tab (all queued, any
+// date) the way Needs-attention is distinct from the Issues tab. Queue-only —
+// solicitor chases send synchronously and never sit in a queue to intercept.
+
+export type SendingTodayRow = {
+  id: string;
+  transactionId: string;
+  address: string;
+  recipientName: string;
+  recipientRole: string;
+  subject: string;
+  category: "chase" | "notification";
+  scheduledFor: Date;
+};
+
+export async function getSendingToday(input: EmailScopeInput, limit = 8): Promise<SendingTodayRow[]> {
+  const { txIds, txAddressById, queueScope } = await resolveEmailScope(input);
+  if (txIds.length === 0) return [];
+
+  // London end-of-today. Same UTC-midnight approximation used across this
+  // surface (automated-emails-preview.ts) — good enough for a "due today" cut.
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(0, 0, 0, 0);
+  endOfToday.setTime(endOfToday.getTime() + 86_400_000);
+
+  const rows = await prisma.outboundEmailQueue.findMany({
+    where: { ...queueScope, sentAt: null, errorAt: null, scheduledFor: { lt: endOfToday } },
+    select: {
+      id: true, emailType: true, scheduledFor: true, payload: true,
+      recipientContact: { select: { name: true, roleType: true, propertyTransactionId: true } },
+    },
+    orderBy: { scheduledFor: "asc" },
+    take: limit,
+  });
+
+  return rows.map((r) => {
+    const payload = (r.payload ?? {}) as { subject?: string };
+    const txId = r.recipientContact?.propertyTransactionId ?? "";
+    return {
+      id: r.id,
+      transactionId: txId,
+      address: txAddressById.get(txId) ?? "(unknown file)",
+      recipientName: r.recipientContact?.name ?? "(unknown)",
+      recipientRole: r.recipientContact?.roleType ?? "",
+      subject: payload.subject ?? "(no subject)",
+      category: categoriseEmailType(r.emailType),
+      scheduledFor: r.scheduledFor,
+    };
+  });
+}
+
 // Upcoming = predictions (client chases only in this feed; solicitor prediction
-// + "automation exhausted" arrive in PR 5). Filters are applied in memory —
-// predictions are synthetic, not DB rows.
+// + "automation exhausted" live in the Upcoming forecast). Filters are applied
+// in memory — predictions are synthetic, not DB rows.
 async function buildUpcomingRows(
   txIds: string[],
   txAddressById: Map<string, string>,
