@@ -55,6 +55,24 @@ function analyticsTags(
   return { categories, customArgs };
 }
 
+// Local-dev safety net. When DEV_EMAIL_REDIRECT is set (ONLY ever in .env.local,
+// NEVER in a deployed Vercel env), every outbound email is rewritten to that one
+// address and all cc/bcc are dropped, so testing on localhost can never reach a
+// real client or solicitor. The intended recipient is preserved in the subject so
+// you can still see who it would have gone to. No-op when the var is unset, so
+// staging and production are completely unaffected.
+export function applyDevEmailRedirect<T extends { to: string | string[]; subject?: string }>(msg: T): T {
+  const redirect = process.env.DEV_EMAIL_REDIRECT?.trim();
+  if (!redirect) return msg;
+  const original = Array.isArray(msg.to) ? msg.to.join(", ") : msg.to;
+  const clone: Record<string, unknown> = { ...msg, to: redirect };
+  if (msg.subject) clone.subject = `[DEV → ${original}] ${msg.subject}`;
+  delete clone.cc;
+  delete clone.bcc;
+  console.log(`[DEV_EMAIL_REDIRECT] rerouted to=${original} -> ${redirect} subject="${msg.subject ?? ""}"`);
+  return clone as T;
+}
+
 export async function sendEmail({
   to,
   cc,
@@ -92,7 +110,7 @@ export async function sendEmail({
   }
   const tags = analyticsTags(emailType, templateVersion);
   const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
-  return sgMail.send({
+  return sgMail.send(applyDevEmailRedirect({
     to,
     cc: cc && cc.length ? cc : undefined,
     from: from ?? DEFAULT_FROM,
@@ -102,7 +120,7 @@ export async function sendEmail({
     html: html ?? text.replace(/\n/g, "<br>"),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
-  });
+  }));
 }
 
 // Platform-level chain notification emails (withdrawal, exchange, completion, celebration).
@@ -173,7 +191,7 @@ export async function sendChainEmail({
   const tags = analyticsTags(emailType, templateVersion);
   const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
 
-  await sgMail.send({
+  await sgMail.send(applyDevEmailRedirect({
     to,
     ...(cc && cc.length ? { cc } : {}),
     from: from ?? DEFAULT_FROM,
@@ -187,7 +205,7 @@ export async function sendChainEmail({
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
     ...(trackOpens ? { trackingSettings: { openTracking: { enable: true } } } : {}),
     mailSettings: { sandboxMode: { enable: isSandbox } },
-  });
+  }));
 }
 
 // Returns true if this user has globally unsubscribed from all platform emails.

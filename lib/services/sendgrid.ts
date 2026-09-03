@@ -1,4 +1,5 @@
 import client from "@sendgrid/client";
+import { applyDevEmailRedirect } from "@/lib/email";
 
 client.setApiKey(process.env.SENDGRID_API_KEY!);
 
@@ -111,12 +112,12 @@ export async function sendFromVerifiedAddress({
 }) {
   const sgMail = (await import("@sendgrid/mail")).default;
   sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-  return sgMail.send({
+  return sgMail.send(applyDevEmailRedirect({
     from,
     replyTo: replyTo ?? from,
     to,
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
-  });
+  }));
 }

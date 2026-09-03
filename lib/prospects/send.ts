@@ -4,6 +4,8 @@
 // SendGrid Inbound Parse can match replies to the ProspectEmail. Distinct from
 // the transactional lib/email.ts path on purpose (different sender + tracking).
 
+import { applyDevEmailRedirect } from "@/lib/email";
+
 const FROM_EMAIL = process.env.PROSPECT_FROM_EMAIL ?? "ellis@thesalesprogressor.co.uk";
 const FROM_NAME = process.env.PROSPECT_FROM_NAME ?? "Ellis Askey";
 // Subdomain that MX-routes to SendGrid Inbound Parse (Ellis sets this up).
@@ -38,7 +40,7 @@ export async function sendProspectOutreach(args: {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY ?? "");
   const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
 
-  const [res] = await sgMail.send({
+  const [res] = await sgMail.send(applyDevEmailRedirect({
     to: args.to,
     from: { email: FROM_EMAIL, name: FROM_NAME },
     replyTo: `reply+${args.replyToken}@${INBOUND_DOMAIN}`,
@@ -48,7 +50,7 @@ export async function sendProspectOutreach(args: {
     customArgs: { prospectEmailId: args.prospectEmailId },
     trackingSettings: { openTracking: { enable: true }, clickTracking: { enable: true, enableText: false } },
     mailSettings: { sandboxMode: { enable: isSandbox } },
-  });
+  }));
 
   const header = res?.headers?.["x-message-id"];
   return { sgMessageId: typeof header === "string" ? header : null };
