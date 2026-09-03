@@ -146,6 +146,14 @@ export function AutomatedEmailsListView(props: Props) {
   }
   const go = (overrides: Record<string, string | null>) => router.push(hrefWith(overrides));
 
+  // Export the current view (tab + filters) as CSV via the scope-safe route.
+  function exportHref(): string {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", tab);
+    p.delete("limit");
+    return `/api/agent/automated-emails/export?${p.toString()}`;
+  }
+
   const grouped = useMemo(() => (tab === "pending" ? null : groupByDay(rows)), [rows, tab]);
 
   return (
@@ -204,6 +212,16 @@ export function AutomatedEmailsListView(props: Props) {
             Clear filters
           </button>
         )}
+        <a
+          href={exportHref()}
+          download
+          className="agent-input agent-input-sm"
+          style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, textDecoration: "none", cursor: "pointer" }}
+          aria-label="Export current view as CSV"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>
+          Export
+        </a>
       </div>
 
       {/* Director toggle + file filter pill */}
