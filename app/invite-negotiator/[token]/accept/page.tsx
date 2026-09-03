@@ -43,10 +43,22 @@ export default async function NegotiatorInviteAcceptPage({ params }: AcceptPageP
   });
 
   if (!dbUser?.agencyId) {
+    // Inherit the inviting director's firm badge — same branch the password
+    // acceptance path assigns (accept-negotiator-invitation-password.ts). This
+    // OAuth path previously omitted firmName, so Microsoft-signup negotiators
+    // landed with a null branch and became invisible to their firm-scoped
+    // director (Siobhan Becker / Walnut Tree Barn, 2026-09). Fall back to the
+    // agency name so a negotiator can never be created branch-less again.
+    const inviter = await prisma.user.findUnique({
+      where: { id: result.invitation.invitedByUserId },
+      select: { firmName: true },
+    });
+    const firmName = inviter?.firmName ?? result.invitation.agencyName;
+
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: session.user.id },
-        data: { role: "negotiator", agencyId: result.invitation.agencyId },
+        data: { role: "negotiator", agencyId: result.invitation.agencyId, firmName },
       });
       await tx.negotiatorInvitation.update({
         where: { id: result.invitation.id },
