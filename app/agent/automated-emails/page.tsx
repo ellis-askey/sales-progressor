@@ -17,7 +17,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { listAutomatedEmails, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
-import { getAutomationCoverage } from "@/lib/services/automated-emails-coverage";
+import { getAutomationCoverage, getAutomationFiles } from "@/lib/services/automated-emails-coverage";
 import { getUpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
@@ -27,7 +27,8 @@ import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentio
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 import { AutomationCoveragePanel } from "@/components/automated-emails/AutomationCoveragePanel";
 
-const VALID_TABS = ["pending", "sent", "errored", "upcoming"] as const;
+const VALID_TABS = ["pending", "sent", "errored", "upcoming", "files"] as const;
+type PageTab = (typeof VALID_TABS)[number];
 const VALID_PERIODS = [7, 30, 90];
 
 function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, isHybridAdmin: boolean): string {
@@ -59,8 +60,8 @@ export default async function AutomatedEmailsPage({
   }
   const sp = await searchParams;
 
-  const tab: EmailListTab = (VALID_TABS as readonly string[]).includes(sp.tab ?? "")
-    ? (sp.tab as EmailListTab)
+  const tab: PageTab = (VALID_TABS as readonly string[]).includes(sp.tab ?? "")
+    ? (sp.tab as PageTab)
     : "pending";
   const mineOnly = sp.mine === "1";
   const fileId = sp.fileId || undefined;
@@ -114,13 +115,16 @@ export default async function AutomatedEmailsPage({
   // On the Upcoming tab the feed comes from the richer forecast (client +
   // solicitor predictions + exhausted), so the list only needs its counts —
   // fetch cheap pending rows to avoid a second per-file prediction fan-out.
-  const listTab = tab === "upcoming" ? "pending" : tab;
-  const [list, overview, needs, coverage, forecast] = await Promise.all([
+  // Upcoming + Files don't need the email feed rows (they render their own
+  // views), so the list only needs its counts there — fetch cheap pending rows.
+  const listTab: EmailListTab = tab === "upcoming" || tab === "files" ? "pending" : tab;
+  const [list, overview, needs, coverage, forecast, fileRows] = await Promise.all([
     listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
     getAutomationCoverage(scopeBase).catch(() => null),
     tab === "upcoming" ? getUpcomingForecast(scopeBase).catch(() => null) : Promise.resolve(null),
+    tab === "files" ? getAutomationFiles(scopeBase, search).catch(() => null) : Promise.resolve(null),
   ]);
 
   if (sp.fileId && !fileLabel) {
@@ -167,6 +171,7 @@ export default async function AutomatedEmailsPage({
         showMineToggle={role === "director"}
         hasMore={list.hasMore}
         forecast={forecast}
+        fileRows={fileRows}
       />
     </div>
   );

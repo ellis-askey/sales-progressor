@@ -19,29 +19,37 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { EmailRow, EmailListTab } from "@/lib/services/automated-emails-list";
 import { EmailDetailDrawer } from "@/components/automated-emails/EmailDetailDrawer";
 import { UpcomingView } from "@/components/automated-emails/UpcomingView";
+import { FilesView } from "@/components/automated-emails/FilesView";
 import { deliveryStatusMeta } from "@/components/automated-emails/deliveryStatus";
 import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming";
+import type { FileAutomationRow } from "@/lib/services/automated-emails-coverage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 
+// The Files tab lives only in the UI (it renders a per-file rollup, not email
+// rows), so it widens the list service's EmailListTab here rather than there.
+type FeedTab = EmailListTab | "files";
+
 type Props = {
   rows: EmailRow[];
   counts: { pending: number; sentLast7d: number; sentLast30d: number; errored: number };
-  tab: EmailListTab;
+  tab: FeedTab;
   mineOnly: boolean;
   fileId?: string;
   fileLabel: string | null;
   showMineToggle: boolean;
   hasMore: boolean;
   forecast?: UpcomingForecast | null;
+  fileRows?: FileAutomationRow[] | null;
 };
 
-const TABS: { value: EmailListTab; label: string }[] = [
+const TABS: { value: FeedTab; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "sent", label: "Activity (30d)" },
   { value: "errored", label: "Issues" },
   { value: "upcoming", label: "Upcoming (14d)" },
+  { value: "files", label: "Files" },
 ];
 
 const ROLE_OPTIONS = [
@@ -68,10 +76,11 @@ const CATEGORY_OPTIONS = [
 ];
 const FILTER_KEYS = ["q", "category", "role", "status", "from"];
 
-function countForTab(t: EmailListTab, counts: Props["counts"], rows: EmailRow[], activeTab: EmailListTab, forecast?: UpcomingForecast | null): number | null {
+function countForTab(t: FeedTab, counts: Props["counts"], rows: EmailRow[], activeTab: FeedTab, forecast?: UpcomingForecast | null, fileCount?: number | null): number | null {
   if (t === "pending") return counts.pending;
   if (t === "sent") return counts.sentLast30d;
   if (t === "errored") return counts.errored;
+  if (t === "files") return fileCount ?? null;
   if (forecast) return forecast.predictedTotal;
   return t === activeTab ? rows.length : null;
 }
@@ -108,7 +117,8 @@ function groupByDay(rows: EmailRow[]): { key: string; label: string; rows: Email
 }
 
 export function AutomatedEmailsListView(props: Props) {
-  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast } = props;
+  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast, fileRows } = props;
+  const isFiles = tab === "files";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<EmailRow | null>(null);
@@ -143,7 +153,7 @@ export function AutomatedEmailsListView(props: Props) {
       {/* Tabs */}
       <div className="flex flex-wrap gap-1" role="tablist" aria-label="Email views">
         {TABS.map((t) => {
-          const n = countForTab(t.value, counts, rows, tab, t.value === "upcoming" ? forecast : null);
+          const n = countForTab(t.value, counts, rows, tab, t.value === "upcoming" ? forecast : null, t.value === "files" ? (fileRows?.length ?? null) : null);
           return (
             <Link
               key={t.value}
@@ -174,16 +184,21 @@ export function AutomatedEmailsListView(props: Props) {
             style={{ flex: 1, minWidth: 0 }}
           />
         </form>
-        <select className="agent-input agent-input-sm" aria-label="Email type" value={current.category} onChange={(e) => go({ category: e.target.value || null })}>
-          {CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="agent-input agent-input-sm" aria-label="Recipient role" value={current.role} onChange={(e) => go({ role: e.target.value || null })}>
-          {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="agent-input agent-input-sm" aria-label="Delivery status" value={current.status} onChange={(e) => go({ status: e.target.value || null })}>
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <input type="date" className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} />
+        {/* Email-only filters — hidden on the Files tab, which lists files not emails */}
+        {!isFiles && (
+          <>
+            <select className="agent-input agent-input-sm" aria-label="Email type" value={current.category} onChange={(e) => go({ category: e.target.value || null })}>
+              {CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select className="agent-input agent-input-sm" aria-label="Recipient role" value={current.role} onChange={(e) => go({ role: e.target.value || null })}>
+              {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select className="agent-input agent-input-sm" aria-label="Delivery status" value={current.status} onChange={(e) => go({ status: e.target.value || null })}>
+              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <input type="date" className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} />
+          </>
+        )}
         {anyFilter && (
           <button type="button" className="agent-link agent-link-muted" style={{ fontSize: 12 }} onClick={() => { setSearchDraft(""); go({ q: null, category: null, role: null, status: null, from: null }); }}>
             Clear filters
@@ -210,7 +225,9 @@ export function AutomatedEmailsListView(props: Props) {
       )}
 
       {/* Feed */}
-      {tab === "upcoming" && forecast ? (
+      {isFiles ? (
+        <FilesView rows={fileRows ?? []} />
+      ) : tab === "upcoming" && forecast ? (
         <UpcomingView forecast={forecast} />
       ) : rows.length === 0 ? (
         <EmptyState
@@ -302,16 +319,17 @@ function CategoryChip({ category }: { category: "chase" | "notification" }) {
   );
 }
 
-function emptyTitle(tab: EmailListTab, filtered: boolean): string {
+function emptyTitle(tab: FeedTab, filtered: boolean): string {
   if (filtered) return "No matching emails";
   switch (tab) {
     case "pending": return "No emails waiting to send";
     case "sent": return "No automated email activity in this period";
     case "errored": return "No delivery issues";
     case "upcoming": return "No automated emails currently predicted in the next 14 days";
+    case "files": return "No active files to monitor";
   }
 }
-function emptyDescription(tab: EmailListTab, filtered: boolean): string | undefined {
+function emptyDescription(tab: FeedTab, filtered: boolean): string | undefined {
   if (filtered) return "Try clearing the search or filters.";
   if (tab === "errored") return "Everything sent is delivered or still in transit.";
   return undefined;

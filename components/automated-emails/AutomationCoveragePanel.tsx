@@ -5,6 +5,7 @@
 // automation actually set up and running? Three buckets, drawn as a ring with
 // a legend. Colour is never the only signal — every slice has a labelled row.
 
+import Link from "next/link";
 import { GlassCard } from "@/components/glass/GlassCard";
 import type { AutomationCoverage } from "@/lib/services/automated-emails-coverage";
 
@@ -59,6 +60,10 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
             <LegendRow colour={NEED} value={needInfo} title="Need information" sub="Missing a client email address" />
             <LegendRow colour={PAUSED} value={paused} title="Paused" sub="Automation paused on the file" />
           </div>
+
+          <Link href="/agent/automated-emails?tab=files" className="agent-link" style={{ alignSelf: "flex-start", fontSize: 12.5, fontWeight: 600 }}>
+            View coverage details
+          </Link>
         </div>
       )}
     </GlassCard>
