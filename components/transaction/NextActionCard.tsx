@@ -77,115 +77,128 @@ export function NextActionCard({
         position: "relative",
       }}
     >
-      {/* Top row: eyebrow (with flame) + top-right calendar icon */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 8,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{
-            display: "inline-flex",
+      {/* Option B — hero + queue. Two panes on wide screens: the action on the
+          left, the "Up next" queue (belowActions) on the right; stacks on
+          mobile. Same props/callbacks — nothing added or removed, just laid
+          out in two columns. */}
+      <div className={belowActions ? "na-wrap na-two" : "na-wrap"}>
+        <div className="na-hero">
+          {/* Top row: eyebrow (with flame) + top-right calendar icon */}
+          <div style={{
+            display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            width: 26,
-            height: 26,
-            color: "var(--agent-coral-deep)",
+            justifyContent: "space-between",
+            marginBottom: 8,
           }}>
-            <Fire size={17} weight="fill" />
-          </span>
-          <span className="agent-eyebrow" style={{ margin: 0 }}>
-            Next action
-          </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 26,
+                height: 26,
+                color: "var(--agent-coral-deep)",
+              }}>
+                <Fire size={17} weight="fill" />
+              </span>
+              <span className="agent-eyebrow" style={{ margin: 0 }}>
+                Next action
+              </span>
+            </div>
+            {onCalendar && (
+              <IconButton onClick={onCalendar} title="Reschedule">
+                <CalendarBlank size={16} weight="regular" />
+              </IconButton>
+            )}
+          </div>
+
+          {/* Title, with the due pill to its right on wide screens */}
+          <div className="na-titlerow">
+            <p className="na-title" style={{
+              margin: 0,
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--agent-text-primary)",
+              lineHeight: 1.35,
+            }}>{title}</p>
+            <span className="na-due-inline">
+              <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
+            </span>
+          </div>
+          {description && (
+            <p style={{
+              margin: "4px 0 0",
+              fontSize: 13,
+              color: "var(--agent-text-secondary)",
+              lineHeight: 1.5,
+            }}>{description}</p>
+          )}
+
+          {/* Due badge — drops below on the tablet/mobile breakpoint */}
+          <div className="na-due-block" style={{ marginTop: 10 }}>
+            <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
+          </div>
+
+          {/* Action row */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            marginTop: 14,
+          }}>
+            {onPrimary && (
+              <ActionButton
+                kind="primary"
+                icon={<Phone size={14} weight="regular" />}
+                label={primaryLabel}
+                onClick={onPrimary}
+              />
+            )}
+            {onSecondary && (
+              <ActionButton
+                kind="secondary"
+                icon={<EnvelopeSimple size={14} weight="regular" />}
+                label={secondaryLabel}
+                onClick={onSecondary}
+              />
+            )}
+            {onTertiary && (
+              <ActionButton
+                kind="secondary"
+                icon={<CheckCircle size={14} weight="regular" />}
+                label={tertiaryLabel}
+                onClick={onTertiary}
+              />
+            )}
+            {onMore && (
+              <IconButton onClick={onMore} title="More actions">
+                <DotsThree size={18} weight="bold" />
+              </IconButton>
+            )}
+          </div>
         </div>
-        {onCalendar && (
-          <IconButton onClick={onCalendar} title="Reschedule">
-            <CalendarBlank size={16} weight="regular" />
-          </IconButton>
+
+        {belowActions && (
+          <div className="na-queue">
+            {belowActions}
+          </div>
         )}
       </div>
-
-      {/* Title, with the due pill to its right on wide screens */}
-      <div className="na-titlerow">
-        <p className="na-title" style={{
-          margin: 0,
-          fontSize: 15,
-          fontWeight: 600,
-          color: "var(--agent-text-primary)",
-          lineHeight: 1.35,
-        }}>{title}</p>
-        <span className="na-due-inline">
-          <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
-        </span>
-      </div>
-      {description && (
-        <p style={{
-          margin: "4px 0 0",
-          fontSize: 13,
-          color: "var(--agent-text-secondary)",
-          lineHeight: 1.5,
-        }}>{description}</p>
-      )}
-
-      {/* Due badge — drops below on the tablet/mobile breakpoint */}
-      <div className="na-due-block" style={{ marginTop: 10 }}>
-        <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
-      </div>
-
-      {/* Action row */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        flexWrap: "wrap",
-        marginTop: 14,
-      }}>
-        {onPrimary && (
-          <ActionButton
-            kind="primary"
-            icon={<Phone size={14} weight="regular" />}
-            label={primaryLabel}
-            onClick={onPrimary}
-          />
-        )}
-        {onSecondary && (
-          <ActionButton
-            kind="secondary"
-            icon={<EnvelopeSimple size={14} weight="regular" />}
-            label={secondaryLabel}
-            onClick={onSecondary}
-          />
-        )}
-        {onTertiary && (
-          <ActionButton
-            kind="secondary"
-            icon={<CheckCircle size={14} weight="regular" />}
-            label={tertiaryLabel}
-            onClick={onTertiary}
-          />
-        )}
-        {onMore && (
-          <IconButton onClick={onMore} title="More actions">
-            <DotsThree size={18} weight="bold" />
-          </IconButton>
-        )}
-      </div>
-
-      {belowActions && (
-        <div style={{ marginTop: 14, borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 12 }}>
-          {belowActions}
-        </div>
-      )}
 
       <style>{`
         .na-titlerow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
         .na-title{flex:1;min-width:0}
         .na-due-inline{flex-shrink:0;margin-top:1px}
         .na-due-block{display:none}
+        .na-queue{margin-top:14px;border-top:0.5px solid var(--agent-border-default);padding-top:12px}
         @media (max-width:767px){
           .na-due-inline{display:none}
           .na-due-block{display:block}
+        }
+        @media (min-width:768px){
+          .na-two{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start}
+          .na-two .na-queue{margin-top:0;border-top:none;border-left:0.5px solid var(--agent-border-default);padding-top:0;padding-left:18px}
         }
       `}</style>
     </GlassCard>
