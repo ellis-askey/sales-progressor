@@ -293,6 +293,18 @@ export async function getActivityTimeline(
     if (c.type === "internal_note" && c.senderLabel) {
       return { role: "solicitor" as ActorRole, name: c.senderLabel, image: null, sub: null };
     }
+    // A "viewed their client portal" note is logged under the assigned user's
+    // id (the client isn't a system user), but the EVENT is the client viewing.
+    // Show the CLIENT as the actor (their photo / side-tinted avatar), not the
+    // progressor. The client's contact id is on contactIds. See
+    // lib/services/portal.ts where the note is created.
+    if (c.type === "internal_note" && c.content.includes("viewed their client portal")) {
+      const viewer = c.contactIds.map((id) => contactInfo.get(id)).find(Boolean);
+      if (viewer) {
+        const role = contactRoleToActor(viewer.roleType);
+        return { role, name: viewer.name, image: viewer.image, sub: actorSubLabel(role) };
+      }
+    }
     if (c.createdById) {
       return {
         role: userRoleToActor(c.createdByRole),

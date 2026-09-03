@@ -153,12 +153,13 @@ type ContactAvatarProps = {
   contact: { name: string; roleType?: string };
   size?: number;
   className?: string;
-  // Opt-in: render the branded person art (tinted to the contact's side)
-  // instead of initials. Default off, so existing callers are unchanged.
+  // Render the branded person art (tinted to the contact's side) instead of
+  // initials. Default ON (2026-09-03) — a client with no photo shows the
+  // side-coloured person everywhere. Pass art={false} to force initials.
   art?: boolean;
 };
 
-export function ContactAvatar({ contact, size = 32, className, art = false }: ContactAvatarProps) {
+export function ContactAvatar({ contact, size = 32, className, art = true }: ContactAvatarProps) {
   const initials = getInitials(contact);
   const side = contact.roleType ? contactRoleToSide(contact.roleType) : "fallback";
   return <AvatarBase initials={initials} side={side} size={size} className={className} defaultArt={art} />;
@@ -208,9 +209,9 @@ function actorRoleToSide(role: ActorRole): Side {
 export function ActorAvatar({
   name, role, image, size = 24, className,
 }: { name: string; role: ActorRole; image?: string | null; size?: number; className?: string }) {
-  // Staff/agent actors (customer-agency agent or internal progressor) fall back
-  // to the branded default art; clients (seller/buyer/solicitor) keep initials.
-  const isStaff = role === "agent" || role === "progressor";
+  // Everyone falls back to the branded person art (2026-09-03), tinted to their
+  // side: staff coral, seller blue, buyer green, solicitor/other grey. A photo
+  // still wins when present. Initials are retired here.
   return (
     <AvatarBase
       initials={getInitials({ name: name || "?" })}
@@ -218,7 +219,7 @@ export function ActorAvatar({
       size={size}
       className={className}
       image={image ?? null}
-      defaultArt={isStaff}
+      defaultArt
     />
   );
 }

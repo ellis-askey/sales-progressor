@@ -19,7 +19,7 @@ import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
 import { SavingPulse } from "@/components/ui/SavingPulse";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 
 type Props = { transactionId: string; entries: ActivityEntry[]; currentUserName: string; currentUserImage?: string | null };
 
@@ -171,6 +171,9 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
           content={subtitleFor(e)}
           author={e.kind === "comm" ? e.createdByName : null}
           authorImage={e.kind === "comm" ? e.createdByImage : null}
+          actorRole={e.actorRole}
+          actorName={e.actorName}
+          actorImage={e.actorImage}
           time={fmtTime(e)}
           tag="Setup note"
           onDelete={deleting || isPending ? undefined : () => handleDelete(e.id)}
@@ -213,7 +216,7 @@ function FeedView({ optimistic, entries, removedIds, deleting, isPending, onDele
           <BandLabel label={band.label} />
           {band.items.map((entry) =>
             isNote(entry)
-              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} time={fmtTime(entry)} onDelete={deleting || isPending ? undefined : () => onDelete(entry.id)} deleting={deleting === entry.id} />
+              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={fmtTime(entry)} onDelete={deleting || isPending ? undefined : () => onDelete(entry.id)} deleting={deleting === entry.id} />
               : <ActivityRow key={entry.id} entry={entry} />,
           )}
         </div>
@@ -231,8 +234,8 @@ function NotesView({ optimistic, entries, removedIds, deleting, isPending, onDel
   const total = optimistic.length + realNotes.length;
   if (total === 0) return <Empty label="No notes yet. Add the first one above." />;
 
-  const optRows = optimistic.map((n) => ({ id: n.id, content: n.content, author: n.createdByName, authorImage: n.createdByImage, time: "just now", optimistic: true as const }));
-  const realRows = realNotes.map((e) => ({ id: e.id, content: subtitleFor(e), author: e.kind === "comm" ? e.createdByName : null, authorImage: e.kind === "comm" ? e.createdByImage : null, time: fmtTime(e), optimistic: false as const }));
+  const optRows = optimistic.map((n) => ({ id: n.id, content: n.content, author: n.createdByName, authorImage: n.createdByImage, actorRole: undefined as ActorRole | undefined, actorName: null as string | null, actorImage: null as string | null, time: "just now", optimistic: true as const }));
+  const realRows = realNotes.map((e) => ({ id: e.id, content: subtitleFor(e), author: e.kind === "comm" ? e.createdByName : null, authorImage: e.kind === "comm" ? e.createdByImage : null, actorRole: e.actorRole as ActorRole | undefined, actorName: e.actorName, actorImage: e.actorImage, time: fmtTime(e), optimistic: false as const }));
   const all = [...optRows, ...realRows];
   const shown = expanded ? all : all.slice(0, NOTES_PREVIEW);
   const hidden = all.length - NOTES_PREVIEW;
@@ -240,7 +243,7 @@ function NotesView({ optimistic, entries, removedIds, deleting, isPending, onDel
   return (
     <div>
       {shown.map((r) => (
-        <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} time={r.time} optimistic={r.optimistic}
+        <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} optimistic={r.optimistic}
           onDelete={r.optimistic || deleting || isPending ? undefined : () => onDelete(r.id)} deleting={deleting === r.id} />
       ))}
       {!expanded && hidden > 0 && (
@@ -287,15 +290,23 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 
 // The leveled-up note row: the note text leads, author + time beneath, a quiet
 // delete that reveals on hover.
-function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting, tag }: {
+function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage }: {
   content: string; author: string | null; authorImage?: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
   // Small pill rendered before the author line (e.g. "Setup note" on the
   // pinned note from the new-sale form).
   tag?: string;
+  // Who the row REPRESENTS (not always who logged it) — e.g. a "viewed portal"
+  // row is the client, though it's logged under the progressor. When set, the
+  // avatar + byline use this actor (photo / side-tinted person). Falls back to
+  // author (the logger) for optimistic notes.
+  actorRole?: ActorRole; actorName?: string | null; actorImage?: string | null;
 }) {
+  const who = actorName ?? author;
   return (
     <div className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`} style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative" }}>
-      {author ? (
+      {actorRole ? (
+        <ActorAvatar name={actorName || author || "?"} role={actorRole} image={actorImage ?? null} size={28} />
+      ) : author ? (
         <UserAvatar user={{ name: author, image: authorImage }} size={28} />
       ) : (
         <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, color: "#1d4ed8", flexShrink: 0 }}>
@@ -312,7 +323,7 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
               padding: "1px 6px", borderRadius: 6, flexShrink: 0,
             }}>{tag}</span>
           )}
-          <span>{author ? `${author} · ` : ""}{time}</span>
+          <span>{who ? `${who} · ` : ""}{time}</span>
         </p>
       </div>
       {onDelete && (
