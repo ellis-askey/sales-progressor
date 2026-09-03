@@ -464,7 +464,7 @@ function AnimatedCheckbox({
           width: 18,
           height: 18,
           borderRadius: 5,
-          border: `1.5px solid ${checked ? "var(--agent-coral)" : "rgba(15,23,42,0.28)"}`,
+          border: `1.5px solid ${checked ? "var(--agent-coral)" : "var(--agent-border-strong)"}`,
           background: checked ? "var(--agent-coral)" : "transparent",
           display: "inline-flex",
           alignItems: "center",
@@ -868,14 +868,14 @@ export function ContactsSection({
 
             {(form.roleType === "vendor" || form.roleType === "purchaser") && (
               <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
-                  <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
+                <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer">
                   <span>They&rsquo;re helping on the {form.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {form.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
+                  <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
                 </label>
                 {form.isHelper && (
-                  <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
-                    <AnimatedCheckbox checked={form.givePortal} onChange={(v) => setForm((p) => ({ ...p, givePortal: v }))} className="mt-0.5" />
+                  <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
                     <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
+                    <AnimatedCheckbox checked={form.givePortal} onChange={(v) => setForm((p) => ({ ...p, givePortal: v }))} className="mt-0.5" />
                   </label>
                 )}
               </div>
@@ -887,16 +887,16 @@ export function ContactsSection({
               </div>
             )}
 
-            <div className="flex gap-3">
-              <button type="submit" disabled={loading || isPending} className="agent-btn agent-btn-sm agent-btn-primary">
-                {loading ? "Adding…" : "Add contact"}
-              </button>
+            <div className="flex gap-3 justify-end">
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setError(null); setForm(EMPTY_FORM); }}
                 className="agent-btn agent-btn-sm agent-btn-ghost"
               >
                 Cancel
+              </button>
+              <button type="submit" disabled={loading || isPending} className="agent-btn agent-btn-sm agent-btn-primary">
+                {loading ? "Adding…" : "Add contact"}
               </button>
             </div>
           </form>
@@ -999,8 +999,9 @@ export function ContactsSection({
                     </div>
 
                     {/* Expanded detail — everything the old card showed */}
-                    {expanded && (
-                      <div className="agent-reveal-in" style={{ padding: "0 2px 12px 52px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className={`agent-acc${expanded ? " open" : ""}`}>
+                      <div className="agent-acc-in">
+                      <div style={{ padding: "0 2px 12px 52px", display: "flex", flexDirection: "column", gap: 10 }}>
                         {(lastContactedByContactId[contact.id] || autoTone || optedOut) && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
@@ -1050,7 +1051,8 @@ export function ContactsSection({
                           />
                         )}
                       </div>
-                    )}
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -1080,14 +1082,14 @@ export function ContactsSection({
                     />
                     {(editForm.roleType === "vendor" || editForm.roleType === "purchaser") && (
                       <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
-                        <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer">
-                          <AnimatedCheckbox checked={editForm.isHelper} onChange={(v) => setEditForm((f) => ({ ...f, isHelper: v }))} className="mt-0.5" />
+                        <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer">
                           <span>They&rsquo;re helping on the {editForm.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {editForm.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
+                          <AnimatedCheckbox checked={editForm.isHelper} onChange={(v) => setEditForm((f) => ({ ...f, isHelper: v }))} className="mt-0.5" />
                         </label>
                         {editForm.isHelper && (
-                          <label className="flex items-start gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
-                            <AnimatedCheckbox checked={editForm.givePortal} onChange={(v) => setEditForm((f) => ({ ...f, givePortal: v }))} className="mt-0.5" />
+                          <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer pl-[26px]">
                             <span>Give them their own portal login so they can follow progress and receive updates directly.</span>
+                            <AnimatedCheckbox checked={editForm.givePortal} onChange={(v) => setEditForm((f) => ({ ...f, givePortal: v }))} className="mt-0.5" />
                           </label>
                         )}
                       </div>
@@ -1097,7 +1099,7 @@ export function ContactsSection({
                         {editError}
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                    <div style={{ display: "flex", gap: 8, marginTop: 2, justifyContent: "flex-end" }}>
                       <button onClick={closeEdit} className="agent-btn agent-btn-xs agent-btn-ghost-bordered">
                         Cancel
                       </button>
