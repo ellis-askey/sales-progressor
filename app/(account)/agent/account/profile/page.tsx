@@ -26,6 +26,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getBrandColor } from "@/lib/agent/themes";
 import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
@@ -108,7 +109,7 @@ export default async function AccountProfilePage({
           href="/agent/account/emails"
           style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
         >
-          Email settings →
+          Email settings <LinkArrow />
         </Link>
       </p>
     </AccountCard>

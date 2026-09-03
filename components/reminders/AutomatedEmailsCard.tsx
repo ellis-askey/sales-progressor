@@ -21,6 +21,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { getShortName } from "@/lib/contacts/displayName";
 import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Card } from "@/components/ui/Card";
 import type {
   AutomatedEmailsPreview,
@@ -565,7 +566,7 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
                 className="agent-link"
                 style={{ fontSize: 12, fontWeight: 600 }}
               >
-                View all for this file →
+                View all for this file <LinkArrow />
               </Link>
             </div>
           )}

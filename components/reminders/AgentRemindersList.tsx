@@ -7,6 +7,7 @@ import Link from "next/link";
 import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
@@ -698,10 +699,10 @@ function SplitFileCard({
             }}
           >
             {address}
+            {/* Arrow sits inside the anchor now: the :has(.agent-arrow-i) rule
+                suppresses agent-link's underline, so it no longer bleeds across. */}
+            <LinkArrow />
           </Link>
-          {/* Arrow extracted to sibling span — outside the anchor so agent-link's
-              hover underline does not extend across the arrow. */}
-          <span aria-hidden style={{ fontSize: 13, color: "var(--agent-text-muted)", flexShrink: 0 }}>→</span>
         </div>
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
           {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
