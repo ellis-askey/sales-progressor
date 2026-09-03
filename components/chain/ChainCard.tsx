@@ -51,6 +51,11 @@ export function ChainCard({
   const agreed = saleAgreedAgo(chain.saleAgreedAt);
   const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length } = chain;
 
+  // Connected = a link with a real transaction (matches the drawer's claim rate).
+  // "All agents connected" only when every link is claimed — never inferred from
+  // the invite count.
+  const allConnected = agentsConnected >= length;
+
   const meta: React.ReactNode[] = [];
   if (linksBelow > 0) {
     meta.push(<MetaItem key="below" icon={<CaretDown size={12} weight="bold" />}>{linksBelow} below you</MetaItem>);
@@ -58,23 +63,25 @@ export function ChainCard({
   if (linksAbove > 0) {
     meta.push(<MetaItem key="above" icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaItem>);
   }
-  if (needsInviteCount > 0) {
-    meta.push(
-      <MetaItem key="connected" icon={<UsersThree size={13} weight="regular" />}>
-        {agentsConnected} connected
-      </MetaItem>,
-    );
-    meta.push(
-      <MetaItem key="invite" icon={<Warning size={12} weight="fill" />} tone="warning">
-        {needsInviteCount} to invite
-      </MetaItem>,
-    );
-  } else {
+  if (allConnected) {
     meta.push(
       <MetaItem key="allconnected" icon={<CheckCircle size={13} weight="fill" />} tone="success">
         All agents connected
       </MetaItem>,
     );
+  } else {
+    meta.push(
+      <MetaItem key="connected" icon={<UsersThree size={13} weight="regular" />}>
+        {agentsConnected} of {length} connected
+      </MetaItem>,
+    );
+    if (needsInviteCount > 0) {
+      meta.push(
+        <MetaItem key="invite" icon={<Warning size={12} weight="fill" />} tone="warning">
+          {needsInviteCount} to invite
+        </MetaItem>,
+      );
+    }
   }
 
   return (

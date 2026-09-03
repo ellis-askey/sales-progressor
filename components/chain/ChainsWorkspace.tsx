@@ -280,8 +280,9 @@ export function ChainsWorkspace({
   const [hideNoChainRequired, setHideNoChainRequired] = useState(false);
 
   // Summary figures — derived, never hard-coded.
-  const filesInChains = useMemo(() => chains.reduce((n, c) => n + c.links.filter((l) => l.isOurs).length, 0), [chains]);
+  const filesInChains = useMemo(() => chains.reduce((n, c) => n + c.ourFileCount, 0), [chains]);
   const agentsToInvite = useMemo(() => chains.reduce((n, c) => n + c.needsInviteCount, 0), [chains]);
+  const chainsWithInvites = useMemo(() => chains.filter((c) => c.needsInviteCount > 0).length, [chains]);
   const activeSales = filesInChains + noChain.length;
 
   const q = query.trim().toLowerCase();
@@ -366,7 +367,7 @@ export function ChainsWorkspace({
             icon={<UsersThree size={20} weight="regular" />}
             value={agentsToInvite}
             label="Agents to invite"
-            sublabel="Across your chains"
+            sublabel={agentsToInvite === 0 ? "All invited" : `Across ${chainsWithInvites} ${chainsWithInvites === 1 ? "chain" : "chains"}`}
             tone="coral"
             highlight={agentsToInvite > 0}
             onClick={() => { setTab("chains"); setOnlyNeedsInvite(true); }}

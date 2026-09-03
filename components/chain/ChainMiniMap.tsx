@@ -1,8 +1,9 @@
 "use client";
 
-// Compact horizontal chain visual for a chains-workspace card: one node per link,
-// left → right in chain order (the codebase convention: leftmost = bottom / below,
-// rightmost = top / above). Our sale is a filled coral node labelled "You".
+// Compact horizontal chain visual for a chains-workspace card: one node per link.
+// Rendered bottom → top, left → right, and numbered so each node's number matches
+// the drawer's position label (bottom = 1, counting up — see displayChainPosition
+// in lib/chain/positions.ts). Our sale is a filled coral node labelled "You".
 // Generated entirely from the real links array — never hard-coded — and it copes
 // with any length: short chains render every node, long chains window around our
 // node with "···" for the collapsed spans so the layout never blows out.
@@ -29,7 +30,7 @@ function compactIndices(n: number, ourIdx: number): number[] {
 }
 
 type Item =
-  | { kind: "node"; index: number; link: ChainsWorkspaceLink }
+  | { kind: "node"; displayNumber: number; link: ChainsWorkspaceLink }
   | { kind: "gap"; count: number };
 
 const CIRCLE = 22;
@@ -42,8 +43,12 @@ export function ChainMiniMap({ links }: { links: ChainsWorkspaceLink[] }) {
   const n = links.length;
   if (n === 0) return null;
 
-  const ourIdx = links.findIndex((l) => l.isOurs);
-  const shown = n <= MAX_NODES ? links.map((_, i) => i) : compactIndices(n, ourIdx);
+  // The service gives links top → bottom (position ascending). Render bottom →
+  // top so the visual reads the way the drawer numbers it (bottom = #1) and the
+  // mock reads (below on the left, above on the right).
+  const ordered = [...links].reverse();
+  const ourIdx = ordered.findIndex((l) => l.isOurs);
+  const shown = n <= MAX_NODES ? ordered.map((_, i) => i) : compactIndices(n, ourIdx);
 
   // Weave in "gap" markers wherever the shown indices skip one or more nodes.
   const items: Item[] = [];
@@ -52,7 +57,7 @@ export function ChainMiniMap({ links }: { links: ChainsWorkspaceLink[] }) {
       const prev = shown[i - 1];
       if (idx - prev > 1) items.push({ kind: "gap", count: idx - prev - 1 });
     }
-    items.push({ kind: "node", index: idx, link: links[idx] });
+    items.push({ kind: "node", displayNumber: idx + 1, link: ordered[idx] });
   });
 
   return (
@@ -91,7 +96,7 @@ export function ChainMiniMap({ links }: { links: ChainsWorkspaceLink[] }) {
               ···
             </span>
           ) : (
-            <ChainNode index={item.index} link={item.link} />
+            <ChainNode displayNumber={item.displayNumber} link={item.link} />
           )}
         </Fragment>
       ))}
@@ -99,8 +104,9 @@ export function ChainMiniMap({ links }: { links: ChainsWorkspaceLink[] }) {
   );
 }
 
-function ChainNode({ index, link }: { index: number; link: ChainsWorkspaceLink }) {
-  const { isOurs, claimed, needsInvite } = link;
+function ChainNode({ displayNumber, link }: { displayNumber: number; link: ChainsWorkspaceLink }) {
+  const { isOurs, claimed, statusKind } = link;
+  const toInvite = statusKind === "unclaimed_unsent";
 
   const base: React.CSSProperties = {
     width: CIRCLE,
@@ -116,17 +122,19 @@ function ChainNode({ index, link }: { index: number; link: ChainsWorkspaceLink }
     boxSizing: "border-box",
   };
 
+  // isOurs (our sale) → coral. Other connected agents → solid. A send-now invite
+  // → amber ring. Every other unclaimed state → quiet dashed.
   const style: React.CSSProperties = isOurs
     ? { ...base, background: "var(--agent-coral-deep)", color: "#fff", border: "1px solid var(--agent-coral-deep)" }
-    : needsInvite
-      ? { ...base, background: "var(--agent-surface-elevated)", color: "var(--agent-warning)", border: "1px solid var(--agent-warning)" }
-      : claimed
-        ? { ...base, background: "var(--agent-surface-elevated)", color: "var(--agent-text-secondary)", border: "1px solid var(--agent-border-strong)" }
+    : claimed
+      ? { ...base, background: "var(--agent-surface-elevated)", color: "var(--agent-text-secondary)", border: "1px solid var(--agent-border-strong)" }
+      : toInvite
+        ? { ...base, background: "var(--agent-surface-elevated)", color: "var(--agent-warning)", border: "1px solid var(--agent-warning)" }
         : { ...base, background: "transparent", color: "var(--agent-text-muted)", border: "1px dashed var(--agent-border-strong)" };
 
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
-      <span style={style}>{index + 1}</span>
+      <span style={style}>{displayNumber}</span>
       <span
         style={{
           fontSize: 9.5,
