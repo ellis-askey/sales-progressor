@@ -20,7 +20,7 @@ import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-s
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -445,10 +445,15 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         className={`flex gap-3 px-4 border-b last:border-0 transition-colors duration-[150ms] ${rowBg} ${justUnlocked ? "ms-unlock-enter" : ""}`}
         style={{ paddingTop: 10, paddingBottom: 10, borderColor: "var(--agent-border-default)", alignItems: isExpanded ? "flex-start" : "center" }}
       >
-        {/* State dot */}
+        {/* State dot — turns into a filled blue "selected" radio while this row
+            is being confirmed (mock), reverts otherwise. Visual only. */}
         <div
           className={`flex-shrink-0 ${isDone ? "ms-dot ms-dot-done ms-pop" : isBlocked ? "ms-dot ms-dot-locked" : "ms-dot ms-dot-avail"}`}
-          style={isExpanded ? { marginTop: 3, transition: "background 200ms" } : { transition: "background 200ms" }}
+          style={{
+            ...(isExpanded ? { marginTop: 3 } : {}),
+            transition: "background 200ms, box-shadow 200ms",
+            ...(showEventDate ? { background: "#2563eb", boxShadow: "0 0 0 3px rgba(37,99,235,0.22)" } : {}),
+          }}
         />
 
         {/* Name + meta. Completed rows turn the whole name area into a
@@ -519,60 +524,54 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               onClick={(e) => e.stopPropagation()}
               style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--agent-border-default)" }}
             >
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, color: "var(--agent-text-secondary)", minWidth: 0 }}>
-                <span>
-                  <span style={{ color: "var(--agent-text-muted)" }}>Confirmed by </span>
+              {/* Clean completed bar (mock): calendar · when · who, Undo right. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <CalendarBlank size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "var(--agent-text-secondary)", minWidth: 0 }}>
+                  <span style={{ color: "var(--agent-text-muted)" }}>Completed </span>
+                  {formatDate(def.completion.completedAt)}
+                  <span style={{ color: "var(--agent-text-muted)" }}> · Confirmed by </span>
                   {def.completion.confirmedByPortal
                     ? (def.confirmedByClientName ?? "Client")
                     : def.confirmedBySolicitorFirmName ?? def.completedByName ?? "Unknown"}
                 </span>
-                <span>
-                  <span style={{ color: "var(--agent-text-muted)" }}>Completed </span>
-                  {formatDate(def.completion.completedAt)}
-                  {def.completion.completedAt
-                    ? ` at ${new Date(def.completion.completedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-                    : ""}
-                </span>
-                {def.completion.eventDate && (
-                  <span>
-                    <span style={{ color: "var(--agent-text-muted)" }}>Event date </span>
-                    {formatDate(def.completion.eventDate)}
-                  </span>
-                )}
-                {def.bookedSurveyorName && (
-                  <span>
-                    <span style={{ color: "var(--agent-text-muted)" }}>Surveyor </span>
-                    {def.bookedSurveyorName}
-                  </span>
-                )}
-                {def.completion.outOfOrderCompletion && (
-                  <span style={{ color: "var(--agent-warning)" }}>Confirmed out of order</span>
-                )}
-              </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexShrink: 0, flexWrap: "wrap" }}>
-                {def.completion.confirmedByPortal && (
-                  <Pill glass tone="info" size="sm">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Client confirmed
-                  </Pill>
-                )}
-                {def.completion.confirmedBySolicitorFirmId && (
-                  <Pill glass tone="success" size="sm">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
-                  </Pill>
-                )}
                 <button
                   onClick={handleUndoClick}
                   disabled={loading || isPending}
                   className="agent-link agent-link-muted"
-                  style={{ fontSize: 11 }}
+                  style={{ fontSize: 11, marginLeft: "auto", flexShrink: 0 }}
                 >
                   {loading ? "…" : "Undo"}
                 </button>
-                </div>
               </div>
+              {/* Extra detail kept below the bar only when it adds something
+                  (backdated event date, surveyor, out-of-order, or a portal /
+                  solicitor confirmation) — nothing lost, just not repeated. */}
+              {((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName || def.completion.outOfOrderCompletion || def.completion.confirmedByPortal || def.completion.confirmedBySolicitorFirmId) && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 7, fontSize: 11, color: "var(--agent-text-secondary)" }}>
+                  {def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt) && (
+                    <span><span style={{ color: "var(--agent-text-muted)" }}>Event date </span>{formatDate(def.completion.eventDate)}</span>
+                  )}
+                  {def.bookedSurveyorName && (
+                    <span><span style={{ color: "var(--agent-text-muted)" }}>Surveyor </span>{def.bookedSurveyorName}</span>
+                  )}
+                  {def.completion.outOfOrderCompletion && (
+                    <span style={{ color: "var(--agent-warning)" }}>Confirmed out of order</span>
+                  )}
+                  {def.completion.confirmedByPortal && (
+                    <Pill glass tone="info" size="sm">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      Client confirmed
+                    </Pill>
+                  )}
+                  {def.completion.confirmedBySolicitorFirmId && (
+                    <Pill glass tone="success" size="sm">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
+                    </Pill>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {isBlocked && <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>Previous steps must be completed first</p>}
@@ -664,41 +663,41 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
             inside the drop-down. */}
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {!isDone && (
-            <>
-              <div className="flex items-center gap-2">
-                {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
-                  <button
-                    onClick={handleNRClick}
-                    disabled={loading || isPending}
-                    className="agent-link agent-link-muted"
-                    style={{ fontSize: 11 }}
-                    title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
-                  >
-                    Not required
-                  </button>
-                )}
-                {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
-                  <Button
-                    size="sm"
-                    onClick={showEventDate ? () => doComplete() : handleConfirmClick}
-                    disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-                    className="ms-appear"
-                    style={{ minWidth: 76 }}
-                  >
-                    {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
-                  </Button>
-                )}
-              </div>
+            <div className="flex items-center gap-2">
+              {/* Cancel sits to the LEFT of Confirm on the same line (mock),
+                  instead of dropping below it. Same handler. */}
               {showEventDate && (
                 <button
                   onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
                   className="agent-link agent-link-muted"
-                  style={{ fontSize: 11 }}
+                  style={{ fontSize: 12 }}
                 >
                   Cancel
                 </button>
               )}
-            </>
+              {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
+                <button
+                  onClick={handleNRClick}
+                  disabled={loading || isPending}
+                  className="agent-link agent-link-muted"
+                  style={{ fontSize: 11 }}
+                  title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
+                >
+                  Not required
+                </button>
+              )}
+              {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
+                <Button
+                  size="sm"
+                  onClick={showEventDate ? () => doComplete() : handleConfirmClick}
+                  disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
+                  className="ms-appear"
+                  style={{ minWidth: 76 }}
+                >
+                  {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
+                </Button>
+              )}
+            </div>
           )}
           {isDone && (
             <button
