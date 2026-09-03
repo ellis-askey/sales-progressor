@@ -7,7 +7,7 @@
 // opened via ViewChainButton. Used only by the chains workspace.
 
 import { Fragment } from "react";
-import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal } from "@phosphor-icons/react";
+import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal, ArrowUpRight } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -49,7 +49,7 @@ export function ChainCard({
   currentUserRole?: string | null;
 }) {
   const agreed = saleAgreedAgo(chain.saleAgreedAt);
-  const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length } = chain;
+  const { linksAbove, linksBelow, agentsConnected, needsInviteCount, length, onwardCount } = chain;
 
   // Connected = a link with a real transaction (matches the drawer's claim rate).
   // "All agents connected" only when every link is claimed — never inferred from
@@ -62,6 +62,9 @@ export function ChainCard({
   }
   if (linksAbove > 0) {
     meta.push(<MetaItem key="above" icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaItem>);
+  }
+  if (onwardCount > 0) {
+    meta.push(<MetaItem key="onward" icon={<ArrowUpRight size={12} weight="bold" />}>{onwardCount} onward</MetaItem>);
   }
   if (allConnected) {
     meta.push(

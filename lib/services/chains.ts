@@ -1495,10 +1495,11 @@ export type ChainsWorkspaceChain = {
   // ABOVE. So below = links before ours, above = links after ours.
   linksAbove: number;
   linksBelow: number;
-  agentsConnected: number; // claimed links (connected agents) — matches the drawer's claim rate
-  needsInviteCount: number; // "send now" invites: stub-with-email, not yet sent
+  agentsConnected: number; // claimed links across the WHOLE chain (spine + branches) — matches the drawer's claim rate
+  needsInviteCount: number; // "send now" invites across the whole chain: stub-with-email, not yet sent
   ourFileCount: number; // in-scope files that sit in this chain (drives the "In chains" tile)
-  links: ChainsWorkspaceLink[];
+  onwardCount: number; // branch links (extra onward purchases forking off the spine)
+  links: ChainsWorkspaceLink[]; // SPINE links only (top→bottom) — the main ladder the dot chain renders
   // Our primary file within this chain — powers the card header. Null only in
   // the (filtered-out) case where no claimed link resolves.
   ourAddress: string | null;
@@ -1553,6 +1554,8 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
         orderBy: [{ branchKey: "asc" }, { position: "asc" }],
         select: {
           transactionId: true,
+          branchKey: true,
+          position: true,
           inviteStatus: true,
           stubPropertyAddress: true,
           stubAgencyName: true,
@@ -1574,48 +1577,54 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
 
   return chains
     .map((chain) => {
-      // The representative "your sale" anchor: the first claimed link in our
-      // scope, else the first claimed link. Everything the card measures against
-      // "you" (the You node, position, above/below) uses this single anchor, so
-      // an internal viewer (whose scope is "all") never gets multiple You nodes.
-      const openTransactionId =
-        chain.links.find((l) => l.transactionId != null && ourTxIds.has(l.transactionId))?.transactionId
-        ?? chain.links.find((l) => l.transactionId != null)?.transactionId
-        ?? "";
-
-      const links: ChainsWorkspaceLink[] = chain.links.map((l) => {
-        // Canonical status — the SAME derivation getChainLinkStatus gives the
-        // drawer, so "connected" and "to invite" counts always agree with it.
-        // Viewer id is irrelevant here (we only branch on claimed vs the unclaimed
-        // kinds), so pass a blank id.
-        const status = getChainLinkStatus(
-          {
-            transactionId: l.transactionId,
-            claimedByUserId: null,
-            stubAgentEmail: l.stubAgentEmail,
-            inviteStatus: l.inviteStatus,
-          },
+      // Canonical status per link (the SAME derivation getChainLinkStatus gives
+      // the drawer) — so "connected" and "to invite" counts always agree with it.
+      // Viewer id is irrelevant here (we only branch on claimed vs the unclaimed
+      // kinds), so pass a blank id.
+      const withStatus = chain.links.map((l) => ({
+        l,
+        claimed: l.transactionId != null,
+        statusKind: getChainLinkStatus(
+          { transactionId: l.transactionId, claimedByUserId: null, stubAgentEmail: l.stubAgentEmail, inviteStatus: l.inviteStatus },
           "",
-        );
-        return {
-          label: l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "Onward sale",
-          isOurs: l.transactionId != null && l.transactionId === openTransactionId,
-          claimed: l.transactionId != null,
-          statusKind: status.kind,
-        };
-      });
+        ).kind,
+      }));
 
-      const length = links.length;
-      const anchorIndex = links.findIndex((l) => l.isOurs);
-      const claimedCount = links.filter((l) => l.claimed).length;
-      // Send-now invites: the exact set the drawer offers "Send invite" on.
-      const needsInviteCount = links.filter((l) => l.statusKind === "unclaimed_unsent").length;
-      // In-scope files sitting in this chain (distinct from the single anchor).
+      // Whole-chain counts (spine + onward branches) — these match the drawer's
+      // claim rate ("1 of 7") and its "N agents ready to invite" total.
+      const totalLinks = chain.links.length;
+      const claimedCount = withStatus.filter((x) => x.claimed).length;
+      const needsInviteCount = withStatus.filter((x) => x.statusKind === "unclaimed_unsent").length;
       const ourFileCount = chain.links.filter(
         (l) => l.transactionId != null && ourTxIds.has(l.transactionId),
       ).length;
 
-      const ours = openTransactionId ? ourTxById.get(openTransactionId) : undefined;
+      // The SPINE is the main vertical ladder (branchKey ""). Onward purchases sit
+      // on branches and are parallel columns, not part of the top-to-bottom line —
+      // so our position, above/below and the dot chain are all measured on the
+      // spine, exactly as the drawer numbers "POSITION x OF <spine length>".
+      const spine = withStatus
+        .filter((x) => (x.l.branchKey ?? "") === "")
+        .sort((a, b) => a.l.position - b.l.position);
+      const onwardCount = totalLinks - spine.length;
+
+      // Anchor "you" to a spine file in our scope first (so position is a real
+      // spine position), then any claimed-in-scope, then any claimed link.
+      const anchorTxId =
+        spine.find((x) => x.claimed && ourTxIds.has(x.l.transactionId!))?.l.transactionId
+        ?? withStatus.find((x) => x.claimed && ourTxIds.has(x.l.transactionId!))?.l.transactionId
+        ?? withStatus.find((x) => x.claimed)?.l.transactionId
+        ?? "";
+
+      const links: ChainsWorkspaceLink[] = spine.map((x) => ({
+        label: x.l.transaction?.propertyAddress ?? x.l.stubPropertyAddress ?? "Onward sale",
+        isOurs: x.l.transactionId != null && x.l.transactionId === anchorTxId,
+        claimed: x.claimed,
+        statusKind: x.statusKind,
+      }));
+      const anchorIndex = links.findIndex((l) => l.isOurs);
+
+      const ours = anchorTxId ? ourTxById.get(anchorTxId) : undefined;
       const ourPhotoUrl = ours?.photoStoragePath ? photoMap.get(ours.photoStoragePath) ?? null : null;
 
       const searchParts: (string | null | undefined)[] = [
@@ -1629,17 +1638,17 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
 
       return {
         chainId: chain.id,
-        openTransactionId,
-        length,
+        openTransactionId: anchorTxId,
+        length: totalLinks,
         ourPosition: anchorIndex >= 0 ? anchorIndex + 1 : null,
-        // Convention (lib/chain/positions.ts): position 0 = TOP of chain = above.
-        // Links before the anchor (lower position) are above it; links after
-        // (higher position) are below it.
+        // Convention (lib/chain/positions.ts): spine position 0 = TOP = above.
+        // Spine links before the anchor are above it; those after are below it.
         linksAbove: anchorIndex >= 0 ? anchorIndex : 0,
-        linksBelow: anchorIndex >= 0 ? length - 1 - anchorIndex : 0,
+        linksBelow: anchorIndex >= 0 ? links.length - 1 - anchorIndex : 0,
         agentsConnected: claimedCount,
         needsInviteCount,
         ourFileCount,
+        onwardCount,
         links,
         ourAddress: ours?.propertyAddress ?? null,
         ourPhotoUrl,

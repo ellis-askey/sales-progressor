@@ -587,8 +587,10 @@ export function ChainDrawer({
               {chain?.name?.trim() || "Chain"}
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
-              {links.length > 0
-                ? `${links.length} linked ${links.length === 1 ? "sale" : "sales"}, top to bottom. When one moves, everything below moves with it.`
+              {allChainLinks.length > 0
+                ? allChainLinks.length > links.length
+                  ? `${allChainLinks.length} linked sales, including ${allChainLinks.length - links.length} onward ${allChainLinks.length - links.length === 1 ? "purchase" : "purchases"}.`
+                  : `${links.length} linked ${links.length === 1 ? "sale" : "sales"}, top to bottom. When one moves, everything below moves with it.`
                 : "Every linked sale, in one place"}
             </p>
           </div>
