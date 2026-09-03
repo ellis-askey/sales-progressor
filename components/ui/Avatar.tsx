@@ -34,6 +34,17 @@ const SIDE_STYLES = {
 
 type Side = keyof typeof SIDE_STYLES;
 
+// Per-side tones for the branded person art (2026-09-03). The SVG is a 3-layer
+// scene + a white figure; retinting is just swapping the three --tsp-avatar-*
+// vars, so a seller reads blue, a buyer green, everyone else grey. The white
+// figure is untouched. Staff/agent (internal/agent) aren't listed here, so they
+// keep the coral defaults baked into the art.
+const ART_TONES: Partial<Record<Side, { base: string; mid: string; deep: string }>> = {
+  vendor:    { base: "#5B9BD5", mid: "#2E6DB4", deep: "#0C447C" },
+  purchaser: { base: "#4FB98F", mid: "#1E9273", deep: "#085041" },
+  fallback:  { base: "#AEB7C4", mid: "#7F8A9B", deep: "#586477" },
+};
+
 // ─── Default agent art ───────────────────────────────────────────────────────
 // Branded fallback used for staff/agent avatars with no uploaded photo (client
 // contacts keep their initials). Inlined so the three coral tones can be
@@ -91,6 +102,8 @@ type AvatarBaseProps = {
 function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50, defaultArt = false }: AvatarBaseProps) {
   const { bg, color } = SIDE_STYLES[side];
   const fontSize = Math.round(size * 0.375);
+  // When showing the branded art for a contact side, retint its layers.
+  const artTones = defaultArt ? ART_TONES[side] : undefined;
 
   const style: CSSProperties = {
     width: size,
@@ -106,6 +119,13 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
     flexShrink: 0,
     userSelect: "none",
     overflow: "hidden",
+    ...(artTones
+      ? ({
+          "--tsp-avatar-base": artTones.base,
+          "--tsp-avatar-mid": artTones.mid,
+          "--tsp-avatar-deep": artTones.deep,
+        } as CSSProperties)
+      : {}),
   };
 
   return (
@@ -133,12 +153,15 @@ type ContactAvatarProps = {
   contact: { name: string; roleType?: string };
   size?: number;
   className?: string;
+  // Opt-in: render the branded person art (tinted to the contact's side)
+  // instead of initials. Default off, so existing callers are unchanged.
+  art?: boolean;
 };
 
-export function ContactAvatar({ contact, size = 32, className }: ContactAvatarProps) {
+export function ContactAvatar({ contact, size = 32, className, art = false }: ContactAvatarProps) {
   const initials = getInitials(contact);
   const side = contact.roleType ? contactRoleToSide(contact.roleType) : "fallback";
-  return <AvatarBase initials={initials} side={side} size={size} className={className} />;
+  return <AvatarBase initials={initials} side={side} size={size} className={className} defaultArt={art} />;
 }
 
 // ─── UserAvatar ───────────────────────────────────────────────────────────────

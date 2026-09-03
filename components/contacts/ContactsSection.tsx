@@ -45,6 +45,7 @@ import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { ContactAvatar } from "@/components/ui/Avatar";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -54,17 +55,6 @@ function whatsappHref(phone: string): string {
 }
 
 const TITLE_RE = /^(dr|mr|mrs|miss|ms|prof|rev|sir|lady|lord|mx)\.?\s+/i;
-
-function getInitials(name: string): string {
-  const trimmed = name.trim();
-  const titleMatch = trimmed.match(TITLE_RE);
-  const withoutTitle = trimmed.replace(TITLE_RE, "").trim();
-  const parts = withoutTitle.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  if (parts.length === 1 && titleMatch) return (titleMatch[0].trim()[0] + parts[0][0]).toUpperCase();
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return trimmed[0]?.toUpperCase() ?? "?";
-}
 
 function emailHref(email: string, roleType: string, address: string): string {
   const isVendor = roleType === "vendor";
@@ -950,7 +940,8 @@ export function ContactsSection({
                         aria-expanded={expanded}
                         style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
                       >
-                        <div className="agent-avatar agent-avatar-md" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
+                        <ContactAvatar contact={contact} size={40} art />
+
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                             <span data-sensitive="true" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
