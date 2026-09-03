@@ -10,7 +10,6 @@ import { SavingPulse } from "@/components/ui/SavingPulse";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { ContactAvatar } from "@/components/ui/Avatar";
-import { RoleIcon } from "@/components/ui/RoleIcon";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -272,7 +271,7 @@ function SolicitorTile({
           <ContactAvatar contact={{ name: roleLabel, roleType: "solicitor" }} size={40} sideTint={side} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-              <Pill glass tone={roleTone} size="sm"><RoleIcon role={side} size={10} />{roleLabel}</Pill>
+              <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
             </div>
             <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, fontStyle: "italic" }}>
               No {side} solicitor yet
@@ -302,7 +301,7 @@ function SolicitorTile({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
-                  <Pill glass tone={roleTone} size="sm"><RoleIcon role={side} size={10} />{roleLabel}</Pill>
+                  <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
                 </div>
                 <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {info.contact?.name ? info.contact.name : "No handler on file"}

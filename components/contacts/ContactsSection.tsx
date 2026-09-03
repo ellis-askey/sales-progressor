@@ -35,7 +35,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CommsButton } from "@/components/ui/CommsButton";
-import { RoleIcon, roleLabel, asRole } from "@/components/ui/RoleIcon";
+import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo, ClipboardText } from "@phosphor-icons/react";
@@ -947,7 +947,6 @@ export function ContactsSection({
                           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                             <span data-sensitive="true" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
                             <Pill glass tone={roleTone(r)} size="sm">
-                              <RoleIcon role={r} size={10} />
                               {roleLabel(r)}
                             </Pill>
                             {contact.isPrincipal === false && (
