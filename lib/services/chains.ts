@@ -1489,22 +1489,56 @@ export type ChainsWorkspaceChain = {
   openTransactionId: string; // one of our files, so the ChainDrawer opens in context
   length: number;
   ourPosition: number | null; // 1-based index of our file within the run
+  // Links above / below our sale. Codebase convention (see getChainV2's
+  // detachedSegment inference): a LOWER position sits BELOW, a HIGHER position
+  // ABOVE. So below = links before ours, above = links after ours.
+  linksAbove: number;
+  linksBelow: number;
+  agentsConnected: number; // claimed links — one file per connected agent
   needsInviteCount: number;
   links: ChainsWorkspaceLink[];
+  // Our primary file within this chain — powers the card header. Null only in
+  // the (filtered-out) case where no claimed link resolves.
+  ourAddress: string | null;
+  ourPhotoUrl: string | null;
+  ourAgencyName: string | null;
+  saleAgreedAt: string | null; // ISO — our file's createdAt, our "sale agreed" proxy
+  chainName: string | null;
+  search: string; // lowercased address + agency + chain name + link labels + agent firms
 };
 
 export type NoChainSale = {
   transactionId: string;
   address: string;
   status: string;
+  createdAt: string; // ISO — sale-agreed proxy, drives oldest-first ordering + age
+  photoUrl: string | null;
+  agencyName: string | null;
+  // The one buyer-position signal we already hold (First-time buyer / Cash
+  // buyer), derived from clientFirstTimeBuyer + purchaseType. Null otherwise.
+  buyerPosition: string | null;
+  // Genuinely needs no chain: the buyer is chain-free (FTB/cash) AND the seller
+  // has told us they're not buying onward (ClientMoveInfo.buyingOnward === false).
+  // Both are real fields — nothing invented. Conservative: only true when both
+  // are known-positive.
+  noChainRequired: boolean;
+  search: string;
 };
 
 export async function listChainsForScope(scope: AccessScope): Promise<ChainsWorkspaceChain[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null } }] },
-    select: { id: true, chainLink: { select: { chainId: true } } },
+    select: {
+      id: true,
+      propertyAddress: true,
+      createdAt: true,
+      photoStoragePath: true,
+      agency: { select: { name: true } },
+      chainLink: { select: { chainId: true } },
+    },
   });
   const ourTxIds = new Set(ourTxns.map((t) => t.id));
+  const ourTxById = new Map(ourTxns.map((t) => [t.id, t]));
   const chainIds = [...new Set(ourTxns.map((t) => t.chainLink?.chainId).filter((x): x is string => !!x))];
   if (chainIds.length === 0) return [];
 
@@ -1512,18 +1546,29 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
     where: { id: { in: chainIds } },
     select: {
       id: true,
+      name: true,
       links: {
         orderBy: [{ branchKey: "asc" }, { position: "asc" }],
         select: {
           transactionId: true,
           inviteStatus: true,
           stubPropertyAddress: true,
+          stubAgencyName: true,
           stubAgentEmail: true,
+          claimedBy: { select: { name: true, firmName: true } },
           transaction: { select: { id: true, propertyAddress: true } },
         },
       },
     },
   });
+
+  // Batch-sign our files' photos in one round trip; unsigned/absent paths fall
+  // back to the house illustration in PropertyThumb.
+  const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+  const photoMap = await getSignedUrlMap(
+    ourTxns.map((t) => t.photoStoragePath),
+    3600,
+  ).catch(() => new Map<string, string>());
 
   return chains
     .map((chain) => {
@@ -1535,17 +1580,41 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
         return { label, isOurs, claimed, needsInvite };
       });
       const ourIndex = links.findIndex((l) => l.isOurs);
+      const ourPosition = ourIndex >= 0 ? ourIndex + 1 : null;
+      const length = links.length;
       const openTransactionId =
         chain.links.find((l) => l.transactionId != null && ourTxIds.has(l.transactionId))?.transactionId
         ?? chain.links.find((l) => l.transactionId != null)?.transactionId
         ?? "";
+      const ours = openTransactionId ? ourTxById.get(openTransactionId) : undefined;
+      const ourPhotoUrl = ours?.photoStoragePath ? photoMap.get(ours.photoStoragePath) ?? null : null;
+
+      const searchParts: (string | null | undefined)[] = [
+        ours?.propertyAddress,
+        ours?.agency?.name,
+        chain.name,
+        ...chain.links.map((l) => l.transaction?.propertyAddress ?? l.stubPropertyAddress),
+        ...chain.links.map((l) => l.claimedBy?.firmName ?? l.claimedBy?.name),
+        ...chain.links.map((l) => l.stubAgencyName),
+      ];
+
       return {
         chainId: chain.id,
         openTransactionId,
-        length: links.length,
-        ourPosition: ourIndex >= 0 ? ourIndex + 1 : null,
+        length,
+        ourPosition,
+        // Convention: below = links before ours (lower position), above = after.
+        linksBelow: ourPosition != null ? ourPosition - 1 : 0,
+        linksAbove: ourPosition != null ? length - ourPosition : 0,
+        agentsConnected: links.filter((l) => l.claimed).length,
         needsInviteCount: links.filter((l) => l.needsInvite).length,
         links,
+        ourAddress: ours?.propertyAddress ?? null,
+        ourPhotoUrl,
+        ourAgencyName: ours?.agency?.name ?? null,
+        saleAgreedAt: ours?.createdAt.toISOString() ?? null,
+        chainName: chain.name,
+        search: searchParts.filter(Boolean).join(" ").toLowerCase(),
       };
     })
     .filter((c) => c.openTransactionId);
@@ -1554,8 +1623,62 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
 export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoChainSale[]> {
   const rows = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null }] },
-    select: { id: true, propertyAddress: true, status: true, createdAt: true },
-    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      propertyAddress: true,
+      status: true,
+      createdAt: true,
+      photoStoragePath: true,
+      purchaseType: true,
+      clientFirstTimeBuyer: true,
+      agency: { select: { name: true } },
+    },
+    // Oldest first — a sale that's been sitting without a chain the longest is
+    // the one most in need of setting up, so it surfaces at the top.
+    orderBy: { createdAt: "asc" },
   });
-  return rows.map((r) => ({ transactionId: r.id, address: r.propertyAddress, status: r.status }));
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.id);
+
+  // Real "not buying onward" signal from the vendor's move info — the only
+  // grounded way to say a sale needs no chain above. buyingOnward is nullable;
+  // we treat only an explicit false as "not buying onward".
+  const moveInfos = await prisma.clientMoveInfo.findMany({
+    where: { transactionId: { in: ids }, side: "vendor" },
+    select: { transactionId: true, buyingOnward: true },
+  });
+  const notBuyingOnward = new Set(
+    moveInfos.filter((m) => m.buyingOnward === false).map((m) => m.transactionId),
+  );
+
+  const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+  const photoMap = await getSignedUrlMap(
+    rows.map((r) => r.photoStoragePath),
+    3600,
+  ).catch(() => new Map<string, string>());
+
+  const mapped = rows.map((r) => {
+    const buyerPosition = computeBuyerPosition(r.purchaseType, r.clientFirstTimeBuyer);
+    // Buyer is chain-free (nothing below) AND seller not buying onward (nothing
+    // above) → genuinely no chain required. Grounded in existing fields only.
+    const buyerChainFree = r.purchaseType === "cash_buyer" || r.clientFirstTimeBuyer === true;
+    const noChainRequired = buyerChainFree && notBuyingOnward.has(r.id);
+    const photoUrl = r.photoStoragePath ? photoMap.get(r.photoStoragePath) ?? null : null;
+    return {
+      transactionId: r.id,
+      address: r.propertyAddress,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+      photoUrl,
+      agencyName: r.agency?.name ?? null,
+      buyerPosition,
+      noChainRequired,
+      search: [r.propertyAddress, r.agency?.name, buyerPosition].filter(Boolean).join(" ").toLowerCase(),
+    };
+  });
+
+  // Keep oldest-first for the files that still need action; drop the
+  // no-chain-required ones to the bottom (they need no work).
+  return mapped.sort((a, b) => Number(a.noChainRequired) - Number(b.noChainRequired));
 }

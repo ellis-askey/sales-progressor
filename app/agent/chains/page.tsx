@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listChainsForScope, listNoChainSalesForScope } from "@/lib/services/chains";
+import { canSeeChains } from "@/lib/chain/chains-access";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ChainsWorkspace } from "@/components/chain/ChainsWorkspace";
 
@@ -13,6 +15,14 @@ export const dynamic = "force-dynamic";
 // opened per row.
 export default async function AgentChainsPage() {
   const session = await requireSession();
+
+  // Controlled rollout: only internal staff + a named email allowlist may see
+  // the chains workspace. Server guard mirrors the nav gate (both use
+  // canSeeChains) so the route can't be reached by URL either.
+  if (!canSeeChains(session.user.role, session.user.email)) {
+    redirect("/agent/hub");
+  }
+
   const scope = getAccessScope(session);
   const isProgressor = session.user.role === "sales_progressor";
   const isAllScope = scope.kind === "all";
@@ -23,10 +33,10 @@ export default async function AgentChainsPage() {
   ]);
 
   const subtitle = isAllScope
-    ? "The chains across the platform, and the sales not yet in one."
+    ? "Chain positions across the platform, and what needs attention."
     : isProgressor
-      ? "The chains your assigned sales sit in, and the ones not yet in a chain."
-      : "The chains your sales sit in, and the sales not yet in a chain.";
+      ? "Chain position at a glance for your assigned sales, and what needs your attention."
+      : "See your chain position at a glance and spot what needs your attention.";
 
   return (
     <>

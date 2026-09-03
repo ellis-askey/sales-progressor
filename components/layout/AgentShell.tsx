@@ -24,6 +24,7 @@ import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorMo
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { canSeeChains } from "@/lib/chain/chains-access";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
@@ -62,7 +63,9 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
     ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
-    { href: "/agent/chains",      label: "Chains",      Icon: LinkSimple    },
+    // Chains is a controlled-rollout surface: internal staff + a named email
+    // allowlist only. Same canSeeChains gate as the server route guard.
+    ...(canSeeChains(role, email) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple }] : []),
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];
