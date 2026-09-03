@@ -254,7 +254,9 @@ function SolicitorTile({
   }
 
   const tileTone = ROLE_TILE_STYLE[side];
-  const roleTone: "brand" | "info" = side === "vendor" ? "brand" : "info";
+  // Vendor = seller-blue, purchaser = buyer-green, matching the side-tinted
+  // avatars and the Contacts card pills.
+  const roleTone: "info" | "success" = side === "vendor" ? "info" : "success";
   const roleLabel = side === "vendor" ? "Vendor" : "Purchaser";
 
   // CC the handler's assistant/secretary on the agent's own email too.

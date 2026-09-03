@@ -115,10 +115,11 @@ function autoEmailTone(count: number): { bg: string; fg: string } | null {
   return { bg: "rgba(15,23,42,0.06)", fg: "var(--agent-text-muted)" };
 }
 
-// Role -> canonical Pill tone. Vendor carries the brand (coral), purchaser the
-// info blue; everyone else stays quiet.
-function roleTone(r: string): "brand" | "info" | "muted" {
-  return r === "vendor" ? "brand" : r === "purchaser" ? "info" : "muted";
+// Role -> canonical Pill tone. Vendor = seller-blue, purchaser = buyer-green,
+// matching the side-tinted avatars (Avatar.tsx SIDE_STYLES). Everyone else
+// stays quiet. (Kept in sync with SolicitorSection so both cards read alike.)
+function roleTone(r: string): "info" | "success" | "muted" {
+  return r === "vendor" ? "info" : r === "purchaser" ? "success" : "muted";
 }
 
 // ── Portal state resolver ──────────────────────────────────────────────
