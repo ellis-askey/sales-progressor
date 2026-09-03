@@ -5,6 +5,7 @@ import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import type { AddNodeSavedResult, EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type Props = {
   transactionId: string;
@@ -55,12 +56,10 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
       <button
         onClick={() => setDrawerOpen(true)}
         className="agent-link"
-        style={{ fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}
+        style={{ fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 5 }}
       >
         Open chain
-        <svg className="agent-arrow-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M5 12h14M13 6l6 6-6 6" />
-        </svg>
+        <LinkArrow style={{ marginLeft: 0 }} />
       </button>
 
       {drawerOpen && (

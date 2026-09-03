@@ -13,6 +13,7 @@
 import { useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Pill";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
 import { useTabContext } from "@/components/transaction/TabContext";
 import type { OnwardTrackerView } from "@/lib/services/onward";
@@ -141,7 +142,7 @@ export function PropertyChainCard({
               Tracking gives you visibility and progress updates on the linked properties.
             </span>
             <button type="button" className="cx-learn" onClick={() => setLearnOpen((o) => !o)} aria-expanded={learnOpen}>
-              Learn more<ArrowGlyph />
+              Learn more<LinkArrow style={{ marginLeft: 0 }} />
             </button>
           </div>
           <div className="cx-learn-wrap" data-open={learnOpen ? "true" : undefined}>
@@ -214,7 +215,7 @@ export function PropertyChainCard({
         .cx-foot-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
         .cx-foot-left{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;color:var(--agent-text-secondary);min-width:0}
         .cx-foot-left svg{flex-shrink:0;color:var(--agent-text-muted)}
-        .cx-learn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:14px;font-weight:600;color:var(--agent-coral-deep, #E8542F);flex-shrink:0}
+        .cx-learn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:13px;font-weight:500;color:var(--agent-coral-deep, #E8542F);flex-shrink:0}
         .cx-learn:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px;border-radius:4px}
         /* Smooth reveal: animate the grid row from 0fr to 1fr so the panel
            slides open/closed instead of snapping. */
