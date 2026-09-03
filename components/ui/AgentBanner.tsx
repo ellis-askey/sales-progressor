@@ -21,7 +21,7 @@
 // background. That's what gives us cross-theme + cross-background reliability.
 
 import type { ReactNode } from "react";
-import { X } from "@phosphor-icons/react";
+import { X, CaretRight } from "@phosphor-icons/react";
 
 export type BannerKind = "info" | "warning" | "danger" | "success";
 
@@ -38,7 +38,9 @@ type Props = {
   // the title row on wider screens but drops it beneath the title below the
   // `sm` breakpoint (the X stays top-right throughout) — so the banner isn't
   // needlessly tall when there's room.
-  actionPlacement?: "inline" | "bottom-right" | "inline-responsive";
+  // "top-right" sits the action on the header row, immediately left of the
+  // dismiss X, so there's no bottom action row and the banner tightens up.
+  actionPlacement?: "inline" | "bottom-right" | "inline-responsive" | "top-right";
   dismissible?: { onDismiss: () => void };
   // Optional className for cases where a caller needs extra spacing (e.g.
   // mb-3). Container styling otherwise comes from this component.
@@ -54,21 +56,35 @@ const TOKEN_FOR_KIND: Record<BannerKind, { tint: string; border: string }> = {
 
 export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", dismissible, className }: Props) {
   const t = TOKEN_FOR_KIND[kind];
+  // A label ending in "→" is a navigate action: render the arrow as a nudging
+  // icon (.agent-arrow-i) with NO underline — the arrow is the affordance.
+  // Everything else keeps the underlined .agent-link.
+  const hasArrow = action ? /\s*→\s*$/.test(action.label) : false;
+  const cleanLabel = action ? action.label.replace(/\s*→\s*$/, "") : "";
   const actionBtn = action ? (
-    <button
-      type="button"
-      onClick={action.onClick}
-      className="agent-link"
-      style={{
-        flexShrink: 0,
-        fontSize: 12,
-        fontWeight: 600,
-        color: t.tint,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {action.label}
-    </button>
+    hasArrow ? (
+      <button
+        type="button"
+        onClick={action.onClick}
+        style={{
+          flexShrink: 0, fontSize: 12, fontWeight: 600, color: t.tint, whiteSpace: "nowrap",
+          display: "inline-flex", alignItems: "center", gap: 4,
+          background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
+        }}
+      >
+        {cleanLabel}
+        <CaretRight size={12} weight="bold" className="agent-arrow-i" aria-hidden />
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={action.onClick}
+        className="agent-link"
+        style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: t.tint, whiteSpace: "nowrap" }}
+      >
+        {action.label}
+      </button>
+    )
   ) : null;
   return (
     <div
@@ -134,6 +150,9 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
       )}
       {actionBtn && actionPlacement === "inline-responsive" && (
         <span className="hidden sm:flex" style={{ alignSelf: "center" }}>{actionBtn}</span>
+      )}
+      {actionBtn && actionPlacement === "top-right" && (
+        <span style={{ alignSelf: "flex-start", marginTop: 1 }}>{actionBtn}</span>
       )}
 
       {dismissible && (
