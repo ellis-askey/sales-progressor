@@ -15,6 +15,7 @@ import { updateContactAction } from "@/app/actions/contacts";
 import { setOnwardTypeFactsAction } from "@/app/actions/onward";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import type { MoveInfo } from "@/lib/services/portal-info";
@@ -359,7 +360,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
               </div>
               <button type="button" onClick={() => setPage("questions")} className="agent-btn-color-primary"
                 style={{ marginTop: 20, padding: "9px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600 }}>
-                On to the questions →
+                On to the questions <LinkArrow />
               </button>
             </div>
 

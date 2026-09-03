@@ -31,6 +31,7 @@ import {
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { Icon } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type Props = {
   entries: ActivityEntry[];
@@ -127,7 +128,7 @@ export function RecentActivityWidget({ entries }: Props) {
       <div style={{ padding: "12px 16px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Activity</h3>
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11 }}>
-          View all →
+          View all <LinkArrow />
         </button>
       </div>
 

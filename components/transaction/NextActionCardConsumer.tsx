@@ -13,6 +13,7 @@ import { useTabContext } from "./TabContext";
 import { completeTaskAction } from "@/app/actions/tasks";
 import { daysUntil, formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type MiniReminder = { id: string; ruleName: string; nextDueDate: Date | string; snoozedUntil?: Date | string | null };
 
@@ -73,7 +74,7 @@ function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniReminder
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
         <span className="agent-eyebrow" style={{ margin: 0 }}>Up next</span>
         <button onClick={onViewAll} className="agent-link" style={{ fontSize: 11 }}>
-          View all{totalActive > 0 ? ` (${totalActive})` : ""} →
+          View all{totalActive > 0 ? ` (${totalActive})` : ""} <LinkArrow />
         </button>
       </div>
       {reminders.map((r) => <ReminderRow key={r.id} r={r} />)}
@@ -156,7 +157,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
             <h3 className="agent-card-title">Reminders</h3>
             {totalActive > 0 && <span className="agent-badge">{totalActive}</span>}
           </div>
-          <button onClick={goReminders} className="agent-link" style={{ fontSize: 11 }}>View all →</button>
+          <button onClick={goReminders} className="agent-link" style={{ fontSize: 11 }}>View all <LinkArrow /></button>
         </div>
         <div style={{ padding: "6px 16px 12px" }}>
           {otherReminders.map((r) => <ReminderRow key={r.id} r={r} />)}

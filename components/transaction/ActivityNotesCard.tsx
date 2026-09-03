@@ -19,6 +19,7 @@ import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
 import { SavingPulse } from "@/components/ui/SavingPulse";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 
 type Props = { transactionId: string; entries: ActivityEntry[]; currentUserName: string; currentUserImage?: string | null };
@@ -145,7 +146,7 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
             </button>
           </div>
         </div>
-        <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11, flexShrink: 0 }}>View all →</button>
+        <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11, flexShrink: 0 }}>View all <LinkArrow /></button>
       </div>
 
       {/* Composer — always present so a note is one click away */}

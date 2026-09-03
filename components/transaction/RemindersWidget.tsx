@@ -3,6 +3,7 @@
 import { useTabContext } from "./TabContext";
 import { formatDate, daysUntil } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type ReminderItem = {
   id: string;
@@ -30,7 +31,7 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
           {totalActive > 0 && <span className="agent-badge">{totalActive}</span>}
         </div>
         <button onClick={() => setActiveTab("reminders")} className="agent-link" style={{ fontSize: 11 }}>
-          View all →
+          View all <LinkArrow />
         </button>
       </div>
 

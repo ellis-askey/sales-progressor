@@ -36,6 +36,7 @@ import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
 import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
@@ -336,7 +337,7 @@ export function AgentFileSidebar({
             fontFamily: "inherit",
           }}
         >
-          View health details →
+          View health details <LinkArrow />
         </button>
       </GlassCard>
 

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Info } from "@phosphor-icons/react";
 import { AgentBanner } from "@/components/ui/AgentBanner";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 import {
   ReconcileMilestonePicker,
   type MilestoneDefinitionLite,
@@ -285,7 +286,7 @@ function ReconcileModal({
               className="claim-btn"
               type="button"
             >
-              Next: Buyer steps →
+              Next: Buyer steps <LinkArrow />
             </button>
           )}
         </div>
