@@ -263,7 +263,12 @@ function pctDelta(current: number, previous: number): number | null {
 
 // ── Needs attention ─────────────────────────────────────────────────────────
 
-export type IssueStatus = "bounced" | "blocked" | "deferred" | "errored" | "failed";
+// "missing" is a setup gap, not a delivery failure: a client contact on an
+// active file has no email address at all, so the chase engine has never queued
+// anything for them (it requires email + portalToken). Bounce/block/fail
+// detection can't see it — nothing was ever sent to fail. Surfaced here so the
+// silent gap becomes visible and fixable.
+export type IssueStatus = "bounced" | "blocked" | "deferred" | "errored" | "failed" | "missing";
 export type IssueAction = "update_contact" | "review";
 
 export type NeedsAttentionItem = {
@@ -290,11 +295,14 @@ export type NeedsAttention = {
 
 const ISSUE_ITEM_CAP = 25;
 
+const EMPTY_BY_STATUS = (): Record<IssueStatus, number> =>
+  ({ bounced: 0, blocked: 0, missing: 0, failed: 0, errored: 0, deferred: 0 });
+
 export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAttention> {
   const { txIds, txAddressById, queueScope, solicitorScope } = await resolveEmailScope(input);
   const empty: NeedsAttention = {
     total: 0, affectedFiles: 0,
-    byStatus: { bounced: 0, blocked: 0, deferred: 0, errored: 0, failed: 0 },
+    byStatus: EMPTY_BY_STATUS(),
     items: [],
   };
   if (txIds.length === 0) return empty;
@@ -302,7 +310,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
   const now = new Date();
   const from = new Date(now.getTime() - input.periodDays * DAY);
 
-  const [queueProblems, solProblems] = await Promise.all([
+  const [queueProblems, solProblems, missingContacts] = await Promise.all([
     prisma.outboundEmailQueue.findMany({
       where: { ...queueScope, OR: queueProblemOr(from, now) },
       select: {
@@ -320,6 +328,19 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       orderBy: { failedAt: "desc" },
       take: 200,
     }),
+    // Missing-email gap: client contacts on ACTIVE files with no address, so
+    // the chase engine never queued anything for them. Not time-bounded (a
+    // setup gap doesn't age out of the period like a delivery event does).
+    prisma.contact.findMany({
+      where: {
+        propertyTransactionId: { in: txIds },
+        roleType: { in: ["vendor", "purchaser"] },
+        OR: [{ email: null }, { email: "" }],
+        transaction: { status: "active" },
+      },
+      select: { id: true, name: true, roleType: true, propertyTransactionId: true },
+      take: 200,
+    }),
   ]);
 
   const files = new Set<string>();
@@ -327,8 +348,8 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
   // times is ONE thing to fix, shown with count = N, not N separate rows.
   const byKey = new Map<string, NeedsAttentionItem>();
 
-  // Priority: bounced > blocked > failed > errored > deferred.
-  const rank: Record<IssueStatus, number> = { bounced: 0, blocked: 1, failed: 2, errored: 3, deferred: 4 };
+  // Priority: bounced > blocked > missing > failed > errored > deferred.
+  const rank: Record<IssueStatus, number> = { bounced: 0, blocked: 1, missing: 2, failed: 3, errored: 4, deferred: 5 };
 
   for (const r of queueProblems) {
     let status: IssueStatus;
@@ -383,8 +404,26 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     });
   }
 
+  for (const c of missingContacts) {
+    files.add(c.propertyTransactionId);
+    byKey.set(`missing|${c.id}`, {
+      emailId: c.id,
+      source: "queue",
+      status: "missing",
+      transactionId: c.propertyTransactionId,
+      transactionAddress: txAddressById.get(c.propertyTransactionId) ?? "(unknown file)",
+      recipientName: c.name,
+      recipientEmail: "",
+      recipientRole: c.roleType,
+      reason: "No email address on file",
+      deferredCount: 0,
+      action: "update_contact",
+      count: 1,
+    });
+  }
+
   const items = [...byKey.values()].sort((a, b) => rank[a.status] - rank[b.status]);
-  const byStatus: Record<IssueStatus, number> = { bounced: 0, blocked: 0, deferred: 0, errored: 0, failed: 0 };
+  const byStatus: Record<IssueStatus, number> = EMPTY_BY_STATUS();
   for (const it of items) byStatus[it.status]++;
 
   return {
