@@ -9,7 +9,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
-import { classifyReminder } from "@/lib/reminders/classify";
+import { classifyReminder, chaseCountWord } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -477,10 +477,12 @@ function SplitFileCard({
           const lastComm = task.communications[0];
           const chaseHistory = (() => {
             if (task.chaseCount === 0) return "Not chased yet · first nudge due";
-            const bits = [`Chased ${task.chaseCount}×`];
-            if (autoChases > 0 && manualChases > 0) bits.push(`${autoChases} auto, ${manualChases} by you`);
-            else if (manualChases > 0) bits.push("by you");
-            else bits.push("on autopilot");
+            const bits: string[] = [];
+            // Human, sentence-led: "You've chased this once" (you), "We've chased
+            // this twice" (autopilot), or a breakdown when it's a mix.
+            if (autoChases > 0 && manualChases > 0) bits.push(`Chased ${task.chaseCount} times · ${manualChases} by you, ${autoChases} by us`);
+            else if (manualChases > 0) bits.push(`You've chased this ${chaseCountWord(manualChases)}`);
+            else bits.push(`We've chased this ${chaseCountWord(autoChases)}`);
             if (lastComm) {
               const d = Math.floor((Date.now() - new Date(lastComm.createdAt).getTime()) / 86400000);
               const when = d <= 0 ? "today" : d === 1 ? "yesterday" : `${d}d ago`;

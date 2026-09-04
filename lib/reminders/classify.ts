@@ -74,7 +74,13 @@ export function countOverdue(logs: LogForClassify[], now: Date = new Date()): nu
 // it. Returns null when nothing has been chased yet.
 export function chaseBadgeLabel(auto: number, manual: number): string | null {
   if (auto <= 0 && manual <= 0) return null;
-  if (auto > 0 && manual > 0) return `Auto ${auto}× · you ${manual}×`;
-  if (auto > 0) return `Auto-chased ${auto}×`;
-  return `Chased ${manual}×`;
+  if (auto > 0 && manual > 0) return `Chased ${auto + manual} times · ${manual} by you, ${auto} by us`;
+  if (auto > 0) return `We've chased this ${chaseCountWord(auto)}`;
+  return `You've chased this ${chaseCountWord(manual)}`;
+}
+
+// "once" / "twice" / "N times" for chase counts, so the count reads like a
+// sentence rather than "3×".
+export function chaseCountWord(n: number): string {
+  return n === 1 ? "once" : n === 2 ? "twice" : `${n} times`;
 }
