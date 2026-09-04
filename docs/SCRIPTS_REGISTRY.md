@@ -56,6 +56,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** permanent. Re-run during Phase 4 culls and quarterly thereafter.
 - **Justification:** same as components inventory — a maintenance tool that powers a docs artifact.
 
+### scripts/reset-domain-auth-records.ts
+
+- **Purpose:** Reset a PENDING domain authentication onto TSP's collision-resistant return path (`tsp.<domain>`) and DKIM selector (`tsp._domainkey.<domain>`), for domains whose default `em`/`s1`/`s2` records collided with an existing SendGrid account on the same domain (e.g. `expuk.com`). Delete-and-recreates the SendGrid whitelabel domain (the only way to change its subdomain/selector) and updates the `VerifiedDomain` row with the fresh records.
+- **Lifetime:** `one-shot`
+- **Author:** CC (SendGrid domain-auth collision fix), 2026-09-04
+- **Deletion criteria:** delete once the known collided pending domains (`expuk.com` and any others surfaced) have been reset on production and the new-authentication fix (`subdomain`/`custom_dkim_selector` = `tsp` in `lib/services/sendgrid.ts`) is confirmed live so no future creation collides.
+- **Justification:** a rare, destructive SendGrid reconciliation gated behind dry-run + APPLY and two guards that refuse any verified/live authentication. Not a recurring feature — a Command Centre "regenerate records" button is the durable home if the collision recurs often; flagged as follow-up rather than built now to keep this change scoped to the reported incident.
+
 ### scripts/seed-overdue-exchange-demo.ts
 
 - **Purpose:** STAGING demo for the exchange-date work (Note 1 of docs/active/three-notes-distilled-2026-08-26.md). Backfills expectedExchangeDate from the live prediction on every active file, seeds one "moving" file (self-adjusting date) and one "stuck" file (overdue + quiet) so the hub amber item + file revise-banner can be walked through.

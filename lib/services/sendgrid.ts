@@ -3,6 +3,17 @@ import { applyDevEmailRedirect } from "@/lib/email";
 
 client.setApiKey(process.env.SENDGRID_API_KEY!);
 
+// TSP-specific, collision-resistant labels for domain authentication. SendGrid's
+// defaults ("em" return path, "s1"/"s2" DKIM selectors) collide when an agency's
+// domain is already authenticated with a *different* SendGrid account, because
+// both accounts generate identical host names. Using our own return path +
+// custom DKIM selector lets TSP's authentication coexist alongside an existing
+// one without touching any of the other account's DNS records. Both must satisfy
+// SendGrid's rules: the return path is a DNS label; custom_dkim_selector is
+// exactly 3 alphanumeric characters.
+const TSP_RETURN_PATH_SUBDOMAIN = "tsp";
+const TSP_DKIM_SELECTOR = "tsp";
+
 export type CnameRecord = {
   host: string;
   data: string;
@@ -56,7 +67,8 @@ export async function createAuthenticatedDomain(
       url: "/v3/whitelabel/domains",
       body: {
         domain,
-        subdomain: "em",
+        subdomain: TSP_RETURN_PATH_SUBDOMAIN,
+        custom_dkim_selector: TSP_DKIM_SELECTOR,
         automatic_security: true,
         custom_spf: false,
         default: false,
@@ -70,6 +82,19 @@ export async function createAuthenticatedDomain(
     // Domain already exists in SendGrid — look it up instead
     return getExistingAuthenticatedDomain(domain);
   }
+}
+
+/**
+ * Delete an authenticated domain from SendGrid by its whitelabel ID. Used only
+ * to reset a *pending* authentication whose records collided with an existing
+ * SendGrid account — never call this for a verified domain, which has live DNS
+ * mail flowing through it. The caller is responsible for that guard.
+ */
+export async function deleteAuthenticatedDomain(sendgridDomainId: number): Promise<void> {
+  await client.request({
+    method: "DELETE",
+    url: `/v3/whitelabel/domains/${sendgridDomainId}`,
+  });
 }
 
 /** Ask SendGrid to validate the DNS records for an authenticated domain. */
