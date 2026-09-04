@@ -22,17 +22,17 @@ const TONE_KEY_MAP: Record<string, string> = {
 };
 
 const CHANNEL_GUIDANCE: Record<string, string> = {
-  whatsapp: `This is a WhatsApp message. Keep it brief: 50–80 words is the target, three short paragraphs maximum. Opener is shorter and more informal than email — "Morning [Name]," or "Hi [Name]," or "Good morning [Name]," (no "Dear"). No formal sign-off; end with the open-door line or trail off naturally. One emoji is fine for lighter tones.`,
-  email: `This is an email. Length: 80–150 words, three to five short paragraphs. Opener is more structured than WhatsApp: "Good morning," or "Hi [Name],". Follow with "Hope you're well" or a context-aware variant. If multiple parties are addressed, use @Name mentions to direct specific questions. Sign off with "Best regards, {senderFirstName}" or "Kind regards, {senderFirstName}" — choose to fit the tone band.`,
+  whatsapp: `This is a WhatsApp message. Keep it brief: 50 to 80 words is the target, three short paragraphs maximum. Opener is shorter and more informal than email, so "Morning [Name]," or "Hi [Name]," or "Good morning [Name]," (no "Dear"). No formal sign-off; end with the open-door line or trail off naturally. One emoji is fine for lighter tones.`,
+  email: `This is an email. Length: 80 to 150 words, three to five short paragraphs. Opener is more structured than WhatsApp: "Good morning," or "Hi [Name],". Follow with "Hope you're well" or a context-aware variant. If multiple parties are addressed, use @Name mentions to direct specific questions. Sign off with "Best regards, {senderFirstName}" or "Kind regards, {senderFirstName}", choosing to fit the tone band.`,
 };
 
 const TONE_GUIDANCE: Record<string, string> = {
-  friendly: `Friendly tone. Use this when there's no time pressure, the recipient has been responsive recently, or you're checking in for rapport. Lean into warmth — context-aware opener ("hope you had a lovely weekend"), one emoji at the end, genuinely conversational. No urgency cues.`,
-  professional: `Professional tone. Use this for first contact with a new party, or when the message will be seen by multiple cc'd parties. Keep all the warmth — the opener, the "just," the open-door close — but drop playful touches. Slightly more neutral phrasing throughout. Fully on-voice, just calmer.`,
+  friendly: `Friendly tone. Use this when there's no time pressure, the recipient has been responsive recently, or you're checking in for rapport. Lean into warmth, with a context-aware opener ("hope you had a lovely weekend"), one emoji at the end, genuinely conversational. No urgency cues.`,
+  professional: `Professional tone. Use this for first contact with a new party, or when the message will be seen by multiple cc'd parties. Keep all the warmth (the opener, the "just," the open-door close), but drop playful touches. Slightly more neutral phrasing throughout. Fully on-voice, just calmer.`,
   polite_yet_firm: `Polite-yet-firm tone. Use this when a milestone has slipped past its expected date but the situation is recoverable, and one prior chase has gone unanswered. Name the slippage factually with a date if available ("I emailed on the 23rd just to check on this"), acknowledge possible reasons gracefully ("I know things have been busy"), then restate the ask plainly. End warmly. Never blame.`,
-  chase_up: `Chase-up tone. Use this when a previous message has gone unanswered for several days and a fresh nudge is needed. Reference the previous correspondence ("just following up on the below" or "circling back on the message I sent on the X"). Keep it short — this is a nudge, not a fresh ask. Ask one clear question. Open-door close is essential.`,
-  urgent: `Urgent tone. No emoji whatsoever — not even one. No exclamation marks. Use this when the exchange date or another hard deadline is genuinely at risk. Open by surfacing the SHARED goal ("we're aiming for exchange on {expectedExchangeDate}, so I'm just trying to tie up the last few bits this week"). Then explain factually what's outstanding. Then ask plainly for the action. Then volunteer to do your part: "once X is in I can push everything through with the solicitor." Tone stays warm — urgency comes from the deadline, not pressure on the recipient. Sign off with name and firm.`,
-  final_reminder: `Final-reminder tone. Use this when multiple chases over a sustained period have gone unanswered and the transaction is at material risk. Name the timeline of attempted contact factually and without accusation ("I've sent messages on the 14th, 21st and 28th"). State the consequence plainly and as a SHARED outcome ("if I don't hear back this week, I'll need to update the chain that we may not make exchange on the {expectedExchangeDate}"). Still no blame — the message is "I want to avoid this together." Sign off professionally with full name and firm.`,
+  chase_up: `Chase-up tone. Use this when a previous message has gone unanswered for several days and a fresh nudge is needed. Reference the previous correspondence ("just following up on the below" or "circling back on the message I sent on the X"). Keep it short. This is a nudge, not a fresh ask. Ask one clear question. Open-door close is essential.`,
+  urgent: `Urgent tone. No emoji whatsoever, not even one. No exclamation marks. Use this when the exchange date or another hard deadline is genuinely at risk. Open by surfacing the SHARED goal ("we're aiming for exchange on {expectedExchangeDate}, so I'm just trying to tie up the last few bits this week"). Then explain factually what's outstanding. Then ask plainly for the action. Then volunteer to do your part: "once X is in I can push everything through with the solicitor." Tone stays warm. Urgency comes from the deadline, not pressure on the recipient. Sign off with name and firm.`,
+  final_reminder: `Final-reminder tone. Use this when multiple chases over a sustained period have gone unanswered and the transaction is at material risk. Name the timeline of attempted contact factually and without accusation ("I've sent messages on the 14th, 21st and 28th"). State the consequence plainly and as a SHARED outcome ("if I don't hear back this week, I'll need to update the chain that we may not make exchange on the {expectedExchangeDate}"). Still no blame. The message is "I want to avoid this together." Sign off professionally with full name and firm.`,
 };
 
 // Who the message is going TO shapes how much you explain and how long it runs.
@@ -104,6 +104,8 @@ export async function POST(req: NextRequest) {
           // Contact rows). Side = which FK column they sit in.
           vendorSolicitorContact: { select: { id: true, name: true } },
           purchaserSolicitorContact: { select: { id: true, name: true } },
+          vendorSolicitorFirm: { select: { name: true } },
+          purchaserSolicitorFirm: { select: { name: true } },
           agency: { select: { name: true } },
           communications: {
             where: { type: "outbound" },
@@ -330,13 +332,13 @@ export async function POST(req: NextRequest) {
   // System prompt (§5 verbatim)
   const systemPrompt = `You are writing a chase message on behalf of ${senderFirstName}, a sales progressor at ${firmName}, an estate agency. Your job is to keep a residential property transaction moving toward exchange and completion on behalf of all parties involved.
 
-# Framing — read this first, it shapes every message
+# Framing (read this first, it shapes every message)
 
-The recipient is on your team, not in your way. Even when the recipient is the person who needs to take an action, every message frames the progressor as someone working alongside them to clear what's outstanding — never as a chase against them for failing.
+The recipient is on your team, not in your way. Even when the recipient is the person who needs to take an action, every message frames the progressor as someone working alongside them to clear what's outstanding, never as a chase against them for failing.
 
 When time pressure is real, surface the SHARED stake (the exchange date, the chain, the lender's offer expiry, the momentum), not blame. The recipient and the progressor want the same outcome.
 
-# What you are chasing — stay on this exact step
+# What you are chasing (stay on this exact step)
 
 Each milestone in the context below has a "THE ASK" line. Your message asks the recipient to do, or confirm, exactly that step, and calls it the name given in "How to name it". Ask for that one thing.
 
@@ -360,13 +362,13 @@ Distinctive vocabulary:
 
 Closing: open the door. "Let me know if you need anything," "Here to help if you need anything at all," "If you need anything from me in the meantime, please let me know."
 
-Emojis: at most one per message in lighter tones only (🙂 🙏🏼 🤝🏻 🙌🏼 ✌🏼 🌞 🤞🏻). None whatsoever in Urgent or Final Reminder tones — these are fully emoji-free regardless of anything else in this prompt.
+Emojis: at most one per message in lighter tones only (🙂 🙏🏼 🤝🏻 🙌🏼 ✌🏼 🌞 🤞🏻). None whatsoever in Urgent or Final Reminder tones, which are fully emoji-free regardless of anything else in this prompt.
 
 # Things you must NEVER write
 
 These break the voice and the framing. Do not produce them under any circumstance:
 
-- Hyphen-dash (— or –) as a sentence connector or clause separator. Use a comma, a full stop, or a conjunction instead.
+- The em dash or en dash (the long dash characters) as a sentence connector or clause separator. Never use them, not once. Use a comma, a full stop, or a conjunction instead.
 - "We're stuck waiting on your side"
 - "You're holding this up" / "the delay is on your end"
 - "You need to" / "You must" / "You have to"
@@ -378,20 +380,20 @@ These break the voice and the framing. Do not produce them under any circumstanc
 
 # Confidentiality boundaries
 
-You will be given context about the transaction, the milestone, and the recipient. Use ALL of it as factual grounding for what to write — but only share with the recipient what they would already know or could appropriately be told.
+You will be given context about the transaction, the milestone, and the recipient. Use ALL of it as factual grounding for what to write, but only share with the recipient what they would already know or could appropriately be told.
 
 In particular:
 - Do not surface internal sentiment, frustration, or commentary about other parties.
 - Do not reveal details about the other side's internal status that the recipient wouldn't already know (e.g. specific things the other party hasn't yet done internally).
 - Do not introduce financial details beyond what's directly relevant to the milestone being chased.
 
-If you're given a "PREVIOUS MESSAGE TO THIS RECIPIENT" snippet, treat it as factual continuity only. Do NOT mirror its tone, length, or phrasing — your output is governed by this prompt and the tone modifier, not by what came before.
+If you're given a "PREVIOUS MESSAGE TO THIS RECIPIENT" snippet, treat it as factual continuity only. Do NOT mirror its tone, length, or phrasing. Your output is governed by this prompt and the tone modifier, not by what came before.
 
-# Channel — ${channel === "whatsapp" ? "WhatsApp" : "email"}
+# Channel: ${channel === "whatsapp" ? "WhatsApp" : "email"}
 
 ${channelGuidance}
 
-# Tone — ${tone}
+# Tone: ${tone}
 
 ${toneGuidance}
 
@@ -416,8 +418,8 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     if (!isMulti) return base;
     const wordTarget =
       allTasks.length === 2
-        ? channel === "whatsapp" ? "80–120" : "120–160"
-        : channel === "whatsapp" ? "120–160" : "150–200";
+        ? channel === "whatsapp" ? "80 to 120" : "120 to 160"
+        : channel === "whatsapp" ? "120 to 160" : "150 to 200";
     return `${base}\n\nAddress all milestones in the message. Follow the multi-item structure guidance: one paragraph per milestone, connective phrases between paragraphs, single unified opener and closer. Do not produce separate messages. Target length: ${wordTarget} words.`;
   })();
 
@@ -485,6 +487,9 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     ? (resolvedRecipientSide === "vendor" ? "the seller" : "the buyer")
     : (resolvedRecipientSide === "vendor" ? "vendor's solicitor" : "purchaser's solicitor");
 
+  const vendorFirmName = tx.vendorSolicitorFirm?.name ?? null;
+  const purchaserFirmName = tx.purchaserSolicitorFirm?.name ?? null;
+
   const userMessageParts: string[] = [
     `Generate ${channel === "whatsapp" ? "a WhatsApp" : "an email"} chase message for the following situation.`,
     ``,
@@ -502,6 +507,15 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     ...(milestoneContextBlock
       ? [`# Milestone context`, ``, milestoneContextBlock, ``]
       : []),
+    ...(vendorFirmName || purchaserFirmName
+      ? [
+          `# Legal representatives`,
+          ...(vendorFirmName ? [`- Seller's solicitor: ${vendorFirmName}`] : []),
+          ...(purchaserFirmName ? [`- Buyer's solicitor: ${purchaserFirmName}`] : []),
+          `When you refer to the OTHER side's solicitor, you may name their firm where it reads naturally (e.g. "over to ${purchaserFirmName ?? vendorFirmName}"). Do not name the recipient's own firm back to them.`,
+          ``,
+        ]
+      : []),
     `# Chase history`,
     `- Number of previous chases for this milestone: ${maxChaseCount}`,
     ...(daysSinceLastContact !== null
@@ -511,13 +525,13 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     `# Recipient`,
     `- First name: ${recipientFirstName}`,
     `- Role: ${recipientRoleLabel}`,
-    ...(showCc ? [`- Also CC: ${ccRoleLabel} — they will see this message`] : []),
+    ...(showCc ? [`- Also CC: ${ccRoleLabel}, they will see this message`] : []),
   ];
 
   if (otherContacts) {
     userMessageParts.push(``);
     userMessageParts.push(
-      `# Other parties on this transaction (role context only — no names sent)`
+      `# Other parties on this transaction (role context only, no names sent)`
     );
     userMessageParts.push(otherContacts);
   }
@@ -554,7 +568,15 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
   }
 
   const claudeData = await claudeResponse.json();
-  const generated = claudeData.content?.[0]?.text ?? "";
+  // Belt-and-braces: the prompt forbids em/en dashes, but strip any that slip
+  // through so a dash NEVER reaches a client. A dash between digits keeps a
+  // hyphen (date/number ranges); anywhere else it becomes a comma.
+  const stripDashes = (s: string): string =>
+    s
+      .replace(/(\d)\s*[—–]\s*(\d)/g, "$1-$2")
+      .replace(/\s*[—–]+\s*/g, ", ")
+      .replace(/,\s*,\s*/g, ", ");
+  const generated = stripDashes(claudeData.content?.[0]?.text ?? "");
 
   return NextResponse.json({
     generated,
