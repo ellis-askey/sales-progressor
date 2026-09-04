@@ -98,7 +98,7 @@
     },
     {
       "path": "/api/cron/client-chase",
-      "schedule": "30 8 * * 1-6"
+      "schedule": "30 9 * * 1-6"
     },
     {
       "path": "/api/cron/solicitor-chase",
