@@ -23,6 +23,11 @@ export interface MilestoneContext {
   outstanding: string;
   alsoCalled: string;
   misframings: string;
+  // "How to refer to parties" row — the exact way to NAME this step to each
+  // recipient (e.g. to the seller's solicitor, "the DCP" / "the draft contract
+  // pack"). Injected into the prompt so the model keeps the ask on this step
+  // and calls it the right thing. Optional (not on every entry).
+  howToRefer?: string;
   // "Who is responsible" row, verbatim (e.g. "Buyer's solicitor", "Seller"). Not
   // present on every entry, so optional.
   responsible?: string;
@@ -79,10 +84,11 @@ function parseGlossary(content: string): Record<string, MilestoneContext> {
     const outstanding = fields['What "outstanding" means'];
     const alsoCalled = fields["Also called"];
     const misframings = fields["Common misframings to avoid"];
+    const howToRefer = fields["How to refer to parties"];
     const responsible = fields["Who is responsible"];
 
     if (tracks && outstanding && alsoCalled && misframings) {
-      result[code] = { tracks, outstanding, alsoCalled, misframings, responsible };
+      result[code] = { tracks, outstanding, alsoCalled, misframings, howToRefer, responsible };
     }
   }
 

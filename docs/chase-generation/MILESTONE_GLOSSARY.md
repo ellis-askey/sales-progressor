@@ -134,12 +134,12 @@ This is the baseline for "How to refer to parties." Per-milestone entries below 
 |---|---|
 | **Side** | Vendor (seller side) |
 | **Blocks exchange** | Yes |
-| **What this milestone tracks** | Whether the seller's solicitor has compiled and sent the draft contract pack — including the draft contract, title documents, and completed property information forms — to the buyer's solicitor. |
-| **What "outstanding" means** | The seller's solicitor has not yet issued the draft contract pack. We are chasing the seller's solicitor to send it to the buyer's solicitor so legal review and enquiries can begin. |
+| **What this milestone tracks** | Whether the seller's solicitor has compiled and issued the draft contract pack (the draft contract and title documents) to the buyer's solicitor, so legal review and enquiries can begin. |
+| **What "outstanding" means** | The seller's solicitor has not yet issued the draft contract pack. We are chasing the seller's solicitor to send it out to the buyer's solicitor so legal review and enquiries can begin. |
 | **Who is responsible** | Seller's solicitor |
 | **Also called** | "DCP", "draft contract pack", "contract pack", "the pack", "draft contract", "issuing contracts to the other side". |
 | **How to refer to parties** | To the seller: "the draft contract pack from your solicitor." To the seller's solicitor: "the DCP" or "the draft contract pack." To the buyer's solicitor: "the draft contract pack" or "the contract pack from the seller's side." To the buyer: "the contract pack" or "the legal pack." |
-| **Common misframings to avoid** | Don't treat this as automatic — solicitors often need a nudge once VM6 (seller forms back) is done. Also don't imply the seller can do this — the seller can only chase their solicitor. The seller's solicitor is the action-holder. |
+| **Common misframings to avoid** | The ask is the solicitor issuing the pack out to the buyer's side. Do not turn it into a chase about the earlier steps that fed into the pack. Don't imply the seller can issue it; the seller can only chase their own solicitor, who is the action-holder. |
 | **Typical chase context** | One of the most-chased milestones in any transaction. Once VM4, VM6 are done, the DCP should follow within days, but in practice often slips. Nudging the seller's solicitor directly is most effective. |
 
 ---

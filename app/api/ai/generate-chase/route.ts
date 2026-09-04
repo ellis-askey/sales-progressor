@@ -325,6 +325,12 @@ The recipient is on your team, not in your way. Even when the recipient is the p
 
 When time pressure is real, surface the SHARED stake (the exchange date, the chain, the lender's offer expiry, the momentum), not blame. The recipient and the progressor want the same outcome.
 
+# What you are chasing — stay on this exact step
+
+Each milestone in the context below has a "THE ASK" line. Your message asks the recipient to do, or confirm, exactly that step, and calls it the name given in "How to name it". Ask for that one thing.
+
+Never move the ask onto a different step. Do not chase the earlier steps that had to happen before this one, and do not chase the later steps that follow it. A neighbouring step may be mentioned in at most one short clause, and only when it is genuinely useful shared context. The thing you actually ask the recipient for is always THIS milestone's own action, never a prerequisite or a follow-on.
+
 # Voice
 
 Warm, human, British. Never corporate. Never American.
@@ -411,10 +417,14 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
       if (!ctx) return null;
       return [
         `${msName} (${msCode}):`,
-        `- What it tracks: ${ctx.tracks}`,
-        `- What outstanding means: ${ctx.outstanding}`,
+        // Lead with the ask — this is the single thing the message must be about.
+        `- THE ASK (what this message must be about): ${ctx.outstanding}`,
+        `- What this step is: ${ctx.tracks}`,
+        // The naming steer — kept the message on this step and calls it the
+        // right thing (previously parsed but dropped before the model saw it).
+        ...(ctx.howToRefer ? [`- How to name it with this recipient: ${ctx.howToRefer}`] : []),
         `- Also called: ${ctx.alsoCalled}`,
-        `- Common misframings to avoid: ${ctx.misframings}`,
+        `- Pitfalls to avoid: ${ctx.misframings}`,
       ].join("\n");
     })
     .filter((p): p is string => p !== null);
