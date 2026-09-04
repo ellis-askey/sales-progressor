@@ -16,6 +16,7 @@ import { setOnwardTypeFactsAction } from "@/app/actions/onward";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import type { MoveInfo } from "@/lib/services/portal-info";
@@ -189,7 +190,7 @@ const STANCE_OPTS = [{ value: "PREPARED", label: "Prepared to break the chain" }
 
 // ── the drawer ───────────────────────────────────────────────────────────────
 export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }: { data: IntroCallData; onClose: () => void; onCompleted: () => void; focusSide?: "vendor" | "purchaser" | null }) {
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [page, setPage] = useState<"script" | "questions">("script");
   const [closing, setClosing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -304,7 +305,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   };
 
   return createPortal(
-    <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
       <div
         role="dialog"
@@ -319,10 +320,11 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
         }}
       >
         {/* Header + page tabs */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", gap: 12, flexShrink: 0 }}>
-          <PhoneCall size={18} weight="fill" style={{ color: "var(--agent-coral)" }} />
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", flex: 1 }}>Intro call</p>
-          <div style={{ display: "inline-flex", background: "var(--agent-border-subtle)", borderRadius: 99, padding: 3 }}>
+        <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SheetBandHeader kicker="Intro call" title={data.address} icon={<PhoneCall size={18} weight="fill" />} />
+          </div>
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.18)", borderRadius: 99, padding: 3 }}>
             {(["script", "questions"] as const).map((p) => (
               <button key={p} type="button" onClick={() => setPage(p)}
                 style={{
@@ -335,7 +337,16 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
               </button>
             ))}
           </div>
-          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm"><X size={14} weight="bold" /></button>
+          <button
+            onClick={doClose}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <X size={14} weight="bold" />
+          </button>
         </div>
 
         {/* Sliding track (two pages) */}

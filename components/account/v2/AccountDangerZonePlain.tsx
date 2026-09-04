@@ -17,6 +17,8 @@ import { X, DownloadSimple, Trash, CaretRight } from "@phosphor-icons/react";
 import { deleteMyAccount } from "@/app/actions/delete-my-account";
 import { exportMyData } from "@/app/actions/export-my-data";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
   const [showModal, setShowModal] = useState(false);
@@ -25,6 +27,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
   const [isPending, startTransition] = useTransition();
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useAgentToast();
+  const { theme } = usePortalTheme();
 
   useEffect(() => {
     if (!showModal) return;
@@ -178,6 +181,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
 
       {showModal && typeof document !== "undefined" && createPortal(
         <div
+          data-theme={theme}
           style={{
             position: "fixed",
             inset: 0,
@@ -210,15 +214,12 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                height: 56,
-                padding: "0 20px",
-                borderBottom: "0.5px solid rgba(0,0,0,0.08)",
+                justifyContent: "space-between",
                 gap: 12,
+                ...SHEET_BAND_STYLE,
               }}
             >
-              <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-                Delete account
-              </p>
+              <SheetBandHeader kicker="Account" title="Delete account" />
               <button
                 onClick={closeModal}
                 aria-label="Close"
@@ -229,14 +230,15 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
                   justifyContent: "center",
                   width: 28,
                   height: 28,
+                  flexShrink: 0,
                   background: "transparent",
                   border: "none",
                   borderRadius: 6,
                   cursor: isPending ? "default" : "pointer",
-                  color: "#6b7280",
+                  color: "rgba(255,255,255,0.85)",
                   transition: "background 150ms",
                 }}
-                className="hover:bg-black/[0.05]"
+                className="hover:bg-white/[0.18]"
               >
                 <X size={14} weight="bold" />
               </button>

@@ -55,6 +55,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Drawer } from "@/components/ui/Drawer";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
 
@@ -174,10 +175,10 @@ function fmtSize(bytes: number): string {
 type PillTone = "complete" | "available" | "locked" | "not_required";
 
 const PILL_COLOURS: Record<PillTone, { bg: string; fg: string; border: string }> = {
-  complete:     { bg: "rgba(16,185,129,0.10)", fg: "#047857", border: "rgba(16,185,129,0.30)" },
-  available:    { bg: "rgba(59,130,246,0.10)", fg: "#1d4ed8", border: "rgba(59,130,246,0.30)" },
-  locked:       { bg: "rgba(100,116,139,0.10)", fg: "#475569", border: "rgba(100,116,139,0.25)" },
-  not_required: { bg: "rgba(100,116,139,0.06)", fg: "#64748b", border: "rgba(100,116,139,0.20)" },
+  complete:     { bg: "rgba(16,185,129,0.10)", fg: "var(--agent-success)", border: "rgba(16,185,129,0.30)" },
+  available:    { bg: "rgba(59,130,246,0.10)", fg: "var(--agent-info)", border: "rgba(59,130,246,0.30)" },
+  locked:       { bg: "rgba(100,116,139,0.10)", fg: "var(--agent-text-secondary)", border: "rgba(100,116,139,0.25)" },
+  not_required: { bg: "rgba(100,116,139,0.06)", fg: "var(--agent-text-muted)", border: "rgba(100,116,139,0.20)" },
 };
 
 const PILL_LABELS: Record<PillTone, string> = {
@@ -341,23 +342,19 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
       ariaLabel={data ? header : "Previous sale record"}
       size="xl"
       zLayer="escalated"
+      closeTone="onDark"
     >
       <div
         data-theme={theme}
         data-night={isNight ? "" : undefined}
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        <Drawer.Header style={{ padding: "0 20px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {header}
-            </p>
-            {data?.round.archivedAt && (
-              <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
-                Fell through {fmtShortDate(data.round.archivedAt)}
-              </p>
-            )}
-          </div>
+        <Drawer.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader
+            kicker="Previous sale"
+            title={header}
+            subtitle={data?.round.archivedAt ? `Fell through ${fmtShortDate(data.round.archivedAt)}` : undefined}
+          />
         </Drawer.Header>
 
         {/* Sale-switcher pill group. Only renders when there's more than
@@ -376,7 +373,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
               alignItems: "center",
               gap: 6,
               padding: "10px 20px",
-              borderBottom: "0.5px solid rgba(0,0,0,0.08)",
+              borderBottom: "0.5px solid var(--agent-border-default)",
               overflowX: "auto",
               flexShrink: 0,
             }}
@@ -737,6 +734,7 @@ function ChainAtWithdrawalSection({
   snapshot: ChainSnapshot;
   notifications: ArchivedRoundPayload["round"]["chainNotifications"];
 }) {
+  const { isNight } = usePortalTheme();
   // Order neighbours by position descending so the chain renders top-down
   // (highest position = top of chain). Highlight ourPosition.
   const sorted = [...snapshot.neighbours].sort((a, b) => b.position - a.position);
@@ -780,7 +778,7 @@ function ChainAtWithdrawalSection({
                 background: "rgba(245,158,11,0.10)",
                 border: "0.5px solid rgba(245,158,11,0.25)",
                 fontSize: 11,
-                color: "rgb(146, 78, 4)",
+                color: "var(--agent-warning)",
               }}
             >
               <strong>Chain split.</strong> The sales below were separated on {fmtDate(snapshot.detachedSegment.splitAt)} and now stand as their own chain.
@@ -803,7 +801,7 @@ function ChainAtWithdrawalSection({
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,
-                  background: isUs ? "rgba(229,80,46,0.06)" : "var(--agent-surface-glass)",
+                  background: isUs ? (isNight ? "rgba(255,122,94,0.12)" : "rgba(229,80,46,0.06)") : "var(--agent-surface-glass)",
                   border: isUs ? "0.5px solid rgba(229,80,46,0.25)" : "0.5px solid var(--agent-border-default)",
                 }}
               >
@@ -841,7 +839,7 @@ function ChainAtWithdrawalSection({
                         style={{
                           padding: "6px 10px",
                           borderRadius: 8,
-                          background: "rgba(15,23,42,0.04)",
+                          background: isNight ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)",
                           fontSize: 11,
                           color: "var(--agent-text-secondary)",
                           display: "flex",

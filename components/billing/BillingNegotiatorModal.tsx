@@ -18,6 +18,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { X } from "@phosphor-icons/react";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Props = {
   open: boolean;
@@ -66,16 +68,32 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
       <div
         style={{
           background: "white", borderRadius: 12, maxWidth: 480, width: "100%",
-          padding: 28, boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+          overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "#111827" }}>
-          Billing access is for directors
-        </h2>
-        <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.55, color: "#4b5563" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, ...SHEET_BAND_STYLE }}>
+          <SheetBandHeader kicker="Billing" title="Billing access is for directors" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28, flexShrink: 0, borderRadius: 8,
+              background: "transparent", border: "none", cursor: "pointer",
+              color: "rgba(255,255,255,0.85)", transition: "background 150ms",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <X size={16} weight="bold" />
+          </button>
+        </div>
+        <div style={{ padding: 28 }}>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#4b5563" }}>
           Billing setup, invoices, and payment management are handled by your agency's
           director. If you're the right person to handle this, you can take the director
-          role yourself — or invite someone else.
+          role yourself, or invite someone else.
         </p>
 
         {error && (
@@ -140,6 +158,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
           >
             Go back
           </button>
+        </div>
         </div>
       </div>
     </div>

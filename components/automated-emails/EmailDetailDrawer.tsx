@@ -13,8 +13,8 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Drawer } from "@/components/ui/Drawer";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { LinkArrow } from "@/components/ui/LinkArrow";
-import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { getEmailForPreview, updateEmailPayload } from "@/app/actions/automation";
@@ -136,13 +136,9 @@ export function EmailDetailDrawer({ row, onClose, onChanged }: { row: EmailRow |
   const canEdit = preview?.canEdit ?? false;
 
   return (
-    <Drawer open={!!row} onClose={onClose} ariaLabel={`Email detail: ${row.subject}`} size="lg">
-      <Drawer.Header>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span className="agent-eyebrow">{row.category === "chase" ? "Chase" : "Notification"}</span>
-          <Pill glass tone={statusMeta.tone} size="sm">{statusMeta.label}</Pill>
-        </div>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)" }}>{row.subject}</h2>
+    <Drawer open={!!row} onClose={onClose} ariaLabel={`Email detail: ${row.subject}`} size="lg" closeTone="onDark">
+      <Drawer.Header style={SHEET_BAND_STYLE}>
+        <SheetBandHeader kicker="Auto emails" title={row.subject} subtitle={statusMeta.label} />
       </Drawer.Header>
 
       <Drawer.Body>

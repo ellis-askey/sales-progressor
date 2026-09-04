@@ -2,6 +2,7 @@
 
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 interface SurveyNrConfirmModalProps {
   onConfirm: () => void;
@@ -19,12 +20,11 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
       size="sm"
       dismissOnBackdrop={false}
       showCloseButton={false}
+      closeTone="onDark"
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <Modal.Header>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
-            Skip the private survey?
-          </p>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Survey" title="Skip the private survey?" />
         </Modal.Header>
 
         <Modal.Body>

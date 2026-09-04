@@ -25,6 +25,7 @@ import { X, Pencil } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { updateEmailPayload, getEmailForPreview } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type PreviewData = NonNullable<Awaited<ReturnType<typeof getEmailForPreview>> & { ok: true }>["data"];
 
@@ -129,21 +130,40 @@ export function EmailPreviewModal({ emailId, onClose, onSaved }: Props) {
           flexDirection: "column",
         }}
       >
-        {/* Header */}
+        {/* Header — Ribbon coral band */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "16px 20px",
-            borderBottom: "0.5px solid rgba(15,23,42,0.08)",
+            gap: 12,
+            ...SHEET_BAND_STYLE,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
             flexShrink: 0,
           }}
         >
-          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
-            {mode === "edit" ? "Edit email" : "Email preview"}
-          </p>
-          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
+          <SheetBandHeader kicker="Email" title={mode === "edit" ? "Edit email" : "Email preview"} />
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              flexShrink: 0,
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              background: "transparent",
+              color: "rgba(255,255,255,0.85)",
+              cursor: "pointer",
+              transition: "background 150ms",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
             <X size={16} weight="bold" />
           </button>
         </div>

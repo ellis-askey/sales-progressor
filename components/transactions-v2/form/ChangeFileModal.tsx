@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Props = {
   onConfirm: () => void;
@@ -41,19 +42,18 @@ export function ChangeFileModal({ onConfirm, onCancel }: Props) {
           maxWidth: 360,
           margin: "0 16px",
           boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
+          overflow: "hidden",
           animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid var(--nv2-border-dark)" }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--nv2-text-primary)", margin: 0 }}>
-            Change memo?
-          </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, ...SHEET_BAND_STYLE }}>
+          <SheetBandHeader kicker="Memo" title="Change memo?" />
           <button
             onClick={onCancel}
             aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "var(--nv2-text-muted)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nv2-bg-hover)")}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <X size={16} weight="bold" />

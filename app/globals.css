@@ -2308,3 +2308,68 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   .chain-seg-ind, .chain-slot { transition: none; }
   .chain-node-enter { animation: none; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Dark mode inside PORTALED overlays (modals / drawers). 2026-09-04.
+
+   Modals + drawers createPortal to <body>, escaping .agent-shell-root, so the
+   shell-scoped dark token overrides + input styles never reached them — dark
+   overlays rendered with light surfaces + white inputs. Every overlay stamps
+   `data-night` on its portal wrapper, so re-apply the dark token set + input
+   styling here, keyed on [data-night] under a dark <html>. Custom properties
+   inherit, so setting them on the wrapper cascades into the card + body. Brand
+   tokens (--agent-coral*) still come from the injected brandThemeCss on
+   [data-theme="custom"], which these wrappers also carry.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] [data-night] {
+  --agent-surface-elevated: rgba(30, 41, 59, 0.95);
+  --agent-surface-glass:    rgba(15, 23, 42, 0.85);
+  --agent-surface-subtle:   rgba(30, 41, 59, 0.40);
+  --agent-surface-nested:   rgba(255, 255, 255, 0.05);
+  --agent-surface-nested-strong: rgba(255, 255, 255, 0.08);
+  --agent-bg-base:  #111827;
+  --agent-bg-mid:   #1A2332;
+  --agent-bg-warm:  #1E293B;
+  --agent-bg-deep:  #0D1421;
+  --agent-bg-paper: #1C2637;
+  --agent-text-primary:   #EFF6FF;
+  --agent-text-secondary: #94A3B8;
+  --agent-text-muted:     #64748B;
+  --agent-text-tertiary:  #475569;
+  --agent-text-disabled:  rgba(239, 246, 255, 0.35);
+  --agent-border-default: rgba(255, 255, 255, 0.08);
+  --agent-border-strong:  rgba(255, 255, 255, 0.16);
+  --agent-border-subtle:  rgba(255, 255, 255, 0.05);
+  --agent-banner-bg:      rgba(30, 41, 59, 0.92);
+  --agent-hero-track:     rgba(255, 255, 255, 0.13);
+  /* Dark-mode Ribbon header ("Coral wash"): a dark band with a soft coral wash
+     + a coral kicker, instead of the bright coral band used in light. Drives
+     SHEET_BAND_STYLE / SheetBandHeader across every drawer + modal. */
+  --sheet-band-bg:     linear-gradient(135deg, rgba(255,107,74,0.24) 0%, rgba(30,41,59,0.72) 62%);
+  --sheet-band-kicker: var(--agent-coral);
+}
+:root[data-theme="dark"] [data-night] .agent-input,
+:root[data-theme="dark"] [data-night] .agent-textarea,
+:root[data-theme="dark"] [data-night] .glass-input {
+  background: rgba(30, 41, 59, 0.70);
+  color: #EFF6FF;
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:root[data-theme="dark"] [data-night] .agent-input:focus,
+:root[data-theme="dark"] [data-night] .agent-textarea:focus,
+:root[data-theme="dark"] [data-night] .glass-input:focus {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--agent-coral-deep);
+}
+:root[data-theme="dark"] [data-night] .agent-input::placeholder,
+:root[data-theme="dark"] [data-night] .agent-textarea::placeholder,
+:root[data-theme="dark"] [data-night] .glass-input::placeholder {
+  color: #475569;
+}
+/* Nested/elevated surface fills used by inset field wells + card-on-card. */
+:root[data-theme="dark"] [data-night] .glass-card {
+  background:
+    linear-gradient(180deg, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.92) 100%) padding-box,
+    linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 50%, rgba(80,100,140,0.10) 100%) border-box;
+  border: 1px solid transparent;
+}

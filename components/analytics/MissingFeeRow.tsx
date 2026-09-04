@@ -7,6 +7,8 @@ import Link from "next/link";
 import { saveAgentFeeAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Props = {
   id: string;
@@ -18,6 +20,7 @@ type Props = {
 
 export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignment = false, txBasePath }: Props) {
   const router = useRouter();
+  const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [feeType, setFeeType] = useState<"amount" | "percent">("amount");
@@ -195,6 +198,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
           {mounted && open && !isMobile && popoverPos && createPortal(
             <div
               ref={panelRef}
+              data-theme={theme} data-night={isNight ? "" : undefined}
               className="agent-dropdown-in"
               style={{
                 position: "fixed",
@@ -208,11 +212,15 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
                 borderRadius: 12,
                 boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
                 border: "0.5px solid rgba(255,255,255,0.60)",
-                padding: 14, width: 230,
+                overflow: "hidden", width: 230,
               }}
             >
-              <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>Set agent fee</p>
-              {feeForm}
+              <div style={{ ...SHEET_BAND_STYLE, padding: "12px 14px" }}>
+                <SheetBandHeader kicker="Fee" title="Set agent fee" />
+              </div>
+              <div style={{ padding: 14 }}>
+                {feeForm}
+              </div>
             </div>,
             document.body
           )}
@@ -230,6 +238,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
       {/* Mobile bottom sheet */}
       {mounted && open && isMobile && createPortal(
         <div
+          data-theme={theme} data-night={isNight ? "" : undefined}
           style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.40)" }}
           onClick={handleClose}
         >
@@ -237,16 +246,17 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
             style={{
               position: "absolute", bottom: 0, left: 0, right: 0,
               background: "white", borderRadius: "20px 20px 0 0",
-              padding: "20px 24px 36px", maxHeight: "80vh", overflowY: "auto",
+              maxHeight: "80vh", overflowY: "auto", overflowX: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e2e8f0", margin: "0 auto 16px" }} />
-            <p style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Set agent fee</p>
-            <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {propertyAddress}
-            </p>
-            {feeForm}
+            <div style={{ ...SHEET_BAND_STYLE, padding: "12px 24px 14px" }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.6)", margin: "0 auto 12px" }} />
+              <SheetBandHeader kicker="Fee" title="Set agent fee" subtitle={propertyAddress} />
+            </div>
+            <div style={{ padding: "16px 24px 36px" }}>
+              {feeForm}
+            </div>
           </div>
         </div>,
         document.body

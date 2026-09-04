@@ -35,12 +35,50 @@
 "use client";
 
 import type { ReactNode, HTMLAttributes } from "react";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
+import { classFor, type GlassVariantId } from "@/lib/glass/variants";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type Size = "sm" | "md" | "lg" | "xl";
 type ZLayer = "default" | "escalated" | "deep";
+
+// Sticky-footer treatment. "default" is today's hairline-over-surface look;
+// "glass" is a frosted, theme-aware bar that reads as a distinct raised layer.
+// Threaded to Drawer.Footer via context so a single default here (or a per-
+// instance prop) cascades to every footer without touching call sites.
+export type DrawerFooterVariant = "default" | "glass";
+
+// Chrome selections that the compound Header/Footer parts read from their
+// parent Drawer. Kept internal — consumers set them via Drawer props. isNight
+// lets the glass footer pick a light vs dark translucency.
+const DrawerChromeContext = createContext<{ footerVariant: DrawerFooterVariant; isNight: boolean }>({
+  footerVariant: "default",
+  isNight: false,
+});
+
+// The "glass" sticky-footer treatment, modelled on the portal bottom nav bar:
+// a thin translucent surface that genuinely BLURS the body scrolling behind it
+// (not the near-opaque bar) plus a hairline top edge and a soft lift shadow.
+// Theme-aware via isNight since a translucent tint can't come from one token.
+export function glassFooterStyle(isNight: boolean): import("react").CSSProperties {
+  return isNight
+    ? {
+        borderTop: "1px solid rgba(255,255,255,0.10)",
+        background: "rgba(18,24,38,0.42)",
+        backdropFilter: "blur(20px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.5)",
+        boxShadow: "0 -6px 22px rgba(0,0,0,0.28)",
+      }
+    : {
+        borderTop: "1px solid rgba(255,255,255,0.60)",
+        background: "rgba(255,255,255,0.42)",
+        backdropFilter: "blur(20px) saturate(1.6)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.6)",
+        boxShadow: "0 -6px 22px rgba(15,23,42,0.05)",
+      };
+}
 
 // Widths per MODAL_DRAWER_SYSTEM.md §1.1
 const sizeWidth: Record<Size, string> = {
@@ -73,6 +111,16 @@ export type DrawerProps = {
   // pass isTopmost={false} to suppress the coral accent line so the two
   // accents don't visually collide.
   isTopmost?: boolean;
+  // Optional surface treatment. When set, the panel takes one of the glass
+  // variant looks (app/styles/glass.css) instead of the hardcoded frosted
+  // white. Undefined = today's exact look. Used by the /dev/sheets design
+  // bench to trial surfaces before one is baked in as the default.
+  surfaceVariant?: GlassVariantId;
+  // Sticky-footer treatment (see DrawerFooterVariant). Undefined = "default".
+  footerVariant?: DrawerFooterVariant;
+  // Close-button contrast. "onDark" renders a white X for coral/dark band
+  // headers (see SheetHeader). Default reads on a light header.
+  closeTone?: "default" | "onDark";
   children: ReactNode;
 };
 
@@ -85,10 +133,21 @@ export function Drawer({
   dismissOnBackdrop = true,
   showCloseButton = true,
   isTopmost = true,
+  surfaceVariant,
+  // Default to the portal-style blur bar app-wide (2026-09-04). Pass
+  // footerVariant="default" on a specific drawer to opt back to the hairline.
+  footerVariant = "glass",
+  closeTone = "default",
   children,
 }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // The drawer portals to document.body — a sibling of .agent-shell-root — so
+  // it inherits none of the shell's --agent-* theme tokens. Re-stamp the active
+  // theme (+ dark mode) on the portal root so every var(--agent-*) resolves
+  // (matches the Modal primitive). Without this, brand tokens like
+  // --agent-coral-deep are empty inside a drawer.
+  const { theme, isNight } = usePortalTheme();
 
   // Focus restoration on close. Same pattern as Modal.
   useEffect(() => {
@@ -149,7 +208,9 @@ export function Drawer({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="agent-backdrop-overlay"
+      className="agent-backdrop-overlay nv2-night"
+      data-theme={theme}
+      data-night={isNight ? "" : undefined}
       onClick={handleBackdropClick}
       style={{
         position: "fixed",
@@ -161,7 +222,10 @@ export function Drawer({
         ref={panelRef}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="agent-drawer-in"
+        // When a surfaceVariant is set, the glass-vNN class owns the
+        // background / blur / side borders; otherwise the inline frosted
+        // white below is today's exact look.
+        className={`agent-drawer-in${surfaceVariant ? " " + classFor(surfaceVariant) : ""}`}
         style={{
           position: "absolute",
           top: 0,
@@ -169,12 +233,20 @@ export function Drawer({
           height: "100vh",
           width: "100%",
           maxWidth: sizeWidth[size],
-          background: "rgba(255, 255, 255, 0.92)",
-          backdropFilter: "blur(32px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(32px) saturate(1.8)",
-          borderLeft: "1px solid rgba(255,255,255,0.5)",
+          ...(surfaceVariant
+            ? {}
+            : {
+                // Dark-aware default surface (drawers portal to <body>, so this
+                // can't come from a shell-scoped token).
+                background: isNight ? "rgba(20, 27, 42, 0.94)" : "rgba(255, 255, 255, 0.92)",
+                backdropFilter: "blur(32px) saturate(1.8)",
+                WebkitBackdropFilter: "blur(32px) saturate(1.8)",
+                borderLeft: isNight ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.5)",
+              }),
           // 2px coral accent line on top — suppressed when this drawer
           // is sitting behind another drawer (stacked-drawer rule §1.1).
+          // Kept inline (overrides any variant border on the top edge) so the
+          // brand accent survives whichever surface is chosen.
           borderTop: isTopmost ? "2px solid var(--agent-coral-deep, #FF6B4A)" : "none",
           boxShadow: "-8px 0 40px rgba(0, 0, 0, 0.20)",
           display: "flex",
@@ -200,17 +272,19 @@ export function Drawer({
               border: "none",
               borderRadius: 8,
               cursor: "pointer",
-              color: "var(--agent-text-muted)",
+              color: closeTone === "onDark" ? "rgba(255,255,255,0.85)" : "var(--agent-text-muted)",
               transition: "background 150ms ease",
               zIndex: 1,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(15,23,42,0.06)"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = closeTone === "onDark" ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.06)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             <X size={16} weight="bold" />
           </button>
         )}
-        {children}
+        <DrawerChromeContext.Provider value={{ footerVariant, isNight }}>
+          {children}
+        </DrawerChromeContext.Provider>
       </div>
     </div>,
     document.body,
@@ -275,17 +349,22 @@ export function DrawerFooter({
   style,
   ...rest
 }: HTMLAttributes<HTMLDivElement>) {
+  const { footerVariant, isNight } = useContext(DrawerChromeContext);
+  const variantStyle: React.CSSProperties =
+    footerVariant === "glass" ? glassFooterStyle(isNight) : {
+      borderTop: "1px solid rgba(255, 255, 255, 0.30)",
+      background: "rgba(255, 255, 255, 0.20)",
+    };
   return (
     <div
       className={className}
       style={{
         flexShrink: 0,
         padding: "16px 24px",
-        borderTop: "1px solid rgba(255, 255, 255, 0.30)",
-        background: "rgba(255, 255, 255, 0.20)",
         display: "flex",
         justifyContent: "flex-end",
         gap: 8,
+        ...variantStyle,
         ...style,
       }}
       {...rest}

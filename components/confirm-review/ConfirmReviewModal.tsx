@@ -27,6 +27,8 @@ import {
   type RecipientDigest,
 } from "@/app/actions/confirm-review-queue";
 import { updateEmailPayload } from "@/app/actions/automation";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Props = {
   open: boolean;
@@ -74,6 +76,7 @@ function groupByRecipient(items: PendingQueueItem[]): RecipientGroup[] {
 }
 
 export function ConfirmReviewModal({ open, onClose, transactionId, items, digests, loading, onChange }: Props) {
+  const { theme, isNight } = usePortalTheme();
   const groups = useMemo(() => groupByRecipient(items), [items]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [busy, startTransition] = useTransition();
@@ -157,6 +160,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
       <div
         role="dialog"
         aria-label="Review outgoing client updates"
+        data-theme={theme} data-night={isNight ? "" : undefined}
         style={{
           position: "fixed",
           top: "50%",
@@ -173,30 +177,26 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
           overflow: "hidden",
         }}
       >
-        {/* Header */}
+        {/* Header — Ribbon coral band */}
         <header style={{
-          padding: "16px 20px",
-          borderBottom: "0.5px solid rgba(15, 23, 42, 0.08)",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          ...SHEET_BAND_STYLE,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
         }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Client updates
-            </p>
-            <h2 style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-              Review before send
-            </h2>
-          </div>
+          <SheetBandHeader kicker="Client updates" title="Review before send" />
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
             style={{
+              flexShrink: 0,
               width: 32, height: 32, borderRadius: 10,
               display: "inline-flex", alignItems: "center", justifyContent: "center",
-              border: "0.5px solid rgba(15, 23, 42, 0.10)",
-              background: "#fff", color: "#64748b", cursor: "pointer",
+              border: "none",
+              background: "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer",
+              transition: "background 150ms",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <X size={14} weight="bold" />
           </button>
@@ -853,9 +853,11 @@ function ConfirmCancelDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { theme, isNight } = usePortalTheme();
   return (
     <div
       onClick={onCancel}
+      data-theme={theme} data-night={isNight ? "" : undefined}
       style={{
         // Nested confirm above the review modal (1001). 2026-08-09.
         position: "fixed", inset: 0, zIndex: 1010,
@@ -869,14 +871,19 @@ function ConfirmCancelDialog({
         style={{
           background: "#fff", borderRadius: 14,
           maxWidth: 400, width: "100%",
-          padding: "18px 20px 16px",
+          overflow: "hidden",
           boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
         }}
       >
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-          {scope === "all" ? "Cancel all queued client updates?" : `Don't send to ${recipientName}?`}
-        </h3>
-        <p style={{ margin: "6px 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+        {/* Header — Ribbon coral band */}
+        <div style={{ ...SHEET_BAND_STYLE }}>
+          <SheetBandHeader
+            kicker="Cancel updates"
+            title={scope === "all" ? "Cancel all queued client updates?" : `Don't send to ${recipientName}?`}
+          />
+        </div>
+        <div style={{ padding: "16px 20px" }}>
+        <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
           {scope === "all"
             ? `This stops all ${updateCount} queued update${updateCount === 1 ? "" : "s"} across every recipient.`
             : `This stops ${updateCount === 1 ? "the 1 update" : `all ${updateCount} updates`} queued for ${recipientName}.`}
@@ -904,6 +911,7 @@ function ConfirmCancelDialog({
               opacity: busy ? 0.6 : 1,
             }}
           >{busy ? "…" : (scope === "all" ? "Cancel batch" : "Don't send")}</button>
+        </div>
         </div>
       </div>
     </div>

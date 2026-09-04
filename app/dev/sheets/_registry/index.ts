@@ -3,11 +3,13 @@
 // the section order on the page.
 
 import type { SheetEntry } from "./types";
+import { DESIGN_BENCH_ENTRIES } from "./design-bench";
 import { DRAWER_ENTRIES } from "./drawers";
 import { MODAL_ENTRIES } from "./modals";
 import { NOTIFICATION_ENTRIES } from "./notifications";
 
 export const REGISTRY: SheetEntry[] = [
+  ...DESIGN_BENCH_ENTRIES,
   ...DRAWER_ENTRIES,
   ...MODAL_ENTRIES,
   ...NOTIFICATION_ENTRIES,

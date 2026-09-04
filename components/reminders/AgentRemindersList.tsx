@@ -20,7 +20,8 @@ import { UrgencyPill, SidePill, BlocksExchangePill, ManualPill, type UrgencyBuck
 import { AutoChaseCountdown } from "@/components/reminders/AutoChaseCountdown";
 import type { AutopilotStatus } from "@/lib/services/reminder-autopilot";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
-import { withSolicitorRecipients, whoToChase, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
+import { withSolicitorRecipients, whoToChase, joinNames, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
+import { renderChaseCardCopy } from "@/lib/chase/chase-card-copy";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 type MilestoneInfo = Record<string, { outstanding: string; responsible: "client" | "solicitor" | null }>;
@@ -462,6 +463,16 @@ function SplitFileCard({
             vendorSolicitor,
             purchaserSolicitor,
           });
+          // Fill the {Client Names} / {Solicitor Firm} tokens for this file+side.
+          // Fall back to the generic party wording when nothing is named yet.
+          const clientRole = isBuyer ? "purchaser" : "vendor";
+          const clientList = contacts.filter((c) => c.roleType === clientRole).map((c) => c.name);
+          const clientNames = clientList.length > 0 ? joinNames(clientList) : (isBuyer ? "the buyer" : "the seller");
+          const sideSol = isBuyer ? purchaserSolicitor : vendorSolicitor;
+          const solicitorFirm = sideSol?.firm?.name || sideSol?.name || (isBuyer ? "the buyer's solicitor" : "the seller's solicitor");
+          // Singular wording when there's zero or one named principal on the side
+          // ("the seller" fallback reads singular too); plural for joint clients.
+          const copy = renderChaseCardCopy(code, clientNames, solicitorFirm, clientList.length <= 1);
           const blocksExchange = !!log.reminderRule.anchorMilestone?.blocksExchange;
           const lastComm = task.communications[0];
           const chaseHistory = (() => {
@@ -493,15 +504,22 @@ function SplitFileCard({
                   {blocksExchange && <BlocksExchangePill />}
                   {autopilot?.get(log.id)?.kind === "manual" && <ManualPill />}
                 </div>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
+                {/* Desktop: fuller sentence-style step name (variables filled).
+                    Mobile: the terse milestone name. Both in the DOM; CSS toggles. */}
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+                  <span className="rem-step-desktop">{copy?.step ?? name}</span>
+                  <span className="rem-step-mobile">{name}</span>
+                </p>
                 {who && (
-                  <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                  // Mobile-only: on desktop the step name + supporting sentence already
+                  // name the party, so this quick who-scan is redundant there.
+                  <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
                     Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
                   </p>
                 )}
-                {info?.outstanding && (
+                {(copy?.line ?? info?.outstanding) && (
                   <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                    {info.outstanding}
+                    {copy?.line ?? info?.outstanding}
                   </p>
                 )}
                 <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
@@ -617,7 +635,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, autopilot: true });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, autopilot: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
@@ -882,12 +900,32 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           for (const l of fileLogs) { const g = classifyActive(l, now, upcomingCutoffStr) ?? "upcoming"; if (rankOf[g] < rankOf[best]) best = g; }
           return best;
         };
-        const manualLogs = worstFirst(filteredActive.filter((l) => autopilot?.get(l.id)?.kind !== "auto"));
+        // Manual (yours) splits by urgency: due-today/overdue/escalated is "Needs
+        // you"; the next 3 working days is "Coming up" (collapsed); anything further
+        // out is hidden until it approaches (classifyActive returns null past the
+        // window). Autopilot shows the whole forward pipeline, any date.
+        const manual = filteredActive.filter((l) => autopilot?.get(l.id)?.kind !== "auto");
+        const isDueNow = (l: AgentReminderLog) => { const g = classifyActive(l, now, upcomingCutoffStr); return g === "escalated" || g === "overdue" || g === "due_today"; };
+        const needsYouLogs = worstFirst(manual.filter(isDueNow));
+        const comingUpLogs = worstFirst(manual.filter((l) => classifyActive(l, now, upcomingCutoffStr) === "upcoming"));
         const autoLogs = worstFirst(filteredActive.filter((l) => autopilot?.get(l.id)?.kind === "auto"));
         const groups = [
-          { key: "needs-you", label: "Needs you", sub: "the system won't chase these", logs: manualLogs, you: true },
+          { key: "needs-you", label: "Needs you", sub: "due today or overdue", logs: needsYouLogs, you: true },
+          { key: "coming-up", label: "Coming up", sub: "yours over the next few working days", logs: comingUpLogs, you: true },
           { key: "autopilot", label: "On autopilot", sub: "the system's got these", logs: autoLogs, you: false },
         ];
+        // There are active reminders on the queue, but they're all manual and
+        // further out than the window, so nothing surfaces yet. Say so rather than
+        // leaving a blank (they'll appear in "Coming up" as they approach).
+        if (hasActiveResults && needsYouLogs.length === 0 && comingUpLogs.length === 0 && autoLogs.length === 0) {
+          return (
+            <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
+                Nothing needs you right now. Reminders appear here as they come due.
+              </p>
+            </div>
+          );
+        }
         return groups.map((grp) => {
           if (grp.logs.length === 0) return null;
           const isCollapsed = collapsed[grp.key];

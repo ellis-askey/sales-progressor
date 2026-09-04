@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
-import { titleCase, normalizePhone } from "@/lib/utils";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
 type Firm = { id: string; name: string };
@@ -36,8 +37,8 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
-  function blurFirm() { touch("firm"); setFirmName((v) => titleCase(v)); }
-  function blurName() { touch("name"); setHandlerName((v) => titleCase(v)); }
+  function blurFirm() { touch("firm"); setFirmName((v) => titleCaseKeepAcronyms(v)); }
+  function blurName() { touch("name"); setHandlerName((v) => titleCaseKeepAcronyms(v)); }
   function blurPhone() { touch("phone"); setHandlerPhone((v) => normalizePhone(v)); }
   function blurEmail() {
     touch("email");
@@ -73,9 +74,9 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: titleCase(firmName),
+          name: titleCaseKeepAcronyms(firmName),
           handler: handlerName.trim()
-            ? { name: titleCase(handlerName), phone: normalizePhone(handlerPhone), email: handlerEmail.trim().toLowerCase() || null }
+            ? { name: titleCaseKeepAcronyms(handlerName), phone: normalizePhone(handlerPhone), email: handlerEmail.trim().toLowerCase() || null }
             : null,
         }),
       });
@@ -102,10 +103,11 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
       size="md"
       zLayer="deep"
       dismissOnBackdrop={false}
+      closeTone="onDark"
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <Modal.Header>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add mortgage broker</h2>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Mortgage broker" title="Add broker" />
         </Modal.Header>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>

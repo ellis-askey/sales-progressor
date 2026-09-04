@@ -9,6 +9,7 @@
 
 import { Warning } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { SaleDetailsDeltaPreview } from "./SaleDetailsDeltaPreview";
 import type { SaleDetailsDelta } from "@/app/actions/transactions";
 
@@ -36,11 +37,9 @@ export function SaleDetailChangeModal({
   const hasStepChanges = !!delta && (delta.becomingNr.length > 0 || delta.becomingRequired.length > 0);
 
   return (
-    <Modal open={open} onClose={onClose} ariaLabel={title} size="md" dismissOnBackdrop={!confirming}>
-      <Modal.Header>
-        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)", paddingRight: 28 }}>
-          {title}
-        </p>
+    <Modal open={open} onClose={onClose} ariaLabel={title} size="md" dismissOnBackdrop={!confirming} closeTone="onDark">
+      <Modal.Header style={SHEET_BAND_STYLE}>
+        <SheetBandHeader kicker="Sale details" title={title} />
       </Modal.Header>
 
       <Modal.Body>

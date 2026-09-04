@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 export function DuplicateAddressModal({
   address,
@@ -58,11 +59,9 @@ export function DuplicateAddressModal({
         }}
       >
         {/* Header — X present, 2b dismissible */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid var(--nv2-border-dark)" }}>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-            Address already on file
-          </p>
-          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, ...SHEET_BAND_STYLE }}>
+          <SheetBandHeader kicker="Duplicate" title="Address already on file" />
+          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md" style={{ color: "rgba(255,255,255,0.85)", flexShrink: 0 }}>
             <X size={16} weight="bold" />
           </button>
         </div>

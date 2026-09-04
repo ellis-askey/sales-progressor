@@ -34,6 +34,7 @@ import {
   CaretDown,
 } from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import {
   loadEmailSettings,
@@ -318,21 +319,14 @@ function EmailSettingsDrawer({
       : "Temporarily stop reminders, automatic chases and the file's timers. Nothing will be sent until you resume it.";
 
   return (
-    <Drawer open={open} onClose={onClose} ariaLabel="Email settings for this file" size="md" zLayer="escalated">
-      <Drawer.Header>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, paddingRight: 28 }}>
-          <span style={{ color: "var(--agent-coral, #FF6B4A)", flexShrink: 0, marginTop: 2, display: "inline-flex" }}>
-            <EnvelopeSimple size={22} weight="regular" />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-              Email settings
-            </h2>
-            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-              Control the emails and automatic chasing for this sale.
-            </p>
-          </div>
-        </div>
+    <Drawer open={open} onClose={onClose} ariaLabel="Email settings for this file" size="md" zLayer="escalated" closeTone="onDark">
+      <Drawer.Header style={SHEET_BAND_STYLE}>
+        <SheetBandHeader
+          kicker="Auto emails"
+          icon={<EnvelopeSimple size={20} weight="regular" />}
+          title="Email settings"
+          subtitle="Control the emails and automatic chasing for this sale."
+        />
       </Drawer.Header>
       <Drawer.Body>
         {!state ? (

@@ -9,6 +9,8 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 export function AccountDrawer({
   open,
@@ -24,6 +26,7 @@ export function AccountDrawer({
   children: React.ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { theme, isNight } = usePortalTheme();
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +56,7 @@ export function AccountDrawer({
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      data-theme={theme} data-night={isNight ? "" : undefined}
       style={{ position: "fixed", inset: 0, zIndex: 120, display: "flex", justifyContent: "flex-end" }}
     >
       <div
@@ -66,8 +70,8 @@ export function AccountDrawer({
           position: "relative",
           height: "100%",
           width: "min(520px, 100vw)",
-          background: "#fff",
-          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
+          background: isNight ? "#161d2e" : "#fff",
+          borderLeft: isNight ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-16px 0 48px rgba(20,14,10,0.14)",
           display: "flex",
           flexDirection: "column",
@@ -77,18 +81,16 @@ export function AccountDrawer({
       >
         <div
           style={{
+            ...SHEET_BAND_STYLE,
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "space-between",
             gap: 16,
-            padding: "18px 22px",
-            borderBottom: "0.5px solid rgba(0,0,0,0.08)",
             flexShrink: 0,
           }}
         >
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>{title}</h2>
-            {subtitle && <p style={{ margin: "3px 0 0", fontSize: 13, lineHeight: 1.5, color: "#6b7280" }}>{subtitle}</p>}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <SheetBandHeader kicker="Account" title={title} subtitle={subtitle} />
           </div>
           <button
             type="button"
@@ -105,7 +107,7 @@ export function AccountDrawer({
               border: "none",
               background: "transparent",
               borderRadius: 8,
-              color: "#6b7280",
+              color: "rgba(255,255,255,0.85)",
               cursor: "pointer",
               transition: "background 120ms",
             }}
@@ -119,7 +121,7 @@ export function AccountDrawer({
 
       <style>{`
         .account-drawer-close { transition: background 120ms, transform 120ms; }
-        .account-drawer-close:hover { background: rgba(0,0,0,0.05); }
+        .account-drawer-close:hover { background: rgba(255,255,255,0.18); }
         .account-drawer-close:active { transform: scale(0.9); }
         @keyframes account-drawer-fade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes account-drawer-slide { from { transform: translateX(24px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }

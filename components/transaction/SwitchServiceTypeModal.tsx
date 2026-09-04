@@ -8,6 +8,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { switchServiceTypeAction } from "@/app/actions/transactions";
 
 type ServiceType = "self_managed" | "outsourced";
@@ -70,6 +71,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
       ariaLabel={title}
       size="md"
       zLayer="escalated"
+      closeTone="onDark"
     >
       <div
         data-theme={theme}
@@ -77,8 +79,8 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
         className="nv2-night"
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        <Modal.Header>
-          <p className="text-sm font-semibold text-slate-900" style={{ margin: 0 }}>{title}</p>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Service type" title={title} />
         </Modal.Header>
 
         <Modal.Body>

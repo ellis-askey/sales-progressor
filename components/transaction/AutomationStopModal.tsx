@@ -15,6 +15,7 @@ import { useState } from "react";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Choice = "pause" | "hold";
 
@@ -70,16 +71,18 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
       ariaLabel={step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
       size="md"
       zLayer="escalated"
+      closeTone="onDark"
     >
       <div
         data-theme={theme}
         data-night={isNight ? "" : undefined}
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        <Modal.Header>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
-            {step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
-          </p>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader
+            kicker="Automation"
+            title={step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
+          />
         </Modal.Header>
 
         {step === "choose" && (

@@ -8,6 +8,7 @@ import { changeStatusAction } from "@/app/actions/transactions";
 import { pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import type { TransactionStatus, WithdrawalReason } from "@prisma/client";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
@@ -317,22 +318,16 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
         >
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
-            className="relative bg-white rounded-2xl w-full max-w-sm p-6"
-            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
+            className="relative bg-white rounded-2xl w-full max-w-sm"
+            style={{ overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Mark as withdrawn</p>
-                <p className="text-xs text-slate-500">Record why this sale fell through</p>
-              </div>
+            {/* Header — Ribbon coral band */}
+            <div style={{ ...SHEET_BAND_STYLE }}>
+              <SheetBandHeader kicker="Withdraw" title="Mark as withdrawn" subtitle="Record why this sale fell through" />
             </div>
 
+            <div className="p-6">
             {/* Question 1 — Who pulled out? Drives chain cascade direction
               * via WithdrawalReason. See closed-loop arc 2026-06-05. */}
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
@@ -437,6 +432,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 Confirm withdrawal
               </button>
             </div>
+            </div>
           </div>
         </div>,
         document.body
@@ -457,6 +453,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             style={{
               position: "relative",
               zIndex: 1,
+              overflow: "hidden",
               background: "var(--agent-surface-elevated)",
               border: "0.5px solid rgba(0,0,0,0.08)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
@@ -464,10 +461,22 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-              <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Put file on hold</h2>
-              <button type="button" onClick={() => setShowHoldModal(false)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
+            {/* Header — Ribbon coral band */}
+            <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <SheetBandHeader kicker="On hold" title="Put file on hold" />
+              <button
+                type="button"
+                onClick={() => setShowHoldModal(false)}
+                aria-label="Close"
+                style={{
+                  flexShrink: 0, width: 32, height: 32, borderRadius: 10, fontSize: 20, lineHeight: 1,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  border: "none", background: "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer",
+                  transition: "background 150ms",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >×</button>
             </div>
 
             <div className="px-6 py-5">
@@ -550,6 +559,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             style={{
               position: "relative",
               zIndex: 1,
+              overflow: "hidden",
               background: "var(--agent-surface-elevated)",
               border: "0.5px solid rgba(0,0,0,0.08)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
@@ -557,10 +567,22 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-              <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Take off hold</h2>
-              <button type="button" onClick={() => setShowResumeModal(false)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
+            {/* Header — Ribbon coral band */}
+            <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <SheetBandHeader kicker="Reactivate" title="Take off hold" />
+              <button
+                type="button"
+                onClick={() => setShowResumeModal(false)}
+                aria-label="Close"
+                style={{
+                  flexShrink: 0, width: 32, height: 32, borderRadius: 10, fontSize: 20, lineHeight: 1,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  border: "none", background: "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer",
+                  transition: "background 150ms",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >×</button>
             </div>
 
             <div className="px-6 py-5 space-y-3">

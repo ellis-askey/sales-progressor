@@ -21,6 +21,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { X, ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { relistTransactionAction } from "@/app/actions/transactions";
@@ -245,16 +246,17 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
           // so it pages internally — header / footer stay sticky.
           maxHeight: "calc(100vh - 32px)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          overflow: "hidden",
           animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-5 py-4 border-b"
-          style={{ borderColor: "rgba(0,0,0,0.06)" }}
+          className="flex items-center justify-between"
+          style={SHEET_BAND_STYLE}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
             {stage === "confirm" && (
               <button
                 type="button"
@@ -268,19 +270,21 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                   width: 28,
                   height: 28,
                   borderRadius: 8,
+                  flexShrink: 0,
                   background: "transparent",
                   border: "none",
                   cursor: isPending ? "default" : "pointer",
-                  color: "var(--agent-text-muted, #6b7280)",
+                  color: "rgba(255,255,255,0.85)",
                 }}
-                className="hover:bg-black/[0.05]"
+                className="hover:bg-white/[0.18]"
               >
                 <ArrowLeft size={14} weight="bold" />
               </button>
             )}
-            <p className="text-sm font-semibold text-slate-900">
-              {stage === "form" ? "Relist this sale" : "Confirm relist"}
-            </p>
+            <SheetBandHeader
+              kicker="Relist"
+              title={stage === "form" ? "Relist this sale" : "Confirm relist"}
+            />
           </div>
           <button
             type="button"
@@ -294,13 +298,14 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
               width: 28,
               height: 28,
               borderRadius: 8,
+              flexShrink: 0,
               background: "transparent",
               border: "none",
               cursor: isPending ? "default" : "pointer",
-              color: "var(--agent-text-muted, #6b7280)",
+              color: "rgba(255,255,255,0.85)",
               opacity: isPending ? 0.4 : 1,
             }}
-            className="hover:bg-black/[0.05]"
+            className="hover:bg-white/[0.18]"
           >
             <X size={14} weight="bold" />
           </button>

@@ -7,6 +7,23 @@
 // the entry shape.
 
 import type { ReactNode } from "react";
+import type { GlassVariantId } from "@/lib/glass/variants";
+
+// A drawer/modal chrome selection the design bench trials before one is baked
+// in as the primitive default.
+//   presetId      — the overall design direction (surface + interior structure
+//                   + accent), which sets a precedent for every drawer/modal.
+//   surfaceVariant — the panel surface (null = the primitive's current look);
+//                    a preset sets this but it can be fine-tuned after.
+//   footerVariant  — the sticky-footer treatment.
+export type DesignSelection = {
+  presetId: string;
+  surfaceVariant: GlassVariantId | null;
+  footerVariant: "default" | "glass";
+  // Dark-mode header treatment (bright coral reads wrong on dark). Only set on
+  // the dark selection; light keeps the preset's coral band.
+  headerStyleId?: string;
+};
 
 // The three top-level catalogue sections.
 export type SheetType = "drawer" | "modal" | "notification";
@@ -55,6 +72,10 @@ export type RenderCtx = {
   // Close callback — wired to every dismiss / cancel / confirm handler so the
   // overlay closes cleanly and no real mutation escapes.
   onClose: () => void;
+  // The live design-bench selection for the ACTIVE theme. Only meaningful for
+  // entries flagged `designable` (the Drawer/Modal benches) — they forward it
+  // to the primitive's surfaceVariant / footerVariant props.
+  design?: DesignSelection;
 };
 
 export type SheetEntry = {
@@ -79,6 +100,10 @@ export type SheetEntry = {
   //   "inline"  — the component is placed inside a fixture page-content stage
   //     so notices/banners/empty-states can be judged in realistic context.
   preview: "overlay" | "inline";
+  // When true, the inspector shows the surface + footer design picker and
+  // passes the selection into render() via ctx.design. Used by the Drawer /
+  // Modal design benches.
+  designable?: boolean;
   // The inspectable states, most-representative first. Always at least one.
   states: SheetState[];
   // Renders the real production component for the given state. Wire every

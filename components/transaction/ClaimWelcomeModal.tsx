@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { CheckCircle, Eye, UsersThree, Gift } from "@phosphor-icons/react";
 
 export type ChainMember = {
@@ -50,17 +51,18 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
   const short = shortAddress(address);
 
   return (
-    <Modal open={visible} onClose={() => setVisible(false)} ariaLabel="Welcome to the chain" size="xl" zLayer="escalated">
+    <Modal open={visible} onClose={() => setVisible(false)} ariaLabel="Welcome to the chain" size="xl" zLayer="escalated" closeTone="onDark">
+      <Modal.Header style={SHEET_BAND_STYLE}>
+        <SheetBandHeader kicker="Chain" title="Welcome to the chain." />
+      </Modal.Header>
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", gap: 18, padding: "30px 30px 24px" }}>
         {/* Header */}
         <div>
           <p style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-success)" }}>
             <CheckCircle size={18} weight="fill" /> You&apos;re connected
           </p>
-          <h2 style={{ margin: "8px 0 6px", fontSize: 25, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>
-            Welcome to the chain.
-          </h2>
-          <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
+          {/* Title now lives in the coral band header; keep the confirmation line. */}
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
             <strong style={{ color: "var(--agent-text-primary)" }}>{short}</strong> is now connected to {originatorAgency ? `${originatorAgency}'s` : "the"} live chain.
           </p>
         </div>

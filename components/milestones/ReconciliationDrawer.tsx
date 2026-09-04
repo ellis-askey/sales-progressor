@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { getEventDateLabel } from "@/lib/portal-copy";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 export type ReconciliationItem = {
   id: string;
@@ -36,7 +37,7 @@ export function ReconciliationDrawer({
   onConfirm,
   onCancel,
 }: ReconciliationDrawerProps) {
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -83,7 +84,7 @@ export function ReconciliationDrawer({
 
   return createPortal(
     <div
-      data-theme={theme}
+      data-theme={theme} data-night={isNight ? "" : undefined}
       style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", justifyContent: "flex-end" }}
     >
       {/* Backdrop — does not dismiss on click; user has entered data */}
@@ -103,16 +104,22 @@ export function ReconciliationDrawer({
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+        <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {title}
-            </p>
-            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
-              {isExchangeFlow ? "Exchange date + outstanding steps" : "Completion date + outstanding steps"}
-            </p>
+            <SheetBandHeader
+              kicker="Reconcile"
+              title={title}
+              subtitle={isExchangeFlow ? "Exchange date + outstanding steps" : "Completion date + outstanding steps"}
+            />
           </div>
-          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+          <button
+            onClick={doClose}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
             <X size={14} weight="bold" />
           </button>
         </div>
@@ -121,9 +128,9 @@ export function ReconciliationDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
 
           {/* Date inputs */}
-          <div style={{ background: "rgba(15,23,42,0.03)", borderRadius: 12, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ background: "var(--agent-surface-subtle)", borderRadius: 12, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
                 {isExchangeFlow ? "Date contracts exchanged" : "Date sale completed"}
               </label>
               <input
@@ -131,22 +138,22 @@ export function ReconciliationDrawer({
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
                 className="agent-focus"
-                style={{ border: "0.5px solid rgba(15,23,42,0.15)", borderRadius: 8, padding: "8px 12px", fontSize: 14, width: "100%", background: "white", color: "rgba(15,23,42,0.85)" }}
+                style={{ border: "0.5px solid var(--agent-border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 14, width: "100%", background: isNight ? "rgba(30,41,59,0.85)" : "white", colorScheme: isNight ? "dark" : "light", color: "var(--agent-text-primary)" }}
               />
-              <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginTop: 4, marginBottom: 0 }}>Filled with today&apos;s date. Change if it was different.</p>
+              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 4, marginBottom: 0 }}>Filled with today&apos;s date. Change if it was different.</p>
             </div>
             {isExchangeFlow && (
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
                   Expected completion{" "}
-                  <span style={{ fontWeight: 400, color: "rgba(15,23,42,0.40)" }}>(optional)</span>
+                  <span style={{ fontWeight: 400, color: "var(--agent-text-muted)" }}>(optional)</span>
                 </label>
                 <input
                   type="date"
                   value={completionDate}
                   onChange={(e) => setCompletionDate(e.target.value)}
                   className="agent-focus"
-                  style={{ border: "0.5px solid rgba(15,23,42,0.15)", borderRadius: 8, padding: "8px 12px", fontSize: 14, width: "100%", background: "white", color: "rgba(15,23,42,0.85)" }}
+                  style={{ border: "0.5px solid var(--agent-border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 14, width: "100%", background: isNight ? "rgba(30,41,59,0.85)" : "white", colorScheme: isNight ? "dark" : "light", color: "var(--agent-text-primary)" }}
                 />
               </div>
             )}
@@ -156,15 +163,15 @@ export function ReconciliationDrawer({
           {outstanding.length > 0 && (
             <div>
               <p className="agent-section-label" style={{ marginBottom: 4 }}>Steps not yet confirmed</p>
-              <p style={{ fontSize: 12, color: "rgba(15,23,42,0.45)", marginBottom: 12, lineHeight: 1.6 }}>
+              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
                 Tick the steps below that are done. We{"'"}ll check them off at exchange. Leave a step unticked to exclude it.
               </p>
 
-              <div style={{ borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.10)", overflow: "hidden", marginBottom: 8 }}>
+              <div style={{ borderRadius: 8, border: "0.5px solid var(--agent-border-subtle)", overflow: "hidden", marginBottom: 8 }}>
                 {(expanded ? outstanding : outstanding.slice(0, 5)).map((item, i) => (
                   <div
                     key={item.id}
-                    style={{ padding: "10px 16px", borderBottom: i < (expanded ? outstanding : outstanding.slice(0, 5)).length - 1 ? "0.5px solid rgba(15,23,42,0.06)" : "none" }}
+                    style={{ padding: "10px 16px", borderBottom: i < (expanded ? outstanding : outstanding.slice(0, 5)).length - 1 ? "0.5px solid var(--agent-border-subtle)" : "none" }}
                   >
                     <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
                       <input
@@ -180,13 +187,13 @@ export function ReconciliationDrawer({
                         }}
                       />
                       <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: "block", fontSize: 13, color: "rgba(15,23,42,0.80)" }}>{item.name}</span>
-                        <span style={{ fontSize: 11, color: "rgba(15,23,42,0.40)" }}>{item.side === "vendor" ? "Vendor" : "Purchaser"}</span>
+                        <span style={{ display: "block", fontSize: 13, color: "var(--agent-text-primary)" }}>{item.name}</span>
+                        <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{item.side === "vendor" ? "Vendor" : "Purchaser"}</span>
                       </span>
                     </label>
                     {item.eventDateRequired && reconciledIds.has(item.id) && (
                       <div style={{ marginTop: 8, marginLeft: 26 }}>
-                        <label style={{ display: "block", fontSize: 11, color: "rgba(15,23,42,0.50)", marginBottom: 4 }}>
+                        <label style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginBottom: 4 }}>
                           {getEventDateLabel(item.code)}. Leave blank to exclude.
                         </label>
                         <input
@@ -194,7 +201,7 @@ export function ReconciliationDrawer({
                           value={reconciledDates[item.id] ?? ""}
                           onChange={(e) => setReconciledDates((prev) => ({ ...prev, [item.id]: e.target.value }))}
                           className="agent-focus"
-                          style={{ border: "0.5px solid rgba(15,23,42,0.15)", borderRadius: 8, padding: "6px 10px", fontSize: 13, maxWidth: 180, background: "white", color: "rgba(15,23,42,0.85)" }}
+                          style={{ border: "0.5px solid var(--agent-border-default)", borderRadius: 8, padding: "6px 10px", fontSize: 13, maxWidth: 180, background: isNight ? "rgba(30,41,59,0.85)" : "white", colorScheme: isNight ? "dark" : "light", color: "var(--agent-text-primary)" }}
                         />
                       </div>
                     )}
@@ -216,7 +223,7 @@ export function ReconciliationDrawer({
         </div>
 
         {/* Footer — paired drawer pattern */}
-        <div style={{ padding: "12px 24px 20px", borderTop: "0.5px solid rgba(15,23,42,0.08)", display: "flex", gap: 12, flexShrink: 0 }}>
+        <div style={{ padding: "12px 24px 20px", borderTop: "0.5px solid var(--agent-border-subtle)", display: "flex", gap: 12, flexShrink: 0 }}>
           <button
             onClick={doClose}
             style={{
@@ -224,14 +231,14 @@ export function ReconciliationDrawer({
               padding: "10px 0",
               borderRadius: 12,
               background: "transparent",
-              color: "rgba(15,23,42,0.55)",
+              color: "var(--agent-text-secondary)",
               fontWeight: 500,
               fontSize: 14,
-              border: "1px solid rgba(15,23,42,0.15)",
+              border: "1px solid var(--agent-border-default)",
               cursor: "pointer",
               transition: "background 150ms",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.04)")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = isNight ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.04)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             Cancel

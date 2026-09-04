@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
 
 type Selection = { kind: "our_firm"; quoteRequestId: string } | { kind: "someone_else" } | { kind: "unknown" };
@@ -47,12 +48,10 @@ export function SurveyBookingModal({
   });
 
   return (
-    <Modal open onClose={onCancel} ariaLabel="Confirm the survey booking" size="sm" dismissOnBackdrop={false} showCloseButton={false}>
+    <Modal open onClose={onCancel} ariaLabel="Confirm the survey booking" size="sm" dismissOnBackdrop={false} showCloseButton={false} closeTone="onDark">
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <Modal.Header>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
-            Confirm the survey booking
-          </p>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Survey" title="Confirm the survey booking" />
         </Modal.Header>
 
         <Modal.Body>

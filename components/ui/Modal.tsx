@@ -34,14 +34,25 @@
 "use client";
 
 import type { ReactNode, HTMLAttributes } from "react";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { X } from "@phosphor-icons/react";
+import { classFor, type GlassVariantId } from "@/lib/glass/variants";
+import { glassFooterStyle } from "./Drawer";
 
 type Size = "sm" | "md" | "lg" | "xl";
 type Surface = "solid" | "glass";
 type ZLayer = "default" | "escalated" | "deep";
+
+// Sticky-footer treatment, mirrored from the Drawer primitive. "default" is
+// today's hairline-over-white; "glass" is a frosted theme-aware bar.
+export type ModalFooterVariant = "default" | "glass";
+
+const ModalChromeContext = createContext<{ footerVariant: ModalFooterVariant; isNight: boolean }>({
+  footerVariant: "default",
+  isNight: false,
+});
 
 const sizeMaxWidth: Record<Size, string> = {
   sm: "384px",
@@ -74,6 +85,15 @@ export type ModalProps = {
   // mandatory confirmation flows where the user MUST pick an action.
   // Escape key still works. Default true.
   showCloseButton?: boolean;
+  // Optional surface treatment (glass.css variant). Undefined = today's look
+  // (solid white or the `surface="glass"` frost). Used by the /dev/sheets
+  // design bench to trial surfaces before one is baked in as the default.
+  surfaceVariant?: GlassVariantId;
+  // Sticky-footer treatment. Undefined = "default".
+  footerVariant?: ModalFooterVariant;
+  // Close-button contrast. "onDark" renders a white X for coral/dark band
+  // headers (see SheetHeader). Default reads on a light header.
+  closeTone?: "default" | "onDark";
   children: ReactNode;
 };
 
@@ -86,6 +106,11 @@ export function Modal({
   zLayer = "default",
   dismissOnBackdrop = true,
   showCloseButton = true,
+  surfaceVariant,
+  // Default to the portal-style blur bar app-wide (2026-09-04). Pass
+  // footerVariant="default" on a specific modal to opt back to the hairline.
+  footerVariant = "glass",
+  closeTone = "default",
   children,
 }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -154,10 +179,12 @@ export function Modal({
   if (!open) return null;
   if (typeof window === "undefined") return null;
 
+  // Dark-aware: modals portal to <body>, so the card fill can't come from a
+  // shell-scoped token. Pick a dark card in night mode directly.
   const cardBackground =
     surface === "glass"
-      ? { background: "rgba(255, 255, 255, 0.92)", backdropFilter: "blur(40px) saturate(180%)" as const, WebkitBackdropFilter: "blur(40px) saturate(180%)" as const }
-      : { background: "white" };
+      ? { background: isNight ? "rgba(22, 30, 46, 0.90)" : "rgba(255, 255, 255, 0.92)", backdropFilter: "blur(40px) saturate(180%)" as const, WebkitBackdropFilter: "blur(40px) saturate(180%)" as const }
+      : { background: isNight ? "#161d2e" : "white" };
 
   return createPortal(
     <div
@@ -184,14 +211,18 @@ export function Modal({
         ref={cardRef}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="agent-modal-in"
+        // When a surfaceVariant is set, the glass-vNN class owns the
+        // background; otherwise cardBackground (solid white / frost) is today's
+        // exact look.
+        className={`agent-modal-in${surfaceVariant ? " " + classFor(surfaceVariant) : ""}`}
         style={{
-          ...cardBackground,
+          ...(surfaceVariant ? {} : cardBackground),
           width: "100%",
           maxWidth: sizeMaxWidth[size],
           maxHeight: "calc(100dvh - 120px)",
           borderRadius: 16,
-          // 2px coral accent line on the top edge.
+          // 2px coral accent line on the top edge — kept inline so it survives
+          // whichever surface variant is applied.
           borderTop: "2px solid var(--agent-coral-deep, #FF6B4A)",
           boxShadow: "0 24px 64px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08)",
           display: "flex",
@@ -220,16 +251,18 @@ export function Modal({
               border: "none",
               borderRadius: 8,
               cursor: "pointer",
-              color: "var(--agent-text-muted)",
+              color: closeTone === "onDark" ? "rgba(255,255,255,0.85)" : "var(--agent-text-muted)",
               transition: "background 150ms ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(15,23,42,0.06)"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = closeTone === "onDark" ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.06)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             <X size={16} weight="bold" />
           </button>
         )}
-        {children}
+        <ModalChromeContext.Provider value={{ footerVariant, isNight }}>
+          {children}
+        </ModalChromeContext.Provider>
       </div>
     </div>,
     document.body,
@@ -288,16 +321,21 @@ export function ModalFooter({
   style,
   ...rest
 }: HTMLAttributes<HTMLDivElement>) {
+  const { footerVariant, isNight } = useContext(ModalChromeContext);
+  const variantStyle: React.CSSProperties =
+    footerVariant === "glass"
+      ? glassFooterStyle(isNight)
+      : { borderTop: "1px solid rgba(15, 23, 42, 0.06)" };
   return (
     <div
       className={className}
       style={{
         flexShrink: 0,
         padding: "16px 24px",
-        borderTop: "1px solid rgba(15, 23, 42, 0.06)",
         display: "flex",
         justifyContent: "flex-end",
         gap: 8,
+        ...variantStyle,
         ...style,
       }}
       {...rest}

@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check } from "@phosphor-icons/react";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmDiaryEventAction } from "@/app/actions/milestones";
 import type { DiaryItem } from "@/lib/services/hub";
@@ -140,9 +141,9 @@ export function DiaryEventRow({
         </span>
       )}
 
-      <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} ariaLabel={c.title} size="sm">
-        <ModalHeader>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--agent-text-primary)" }}>{c.title}</h2>
+      <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} ariaLabel={c.title} size="sm" closeTone="onDark">
+        <ModalHeader style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker={item.type === "completion" ? "Completion" : "Exchange"} title={c.title} />
         </ModalHeader>
         <ModalBody>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>

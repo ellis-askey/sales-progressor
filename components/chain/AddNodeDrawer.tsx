@@ -8,6 +8,7 @@ import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import { Pill } from "@/components/ui/Pill";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 function joinAddress(street: string, city: string, postcode: string): string {
   return [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
@@ -147,7 +148,7 @@ export function AddNodeDrawer({
   onSaved,
 }: Props) {
   const isBranch = !!forkFromLinkId;
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -391,7 +392,7 @@ export function AddNodeDrawer({
   );
 
   return createPortal(
-    <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       {/* Backdrop */}
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
 
@@ -411,12 +412,19 @@ export function AddNodeDrawer({
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+        <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{title}</p>
+            <SheetBandHeader kicker="Chain" title={title} />
             {directionPill}
           </div>
-          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+          <button
+            onClick={doClose}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
             <X size={14} weight="bold" />
           </button>
         </div>

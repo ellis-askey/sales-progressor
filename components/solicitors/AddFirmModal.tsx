@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 
@@ -157,6 +158,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
       size="md"
       zLayer="deep"
       dismissOnBackdrop={false}
+      closeTone="onDark"
     >
       <div
         data-theme={theme}
@@ -164,8 +166,8 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
         className="nv2-night"
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        <Modal.Header>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{lockFirm ? "Add case handler" : "Add solicitor firm"}</h2>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Solicitor" title={lockFirm ? "Add case handler" : "Add solicitor firm"} />
         </Modal.Header>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>

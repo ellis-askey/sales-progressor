@@ -12,6 +12,7 @@ import { MagnifyingGlass, X, SunDim, MoonStars } from "@phosphor-icons/react";
 import { REGISTRY } from "../_registry";
 import type { SheetEntry, SheetType } from "../_registry/types";
 import { useVerification } from "../_lib/useVerification";
+import { loadDesign, saveDesign, DEFAULT_BY_MODE, type DesignByMode } from "../_registry/design";
 import { ComponentCard } from "./ComponentCard";
 import { InspectHost } from "./InspectHost";
 
@@ -48,6 +49,15 @@ export function SheetsCatalogue() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [stateId, setStateId] = useState<string>("");
   const [isDark, setIsDark] = useState(false);
+
+  // Design-bench selection (surface + footer, per light/dark), persisted to
+  // localStorage so an in-progress look survives a refresh.
+  const [designByMode, setDesignByMode] = useState<DesignByMode>(DEFAULT_BY_MODE);
+  useEffect(() => setDesignByMode(loadDesign()), []);
+  function updateDesign(next: DesignByMode) {
+    setDesignByMode(next);
+    saveDesign(next);
+  }
 
   // Mirror the live <html> theme into the toggle, and let the toggle flip it.
   useEffect(() => {
@@ -293,6 +303,8 @@ export function SheetsCatalogue() {
           onClose={closeInspect}
           verified={verification.isVerified(openEntry.id)}
           onToggleVerified={() => verification.toggle(openEntry.id)}
+          designByMode={designByMode}
+          onDesignChange={updateDesign}
         />
       )}
     </main>

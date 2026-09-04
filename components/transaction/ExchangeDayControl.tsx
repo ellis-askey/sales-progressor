@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { startExchangeDayAction, cancelExchangeDayAction } from "@/app/actions/exchange-day";
 
@@ -125,12 +126,9 @@ export function ExchangeDayControl({
       )}
 
       {startOpen && (
-        <Modal open onClose={() => { if (!loading) setStartOpen(false); }} size="md" ariaLabel="Start exchange day">
-          <Modal.Header>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Start exchange day</h3>
-            <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
-              Flag this file as aiming to exchange today
-            </p>
+        <Modal open onClose={() => { if (!loading) setStartOpen(false); }} size="md" ariaLabel="Start exchange day" closeTone="onDark">
+          <Modal.Header style={SHEET_BAND_STYLE}>
+            <SheetBandHeader kicker="Exchange" title="Start exchange day" subtitle="Flag this file as aiming to exchange today" />
           </Modal.Header>
           <Modal.Body style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -197,12 +195,9 @@ export function ExchangeDayControl({
       )}
 
       {cancelOpen && (
-        <Modal open onClose={() => { if (!loading) setCancelOpen(false); }} size="sm" ariaLabel="End exchange day">
-          <Modal.Header>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>End exchange day?</h3>
-            <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
-              Take this file out of exchange day
-            </p>
+        <Modal open onClose={() => { if (!loading) setCancelOpen(false); }} size="sm" ariaLabel="End exchange day" closeTone="onDark">
+          <Modal.Header style={SHEET_BAND_STYLE}>
+            <SheetBandHeader kicker="Exchange" title="End exchange day?" subtitle="Take this file out of exchange day" />
           </Modal.Header>
           <Modal.Body>
             <p style={{ fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)", margin: 0 }}>

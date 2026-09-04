@@ -14,6 +14,8 @@
 import { useState } from "react";
 import { Calculator, ArrowRight, CaretDown } from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { calculateSdlt } from "@/lib/sdlt";
 
 // One info-blue for every stamp-duty figure, matching the buyer's portal card
@@ -74,14 +76,13 @@ export function StampDutyQuickAction({ priceGBP }: { priceGBP: number }) {
         </span>
       </button>
 
-      <Drawer open={open} onClose={() => setOpen(false)} ariaLabel="Stamp duty calculator" size="sm">
-        <Drawer.Header>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-            Stamp duty calculator
-          </p>
-          <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)" }}>
-            What the buyer pays. Same figures they see in their portal.
-          </p>
+      <Drawer open={open} onClose={() => setOpen(false)} ariaLabel="Stamp duty calculator" size="sm" closeTone="onDark">
+        <Drawer.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader
+            kicker="Stamp duty"
+            title="Stamp duty calculator"
+            subtitle="What the buyer pays. Same figures they see in their portal."
+          />
         </Drawer.Header>
         <Drawer.Body>
           <SdltCalc priceGBP={priceGBP} />
@@ -117,6 +118,7 @@ export function StampDutyQuickAction({ priceGBP }: { priceGBP: number }) {
 }
 
 function SdltCalc({ priceGBP }: { priceGBP: number }) {
+  const { isNight } = usePortalTheme();
   const [priceStr, setPriceStr] = useState(String(Math.round(priceGBP)));
   const [ftb, setFtb] = useState(false);
   const [additional, setAdditional] = useState(false);
@@ -154,8 +156,8 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
         </label>
         <div style={{
           display: "flex", alignItems: "center", gap: 4,
-          border: "1px solid rgba(15,23,42,0.12)", borderRadius: 10,
-          padding: "0 12px", background: "rgba(255,255,255,0.6)",
+          border: "1px solid var(--agent-border-default)", borderRadius: 10,
+          padding: "0 12px", background: isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.6)",
         }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-muted)" }}>£</span>
           <input
@@ -169,6 +171,7 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
               flex: 1, border: "none", background: "transparent", padding: "10px 4px",
               textAlign: "right", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)",
               fontVariantNumeric: "tabular-nums", outline: "none",
+              colorScheme: isNight ? "dark" : "light",
             }}
           />
         </div>
@@ -223,7 +226,7 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
           <CaretDown size={13} weight="bold" style={{ transform: showBands ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }} />
         </button>
         {showBands && (
-          <div style={{ marginTop: 8, border: "1px solid rgba(15,23,42,0.08)", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ marginTop: 8, border: "1px solid var(--agent-border-subtle)", borderRadius: 10, overflow: "hidden" }}>
             {result.bands.length === 0 ? (
               <p style={{ margin: 0, padding: "10px 13px", fontSize: 12.5, color: "var(--agent-text-muted)" }}>
                 No stamp duty on this price.
@@ -235,7 +238,7 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
                   style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "9px 13px", fontSize: 12.5, color: "var(--agent-text-secondary)",
-                    borderBottom: i < result.bands.length - 1 ? "1px solid rgba(15,23,42,0.08)" : "none",
+                    borderBottom: i < result.bands.length - 1 ? "1px solid var(--agent-border-subtle)" : "none",
                   }}
                 >
                   <span>{fmtGBP(b.from)} to {fmtGBP(b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
@@ -263,6 +266,7 @@ function ToggleRow({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const { isNight } = usePortalTheme();
   return (
     <button
       type="button"
@@ -272,8 +276,8 @@ function ToggleRow({
       style={{
         display: "flex", alignItems: "flex-start", gap: 11, textAlign: "left", width: "100%",
         padding: "11px 13px", borderRadius: 11, cursor: disabled ? "not-allowed" : "pointer",
-        border: `${on ? 1.5 : 1}px solid ${on ? INFO : "rgba(15,23,42,0.10)"}`,
-        background: on ? "rgba(59,130,246,0.06)" : "rgba(255,255,255,0.5)",
+        border: `${on ? 1.5 : 1}px solid ${on ? INFO : "var(--agent-border-default)"}`,
+        background: on ? "rgba(59,130,246,0.06)" : isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.5)",
         opacity: disabled ? 0.5 : 1, fontFamily: "inherit",
         transition: "border-color 140ms ease, background 140ms ease",
       }}
@@ -282,7 +286,7 @@ function ToggleRow({
         width: 19, height: 19, borderRadius: 6, flexShrink: 0, marginTop: 1,
         display: "flex", alignItems: "center", justifyContent: "center",
         background: on ? INFO : "transparent",
-        border: on ? "none" : "1.5px solid rgba(15,23,42,0.16)",
+        border: on ? "none" : "1.5px solid var(--agent-border-strong)",
       }}>
         {on && (
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">

@@ -2,6 +2,7 @@
 
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 interface MortgageModalProps {
   onConfirmMortgage: () => void;
@@ -20,12 +21,11 @@ export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel 
       size="sm"
       dismissOnBackdrop={false}
       showCloseButton={false}
+      closeTone="onDark"
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <Modal.Header>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
-            Is this buyer now using a mortgage?
-          </p>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Mortgage" title="Is this buyer now using a mortgage?" />
         </Modal.Header>
 
         <Modal.Body>

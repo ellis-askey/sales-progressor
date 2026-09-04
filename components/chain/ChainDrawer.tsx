@@ -16,6 +16,7 @@ import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type ChainDrawerProps = {
   transactionId: string;
@@ -138,7 +139,7 @@ export function ChainDrawer({
   declineNotification,
   refreshKey = 0,
 }: ChainDrawerProps) {
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   // Internal staff progress files they didn't originate — they get the same
   // edit reach the server now grants (mirrors canViewChain).
   const isInternal = isInternalStaff(currentUserRole);
@@ -558,7 +559,7 @@ export function ChainDrawer({
   };
 
   return createPortal(
-    <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       {/* Backdrop */}
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
 
@@ -581,20 +582,28 @@ export function ChainDrawer({
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+        <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {chain?.name?.trim() || "Chain"}
-            </p>
-            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
-              {allChainLinks.length > 0
-                ? allChainLinks.length > links.length
-                  ? `${allChainLinks.length} linked sales, including ${allChainLinks.length - links.length} onward ${allChainLinks.length - links.length === 1 ? "purchase" : "purchases"}.`
-                  : `${links.length} linked ${links.length === 1 ? "sale" : "sales"}, top to bottom. When one moves, everything below moves with it.`
-                : "Every linked sale, in one place"}
-            </p>
+            <SheetBandHeader
+              kicker="Chain"
+              title={chain?.name?.trim() || "Chain"}
+              subtitle={
+                allChainLinks.length > 0
+                  ? allChainLinks.length > links.length
+                    ? `${allChainLinks.length} linked sales, including ${allChainLinks.length - links.length} onward ${allChainLinks.length - links.length === 1 ? "purchase" : "purchases"}.`
+                    : `${links.length} linked ${links.length === 1 ? "sale" : "sales"}, top to bottom. When one moves, everything below moves with it.`
+                  : "Every linked sale, in one place"
+              }
+            />
           </div>
-          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+          <button
+            onClick={doClose}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
             <X size={14} weight="bold" />
           </button>
         </div>

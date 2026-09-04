@@ -18,6 +18,7 @@
 
 import { useState, type ReactNode, type CSSProperties } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {
   setWhatsappGroupInviteUrlAction,
@@ -147,7 +148,7 @@ export function WhatsappGroupModal({
   const showInviteFlow = !!currentInviteUrl && !editing;
 
   return (
-    <Modal open={open} onClose={onClose} size="lg" ariaLabel="WhatsApp group helper">
+    <Modal open={open} onClose={onClose} size="lg" ariaLabel="WhatsApp group helper" closeTone="onDark">
       <style>{`
         @keyframes wa-num-sheen { 0% { transform: translateX(-140%) skewX(-18deg); } 100% { transform: translateX(160%) skewX(-18deg); } }
         .wa-num { position: relative; overflow: hidden; }
@@ -159,28 +160,15 @@ export function WhatsappGroupModal({
         @media (prefers-reduced-motion: reduce) { .wa-num-sheen::after { animation: none; } }
       `}</style>
 
-      <Modal.Header>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, position: "relative", paddingRight: 28 }}>
-          <span
-            style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-              background: "#25D366", color: "#fff", boxShadow: "0 2px 8px rgba(37,211,102,0.35)",
-            }}
-          >
-            <WhatsappLogo size={24} weight="fill" />
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minWidth: 0, position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                Set up {sideWord} WhatsApp group
-              </h2>
-              <SidePill side={side} onToggle={() => setSide((s) => (s === "sale" ? "purchase" : "sale"))} />
-            </div>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {shortAddress(address)}
-            </p>
-          </div>
+      <Modal.Header style={SHEET_BAND_STYLE}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, minWidth: 0 }}>
+          <SheetBandHeader
+            kicker="WhatsApp"
+            icon={<WhatsappLogo size={20} weight="fill" />}
+            title={`Set up ${sideWord} WhatsApp group`}
+            subtitle={shortAddress(address)}
+          />
+          <SidePill side={side} onToggle={() => setSide((s) => (s === "sale" ? "purchase" : "sale"))} />
         </div>
       </Modal.Header>
 

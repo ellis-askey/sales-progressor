@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { HelpCircle } from "lucide-react";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Category = "bug" | "suggestion" | "question";
 type Stage = "categories" | "form" | "success" | "error";
@@ -226,6 +228,7 @@ function SubmitBtn({ label, disabled, submitting }: { label: string; disabled: b
 // ── Main widget ───────────────────────────────────────────────────────────────
 
 export function FeedbackWidget({ portalToken, checklistAware, userId }: { portalToken?: string; checklistAware?: boolean; userId?: string }) {
+  const { theme } = usePortalTheme();
   const [isCompact, setIsCompact]   = useState(false);
   const [isOpen, setIsOpen]         = useState(false);
   const [stage, setStage]           = useState<Stage>("categories");
@@ -346,6 +349,66 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
     question:   { title: "Ask a question",        description: "Get help and advice",        label: "Send question" },
   };
 
+  // The coral Ribbon band is agent-app only. On the client/solicitor portal
+  // (portalToken set) the widget keeps its own neutral header so it doesn't
+  // clash with the portal's accent.
+  const isPortal = !!portalToken;
+
+  function renderHeader({ title, subtitle, onBack }: { title: string; subtitle: string; onBack?: () => void }) {
+    if (isPortal) {
+      const iconBtn: React.CSSProperties = {
+        width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+        border: "none", background: "transparent", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)",
+        borderRadius: 6, flexShrink: 0, transition: "background 150ms",
+      };
+      return (
+        <div style={{ padding: "14px 18px", borderBottom: "0.5px solid var(--fw-border, #e5e7eb)", display: "flex", alignItems: "center", gap: 10 }}>
+          {onBack && (
+            <button type="button" onClick={onBack} aria-label="Back to categories" style={iconBtn}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.05)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+              <IconBack />
+            </button>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--fw-text, #111827)" }}>{title}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--fw-text-muted, #6b7280)" }}>{subtitle}</p>
+          </div>
+          <button ref={closeRef} onClick={close} aria-label="Close feedback panel" style={iconBtn}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.05)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+            <IconClose />
+          </button>
+        </div>
+      );
+    }
+    // Agent app: the coral Ribbon band.
+    const whiteBtn: React.CSSProperties = {
+      width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+      border: "none", background: "transparent", cursor: "pointer", color: "rgba(255,255,255,0.85)",
+      borderRadius: 6, flexShrink: 0, transition: "background 150ms",
+    };
+    return (
+      <div style={{ ...SHEET_BAND_STYLE, background: "var(--sheet-band-bg, var(--agent-coral-deep, #FF6B4A))", display: "flex", alignItems: "center", gap: 10 }}>
+        {onBack && (
+          <button type="button" onClick={onBack} aria-label="Back to categories" style={whiteBtn}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+            <IconBack />
+          </button>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SheetBandHeader kicker="Feedback" title={title} subtitle={subtitle} />
+        </div>
+        <button ref={closeRef} onClick={close} aria-label="Close feedback panel" style={whiteBtn}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+          <IconClose />
+        </button>
+      </div>
+    );
+  }
+
   // Panel content
   function panelContent() {
     if (stage === "success") {
@@ -380,16 +443,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
     if (stage === "categories") {
       return (
         <>
-          <div style={{ padding: "18px 20px 14px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--fw-text, #111827)" }}>Support &amp; feedback</p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--fw-text-faint, #9ca3af)" }}>How can we help today?</p>
-            </div>
-            <button ref={closeRef} onClick={close} aria-label="Close feedback panel"
-              style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)", borderRadius: 6 }}>
-              <IconClose />
-            </button>
-          </div>
+          {renderHeader({ title: "Support & feedback", subtitle: "How can we help today?" })}
           <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
             {/* Browse help tile + divider hidden 2026-07-07: the /help
                 surface is not finished yet. Uncomment when it ships. */}
@@ -405,19 +459,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
       const meta = CATEGORY_META[category];
       return (
         <>
-          <div style={{ padding: "18px 20px 14px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="button" onClick={() => setStage("categories")} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-muted, #6b7280)", borderRadius: 6, flexShrink: 0 }} aria-label="Back to categories">
-              <IconBack />
-            </button>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--fw-text, #111827)" }}>{meta.title}</p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--fw-text-faint, #9ca3af)" }}>A few details help us understand</p>
-            </div>
-            <button ref={closeRef} onClick={close} aria-label="Close feedback panel"
-              style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--fw-text-faint, #9ca3af)", borderRadius: 6, flexShrink: 0 }}>
-              <IconClose />
-            </button>
-          </div>
+          {renderHeader({ title: meta.title, subtitle: "A few details help us understand", onBack: () => setStage("categories") })}
 
           <form onSubmit={handleSubmit} style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto" }}>
             {category === "bug" && (
@@ -469,6 +511,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
       <div
         className="feedback-panel-wrap"
         data-surface={portalToken ? "portal" : undefined}
+        data-theme={theme}
         role="dialog" aria-modal="true" aria-label="Support and Feedback"
         style={{
           ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),

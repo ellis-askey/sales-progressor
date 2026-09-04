@@ -17,6 +17,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { WarningCircle } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { Button } from "@/components/ui/Button";
 import { reviseOverdueExchangeDateAction } from "@/app/actions/transactions";
 
@@ -101,12 +102,10 @@ export function ReviseExchangeBanner({
         ariaLabel="Revise expected exchange date"
         size="md"
         dismissOnBackdrop={false}
+        closeTone="onDark"
       >
-        <Modal.Header>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-            Give this a realistic new date
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>{address}</p>
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Exchange" title="Give this a realistic new date" subtitle={address} />
         </Modal.Header>
         <Modal.Body>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--agent-text-secondary)" }}>

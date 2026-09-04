@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Props = {
   isSaving: boolean;
@@ -43,15 +44,14 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
           maxWidth: 380,
           margin: "0 16px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          overflow: "hidden",
           animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid var(--nv2-border-dark)" }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--nv2-text-primary)", margin: 0 }}>
-            Save your draft?
-          </p>
-          <button onClick={onStay} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, ...SHEET_BAND_STYLE }}>
+          <SheetBandHeader kicker="Unsaved changes" title="Save your draft?" />
+          <button onClick={onStay} aria-label="Close" className="agent-icon-btn agent-icon-btn-md" style={{ color: "rgba(255,255,255,0.85)", flexShrink: 0 }}>
             <X size={16} weight="bold" />
           </button>
         </div>

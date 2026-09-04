@@ -39,6 +39,11 @@ export default function SheetsLayout({ children }: { children: ReactNode }) {
     // agent layout wrapper, so tokens resolve identically here and in portals.
     <div data-theme="custom" style={{ display: "contents" }}>
       <style dangerouslySetInnerHTML={{ __html: brandThemeCss(null) }} />
+      {/* The root layout shows the cookie-consent banner to signed-out visitors
+          (which /dev/sheets is). It sits bottom-right and covers the very
+          drawer/modal footers this page exists to review, so hide it here. This
+          global rule only lives while the /dev/sheets layout is mounted. */}
+      <style dangerouslySetInnerHTML={{ __html: `[role="region"][aria-label="Cookie consent"]{display:none!important;}` }} />
       <ThemeModeBoot initialMode="system" initialAuroraOpacity={100} />
       <ThemeModeReapply initialMode="system" initialAuroraOpacity={100} />
       <AppBackground />

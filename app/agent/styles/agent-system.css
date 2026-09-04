@@ -1197,6 +1197,14 @@
     animation: agent-backdrop-in 200ms ease both;
   }
 
+  /* Entrance for the canonical Modal + Drawer PRIMITIVES. The @keyframes existed
+   * but no rule bound `animation` to these classes, so primitive overlays were
+   * popping in with no motion while every bespoke drawer (which sets `animation`
+   * inline) slid in. Same 240ms curve as the bespoke drawers so all overlays
+   * animate identically. 2026-09-04. */
+  .agent-modal-in  { animation: agent-modal-in  240ms cubic-bezier(0.25, 0, 0, 1) both; }
+  .agent-drawer-in { animation: agent-drawer-in 240ms cubic-bezier(0.25, 0, 0, 1) both; }
+
   /* ── Toast ───────────────────────────────────────────────────────────────── */
 
   .agent-toast {
@@ -1814,6 +1822,22 @@
     .rem-pill-label { display: none; }
   }
 
+  /* ── Reminder step name (desktop = fuller sentence, mobile = terse) ───────── */
+  /* Both variants render in the DOM; the viewport toggles which shows. Desktop
+   * gets the fuller sentence-style name with the client / solicitor filled in;
+   * phone keeps the terse milestone name so rows stay compact. */
+  @media (max-width: 767px) {
+    .rem-step-desktop { display: none; }
+  }
+  @media (min-width: 768px) {
+    .rem-step-mobile { display: none; }
+  }
+  /* The "Chasing {name}" quick-scan line is mobile-only: on desktop the fuller
+   * step name and the supporting sentence already name the party, so it'd triple. */
+  @media (min-width: 768px) {
+    .rem-chasing-line { display: none; }
+  }
+
   /* ── Row confirm flash ───────────────────────────────────────────────────── */
   /* Subtle green wash (rgba 16,185,129 at 0.07) over 700ms. Apply on milestone confirm.
    * key the element to force remount if confirm fires more than once on the same row. */
@@ -1955,6 +1979,8 @@
     .agent-notif-dot              { animation: none; }
     .agent-toast,
     .agent-modal,
+    .agent-modal-in,
+    .agent-drawer-in,
     .agent-backdrop               { animation: none; }
     .agent-bloom-1,
     .agent-bloom-2                { animation: none; }

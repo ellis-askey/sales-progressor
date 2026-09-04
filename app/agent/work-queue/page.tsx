@@ -126,18 +126,23 @@ export default async function WorkQueuePage() {
   const now = new Date();
   const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
 
-  // Header stat row — the two groups the list now uses. Snoozed rows excluded
-  // (they're on the Snoozed view). "Needs you" = rows the system won't chase.
-  let needsYouCount = 0, autopilotCount = 0;
+  // Header stat row — the three groups the list now uses. Snoozed rows excluded
+  // (they're on the Snoozed view). Manual (not auto) splits by urgency: due-now is
+  // "Needs you", the next 3 working days is "Coming up"; further-out manual rows are
+  // hidden and not counted. Auto rows are the "On autopilot" pipeline, any date.
+  let needsYouCount = 0, comingUpCount = 0, autopilotCount = 0;
   for (const l of reminderLogs) {
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) continue;
-    if (autopilot.get(l.id)?.kind === "auto") autopilotCount++;
-    else needsYouCount++;
+    if (autopilot.get(l.id)?.kind === "auto") { autopilotCount++; continue; }
+    const bucket = classifyForStats(l, now, upcomingCutoffStr);
+    if (bucket === "overdue" || bucket === "due_today") needsYouCount++;
+    else if (bucket === "coming_up") comingUpCount++;
   }
 
   const statSegments: { label: string; anchor: string; colorKey: PillColor }[] = [];
-  if (needsYouCount > 0)   statSegments.push({ label: `${needsYouCount} need${needsYouCount === 1 ? "s" : ""} you`, anchor: "#section-needs-you", colorKey: "danger" });
-  if (autopilotCount > 0)  statSegments.push({ label: `${autopilotCount} on autopilot`,                            anchor: "#section-autopilot", colorKey: "muted"  });
+  if (needsYouCount > 0)   statSegments.push({ label: `${needsYouCount} need${needsYouCount === 1 ? "s" : ""} you`, anchor: "#section-needs-you", colorKey: "danger"  });
+  if (comingUpCount > 0)   statSegments.push({ label: `${comingUpCount} coming up`,                                anchor: "#section-coming-up", colorKey: "warning" });
+  if (autopilotCount > 0)  statSegments.push({ label: `${autopilotCount} on autopilot`,                            anchor: "#section-autopilot", colorKey: "muted"   });
 
   return (
     <>

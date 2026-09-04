@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 const CLOSE_MS = 220; // must cover the longest -out animation (sheet-out).
 
@@ -37,7 +38,7 @@ export function PartnerPopup({
   // theme tokens don't resolve. Stamp the current agent theme on the panel so
   // its contents (text, borders, coral, glass inputs) pick them up — same
   // pattern as AddBrokerModal.
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
 
   useEffect(() => {
     if (open) {
@@ -105,20 +106,19 @@ export function PartnerPopup({
       aria-label={ariaLabel}
       onClick={onBackdrop}
     >
-      <div ref={panelRef} tabIndex={-1} data-theme={theme} className="partner-popup-panel" data-closing={closing ? "true" : undefined}>
+      <div ref={panelRef} tabIndex={-1} data-theme={theme} data-night={isNight ? "" : undefined} className="partner-popup-panel" data-closing={closing ? "true" : undefined}>
         {/* Header */}
         <div
           style={{
             flexShrink: 0,
-            padding: "18px 22px 14px",
-            borderBottom: "0.5px solid var(--agent-border-default)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
+            ...SHEET_BAND_STYLE,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>{title}</h2>
+          <SheetBandHeader kicker="Partner" title={title} />
           <button
             type="button"
             onClick={onClose}
@@ -127,11 +127,11 @@ export function PartnerPopup({
               width: 32, height: 32, flexShrink: 0,
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               background: "transparent", border: "none", borderRadius: 8,
-              cursor: "pointer", color: "var(--agent-text-muted)",
+              cursor: "pointer", color: "rgba(255,255,255,0.85)",
               transition: "background 150ms ease, color 150ms ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(var(--agent-coral-rgb), 0.1)"; e.currentTarget.style.color = "var(--agent-text-primary)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--agent-text-muted)"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "#fff"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,0.85)"; }}
           >
             <X size={16} weight="bold" />
           </button>

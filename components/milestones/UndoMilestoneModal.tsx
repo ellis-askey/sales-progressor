@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import type { UndoImpact } from "@/app/actions/milestones";
 
 type UndoMode = "target_only" | "cascade";
@@ -52,15 +53,17 @@ export function UndoMilestoneModal({
       ariaLabel="Undo step"
       size="md"
       dismissOnBackdrop={false}
+      closeTone="onDark"
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <Modal.Header>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo step</h3>
-          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
-            {hasCascade
+        <Modal.Header style={SHEET_BAND_STYLE}>
+          <SheetBandHeader
+            kicker="Milestone"
+            title="Undo step"
+            subtitle={hasCascade
               ? `${milestoneName}. What next?`
               : `Undo "${milestoneName}"?`}
-          </p>
+          />
         </Modal.Header>
 
         <Modal.Body>

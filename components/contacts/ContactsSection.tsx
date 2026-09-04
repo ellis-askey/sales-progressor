@@ -30,7 +30,7 @@
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
+import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -38,6 +38,7 @@ import { CommsButton } from "@/components/ui/CommsButton";
 import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo, ClipboardText } from "@phosphor-icons/react";
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
@@ -636,7 +637,7 @@ export function ContactsSection({
     setLoading(true);
     setShowForm(false);
     const isHelper = (form.roleType === "vendor" || form.roleType === "purchaser") && form.isHelper;
-    const snap = { propertyTransactionId: transactionId, name: titleCase(form.name), email: form.email.trim() || null, phone: form.phone.trim() || null, roleType: form.roleType, isPrincipal: !isHelper, portalEligible: isHelper ? form.givePortal : true };
+    const snap = { propertyTransactionId: transactionId, name: titleCaseKeepAcronyms(form.name), email: form.email.trim().toLowerCase() || null, phone: form.phone.trim() || null, roleType: form.roleType, isPrincipal: !isHelper, portalEligible: isHelper ? form.givePortal : true };
     const formSnap = { ...form };
     startTransition(async () => {
       try {
@@ -683,9 +684,9 @@ export function ContactsSection({
     const snap = {
       id: contactId,
       transactionId,
-      name: titleCase(editForm.name),
+      name: titleCaseKeepAcronyms(editForm.name),
       phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null,
-      email: editForm.email.trim() || null,
+      email: editForm.email.trim().toLowerCase() || null,
       // Only send the role flags for a side that can have a helper; leaving
       // them undefined keeps solicitors/brokers untouched (principal default).
       isPrincipal: canHelper ? !isHelper : undefined,
@@ -1137,11 +1138,10 @@ export function ContactsSection({
           onClose={() => { if (!deleting) setConfirmDelete(null); }}
           size="sm"
           ariaLabel="Remove contact"
+          closeTone="onDark"
         >
-          <Modal.Header>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              Remove contact
-            </h2>
+          <Modal.Header style={SHEET_BAND_STYLE}>
+            <SheetBandHeader kicker="Contact" title="Remove contact" />
           </Modal.Header>
           <Modal.Body>
             <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
