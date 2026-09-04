@@ -35,6 +35,14 @@ const TONE_GUIDANCE: Record<string, string> = {
   final_reminder: `Final-reminder tone. Use this when multiple chases over a sustained period have gone unanswered and the transaction is at material risk. Name the timeline of attempted contact factually and without accusation ("I've sent messages on the 14th, 21st and 28th"). State the consequence plainly and as a SHARED outcome ("if I don't hear back this week, I'll need to update the chain that we may not make exchange on the {expectedExchangeDate}"). Still no blame — the message is "I want to avoid this together." Sign off professionally with full name and firm.`,
 };
 
+// Who the message is going TO shapes how much you explain and how long it runs.
+// A solicitor runs these steps daily, so explaining the process reads as talking
+// down to them; a client (buyer/seller) may not follow it, so a light "why" helps.
+const RECIPIENT_GUIDANCE: Record<"solicitor" | "client", string> = {
+  solicitor: `You are writing to a solicitor: a conveyancing professional who runs these steps every day. Be brief and direct. Make the ask and stop. Do NOT explain what the step is, what happens next, or why it matters, and never narrate the process (no "so the buyer's side can then begin their review" clauses). They already know all of it, and spelling it out reads as talking down to them. Keep a short greeting, a "just", and a brief open-door line, but trim everything else. Keep it shorter than a client message: two to four short sentences of substance is plenty. This brevity takes precedence over the channel word count.`,
+  client: `You are writing to a member of the public (the buyer or seller), who may not follow the conveyancing process. One short clause on why the ask helps is welcome and reassuring. Keep it warm, plain, and free of legal jargon.`,
+};
+
 function getRecipientContext(
   side: string,
   contacts: Array<{ id: string; name: string; roleType: string; email?: string | null; phone?: string | null }>
@@ -316,6 +324,9 @@ export async function POST(req: NextRequest) {
     exchangeGatesConfirmed && tx.expectedExchangeDate ? expectedExchangeDateStr : "our exchange target"
   );
 
+  // Terser + no process-explaining for solicitors; warmer + light "why" for clients.
+  const recipientGuidance = recipientIsSolicitor ? RECIPIENT_GUIDANCE.solicitor : RECIPIENT_GUIDANCE.client;
+
   // System prompt (§5 verbatim)
   const systemPrompt = `You are writing a chase message on behalf of ${senderFirstName}, a sales progressor at ${firmName}, an estate agency. Your job is to keep a residential property transaction moving toward exchange and completion on behalf of all parties involved.
 
@@ -331,6 +342,10 @@ Each milestone in the context below has a "THE ASK" line. Your message asks the 
 
 Never move the ask onto a different step. Do not chase the earlier steps that had to happen before this one, and do not chase the later steps that follow it. A neighbouring step may be mentioned in at most one short clause, and only when it is genuinely useful shared context. The thing you actually ask the recipient for is always THIS milestone's own action, never a prerequisite or a follow-on.
 
+# Who you're writing to
+
+${recipientGuidance}
+
 # Voice
 
 Warm, human, British. Never corporate. Never American.
@@ -340,7 +355,7 @@ Opening: greeting + the recipient's first name (if known) + a brief "Hope you're
 Distinctive vocabulary:
 - "Just" is the most important word in this voice. Use it liberally: "just wanted to," "just a quick," "just checking in," "just chasing up," "just to keep you posted." Multiple uses per message is fine.
 - Soft modals for any ask: "would you be able to," "could you let me know," "would you mind," "if you get a chance."
-- Explain the WHY of any ask in one short clause: "just so I can keep things moving," "just helps me keep our records up to date."
+- With a CLIENT, explain the WHY of any ask in one short clause: "just so I can keep things moving," "just helps me keep our records up to date." With a SOLICITOR, skip the why entirely (see "Who you're writing to").
 - Volunteer help where plausible: "happy to follow up directly if it helps," "let me know and I'll handle it from here," "if you need me to chase the broker on your behalf, just say."
 
 Closing: open the door. "Let me know if you need anything," "Here to help if you need anything at all," "If you need anything from me in the meantime, please let me know."
