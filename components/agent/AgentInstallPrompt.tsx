@@ -20,35 +20,54 @@ function isStandalone() {
 
 // ── Install prompt (shown when not yet installed) ─────────────────────────────
 
-export function AgentInstallPrompt() {
+export function AgentInstallPrompt({ preview }: { preview?: "android" | "ios" } = {}) {
   const [ready, setReady]               = useState(false);
   const [isIOS, setIsIOS]               = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIOSSheet, setShowIOSSheet] = useState(false);
 
   useEffect(() => {
+    // QA preview (/dev/sheets): force the banner visible, bypassing the browser
+    // install gating that never fires on demand. Production mounts this with no
+    // props, so this branch is dead there. See _registry/notifications.tsx.
+    if (preview) {
+      setIsIOS(preview === "ios");
+      setReady(true);
+      return;
+    }
+
     if (isStandalone()) return;
     if (localStorage.getItem(INSTALL_KEY) === "1") return;
     if (localStorage.getItem(SUBSCRIBED_KEY) === "1") return;
 
+    // Wait a few seconds before surfacing, matching the client portal's
+    // onboarding toast (PortalOnboardingToasts) so the banner doesn't slam in
+    // on first paint.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     const ua = navigator.userAgent;
     if (/iPad|iPhone|iPod/.test(ua)) {
       setIsIOS(true);
-      setReady(true);
-      return;
+      timer = setTimeout(() => setReady(true), 3000);
+      return () => { if (timer) clearTimeout(timer); };
     }
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setReady(true);
+      timer = setTimeout(() => setReady(true), 3000);
     };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      if (timer) clearTimeout(timer);
+    };
+  }, [preview]);
 
   function dismiss() {
-    localStorage.setItem(INSTALL_KEY, "1");
+    // Don't persist the dismissal in preview mode, or inspecting the banner in
+    // /dev/sheets would suppress the real one for this browser.
+    if (!preview) localStorage.setItem(INSTALL_KEY, "1");
     setReady(false);
   }
 

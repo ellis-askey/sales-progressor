@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from "next";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
@@ -22,6 +23,26 @@ import "@/app/styles/elevra.css";
 // Design Lab (Ellis-only) — 22 glass variant classes + v00 baseline.
 // Dormant until GlassCard consumers land in commit C. See file docstring.
 import "@/app/styles/glass.css";
+
+// Makes the agent app installable as a real PWA: a home-screen app on mobile
+// and a standalone window on desktop Chrome/Edge (the "Install" affordance only
+// appears once a valid manifest + service worker are present). start_url +
+// icons live in public/manifest.json (scope "/"). The iOS home-screen icon is
+// served automatically from app/apple-icon.png; Android/desktop use the
+// manifest icon. Without this, tapping "Add to home screen" produced a
+// generic, unbranded shortcut.
+export const viewport: Viewport = {
+  themeColor: "#FF6B4A",
+};
+
+export const metadata: Metadata = {
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Sales Progressor",
+    statusBarStyle: "default",
+  },
+};
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const { session, isInternalStaff, showWelcome, theme, brandColor, userImage, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agencyModeProfile } =

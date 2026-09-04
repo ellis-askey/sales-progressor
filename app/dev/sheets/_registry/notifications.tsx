@@ -50,6 +50,7 @@ import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { NoChainSetupCard } from "@/components/chain/NoChainSetupCard";
 import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
+import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 
 // ── Auto-emails / reminders ─────────────────────────────────────────────────
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
@@ -924,6 +925,33 @@ export const NOTIFICATION_ENTRIES: SheetEntry[] = [
         />
       );
     },
+  },
+  {
+    id: "notice-agent-install-prompt",
+    name: "Add-to-home-screen prompt",
+    type: "notification",
+    area: "Global chrome",
+    usedIn: "Every agent surface · mobile + desktop app-install nudge",
+    file: "components/agent/AgentInstallPrompt.tsx",
+    componentName: "AgentInstallPrompt",
+    note: "Fixed banner pinned to the viewport bottom, mounted on every /agent page. In the real app it only surfaces once the browser reports the app is installable (Chrome/Edge fire it after a manifest + engagement) or on iOS Safari, and after a ~3s delay, so it can't be forced on a desktop refresh. The preview flag here forces it visible so both variants are inspectable. Android/desktop shows 'Install' (native prompt); iOS shows 'Show me', which opens the Safari Share-sheet walkthrough. Dismissing here does NOT persist, so it won't hide the real banner.",
+    preview: "inline",
+    states: [
+      { id: "android", label: "Android / desktop", hint: "native Install button" },
+      { id: "ios", label: "iOS Safari", hint: "'Show me' opens the Add-to-Home-Screen sheet" },
+    ],
+    render: ({ stateId }) => (
+      <FixtureCard>
+        <FixtureContextLabel>
+          In the real app this is pinned to the bottom of the viewport, over every agent page. Framed inside the card here so it isn&apos;t hidden behind the inspector bar. On the iOS state, tap &ldquo;Show me&rdquo; to open the Add-to-Home-Screen sheet.
+        </FixtureContextLabel>
+        {/* transform establishes a containing block so the banner's
+            position:fixed resolves to this box, not the viewport bottom. */}
+        <div style={{ position: "relative", transform: "translateZ(0)", minHeight: 440, marginTop: 12 }}>
+          <AgentInstallPrompt preview={stateId === "ios" ? "ios" : "android"} />
+        </div>
+      </FixtureCard>
+    ),
   },
   {
     id: "notice-analytics-notif-cta",

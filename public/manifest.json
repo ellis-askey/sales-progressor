@@ -2,21 +2,15 @@
   "name": "Sales Progressor",
   "short_name": "Sales Progressor",
   "description": "Transaction management for residential property sales.",
-  "start_url": "/",
+  "start_url": "/agent/hub",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#FFE8D1",
   "theme_color": "#FF6B4A",
   "icons": [
     {
-      "src": "/icon.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    },
-    {
-      "src": "/apple-icon.png",
-      "sizes": "180x180",
+      "src": "/brand-icon.png",
+      "sizes": "819x819",
       "type": "image/png",
       "purpose": "any"
     }
