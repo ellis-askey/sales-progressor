@@ -20,8 +20,10 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   buildRetentionEmail,
   type RetentionEmailKey,
+  type PropertyCardVars,
   TRANSACTIONAL_EMAIL_KEYS,
 } from "@/lib/emails/retention";
+import { getSignedUrl } from "@/lib/supabase-storage";
 
 const REPLY_TO = "inbox@thesalesprogressor.co.uk";
 const SYSTEM_FROM_DOMAIN = "updates@thesalesprogressor.co.uk";
@@ -53,6 +55,51 @@ export function generateUnsubscribeUrl(userId: string): string {
   return `${base}/api/retention/unsubscribe?token=${token}`;
 }
 
+// ─── Property card (stuck_day_3) ──────────────────────────────────────────────
+
+const EMAIL_FALLBACK_PHOTO = "https://portal.thesalesprogressor.co.uk/emails/empty-chain-prop.png";
+const PHOTO_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days — long enough that a later open still shows the photo
+
+// Split "12 Oak Avenue, Kingston upon Thames, KT1 2AB" into line / town / postcode.
+function parseAddress(full: string): { line: string; town: string; postcode: string } {
+  const parts = full.split(",").map((s) => s.trim()).filter(Boolean);
+  const ukPostcode = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
+  let postcode = "";
+  if (parts.length > 1 && ukPostcode.test(parts[parts.length - 1])) postcode = parts.pop() ?? "";
+  const line = parts.shift() ?? full;
+  return { line, town: parts.join(", "), postcode };
+}
+
+async function buildPropertyCard(tx: {
+  propertyAddress: string;
+  purchasePrice: number | null;
+  tenure: string | null;
+  purchaseType: string | null;
+  photoStoragePath: string | null;
+  createdAt: Date;
+}): Promise<PropertyCardVars> {
+  const { line, town, postcode } = parseAddress(tx.propertyAddress);
+
+  // The file's own photo (signed, long TTL) or the hosted fallback.
+  let photoUrl = EMAIL_FALLBACK_PHOTO;
+  if (tx.photoStoragePath) {
+    photoUrl = await getSignedUrl(tx.photoStoragePath, PHOTO_TTL_SECONDS).catch(() => EMAIL_FALLBACK_PHOTO);
+  }
+
+  // Price (stored in pence) → "£525,000"; if none, fall back to the buyer's
+  // method. Both cash types read "Cash" so the value stays short on mobile.
+  const hasPrice = tx.purchasePrice != null;
+  const saleLabel = hasPrice ? "Sale" : "Purchase";
+  const saleValue = hasPrice
+    ? `£${Math.round(tx.purchasePrice! / 100).toLocaleString("en-GB")}`
+    : tx.purchaseType === "mortgage" ? "Mortgage" : "Cash";
+
+  const tenure = tx.tenure === "leasehold" ? "Leasehold" : tx.tenure === "freehold" ? "Freehold" : "—";
+  const added = tx.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+
+  return { addressLine: line, town, postcode, photoUrl, saleLabel, saleValue, tenure, added };
+}
+
 // ─── Internal send helper ─────────────────────────────────────────────────────
 
 async function sendRetentionEmail({
@@ -66,6 +113,7 @@ async function sendRetentionEmail({
     address?: string;
     ctaUrl?: string;
     unsubscribeUrl?: string;
+    property?: PropertyCardVars;
   };
 }): Promise<void> {
   const firstName = extractFirstName(user.name);
@@ -76,6 +124,7 @@ async function sendRetentionEmail({
     address: vars.address,
     ctaUrl: vars.ctaUrl,
     unsubscribeUrl: vars.unsubscribeUrl ?? unsubscribeUrl,
+    property: vars.property,
   });
 
   const from = `${template.fromDisplayName} <${SYSTEM_FROM_DOMAIN}>`;
@@ -164,6 +213,7 @@ async function chunkSend(
     address?: string;
     ctaUrl?: string;
     unsubscribeUrl?: string;
+    property?: PropertyCardVars;
   }
 ): Promise<{ sent: number; errors: number }> {
   let sent = 0;
@@ -371,13 +421,17 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
     const candidates: typeof eligible = [];
     const candidateAddresses: Map<string, string> = new Map();
     const candidateTransactionIds: Map<string, string> = new Map();
+    const candidateProperty: Map<string, PropertyCardVars> = new Map();
 
     for (const user of eligible) {
       // Oldest transaction for this agent must be 3+ days old
       const oldestTx = await prisma.propertyTransaction.findFirst({
         where: { agentUserId: user.id },
         orderBy: { createdAt: "asc" },
-        select: { id: true, createdAt: true, propertyAddress: true },
+        select: {
+          id: true, createdAt: true, propertyAddress: true,
+          purchasePrice: true, tenure: true, purchaseType: true, photoStoragePath: true,
+        },
       });
       if (!oldestTx || oldestTx.createdAt > cutoff3d) continue;
 
@@ -415,11 +469,13 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
       candidates.push(user);
       candidateAddresses.set(user.id, oldestTx.propertyAddress);
       candidateTransactionIds.set(user.id, oldestTx.id);
+      candidateProperty.set(user.id, await buildPropertyCard(oldestTx));
     }
 
     const { sent, errors } = await chunkSend(candidates, emailKey, (u) => ({
       address: candidateAddresses.get(u.id),
       ctaUrl: `${base}/transactions/${candidateTransactionIds.get(u.id) ?? ""}`,
+      property: candidateProperty.get(u.id),
     }));
 
     totalSent += sent;
