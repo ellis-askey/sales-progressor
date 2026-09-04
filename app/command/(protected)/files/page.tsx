@@ -64,6 +64,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ATTENTION_META: Record<FileAttention, { label: string; style: string }> = {
   no_photo:      { label: "No photo",      style: "text-amber-400 bg-amber-950/50 border-amber-900" },
+  incomplete:    { label: "Incomplete",    style: "text-orange-400 bg-orange-950/50 border-orange-900" },
   exchange_soon: { label: "Exchange soon", style: "text-blue-400 bg-blue-950/50 border-blue-900" },
   idle:          { label: "No recent work", style: "text-neutral-400 bg-neutral-800/60 border-neutral-700" },
 };
@@ -81,22 +82,27 @@ async function dismissAction(formData: FormData) {
 export default async function FilesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tx?: string; status?: string; att?: string }>;
+  searchParams: Promise<{ q?: string; tx?: string; status?: string; att?: string; managed?: string }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const statusFilter = sp.status === "active" || sp.status === "on_hold" ? sp.status : undefined;
-  const attFilter = (["no_photo", "exchange_soon", "idle"] as const).find((a) => a === sp.att);
+  const attFilter = (["no_photo", "incomplete", "exchange_soon", "idle"] as const).find((a) => a === sp.att);
+  // Service-tier scope. "self" = self-progressed (the agency runs it, so upkeep
+  // matters most); "outsourced" = our team runs it. Scopes both the list and the
+  // photo queue so the whole page narrows to the chosen tier.
+  const managedKey = sp.managed === "self" || sp.managed === "outsourced" ? sp.managed : undefined;
+  const serviceType = managedKey === "self" ? "self_managed" : managedKey === "outsourced" ? "outsourced" : undefined;
 
   // One storage listing serves the photo queue, search results and the list.
   const storedIds = await listStoredPhotoTxIds();
 
   const selectedId = sp.tx;
   const [photoQueue, results, file, list] = await Promise.all([
-    getPhotoQueue(storedIds),
+    getPhotoQueue({ storedIds, serviceType }),
     q ? searchFiles(q, storedIds) : Promise.resolve([]),
     selectedId ? getFileOperational(selectedId) : Promise.resolve(null),
-    !selectedId && !q ? getFilesList({ storedIds, status: statusFilter, attention: attFilter }) : Promise.resolve(null),
+    !selectedId && !q ? getFilesList({ storedIds, status: statusFilter, attention: attFilter, serviceType }) : Promise.resolve(null),
   ]);
 
   const qs = (extra: Record<string, string>) => {
@@ -107,6 +113,7 @@ export default async function FilesPage({
     const base: Record<string, string> = {};
     if (statusFilter) base.status = statusFilter;
     if (attFilter) base.att = attFilter;
+    if (managedKey) base.managed = managedKey;
     const merged = { ...base, ...extra };
     for (const k of Object.keys(merged)) if (!merged[k]) delete merged[k];
     const p = new URLSearchParams(merged);
@@ -185,7 +192,7 @@ export default async function FilesPage({
               <p className="text-sm text-neutral-500">Pick a property above to open its operational view.</p>
             </div>
           ) : (
-            <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} listHref={listHref} />
+            <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} managedKey={managedKey} listHref={listHref} />
           )}
         </div>
 
@@ -245,16 +252,23 @@ function BrowsableList({
   list,
   statusFilter,
   attFilter,
+  managedKey,
   listHref,
 }: {
   list: { rows: FileListRow[]; total: number } | null;
   statusFilter?: "active" | "on_hold";
   attFilter?: FileAttention;
+  managedKey?: "self" | "outsourced";
   listHref: (extra: Record<string, string>) => string;
 }) {
   const rows = list?.rows ?? [];
   const total = list?.total ?? 0;
 
+  const managedChips: Array<{ v: string; label: string }> = [
+    { v: "", label: "All files" },
+    { v: "self", label: "Self-progressed" },
+    { v: "outsourced", label: "Outsourced" },
+  ];
   const statusChips: Array<{ v: string; label: string }> = [
     { v: "", label: "All live" },
     { v: "active", label: "In progress" },
@@ -263,6 +277,7 @@ function BrowsableList({
   const attChips: Array<{ v: string; label: string }> = [
     { v: "", label: "All" },
     { v: "no_photo", label: "Needs photo" },
+    { v: "incomplete", label: "Incomplete" },
     { v: "exchange_soon", label: "Exchange soon" },
     { v: "idle", label: "No recent work" },
   ];
@@ -271,6 +286,15 @@ function BrowsableList({
     <div className="space-y-3">
       {/* filters */}
       <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Managed by</span>
+          {managedChips.map((c) => {
+            const on = (managedKey ?? "") === c.v;
+            return (
+              <Link key={c.v || "all"} href={listHref({ managed: c.v })} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"}`}>{c.label}</Link>
+            );
+          })}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Status</span>
           {statusChips.map((c) => {
@@ -323,7 +347,15 @@ function BrowsableList({
                   <td className="px-3.5 py-2.5">
                     <div className="flex gap-1 flex-wrap">
                       {r.attention.map((a) => (
-                        <span key={a} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${ATTENTION_META[a].style}`}>{ATTENTION_META[a].label}</span>
+                        <span
+                          key={a}
+                          title={a === "incomplete" ? r.incompleteReasons.join(" · ") : undefined}
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${ATTENTION_META[a].style}`}
+                        >
+                          {a === "incomplete" && r.incompleteReasons.length > 0
+                            ? `Incomplete: ${r.incompleteReasons[0]}${r.incompleteReasons.length > 1 ? ` +${r.incompleteReasons.length - 1}` : ""}`
+                            : ATTENTION_META[a].label}
+                        </span>
                       ))}
                     </div>
                   </td>

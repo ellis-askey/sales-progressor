@@ -21,6 +21,11 @@ const LIVE_FILE_WHERE = {
   agency: { isInternal: false },
 };
 
+// Service-tier scope for the Files views. self_managed = the agency runs the
+// file themselves, so nobody internal is watching it and upkeep matters most;
+// outsourced = our team progresses it. Undefined = both tiers.
+export type ServiceScope = "self_managed" | "outsourced";
+
 export type NoPhotoFile = {
   id: string;
   address: string;
@@ -32,14 +37,17 @@ export type NoPhotoFile = {
 // the founder hasn't dismissed. Storage-aware — a file whose image is already in
 // the bucket (but whose DB field was never persisted by the agent two-step
 // upload) is NOT flagged, so this stops showing false positives. Oldest first.
-export async function getPhotoQueue(
-  storedIds?: Set<string>,
-  limit = 40,
-): Promise<{ files: NoPhotoFile[]; count: number }> {
-  const stored = storedIds ?? (await listStoredPhotoTxIds());
+export async function getPhotoQueue(opts: {
+  storedIds?: Set<string>;
+  serviceType?: ServiceScope;
+  limit?: number;
+} = {}): Promise<{ files: NoPhotoFile[]; count: number }> {
+  const stored = opts.storedIds ?? (await listStoredPhotoTxIds());
+  const limit = opts.limit ?? 40;
   const candidates = await commandDb.propertyTransaction.findMany({
     where: {
       ...LIVE_FILE_WHERE,
+      ...(opts.serviceType ? { serviceType: opts.serviceType } : {}),
       photoStoragePath: null,
       photoReminderDismissedAt: null,
     },
@@ -100,7 +108,7 @@ export async function searchFiles(q: string, storedIds?: Set<string>, limit = 12
 // operational health, each opening the operational panel. Distinct from Today
 // (milestone-stuck) and Agencies (agent activity) — this is per-file operational
 // state (who's touched it, photo, exchange proximity).
-export type FileAttention = "no_photo" | "exchange_soon" | "idle";
+export type FileAttention = "no_photo" | "incomplete" | "exchange_soon" | "idle";
 export type FileListRow = {
   id: string;
   address: string;
@@ -112,15 +120,22 @@ export type FileListRow = {
   exchangeDate: Date | null;
   daysToExchange: number | null;
   attention: FileAttention[];
+  // Plain-English list of what's been left empty (empty when the file is complete).
+  incompleteReasons: string[];
 };
 
 const IDLE_DAYS = 14;
 const EXCHANGE_SOON_DAYS = 14;
+// Grace before we flag data that legitimately arrives later (a solicitor, an
+// exchange target). Client email + property basics are day-one data, so they
+// flag immediately.
+const INCOMPLETE_GRACE_DAYS = 7;
 
 export async function getFilesList(opts: {
   storedIds?: Set<string>;
   status?: "active" | "on_hold";
   attention?: FileAttention;
+  serviceType?: ServiceScope;
   limit?: number;
 }): Promise<{ rows: FileListRow[]; total: number }> {
   const stored = opts.storedIds ?? (await listStoredPhotoTxIds());
@@ -129,6 +144,7 @@ export async function getFilesList(opts: {
   const files = await commandDb.propertyTransaction.findMany({
     where: {
       ...LIVE_FILE_WHERE,
+      ...(opts.serviceType ? { serviceType: opts.serviceType } : {}),
       ...(opts.status ? { status: opts.status } : {}),
     },
     select: {
@@ -138,7 +154,19 @@ export async function getFilesList(opts: {
       photoStoragePath: true,
       expectedExchangeDate: true,
       overridePredictedDate: true,
+      createdAt: true,
+      purchasePrice: true,
+      tenure: true,
+      vendorSolicitorContactId: true,
+      purchaserSolicitorContactId: true,
+      activeBuyerRoundId: true,
       agency: { select: { name: true } },
+      // Principal buyer/seller contacts — checked for a missing email (no email
+      // means no portal + no updates, the biggest "left empty" gap after photo).
+      contacts: {
+        where: { roleType: { in: ["vendor", "purchaser"] }, isPrincipal: true },
+        select: { email: true, roleType: true, buyerRoundId: true },
+      },
     },
     take: 400,
   });
@@ -176,8 +204,22 @@ export async function getFilesList(opts: {
     const daysToExchange = exchangeDate
       ? Math.round((new Date(exchangeDate).getTime() - now) / 86_400_000)
       : null;
+    // Completeness — data that, left empty, degrades the client experience.
+    // Solicitor + exchange date get a grace period (they arrive later); email +
+    // property basics are entered up front, so they flag from day one.
+    const pastGrace = now - f.createdAt.getTime() >= INCOMPLETE_GRACE_DAYS * 86_400_000;
+    const activeClients = f.contacts.filter(
+      (c) => c.roleType === "vendor" || c.buyerRoundId == null || c.buyerRoundId === f.activeBuyerRoundId,
+    );
+    const incompleteReasons: string[] = [];
+    if (activeClients.length > 0 && activeClients.some((c) => !c.email?.trim())) incompleteReasons.push("no client email");
+    if (f.purchasePrice == null || f.tenure == null) incompleteReasons.push("missing property details");
+    if (pastGrace && (!f.vendorSolicitorContactId || !f.purchaserSolicitorContactId)) incompleteReasons.push("no solicitor");
+    if (pastGrace && exchangeDate == null) incompleteReasons.push("no exchange date");
+
     const attention: FileAttention[] = [];
     if (!hasPhoto) attention.push("no_photo");
+    if (incompleteReasons.length > 0) attention.push("incomplete");
     if (daysToExchange != null && daysToExchange >= 0 && daysToExchange <= EXCHANGE_SOON_DAYS) attention.push("exchange_soon");
     if (!lastTeamActivityAt || now - lastTeamActivityAt.getTime() > IDLE_DAYS * 86_400_000) attention.push("idle");
     return {
@@ -191,6 +233,7 @@ export async function getFilesList(opts: {
       exchangeDate,
       daysToExchange,
       attention,
+      incompleteReasons,
     };
   });
 
