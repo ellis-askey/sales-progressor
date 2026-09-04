@@ -10,9 +10,10 @@
 // serverless functions with access to the full project directory at process.cwd(),
 // so no special bundling config is required.
 //
-// Only four fields are exported — the runtime-prompt fields. Side, Blocks exchange,
-// Who is responsible, and Typical chase context are human-reference fields and are
-// deliberately excluded here.
+// The four runtime-prompt fields are exported for the AI chase prompt. "Who is
+// responsible" is also exported now (optional) so the Reminders page can name who
+// owes the action per step. Side, Blocks exchange and Typical chase context remain
+// human-reference only.
 
 import fs from "fs";
 import path from "path";
@@ -22,6 +23,9 @@ export interface MilestoneContext {
   outstanding: string;
   alsoCalled: string;
   misframings: string;
+  // "Who is responsible" row, verbatim (e.g. "Buyer's solicitor", "Seller"). Not
+  // present on every entry, so optional.
+  responsible?: string;
 }
 
 function parseGlossary(content: string): Record<string, MilestoneContext> {
@@ -75,9 +79,10 @@ function parseGlossary(content: string): Record<string, MilestoneContext> {
     const outstanding = fields['What "outstanding" means'];
     const alsoCalled = fields["Also called"];
     const misframings = fields["Common misframings to avoid"];
+    const responsible = fields["Who is responsible"];
 
     if (tracks && outstanding && alsoCalled && misframings) {
-      result[code] = { tracks, outstanding, alsoCalled, misframings };
+      result[code] = { tracks, outstanding, alsoCalled, misframings, responsible };
     }
   }
 
@@ -106,6 +111,16 @@ const glossaryMap: Record<string, MilestoneContext> = (() => {
 
 export function getMilestoneContext(code: string): MilestoneContext | null {
   return glossaryMap[code] ?? null;
+}
+
+// Who owes the action for a milestone, collapsed to the two parties the Reminders
+// card cares about. "Buyer's solicitor" / "Seller's solicitor (notifies …)" → the
+// solicitor; anything else (Buyer / Seller / broker) → the client. null when the
+// milestone isn't in the glossary or has no "Who is responsible" row.
+export function getMilestoneResponsible(code: string): "client" | "solicitor" | null {
+  const r = glossaryMap[code]?.responsible;
+  if (!r) return null;
+  return /solicitor/i.test(r) ? "solicitor" : "client";
 }
 
 // First quoted alias from the milestone's "Also called" row — the snappy

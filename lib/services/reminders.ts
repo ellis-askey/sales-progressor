@@ -316,7 +316,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     where: { status: "active", transaction: txWhere },
     include: {
       reminderRule: {
-        select: { name: true, description: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true, graceDays: true, anchorMilestone: { select: { name: true } } },
+        select: { name: true, description: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true, graceDays: true, anchorMilestone: { select: { name: true, blocksExchange: true } } },
       },
       chaseTasks: {
         where: { status: "pending" },
@@ -344,8 +344,14 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
         select: {
           id: true,
           propertyAddress: true,
+          photoStoragePath: true,
           activeBuyerRoundId: true,
-          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true } },
+          // Autopilot eligibility (see lib/services/reminder-autopilot.ts).
+          agencyId: true,
+          clientEmailsPaused: true,
+          vendorSolicitorEmailsPaused: true,
+          purchaserSolicitorEmailsPaused: true,
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true } },
           // Real solicitors so the work-queue chase drawer can offer the
           // right-side solicitor as a recipient (they aren't Contact rows).
           vendorSolicitorFirm: { select: { name: true } },

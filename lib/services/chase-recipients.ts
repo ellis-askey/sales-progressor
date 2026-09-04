@@ -131,3 +131,40 @@ export function recipientRoleLabel(c: ChaseContact): string {
 export function recipientLabel(c: ChaseContact): string {
   return `${c.name} · ${recipientRoleLabel(c)}`;
 }
+
+// Join a list of names naturally: "A", "A & B", "A, B & C".
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
+// Who owes the action for a chase, named. Uses the milestone side (VM/PM) plus the
+// glossary's responsible party (client vs solicitor) to pick the right person(s).
+// `role` is only set when it adds something the side pill doesn't already show:
+// null for the seller/buyer (the pill says so), "solicitor"/"mortgage broker"
+// otherwise. Names every principal on the side (joint sellers/buyers). Client-safe.
+export function whoToChase(opts: {
+  side: ChaseSide;
+  responsible: "client" | "solicitor" | null;
+  contacts: { name: string; roleType: string }[];
+  vendorSolicitor?: SolicitorRef | null;
+  purchaserSolicitor?: SolicitorRef | null;
+}): { name: string; role: string | null } | null {
+  const { side, responsible, contacts, vendorSolicitor, purchaserSolicitor } = opts;
+  const sol = side === "vendor" ? vendorSolicitor : purchaserSolicitor;
+  const solName = sol ? (sol.firm?.name || sol.name) : null;
+
+  if (responsible === "solicitor" && solName) return { name: solName, role: "solicitor" };
+
+  // Client side: name every principal (joint sellers / joint buyers).
+  const clientRole = side === "vendor" ? "vendor" : "purchaser";
+  const clients = contacts.filter((c) => c.roleType === clientRole).map((c) => c.name);
+  if (clients.length > 0) return { name: joinNames(clients), role: null };
+
+  const broker = contacts.find((c) => c.roleType === "broker");
+  if (broker) return { name: broker.name, role: "mortgage broker" };
+
+  if (solName) return { name: solName, role: "solicitor" };
+  return null;
+}

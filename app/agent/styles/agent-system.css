@@ -1805,6 +1805,15 @@
    * close, unmount in onAnimationEnd. Same pattern as .agent-reveal-out. */
   .agent-dropdown-out { animation: agent-dropdown-out 100ms ease-in  both; }
 
+  /* ── Reminder status pills ───────────────────────────────────────────────── */
+  /* StatusPill (components/reminders/StatusPill.tsx) shows icon + label. Below
+   * the tablet/mobile breakpoint the label collapses so the pill is icon-only
+   * (the full label stays as a title tooltip), keeping busy reminder rows from
+   * overflowing. Labels are fixed and short, so a viewport breakpoint is enough. */
+  @media (max-width: 767px) {
+    .rem-pill-label { display: none; }
+  }
+
   /* ── Row confirm flash ───────────────────────────────────────────────────── */
   /* Subtle green wash (rgba 16,185,129 at 0.07) over 700ms. Apply on milestone confirm.
    * key the element to force remount if confirm fires more than once on the same row. */

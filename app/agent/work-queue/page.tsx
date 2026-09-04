@@ -8,6 +8,9 @@ import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
 import { FileAlertsStrip } from "@/components/reminders/FileAlertsStrip";
 import { prisma } from "@/lib/prisma";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milestone-glossary";
+import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
@@ -83,23 +86,58 @@ export default async function WorkQueuePage() {
     prisma.propertyTransaction.count({ where: { ...txWhereWorkQueue(vis), status: { in: ["active", "on_hold"] } } }),
   ]);
 
+  // Sign the property photos once, keyed by transaction, for the per-file
+  // headers in the list. Missing/failed paths fall back to the house glyph.
+  const signedPhotos = await getSignedUrlMap(
+    reminderLogs.map((l) => l.transaction.photoStoragePath).filter((p): p is string => !!p),
+  );
+  const photoByTx = new Map<string, string | null>();
+  for (const l of reminderLogs) {
+    const p = l.transaction.photoStoragePath;
+    photoByTx.set(l.transaction.id, p ? signedPhotos.get(p) ?? null : null);
+  }
+
+  // Per-milestone-code glossary (plain-English meaning + who owes the action).
+  // Resolved here because the glossary reads from disk (server only); passed to
+  // the client list keyed by code.
+  const milestoneInfo: Record<string, { outstanding: string; responsible: "client" | "solicitor" | null }> = {};
+  for (const code of new Set(reminderLogs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c))) {
+    const ctx = getMilestoneContext(code);
+    if (ctx) milestoneInfo[code] = { outstanding: ctx.outstanding, responsible: getMilestoneResponsible(code) };
+  }
+
+  // Autopilot split: is the system chasing this row, and when next — or is it the
+  // agent's? Needs the on/off state of both send pipelines for the files involved.
+  const agencyIds = [...new Set(reminderLogs.map((l) => l.transaction.agencyId).filter((a): a is string => !!a))];
+  const [solSettings, agencies] = await Promise.all([
+    prisma.solicitorChaseSettings.findFirst({ select: { enabledByDefault: true } }),
+    agencyIds.length
+      ? prisma.agency.findMany({ where: { id: { in: agencyIds } }, select: { id: true, chaseEmailsEnabled: true, solicitorChaseEnabled: true } })
+      : Promise.resolve([]),
+  ]);
+  const flags: AutopilotFlags = {
+    clientChaseEnabled: process.env.CLIENT_CHASE_ENABLED === "true",
+    solicitorGlobalEnabled: solSettings?.enabledByDefault ?? false,
+    agencyClientChase: new Map(agencies.map((a) => [a.id, a.chaseEmailsEnabled])),
+    agencySolicitorChase: new Map(agencies.map((a) => [a.id, a.solicitorChaseEnabled])),
+  };
+  const autopilot = resolveAutopilot(reminderLogs, flags);
+
   const now = new Date();
   const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
 
-  // Compute header stat row. classifyForStats handles snoozed-filtering
-  // via classifyReminder (snoozed → "snoozed" → returns null here).
-  let overdueCount = 0, dueTodayCount = 0, comingUpCount = 0;
+  // Header stat row — the two groups the list now uses. Snoozed rows excluded
+  // (they're on the Snoozed view). "Needs you" = rows the system won't chase.
+  let needsYouCount = 0, autopilotCount = 0;
   for (const l of reminderLogs) {
-    const g = classifyForStats(l, now, upcomingCutoffStr);
-    if (g === "overdue") overdueCount++;
-    else if (g === "due_today") dueTodayCount++;
-    else if (g === "coming_up") comingUpCount++;
+    if (l.snoozedUntil && new Date(l.snoozedUntil) > now) continue;
+    if (autopilot.get(l.id)?.kind === "auto") autopilotCount++;
+    else needsYouCount++;
   }
 
   const statSegments: { label: string; anchor: string; colorKey: PillColor }[] = [];
-  if (overdueCount > 0)  statSegments.push({ label: `${overdueCount} overdue`,   anchor: "#section-overdue",  colorKey: "danger"  });
-  if (dueTodayCount > 0) statSegments.push({ label: `${dueTodayCount} due today`, anchor: "#section-due_today", colorKey: "warning" });
-  if (comingUpCount > 0) statSegments.push({ label: `${comingUpCount} coming up`, anchor: "#section-upcoming",  colorKey: "muted"   });
+  if (needsYouCount > 0)   statSegments.push({ label: `${needsYouCount} need${needsYouCount === 1 ? "s" : ""} you`, anchor: "#section-needs-you", colorKey: "danger" });
+  if (autopilotCount > 0)  statSegments.push({ label: `${autopilotCount} on autopilot`,                            anchor: "#section-autopilot", colorKey: "muted"  });
 
   return (
     <>
@@ -163,7 +201,7 @@ export default async function WorkQueuePage() {
             </div>
           </>
         ) : (
-          <AgentRemindersList logs={reminderLogs} hideChase={session.user.role === "admin"} />
+          <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} />
         )}
       </div>
     </>

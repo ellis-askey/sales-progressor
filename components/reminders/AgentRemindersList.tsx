@@ -9,17 +9,22 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
-import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
+import { classifyReminder } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
-import { RoleIcon } from "@/components/ui/RoleIcon";
 import { Button } from "@/components/ui/Button";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { UrgencyPill, SidePill, BlocksExchangePill, ManualPill, type UrgencyBucket } from "@/components/reminders/status-pills";
+import { AutoChaseCountdown } from "@/components/reminders/AutoChaseCountdown";
+import type { AutopilotStatus } from "@/lib/services/reminder-autopilot";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
-import { withSolicitorRecipients, type SolicitorRef } from "@/lib/services/chase-recipients";
+import { withSolicitorRecipients, whoToChase, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
+type MilestoneInfo = Record<string, { outstanding: string; responsible: "client" | "solicitor" | null }>;
+type AutopilotMap = Map<string, AutopilotStatus>;
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
 type LastComm = { createdAt: Date; method: string | null };
 
@@ -35,42 +40,8 @@ const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; lab
   upcoming:  { label: "Coming up",  headerCls: "wq-urgency-bar wq-urgency-bar-coming-up", labelCls: "text-slate-900/60", badgeCls: "bg-slate-100 text-slate-900/60" },
 };
 
-// ─── Fallback-kind chip text (B3 of the client-chase arc) ───────────────────
-// Five kinds of fail-soft routing today (see FallbackKind in
-// lib/services/reminders.ts). Each renders the SAME amber chip in this
-// component, with kind-specific short text + a longer hover title that
-// explains the next step to the agent. Falls back to a generic chip if a
-// new kind is added in code but not here (defensive — TypeScript would
-// catch the exhaustiveness gap at compile time too).
-function fallbackChipText(kind: string): string {
-  switch (kind) {
-    case "client_opted_out":          return "Opted out, chase manually";
-    case "max_chases_exhausted":      return "Chased twice (manual)";
-    case "days_cap_exhausted":        return "14d silent (manual)";
-    case "no_email_on_contact":       return "Add email to send updates";
-    case "no_portalToken_on_contact": return "Portal access needed";
-    case "client_emails_paused":      return "Client emails paused (manual)";
-    default:                          return "Manual handoff";
-  }
-}
-function fallbackChipTitle(kind: string): string {
-  switch (kind) {
-    case "client_opted_out":
-      return "This client opted out of automated updates. Follow up manually.";
-    case "max_chases_exhausted":
-      return "We chased the client twice with no response. Follow up manually.";
-    case "days_cap_exhausted":
-      return "Client has been silent for 14 days since the first chase. Follow up manually.";
-    case "no_email_on_contact":
-      return "We can't send this client automated updates yet. Add an email to switch chasing back on, or follow up manually.";
-    case "no_portalToken_on_contact":
-      return "This client has no portal access yet, so we can't send automated updates. Follow up manually.";
-    case "client_emails_paused":
-      return "Client emails are paused on this file. Chase manually if needed.";
-    default:
-      return "Manual chase needed.";
-  }
-}
+// Urgency, side and fallback chips now live in components/reminders/status-pills.tsx
+// (shared with the property-file Reminders tab).
 
 function isSunday(d: Date) { return d.getDay() === 0; }
 function addBusinessDays(from: Date, days: number): Date {
@@ -305,341 +276,32 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
   );
 }
 
-function SideColumn({
-  logs,
-  side,
-  txId,
-  address,
-  contacts,
-  vendorSolicitor,
-  purchaserSolicitor,
-  loading,
-  exitingIds,
-  handleComplete,
-  handleSnooze,
-  handleSnoozeAll,
-  handleChased,
-  hideChase,
-}: {
-  logs: AgentReminderLog[];
-  side: "seller" | "buyer";
-  txId: string;
-  address: string;
-  contacts: AgentReminderLog["transaction"]["contacts"];
-  vendorSolicitor?: SolicitorRef | null;
-  purchaserSolicitor?: SolicitorRef | null;
-  loading: string | null;
-  // Below allows the optimistic hide to also tell the parent which log to drop.
-  // handleChased signature carries an optional logId.
-  exitingIds: Set<string>;
-  handleComplete: (taskId: string) => void;
-  handleSnooze: (taskId: string, hours: number) => void;
-  handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
-  handleChased: (taskId: string, logId?: string) => void;
-  hideChase?: boolean;
-}) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  // Optimistic chase-count overlay so the ↻ Chased button feels instant.
-  const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
-  function optimisticChase(taskId: string, logId: string, baseCount: number) {
-    setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
-    handleChased(taskId, logId);
-  }
-
-  const isSeller = side === "seller";
-  const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
-  const labelColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
-
-  const openTasks = logs.flatMap((log) => {
-    const task = log.chaseTasks.find((t) => t.status === "pending");
-    if (!task) return [];
-    return [{ log, task }];
-  });
-
-  // Logs with no pending task yet — upcoming state, show name + due date only
-  const scheduledLogs = logs.filter((log) => !log.chaseTasks.find((t) => t.status === "pending"));
-
-  const milestones = openTasks.map(({ log, task }) => ({
-    chaseTaskId: task.id,
-    name: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
-    chaseCount: task.chaseCount,
-  }));
-
-  const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
-  const allTaskIds = openTasks.map(({ task }) => task.id);
-  const allLogIds  = openTasks.map(({ log })  => log.id);
-  const chaseContacts = contacts.filter((c) =>
-    isSeller
-      ? ["vendor", "solicitor"].includes(c.roleType)
-      : ["purchaser", "broker", "solicitor"].includes(c.roleType)
-  );
-  // Inject this side's real solicitor (FK-sourced) as a selectable recipient.
-  const effectiveContacts = withSolicitorRecipients(
-    chaseContacts.length > 0 ? chaseContacts : contacts,
-    { vendorSolicitor, purchaserSolicitor, side: isSeller ? "vendor" : "purchaser" },
-  );
-
-  return (
-    <div
-      style={{
-        flex: 1, minWidth: 0, borderRadius: 14,
-        background: columnBg,
-        border: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.14)" : "rgba(var(--agent-info-rgb), 0.14)"}`,
-        display: "flex", flexDirection: "column",
-      }}
-    >
-      {/* Column header */}
-      <div style={{
-        padding: "8px 12px",
-        borderBottom: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.10)" : "rgba(var(--agent-info-rgb), 0.10)"}`,
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
-          {isSeller ? "Seller" : "Buyer"}
-        </span>
-        {/* OLD: "{N} item / items" — Rule 3: "item" is generic; "reminder" matches the page's primary noun */}
-        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>
-          {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
-        </span>
-      </div>
-
-      {/* Milestone rows */}
-      <div style={{ flex: 1, padding: "6px 0" }}>
-        {openTasks.map(({ log, task }, i) => {
-          const name = log.reminderRule.name.replace(/^Chase:\s*/i, "");
-          const rowTodayStr = toUKDateStr(new Date());
-          const dueStr = toUKDateStr(log.nextDueDate);
-          const isOverdue = dueStr < rowTodayStr;
-          const isDueToday = dueStr === rowTodayStr;
-          const daysOverdue = isOverdue
-            ? Math.floor((new Date(rowTodayStr).getTime() - new Date(dueStr).getTime()) / 86400000)
-            : 0;
-          // Chased-but-not-escalated rows are calmer (muted) even when the
-          // bumped due-date has passed — the agent acted, we're not crying
-          // wolf until the server escalates.
-          const hasBeenChased = (task.chaseCount ?? 0) >= 1;
-          const urgencyColor = task.priority === "escalated" ? "var(--agent-danger)"
-            : hasBeenChased ? "var(--agent-text-muted)"
-            : isOverdue ? "#ea580c"
-            : isDueToday ? "var(--agent-warning)"
-            : "var(--agent-text-muted)";
-          // Chased + still upcoming: show the next-due date so the "Chased N×"
-          // badge has context (when the next chase fires). Chased + already
-          // past due: read "Was due …" — a calm, past-tense fact rather than a
-          // "Next" date that's confusingly in the past under an Overdue header.
-          const urgencyLabel = task.priority === "escalated" ? "Escalated"
-            : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
-            : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
-            : isOverdue ? `${daysOverdue}d overdue`
-            : isDueToday ? "Due today"
-            : `Next ${formatDate(log.nextDueDate)}`;
-
-          const isExiting = exitingIds.has(log.id);
-          return (
-            <div
-              key={log.id}
-              className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
-              style={{
-                padding: "7px 12px",
-                borderTop: i > 0 ? `0.5px solid var(--agent-border-subtle)` : undefined,
-                display: "flex", alignItems: "center", gap: 8,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
-                  {name}
-                </p>
-                {(() => {
-                  // Optimistic overlay tracks the human ("you") count — the
-                  // ↻ button is a manual chase. Auto count is derived from the
-                  // gap between the total and the human count.
-                  const manualChases = Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount);
-                  const autoChases = Math.max(0, task.chaseCount - task.manualChaseCount);
-                  const chaseBadge = chaseBadgeLabel(autoChases, manualChases);
-                  // 2026-07-13 (Chunk 8): tooltip on the Escalated label. If
-                  // a human flipped this (escalatedById set), show who + when
-                  // + why. If the engine flipped it (all three null), fall
-                  // back to a plain-English cadence line so hover is never
-                  // empty. Not rendered as a chip - just a title attr on the
-                  // existing urgencyLabel line.
-                  const escalationTooltip = task.priority === "escalated"
-                    ? (task.escalationReason || task.escalatedAt)
-                      ? `Escalated${task.escalatedBy?.name ? ` by ${task.escalatedBy.name}` : ""}${task.escalatedAt ? ` on ${formatDate(task.escalatedAt)}` : ""}${task.escalationReason ? ` - ${task.escalationReason}` : ""}`
-                      : "Auto-escalated - no response after repeated chases"
-                    : undefined;
-                  return (urgencyLabel || chaseBadge) && (
-                    <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }} title={escalationTooltip}>
-                      {urgencyLabel}
-                      {chaseBadge && (
-                        <span style={{ display: "block", color: "var(--agent-text-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>
-                          {chaseBadge}
-                        </span>
-                      )}
-                    </p>
-                  );
-                })()}
-                {/* Fallback-kind chip — set when the system handed this chase
-                 * back to the agent (B3 of the client-chase arc). Five kinds
-                 * today, all rendering the same amber chip with kind-specific
-                 * short text + a longer hover title. Sub-arc B's cron writes
-                 * the kind; A4's helper is the one place that does the write.
-                 *
-                 * Sibling component RemindersSection.tsx still renders the
-                 * original generic chip — see docs/active/client-chase-discovery.md
-                 * post-arc follow-ups for when to mirror this mapping there. */}
-                {task.fallbackKind && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      marginTop: 3,
-                      padding: "1px 6px",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "#92400e",
-                      background: "#fef3c7",
-                      border: "0.5px solid #fcd34d",
-                      borderRadius: 4,
-                      lineHeight: 1.4,
-                    }}
-                    title={fallbackChipTitle(task.fallbackKind)}
-                  >
-                    {fallbackChipText(task.fallbackKind)}
-                  </span>
-                )}
-              </div>
-              <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
-              <button
-                onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
-                disabled={isExiting}
-                title="Mark as chased. Advances the next chase date without sending an email"
-                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-              >
-                ↻ Chased
-              </button>
-              {/* OLD: title="Confirm milestone done" — Rule 2 schema jargon (milestone → step) */}
-              <Button
-                onClick={() => handleComplete(task.id)}
-                disabled={loading === task.id || isExiting}
-                title="Mark step done"
-                variant="secondary"
-                size="sm"
-                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-              >
-                <CheckCircle size={12} weight="fill" /> Done
-              </Button>
-            </div>
-          );
-        })}
-        {scheduledLogs.map((log, i) => {
-          const name = log.reminderRule.name.replace(/^Chase:\s*/i, "");
-          const dueDate = new Date(log.nextDueDate);
-          const dueDateLabel = dueDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-          return (
-            <div
-              key={log.id}
-              style={{
-                padding: "7px 12px",
-                borderTop: (i > 0 || openTasks.length > 0) ? `0.5px solid var(--agent-border-subtle)` : undefined,
-                display: "flex", alignItems: "center", gap: 8,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
-                  {name}
-                </p>
-                <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>
-                  Due {dueDateLabel}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Column footer: Chase + Snooze */}
-      {openTasks.length > 0 && !hideChase && (
-        <div style={{
-          padding: "8px 12px",
-          borderTop: `0.5px solid var(--agent-border-subtle)`,
-          display: "flex", gap: 6, alignItems: "center",
-        }}>
-          <Button
-            onClick={() => setDrawerOpen(true)}
-            size="sm"
-            style={{ flex: 1, whiteSpace: "nowrap" }}
-          >
-            {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
-          </Button>
-          <SideSnoozeMenu
-            logIds={allLogIds}
-            taskIds={allTaskIds}
-            onSnoozeAll={handleSnoozeAll}
-            disabled={loading !== null}
-          />
-        </div>
-      )}
-
-      {/* Chase drawer */}
-      {drawerOpen && (
-        <ChaseDrawer
-          chaseTaskId={milestones[0]?.chaseTaskId ?? ""}
-          transactionId={txId}
-          propertyAddress={address}
-          milestoneName={milestones[0]?.name ?? ""}
-          chaseCount={maxChaseCount}
-          contacts={effectiveContacts}
-          defaultAddRole={isSeller ? "vendor" : "purchaser"}
-          milestones={milestones.length > 1 ? milestones : undefined}
-          onClose={() => setDrawerOpen(false)}
-          onSent={() => {
-            // Bulk chase via drawer — pass log IDs so all chased rows hide.
-            openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
-            setDrawerOpen(false);
-          }}
-        />
-      )}
-    </div>
-  );
+// Friendly label for a comm method on the chase-history line.
+function methodLabel(m: string | null): string | null {
+  if (!m) return null;
+  const map: Record<string, string> = { email: "email", whatsapp: "WhatsApp", call: "phone", sms: "text", letter: "letter", portal: "the portal" };
+  return map[m] ?? m;
 }
 
-function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
-  const isSeller = side === "seller";
-  const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
-  const labelColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
-
-  return (
-    <div
-      style={{
-        flex: 1, minWidth: 0, borderRadius: 14,
-        background: columnBg,
-        border: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.14)" : "rgba(var(--agent-info-rgb), 0.14)"}`,
-        display: "flex", flexDirection: "column",
-      }}
-    >
-      <div style={{
-        padding: "8px 12px",
-        borderBottom: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.10)" : "rgba(var(--agent-info-rgb), 0.10)"}`,
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
-          {isSeller ? "Seller" : "Buyer"}
-        </span>
-      </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
-        <span style={{ fontSize: 11, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>
-          {isSeller ? "Seller" : "Buyer"} is all up to date
-        </span>
-      </div>
-    </div>
-  );
+// Split a UK address into "first line" + "town/postcode" (last two comma parts),
+// mirroring the transactions list. Kept inline to match the grandfathered pattern.
+function splitAddress(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length <= 1) return { line: address, location: "" };
+  const line = parts.slice(0, -2).join(", ") || parts[0];
+  const location = parts.slice(-2).join(", ");
+  return { line, location };
 }
 
+// One card per property: photo + address header, then a single flat worst-first
+// list of that property's reminders (side shown as a per-row pill, not a column).
+// Matches the property-file Reminders tab (RemindersSection / PriorityList).
 function SplitFileCard({
   txId,
   address,
+  photoUrl,
+  milestoneInfo,
+  autopilot,
   logs,
   groupKey,
   loading,
@@ -647,13 +309,14 @@ function SplitFileCard({
   handleComplete,
   handleSnooze,
   handleSnoozeAll,
-  handleEscalate,
-  handleManualChase,
   handleChased,
   hideChase,
 }: {
   txId: string;
   address: string;
+  photoUrl?: string | null;
+  milestoneInfo?: MilestoneInfo;
+  autopilot?: AutopilotMap;
   logs: AgentReminderLog[];
   groupKey: UrgencyGroup;
   loading: string | null;
@@ -661,23 +324,19 @@ function SplitFileCard({
   handleComplete: (taskId: string) => void;
   handleSnooze: (taskId: string, hours: number) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
-  handleEscalate: (taskId: string) => void;
-  handleManualChase: (taskId: string) => void;
-  handleChased: (taskId: string) => void;
+  handleChased: (taskId: string, logId?: string) => void;
   hideChase?: boolean;
 }) {
   const leftBorder = GROUP_LEFT_BORDER[groupKey];
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[] } | null>(null);
+  const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
+  function optimisticChase(taskId: string, logId: string, baseCount: number) {
+    setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
+    handleChased(taskId, logId);
+  }
 
-  const sellerLogs = logs.filter((l) => l.reminderRule.targetMilestoneCode?.startsWith("VM"));
-  const buyerLogs  = logs.filter((l) => l.reminderRule.targetMilestoneCode?.startsWith("PM"));
-  const otherLogs  = logs.filter((l) => {
-    const code = l.reminderRule.targetMilestoneCode;
-    return !code?.startsWith("VM") && !code?.startsWith("PM");
-  });
-
-  // Any logs without a clear side go into seller column as a fallback
-  const effectiveSellerLogs = [...sellerLogs, ...otherLogs];
-
+  const { line, location } = splitAddress(address);
   const contacts = logs[0]?.transaction.contacts ?? [];
   // The file's solicitors (from the vendor/purchaser solicitor FK columns) so the
   // chase drawer can offer the right-side solicitor as a recipient.
@@ -688,6 +347,34 @@ function SplitFileCard({
   const purchaserSolicitor: SolicitorRef | null = tx0?.purchaserSolicitorContact
     ? { ...tx0.purchaserSolicitorContact, firm: tx0.purchaserSolicitorFirm ?? null }
     : null;
+  function contactsForSide(isBuyer: boolean): ChaseContact[] {
+    const filtered = contacts.filter((c) =>
+      isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
+    );
+    return withSolicitorRecipients(filtered.length > 0 ? filtered : contacts, {
+      vendorSolicitor, purchaserSolicitor, side: isBuyer ? "purchaser" : "vendor",
+    });
+  }
+  const allRecipients = withSolicitorRecipients(contacts, { vendorSolicitor, purchaserSolicitor, side: null });
+
+  const isBuyerLog = (l: AgentReminderLog) => !!l.reminderRule.targetMilestoneCode?.startsWith("PM");
+
+  const openTasks = logs
+    .flatMap((log) => { const task = log.chaseTasks.find((t) => t.status === "pending"); return task ? [{ log, task }] : []; })
+    .sort((a, b) => new Date(a.log.nextDueDate).getTime() - new Date(b.log.nextDueDate).getTime());
+  const scheduledLogs = logs.filter((log) => !log.chaseTasks.find((t) => t.status === "pending"));
+
+  const milestones = openTasks.map(({ log, task }) => ({
+    chaseTaskId: task.id,
+    name: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
+    chaseCount: task.chaseCount,
+  }));
+  const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
+  const allTaskIds = openTasks.map(({ task }) => task.id);
+  const allLogIds  = openTasks.map(({ log })  => log.id);
+  // Single open task on this file+group → side-scope the footer chase like the file tab.
+  const soleOpen = openTasks.length === 1 ? openTasks[0] : null;
+  const soleIsBuyer = soleOpen ? isBuyerLog(soleOpen.log) : false;
 
   return (
     // Design Lab: `reminders-file-card`. Default v05 per Ellis's pick, 2026-08-09.
@@ -697,59 +384,240 @@ function SplitFileCard({
       defaultVariant="v05"
       style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
     >
-      {/* Address header — agent-card-hdr canonical with semi-transparent bg + tighter padding.
-       * borderRadius inline override clips header bg to the outer card's rounded corners
-       * (16px left = 20px outer minus 4px borderLeft). overflow:hidden NOT applied to outer
-       * so absolute-positioned dropdowns (RowSnoozeMenu / SideSnoozeMenu) can extend
-       * beyond the card without being clipped. */}
+      {/* Property header — photo + address (first line bold, town/postcode under),
+          and the whole-file actions on the right. */}
       <div className="agent-card-hdr" style={{
         background: "var(--agent-card-header-veil)",
-        padding: "10px 20px",
+        padding: "10px 16px",
         borderRadius: "16px 20px 0 0",
+        display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
-          <Link
-            href={`/agent/transactions/${txId}`}
-            className="agent-link"
-            style={{
-              fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
-              textDecoration: "none",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}
-          >
-            {address}
-            {/* Arrow sits inside the anchor now: the :has(.agent-arrow-i) rule
-                suppresses agent-link's underline, so it no longer bleeds across. */}
+        <PropertyThumb photoUrl={photoUrl} size={40} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          {/* Only line 1 is the link (inline-flex); the town/postcode sits below it. */}
+          <Link href={`/agent/transactions/${txId}`} className="agent-link" style={{ textDecoration: "none", maxWidth: "100%" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+              {line}
+            </span>
             <LinkArrow />
           </Link>
+          {location && (
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>
+          )}
         </div>
-        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
-          {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
-        </span>
+        {/* Whole-file actions + count. Chase all / Snooze all live here (top) rather
+            than a footer under the rows. A single reminder is covered by its own row,
+            so the file-level actions only appear when there are 2+ to act on at once. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
+          {!hideChase && openTasks.length >= 2 && (
+            <>
+              <Button size="sm" onClick={() => setDrawerOpen(true)}>Chase all ({milestones.length})</Button>
+              <SideSnoozeMenu logIds={allLogIds} taskIds={allTaskIds} onSnoozeAll={handleSnoozeAll} disabled={loading !== null} />
+            </>
+          )}
+          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
+            {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
+          </span>
+        </div>
       </div>
 
-      {/* Two-column body — always both sides; empty side shows placeholder.
-       * wq-split-body class enables mobile stacking via @media in globals.css. */}
-      <div className="wq-split-body" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
-        {effectiveSellerLogs.length > 0
-          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} vendorSolicitor={vendorSolicitor} purchaserSolicitor={purchaserSolicitor} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
-          : <EmptyColumn side="seller" />}
-        {buyerLogs.length > 0
-          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} vendorSolicitor={vendorSolicitor} purchaserSolicitor={purchaserSolicitor} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
-          : <EmptyColumn side="buyer" />}
+      {/* Flat rows — worst-first, side as a per-row pill. */}
+      <div style={{ padding: "6px 0" }}>
+        {openTasks.map(({ log, task }, i) => {
+          // Prefer the full-sentence milestone name ("Seller has received the
+          // memorandum of sale") over the terse reminder name ("Seller MOS received").
+          const name = log.reminderRule.anchorMilestone?.name ?? log.reminderRule.name.replace(/^Chase:\s*/i, "");
+          const isBuyer = isBuyerLog(log);
+          const rowTodayStr = toUKDateStr(new Date());
+          const dueStr = toUKDateStr(log.nextDueDate);
+          const isOverdue = dueStr < rowTodayStr;
+          const isDueToday = dueStr === rowTodayStr;
+          const daysOverdue = isOverdue ? Math.floor((new Date(rowTodayStr).getTime() - new Date(dueStr).getTime()) / 86400000) : 0;
+          const hasBeenChased = (task.chaseCount ?? 0) >= 1;
+          const bucket: UrgencyBucket = task.priority === "escalated" ? "escalated"
+            : isOverdue ? "overdue"
+            : isDueToday ? "due_today"
+            : "upcoming";
+          const urgencyLabel = task.priority === "escalated" ? "Escalated"
+            : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
+            : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
+            : isOverdue ? `${daysOverdue}d overdue`
+            : isDueToday ? "Due today"
+            : `Next ${formatDate(log.nextDueDate)}`;
+          const manualChases = Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount);
+          const autoChases = Math.max(0, task.chaseCount - task.manualChaseCount);
+          const escalationLine = task.priority === "escalated"
+            ? (task.escalationReason || task.escalatedAt)
+              ? `Escalated${task.escalatedBy?.name ? ` by ${task.escalatedBy.name}` : ""}${task.escalatedAt ? ` on ${formatDate(task.escalatedAt)}` : ""}${task.escalationReason ? ` · ${task.escalationReason}` : ""}`
+              : "Auto-escalated, no response after repeated chases"
+            : undefined;
+
+          // Enrichment (free tier) — who owes it, what it means, chase history.
+          const code = log.reminderRule.targetMilestoneCode;
+          const info = code ? milestoneInfo?.[code] : undefined;
+          const who = whoToChase({
+            side: isBuyer ? "purchaser" : "vendor",
+            responsible: info?.responsible ?? null,
+            contacts,
+            vendorSolicitor,
+            purchaserSolicitor,
+          });
+          const blocksExchange = !!log.reminderRule.anchorMilestone?.blocksExchange;
+          const lastComm = task.communications[0];
+          const chaseHistory = (() => {
+            if (task.chaseCount === 0) return "Not chased yet · first nudge due";
+            const bits = [`Chased ${task.chaseCount}×`];
+            if (autoChases > 0 && manualChases > 0) bits.push(`${autoChases} auto, ${manualChases} by you`);
+            else if (manualChases > 0) bits.push("by you");
+            else bits.push("on autopilot");
+            if (lastComm) {
+              const d = Math.floor((Date.now() - new Date(lastComm.createdAt).getTime()) / 86400000);
+              const when = d <= 0 ? "today" : d === 1 ? "yesterday" : `${d}d ago`;
+              const ml = methodLabel(lastComm.method);
+              bits.push(`last ${when}${ml ? ` by ${ml}` : ""}`);
+            }
+            return bits.join(" · ");
+          })();
+
+          const isExiting = exitingIds.has(log.id);
+          return (
+            <div
+              key={log.id}
+              className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
+              style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+                  <UrgencyPill label={urgencyLabel} bucket={bucket} chased={hasBeenChased} />
+                  <SidePill isBuyer={isBuyer} />
+                  {blocksExchange && <BlocksExchangePill />}
+                  {autopilot?.get(log.id)?.kind === "manual" && <ManualPill />}
+                </div>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
+                {who && (
+                  <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                    Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
+                  </p>
+                )}
+                {info?.outstanding && (
+                  <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                    {info.outstanding}
+                  </p>
+                )}
+                <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
+                {escalationLine && (
+                  <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ {escalationLine}</p>
+                )}
+                {(() => {
+                  const st = autopilot?.get(log.id);
+                  if (st?.kind === "auto") return <AutoChaseCountdown iso={st.nextSend} />;
+                  if (st?.kind === "manual" && st.reason) return <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{st.reason}</p>;
+                  return null;
+                })()}
+              </div>
+              {!hideChase && (
+                <Button
+                  size="sm"
+                  onClick={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer) })}
+                  style={{ flexShrink: 0 }}
+                >
+                  Chase
+                </Button>
+              )}
+              <button
+                onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
+                disabled={isExiting}
+                title="Mark as chased. Advances the next chase date without sending an email"
+                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                ↻ Chased
+              </button>
+              <Button
+                onClick={() => handleComplete(task.id)}
+                disabled={loading === task.id || isExiting}
+                title="Mark step done"
+                variant="secondary"
+                size="sm"
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                <CheckCircle size={12} weight="fill" /> Done
+              </Button>
+              <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
+            </div>
+          );
+        })}
+        {scheduledLogs.map((log, i) => {
+          const name = log.reminderRule.anchorMilestone?.name ?? log.reminderRule.name.replace(/^Chase:\s*/i, "");
+          const isBuyer = isBuyerLog(log);
+          const dueDate = new Date(log.nextDueDate);
+          const dueDateLabel = dueDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+          return (
+            <div
+              key={log.id}
+              style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <SidePill isBuyer={isBuyer} />
+                </div>
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
+                <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
+
+      {/* Chase-all drawer */}
+      {drawerOpen && (
+        <ChaseDrawer
+          chaseTaskId={milestones[0]?.chaseTaskId ?? ""}
+          transactionId={txId}
+          propertyAddress={address}
+          milestoneName={milestones[0]?.name ?? ""}
+          chaseCount={maxChaseCount}
+          contacts={soleOpen ? contactsForSide(soleIsBuyer) : allRecipients}
+          defaultAddRole={soleOpen ? (soleIsBuyer ? "purchaser" : "vendor") : undefined}
+          milestones={milestones.length > 1 ? milestones : undefined}
+          onClose={() => setDrawerOpen(false)}
+          onSent={() => {
+            openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
+            setDrawerOpen(false);
+          }}
+        />
+      )}
+
+      {/* Per-row chase drawer */}
+      {rowChase && (
+        <ChaseDrawer
+          chaseTaskId={rowChase.taskId}
+          transactionId={txId}
+          propertyAddress={address}
+          milestoneName={rowChase.name}
+          chaseCount={rowChase.chaseCount}
+          contacts={rowChase.contacts}
+          defaultAddRole={rowChase.isBuyer ? "purchaser" : "vendor"}
+          onClose={() => setRowChase(null)}
+          onSent={() => {
+            const match = openTasks.find(({ task }) => task.id === rowChase.taskId);
+            handleChased(rowChase.taskId, match?.log.id);
+            setRowChase(null);
+          }}
+        />
+      )}
     </GlassCard>
   );
 }
 
-export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog[]; hideChase?: boolean }) {
+export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, hideChase }: { logs: AgentReminderLog[]; photoByTx?: Map<string, string | null>; milestoneInfo?: MilestoneInfo; autopilot?: AutopilotMap; hideChase?: boolean }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ escalated: true, overdue: true, due_today: true, upcoming: true });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, autopilot: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
@@ -1003,84 +871,78 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
         </div>
       )}
 
-      {/* Urgency groups — "active" view */}
-      {statusFilter === "active" && (["escalated", "overdue", "due_today", "upcoming"] as const).map((groupKey) => {
-        const cards = grouped[groupKey];
-        if (cards.length === 0) return null;
-        const cfg = GROUP_CONFIG[groupKey];
-        const isCollapsed = collapsed[groupKey];
-        const fileGroups = groupByFile(cards);
-
-        // Section ID maps to stat row anchors in page.tsx
-        const sectionId = groupKey === "due_today" ? "section-due_today" : `section-${groupKey}`;
-
-        return (
-          <div key={groupKey} className="space-y-2" id={sectionId}>
-            {/* E1 (amended 2026-08-11): semantic colour-coded header is the
-                primary urgency signal — the tinted STYLING stays, while the
-                behaviour is canonical: row-wide onClick + role="button" +
-                keyboard handler + bare rotating chevron (the Show/Hide
-                words went in the 2026-08-11 drawer-consistency pass). */}
-            <div
-              className={`flex items-center justify-between px-3 py-2 rounded-xl ${cfg.headerCls}`}
-              role="button"
-              tabIndex={0}
-              aria-expanded={!isCollapsed}
-              onClick={() => toggleCollapse(groupKey)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggleCollapse(groupKey);
-                }
-              }}
-              style={{ cursor: "pointer" }}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.labelCls}`}>{cfg.label}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.badgeCls}`}>{cards.length}</span>
-              </div>
-              <CaretDown
-                size={12}
-                weight="bold"
-                aria-hidden
+      {/* Two groups — what's yours (manual) vs what the system's chasing
+          (autopilot, collapsed). Within each, worst-first. */}
+      {statusFilter === "active" && (() => {
+        const rankOf: Record<string, number> = { escalated: 0, overdue: 1, due_today: 2, upcoming: 3 };
+        const rank = (l: AgentReminderLog) => rankOf[classifyActive(l, now, upcomingCutoffStr) ?? "upcoming"];
+        const worstFirst = (arr: AgentReminderLog[]) => arr.slice().sort((a, b) => rank(a) - rank(b) || new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+        const worstUrgency = (fileLogs: AgentReminderLog[]): UrgencyGroup => {
+          let best: UrgencyGroup = "upcoming";
+          for (const l of fileLogs) { const g = classifyActive(l, now, upcomingCutoffStr) ?? "upcoming"; if (rankOf[g] < rankOf[best]) best = g; }
+          return best;
+        };
+        const manualLogs = worstFirst(filteredActive.filter((l) => autopilot?.get(l.id)?.kind !== "auto"));
+        const autoLogs = worstFirst(filteredActive.filter((l) => autopilot?.get(l.id)?.kind === "auto"));
+        const groups = [
+          { key: "needs-you", label: "Needs you", sub: "the system won't chase these", logs: manualLogs, you: true },
+          { key: "autopilot", label: "On autopilot", sub: "the system's got these", logs: autoLogs, you: false },
+        ];
+        return groups.map((grp) => {
+          if (grp.logs.length === 0) return null;
+          const isCollapsed = collapsed[grp.key];
+          const fileGroups = groupByFile(grp.logs);
+          return (
+            <div key={grp.key} className="space-y-2" id={`section-${grp.key}`}>
+              <div
+                className="flex items-center justify-between px-3 py-2 rounded-xl"
+                role="button"
+                tabIndex={0}
+                aria-expanded={!isCollapsed}
+                onClick={() => toggleCollapse(grp.key)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse(grp.key); } }}
                 style={{
-                  flexShrink: 0,
-                  color: "var(--agent-text-muted)",
-                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-                  transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                  cursor: "pointer",
+                  background: grp.you ? "rgba(var(--agent-coral-rgb), 0.08)" : "var(--agent-surface-glass)",
+                  border: grp.you ? "0.5px solid rgba(var(--agent-coral-rgb), 0.20)" : "0.5px solid var(--agent-border-subtle)",
                 }}
-              />
-            </div>
-            {/* agent-acc / agent-acc-in: mounted always, animated height transition */}
-            <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
-              <div className="agent-acc-in">
-                <div className="space-y-2">
-                  {fileGroups.map(({ txId, address, logs: fileLogs }) => {
-                    return (
+              >
+                <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.01em", color: grp.you ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)" }}>{grp.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 8px", borderRadius: 20, color: grp.you ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", background: grp.you ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(148,163,184,0.16)" }}>{grp.logs.length}</span>
+                  <span className="hidden sm:inline" style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{grp.sub}</span>
+                </div>
+                <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
+              </div>
+              <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
+                <div className="agent-acc-in">
+                  <div className="space-y-3" style={{ padding: "4px 12px 16px" }}>
+                    {fileGroups.map(({ txId, address, logs: fileLogs }) => (
                       <SplitFileCard
                         key={txId}
                         txId={txId}
                         address={address}
+                        photoUrl={photoByTx?.get(txId) ?? null}
+                        milestoneInfo={milestoneInfo}
+                        autopilot={autopilot}
                         logs={fileLogs}
-                        groupKey={groupKey}
+                        groupKey={worstUrgency(fileLogs)}
                         loading={loading}
                         exitingIds={exitingIds}
                         handleComplete={handleComplete}
                         handleSnooze={handleSnooze}
                         handleSnoozeAll={handleSnoozeAll}
-                        handleEscalate={handleEscalate}
-                        handleManualChase={handleManualChase}
                         handleChased={handleChased}
                         hideChase={hideChase}
                       />
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        });
+      })()}
 
       {/* Snoozed section — sorted by nextDueDate asc (= snooze end date asc, set by snoozeReminderLog) */}
       {statusFilter === "snoozed" && (

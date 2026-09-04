@@ -13,7 +13,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
 import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
 import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
-import { RoleIcon } from "@/components/ui/RoleIcon";
+import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
@@ -22,40 +22,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CaretDown } from "@phosphor-icons/react";
 
-// Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
-// components/reminders/AgentRemindersList.tsx (kept duplicated here to keep
-// the file self-contained — DRY refactor to a shared module is a small
-// future cleanup). Five FallbackKind values are surfaced; any new kind
-// gets a generic "Manual handoff" fallback.
-function fallbackChipText(kind: string): string {
-  switch (kind) {
-    case "client_opted_out":          return "Opted out, chase manually";
-    case "max_chases_exhausted":      return "Chased twice (manual)";
-    case "days_cap_exhausted":        return "14d silent (manual)";
-    case "no_email_on_contact":       return "Add email to send updates";
-    case "no_portalToken_on_contact": return "Portal access needed";
-    case "client_emails_paused":      return "Client emails paused (manual)";
-    default:                          return "Manual handoff";
-  }
-}
-function fallbackChipTitle(kind: string): string {
-  switch (kind) {
-    case "client_opted_out":
-      return "This client opted out of automated updates. Follow up manually.";
-    case "max_chases_exhausted":
-      return "We chased the client twice with no response. Follow up manually.";
-    case "days_cap_exhausted":
-      return "Client has been silent for 14 days since the first chase. Manual chase needed.";
-    case "no_email_on_contact":
-      return "We can't send this client automated updates yet. Add an email to switch chasing back on, or follow up manually.";
-    case "no_portalToken_on_contact":
-      return "This client has no portal access yet, so we can't send automated updates. Follow up manually.";
-    case "client_emails_paused":
-      return "Client emails are paused on this file. Chase manually if needed.";
-    default:
-      return "Manual chase needed.";
-  }
-}
+// Urgency, side and fallback chips now live in components/reminders/status-pills.tsx
+// (shared with the Reminders page).
 
 type ChaseTask = {
   id: string;
@@ -425,11 +393,10 @@ function PriorityList({
           // Once chased, suppress the red Overdue / amber Due-today colors —
           // the row stays muted in Coming Up until the server escalates.
           const hasBeenChased = (task?.chaseCount ?? 0) >= 1;
-          const urgencyColor = task?.priority === "escalated" ? "#dc2626"
-            : hasBeenChased ? "var(--agent-text-muted)"
-            : isOverdue ? "#ea580c"
-            : isDueToday ? "#d97706"
-            : "var(--agent-text-muted)";
+          const bucket: UrgencyBucket = task?.priority === "escalated" ? "escalated"
+            : isOverdue ? "overdue"
+            : isDueToday ? "due_today"
+            : "upcoming";
           const urgencyLabel = task?.priority === "escalated" ? "Escalated"
             : hasBeenChased && isOverdue ? `Was due ${formatDate(effectiveNextDue)}`
             : hasBeenChased ? `Next ${formatDate(effectiveNextDue)}`
@@ -437,11 +404,6 @@ function PriorityList({
             : isDueToday ? "Due today"
             : task ? `Next ${formatDate(log.nextDueDate)}`
             : `From ${formatDate(log.nextDueDate)}`;
-          const chipBg = task?.priority === "escalated" ? "rgba(220,38,38,0.14)"
-            : hasBeenChased ? "rgba(148,163,184,0.14)"
-            : isOverdue ? "rgba(234,88,12,0.14)"
-            : isDueToday ? "rgba(217,119,6,0.14)"
-            : "rgba(148,163,184,0.14)";
 
           return (
             <div
@@ -449,11 +411,9 @@ function PriorityList({
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 999, color: urgencyColor, background: chipBg, whiteSpace: "nowrap" }}>{urgencyLabel}</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: isBuyer ? "#3b82f6" : "#ea580c" }}>
-                    <RoleIcon role={isBuyer ? "purchaser" : "vendor"} size={11} />{isBuyer ? "Buyer" : "Seller"}
-                  </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
+                  <UrgencyPill label={urgencyLabel} bucket={bucket} chased={hasBeenChased} />
+                  <SidePill isBuyer={isBuyer} />
                 </div>
                 <p className="reminders-title" style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
                 {(() => {
@@ -468,15 +428,9 @@ function PriorityList({
                   ) : null;
                 })()}
                 {task?.fallbackKind && (
-                  <Pill
-                    glass
-                    tone="warning"
-                    size="sm"
-                    style={{ marginTop: 3 }}
-                    title={fallbackChipTitle(task.fallbackKind)}
-                  >
-                    {fallbackChipText(task.fallbackKind)}
-                  </Pill>
+                  <div style={{ marginTop: 3 }}>
+                    <FallbackPill kind={task.fallbackKind} />
+                  </div>
                 )}
               </div>
               {task && (
