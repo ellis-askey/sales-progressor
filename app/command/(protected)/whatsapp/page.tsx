@@ -1,4 +1,4 @@
-import { getWhatsAppConnectionStatus, getUnmatchedChats, getAssignedChats, type WhatsAppConnectionStatus } from "@/lib/command/whatsapp";
+import { getWhatsAppConnectionStatus, getUnmatchedChats, getAssignedChats, getGoneQuietChats, type WhatsAppConnectionStatus, type GoneQuietChat } from "@/lib/command/whatsapp";
 import { WhatsAppAssign } from "@/components/command/WhatsAppAssign";
 import { WhatsAppAssignedList } from "@/components/command/WhatsAppAssignedList";
 import { WhatsAppRepairButton } from "@/components/command/WhatsAppRepairButton";
@@ -16,10 +16,11 @@ function fmtWhen(iso: string | null | undefined) {
 }
 
 export default async function WhatsAppCommandPage() {
-  const [status, chats, assigned] = await Promise.all([
+  const [status, chats, assigned, quiet] = await Promise.all([
     getWhatsAppConnectionStatus(),
     getUnmatchedChats(),
     getAssignedChats().catch(() => []),
+    getGoneQuietChats().catch(() => []),
   ]);
 
   return (
@@ -33,6 +34,26 @@ export default async function WhatsAppCommandPage() {
       </div>
 
       <ConnectionCard status={status} />
+
+      <div>
+        <h2 className="text-sm font-semibold text-neutral-300 mb-3">
+          Gone quiet <span className="text-neutral-600">({quiet.length})</span>
+        </h2>
+        <p className="-mt-2 mb-3 text-[12px] text-neutral-500">
+          Files where we sent the last WhatsApp and the client hasn&apos;t replied in 3+ days. Raise these with the agent.
+        </p>
+        {quiet.length === 0 ? (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-6 text-center text-[13px] text-neutral-500">
+            Nobody&apos;s left hanging. Every client with a WhatsApp chat has replied to our last message.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {quiet.map((q) => (
+              <GoneQuietRow key={`${q.transactionId}-${q.side}`} chat={q} />
+            ))}
+          </div>
+        )}
+      </div>
 
       <div>
         <h2 className="text-sm font-semibold text-neutral-300 mb-3">
@@ -61,6 +82,31 @@ export default async function WhatsAppCommandPage() {
         <WhatsAppAssignedList chats={assigned} />
       </div>
     </div>
+  );
+}
+
+function fmtDay(d: Date) {
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+}
+
+function GoneQuietRow({ chat }: { chat: GoneQuietChat }) {
+  const sideLabel = chat.side === "BUYER" ? "Buyer side" : "Seller side";
+  const replied = chat.lastInboundAt ? `last reply ${fmtDay(chat.lastInboundAt)}` : "no reply yet";
+  return (
+    <a
+      href={`/command/files?tx=${chat.transactionId}`}
+      className="flex items-center justify-between gap-4 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 hover:border-neutral-700 hover:bg-neutral-800/40 transition-colors"
+    >
+      <div className="min-w-0">
+        <div className="text-[14px] font-medium text-neutral-100 truncate">{chat.address}</div>
+        <div className="mt-0.5 text-[12px] text-neutral-500">
+          {sideLabel} · {replied}
+        </div>
+      </div>
+      <span className="shrink-0 inline-flex items-center rounded-full bg-[#3a2a1a] border border-[#5a3f2c] px-2.5 py-1 text-[12px] font-medium text-[#f6b17a]">
+        Quiet {chat.quietDays} {chat.quietDays === 1 ? "day" : "days"}
+      </span>
+    </a>
   );
 }
 

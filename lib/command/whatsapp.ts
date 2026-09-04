@@ -131,6 +131,78 @@ export async function getAssignedChats(): Promise<AssignedChat[]> {
   return out;
 }
 
+export type GoneQuietChat = {
+  transactionId: string;
+  address: string;
+  side: "BUYER" | "SELLER";
+  quietDays: number; // whole days since our last message went unanswered
+  lastOutboundAt: Date; // the last WhatsApp we sent
+  lastInboundAt: Date | null; // the client's last reply, if they ever replied
+};
+
+// Days of client silence (after we sent the last WhatsApp) before a file is
+// surfaced. Deliberately tight — WhatsApp is a fast channel, so 3 days quiet is
+// a real prompt to chase. Confirmed with founder 2026-09-04.
+const QUIET_DAYS = 3;
+
+// Files where WE sent the last WhatsApp on the chat and the client side hasn't
+// replied for QUIET_DAYS+ days. Reads the captured direction on each assigned
+// group chat (inbound = client, outbound = us; from Baileys `fromMe`). This is
+// file + side level on purpose: group sender identity isn't reliable enough to
+// name the individual (WhatsApp audit C2/C3), but direction is, and direction
+// is all this needs. Internal-only, so the team can raise it with the agent.
+export async function getGoneQuietChats(thresholdDays = QUIET_DAYS): Promise<GoneQuietChat[]> {
+  const maps = await commandDb.whatsAppGroupMapping.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { transaction: { select: { propertyAddress: true, status: true } } },
+    take: 200,
+  });
+
+  const now = Date.now();
+  const cutoff = now - thresholdDays * 24 * 60 * 60 * 1000;
+  const out: GoneQuietChat[] = [];
+
+  for (const m of maps) {
+    // Only live files can "go quiet"; completed/withdrawn ones are done.
+    if (!m.transaction || !(ACTIVE as readonly string[]).includes(m.transaction.status)) continue;
+
+    const base = {
+      method: "whatsapp" as const,
+      providerWebhookData: { path: ["waChatId"], equals: m.waChatId },
+    };
+    const [lastOut, lastIn] = await Promise.all([
+      commandDb.outboundMessage.findFirst({
+        where: { ...base, type: "outbound" },
+        orderBy: { sentAt: "desc" },
+        select: { sentAt: true },
+      }),
+      commandDb.outboundMessage.findFirst({
+        where: { ...base, type: "inbound" },
+        orderBy: { sentAt: "desc" },
+        select: { sentAt: true },
+      }),
+    ]);
+
+    const outAt = lastOut?.sentAt;
+    if (!outAt) continue; // we never messaged this chat — nothing to be quiet on
+    if (lastIn?.sentAt && lastIn.sentAt >= outAt) continue; // client replied after us — engaged
+    if (outAt.getTime() > cutoff) continue; // our last message is recent — not quiet yet
+
+    out.push({
+      transactionId: m.transactionId,
+      address: m.transaction.propertyAddress ?? "(unknown file)",
+      side: m.side as "BUYER" | "SELLER",
+      quietDays: Math.floor((now - outAt.getTime()) / (24 * 60 * 60 * 1000)),
+      lastOutboundAt: outAt,
+      lastInboundAt: lastIn?.sentAt ?? null,
+    });
+  }
+
+  // Longest silence first — the ones most worth raising.
+  out.sort((a, b) => b.quietDays - a.quietDays);
+  return out;
+}
+
 async function candidatesForChat(
   recent: { isGroup: boolean; senderPhone: string | null },
   parsed: { side: "BUYER" | "SELLER"; address: string } | null,
