@@ -221,6 +221,15 @@ model User {
   // across every chain they view. Toggled via POST /api/chains/activity.
   chainActivityOptIn Boolean @default(false)
 
+  // Chase voice learning: distilled, PII-free notes on how this progressor
+  // rewrites AI-drafted chase messages, injected back into future generations so
+  // drafts sound like them. Built once they've edited enough sends (see
+  // lib/chase/voice-profile.ts); null until then. chaseVoiceProfileSamples is how
+  // many edited messages the current profile was distilled from (drives refresh).
+  chaseVoiceProfile        String?
+  chaseVoiceProfileBuiltAt DateTime?
+  chaseVoiceProfileSamples Int       @default(0)
+
   emailVerified          DateTime?
   image                  String?
   // Focal point (percent) for cropping `image` into circular avatars, so a

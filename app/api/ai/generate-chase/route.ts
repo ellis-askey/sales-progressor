@@ -1,11 +1,12 @@
 // app/api/ai/generate-chase/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkAiLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getMilestoneContext } from "@/lib/chase/milestone-glossary";
+import { getVoiceProfile, maybeRefreshVoiceProfile } from "@/lib/chase/voice-profile";
 import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
 import { greetingName } from "@/lib/utils";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
@@ -329,6 +330,18 @@ export async function POST(req: NextRequest) {
   // Terser + no process-explaining for solicitors; warmer + light "why" for clients.
   const recipientGuidance = recipientIsSolicitor ? RECIPIENT_GUIDANCE.solicitor : RECIPIENT_GUIDANCE.client;
 
+  // Learned personal style for this progressor (null until they've edited enough
+  // sends). Injected so drafts already sound like them. See lib/chase/voice-profile.ts.
+  const voiceProfile = await getVoiceProfile(session.user.id).catch(() => null);
+  const voiceProfileSection = voiceProfile
+    ? `# The progressor's own style
+
+This progressor has an established personal style, learned from messages they have sent. Match it, as long as it does not conflict with the rules above:
+${voiceProfile}
+
+`
+    : "";
+
   // System prompt (§5 verbatim)
   const systemPrompt = `You are writing a chase message on behalf of ${senderFirstName}, a sales progressor at ${firmName}, an estate agency. Your job is to keep a residential property transaction moving toward exchange and completion on behalf of all parties involved.
 
@@ -398,7 +411,7 @@ ${channelGuidance}
 
 ${toneGuidance}
 
-# Output format
+${voiceProfileSection}# Output format
 
 Return only the message body. No preamble, no explanation, no "Here is the message:". Plain text. Sender's name appears in the sign-off only when channel guidance specifies.`;
 
@@ -579,8 +592,13 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
       .replace(/,\s*,\s*/g, ", ");
   const generated = stripDashes(claudeData.content?.[0]?.text ?? "");
 
+  // After the response is sent, refresh this progressor's learned style if they've
+  // edited enough new sends. Runs out-of-band so it never slows generation.
+  after(() => maybeRefreshVoiceProfile(session.user.id).catch(() => {}));
+
   return NextResponse.json({
     generated,
+    voiceProfileApplied: voiceProfile != null,
     context: {
       primaryContact: primaryRecipient
         ? { name: primaryRecipient.name, role: primaryRecipient.roleType }
