@@ -29,6 +29,7 @@ import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
+import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
@@ -46,7 +47,10 @@ export default async function AccountProfilePage({
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true },
+    select: {
+      phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true,
+      chaseVoiceProfile: true, chaseVoiceProfileBuiltAt: true,
+    },
   });
   const currentBrand = getBrandColor(userRecord?.agentPreferences);
 
@@ -130,6 +134,11 @@ export default async function AccountProfilePage({
           initialDirectMobile={userRecord?.directMobile ?? ""}
           initialImage={userRecord?.image ?? null}
           role={session.user.role}
+        />
+
+        <WritingStyleCard
+          profile={userRecord?.chaseVoiceProfile ?? null}
+          builtAt={userRecord?.chaseVoiceProfileBuiltAt?.toISOString() ?? null}
         />
 
         {emailCard ? (
