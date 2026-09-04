@@ -258,7 +258,7 @@ export default async function RetentionPage({
         ) : (
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-neutral-800 bg-neutral-800/50 text-[10px] uppercase tracking-wider text-neutral-500">
                     <th className="text-left px-5 py-2.5 font-medium">Person</th>
@@ -266,6 +266,7 @@ export default async function RetentionPage({
                     <th className="text-left px-4 py-2.5 font-medium">Last seen</th>
                     <th className="text-right px-4 py-2.5 font-medium">Quiet</th>
                     <th className="text-left px-4 py-2.5 font-medium">Last thing they did</th>
+                    <th className="text-left px-4 py-2.5 font-medium">Winback email</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800">
@@ -315,6 +316,16 @@ function DriftRow({ d }: { d: DriftUser }) {
           </Link>
         ) : (
           d.lastAction
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-xs">
+        {d.lastEmail ? (
+          <span className="text-neutral-300">
+            {d.lastEmail.label}
+            <span className="ml-1.5 text-[10px] text-neutral-600">{fmtDate(d.lastEmail.sentAt)}</span>
+          </span>
+        ) : (
+          <span className="text-neutral-600">None sent</span>
         )}
       </td>
     </tr>

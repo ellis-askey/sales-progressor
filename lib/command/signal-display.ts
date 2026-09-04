@@ -53,7 +53,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
   },
   silent_agency: {
     group: "Silent agency",
-    whatItMeans: "An agency with a live file that hasn't done anything on the platform for 14+ days. They may be drifting away.",
+    whatItMeans: "An agency that was active once but hasn't done anything on the platform for 14+ days, whether or not they still have a live file. They may be drifting away.",
     experimentable: false,
     title: (p) => `${str(p, "agencyName") || "An agency"} silent ${num(p, "daysSilent")} days`,
     href: () => "/command/agencies",

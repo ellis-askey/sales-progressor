@@ -1,7 +1,11 @@
 // Detector: silent_agency
-// Agencies that have gone quiet (no Event) for more than STUCK_DAYS.
+// Agencies that were active once (they have events) but have generated no Event
+// for more than STUCK_DAYS — whether or not they still have a live file. This
+// catches the drift-away case: an agency that signed up, ran a sale that has
+// since completed or fallen through, then went quiet with nothing live. (It used
+// to require a live transaction, so those exact agencies slipped through.)
 // Confidence = 1.0 — it's a fact, not an inference (ADMIN_07 §5.1).
-// Stuck transaction threshold: 14 days (confirmed by founder, plan approval).
+// Silence threshold: 14 days (confirmed by founder, plan approval).
 // Runs on the time-sensitive 5-min cadence as well as nightly.
 
 import { prisma } from "@/lib/prisma";
@@ -14,15 +18,12 @@ export const silentAgency: Detector = async (window) => {
   const silentCutoff = new Date(window.current.end);
   silentCutoff.setUTCDate(silentCutoff.getUTCDate() - STUCK_DAYS);
 
-  // Agencies that have at least one active transaction but haven't generated
-  // any Event in the last STUCK_DAYS
+  // Every non-internal agency is a candidate; the per-agency check below flags
+  // those that were active once (>= 1 Event) but have gone quiet for STUCK_DAYS.
+  // Agencies that never did anything are skipped (no event = not "gone silent"),
+  // so this doesn't flood with dead signups.
   const candidates = await prisma.agency.findMany({
-    where: {
-      ...internalAgencyFilter,
-      transactions: {
-        some: { status: "active" },
-      },
-    },
+    where: { ...internalAgencyFilter },
     select: { id: true, name: true },
   });
 

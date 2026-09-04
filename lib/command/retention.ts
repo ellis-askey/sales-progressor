@@ -25,6 +25,21 @@ export type DriftUser = {
   daysQuiet: number;
   lastAction: string;
   txId: string | null; // link target when their last action was on a file
+  // The last automated winback email the sweep sent this person, so the operator
+  // can see at a glance whether the nudge already fired (or needs a personal touch).
+  lastEmail: { label: string; sentAt: Date } | null;
+};
+
+// Friendly names for the retention/winback emails, so the drift list reads in
+// plain English rather than raw keys. Mirrors lib/emails/retention subjects.
+const WINBACK_EMAIL_LABEL: Record<string, string> = {
+  activation_day_1: "Welcome nudge",
+  claim_welcome: "Welcome nudge",
+  stuck_day_3: "Sale waiting on you",
+  first_exchange: "Exchange celebration",
+  quiet_30d: "Account still active",
+  send_to_us_drop_21d: "How are things going?",
+  last_touch_60d: "Pausing updates",
 };
 
 export type DriftAgency = { agencyName: string; users: number; daysQuiet: number };
@@ -332,7 +347,7 @@ export async function getRetention(mode: CommandMode, agencyIds: string[]): Prom
   let driftUsers: DriftUser[] = [];
   let driftAgencies: DriftAgency[] = [];
   if (churnedIds.length > 0) {
-    const [lastEvents, users] = await Promise.all([
+    const [lastEvents, users, emailLogs] = await Promise.all([
       commandDb.event.findMany({
         where: { userId: { in: churnedIds }, occurredAt: { gte: since90 } },
         orderBy: { occurredAt: "desc" },
@@ -342,12 +357,24 @@ export async function getRetention(mode: CommandMode, agencyIds: string[]): Prom
         where: { id: { in: churnedIds } },
         select: { id: true, name: true, role: true, agency: { select: { name: true } } },
       }),
+      // Last winback email per drifting user (the sweep logs every send here).
+      commandDb.retentionEmailLog.findMany({
+        where: { userId: { in: churnedIds } },
+        orderBy: { sentAt: "desc" },
+        select: { userId: true, emailKey: true, sentAt: true },
+      }),
     ]);
     const lastByUser = new Map<string, (typeof lastEvents)[number]>();
     for (const e of lastEvents) {
       if (e.userId && !lastByUser.has(e.userId)) lastByUser.set(e.userId, e);
     }
     const userById = new Map(users.map((u) => [u.id, u] as const));
+    const lastEmailByUser = new Map<string, { label: string; sentAt: Date }>();
+    for (const e of emailLogs) {
+      if (!lastEmailByUser.has(e.userId)) {
+        lastEmailByUser.set(e.userId, { label: WINBACK_EMAIL_LABEL[e.emailKey] ?? e.emailKey, sentAt: e.sentAt });
+      }
+    }
 
     driftUsers = churnedIds
       .map((id): DriftUser | null => {
@@ -364,6 +391,7 @@ export async function getRetention(mode: CommandMode, agencyIds: string[]): Prom
           daysQuiet,
           lastAction: eventLabel(last.type),
           txId: last.entityType === "PropertyTransaction" ? last.entityId : null,
+          lastEmail: lastEmailByUser.get(id) ?? null,
         };
       })
       .filter((x): x is DriftUser => x !== null)
