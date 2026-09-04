@@ -47,17 +47,20 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
     <AccountCard
       icon={<PenNib size={18} weight="bold" />}
       title="Your writing style"
-      subtitle="How we tailor AI-drafted chases to sound like you."
+      subtitle="How we tailor AI-drafted chases to sound more like you."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 620 }}>
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
-          When you tweak an AI-drafted chase before sending, we quietly pick up how you phrase things. After
-          a handful of edits, your future drafts start coming out in your own style, so there is less to
-          change. If you send drafts as they are, nothing changes.
+          When you edit an AI-drafted chase before sending it, we quietly learn from the way you phrase
+          things. After a few edits, future drafts will start to reflect your writing style, giving you
+          less to change before hitting send.
         </p>
-        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: "#6b7280" }}>
-          We only learn your writing style. Client names, addresses and firm names are removed before
-          anything is looked at, and none of your clients&apos; details are kept here.
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
+          If you send a draft without making any changes, we don&apos;t learn anything from it.
+        </p>
+        <p style={{ margin: "2px 0 0", fontSize: 12, lineHeight: 1.6, color: "#6b7280" }}>
+          We only learn how you write. Client names, property addresses and firm names are removed before
+          your edits are analysed, and none of those details are stored here.
         </p>
 
         {profile ? (
@@ -88,8 +91,11 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
               color: "#6b7280",
             }}
           >
-            We haven&apos;t learned your style yet. Edit a few AI-drafted chases before you send them, and
-            what we pick up will show here.
+            <span style={{ display: "block", fontWeight: 600, color: "#4b5563", marginBottom: 3 }}>
+              We haven&apos;t learned your style yet.
+            </span>
+            Make a few edits to AI-drafted chases before sending them and, as we start to pick up your
+            style, you&apos;ll see it appear here.
           </div>
         )}
 
