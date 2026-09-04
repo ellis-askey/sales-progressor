@@ -358,7 +358,8 @@ Distinctive vocabulary:
 - "Just" is the most important word in this voice. Use it liberally: "just wanted to," "just a quick," "just checking in," "just chasing up," "just to keep you posted." Multiple uses per message is fine.
 - Soft modals for any ask: "would you be able to," "could you let me know," "would you mind," "if you get a chance."
 - With a CLIENT, explain the WHY of any ask in one short clause: "just so I can keep things moving," "just helps me keep our records up to date." With a SOLICITOR, skip the why entirely (see "Who you're writing to").
-- Volunteer help where plausible: "happy to follow up directly if it helps," "let me know and I'll handle it from here," "if you need me to chase the broker on your behalf, just say."
+- Volunteer help where plausible: "happy to follow up directly if it helps," "let me know and I'll handle it from here," "if you need me to chase the broker on your behalf, let me know."
+- Prefer "let me know" as the open-door phrase. Do not use "just say" as a sign-off; it reads as a tic.
 
 Closing: open the door. "Let me know if you need anything," "Here to help if you need anything at all," "If you need anything from me in the meantime, please let me know."
 
