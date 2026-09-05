@@ -49,6 +49,32 @@ export function getTitlePrefix(name: string): string | null {
 }
 
 /**
+ * Greeting name — first name ONLY, never a title, never a surname.
+ * Used in "Hi {name}," openers where anything other than a bare first name
+ * reads wrong. When there is no real first name (a title + single surname, or
+ * an empty value) it falls back to "there" rather than ever showing a title or
+ * a bare surname.
+ * "Miss Adele Maxwell-Harrison" → "Adele" · "Mr Stevens" → "there"
+ * "Rachel Whitfield" → "Rachel" · "" → "there"
+ */
+export function greetingName(name?: string | null): string {
+  if (!name || !name.trim()) return "there";
+  const { prefix, rest } = parseName(name);
+  if (prefix && rest.length <= 1) return "there"; // title + surname only
+  return rest[0] ?? "there";
+}
+
+/**
+ * Full name with any leading honorific/professional title removed, for inline
+ * body sentences like "{name} has invited you". Keeps the surname.
+ * "Mrs Sarah Bennett" → "Sarah Bennett" · "Sarah Bennett" → "Sarah Bennett"
+ */
+export function nameWithoutTitle(name?: string | null): string {
+  if (!name || !name.trim()) return "";
+  return parseName(name).rest.join(" ") || name.trim();
+}
+
+/**
  * Short reference for use in inline sentences.
  * Skips honorific prefixes when a first name is available; keeps any title
  * (honorific or professional) when only a surname follows it, so we never

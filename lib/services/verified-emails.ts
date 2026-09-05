@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createHash, createHmac, randomBytes } from "crypto";
 import { sendAgentEmail } from "@/lib/email/agent-log";
+import { buildEmailVerification } from "@/lib/emails/email-verification";
 
 const PERSONAL_DOMAINS = new Set([
   "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk",
@@ -124,35 +125,15 @@ export async function startInboxVerification(
 
   const verifyLink = `${baseUrl}/api/agent/verified-emails/inbox/verify-link?token=${tokenRaw}&email=${encodeURIComponent(email)}&userId=${userId}`;
 
+  const built = buildEmailVerification({ email, code, verifyUrl: verifyLink });
   await sendAgentEmail({
     to: email,
     kind: "verified_email",
     userId,
-    subject: "Verify your sending address — Sales Progressor",
-    text: [
-      `Your verification code is: ${code}`,
-      "",
-      "This code expires in 15 minutes.",
-      "",
-      "Or click the link below to verify instantly:",
-      verifyLink,
-      "",
-      "Once verified, you'll be able to send emails to clients from this address via the Sales Progressor dashboard.",
-      "",
-      "If you didn't request this, please ignore this email.",
-    ].join("\n"),
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;">
-        <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;color:#1a1d29;">Verify your email address</h2>
-        <p style="color:#4a5162;font-size:14px;margin-bottom:24px;">Enter this code in the Sales Progressor dashboard to verify <strong>${email}</strong>:</p>
-        <div style="background:#f8f9fb;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
-          <span style="font-size:36px;font-weight:800;letter-spacing:10px;color:#1a1d29;">${code}</span>
-          <p style="color:#8b91a3;font-size:12px;margin-top:8px;margin-bottom:0;">Expires in 15 minutes</p>
-        </div>
-        <a href="${verifyLink}" style="display:block;background:#2563eb;color:white;text-decoration:none;padding:14px 24px;border-radius:10px;text-align:center;font-weight:600;font-size:14px;margin-bottom:24px;">Verify this email</a>
-        <p style="color:#8b91a3;font-size:12px;">Once verified, you'll be able to send emails from this address via the Sales Progressor dashboard. If you didn't request this, you can ignore this email.</p>
-      </div>
-    `,
+    subject: built.subject,
+    text: built.text,
+    html: built.html,
+    replyTo: "support@thesalesprogressor.co.uk",
   });
 
   return { ok: true };

@@ -5,6 +5,8 @@ import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
 import { pushExchangeApproaching, pushMortgageOfferExpiring } from "@/lib/agent/push-events";
 import { possessiveClientLabel } from "@/lib/updates-copy";
+import { extractFirstName } from "@/lib/contacts/displayName";
+import { buildMorningBrief } from "@/lib/emails/morning-brief";
 
 type DigestFile = {
   id: string;
@@ -37,7 +39,7 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
 
   const progressors = await prisma.user.findMany({
     where: { agencyId, role: { in: ["admin", "sales_progressor", "director"] } },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, role: true },
   });
 
   const results: ProgressorDigest[] = [];
@@ -45,8 +47,16 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
   for (const user of progressors) {
     if (!user.email) continue;
 
+    // A director is an agency user — never chase them about a TSP-managed file
+    // (our team runs those). Internal progressors/admins still see everything.
+    const excludeManaged = user.role === "director";
     const transactions = await prisma.propertyTransaction.findMany({
-      where: { agencyId, assignedUserId: user.id, status: "active" },
+      where: {
+        agencyId,
+        assignedUserId: user.id,
+        status: "active",
+        ...(excludeManaged ? { serviceType: { not: "outsourced" } } : {}),
+      },
       select: {
         id: true,
         propertyAddress: true,
@@ -109,6 +119,18 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
   const prefsByUser = await getNotificationPrefsForUsers(digests.map((d) => d.userId));
 
   let sent = 0;
+  const base = process.env.NEXTAUTH_URL ?? "";
+  const CAP = 8; // rows per section; the rest roll into a "+N more" link
+
+  // "8 Birchwood Close, Guildford, GU1 3RF" → line 1 street, line 2 the rest.
+  const splitAddr = (a: string): { l1: string; l2?: string } => {
+    const i = a.indexOf(",");
+    return i === -1 ? { l1: a } : { l1: a.slice(0, i).trim(), l2: a.slice(i + 1).trim() };
+  };
+  const fileVars = (f: DigestFile, items: { label: string; detail?: string }[]) => {
+    const { l1, l2 } = splitAddr(f.address);
+    return { addressLine1: l1, addressLine2: l2, url: `${base}/transactions/${f.id}`, items };
+  };
 
   for (const d of digests) {
     if (prefsByUser.get(d.userId)?.morningDigest === false) continue;
@@ -120,68 +142,60 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
     );
     const totalActions = d.files.reduce((s, f) => s + f.overdueChases + f.dueToday, 0);
 
-    const greeting = new Date().getHours() < 12 ? "Good morning" : "Good afternoon";
+    // count = true total (drives the header + "+N more"); files = capped rows.
+    const groups = [
+      overdueTx.length > 0
+        ? {
+            kind: "attention" as const,
+            count: overdueTx.length,
+            files: overdueTx.slice(0, CAP).map((f) =>
+              fileVars(f, [{ label: `${f.overdueChases} chase${f.overdueChases !== 1 ? "s" : ""} overdue` }]),
+            ),
+          }
+        : null,
+      dueTodayTx.length > 0
+        ? {
+            kind: "today" as const,
+            count: dueTodayTx.length,
+            files: dueTodayTx.slice(0, CAP).map((f) =>
+              fileVars(f, [{ label: `${f.dueToday} action${f.dueToday !== 1 ? "s" : ""} due today` }]),
+            ),
+          }
+        : null,
+      exchangeSoon.length > 0
+        ? {
+            kind: "upcoming" as const,
+            count: exchangeSoon.length,
+            files: exchangeSoon.slice(0, CAP).map((f) => {
+              const days = daysUntil(f.exchangeTarget!);
+              return fileVars(f, [
+                { label: "Exchange target", detail: `${fmtDate(f.exchangeTarget!)}${days === 0 ? " · today" : ` · ${days}d`}` },
+              ]);
+            }),
+          }
+        : null,
+    ].filter((g): g is NonNullable<typeof g> => g !== null);
 
-    const subject = totalActions > 0
-      ? `${totalActions} action${totalActions !== 1 ? "s" : ""} to clear today`
-      : `Nothing urgent today. Quick check-in`;
+    const built = buildMorningBrief({
+      firstName: extractFirstName(d.name),
+      activeSales: d.activeCount,
+      actionsDue: totalActions,
+      groups,
+      openUrl: `${base}/agent/hub`,
+      unsubscribeUrl: `${base}/agent/account/notifications`,
+    });
 
-    const lines: string[] = [
-      `${greeting}, ${d.name}.`,
-      ``,
-      `You have ${d.activeCount} active file${d.activeCount !== 1 ? "s" : ""} today.`,
-    ];
-
-    if (overdueTx.length > 0) {
-      lines.push(``, `Overdue chases (${overdueTx.length} file${overdueTx.length !== 1 ? "s" : ""}):`);
-      for (const f of overdueTx.slice(0, 8)) {
-        lines.push(`  · ${f.address}: ${f.overdueChases} overdue`);
-      }
-    }
-    if (dueTodayTx.length > 0) {
-      lines.push(``, `Due today (${dueTodayTx.length} file${dueTodayTx.length !== 1 ? "s" : ""}):`);
-      for (const f of dueTodayTx.slice(0, 8)) {
-        lines.push(`  · ${f.address}`);
-      }
-    }
-    if (exchangeSoon.length > 0) {
-      lines.push(``, `Approaching exchange target:`);
-      for (const f of exchangeSoon.slice(0, 8)) {
-        const days = daysUntil(f.exchangeTarget!);
-        lines.push(`  · ${f.address}: target ${fmtDate(f.exchangeTarget!)} (${days === 0 ? "today" : `${days}d away`})`);
-      }
-    }
-    if (totalActions === 0 && exchangeSoon.length === 0) {
-      lines.push(``, `No chases are due today.`);
-    }
-    lines.push(``, `Have a productive day.`);
-
-    const base = process.env.NEXTAUTH_URL ?? "";
-
-    const buildRows = (label: string, colour: string, items: DigestFile[], badge: (f: DigestFile) => string) =>
-      items.length === 0 ? "" : [
-        `<tr><td colspan="2" style="padding:12px 0 6px;font-weight:600;font-size:13px;color:${colour}">${label}</td></tr>`,
-        ...items.slice(0, 8).map(
-          (f) => `<tr><td style="padding:3px 0"><a href="${base}/transactions/${f.id}" style="color:#3b82f6;text-decoration:none;font-size:13px">${f.address}</a></td><td style="padding:3px 0 3px 12px;white-space:nowrap;font-size:13px;color:${colour}">${badge(f)}</td></tr>`
-        ),
-      ].join("\n");
-
-    const tableRows = [
-      buildRows("⚠ Overdue chases",        "#b91c1c", overdueTx,    (f) => `${f.overdueChases} overdue`),
-      buildRows("📋 Due today",             "#92400e", dueTodayTx,   ()  => "1 due today"),
-      buildRows("📅 Exchange approaching",  "#166534", exchangeSoon, (f) => fmtDate(f.exchangeTarget!)),
-    ].filter(Boolean).join("\n");
-
-    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 4px;color:#6b7280;font-size:13px">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
-<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${greeting}, ${d.name}.</h1>
-<p style="margin:0 0 20px;color:#4a5162;font-size:14px"><strong>${d.activeCount}</strong> active file${d.activeCount !== 1 ? "s" : ""}${totalActions > 0 ? ` · <strong style="color:#ef4444">${totalActions} action${totalActions !== 1 ? "s" : ""} due</strong>` : " · no actions due today"}.</p>
-${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>${tableRows}</tbody></table>` : ""}
-<p style="margin:0 0 24px"><a href="${base}/dashboard" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Open dashboard</a></p>
-<p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
-</body></html>`;
-
-    await sendAgentEmail({ to: d.email, subject, text: lines.join("\n"), html, from: fromAddr, replyTo, kind: "morning_digest", userId: d.userId, agencyId }).catch(() => {});
+    await sendAgentEmail({
+      to: d.email,
+      subject: built.subject,
+      text: built.text,
+      html: built.html,
+      from: fromAddr,
+      replyTo,
+      kind: "morning_digest",
+      userId: d.userId,
+      agencyId,
+    }).catch(() => {});
     sent++;
   }
 

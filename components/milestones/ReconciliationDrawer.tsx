@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
@@ -47,6 +48,7 @@ export function ReconciliationDrawer({
       closeTimer.current = setTimeout(onCancel, 200);
     }
   }
+  useOverlayChrome(doClose);
 
   const [eventDate, setEventDate] = useState(initialEventDate);
   const [completionDate, setCompletionDate] = useState("");
@@ -55,15 +57,6 @@ export function ReconciliationDrawer({
   );
   const [reconciledDates, setReconciledDates] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") doClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function handleConfirm() {
     const effectiveIds = [...reconciledIds].filter((id) => {

@@ -23,6 +23,8 @@ import { resolveChainInviteSender } from "@/lib/chain/invite";
 import { neighbourStepClause } from "@/lib/updates-copy";
 import { buildInviteUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { isInviteEmailSuppressed } from "@/lib/email";
+import { buildChainUpdate } from "@/lib/emails/chain-update";
+import { greetingName } from "@/lib/contacts/displayName";
 
 // Several confirmations within this window collapse into one digest email.
 const BATCH_WINDOW_MS = 10 * 60 * 1000;
@@ -160,13 +162,13 @@ async function sendNeighbourGroup(
   const claimUrl = link.inviteToken ? `${baseUrl()}/claim?token=${link.inviteToken}` : `${baseUrl()}/`;
   const unsubscribeUrl = buildInviteUnsubscribeUrl(chainLinkId);
 
-  const { subject, html, text } = buildNeighbourEmail({
-    recipientName: link.stubAgentName ?? "there",
+  const { subject, html, text } = buildChainUpdate({
+    recipientName: greetingName(link.stubAgentName),
+    agencyName: sender.displayAgency,
     sellerName: displayName,
     onwardAddress,
     labels,
-    agency: sender.displayAgency,
-    claimUrl,
+    chainUrl: claimUrl,
     unsubscribeUrl,
   });
 
@@ -183,73 +185,5 @@ async function sendNeighbourGroup(
   return true;
 }
 
-function capitalise(s: string): string {
-  return s.length ? s[0].toUpperCase() + s.slice(1) : s;
-}
-function joinClauses(labels: string[]): string {
-  if (labels.length <= 1) return labels[0] ?? "";
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
-  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
-}
-
-export function buildNeighbourEmail(v: {
-  recipientName: string;
-  sellerName: string;
-  onwardAddress: string;
-  labels: string[];
-  agency: string;
-  claimUrl: string;
-  unsubscribeUrl: string;
-}): { subject: string; html: string; text: string } {
-  const many = v.labels.length > 1;
-  const subject = `An update on your sale of ${v.onwardAddress}`;
-  const who = `${v.sellerName}, the buyer of ${v.onwardAddress},`;
-
-  // Plain text: single is prose, multiple is bullets.
-  const text = [
-    `Hi ${v.recipientName},`,
-    ``,
-    `${v.agency} here.`,
-    ``,
-    many
-      ? `${who} has confirmed the following updates:`
-      : `${who} has confirmed ${v.labels[0]}.`,
-    ...(many ? ["", ...v.labels.map((l) => `  • ${capitalise(l)}`)] : []),
-    ``,
-    `We're keeping the chain moving on Sales Progressor. See where the whole chain stands here:`,
-    v.claimUrl,
-    ``,
-    `Kind regards,`,
-    v.agency,
-    ``,
-    `If you'd rather not receive these updates, unsubscribe: ${v.unsubscribeUrl}`,
-  ].join("\n");
-
-  // HTML: orange-bulleted lines for multiple, prose for single.
-  const bodyBlock = many
-    ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.5">${escapeHtml(who)} has confirmed the following updates:</p>
-  ${v.labels
-    .map(
-      (l) =>
-        `<p style="margin:0 0 7px;font-size:14px;line-height:1.5"><span style="color:#FF6B4A;font-weight:700">&#8226;</span>&nbsp;&nbsp;${escapeHtml(capitalise(l))}</p>`,
-    )
-    .join("\n  ")}`
-    : `<p style="margin:0 0 14px;font-size:14px;line-height:1.5">${escapeHtml(who)} has confirmed <strong>${escapeHtml(v.labels[0] ?? "")}</strong>.</p>`;
-
-  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1d29;background:#fff">
-  <p style="margin:0 0 14px;font-size:14px">Hi ${escapeHtml(v.recipientName)},</p>
-  <p style="margin:0 0 14px;font-size:14px;line-height:1.5">${escapeHtml(v.agency)} here.</p>
-  ${bodyBlock}
-  <p style="margin:16px 0 18px;font-size:14px;line-height:1.5">We're keeping the chain moving on Sales Progressor.</p>
-  <p style="margin:0 0 20px"><a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px">See where the chain stands</a></p>
-  <p style="margin:0 0 4px;font-size:14px">Kind regards,</p>
-  <p style="margin:0 0 24px;font-size:14px">${escapeHtml(v.agency)}</p>
-  <p style="margin:0;font-size:11px;color:#8a90a2">Powered by Sales Progressor. <a href="${v.unsubscribeUrl}" style="color:#8a90a2">Unsubscribe from these updates</a>.</p>
-</body></html>`;
-
-  return { subject, html, text };
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+// The neighbour-update email is now the redesigned buildChainUpdate template
+// (lib/emails/chain-update.ts), wired in sendNeighbourGroup above.

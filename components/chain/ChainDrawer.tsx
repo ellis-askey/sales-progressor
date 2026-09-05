@@ -16,6 +16,7 @@ import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type ChainDrawerProps = {
@@ -152,6 +153,7 @@ export function ChainDrawer({
       closeTimer.current = setTimeout(onClose, 200);
     }
   }
+  useOverlayChrome(doClose);
   const [chain, setChain] = useState<ChainV2 | null>(null);
   const [notAParticipant, setNotAParticipant] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -248,15 +250,6 @@ export function ChainDrawer({
     const t = setTimeout(() => setNewLinkIds(new Set()), 200);
     return () => clearTimeout(t);
   }, [newLinkIds]);
-
-  // Close on Escape
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   async function handleResendInvite(linkId: string) {
     setSendingInvites(linkId);

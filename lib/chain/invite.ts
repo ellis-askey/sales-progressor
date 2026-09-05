@@ -6,10 +6,9 @@ import { sendEmail } from "@/lib/email";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender, resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
-import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { stripAgencyLegalSuffix } from "@/lib/email/from-name";
-import { displayChainPosition } from "@/lib/chain/positions";
 import { normaliseAddressString } from "@/lib/utils/address";
+import { buildChainOverview } from "@/lib/emails/chain-overview";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import crypto from "crypto";
@@ -141,13 +140,6 @@ async function sendInviteEmail(input: {
   const fallbackName = originator?.name ?? sentByName;
   const fallbackAgency = originator?.firmName ?? sentByName;
 
-  // Look up stub's own position and originator's position in chain
-  const stubRecord = await prisma.chainLink.findUnique({
-    where: { id: link.id },
-    select: { position: true },
-  });
-  const stubPosition = stubRecord?.position ?? 0;
-
   const originatorLink = link.chain.links.find((l) => l.transactionId !== null);
   // Render-time postcode normalisation — write-time normalisation catches
   // anything new; this catches historical rows persisted before the fix
@@ -163,134 +155,30 @@ async function sendInviteEmail(input: {
     agencyId: originator?.agencyId ?? null,
     agencyName: fallbackAgency,
   });
-  const originatorName = sender.displayFirstName;
-  const originatorAgency = sender.displayAgency;
 
   const stubAddress = normaliseAddressString(link.stubPropertyAddress ?? "your sale");
-
   const totalLinks = link.chain.links.length;
-  const linkPosition = displayChainPosition(stubPosition, totalLinks); // bottom=#1 convention
   const claimedCount = link.chain.links.filter((l) => l.transactionId !== null).length;
-  const recipientName = link.stubAgencyName ?? "there";
 
-  const subject = "You're part of a live chain";
-
-  // Agency logo band (Option B) for the originating agency, above the coral hero.
-  const logoBand = await agencyLogoBand(originator?.agencyId ?? null);
-
-  const html = buildInviteHtml({
-    recipientName,
-    originatorName,
-    originatorAgency,
-    originatorAddress,
-    stubAddress,
-    linkPosition,
-    totalLinks,
-    claimedCount,
-    claimUrl,
-    declineUrl,
-    logoBand,
-  });
-
-  const text = buildInviteText({
-    recipientName,
-    originatorName,
-    originatorAgency,
-    originatorAddress,
-    stubAddress,
-    linkPosition,
-    totalLinks,
-    claimedCount,
-    claimUrl,
+  // Redesigned lifecycle template ("See the whole chain"). TSP header, agency
+  // sender; the old agency logo band is dropped in favour of the illustrated hero.
+  const { subject, html, text } = buildChainOverview({
+    saleAddress: stubAddress,
+    originatingAddress: originatorAddress,
+    chainSize: totalLinks,
+    connectedCount: claimedCount,
+    chainUrl: claimUrl,
     declineUrl,
   });
 
   // External agent (unclaimed stub): no recipient user id, so userId stays null
-  // and we key the log off the email address only.
-  // Send from the originator agency's authenticated address (Reply-To matching),
-  // SP fallback when they have none.
-  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: sender.from, replyTo: sender.replyTo, kind: "chain_invite", meta: { originatorAgency } });
+  // and we key the log off the email address only. Send from the originator
+  // agency's authenticated address (Reply-To matching), SP fallback when none.
+  await sendAgentEmail({ to: link.stubAgentEmail, subject, html, text, from: sender.from, replyTo: sender.replyTo, kind: "chain_invite", meta: { originatorAgency: sender.displayAgency } });
 }
 
-function buildInviteHtml(v: {
-  recipientName: string;
-  originatorName: string;
-  originatorAgency: string;
-  originatorAddress: string;
-  stubAddress: string;
-  linkPosition: number;
-  totalLinks: number;
-  claimedCount: number;
-  claimUrl: string;
-  declineUrl: string;
-  logoBand: string;
-}): string {
-  const connected = v.claimedCount === 1 ? "1 agent is already connected" : `${v.claimedCount} agents are already connected`;
-  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${v.logoBand}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:30px 32px 26px;border-radius:0 0 24px 24px">
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
-    <td style="vertical-align:middle">
-      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.8)">Chain invite</p>
-      <h1 style="margin:0;font-size:23px;font-weight:700;color:#fff;line-height:1.2">You're part of a live chain</h1>
-    </td>
-    <td style="vertical-align:middle;text-align:right;width:66px">
-      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block">
-        <path d="M8 27 L16 20 L24 27 V35 H8 Z" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M32 27 L40 20 L48 27 V35 H32 Z" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
-        <line x1="25" y1="31" x2="31" y2="31" stroke="#ffffff" stroke-width="2" stroke-dasharray="1 3" stroke-linecap="round"/>
-      </svg>
-    </td>
-  </tr></table>
-</div>
-<div style="padding:28px 32px">
-  <p style="margin:0 0 16px;font-size:15px">Hi ${v.recipientName},</p>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">${v.originatorName} at ${v.originatorAgency} is progressing the sale of <strong>${v.originatorAddress}</strong>, which is connected to your sale at <strong>${v.stubAddress}</strong>.</p>
-  <p style="margin:0 0 22px;font-size:14px;line-height:1.7;color:#4a5162">They've added the chain to Sales Progressor and invited you to join them.</p>
-  <div style="margin:0 0 22px;padding:14px 18px;background:#FFF8F6;border-left:3px solid #FF6B4A;border-radius:8px">
-    <p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1a1d29">You're #${v.linkPosition} of ${v.totalLinks} in the chain</p>
-    <p style="margin:0;font-size:12px;color:#8b91a3">${connected}</p>
-  </div>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">Once you're in, you'll both have the same live view of the chain: where each sale has reached, what's outstanding and where things are currently waiting.</p>
-  <p style="margin:0 0 26px;font-size:14px;line-height:1.7;color:#4a5162">No more ringing around just to piece together the same picture.</p>
-  <p style="margin:0 0 26px">
-    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 30px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View the chain</a>
-  </p>
-  <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Button not working? Copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
-  <p style="margin:0 0 22px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Let us know</a>.</p>
-</div>
-</body></html>`;
-}
-
-function buildInviteText(v: {
-  recipientName: string;
-  originatorName: string;
-  originatorAgency: string;
-  originatorAddress: string;
-  stubAddress: string;
-  linkPosition: number;
-  totalLinks: number;
-  claimedCount: number;
-  claimUrl: string;
-  declineUrl: string;
-}): string {
-  return `Hi ${v.recipientName},
-
-${v.originatorName} at ${v.originatorAgency} is progressing the sale of ${v.originatorAddress}, which is connected to your sale at ${v.stubAddress}.
-
-They've added the chain to Sales Progressor and invited you to join them.
-
-You're #${v.linkPosition} of ${v.totalLinks} in the chain. ${v.claimedCount === 1 ? "1 agent is" : `${v.claimedCount} agents are`} already connected.
-
-Once you're in, you'll both have the same live view of the chain: where each sale has reached, what's outstanding and where things are currently waiting. No more ringing around just to piece together the same picture.
-
-View the chain: ${v.claimUrl}
-
-Not the right agent for this sale? Let us know: ${v.declineUrl}
-
-Sales Progressor
-Making property moves better for everyone.
-`;
-}
+// The invite email is now the redesigned buildChainOverview template
+// (lib/emails/chain-overview.ts), wired in sendInviteEmail above.
 
 // Called by the SendGrid bounce webhook when a hard bounce is received.
 // Updates the link status and notifies the originator.

@@ -5,6 +5,7 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { buildPortalMessage } from "@/lib/emails/portal-message";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
@@ -142,29 +143,22 @@ export async function sendClientPortalMessage(token: string, content: string): P
   if (!tx.assignedUser?.email) return;
 
   const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
-  const first   = extractFirstName(tx.assignedUser.name);
+  const roleLabel = contact.roleType === "purchaser" ? "Buyer" : contact.roleType === "vendor" ? "Seller" : contact.roleType;
+  const built = buildPortalMessage({
+    senderFirstName: extractFirstName(contact.name),
+    senderName: contact.name,
+    senderRole: roleLabel,
+    addressLine1: tx.propertyAddress,
+    timestamp: `Today at ${new Date().toLocaleString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}`,
+    message: content,
+    replyUrl: dashUrl,
+  });
 
   await sendAgentEmail({
     to:      tx.assignedUser.email,
-    subject: `Message from ${contact.name}: ${tx.propertyAddress}`,
-    text: [
-      `Hi ${first},`,
-      "",
-      `${contact.name} sent you a message about ${tx.propertyAddress}:`,
-      "",
-      `"${content}"`,
-      "",
-      `Reply on their file: ${dashUrl}`,
-    ].join("\n"),
-    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 16px;font-size:15px">Hi ${first},</p>
-<div style="margin:0 0 20px;padding:16px 20px;background:#F8F9FB;border-radius:12px;border-left:4px solid #FF6B4A">
-  <p style="margin:0 0 4px;font-size:12px;color:#8b91a3">${tx.propertyAddress} · ${contact.name}</p>
-  <p style="margin:0;font-size:15px;color:#1a1d29;line-height:1.5">${content}</p>
-</div>
-<p><a href="${dashUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">Reply on their file</a></p>
-<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">Sales Progressor</p>
-</body></html>`,
+    subject: built.subject,
+    text:    built.text,
+    html:    built.html,
     kind: "portal_message",
     userId: tx.assignedUser.id,
     transactionId: tx.id,

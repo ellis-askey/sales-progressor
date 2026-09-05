@@ -57,44 +57,65 @@ async function main() {
     return;
   }
 
+  // A domain can back MULTIPLE agencies (e.g. several eXp agents all sending
+  // from expuk.com). They correctly SHARE one SendGrid authentication — one
+  // domain has one set of DNS records that authenticates every sender on it. So
+  // this operates per-domain, not per-row: delete the shared old record ONCE,
+  // create ONE new tsp record, and repoint every row to it. Recreating per-row
+  // would delete the shared record out from under the other agencies' rows.
   for (const vd of rows) {
     console.log(
-      `Row ${vd.id} — agency ${vd.agencyId} — status=${vd.status} — sendgridDomainId=${vd.sendgridDomainId}`
+      `Row ${vd.id} / agency ${vd.agencyId} / status=${vd.status} / sendgridDomainId=${vd.sendgridDomainId}`
     );
+  }
+  console.log("");
 
-    // Guard 1: stored status must not be verified.
-    if (vd.status === "verified") {
-      console.log("  REFUSING: status is 'verified'. A verified domain has live mail; skipping.\n");
-      continue;
-    }
+  // Guard 1: refuse the whole operation if ANY row is verified — a verified
+  // domain has live mail flowing through the shared record; never touch it.
+  const verified = rows.filter((r) => r.status === "verified");
+  if (verified.length > 0) {
+    console.log(`REFUSING: ${verified.length} row(s) are 'verified'. Shared record has live mail. Aborting.`);
+    return;
+  }
 
-    // Guard 2: confirm SendGrid does not consider it valid right now either.
+  // Every distinct old SendGrid record backing this domain (normally just one).
+  const oldIds = [...new Set(rows.map((r) => r.sendgridDomainId))];
+
+  // Guard 2: refuse if SendGrid still reports any of them valid.
+  for (const id of oldIds) {
     let live;
     try {
-      live = await validateAuthenticatedDomain(vd.sendgridDomainId);
+      live = await validateAuthenticatedDomain(id);
     } catch {
-      console.log("  Could not reach SendGrid to re-check validity. Skipping for safety.\n");
-      continue;
+      console.log(`Could not reach SendGrid to re-check record ${id}. Aborting for safety.`);
+      return;
     }
     if (live.valid) {
-      console.log("  REFUSING: SendGrid reports this authentication is VALID. Skipping.\n");
-      continue;
+      console.log(`REFUSING: SendGrid reports record ${id} is VALID (live). Aborting.`);
+      return;
     }
+  }
 
-    if (!APPLY) {
-      console.log("  WOULD delete SendGrid whitelabel + recreate with tsp records, then update this row.\n");
-      continue;
-    }
+  if (!APPLY) {
+    console.log(`WOULD delete old record(s) [${oldIds.join(", ")}], create ONE new tsp record,`);
+    console.log(`and repoint all ${rows.length} row(s) to it.`);
+    console.log("\nDry run only. Re-run with APPLY=1 to execute.");
+    return;
+  }
 
-    // Delete the old (collision-prone) SendGrid whitelabel domain.
-    await deleteAuthenticatedDomain(vd.sendgridDomainId);
-    console.log(`  Deleted old SendGrid whitelabel ${vd.sendgridDomainId}.`);
+  // Delete every old (collision-prone) shared record.
+  for (const id of oldIds) {
+    await deleteAuthenticatedDomain(id);
+    console.log(`Deleted old SendGrid whitelabel ${id}.`);
+  }
 
-    // Recreate with the new tsp return path + DKIM selector. SendGrid generates
-    // the fresh CNAME records; we store exactly what it returns.
-    const { id: newId, cnameRecords } = await createAuthenticatedDomain(DOMAIN);
-    console.log(`  Created new SendGrid whitelabel ${newId} with ${cnameRecords.length} records.`);
+  // Create ONE new record with the tsp return path + DKIM selector. SendGrid
+  // generates the fresh CNAME records; we store exactly what it returns.
+  const { id: newId, cnameRecords } = await createAuthenticatedDomain(DOMAIN);
+  console.log(`Created new SendGrid whitelabel ${newId} with ${cnameRecords.length} records.`);
 
+  // Repoint every row for this domain to the shared new record.
+  for (const vd of rows) {
     await prisma.verifiedDomain.update({
       where: { id: vd.id },
       data: {
@@ -107,12 +128,11 @@ async function main() {
         lastCheckedAt: null,
       },
     });
-    console.log("  Updated VerifiedDomain row. New records now show in the UI.");
-    for (const r of cnameRecords) console.log(`    CNAME  ${r.host}  ->  ${r.data}`);
-    console.log("");
+    console.log(`  Repointed row ${vd.id} (agency ${vd.agencyId}).`);
   }
 
-  if (!APPLY) console.log("Dry run only. Re-run with APPLY=1 to execute.");
+  console.log("\nNew shared records now show on every agency's setup screen:");
+  for (const r of cnameRecords) console.log(`  CNAME  ${r.host}  ->  ${r.data}`);
 }
 
 main()

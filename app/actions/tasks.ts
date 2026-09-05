@@ -3,11 +3,51 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
-import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime } from "@/lib/services/reminders";
+import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime, type SnoozeWake, type SnoozeResult } from "@/lib/services/reminders";
 import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
+import { createCommunicationRecord } from "@/lib/services/comms";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
+import { formatDate } from "@/lib/utils";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
+import type { AccessScope } from "@/lib/security/access-scope";
+
+// Options a snooze carries from the menu: how long (a quick gap or a picked
+// date) and an optional agent reason.
+export interface SnoozeOptions {
+  hours?: number;
+  untilISO?: string;
+  reason?: string | null;
+}
+
+// Post an internal note on the file's Activity tab recording the snooze, so the
+// rest of the team can see it (and why, if a reason was given). Best-effort:
+// a note failure never blocks the snooze itself.
+async function logSnoozeNote(input: {
+  transactionId: string;
+  milestoneNames: string[];
+  wakeDate: Date;
+  reason: string | null;
+  createdById: string;
+  createdByRole: string;
+  scope: AccessScope;
+}) {
+  const when = formatDate(input.wakeDate);
+  const names = input.milestoneNames;
+  const head = names.length === 1
+    ? `Snoozed "${names[0]}" until ${when}.`
+    : `Snoozed ${names.length} reminders until ${when}: ${names.join(", ")}.`;
+  const content = input.reason ? `${head} ${input.reason}` : head;
+  await createCommunicationRecord({
+    transactionId: input.transactionId,
+    type: "internal_note",
+    contactIds: [],
+    content,
+    createdById: input.createdById,
+    createdByRole: input.createdByRole,
+    scope: input.scope,
+  }).catch(() => {});
+}
 
 export type CompleteTaskResult =
   | { ok: true }
@@ -89,9 +129,52 @@ export async function completeTaskAction(
   return { ok: true };
 }
 
-export async function snoozeTaskAction(taskId: string, snoozeHours: number, pathname: string) {
+export async function snoozeTaskAction(taskId: string, opts: SnoozeOptions, pathname: string) {
   const session = await requireSession();
-  await snoozeReminderLog(taskId, snoozeHours, getAccessScope(session));
+  const scope = getAccessScope(session);
+  const reason = opts.reason?.trim() || null;
+  const wake: SnoozeWake = opts.untilISO ? { untilISO: opts.untilISO } : { hours: opts.hours };
+  const res = await snoozeReminderLog(taskId, wake, reason, scope);
+  await logSnoozeNote({
+    transactionId: res.transactionId,
+    milestoneNames: [res.milestoneName],
+    wakeDate: res.wakeDate,
+    reason,
+    createdById: session.user.id,
+    createdByRole: session.user.role,
+    scope,
+  });
+  revalidatePath(pathname, "page");
+}
+
+// Snooze several reminders on one file at once (the "Snooze all" control), with a
+// single shared reason and one combined Activity note rather than N near-identical
+// ones. All ids are expected to belong to the same file.
+export async function snoozeManyAction(taskIds: string[], opts: SnoozeOptions, pathname: string) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const reason = opts.reason?.trim() || null;
+  const wake: SnoozeWake = opts.untilISO ? { untilISO: opts.untilISO } : { hours: opts.hours };
+
+  const results: SnoozeResult[] = [];
+  for (const id of taskIds) {
+    try {
+      results.push(await snoozeReminderLog(id, wake, reason, scope));
+    } catch {
+      // A single bad id shouldn't abort the rest of the batch.
+    }
+  }
+  if (results.length > 0) {
+    await logSnoozeNote({
+      transactionId: results[0].transactionId,
+      milestoneNames: results.map((r) => r.milestoneName),
+      wakeDate: results[0].wakeDate,
+      reason,
+      createdById: session.user.id,
+      createdByRole: session.user.role,
+      scope,
+    });
+  }
   revalidatePath(pathname, "page");
 }
 
@@ -149,7 +232,7 @@ export async function chaseNowFromLogAction(
 
     await tx.reminderLog.update({
       where: { id: log.id },
-      data: { nextDueDate: setUkChaseTime(new Date()), snoozedUntil: null },
+      data: { nextDueDate: setUkChaseTime(new Date()), snoozedUntil: null, statusReason: null },
     });
 
     return { taskId: task.id, transactionId: log.transactionId };

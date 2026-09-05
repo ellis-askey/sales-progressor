@@ -6,6 +6,7 @@ import { X } from "@phosphor-icons/react";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import { Pill } from "@/components/ui/Pill";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -158,6 +159,7 @@ export function AddNodeDrawer({
       closeTimer.current = setTimeout(onClose, 200);
     }
   }
+  useOverlayChrome(doClose);
   const isEditMode = !!editingLink;
   const isExistingChain = !!chainId;
 
@@ -219,15 +221,6 @@ export function AddNodeDrawer({
     }, 220);
     return () => { active = false; clearTimeout(t); };
   }, [mode, fileQuery, chainId]);
-
-  // Esc key
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   type FormField = Exclude<keyof StubFormData, "stubPropertyAddress">;
 

@@ -15,6 +15,7 @@ import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/p
 import { anthropic } from "@/lib/anthropic";
 import { buildTemplate } from "@/lib/prospects/templates";
 import { sendProspectOutreach } from "@/lib/prospects/send";
+import { buildAgencyInvitation } from "@/lib/emails/agency-invitation";
 import { researchAgency, type ResearchField, type ResearchResult } from "@/lib/prospects/research";
 import { randomUUID } from "crypto";
 import type { Prisma, ProspectStatus, ProspectSource, ProspectLostReason } from "@prisma/client";
@@ -345,6 +346,59 @@ export async function sendProspectEmailAction(prospectId: string, input: {
   }
 
   await logActivity(prospectId, session.user.id, "email_sent", `Email: ${subject}`, body, { prospectEmailId: pe.id });
+  await commandDb.prospect.update({
+    where: { id: prospectId },
+    data: { lastContactedAt: new Date(), followUpCount: { increment: 1 }, nextFollowUpAt: null, ...(p.status === "new" ? { status: "contacted" as ProspectStatus } : {}) },
+  });
+  revalidatePath("/command/prospects");
+  return { ok: true };
+}
+
+// Send the branded agency-invitation email to a prospect's primary contact, and
+// record it against the prospect (ProspectEmail + timeline), reusing the same
+// tracked prospect-outreach pipeline as sendProspectEmailAction. One click, fixed
+// template — no compose. The "Accept your invitation" link points at /register
+// (the real new-agency signup) with campaign UTMs for attribution.
+export async function sendAgencyInvitationAction(prospectId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+
+  const p = await commandDb.prospect.findUnique({
+    where: { id: prospectId },
+    select: {
+      optedOutAt: true, bouncedAt: true, status: true, generalEmail: true,
+      contacts: { select: { id: true, name: true, email: true, isPrimary: true } },
+    },
+  });
+  if (!p) return { ok: false, error: "Prospect not found." };
+  if (p.optedOutAt) return { ok: false, error: "This prospect has opted out of email." };
+  if (p.bouncedAt) return { ok: false, error: "A previous email to this prospect bounced." };
+
+  const primary = p.contacts.find((c) => c.isPrimary) ?? p.contacts[0] ?? null;
+  const to = (primary?.email ?? p.generalEmail ?? "").trim();
+  if (!to) return { ok: false, error: "No email address on file for this prospect." };
+  const firstName = primary?.name ? extractFirstName(primary.name) : undefined;
+
+  const base = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
+  const acceptUrl = `${base}/register?utm_source=prospect&utm_medium=email&utm_campaign=agency_invitation`;
+  const email = buildAgencyInvitation({ firstName, acceptUrl });
+
+  const replyToken = randomUUID().replace(/-/g, "");
+  const pe = await commandDb.prospectEmail.create({
+    data: {
+      prospectId, contactId: primary?.id ?? null, toEmail: to,
+      subject: email.subject, body: email.text, html: email.html,
+      templateKey: "agency_invitation", replyToken, createdById: session.user.id,
+    },
+  });
+  try {
+    const { sgMessageId } = await sendProspectOutreach({ to, subject: email.subject, text: email.text, html: email.html, replyToken, prospectEmailId: pe.id });
+    await commandDb.prospectEmail.update({ where: { id: pe.id }, data: { sgMessageId } });
+  } catch (err) {
+    await commandDb.prospectEmail.delete({ where: { id: pe.id } }).catch(() => {});
+    return { ok: false, error: err instanceof Error ? err.message.slice(0, 140) : "The invitation failed to send." };
+  }
+
+  await logActivity(prospectId, session.user.id, "email_sent", "Invitation sent", null, { prospectEmailId: pe.id, templateKey: "agency_invitation" });
   await commandDb.prospect.update({
     where: { id: prospectId },
     data: { lastContactedAt: new Date(), followUpCount: { increment: 1 }, nextFollowUpAt: null, ...(p.status === "new" ? { status: "contacted" as ProspectStatus } : {}) },

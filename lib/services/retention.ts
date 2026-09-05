@@ -112,6 +112,7 @@ async function sendRetentionEmail({
   vars: {
     address?: string;
     ctaUrl?: string;
+    addSaleUrl?: string;
     unsubscribeUrl?: string;
     property?: PropertyCardVars;
   };
@@ -122,12 +123,26 @@ async function sendRetentionEmail({
   const template = buildRetentionEmail(emailKey, {
     firstName,
     address: vars.address,
+    addSaleUrl: vars.addSaleUrl,
     ctaUrl: vars.ctaUrl,
     unsubscribeUrl: vars.unsubscribeUrl ?? unsubscribeUrl,
     property: vars.property,
   });
 
   const from = `${template.fromDisplayName} <${SYSTEM_FROM_DOMAIN}>`;
+
+  // Claim before sending (same pattern as the welcome email): write the "sent"
+  // log row first, then send. This closes the window where a send succeeds but
+  // the post-send write fails, causing a resend on the next run. Trade-off: a
+  // send failure loses that one email rather than duplicating it — the right
+  // call for a retention email.
+  await prisma.retentionEmailLog.create({
+    data: {
+      userId: user.id,
+      emailKey,
+      agencyId: user.agencyId ?? "",
+    },
+  });
 
   await sendAgentEmail({
     to: user.email,
@@ -140,15 +155,6 @@ async function sendRetentionEmail({
     userId: user.id,
     agencyId: user.agencyId,
     meta: { emailKey },
-  });
-
-  // Write log row only after successful send
-  await prisma.retentionEmailLog.create({
-    data: {
-      userId: user.id,
-      emailKey,
-      agencyId: user.agencyId ?? "",
-    },
   });
 }
 
@@ -193,7 +199,7 @@ export async function maybeFireFirstExchangeEmail(
     await sendRetentionEmail({
       user,
       emailKey: "first_exchange",
-      vars: { address: tx.propertyAddress, ctaUrl },
+      vars: { address: tx.propertyAddress, ctaUrl, addSaleUrl: `${base}/agent/transactions/new` },
     });
   } catch (err) {
     console.error("[retention] maybeFireFirstExchangeEmail error:", err);

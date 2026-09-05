@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const { taskId, action, snoozeHours } = await req.json();
+  const { taskId, action, snoozeHours, reason } = await req.json();
   if (!taskId || !action) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
   try {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       if (!snoozeHours || typeof snoozeHours !== "number") {
         return NextResponse.json({ error: "snoozeHours required" }, { status: 400 });
       }
-      await snoozeReminderLog(taskId, snoozeHours, getAccessScope(session));
+      await snoozeReminderLog(taskId, { hours: snoozeHours }, typeof reason === "string" && reason.trim() ? reason.trim() : null, getAccessScope(session));
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }

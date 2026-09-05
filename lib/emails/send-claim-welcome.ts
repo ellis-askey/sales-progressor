@@ -11,8 +11,9 @@
 // Fire-and-forget: callers should NOT await this. SendGrid hiccups must not
 // fail the signup or claim response. All errors are logged here and swallowed.
 //
-// Not wired into the signup/claim pipeline yet — kept dormant pending review.
-// See /test/claim-welcome for a rendered preview with sample data.
+// Wired live into the chain-claim signup pipeline at app/api/claim/route.ts.
+// Shares the welcomeEmailSentAt guard with the generic welcome, so a user
+// receives exactly one of the two. See /test/claim-welcome for a preview.
 
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";

@@ -24,6 +24,7 @@ export type CardLog = {
   id: string;
   nextDueDate: Date;
   snoozedUntil: Date | null;
+  statusReason?: string | null;
   sourceDateUsed?: Date | null;
   reminderRule: {
     name: string;
@@ -390,6 +391,11 @@ export function ReminderCard({
             </button>
           )}
         </div>
+        {log.statusReason && (
+          <div className="px-5 pt-2.5 text-xs italic" style={{ color: "var(--agent-text-muted)" }} title={log.statusReason}>
+            {log.statusReason}
+          </div>
+        )}
         <div className="px-5 py-3">
           {showAddressLink && (
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 4 }}>

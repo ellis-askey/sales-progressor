@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition, useEffect } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import type { Contact } from "@/components/reminders/ReminderCard";
 import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
 import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
@@ -80,13 +79,6 @@ type Props = {
 // per-row chip. Same buckets the tab-badge count uses, kept in lock-step.
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
 
-const SNOOZE_OPTIONS = [
-  { label: "24 h",   hours: 24 },
-  { label: "48 h",   hours: 48 },
-  { label: "72 h",   hours: 72 },
-  { label: "7 days", hours: 168 },
-];
-
 function isSunday(d: Date) { return d.getDay() === 0; }
 function addBusinessDays(from: Date, days: number): Date {
   const result = new Date(from);
@@ -109,8 +101,8 @@ function stripChase(name: string) {
     .replace(/\s*\((?:buyer|seller)\)\s*$/i, "");
 }
 
-// Short, friendly label for the snooze toast — matches the duration option
-// the user picked. Mirrors the SNOOZE_OPTIONS labels but in past tense.
+// Short, friendly label for the snooze toast when a quick gap was chosen
+// (a picked date is toasted separately). Past tense of the quick-gap options.
 function snoozeToastLabel(hours: number): string {
   if (hours < 24) return `Snoozed for ${hours}h`;
   const days = Math.round(hours / 24);
@@ -133,156 +125,6 @@ function classifyActive(log: ReminderLog, now: Date, optimisticNextDue: Date | n
   // The bucket "snoozed" can't reach here — caller filters snoozed logs out.
   // "inactive" also can't reach here — caller restricts to status=active.
   return bucket === "snoozed" || bucket === "inactive" ? "upcoming" : bucket;
-}
-
-function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: string; onSnooze: (logId: string, taskId: string, hours: number) => void }) {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const { theme } = usePortalTheme();
-
-  function close() { setClosing(true); setOpen(false); }
-
-  // Gate listener registration on `open` — see ChaseDrawer for the same
-  // pattern. Registering unconditionally on mount means any prior click
-  // anywhere on the page fires close(), flipping `closing` to true even
-  // though the menu was never open. After that, the onClick's
-  // `!open && !closing` guard blocks setPos, so the menu never gets a
-  // position and never renders. Gating the listener fixes that.
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    }
-    function handleScroll() { close(); }
-    if (open) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => {
-          if (!open && !closing && ref.current) {
-            const r = ref.current.getBoundingClientRect();
-            setPos({ top: r.top - 4, right: window.innerWidth - r.right });
-          }
-          if (open) { close(); } else { setClosing(false); setOpen(true); }
-        }}
-        title="Snooze this reminder"
-        style={{ fontSize: 12, color: "var(--agent-text-muted)", height: 28, padding: "0 10px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
-      >
-        🕐
-      </button>
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        // Outer wrapper holds the positioning transform (translateY(-100%)
-        // anchors the menu's bottom edge above the trigger). Inner box runs
-        // the slide-in animation. They MUST be split — the animation's
-        // transform keyframes would otherwise override the inline -100%
-        // and the menu would render covering the button instead of above it.
-        <div
-          style={{
-            position: "fixed", top: pos.top, right: pos.right,
-            transform: "translateY(-100%)",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            data-theme={theme}
-            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-            onAnimationEnd={() => { if (closing) setClosing(false); }}
-            style={{
-              background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
-            }}
-          >
-            {SNOOZE_OPTIONS.map((opt) => (
-              <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
-            ))}
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
-function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: string[]; taskIds: string[]; onSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void; disabled: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const { theme } = usePortalTheme();
-
-  function close() { setClosing(true); setOpen(false); }
-
-  // See RowSnoozeMenu above for why the listener is gated on `open`.
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    }
-    function handleScroll() { close(); }
-    if (open) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <Button
-        onClick={() => {
-          if (disabled) return;
-          if (!open && !closing && ref.current) {
-            const r = ref.current.getBoundingClientRect();
-            setPos({ top: r.top - 4, left: r.left });
-          }
-          if (open) { close(); } else { setClosing(false); setOpen(true); }
-        }}
-        disabled={disabled}
-        variant="ghost"
-        size="sm"
-      >
-        🕐 Snooze
-      </Button>
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        // See RowSnoozeMenu above for why the positioning transform and the
-        // animation class MUST live on different elements.
-        <div
-          style={{
-            position: "fixed", top: pos.top, left: pos.left,
-            transform: "translateY(-100%)",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            data-theme={theme}
-            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-            onAnimationEnd={() => { if (closing) setClosing(false); }}
-            style={{
-              background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
-            }}
-          >
-            {SNOOZE_OPTIONS.map((opt) => (
-              <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
-            ))}
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
 }
 
 // Priority stack — one flat, worst-first list of all active reminders (no
@@ -313,8 +155,8 @@ function PriorityList({
   purchaserSolicitor?: SolicitorRef | null;
   loading: string | null;
   handleComplete: (logId: string, taskId: string) => void;
-  handleSnooze: (logId: string, taskId: string, hours: number) => void;
-  handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
+  handleSnooze: (logId: string, taskId: string, choice: SnoozeChoice) => void;
+  handleSnoozeAll: (logIds: string[], taskIds: string[], choice: SnoozeChoice) => void;
   handleChased: (taskId: string, logId?: string) => void;
   optimisticNextDuePerLog?: Map<string, Date>;
 }) {
@@ -457,7 +299,7 @@ function PriorityList({
                   >
                     ✓ Done
                   </button>
-                  <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
+                  <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(log.id, task.id, choice)} />
                 </div>
               )}
               {!task && log.status === "active" && (
@@ -495,7 +337,7 @@ function PriorityList({
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
           </Button>
-          <SideSnoozeMenu logIds={allLogIds} taskIds={allTaskIds} onSnoozeAll={handleSnoozeAll} disabled={loading !== null} />
+          <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
         </div>
       )}
 
@@ -703,14 +545,26 @@ export function RemindersSection({
     });
   }
 
-  function handleSnooze(logId: string, taskId: string, hours: number) {
+  // Wake-up moment for the optimistic placement: a picked date, else the gap.
+  function choiceWakeUp(choice: SnoozeChoice): Date {
+    return choice.untilISO
+      ? new Date(`${choice.untilISO.slice(0, 10)}T12:00:00Z`)
+      : new Date(Date.now() + (choice.hours ?? 24) * 60 * 60 * 1000);
+  }
+  function choiceToast(choice: SnoozeChoice): string {
+    return choice.untilISO
+      ? `Snoozed until ${formatDate(choiceWakeUp(choice))}`
+      : snoozeToastLabel(choice.hours ?? 24);
+  }
+
+  function handleSnooze(logId: string, taskId: string, choice: SnoozeChoice) {
     // Skip if this task is already being snoozed (prevents the 5x-click
     // misfire when a user clicks the menu option in rapid succession).
     if (loading === taskId) return;
     // Optimistic: place the row in the Snoozed section immediately.
     // No need to hide via hiddenIds — the snoozed filter will pick it up
     // via optimisticSnoozedUntil and the active filter will exclude it.
-    const wakeUp = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const wakeUp = choiceWakeUp(choice);
     setOptimisticSnoozedUntil((prev) => new Map(prev).set(logId, wakeUp));
     // Stash the milestone code so the auto-emails preview can suppress
     // matching upcoming chases instantly.
@@ -718,16 +572,16 @@ export function RemindersSection({
     const code = log?.reminderRule.targetMilestoneCode;
     if (code) setOptimisticallySnoozedCodes((prev) => new Set([...prev, code]));
     setLoading(taskId);
-    toast.success(snoozeToastLabel(hours));
+    toast.success(choiceToast(choice));
     startTransition(async () => {
-      try { await snoozeTaskAction(taskId, hours, pathname); }
+      try { await snoozeTaskAction(taskId, choice, pathname); }
       finally { setLoading(null); }
     });
   }
 
-  function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
+  function handleSnoozeAll(logIds: string[], taskIds: string[], choice: SnoozeChoice) {
     if (taskIds.length === 0) return;
-    const wakeUp = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const wakeUp = choiceWakeUp(choice);
     setOptimisticSnoozedUntil((prev) => {
       const next = new Map(prev);
       for (const id of logIds) next.set(id, wakeUp);
@@ -740,9 +594,9 @@ export function RemindersSection({
       setOptimisticallySnoozedCodes((prev) => new Set([...prev, ...codes]));
     }
     setLoading(taskIds[0] ?? "");
-    toast.success(`${taskIds.length} ${taskIds.length === 1 ? "reminder" : "reminders"} ${snoozeToastLabel(hours).toLowerCase()}`);
+    toast.success(`${taskIds.length} ${taskIds.length === 1 ? "reminder" : "reminders"} snoozed`);
     startTransition(async () => {
-      try { await Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, pathname))); }
+      try { await snoozeManyAction(taskIds, choice, pathname); }
       finally { setLoading(null); }
     });
   }
@@ -900,6 +754,11 @@ export function RemindersSection({
                       {displaySnoozedUntil && (
                         <p className="text-xs text-slate-900/40 mt-0.5">
                           Wakes {new Date(displaySnoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </p>
+                      )}
+                      {log.statusReason && (
+                        <p className="text-xs text-slate-900/50 mt-0.5 italic truncate" title={log.statusReason}>
+                          {log.statusReason}
                         </p>
                       )}
                     </div>

@@ -35,6 +35,10 @@ export async function sendProspectOutreach(args: {
   text: string;
   replyToken: string;
   prospectEmailId: string;
+  // When set, send this pre-built branded HTML (and the text as-is) instead of
+  // wrapping the plain text in the Ellis-signature template. Used by the agency
+  // invitation, which carries its own full design + footer.
+  html?: string;
 }): Promise<{ sgMessageId: string | null }> {
   const sgMail = (await import("@sendgrid/mail")).default;
   sgMail.setApiKey(process.env.SENDGRID_API_KEY ?? "");
@@ -45,8 +49,8 @@ export async function sendProspectOutreach(args: {
     from: { email: FROM_EMAIL, name: FROM_NAME },
     replyTo: `reply+${args.replyToken}@${INBOUND_DOMAIN}`,
     subject: args.subject,
-    text: `${args.text}\n\nEllis Askey\nOperations Director, The Sales Progressor\nellis@thesalesprogressor.co.uk`,
-    html: renderHtml(args.text),
+    text: args.html ? args.text : `${args.text}\n\nEllis Askey\nOperations Director, The Sales Progressor\nellis@thesalesprogressor.co.uk`,
+    html: args.html ?? renderHtml(args.text),
     customArgs: { prospectEmailId: args.prospectEmailId },
     trackingSettings: { openTracking: { enable: true }, clickTracking: { enable: true, enableText: false } },
     mailSettings: { sandboxMode: { enable: isSandbox } },

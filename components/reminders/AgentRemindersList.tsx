@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { CaretDown, CheckCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder, chaseCountWord } from "@/lib/reminders/classify";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -18,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UrgencyPill, SidePill, BlocksExchangePill, ManualPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { AutoChaseCountdown } from "@/components/reminders/AutoChaseCountdown";
+import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import type { AutopilotStatus } from "@/lib/services/reminder-autopilot";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 import { withSolicitorRecipients, whoToChase, joinNames, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
@@ -92,191 +91,6 @@ const GROUP_LEFT_BORDER: Record<UrgencyGroup | "snoozed", string> = {
   snoozed:   "rgba(168,85,247,0.5)",
 };
 
-const SNOOZE_OPTIONS_SPLIT = [
-  { label: "24 h", hours: 24 },
-  { label: "48 h", hours: 48 },
-  { label: "72 h", hours: 72 },
-  { label: "7 days", hours: 168 },
-];
-
-function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
-  logIds: string[];
-  taskIds: string[];
-  onSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
-  disabled: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const { theme } = usePortalTheme();
-
-  function close() { setClosing(true); setOpen(false); }
-
-  // Listener gated on `open` — see ChaseDrawer for the same pattern. If
-  // registered unconditionally on mount, any prior click anywhere on the
-  // page calls close() and flips `closing` to true, which then permanently
-  // blocks `setPos` inside onClick (its `!open && !closing` guard) and the
-  // menu never renders even when reopened.
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    }
-    function handleScroll() { close(); }
-    if (open) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <Button
-        onClick={() => {
-          if (!open && !closing && ref.current) {
-            const r = ref.current.getBoundingClientRect();
-            setPos({ top: r.top - 4, left: r.left });
-          }
-          if (open) { close(); } else { setClosing(false); setOpen(true); }
-        }}
-        disabled={disabled}
-        variant="ghost"
-        size="sm"
-        style={{ whiteSpace: "nowrap" }}
-      >
-        <Clock size={12} weight="regular" /> Snooze all
-      </Button>
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        // Outer wrapper: positioning transform (translateY(-100%) anchors
-        // bottom edge above trigger). Inner box: slide-in animation. They
-        // must be split or the animation transform overrides positioning
-        // and the menu lands ON the button instead of above it.
-        <div
-          style={{
-            position: "fixed", top: pos.top, left: pos.left,
-            transform: "translateY(-100%)",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            data-theme={theme}
-            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-            onAnimationEnd={() => { if (closing) setClosing(false); }}
-            style={{
-              background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-              minWidth: 110,
-            }}
-          >
-            {SNOOZE_OPTIONS_SPLIT.map((opt) => (
-              <button
-                key={opt.hours}
-                onClick={() => {
-                  onSnoozeAll(logIds, taskIds, opt.hours);
-                  close();
-                }}
-                className="agent-dropdown-item"
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
-function RowSnoozeMenu({ taskId, onSnooze }: {
-  taskId: string;
-  onSnooze: (taskId: string, hours: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const { theme } = usePortalTheme();
-
-  function close() { setClosing(true); setOpen(false); }
-
-  // See SideSnoozeMenu above for why the listener is gated on `open`.
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    }
-    function handleScroll() { close(); }
-    if (open) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <Button
-        onClick={() => {
-          if (!open && !closing && ref.current) {
-            const r = ref.current.getBoundingClientRect();
-            setPos({ top: r.top - 4, right: window.innerWidth - r.right });
-          }
-          if (open) { close(); } else { setClosing(false); setOpen(true); }
-        }}
-        title="Snooze"
-        variant="secondary"
-        size="sm"
-        style={{ flexShrink: 0 }}
-      >
-        <Clock size={12} weight="regular" />
-      </Button>
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        // See SideSnoozeMenu above for why the positioning transform and the
-        // animation class MUST live on different elements.
-        <div
-          style={{
-            position: "fixed", top: pos.top, right: pos.right,
-            transform: "translateY(-100%)",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            data-theme={theme}
-            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-            onAnimationEnd={() => { if (closing) setClosing(false); }}
-            style={{
-              background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-              minWidth: 110,
-            }}
-          >
-            {SNOOZE_OPTIONS_SPLIT.map((opt) => (
-              <button
-                key={opt.hours}
-                onClick={() => {
-                  onSnooze(taskId, opt.hours);
-                  close();
-                }}
-                className="agent-dropdown-item"
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
 // Friendly label for a comm method on the chase-history line.
 function methodLabel(m: string | null): string | null {
   if (!m) return null;
@@ -323,8 +137,8 @@ function SplitFileCard({
   loading: string | null;
   exitingIds: Set<string>;
   handleComplete: (taskId: string) => void;
-  handleSnooze: (taskId: string, hours: number) => void;
-  handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
+  handleSnooze: (taskId: string, choice: SnoozeChoice) => void;
+  handleSnoozeAll: (logIds: string[], taskIds: string[], choice: SnoozeChoice) => void;
   handleChased: (taskId: string, logId?: string) => void;
   hideChase?: boolean;
 }) {
@@ -413,7 +227,7 @@ function SplitFileCard({
           {!hideChase && openTasks.length >= 2 && (
             <>
               <Button size="sm" onClick={() => setDrawerOpen(true)}>Chase all ({milestones.length})</Button>
-              <SideSnoozeMenu logIds={allLogIds} taskIds={allTaskIds} onSnoozeAll={handleSnoozeAll} disabled={loading !== null} />
+              <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
             </>
           )}
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
@@ -563,7 +377,7 @@ function SplitFileCard({
               >
                 <CheckCircle size={12} weight="fill" /> Done
               </Button>
-              <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
+              <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(task.id, choice)} />
             </div>
           );
         })}
@@ -763,16 +577,16 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
       });
     }, 150);
   }
-  function handleSnooze(taskId: string, hours: number) {
+  function handleSnooze(taskId: string, choice: SnoozeChoice) {
     const logId = taskToLogId.get(taskId);
     if (logId) setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
     setTimeout(() => {
       hideByTaskId(taskId);
       setOptimisticSnoozeAdd((n) => n + 1);
-      act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue"));
+      act(taskId, () => snoozeTaskAction(taskId, choice, "/agent/work-queue"));
     }, 150);
   }
-  function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
+  function handleSnoozeAll(logIds: string[], taskIds: string[], choice: SnoozeChoice) {
     setExitingIds((prev) => {
       const next = new Set(prev);
       logIds.forEach((id) => next.add(id));
@@ -781,7 +595,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
     setTimeout(() => {
       setHiddenIds((prev) => { const next = new Set(prev); logIds.forEach((id) => next.add(id)); return next; });
       setOptimisticSnoozeAdd((n) => n + taskIds.length);
-      act(taskIds[0] ?? "", () => Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, "/agent/work-queue"))));
+      act(taskIds[0] ?? "", () => snoozeManyAction(taskIds, choice, "/agent/work-queue"));
     }, 150);
   }
   function handleEscalate(taskId: string) {
@@ -1015,7 +829,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                   mode="snoozed"
                   isLoading={loading}
                   onComplete={handleComplete}
-                  onSnooze={handleSnooze}
+                  onSnooze={(taskId, hours) => handleSnooze(taskId, { hours, reason: null })}
                   onEscalate={handleEscalate}
                   onWakeup={handleWakeup}
                   onManualChase={handleManualChase}

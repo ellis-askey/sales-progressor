@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/morning-digest",
-      "schedule": "0 8 * * 1-5"
+      "schedule": "*/15 6-9 * * 1-5"
     },
     {
       "path": "/api/cron/prospect-followup-digest",

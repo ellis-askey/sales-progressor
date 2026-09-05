@@ -1906,6 +1906,9 @@ model ChainLink {
   // Phase 3: a one-time reminder was sent to an invite that was delivered but
   // never opened. Set once, so each invite gets at most one nudge.
   inviteNudgedAt         DateTime?
+  // Day-14 "still moving" reminder — set once, so a not-yet-joined neighbour
+  // gets at most one of these after the 3-day nudge.
+  inviteChainReminderSentAt DateTime?
   inviteBouncedAt        DateTime?
   inviteUnsubscribedAt   DateTime?
   inviteDeclinedAt       DateTime?

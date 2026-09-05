@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { sendDueChainInviteNudges } from "@/lib/chain/invite-nudge";
+import { sendDueChainReminders } from "@/lib/chain/invite-reminder";
 import { runJob } from "@/lib/cron/run-job";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,15 @@ export async function GET(req: NextRequest) {
   }
 
   return runJob("chain-invite-nudge", async () => {
-    const result = await sendDueChainInviteNudges(new Date());
-    return NextResponse.json({ ok: true, ...result });
+    const now = new Date();
+    // Two one-time follow-ups share this pass: the 3-day nudge (never-opened) and
+    // the 14-day "still moving" reminder (anyone still not joined). Each has its
+    // own stamp, so they can't overlap or repeat.
+    const nudge = await sendDueChainInviteNudges(now);
+    const reminder = await sendDueChainReminders(now).catch((err) => {
+      console.error("[chain-invite-nudge] reminder pass failed:", err);
+      return { candidates: 0, sent: 0 };
+    });
+    return NextResponse.json({ ok: true, nudge, reminder });
   });
 }

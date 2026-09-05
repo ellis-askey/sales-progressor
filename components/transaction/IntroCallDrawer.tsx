@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, type CSSProperties, type Reac
 import { createPortal } from "react-dom";
 import { X, PhoneCall, CheckCircle, Plus } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {
   saveClientCostsAgentAction,
   saveMoveInfoAgentAction,
@@ -209,11 +210,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
     closeTimer.current = setTimeout(onClose, 200);
   }, [onClose]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") doClose(); }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [doClose]);
+  useOverlayChrome(doClose);
 
   // Clear the close timer only on unmount, never on a doClose change.
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);

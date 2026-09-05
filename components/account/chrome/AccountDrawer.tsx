@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 export function AccountDrawer({
@@ -25,27 +26,40 @@ export function AccountDrawer({
   subtitle?: string;
   children: React.ReactNode;
 }) {
+  // Gate the panel (and its overlay-chrome hook) on `open`. This drawer is left
+  // mounted while closed (callers pass open={...}), so the scroll-lock + Escape
+  // behaviour must only run while it's actually open — hence the inner panel.
+  if (!open || typeof document === "undefined") return null;
+  return (
+    <AccountDrawerPanel onClose={onClose} title={title} subtitle={subtitle}>
+      {children}
+    </AccountDrawerPanel>
+  );
+}
+
+function AccountDrawerPanel({
+  onClose,
+  title,
+  subtitle,
+  children,
+}: {
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   const panelRef = useRef<HTMLDivElement>(null);
   const { theme, isNight } = usePortalTheme();
 
+  // Body scroll-lock + Escape-to-close + focus restore. No animated close here,
+  // so Escape routes through the raw onClose.
+  useOverlayChrome(onClose);
+
   useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     // Move focus into the panel.
     const t = window.setTimeout(() => panelRef.current?.focus(), 20);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      window.clearTimeout(t);
-    };
-  }, [open, onClose]);
-
-  if (!open || typeof document === "undefined") return null;
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Portalled to <body> so the fixed overlay escapes the AccountCard it's
   // mounted inside — that card's backdrop-filter + mount transform make it a
@@ -61,7 +75,7 @@ export function AccountDrawer({
     >
       <div
         onClick={onClose}
-        style={{ position: "absolute", inset: 0, background: "rgba(20,14,10,0.28)", backdropFilter: "blur(2px)", animation: "account-drawer-fade 180ms ease both" }}
+        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", animation: "account-drawer-fade 180ms ease both" }}
       />
       <div
         ref={panelRef}

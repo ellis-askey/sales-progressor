@@ -6,6 +6,7 @@ import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { resolveDisplayStages, type ResolvedStage } from "@/lib/milestones/display-stages";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
+import { buildWeeklyBrief } from "@/lib/emails/weekly-brief";
 
 // One of four honest per-file states, in priority order. A self-managed file
 // that the system has flagged (stalled / overdue / gone quiet) can never read
@@ -29,18 +30,15 @@ type AgentFile = {
   reason: string | null;
 };
 
-const STATE_META: Record<FileState, { label: string; colour: string; order: number }> = {
-  attention: { label: "Needs a nudge",        colour: "#b91c1c", order: 0 },
-  slow:      { label: "Moving slowly",       colour: "#b45309", order: 1 },
-  exchange:  { label: "Exchange approaching", colour: "#166534", order: 2 },
-  ontrack:   { label: "On track",            colour: "#166534", order: 3 },
-};
+// Sort priority only (the new template owns labels/colours).
+const STATE_ORDER: Record<FileState, number> = { attention: 0, slow: 1, exchange: 2, ontrack: 3 };
 
-// The honest state decision, isolated so it can be tested directly. This is the
-// fix: a self-managed file with an active problem flag can NEVER return
-// "ontrack" — it returns "slow". Outsourced files are held to progress-only
-// states ("exchange" / "ontrack") regardless of flags or escalations, because
-// those signals describe our internal team's chase work, not the agency's.
+// The honest state decision, isolated so it can be tested directly. A self-managed
+// file with an active problem flag can NEVER return "ontrack" — it returns "slow".
+// Outsourced files are held to progress-only states ("exchange" / "ontrack")
+// regardless of flags or escalations, because those signals describe our internal
+// team's chase work, not the agency's — so an agency user is never chased about a
+// TSP-managed file.
 export function deriveFileState(input: {
   serviceType: string;
   escalatedTaskCount: number;
@@ -74,6 +72,8 @@ function currentStageLabel(stages: ResolvedStage[]): string {
   return "Getting started";
 }
 
+const FILE_CAP = 8; // rows shown; the rest roll into a "+N more" link
+
 export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
   const { from: fromAddr, replyTo } = await resolveAgencySender(agencyId);
 
@@ -81,7 +81,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
 
   const agents = await prisma.user.findMany({
     where: { agencyId, role: { in: ["negotiator", "director"] } },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, role: true },
   });
 
   // Per-user opt-out: skip anyone with notifications.weeklyBrief === false.
@@ -105,8 +105,13 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
     if (!agent.email) continue;
     if (prefsByUser.get(agent.id)?.weeklyBrief === false) continue;
 
+    // Directors see the whole branch; negotiators see only their own sales — the
+    // same scope each role opens when they click through to the pipeline.
+    const isDirector = agent.role === "director";
     const transactions = await prisma.propertyTransaction.findMany({
-      where: { agencyId, agentUserId: agent.id, status: "active" },
+      where: isDirector
+        ? { agencyId, status: "active" }
+        : { agencyId, agentUserId: agent.id, status: "active" },
       select: {
         id: true,
         propertyAddress: true,
@@ -180,85 +185,45 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       }),
     );
 
-    files.sort((a, b) => STATE_META[a.state].order - STATE_META[b.state].order);
+    files.sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state]);
 
     const attentionCount = files.filter((f) => f.state === "attention").length;
-    const slowCount = files.filter((f) => f.state === "slow").length;
-    const exchangeCount = files.filter((f) => f.state === "exchange").length;
     const movedThisWeek = files.reduce((sum, f) => sum + f.completedThisWeek, 0);
 
-    const subject =
-      attentionCount > 0
-        ? `${attentionCount} file${attentionCount !== 1 ? "s" : ""} ${attentionCount === 1 ? "needs" : "need"} a nudge this week`
-        : slowCount > 0
-          ? `${slowCount} file${slowCount !== 1 ? "s" : ""} to keep moving this week`
-          : `All your files are on track this week`;
+    const shown = files.slice(0, FILE_CAP);
+    const moreCount = Math.max(0, files.length - FILE_CAP);
 
-    // Honest header qualifier — "all progressing normally" only when it is true.
-    const qualifier =
-      attentionCount > 0
-        ? ` · ${attentionCount} need${attentionCount === 1 ? "s" : ""} a nudge`
-        : slowCount > 0
-          ? ` · ${slowCount} moving slowly`
-          : ` · all progressing normally`;
+    const built = buildWeeklyBrief({
+      firstName: extractFirstName(agent.name),
+      weekOf: new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
+      activeSales: transactions.length,
+      milestonesThisWeek: movedThisWeek,
+      needsAttention: attentionCount,
+      files: shown.map((f) => ({
+        address: f.address,
+        url: `${base}/agent/transactions/${f.id}`,
+        state: f.state,
+        stageLabel: f.stageLabel,
+        completed: f.completed,
+        total: f.total,
+        reason: f.reason ?? undefined,
+      })),
+      moreCount,
+      pipelineUrl: `${base}/agent/transactions`,
+      unsubscribeUrl: `${base}/agent/account/notifications`,
+    });
 
-    // ── Plain-text body ──────────────────────────────────────────────────────
-    const lines: string[] = [
-      `Good morning, ${extractFirstName(agent.name)}.`,
-      ``,
-      `Here is your weekly summary for the week starting ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.`,
-      ``,
-      `You have ${transactions.length} active file${transactions.length !== 1 ? "s" : ""}.`,
-    ];
-    if (movedThisWeek > 0) {
-      lines.push(`${movedThisWeek} milestone${movedThisWeek !== 1 ? "s" : ""} completed across your files this week.`);
-    }
-    lines.push(``, `Your files:`);
-    for (const f of files) {
-      const meta = STATE_META[f.state];
-      const steps = f.total > 0 ? `${f.stageLabel}, ${f.completed} of ${f.total} steps` : f.stageLabel;
-      lines.push(`  · ${f.address}: ${steps} · ${meta.label}`);
-      if (f.reason) lines.push(`      ${f.reason}`);
-    }
-    lines.push(``, `Have a productive week.`);
-
-    // ── HTML body ────────────────────────────────────────────────────────────
-    const rowsHtml = files
-      .map((f) => {
-        const meta = STATE_META[f.state];
-        const steps = f.total > 0 ? `${f.stageLabel} · ${f.completed} of ${f.total} steps` : f.stageLabel;
-        const reasonHtml = f.reason
-          ? `<div style="color:#9ca3af;font-size:11px;margin-top:2px">${f.reason}</div>`
-          : "";
-        return `<tr>
-  <td style="padding:12px 0;border-top:1px solid #f0f0f2;vertical-align:top">
-    <a href="${base}/agent/transactions/${f.id}" style="color:#1a1d29;text-decoration:none;font-weight:600;font-size:14px">${f.address}</a>
-    <div style="color:#6b7280;font-size:12px;margin-top:2px">${steps}</div>
-  </td>
-  <td style="padding:12px 0;border-top:1px solid #f0f0f2;text-align:right;white-space:nowrap;vertical-align:top">
-    <span style="color:${meta.colour};font-size:13px;font-weight:600">${meta.label}</span>
-    ${reasonHtml}
-  </td>
-</tr>`;
-      })
-      .join("\n");
-
-    const momentumHtml =
-      movedThisWeek > 0
-        ? `<p style="margin:0 0 20px;color:#166534;font-size:13px;font-weight:600">${movedThisWeek} milestone${movedThisWeek !== 1 ? "s" : ""} completed across your files this week.</p>`
-        : "";
-
-    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 4px;color:#6b7280;font-size:13px">Week of ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
-<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Good morning, ${extractFirstName(agent.name)}.</h1>
-<p style="margin:0 0 8px;color:#4a5162;font-size:14px">You have <strong>${transactions.length}</strong> active file${transactions.length !== 1 ? "s" : ""}${qualifier}.${exchangeCount > 0 ? ` ${exchangeCount} approaching exchange.` : ""}</p>
-${momentumHtml}
-<table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>${rowsHtml}</tbody></table>
-<p style="margin:0 0 24px"><a href="${base}/agent/transactions" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your files →</a></p>
-<p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
-</body></html>`;
-
-    await sendAgentEmail({ to: agent.email, subject, text: lines.join("\n"), html, from: fromAddr, replyTo, kind: "weekly_brief", userId: agent.id, agencyId }).catch(() => {});
+    await sendAgentEmail({
+      to: agent.email,
+      subject: built.subject,
+      text: built.text,
+      html: built.html,
+      from: fromAddr,
+      replyTo,
+      kind: "weekly_brief",
+      userId: agent.id,
+      agencyId,
+    }).catch(() => {});
     sent++;
   }
 

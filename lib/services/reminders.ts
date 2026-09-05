@@ -1234,29 +1234,64 @@ export async function cancelChaseTask(taskId: string, agencyId: string) {
   });
 }
 
-export async function snoozeReminderLog(taskId: string, snoozeHours: number, scope: AccessScope) {
+// A snooze wake-up is set either by a quick gap from now (hours) or an explicit
+// date the agent picked (untilISO). Exactly one is expected; hours is the default.
+export interface SnoozeWake {
+  hours?: number;
+  untilISO?: string;
+}
+
+export interface SnoozeResult {
+  transactionId: string;
+  milestoneName: string;
+  wakeDate: Date;
+}
+
+export async function snoozeReminderLog(
+  taskId: string,
+  wake: SnoozeWake,
+  reason: string | null,
+  scope: AccessScope,
+): Promise<SnoozeResult> {
   const task = await prisma.chaseTask.findFirst({
     where: scopeChaseTaskWhere(scope, taskId),
-    select: { id: true, reminderLogId: true },
+    select: {
+      id: true,
+      reminderLogId: true,
+      reminderLog: {
+        select: {
+          transactionId: true,
+          reminderRule: { select: { name: true, anchorMilestone: { select: { name: true } } } },
+        },
+      },
+    },
   });
   if (!task) throw new Error("Task not found");
 
-  // Snooze: add the requested hours from now, then normalise the resulting
-  // date+time to 06:00 UK on the wake-up calendar day. Without this,
-  // snoozing at e.g. 21:00 with snoozeHours=24 would set the wake at 21:00
-  // the next day — chase fires late evening instead of being live before
-  // the working day starts.
-  const snoozedUntil = setUkChaseTime(new Date(Date.now() + snoozeHours * 60 * 60 * 1000));
+  // Wake moment: an explicit picked date, else the quick gap from now. Either
+  // way, normalise to 06:00 UK on that calendar day so the chase is live before
+  // the working day rather than at whatever time the agent happened to snooze.
+  // (Picked dates are stamped at noon UTC first so DST can't shift the day.)
+  const base = wake.untilISO
+    ? new Date(`${wake.untilISO.slice(0, 10)}T12:00:00Z`)
+    : new Date(Date.now() + (wake.hours ?? 24) * 60 * 60 * 1000);
+  const snoozedUntil = setUkChaseTime(base);
 
   await prisma.chaseTask.update({
     where: { id: taskId },
     data: { status: "cancelled" },
   });
 
+  // The reason rides on statusReason so it shows on the snoozed row. Cleared on
+  // wake (wakeUpReminderLog / chaseNowFromLogAction) so it can't go stale.
   await prisma.reminderLog.update({
     where: { id: task.reminderLogId },
-    data: { snoozedUntil, nextDueDate: snoozedUntil },
+    data: { snoozedUntil, nextDueDate: snoozedUntil, statusReason: reason },
   });
+
+  const rule = task.reminderLog.reminderRule;
+  const milestoneName = rule.anchorMilestone?.name ?? rule.name.replace(/^Chase:\s*/i, "");
+  return { transactionId: task.reminderLog.transactionId, milestoneName, wakeDate: snoozedUntil };
 }
 
 export async function wakeUpReminderLog(logId: string, scope: AccessScope) {
@@ -1268,7 +1303,7 @@ export async function wakeUpReminderLog(logId: string, scope: AccessScope) {
 
   await prisma.reminderLog.update({
     where: { id: logId },
-    data: { snoozedUntil: null, nextDueDate: setUkChaseTime(new Date()) },
+    data: { snoozedUntil: null, nextDueDate: setUkChaseTime(new Date()), statusReason: null },
   });
 }
 

@@ -1204,6 +1204,9 @@
    * animate identically. 2026-09-04. */
   .agent-modal-in  { animation: agent-modal-in  240ms cubic-bezier(0.25, 0, 0, 1) both; }
   .agent-drawer-in { animation: agent-drawer-in 240ms cubic-bezier(0.25, 0, 0, 1) both; }
+  /* Exit — the canonical Drawer primitive plays this while it holds mount for
+   * ~200ms on close, so it slides out like the bespoke drawers. */
+  .agent-drawer-out { animation: agent-drawer-out 200ms cubic-bezier(0.25, 0, 0, 1) both; }
 
   /* ── Toast ───────────────────────────────────────────────────────────────── */
 
@@ -1981,6 +1984,7 @@
     .agent-modal,
     .agent-modal-in,
     .agent-drawer-in,
+    .agent-drawer-out,
     .agent-backdrop               { animation: none; }
     .agent-bloom-1,
     .agent-bloom-2                { animation: none; }

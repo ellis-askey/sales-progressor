@@ -1232,8 +1232,8 @@ export async function logPortalMilestoneConfirm(
       agencyId: tx.agencyId,
       transactionId,
       subject: `Client confirmed: "${milestoneLabel}" at ${tx.propertyAddress}`,
-      from: agencyEmailFrom,
-      replyTo,
+      // Internal notification to the progressor — from Sales Progressor, not the
+      // agency (the agency sender is reserved for client-facing mail).
       text: [
         `Hi ${extractFirstName(tx.assignedUser.name)},`,
         "",
@@ -1344,7 +1344,7 @@ export async function logPortalMilestoneConfirm(
       const subject  = interpolate(agentCopy.subject, portalVars);
       const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
       const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
-      sendAgentEmail({ to: tx.agentUser.email, kind: "milestone_agent", userId: tx.agentUser.id, agencyId: tx.agencyId, transactionId, subject, html, text, from: agencyEmailFrom, replyTo }).catch(() => {});
+      sendAgentEmail({ to: tx.agentUser.email, kind: "milestone_agent", userId: tx.agentUser.id, agencyId: tx.agencyId, transactionId, subject, html, text }).catch(() => {});
     }
   } else {
     // Fallback for milestones without structured emailCopy: generic thank-you to confirming
@@ -2160,7 +2160,7 @@ async function sendRichMilestoneEmails(
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars)].join("\n");
-    sendAgentEmail({ to: tx.agentUser.email, kind: "milestone_agent", userId: tx.agentUser.id, agencyId: tx.agencyId, transactionId, subject, text, html, from: agencyEmailFrom, replyTo }).catch(() => {});
+    sendAgentEmail({ to: tx.agentUser.email, kind: "milestone_agent", userId: tx.agentUser.id, agencyId: tx.agencyId, transactionId, subject, text, html }).catch(() => {});
   }
 
   // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
@@ -2173,7 +2173,7 @@ async function sendRichMilestoneEmails(
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars), `View: ${dashUrl}`].join("\n");
-    sendAgentEmail({ to: tx.assignedUser.email, kind: "milestone_progressor", userId: tx.assignedUser.id, agencyId: tx.agencyId, transactionId, subject, text, html, from: agencyEmailFrom, replyTo }).catch(() => {});
+    sendAgentEmail({ to: tx.assignedUser.email, kind: "milestone_progressor", userId: tx.assignedUser.id, agencyId: tx.agencyId, transactionId, subject, text, html }).catch(() => {});
   }
 
   return true;

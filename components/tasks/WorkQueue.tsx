@@ -48,7 +48,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
         if (action === "complete") {
           await completeTaskAction(taskId, pathname);
         } else if (action === "snooze" && snoozeHours) {
-          await snoozeTaskAction(taskId, snoozeHours, pathname);
+          await snoozeTaskAction(taskId, { hours: snoozeHours }, pathname);
         }
         // revalidatePath in server action triggers page re-render
       } finally {

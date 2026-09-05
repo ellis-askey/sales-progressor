@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
 import { sendAgentEmail } from "@/lib/email/agent-log";
+import { buildDomainAuth } from "@/lib/emails/domain-auth";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
 import { runJob } from "@/lib/cron/run-job";
 
@@ -53,25 +55,21 @@ export async function GET(req: NextRequest) {
         for (const userEmail of domain.userEmails) {
           if (notified.has(userEmail.user.email)) continue;
           notified.add(userEmail.user.email);
+          const built = buildDomainAuth({
+            firstName: userEmail.user.name?.trim() ? extractFirstName(userEmail.user.name) : "there",
+            domain: domain.domain,
+            fixUrl: `${process.env.NEXTAUTH_URL}/agent/account/profile`,
+          });
           await sendAgentEmail({
             to: userEmail.user.email,
             kind: "domain_auth",
             userId: userEmail.user.id,
             agencyId: domain.agencyId,
             meta: { domain: domain.domain },
-            subject: `Action needed: ${domain.domain} email authentication has broken`,
-            text: [
-              `Hi ${userEmail.user.name},`,
-              ``,
-              `The domain authentication for ${domain.domain} is no longer valid.`,
-              `This means emails sent from addresses on this domain via Sales Progressor will fail until it's fixed.`,
-              ``,
-              `This usually happens if the DNS records were removed or changed.`,
-              ``,
-              `To fix it, go to Account → Sending addresses and follow the DNS setup instructions again.`,
-              ``,
-              `Account: ${process.env.NEXTAUTH_URL}/agent/account/profile`,
-            ].join("\n"),
+            subject: built.subject,
+            text: built.text,
+            html: built.html,
+            replyTo: "support@thesalesprogressor.co.uk",
           }).catch(() => {});
         }
       }

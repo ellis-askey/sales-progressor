@@ -35,7 +35,7 @@
 "use client";
 
 import type { ReactNode, HTMLAttributes } from "react";
-import { useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { useEffect, useRef, useCallback, createContext, useContext, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { classFor, type GlassVariantId } from "@/lib/glass/variants";
@@ -149,6 +149,26 @@ export function Drawer({
   // --agent-coral-deep are empty inside a drawer.
   const { theme, isNight } = usePortalTheme();
 
+  // Keep the drawer mounted for its exit animation when `open` flips to false,
+  // so the canonical drawers slide OUT (agent-drawer-out) like the bespoke ones
+  // — they already slide in via .agent-drawer-in. ~200ms matches the keyframe.
+  const [rendered, setRendered] = useState(open);
+  const [exiting, setExiting] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      setExiting(false);
+      return;
+    }
+    if (!rendered) return;
+    setExiting(true);
+    const t = setTimeout(() => {
+      setRendered(false);
+      setExiting(false);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [open, rendered]);
+
   // Focus restoration on close. Same pattern as Modal.
   useEffect(() => {
     if (!open) return;
@@ -200,7 +220,7 @@ export function Drawer({
     [dismissOnBackdrop, onClose],
   );
 
-  if (!open) return null;
+  if (!rendered) return null;
   if (typeof window === "undefined") return null;
 
   return createPortal(
@@ -225,7 +245,7 @@ export function Drawer({
         // When a surfaceVariant is set, the glass-vNN class owns the
         // background / blur / side borders; otherwise the inline frosted
         // white below is today's exact look.
-        className={`agent-drawer-in${surfaceVariant ? " " + classFor(surfaceVariant) : ""}`}
+        className={`${exiting ? "agent-drawer-out" : "agent-drawer-in"}${surfaceVariant ? " " + classFor(surfaceVariant) : ""}`}
         style={{
           position: "absolute",
           top: 0,

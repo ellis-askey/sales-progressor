@@ -9,7 +9,7 @@ import {
   convertProspectAction, unlinkProspectAction, searchAgenciesAction, getConvertedAgencyStatsAction,
   createGroupAndLinkAction, linkProspectToGroupAction, unlinkProspectFromGroupAction, searchGroupsAction,
   confirmFieldAction, editFieldAction, updateProspectContactAction, deleteProspectContactAction,
-  researchProspectAction,
+  researchProspectAction, sendAgencyInvitationAction,
 } from "@/app/actions/prospects";
 import {
   PROSPECT_STATUSES, STATUS_LABEL, STATUS_TONE, SOURCE_LABEL,
@@ -41,7 +41,7 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
   const [d, setD] = useState<ProspectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "convert" | "group">(null);
+  const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "invite" | "convert" | "group">(null);
   const [researching, setResearching] = useState(false);
   const [researchErr, setResearchErr] = useState<string | null>(null);
 
@@ -135,6 +135,7 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
                 {researching ? "Researching…" : "Research"}
               </button>
               <ActionBtn onClick={() => setPanel(panel === "email" ? null : "email")} active={panel === "email"}>Email</ActionBtn>
+              <ActionBtn onClick={() => setPanel(panel === "invite" ? null : "invite")} active={panel === "invite"}>Send invitation</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "call" ? null : "call")} active={panel === "call"}>Log call</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "followup" ? null : "followup")} active={panel === "followup"}>Follow up</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "note" ? null : "note")} active={panel === "note"}>Add note</ActionBtn>
@@ -149,6 +150,7 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
             {researchErr && <p className="text-xs text-red-400">Research: {researchErr}</p>}
 
             {panel === "email" && <FollowUpCompose prospectId={id} defaultTo={primaryEmail} disabled={!canEmail} disabledReason={emailDisabledReason} onSent={after} />}
+            {panel === "invite" && <InvitePanel prospectId={id} to={primaryEmail} disabled={!canEmail} disabledReason={emailDisabledReason} onSent={after} />}
             {panel === "call" && <CallPanel onSave={(input) => startTransition(async () => { await logProspectCallAction(id, input); after(); })} pending={pending} />}
             {panel === "followup" && <FollowUpPanel onSave={(iso) => startTransition(async () => { await scheduleFollowUpAction(id, iso); after(); })} pending={pending} />}
             {panel === "lost" && <LostPanel onSave={(reason, revisit) => startTransition(async () => { await markProspectLostAction(id, reason, revisit); after(); })} pending={pending} />}
@@ -519,6 +521,41 @@ function GroupPanel({ onLink, onCreate }: {
         <button onClick={create} disabled={saving} className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 disabled:opacity-40">
           {saving ? "…" : `Create "${q.trim()}" and add this branch`}
         </button>
+      )}
+    </div>
+  );
+}
+
+// One-click send of the branded agency invitation to the primary contact. Fixed
+// template (no compose); confirms the recipient, then sends + logs it.
+function InvitePanel({ prospectId, to, disabled, disabledReason, onSent }: {
+  prospectId: string; to: string | null; disabled: boolean; disabledReason: string; onSent: () => void;
+}) {
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function send() {
+    setSending(true); setError(null);
+    const r = await sendAgencyInvitationAction(prospectId);
+    if (r.ok) onSent();
+    else { setError(r.error); setSending(false); }
+  }
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2.5">
+      <p className="text-[11px] text-neutral-500">
+        Sends the branded agency invitation (&ldquo;Sales progression, without the spreadsheets&rdquo;) to the primary contact, with an Accept-your-invitation link to sign up. Logged against this prospect with open, click and reply tracking.
+      </p>
+      {disabled ? (
+        <p className="text-xs text-amber-400">Can&rsquo;t send &mdash; {disabledReason}.</p>
+      ) : !to ? (
+        <p className="text-xs text-amber-400">No email address on file. Add a contact email first.</p>
+      ) : (
+        <>
+          <p className="text-xs text-neutral-400">To: <span className="text-neutral-200">{to}</span></p>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <button onClick={send} disabled={sending} className="text-xs px-2.5 py-1 rounded-md bg-[#FF6B4A]/15 text-[#FF6B4A] border border-[#FF6B4A]/40 hover:bg-[#FF6B4A]/25 disabled:opacity-40">
+            {sending ? "Sending…" : "Send invitation"}
+          </button>
+        </>
       )}
     </div>
   );
