@@ -63,6 +63,34 @@ export const DISPLAY_STAGES: DisplayStageDef[] = [
   { key: "completion", name: "Completion", entryCodes: ["VM20"],         exitCodes: ["VM20"] },
 ];
 
+// ── Exchange-day gating (2026-09-06) ─────────────────────────────────────────
+// The "Start exchange day" control is locked until the file is through the
+// majority of the process — the Enquiries stage is satisfied. This reverses the
+// original "decoupled — available any time" call in exchange-day-SPEC.md
+// (Decision A): agents were able to fire the whole exchange-day sequence on a
+// brand-new file. "Enquiries satisfied and onwards" is the founder-chosen gate.
+//
+// Unlock = enquiries satisfied (PM20) OR anything later already reached (a
+// solicitor has flagged ready, VM18 / PM25). The later-codes fallback keeps odd
+// files — where a readiness step landed without a PM20 row — from locking out.
+// "Both sides ready" mirrors EXCHANGE_GATE_CODES in lib/services/milestones.ts.
+export const EXCHANGE_DAY_GATE_CODE = "PM20"; // buyer's solicitor: all enquiries satisfied
+export const EXCHANGE_READY_CODES = ["VM18", "PM25"] as const; // seller / buyer ready to exchange
+
+export function resolveExchangeDayGate(
+  milestones: Pick<MilestoneRowForStages, "code" | "isComplete" | "isNotRequired">[],
+): { unlocked: boolean; sellerReady: boolean; buyerReady: boolean } {
+  const settled = (code: string) =>
+    milestones.some((m) => m.code === code && (m.isComplete || !!m.isNotRequired));
+  const sellerReady = settled("VM18");
+  const buyerReady = settled("PM25");
+  return {
+    unlocked: settled(EXCHANGE_DAY_GATE_CODE) || sellerReady || buyerReady,
+    sellerReady,
+    buyerReady,
+  };
+}
+
 export type MilestoneRowForStages = {
   code: string;
   isComplete: boolean;

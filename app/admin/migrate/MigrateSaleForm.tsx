@@ -14,6 +14,8 @@ import { migrateCompleteMilestonesAction } from "@/app/actions/milestones";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { VENDOR_SECTIONS, PURCHASER_SECTIONS } from "@/lib/milestone-sections";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 type Agency = { id: string; name: string };
 type SP = { id: string; name: string; email: string };
@@ -493,9 +495,9 @@ function ContactList({ label, rows, onUpdate, onAdd, onRemove }: {
       <div className="space-y-2">
         {rows.map((c, i) => (
           <div key={i} className="grid grid-cols-12 gap-2 items-center">
-            <input className={`${INPUT} col-span-4`} placeholder="Full name" value={c.name} onChange={(e) => onUpdate(i, { name: e.target.value })} />
-            <input className={`${INPUT} col-span-3`} placeholder="Phone" value={c.phone} onChange={(e) => onUpdate(i, { phone: e.target.value })} />
-            <input className={`${INPUT} col-span-4`} placeholder="Email" value={c.email} onChange={(e) => onUpdate(i, { email: e.target.value })} />
+            <input className={`${INPUT} col-span-4`} placeholder="Full name" value={c.name} onChange={(e) => onUpdate(i, { name: e.target.value })} onBlur={(e) => { if (e.target.value.trim()) onUpdate(i, { name: titleCaseKeepAcronyms(e.target.value) }); }} />
+            <input className={`${INPUT} col-span-3`} placeholder="Phone" value={c.phone} onChange={(e) => onUpdate(i, { phone: cleanPhone(e.target.value) })} onBlur={(e) => { if (e.target.value.trim()) onUpdate(i, { phone: formatUKPhone(e.target.value) }); }} />
+            <input className={`${INPUT} col-span-4`} placeholder="Email" value={c.email} onChange={(e) => onUpdate(i, { email: e.target.value })} onBlur={(e) => { if (e.target.value.trim()) onUpdate(i, { email: e.target.value.trim().toLowerCase() }); }} />
             <button type="button" onClick={() => onRemove(i)} disabled={rows.length === 1} className="col-span-1 text-xs text-slate-500 disabled:opacity-30">×</button>
           </div>
         ))}

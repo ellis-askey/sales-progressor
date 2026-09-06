@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { NumericFormat } from "react-number-format";
 import { Buildings, ArrowSquareOut } from "@phosphor-icons/react";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { upsertPreferredBrokerAction, removePreferredBrokerAction, addBrokerWithContactAction } from "@/app/actions/brokers";
 
 export type PreferredBroker = {
@@ -223,6 +225,7 @@ export function BrokerForm({
             type="text"
             value={firmName}
             onChange={(e) => setFirmName(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setFirmName(titleCaseKeepAcronyms(e.target.value)); }}
             placeholder="e.g. Mortgage Masters Ltd"
             style={inputStyle}
             autoFocus={!isEdit}
@@ -249,6 +252,7 @@ export function BrokerForm({
             type="text"
             value={contactName}
             onChange={(e) => setContactName(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setContactName(titleCaseKeepAcronyms(e.target.value)); }}
             placeholder="e.g. James Morris"
             style={inputStyle}
           />
@@ -259,7 +263,8 @@ export function BrokerForm({
             <input
               type="tel"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => setContactPhone(cleanPhone(e.target.value))}
+              onBlur={(e) => { if (e.target.value.trim()) setContactPhone(formatUKPhone(e.target.value)); }}
               maxLength={20}
               placeholder="07700 900 000"
               style={inputStyle}
@@ -271,6 +276,7 @@ export function BrokerForm({
               type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
+              onBlur={(e) => { if (e.target.value.trim()) setContactEmail(e.target.value.trim().toLowerCase()); }}
               maxLength={100}
               placeholder="james@firm.co.uk"
               style={inputStyle}

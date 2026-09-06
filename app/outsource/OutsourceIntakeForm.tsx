@@ -3,6 +3,8 @@
 import { useState, type CSSProperties } from "react";
 import { submitOutsourceLead } from "./actions";
 import { A } from "./ui";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 const label: CSSProperties = { display: "block", fontSize: 12.5, fontWeight: 600, color: A.textSecondary, marginBottom: 6 };
 const optional: CSSProperties = { color: A.textFaint, fontWeight: 400 };
@@ -51,22 +53,22 @@ export function OutsourceIntakeForm() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={label}>Your name</label>
-            <input className="os-input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Jane Smith" />
+            <input className="os-input" value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }} required autoComplete="name" placeholder="Jane Smith" />
           </div>
           <div>
             <label style={label}>Agency</label>
-            <input className="os-input" value={agency} onChange={(e) => setAgency(e.target.value)} required autoComplete="organization" placeholder="Your estate agency" />
+            <input className="os-input" value={agency} onChange={(e) => setAgency(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setAgency(titleCaseKeepAcronyms(e.target.value)); }} required autoComplete="organization" placeholder="Your estate agency" />
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={label}>Email</label>
-            <input className="os-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@youragency.co.uk" />
+            <input className="os-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }} required autoComplete="email" placeholder="you@youragency.co.uk" />
           </div>
           <div>
             <label style={label}>Phone <span style={optional}>(optional)</span></label>
-            <input className="os-input" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="07…" />
+            <input className="os-input" value={phone} onChange={(e) => setPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setPhone(formatUKPhone(e.target.value)); }} autoComplete="tel" placeholder="07…" />
           </div>
         </div>
 

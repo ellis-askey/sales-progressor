@@ -27,6 +27,7 @@ import {
   resendNegotiatorInvitation,
   cancelNegotiatorInvitation,
 } from "@/app/actions/invite-negotiator";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 type TeamMember = {
   id: string;
@@ -229,6 +230,7 @@ export function TeamManagementPlain({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
             placeholder="Full name"
             autoFocus
             className="account-input"
@@ -238,6 +240,7 @@ export function TeamManagementPlain({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
             placeholder="Email address"
             onKeyDown={(e) => e.key === "Enter" && sendInvite()}
             className="account-input"

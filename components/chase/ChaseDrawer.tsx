@@ -8,6 +8,8 @@ import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, Care
 import { defaultRecipient, recipientRoleLabel, isSolicitorRecipient } from "@/lib/services/chase-recipients";
 import { createContactAction } from "@/app/actions/contacts";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 type Channel = "email" | "whatsapp";
 type Tone = "Friendly" | "Professional" | "Polite Yet Firm" | "Chase Up" | "Urgent" | "Final Reminder";
@@ -788,13 +790,13 @@ export function ChaseDrawer({
                             </button>
                           ))}
                         </div>
-                        <input className="agent-focus" value={solFirm} onChange={(e) => setSolFirm(e.target.value)} placeholder="Firm" style={addInputStyle} />
-                        <input className="agent-focus" value={solHandler} onChange={(e) => setSolHandler(e.target.value)} placeholder="Handler name" style={addInputStyle} />
-                        <input className="agent-focus" value={solEmail} onChange={(e) => setSolEmail(e.target.value)} placeholder="Email" type="email" style={addInputStyle} />
+                        <input className="agent-focus" value={solFirm} onChange={(e) => setSolFirm(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolFirm(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Firm" style={addInputStyle} />
+                        <input className="agent-focus" value={solHandler} onChange={(e) => setSolHandler(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolHandler(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Handler name" style={addInputStyle} />
+                        <input className="agent-focus" value={solEmail} onChange={(e) => setSolEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolEmail(e.target.value.trim().toLowerCase()); }} placeholder="Email" type="email" style={addInputStyle} />
                         {solMore ? (
                           <>
-                            <input className="agent-focus" value={solPhone} onChange={(e) => setSolPhone(e.target.value)} placeholder="Phone (optional)" style={addInputStyle} />
-                            <input className="agent-focus" value={solSecondary} onChange={(e) => setSolSecondary(e.target.value)} placeholder="Assistant email (optional)" type="email" style={addInputStyle} />
+                            <input className="agent-focus" value={solPhone} onChange={(e) => setSolPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setSolPhone(formatUKPhone(e.target.value)); }} placeholder="Phone (optional)" style={addInputStyle} />
+                            <input className="agent-focus" value={solSecondary} onChange={(e) => setSolSecondary(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolSecondary(e.target.value.trim().toLowerCase()); }} placeholder="Assistant email (optional)" type="email" style={addInputStyle} />
                           </>
                         ) : (
                           <button onClick={() => setSolMore(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontSize: 11, color: "var(--agent-coral-deep)", cursor: "pointer", fontWeight: 600 }}>
@@ -805,9 +807,9 @@ export function ChaseDrawer({
                       </>
                     ) : (
                       <>
-                        <input className="agent-focus" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name" style={addInputStyle} />
-                        <input className="agent-focus" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="Email" type="email" style={addInputStyle} />
-                        <input className="agent-focus" value={addPhone} onChange={(e) => setAddPhone(e.target.value)} placeholder="Phone (optional)" style={addInputStyle} />
+                        <input className="agent-focus" value={addName} onChange={(e) => setAddName(e.target.value)} onBlur={e => { if (e.target.value.trim()) setAddName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Name" style={addInputStyle} />
+                        <input className="agent-focus" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setAddEmail(e.target.value.trim().toLowerCase()); }} placeholder="Email" type="email" style={addInputStyle} />
+                        <input className="agent-focus" value={addPhone} onChange={(e) => setAddPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setAddPhone(formatUKPhone(e.target.value)); }} placeholder="Phone (optional)" style={addInputStyle} />
                       </>
                     )}
                   </div>

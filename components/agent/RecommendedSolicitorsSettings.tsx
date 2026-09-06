@@ -2,6 +2,8 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { NumericFormat } from "react-number-format";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import {
   upsertRecommendedSolicitorAction,
   removeRecommendedSolicitorAction,
@@ -172,6 +174,7 @@ export function RecommendedSolicitorsSettings({
                 type="text"
                 value={cName}
                 onChange={(e) => setCName(e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }}
                 placeholder="e.g. Sarah Jones"
                 autoFocus
                 className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
@@ -182,7 +185,8 @@ export function RecommendedSolicitorsSettings({
               <input
                 type="tel"
                 value={cPhone}
-                onChange={(e) => setCPhone(e.target.value)}
+                onChange={(e) => setCPhone(cleanPhone(e.target.value))}
+                onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }}
                 maxLength={20}
                 placeholder="e.g. 01234 567890"
                 className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
@@ -194,6 +198,7 @@ export function RecommendedSolicitorsSettings({
                 type="email"
                 value={cEmail}
                 onChange={(e) => setCEmail(e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }}
                 maxLength={100}
                 placeholder="e.g. sarah@firmname.co.uk"
                 className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"

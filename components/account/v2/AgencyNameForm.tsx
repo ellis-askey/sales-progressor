@@ -13,7 +13,7 @@ import { Buildings } from "@phosphor-icons/react";
 import { updateAgencyNameAction } from "@/app/actions/agency";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 export function AgencyNameForm({ initialName }: { initialName: string }) {
   const { toast } = useAgentToast();
@@ -86,7 +86,7 @@ export function AgencyNameForm({ initialName }: { initialName: string }) {
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        onBlur={(e) => { if (e.target.value.trim()) setName(titleCase(e.target.value)); }}
+        onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
         placeholder="e.g. Hartwell & Partners"
         autoComplete="organization"
         className="account-input"

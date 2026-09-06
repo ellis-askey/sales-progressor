@@ -4,7 +4,7 @@ import { useState } from "react";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { completeOAuthSignup } from "@/app/actions/complete-oauth-signup";
-import { titleCase } from "@/lib/utils";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -155,6 +155,7 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
+                onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
                 required
                 autoComplete="name"
                 placeholder="Sarah Jones"
@@ -212,7 +213,7 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
                   type="text"
                   value={agencyName}
                   onChange={e => setAgencyName(e.target.value)}
-                  onBlur={e => { if (e.target.value.trim()) setAgencyName(titleCase(e.target.value)); }}
+                  onBlur={e => { if (e.target.value.trim()) setAgencyName(titleCaseKeepAcronyms(e.target.value)); }}
                   autoComplete="organization"
                   placeholder="e.g. Hartwell & Partners"
                   required

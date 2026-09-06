@@ -846,7 +846,7 @@ export function ContactsSection({
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
                   Full name <span className="text-red-500">*</span>
                 </label>
-                <input type="text" name="name" value={form.name} onChange={handleChange} required placeholder="Full name or company" className={INPUT} />
+                <input type="text" name="name" value={form.name} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, name: titleCaseKeepAcronyms(e.target.value) })); }} required placeholder="Full name or company" className={INPUT} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
@@ -860,11 +860,11 @@ export function ContactsSection({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Email</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" className={INPUT} />
+                <input type="email" name="email" value={form.email} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, email: e.target.value.trim().toLowerCase() })); }} placeholder="name@example.com" className={INPUT} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Phone</label>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="07700 900 000" className={INPUT} />
+                <input type="tel" name="phone" value={form.phone} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, phone: normalizePhone(e.target.value) })); }} placeholder="07700 900 000" className={INPUT} />
               </div>
             </div>
 
@@ -1066,6 +1066,7 @@ export function ContactsSection({
                     <input
                       value={editForm.name}
                       onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                      onBlur={e => { if (e.target.value.trim()) setEditForm((f) => ({ ...f, name: titleCaseKeepAcronyms(e.target.value) })); }}
                       placeholder="Full name"
                       className={INPUT}
                     />
@@ -1078,6 +1079,7 @@ export function ContactsSection({
                     <input
                       value={editForm.email}
                       onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                      onBlur={e => { if (e.target.value.trim()) setEditForm((f) => ({ ...f, email: e.target.value.trim().toLowerCase() })); }}
                       placeholder="Email"
                       className={INPUT}
                     />

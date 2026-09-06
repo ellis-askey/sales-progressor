@@ -25,7 +25,7 @@ export default async function LoginPage() {
           faint white veil keeps the card area legible on narrow screens where
           the illustration crops inward. */}
       <div aria-hidden style={{
-        position: "fixed", inset: 0, zIndex: 0,
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
         backgroundImage: "url(/login-bg.png)",
         backgroundSize: "cover",
@@ -33,7 +33,7 @@ export default async function LoginPage() {
         backgroundRepeat: "no-repeat",
       }} />
       <div aria-hidden style={{
-        position: "fixed", inset: 0, zIndex: 1,
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 1,
         background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
       }} />
 

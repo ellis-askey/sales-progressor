@@ -131,6 +131,19 @@ function ChainSummaryCard({ chain }: { chain: ChainV2 }) {
   );
 }
 
+// "Come back to this on" date helpers for the ASKED_TO_WAIT response. Both
+// return an ISO yyyy-mm-dd string suitable for a native date input.
+function tomorrowDateStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+function defaultWaitDateStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ChainDrawer({
   transactionId,
   currentUserId,
@@ -169,20 +182,28 @@ export function ChainDrawer({
   const [directional, setDirectional] = useState<Record<string, { upward: string | null; downward: string | null }>>({});
   const [submittingNotificationId, setSubmittingNotificationId] = useState<string | null>(null);
   const [respondError, setRespondError] = useState<string | null>(null);
+  // "Come back to this on" date per ASKED_TO_WAIT notification. Defaults to two
+  // weeks out; the file is put on hold until this date, then resurfaces on the
+  // hub for the agent to decide (wait on, remarket, or withdraw).
+  const [waitDateByNotif, setWaitDateByNotif] = useState<Record<string, string>>({});
 
   async function dismissDecline() {
     setDeclineDismissed(true);
     await fetch("/api/chain/dismiss-decline", { method: "POST" }).catch(() => null);
   }
 
-  async function respondToNotification(notificationId: string, status: "REMARKETING" | "WAITING" | "BREAK_CHAIN" | "WITHDRAW") {
+  async function respondToNotification(
+    notificationId: string,
+    status: "REMARKETING" | "WAITING" | "BREAK_CHAIN" | "WITHDRAW",
+    reviewDate?: string,
+  ) {
     setSubmittingNotificationId(notificationId);
     setRespondError(null);
     try {
       const res = await fetch(`/api/chains/notifications/${notificationId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(reviewDate ? { status, reviewDate } : { status }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -815,13 +836,42 @@ export function ChainDrawer({
                     <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: "0 0 10px" }}>
                       {prompt}
                     </p>
+                    {n.type === "ASKED_TO_WAIT" && (
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)", display: "block", marginBottom: 4 }}>
+                          Come back to this on
+                        </label>
+                        <input
+                          type="date"
+                          min={tomorrowDateStr()}
+                          value={waitDateByNotif[n.id] ?? defaultWaitDateStr()}
+                          onChange={(e) => setWaitDateByNotif((prev) => ({ ...prev, [n.id]: e.target.value }))}
+                          style={{
+                            fontSize: 12,
+                            padding: "6px 8px",
+                            borderRadius: 6,
+                            border: "0.5px solid var(--agent-border)",
+                            background: "var(--agent-surface)",
+                            color: "var(--agent-text-primary)",
+                          }}
+                        />
+                        <p style={{ fontSize: 11, color: "var(--agent-text-tertiary)", margin: "6px 0 0", lineHeight: 1.4 }}>
+                          We&rsquo;ll pause this file and raise it on your hub on this date, so you can decide whether to keep waiting, go back to market, or withdraw.
+                        </p>
+                      </div>
+                    )}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {options.map((opt) => {
                         const isSubmitting = submittingNotificationId === n.id;
                         return (
                           <button
                             key={opt.status}
-                            onClick={() => { void respondToNotification(n.id, opt.status); }}
+                            onClick={() => {
+                              const reviewDate = opt.status === "WAITING"
+                                ? (waitDateByNotif[n.id] ?? defaultWaitDateStr())
+                                : undefined;
+                              void respondToNotification(n.id, opt.status, reviewDate);
+                            }}
                             disabled={isSubmitting}
                             style={{
                               fontSize: 12,

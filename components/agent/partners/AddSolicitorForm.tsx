@@ -9,6 +9,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { NumericFormat } from "react-number-format";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { addRecommendedSolicitorWithContactAction, getSolicitorFirmHandlersAction } from "@/app/actions/solicitors";
 
 export type AddedSolicitor = { firmId: string; firmName: string; defaultReferralFeePence: number | null };
@@ -269,16 +271,16 @@ export function AddSolicitorForm({
               )}
               <div>
                 <label style={labelStyle}>Name <span style={{ color: "#f87171" }}>*</span></label>
-                <input ref={nameRef} type="text" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Sarah Jones" style={inputStyle} />
+                <input ref={nameRef} type="text" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="e.g. Sarah Jones" style={inputStyle} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Phone <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="tel" value={cPhone} onChange={(e) => setCPhone(e.target.value)} maxLength={20} placeholder="01234 567890" style={inputStyle} />
+                  <input type="tel" value={cPhone} onChange={(e) => setCPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }} maxLength={20} placeholder="01234 567890" style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Email <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} maxLength={100} placeholder="sarah@firm.co.uk" style={inputStyle} />
+                  <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }} maxLength={100} placeholder="sarah@firm.co.uk" style={inputStyle} />
                 </div>
               </div>
             </div>

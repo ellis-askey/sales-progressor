@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { acceptNegotiatorInvitationPassword } from "@/app/actions/accept-negotiator-invitation-password";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 interface Props {
   token: string;
@@ -102,6 +103,7 @@ export function InvitedNegotiatorPasswordSignupForm({ token, negotiatorEmail, ne
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
             required
             style={inputStyle}
           />

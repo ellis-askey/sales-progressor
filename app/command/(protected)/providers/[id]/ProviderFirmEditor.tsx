@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { updateProviderFirm, toggleProviderFirmActive } from "@/app/actions/provider-firms";
 import type { ProviderKind } from "@prisma/client";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { formatUKPhone } from "@/lib/utils/address";
 
 type Initial = {
   kind: ProviderKind;
@@ -88,10 +90,10 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
 
   return (
     <div className="space-y-2.5">
-      <TextField label="Firm name" value={name} onChange={setName} />
-      <TextField label="Email (where quotes go)" value={email} onChange={setEmail} type="email" />
+      <TextField label="Firm name" value={name} onChange={setName} format={titleCaseKeepAcronyms} />
+      <TextField label="Email (where quotes go)" value={email} onChange={setEmail} type="email" format={(v) => v.trim().toLowerCase()} />
       <div className="grid grid-cols-2 gap-2.5">
-        <TextField label="Phone" value={phone} onChange={setPhone} />
+        <TextField label="Phone" value={phone} onChange={setPhone} format={formatUKPhone} />
         <TextField label="Website" value={website} onChange={setWebsite} placeholder="https://" />
       </div>
       <div>
@@ -187,12 +189,14 @@ function TextField({
   onChange,
   type = "text",
   placeholder,
+  format,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   placeholder?: string;
+  format?: (v: string) => string;
 }) {
   return (
     <div>
@@ -203,6 +207,7 @@ function TextField({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => { if (format && e.target.value.trim()) onChange(format(e.target.value)); }}
         placeholder={placeholder}
         className="w-full bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-[13px] text-[#fafafa] focus:outline-none focus:border-[#2563eb] placeholder:text-[#404040]"
       />

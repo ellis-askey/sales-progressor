@@ -155,7 +155,7 @@ export default function RegisterPage() {
       {/* Architectural line-drawing background. Centre is clean white space for
           the card; a faint white veil keeps it legible on narrow screens. */}
       <div aria-hidden style={{
-        position: "fixed", inset: 0, zIndex: 0,
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
         backgroundImage: "url(/register-bg.png)",
         backgroundSize: "cover",
@@ -163,12 +163,13 @@ export default function RegisterPage() {
         backgroundRepeat: "no-repeat",
       }} />
       <div aria-hidden style={{
-        position: "fixed", inset: 0, zIndex: 1,
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 1,
         background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
       }} />
 
       <style>{`
         .ri::placeholder { color: rgba(32,36,46,0.38); }
+        @media (max-width: 500px) { .reg-agency-hint { display: block; margin-top: 2px; } }
         .ri:hover:not(:focus) {
           border-color: rgba(255,138,101,0.45) !important;
         }
@@ -422,7 +423,7 @@ export default function RegisterPage() {
         {/* Footer note */}
         <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(32,36,46,0.45)", marginTop: "1.25rem" }}>
           Already part of an existing agency?{" "}
-          <span style={{ color: "rgba(32,36,46,0.60)" }}>Ask your administrator to invite you.</span>
+          <span className="reg-agency-hint" style={{ color: "rgba(32,36,46,0.60)" }}>Ask your administrator to invite you.</span>
         </p>
 
       </div>

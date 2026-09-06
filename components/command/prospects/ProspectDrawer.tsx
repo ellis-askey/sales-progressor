@@ -20,6 +20,8 @@ import { VerifiedField } from "./VerifiedField";
 import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats, GroupMatch } from "@/lib/command/prospects";
 import type { ResearchMeta } from "@/lib/command/prospect-labels";
 import type { ProspectStatus } from "@prisma/client";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { formatUKPhone } from "@/lib/utils/address";
 
 function fmtDateTime(d: Date | null): string {
   if (!d) return "—";
@@ -169,7 +171,7 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
                 <VerifiedField label="Location" value={d.location} meta={d.research?.location} expected onConfirm={() => pConfirm("location")} onEdit={(v) => pEdit("location", v)} />
                 <VerifiedField label="Postcode" value={d.postcode} meta={d.research?.postcode} expected onConfirm={() => pConfirm("postcode")} onEdit={(v) => pEdit("postcode", v)} />
                 <VerifiedField label="Website" value={d.website} meta={d.research?.website} expected onConfirm={() => pConfirm("website")} onEdit={(v) => pEdit("website", v)} />
-                <VerifiedField label="Phone" value={d.phone} meta={d.research?.phone} expected onConfirm={() => pConfirm("phone")} onEdit={(v) => pEdit("phone", v)} />
+                <VerifiedField label="Phone" value={d.phone} meta={d.research?.phone} expected onConfirm={() => pConfirm("phone")} onEdit={(v) => pEdit("phone", v)} format={formatUKPhone} />
                 <VerifiedField label="General email" value={d.generalEmail} meta={d.research?.generalEmail} expected onConfirm={() => pConfirm("generalEmail")} onEdit={(v) => pEdit("generalEmail", v)} />
                 <VerifiedField label="Size" value={d.sizeNote} meta={d.research?.sizeNote} expected onConfirm={() => pConfirm("sizeNote")} onEdit={(v) => pEdit("sizeNote", v)} />
                 <VerifiedField label="Branches" value={String(d.branchesInGroup)} editable={false} />
@@ -332,7 +334,7 @@ function ContactCard({ c, shared, onConfirmField, onEditField, onMakePrimary, on
 
       {mode === "edit" && (
         <div className="space-y-2 bg-neutral-900 border border-neutral-800 rounded p-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={inputCls} />
+          <input value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Name" className={inputCls} />
           <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={dm} onChange={(e) => setDm(e.target.checked)} /> Decision-maker</label>
           <button onClick={() => { onUpdate({ name, isDecisionMaker: dm }); setMode("view"); }} disabled={pending || !name.trim()} className="text-[11px] px-2 py-1 rounded bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">Save</button>
         </div>
@@ -341,7 +343,7 @@ function ContactCard({ c, shared, onConfirmField, onEditField, onMakePrimary, on
       <div className="grid grid-cols-2 gap-1.5">
         <VerifiedField label="Role" value={c.jobTitle} meta={c.research?.jobTitle} expected onConfirm={() => onConfirmField("jobTitle")} onEdit={(v) => onEditField("jobTitle", v)} />
         <VerifiedField label="Email" value={c.email} meta={c.research?.email} expected onConfirm={() => onConfirmField("email")} onEdit={(v) => onEditField("email", v)} />
-        <VerifiedField label="Phone" value={c.phone} meta={c.research?.phone} expected onConfirm={() => onConfirmField("phone")} onEdit={(v) => onEditField("phone", v)} />
+        <VerifiedField label="Phone" value={c.phone} meta={c.research?.phone} expected onConfirm={() => onConfirmField("phone")} onEdit={(v) => onEditField("phone", v)} format={formatUKPhone} />
       </div>
     </div>
   );
@@ -580,10 +582,10 @@ function ContactPanel({ onSave, pending, canShare, groupName }: {
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <input value={f.name} onChange={(e) => setF((p) => ({ ...p, name: e.target.value }))} placeholder="Name" className={inputCls} />
+        <input value={f.name} onChange={(e) => setF((p) => ({ ...p, name: e.target.value }))} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, name: titleCaseKeepAcronyms(e.target.value) })); }} placeholder="Name" className={inputCls} />
         <input value={f.jobTitle} onChange={(e) => setF((p) => ({ ...p, jobTitle: e.target.value }))} placeholder="Role" className={inputCls} />
-        <input value={f.email} onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))} placeholder="Email" className={inputCls} />
-        <input value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} placeholder="Phone" className={inputCls} />
+        <input value={f.email} onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, email: e.target.value.trim().toLowerCase() })); }} placeholder="Email" className={inputCls} />
+        <input value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, phone: formatUKPhone(e.target.value) })); }} placeholder="Phone" className={inputCls} />
       </div>
       <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={f.isDecisionMaker} onChange={(e) => setF((p) => ({ ...p, isDecisionMaker: e.target.checked }))} /> Decision-maker</label>
       {canShare && (
@@ -603,13 +605,13 @@ function EditPanel({ d, onSave, pending }: { d: ProspectDetail; onSave: (patch: 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <input value={f.agencyName} onChange={set("agencyName")} placeholder="Agency name" className={inputCls} />
+        <input value={f.agencyName} onChange={set("agencyName")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, agencyName: titleCaseKeepAcronyms(e.target.value) })); }} placeholder="Agency name" className={inputCls} />
         <input value={f.branch} onChange={set("branch")} placeholder="Branch" className={inputCls} />
         <input value={f.location} onChange={set("location")} placeholder="Location" className={inputCls} />
         <input value={f.postcode} onChange={set("postcode")} placeholder="Postcode" className={inputCls} />
         <input value={f.website} onChange={set("website")} placeholder="Website" className={inputCls} />
-        <input value={f.phone} onChange={set("phone")} placeholder="Phone" className={inputCls} />
-        <input value={f.generalEmail} onChange={set("generalEmail")} placeholder="General email" className={inputCls} />
+        <input value={f.phone} onChange={set("phone")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, phone: formatUKPhone(e.target.value) })); }} placeholder="Phone" className={inputCls} />
+        <input value={f.generalEmail} onChange={set("generalEmail")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, generalEmail: e.target.value.trim().toLowerCase() })); }} placeholder="General email" className={inputCls} />
         <input value={f.sizeNote} onChange={set("sizeNote")} placeholder="Size / listings" className={inputCls} />
       </div>
       <textarea value={f.notes} onChange={set("notes")} rows={2} placeholder="Notes" className={inputCls} />

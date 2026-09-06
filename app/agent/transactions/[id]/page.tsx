@@ -46,7 +46,7 @@ import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { DocumentsPanel } from "@/components/transaction/DocumentsPanel";
 import { ClientMortgageExpiryCard } from "@/components/transaction/ClientMortgageExpiryCard";
 import { MilestoneTimelineStrip, type MilestoneStage } from "@/components/transaction/MilestoneTimelineStrip";
-import { resolveDisplayStages } from "@/lib/milestones/display-stages";
+import { resolveDisplayStages, resolveExchangeDayGate } from "@/lib/milestones/display-stages";
 import { EmailSettingsButton } from "@/components/transaction/EmailSettingsDrawer";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
@@ -64,6 +64,7 @@ import { OverviewPanel } from "@/components/transaction/OverviewPanel";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { ExchangeDayControl } from "@/components/transaction/ExchangeDayControl";
+import { ExchangeDayReadyBanner } from "@/components/transaction/ExchangeDayReadyBanner";
 import { getExchangeDayState, getExchangeDayAuthority } from "@/lib/services/exchange-day";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { RemindersPanel } from "@/components/transaction/RemindersPanel";
@@ -403,12 +404,17 @@ export default async function AgentTransactionDetailPage({
   const exchangeAuthority = exchangeDayActive
     ? await getExchangeDayAuthority(transaction.id).catch(() => ({ seller: null, buyer: null }))
     : null;
+  // Gate (2026-09-06): "Start exchange day" stays visible but locked until the
+  // file is through enquiries, so it can't be fired on a brand-new file. Once
+  // active, a soft banner (below) flags any side not yet confirmed ready.
+  const exchangeDayGate = resolveExchangeDayGate(allMilestones);
   const exchangeDayControl = exchangeDay && !exchangeDay.exchanged ? (
     <ExchangeDayControl
       transactionId={transaction.id}
       active={exchangeDay.active}
       completionDate={exchangeDay.completionDate ? exchangeDay.completionDate.toISOString() : null}
       authority={exchangeAuthority}
+      locked={!exchangeDayGate.unlocked}
     />
   ) : null;
 
@@ -442,6 +448,9 @@ export default async function AgentTransactionDetailPage({
       <ClaimWelcomeAsync address={transaction.propertyAddress} transactionId={transaction.id} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <OnHoldBanner show={transaction.status === "on_hold"} />
+      {exchangeDayActive && !(exchangeDayGate.sellerReady && exchangeDayGate.buyerReady) && (
+        <ExchangeDayReadyBanner sellerReady={exchangeDayGate.sellerReady} buyerReady={exchangeDayGate.buyerReady} />
+      )}
       {transaction.isDemo && <DemoFileMarker transactionId={transaction.id} />}
       {showExchangeOverdueBanner && (
         <ReviseExchangeBanner

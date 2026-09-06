@@ -343,7 +343,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                   type="email"
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
-                  onBlur={(e) => setBuyerEmail(e.target.value.trim())}
+                  onBlur={(e) => setBuyerEmail(e.target.value.trim().toLowerCase())}
                   disabled={isPending}
                   placeholder="sarah@example.com"
                   maxLength={120}

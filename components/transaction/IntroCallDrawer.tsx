@@ -11,6 +11,7 @@ import {
   completeIntroCallAction,
   type IntroCallData,
 } from "@/app/actions/intro-call";
+import { formatUKPhone } from "@/lib/utils/address";
 import { savePurchaseTypeAction } from "@/app/actions/transactions";
 import { updateContactAction } from "@/app/actions/contacts";
 import { setOnwardTypeFactsAction } from "@/app/actions/onward";
@@ -53,7 +54,7 @@ function Row({ children }: { children: ReactNode }) {
   return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>{children}</div>;
 }
 
-function TextField({ label, initial, onSave, placeholder, type = "text" }: { label: string; initial: string; onSave: (v: string) => void; placeholder?: string; type?: string }) {
+function TextField({ label, initial, onSave, placeholder, type = "text", format }: { label: string; initial: string; onSave: (v: string) => void; placeholder?: string; type?: string; format?: (v: string) => string }) {
   const [v, setV] = useState(initial);
   const last = useRef(initial);
   return (
@@ -61,7 +62,7 @@ function TextField({ label, initial, onSave, placeholder, type = "text" }: { lab
       {label}
       <input type={type} value={v} placeholder={placeholder} style={inputStyle}
         onChange={(e) => setV(e.target.value)}
-        onBlur={() => { if (v !== last.current) { last.current = v; onSave(v); } }} />
+        onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
     </label>
   );
 }
@@ -380,17 +381,17 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                   <Group title="Who we're speaking to">
                     {showSeller && data.vendor && (
                       <Row>
-                        <TextField label={`Seller phone (${data.vendor.name})`} initial={data.vendor.phone ?? ""} type="tel"
+                        <TextField label={`Seller phone (${data.vendor.name})`} initial={data.vendor.phone ?? ""} type="tel" format={formatUKPhone}
                           onSave={(v) => run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email }))} />
-                        <TextField label="Seller email" initial={data.vendor.email ?? ""} type="email"
+                        <TextField label="Seller email" initial={data.vendor.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
                           onSave={(v) => run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: data.vendor!.phone, email: v || null }))} />
                       </Row>
                     )}
                     {showBuyer && data.purchaser && (
                       <Row>
-                        <TextField label={`Buyer phone (${data.purchaser.name})`} initial={data.purchaser.phone ?? ""} type="tel"
+                        <TextField label={`Buyer phone (${data.purchaser.name})`} initial={data.purchaser.phone ?? ""} type="tel" format={formatUKPhone}
                           onSave={(v) => run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email }))} />
-                        <TextField label="Buyer email" initial={data.purchaser.email ?? ""} type="email"
+                        <TextField label="Buyer email" initial={data.purchaser.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
                           onSave={(v) => run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: data.purchaser!.phone, email: v || null }))} />
                       </Row>
                     )}

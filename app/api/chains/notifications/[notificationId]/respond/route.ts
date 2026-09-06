@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { cascadeChainWithdrawal, cascadeChainRemarketing } from "@/lib/chain/withdrawal";
+import { putFileOnHold } from "@/app/actions/automation";
 import type { ChainNotificationType, ChainWithdrawalStatus } from "@prisma/client";
 
 const VALID_STATUSES = ["REMARKETING", "WAITING", "BREAK_CHAIN", "WITHDRAW"] as const;
@@ -38,8 +39,11 @@ export async function POST(
   const session = await requireSession();
   const { notificationId } = await params;
 
-  const body = (await req.json().catch(() => ({}))) as { status?: string };
+  const body = (await req.json().catch(() => ({}))) as { status?: string; reviewDate?: string };
   const status = body.status as ResponseStatus | undefined;
+  // Optional "come back to this on" date sent with a WAITING response — drives
+  // the on-hold planned end date so the file resurfaces on the hub for review.
+  const reviewDate = typeof body.reviewDate === "string" ? body.reviewDate : null;
   if (!status || !VALID_STATUSES.includes(status as ResponseStatus)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
@@ -106,8 +110,51 @@ export async function POST(
     cascadeChainWithdrawal(notification.recipientLinkId).catch(console.error);
   } else if (status === "REMARKETING") {
     cascadeChainRemarketing(notification.recipientLinkId, notification.direction).catch(console.error);
+    // No buyer to chase while back on the market — pause the responder's own
+    // file indefinitely. It returns to Active on its own when they relist with
+    // a new buyer (leaving on_hold closes the open hold period). Best-effort:
+    // a hold failure (e.g. file not active) must never block the response.
+    await holdRespondersFile(
+      notification.recipientLink.transactionId,
+      null,
+      "Back on the market after the buyer below withdrew",
+    );
+  } else if (status === "WAITING") {
+    // Waiting for the chain to reform — pause the file until the chosen review
+    // date, when the hub's expired-holds card resurfaces it to decide: wait on,
+    // remarket, or withdraw. Skipped (file left as-is) if no date was supplied.
+    if (reviewDate) {
+      await holdRespondersFile(
+        notification.recipientLink.transactionId,
+        reviewDate,
+        "Waiting for the chain to reform",
+      );
+    }
   }
-  // BREAK_CHAIN, WAITING → no cascade
+  // BREAK_CHAIN → no cascade, no hold
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Put the responder's own file on hold as a side-effect of a chain response.
+ * Reuses the canonical putFileOnHold action (scope-checked, opens a hold period
+ * with the planned end date + reason, revalidates the hub). Best-effort: any
+ * failure — file not active, not found, past date — is swallowed so the chain
+ * response the agent actually clicked always succeeds.
+ */
+async function holdRespondersFile(
+  transactionId: string | null,
+  plannedEndAt: string | null,
+  reason: string,
+): Promise<void> {
+  if (!transactionId) return;
+  try {
+    const result = await putFileOnHold(transactionId, plannedEndAt, reason);
+    if (!result.ok) {
+      console.warn(`[chain-response hold] skipped for tx=${transactionId}: ${result.error}`);
+    }
+  } catch (err) {
+    console.error(`[chain-response hold] failed for tx=${transactionId}:`, err);
+  }
 }

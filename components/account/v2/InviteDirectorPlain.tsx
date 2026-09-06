@@ -17,6 +17,7 @@
 import { useState, useTransition } from "react";
 import { inviteDirector, resendInvitation } from "@/app/actions/invite-director";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 export interface LatestInvitation {
   id: string;
@@ -153,6 +154,7 @@ export function InviteDirectorPlain({ latestInvitation }: InviteDirectorPlainPro
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
             placeholder="e.g. James Hartwell"
             required
             disabled={isPending}
@@ -168,6 +170,7 @@ export function InviteDirectorPlain({ latestInvitation }: InviteDirectorPlainPro
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
             placeholder="director@youragency.co.uk"
             required
             disabled={isPending}

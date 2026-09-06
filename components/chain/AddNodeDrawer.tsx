@@ -563,7 +563,7 @@ export function AddNodeDrawer({
                   type="email"
                   value={form.stubAgentEmail}
                   onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
-                  onBlur={() => validateEmail()}
+                  onBlur={() => { validateEmail(); if (form.stubAgentEmail.trim()) update("stubAgentEmail")(form.stubAgentEmail.trim().toLowerCase()); }}
                   placeholder="agent@agency.co.uk"
                   className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
                 />

@@ -7,7 +7,7 @@ import { fieldVerdict, type FieldMeta } from "@/lib/command/prospect-labels";
 //  - verified/confirmed/plain → looks normal
 //  - NEEDS_CHECK → an amber flag you can click to see the source + Confirm / Edit
 //  - empty + expected → highlighted "Add …" so the eye is drawn to the gap
-export function VerifiedField({ label, value, meta, expected, onConfirm, onEdit, editable = true }: {
+export function VerifiedField({ label, value, meta, expected, onConfirm, onEdit, editable = true, format }: {
   label: string;
   value: string | null;
   meta?: FieldMeta;
@@ -15,6 +15,7 @@ export function VerifiedField({ label, value, meta, expected, onConfirm, onEdit,
   onConfirm?: () => Promise<{ ok: boolean; error?: string }>;
   onEdit?: (value: string) => Promise<{ ok: boolean; error?: string }>;
   editable?: boolean;
+  format?: (value: string) => string;
 }) {
   const verdict = fieldVerdict(value, meta, !!expected);
   const [open, setOpen] = useState(false);
@@ -33,7 +34,7 @@ export function VerifiedField({ label, value, meta, expected, onConfirm, onEdit,
   async function save() {
     if (!onEdit) return;
     setBusy(true); setError(null);
-    const r = await onEdit(draft);
+    const r = await onEdit(format && draft.trim() ? format(draft) : draft);
     setBusy(false);
     if (r.ok) { setEditing(false); setOpen(false); } else setError(r.error ?? "Couldn't save.");
   }

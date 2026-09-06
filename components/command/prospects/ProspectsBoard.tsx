@@ -6,6 +6,7 @@ import { createProspectAction } from "@/app/actions/prospects";
 import { PROSPECT_SOURCES, SOURCE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/command/prospect-labels";
 import { ProspectDrawer } from "./ProspectDrawer";
 import type { ProspectListRow } from "@/lib/command/prospects";
+import { formatUKPhone } from "@/lib/utils/address";
 
 function fmt(d: Date | null): string {
   if (!d) return "—";
@@ -109,15 +110,15 @@ function AddForm({ onDone }: { onDone: () => void }) {
         </label>
         <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Location</span><input value={f.location} onChange={set("location")} className={inputCls} placeholder="Harlow" /></label>
         <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Website</span><input value={f.website} onChange={set("website")} className={inputCls} placeholder="oakwood.co.uk" /></label>
-        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Phone</span><input value={f.phone} onChange={set("phone")} className={inputCls} /></label>
-        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">General email</span><input value={f.generalEmail} onChange={set("generalEmail")} className={inputCls} /></label>
+        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Phone</span><input value={f.phone} onChange={set("phone")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, phone: formatUKPhone(e.target.value) })); }} className={inputCls} /></label>
+        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">General email</span><input value={f.generalEmail} onChange={set("generalEmail")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, generalEmail: e.target.value.trim().toLowerCase() })); }} className={inputCls} /></label>
       </div>
       <p className="text-[11px] text-neutral-600 uppercase tracking-wider">First contact (optional)</p>
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Name</span><input value={f.contactName} onChange={set("contactName")} className={inputCls} placeholder="Sarah Jones" /></label>
         <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Role</span><input value={f.contactJobTitle} onChange={set("contactJobTitle")} className={inputCls} placeholder="Director" /></label>
-        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Email</span><input value={f.contactEmail} onChange={set("contactEmail")} className={inputCls} /></label>
-        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Phone</span><input value={f.contactPhone} onChange={set("contactPhone")} className={inputCls} /></label>
+        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Email</span><input value={f.contactEmail} onChange={set("contactEmail")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, contactEmail: e.target.value.trim().toLowerCase() })); }} className={inputCls} /></label>
+        <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Phone</span><input value={f.contactPhone} onChange={set("contactPhone")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, contactPhone: formatUKPhone(e.target.value) })); }} className={inputCls} /></label>
       </div>
       <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Notes / context</span><textarea value={f.notes} onChange={set("notes")} rows={2} className={inputCls} /></label>
       {error && <p className="text-xs text-red-400">{error}</p>}

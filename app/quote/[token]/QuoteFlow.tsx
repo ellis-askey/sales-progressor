@@ -4,6 +4,8 @@ import { useState, useMemo, useTransition } from "react";
 import { submitQuoteRequest, type QuoteSubmitResult } from "./actions";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency } from "@prisma/client";
 import { A } from "./ui";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 type Kind = { kind: string; label: string };
 type ServiceType = { id: string; kind: string; label: string; description: string | null };
@@ -564,6 +566,7 @@ export function QuoteFlow({
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) setClientName(titleCaseKeepAcronyms(e.target.value)); }}
                 style={inputStyle}
               />
             </div>
@@ -573,6 +576,7 @@ export function QuoteFlow({
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) setClientEmail(e.target.value.trim().toLowerCase()); }}
                 style={inputStyle}
               />
             </div>
@@ -583,7 +587,8 @@ export function QuoteFlow({
               <input
                 type="tel"
                 value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
+                onChange={(e) => setClientPhone(cleanPhone(e.target.value))}
+                onBlur={(e) => { if (e.target.value.trim()) setClientPhone(formatUKPhone(e.target.value)); }}
                 style={{
                   ...inputStyle,
                   border: phoneRequired && !clientPhone.trim() ? `1.5px solid ${A.dangerBorder}` : inputStyle.border,

@@ -130,9 +130,11 @@ export function normalizePhone(phone: string): string {
   // Must look like a UK number: leading 0 + 9–10 more digits
   if (!/^0[1-9]\d{8,9}$/.test(digits)) return cleaned;
 
-  // Mobile (07xxx) → international +44 format
+  // Mobile (07xxx) → international +44 format, spaced (aligned app-wide with
+  // formatUKPhone). WhatsApp matching still works: both sides run through
+  // normalizePhone, so the format is irrelevant to equality — only consistency.
   if (digits.startsWith("07")) {
-    return "+44" + digits.slice(1);
+    return `+44 ${digits.slice(1, 5)} ${digits.slice(5)}`;
   }
 
   // London / geographic 02x codes (020, 023, 024, 028, 029) → "0xx xxxx xxxx"

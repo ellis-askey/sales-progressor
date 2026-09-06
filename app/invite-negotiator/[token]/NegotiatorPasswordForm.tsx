@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { acceptNegotiatorInvitation } from "@/app/actions/accept-negotiator-invitation";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 export function NegotiatorPasswordForm({
   token,
@@ -73,6 +74,7 @@ export function NegotiatorPasswordForm({
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
           placeholder="Full name"
           required
           autoFocus

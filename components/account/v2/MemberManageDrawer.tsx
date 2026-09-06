@@ -12,6 +12,8 @@ import { useRef, useState } from "react";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 export type ManageableMember = {
   id: string;
@@ -167,7 +169,7 @@ export function MemberManageDrawer({
 
         <div>
           <label style={labelStyle}>Name</label>
-          <input className="account-input" style={fieldStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          <input className="account-input" style={fieldStyle} value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Full name" />
         </div>
         <div>
           <label style={labelStyle}>Job title</label>
@@ -175,7 +177,7 @@ export function MemberManageDrawer({
         </div>
         <div>
           <label style={labelStyle}>Direct mobile</label>
-          <input className="account-input" style={fieldStyle} type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+44 7700 000000" />
+          <input className="account-input" style={fieldStyle} type="tel" value={mobile} onChange={(e) => setMobile(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setMobile(formatUKPhone(e.target.value)); }} placeholder="+44 7700 000000" />
         </div>
 
         <span style={{ fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}>

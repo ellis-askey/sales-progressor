@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { acceptInvitationPassword } from "@/app/actions/accept-invitation-password";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 interface Props {
   token: string;
@@ -103,6 +104,7 @@ export function InvitedPasswordSignupForm({ token, directorEmail, directorName }
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
             required
             style={inputStyle}
           />

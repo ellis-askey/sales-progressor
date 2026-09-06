@@ -145,6 +145,7 @@ export function ContactCard({
               className="agent-input"
               value={contact.email}
               onChange={(e) => { onChange("email", e.target.value); onEdit(); }}
+              onBlur={e => { if (e.target.value.trim()) onChange("email", e.target.value.trim().toLowerCase()); }}
               placeholder="sarah@example.com"
               maxLength={120}
               type="email"
