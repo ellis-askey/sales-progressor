@@ -1231,6 +1231,79 @@ select {
   overflow: hidden; position: relative;
   background: linear-gradient(155deg, rgba(var(--agent-coral-base-rgb), 0.16), rgba(var(--agent-coral-base-rgb), 0.05)); }
 .chain-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Welcome modal CTA + tour link — explicit hover so the primary lifts and the
+   tour link (icon included, via currentColor) shifts to coral. */
+.welcome-cta {
+  background: linear-gradient(180deg, #FF7E57 0%, #F0511A 100%);
+  box-shadow: 0 6px 16px rgba(240, 81, 26, 0.30);
+  transition: transform 140ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+.welcome-cta:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(240, 81, 26, 0.42); filter: saturate(1.05) brightness(1.02); }
+.welcome-cta:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(240, 81, 26, 0.34); }
+.welcome-tour { color: #64748b; transition: color 140ms ease; }
+.welcome-tour:hover { color: #F0511A; }
+@media (prefers-reduced-motion: reduce) { .welcome-cta { transition: none; } .welcome-cta:hover { transform: none; } }
+
+/* Welcome modal — responsive shell + card. On desktop the card centres within the
+   content area (right of the 232px sidebar, below the 44px top bar), not the whole
+   viewport. At 767px and below the illustration is dropped for a plain white card
+   that fits its content. */
+/* Compound selector so it beats .agent-modal's own max-width: 480px. */
+.agent-modal.welcome-card { width: 900px; max-width: calc(100vw - 280px); }
+.welcome-col { position: relative; z-index: 1; max-width: 470px; padding: 40px 48px; display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  .welcome-shell { padding-left: 232px; padding-top: 44px; }
+}
+@media (max-width: 767px) {
+  .agent-modal.welcome-card { width: fit-content; max-width: calc(100vw - 32px); }
+  .welcome-bg, .welcome-gradient { display: none; }
+  .welcome-col { max-width: 100%; padding: 32px 28px; }
+}
+
+/* Exit — "zoom through": the card rushes toward the viewer and dissolves while the
+   backdrop's dim + blur clear in lockstep (same 420ms + easing). */
+@keyframes welcome-zoom-out {
+  to { opacity: 0; transform: scale(1.22); filter: blur(7px); }
+}
+@keyframes welcome-backdrop-out {
+  to { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
+}
+.agent-backdrop-overlay.welcome-backdrop-closing {
+  animation: welcome-backdrop-out 420ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+.welcome-backdrop { position: fixed; inset: 0; }
+
+/* While the welcome modal is open, the full-screen dim sits behind everything.
+   The nav bars are lifted above it and made opaque (theme surface) with their
+   blur off, so the dim can't wash them and there's no seam anywhere — they read
+   exactly as normal, just sitting cleanly in front. */
+html.welcome-modal-open [data-glass-id="nav-topbar"],
+html.welcome-modal-open [data-glass-id="nav-sidebar"] {
+  background: var(--agent-surface-elevated) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.welcome-modal-open [data-glass-id="nav-sidebar"] {
+  position: relative;
+  z-index: 60;
+}
+/* Internal stub-photo upload: a hover-reveal camera over the tile. */
+.chain-photo-editable { cursor: pointer; }
+.chain-photo-upload { position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; border: none; padding: 0; margin: 0; cursor: pointer;
+  color: #fff; background: rgba(20, 22, 30, 0); opacity: 0;
+  transition: opacity 140ms ease, background 140ms ease; }
+.chain-photo-upload svg { width: 26px; height: 26px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)); }
+.chain-photo-editable:hover .chain-photo-upload,
+.chain-photo-upload:focus-visible { opacity: 1; background: rgba(20, 22, 30, 0.34); }
+.chain-photo-upload:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.chain-photo-upload:disabled { cursor: default; opacity: 1; background: rgba(20, 22, 30, 0.42); }
+.chain-photo-spinner { width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4); border-top-color: #fff;
+  animation: chain-photo-spin 0.7s linear infinite; }
+@keyframes chain-photo-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .chain-photo-spinner { animation-duration: 1.4s; } }
 .chain-photo-illus::before { content: ""; position: absolute; left: 50%; top: 54%;
   transform: translate(-50%, -50%); width: 32px; height: 22px;
   background: var(--agent-text-muted); opacity: .45;

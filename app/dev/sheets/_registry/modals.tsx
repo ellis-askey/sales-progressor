@@ -739,6 +739,7 @@ export const MODAL_ENTRIES: SheetEntry[] = [
     render: ({ stateId }) => (
       <WelcomeModal
         agencyModeProfile={stateId === "managed" ? "progressor_managed" : stateId === "mixed" ? "mixed" : "self_progressed"}
+        userName="Sarah Jones"
       />
     ),
   },
