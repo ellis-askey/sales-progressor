@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, Lock } from "@phosphor-icons/react/dist/ssr";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -45,17 +45,23 @@ export function ExchangeDayControl({
   active,
   completionDate,
   authority,
+  locked = false,
 }: {
   transactionId: string;
   active: boolean;
   completionDate: string | null;
   authority?: { seller: SideAuthority; buyer: SideAuthority } | null;
+  // Gate (2026-09-06): the control is visible but not usable until the file is
+  // through enquiries — see resolveExchangeDayGate in lib/milestones/display-
+  // stages.ts. Locked never shows while exchange day is already active.
+  locked?: boolean;
 }) {
   const { toast } = useAgentToast();
   const router = useRouter();
   const pathname = usePathname();
   const [startOpen, setStartOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [lockNoteOpen, setLockNoteOpen] = useState(false);
   const [date, setDate] = useState(toDateInput(completionDate));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +119,36 @@ export function ExchangeDayControl({
           >
             Not today
           </button>
+        </span>
+      ) : locked ? (
+        // Locked (Style 3): same label, desaturated, lock glyph, not-usable.
+        // Hover shows the reason (native title); a tap toggles the same reason
+        // inline for touch/keyboard, since exchange day opens further in.
+        <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+          <button
+            type="button"
+            aria-disabled="true"
+            aria-describedby={lockNoteOpen ? `xd-lock-note-${transactionId}` : undefined}
+            title="Exchange day opens once enquiries are satisfied"
+            onClick={() => setLockNoteOpen((v) => !v)}
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              cursor: "not-allowed", opacity: 0.6, filter: "grayscale(0.35)",
+            }}
+          >
+            Start exchange day
+            <Lock size={12} weight="bold" />
+          </button>
+          {lockNoteOpen && (
+            <span
+              id={`xd-lock-note-${transactionId}`}
+              role="status"
+              style={{ fontSize: 10.5, lineHeight: 1.4, color: "var(--agent-text-muted)", textAlign: "center", maxWidth: 150 }}
+            >
+              Opens once enquiries are satisfied.
+            </span>
+          )}
         </span>
       ) : (
         <button

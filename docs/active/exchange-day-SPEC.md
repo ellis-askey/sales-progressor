@@ -31,8 +31,16 @@ Client authority (per contact), valid only relative to the current exchange day:
 - Opens a small confirm: **requires a completion date** (pre-filled if one exists), a short note that this will email both solicitors and ask the clients to give authority, and a confirm button.
 - On confirm: stamp `exchangeDayStartedAt`, queue the solicitor emails for today's remaining slots (see below), flip the client portal state, log an activity note.
 
-### Decision A — when is "Start exchange day" available? RESOLVED: decoupled.
-Allow it **any time, independent of step state** (option b). No hard gate on VM18 + PM25.
+### Decision A — when is "Start exchange day" available? REVERSED 2026-09-06: gated at enquiries.
+**Superseded.** The original call (below) allowed it any time. In practice an agent could fire the whole exchange-day sequence on a brand-new file, which makes no sense — a file has to be through the majority of the process first. New behaviour (founder-chosen):
+
+- **Locked until enquiries are satisfied** — the button stays visible in its spot beside "View timeline" but is a dimmed, padlocked, non-usable control until the file is through the Enquiries stage (`PM20`), i.e. "enquiries satisfied and onwards". Unlock also passes if a readiness code (`VM18` / `PM25`) is already settled, so odd files never lock out. Logic: `resolveExchangeDayGate` in `lib/milestones/display-stages.ts`; enforced again server-side in `startExchangeDay` (a lenient backstop, never false-rejects an unlocked file).
+- **Soft note once unlocked** — starting exchange day when **both** sides' solicitors haven't confirmed ready (`VM18` seller + `PM25` buyer, = `EXCHANGE_GATE_CODES`) shows a glossy, self-clearing notification in the file hero (`ExchangeDayReadyBanner`). It never blocks — exchange can spring on you — and clears the moment both ready-codes land. Copy grades to whichever side is outstanding.
+- Chosen combo: gate **A** (enquiries satisfied) · locked style **3** (dimmed CTA + lock + reason on interaction) · note **ii** (hero banner). See the decision bench artifact from the 2026-09-06 session.
+
+The original (now superseded) reasoning follows for the record:
+
+~~Allow it **any time, independent of step state** (option b). No hard gate on VM18 + PM25.~~
 
 The data-pollution worry is **already handled** and doesn't block this:
 - Completions caught up before exchange go through the **exchange-reconciliation flow** and are flagged `reconciledAtExchange` (also `reconciledAtClaim`, `outOfOrderCompletion`); real dates are captured in `eventDate`, unknown dates left `null`.
@@ -123,7 +131,7 @@ While in exchange day, **quiet the normal step chases** for that file. Belt-and-
 There is no persistent "on" that lingers. Exchange day is active only for the day it was started (derived from `exchangeDayStartedAt`'s UK date). At midnight it's simply no longer "today," so the state reads inactive, the client banner reverts, and authority resets. Nothing to send after 15:30. If you're still trying tomorrow, you re-activate — one tap — and the day's sequence + authority requests start fresh.
 
 ## Open decisions for founder
-- ~~A — availability of "Start exchange day"~~ **RESOLVED: decoupled** (reconciliation already siphons catch-up data).
+- ~~A — availability of "Start exchange day"~~ **REVERSED 2026-09-06: gated at enquiries satisfied** + soft ready-note once unlocked (see Decision A above). Superseded the earlier "decoupled" call.
 - ~~Chase suppression~~ **AGREED: quiet chases during exchange day** (catch-all).
 - **Authority styling** — happy to keep it as one simple "give authority + stay reachable" message + the button, rather than per-solicitor email-vs-verbal variants? (Recommended.)
 - **Copy deck v2** — the three rewritten solicitor emails (above) + the client copy. Redline anything.

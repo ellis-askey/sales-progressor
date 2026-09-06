@@ -13,6 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
 import { touchLastActivity } from "@/lib/services/activity";
+import { EXCHANGE_DAY_GATE_CODE, EXCHANGE_READY_CODES } from "@/lib/milestones/display-stages";
 
 export type ExchangeDayFields = {
   exchangeDayStartedAt: Date | null;
@@ -116,6 +117,21 @@ export async function startExchangeDay(input: {
   });
   if (!tx) throw new Error("Transaction not found");
   if (tx.exchangedAt) throw new Error("This file has already exchanged.");
+
+  // Gate (2026-09-06): exchange day is locked until the file is through
+  // enquiries, so it can't be fired on a brand-new file. Server backstop for
+  // the UI lock (resolveExchangeDayGate). Lenient by design — any of the
+  // enquiries-satisfied / ready codes settled anywhere on the file passes, so
+  // it never false-rejects a file the UI would show unlocked.
+  const gateHit = await prisma.milestoneCompletion.findFirst({
+    where: {
+      transactionId: input.transactionId,
+      state: { in: ["complete", "not_required"] },
+      milestoneDefinition: { code: { in: [EXCHANGE_DAY_GATE_CODE, ...EXCHANGE_READY_CODES] } },
+    },
+    select: { id: true },
+  });
+  if (!gateHit) throw new Error("Exchange day opens once the file is through enquiries.");
 
   const completionDate = input.completionDate ?? tx.completionDate;
   if (!completionDate) throw new Error("A completion date must be agreed before starting exchange day.");
