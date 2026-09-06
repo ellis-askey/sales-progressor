@@ -14,8 +14,9 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { Button } from "@/components/ui/Button";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UrgencyPill, SidePill, BlocksExchangePill, ManualPill, type UrgencyBucket } from "@/components/reminders/status-pills";
-import { AutoChaseCountdown } from "@/components/reminders/AutoChaseCountdown";
+import { UrgencyPill, SidePill, type UrgencyBucket } from "@/components/reminders/status-pills";
+import { AutoChaseCountdown, sendMoment } from "@/components/reminders/AutoChaseCountdown";
+import { AutoChasePreviewModal } from "@/components/reminders/AutoChasePreviewModal";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import type { AutopilotStatus } from "@/lib/services/reminder-autopilot";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
@@ -145,6 +146,8 @@ function SplitFileCard({
   const leftBorder = GROUP_LEFT_BORDER[groupKey];
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[] } | null>(null);
+  // "View" preview of a pending auto-chase email (autopilot rows).
+  const [previewRow, setPreviewRow] = useState<{ logId: string; pipeline: "client" | "solicitor"; sendLabel: string } | null>(null);
   const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
   function optimisticChase(taskId: string, logId: string, baseCount: number) {
     setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
@@ -287,7 +290,6 @@ function SplitFileCard({
           // Singular wording when there's zero or one named principal on the side
           // ("the seller" fallback reads singular too); plural for joint clients.
           const copy = renderChaseCardCopy(code, clientNames, solicitorFirm, clientList.length <= 1);
-          const blocksExchange = !!log.reminderRule.anchorMilestone?.blocksExchange;
           const lastComm = task.communications[0];
           const chaseHistory = (() => {
             if (task.chaseCount === 0) return "Not chased yet · first nudge due";
@@ -317,8 +319,6 @@ function SplitFileCard({
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
                   <UrgencyPill label={urgencyLabel} bucket={bucket} chased={hasBeenChased} />
                   <SidePill isBuyer={isBuyer} />
-                  {blocksExchange && <BlocksExchangePill />}
-                  {autopilot?.get(log.id)?.kind === "manual" && <ManualPill />}
                 </div>
                 {/* Desktop: fuller sentence-style step name (variables filled).
                     Mobile: the terse milestone name. Both in the DOM; CSS toggles. */}
@@ -344,7 +344,7 @@ function SplitFileCard({
                 )}
                 {(() => {
                   const st = autopilot?.get(log.id);
-                  if (st?.kind === "auto") return <AutoChaseCountdown iso={st.nextSend} />;
+                  if (st?.kind === "auto") return <AutoChaseCountdown iso={st.nextSend} onView={() => setPreviewRow({ logId: log.id, pipeline: st.pipeline, sendLabel: sendMoment(st.nextSend) })} />;
                   if (st?.kind === "manual" && st.reason) return <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{st.reason}</p>;
                   return null;
                 })()}
@@ -438,6 +438,18 @@ function SplitFileCard({
             handleChased(rowChase.taskId, match?.log.id);
             setRowChase(null);
           }}
+        />
+      )}
+
+      {/* Auto-chase email preview ("View" on an autopilot row) */}
+      {previewRow && (
+        <AutoChasePreviewModal
+          open
+          onClose={() => setPreviewRow(null)}
+          logId={previewRow.logId}
+          pipeline={previewRow.pipeline}
+          transactionId={txId}
+          sendLabel={previewRow.sendLabel}
         />
       )}
     </GlassCard>

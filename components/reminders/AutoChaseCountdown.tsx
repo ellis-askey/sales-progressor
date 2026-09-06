@@ -8,7 +8,9 @@
 import { useState, useEffect } from "react";
 import { Clock } from "@phosphor-icons/react";
 
-function build(iso: string): string {
+// "tomorrow at 10:30am" — day + time, no live clock. Shared with the preview
+// modal so the "Auto-chase {sendMoment}" wording matches the countdown.
+export function sendMoment(iso: string): string {
   const target = new Date(iso);
   const now = new Date();
   const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -20,16 +22,22 @@ function build(iso: string): string {
   const time = target
     .toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })
     .replace(/\s?([ap])m/i, (_m, p) => p.toLowerCase() + "m");
+  return `${day} at ${time}`;
+}
+
+function build(iso: string): string {
+  const target = new Date(iso);
+  const now = new Date();
   let s = Math.floor((target.getTime() - now.getTime()) / 1000);
   if (s < 0) s = 0;
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   const clock = h > 0
     ? `${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`
     : `${m}m ${String(sec).padStart(2, "0")}s`;
-  return `Auto-chase ${day} at ${time} · ${clock}`;
+  return `Auto-chase ${sendMoment(iso)} · ${clock}`;
 }
 
-export function AutoChaseCountdown({ iso }: { iso: string }) {
+export function AutoChaseCountdown({ iso, onView }: { iso: string; onView?: () => void }) {
   const [text, setText] = useState<string | null>(null);
   useEffect(() => {
     const update = () => setText(build(iso));
@@ -47,6 +55,21 @@ export function AutoChaseCountdown({ iso }: { iso: string }) {
     }}>
       <Clock size={12} weight="bold" style={{ color: "var(--agent-success)", flexShrink: 0 }} />
       <span style={{ fontVariantNumeric: "tabular-nums" }}>{text ?? "On autopilot"}</span>
+      {onView && (
+        <button
+          type="button"
+          onClick={onView}
+          className="acc-view-btn"
+          style={{
+            marginLeft: "auto", flexShrink: 0,
+            background: "none", border: "none", cursor: "pointer", padding: "0 2px",
+            fontSize: 11.5, fontWeight: 700, color: "var(--agent-success)",
+            transition: "opacity 120ms ease",
+          }}
+        >
+          View
+        </button>
+      )}
     </div>
   );
 }

@@ -162,6 +162,7 @@ function PriorityList({
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowsRef] = useAutoAnimate<HTMLDivElement>();
+  const [footerWrapRef] = useAutoAnimate<HTMLDivElement>();
   const pathname = usePathname();
   // "Chase now" drawer for reminders that don't have a task yet (start-early
   // path). Holds the freshly-created ChaseTask id returned by the server so
@@ -328,18 +329,24 @@ function PriorityList({
         })}
       </div>
 
-      {/* Footer: Chase + Snooze all */}
-      {openTasks.length > 0 && (
-        <div style={{ padding: "8px 12px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
-          <Button
-            onClick={() => setDrawerOpen(true)}
-            size="sm"
-          >
-            {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
-          </Button>
-          <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
-        </div>
-      )}
+      {/* Footer: Chase all + Snooze all — only when there are 2+ to act on at
+          once. A single reminder is fully covered by its own row's Chase/Snooze,
+          so the footer would just be a redundant duplicate. The wrapper is an
+          auto-animate boundary, so going 2 → 1 fades the footer out and collapses
+          the card tighter instead of leaving a gap. */}
+      <div ref={footerWrapRef}>
+        {openTasks.length > 1 && (
+          <div style={{ padding: "8px 12px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+            <Button
+              onClick={() => setDrawerOpen(true)}
+              size="sm"
+            >
+              Chase all ({milestones.length})
+            </Button>
+            <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
+          </div>
+        )}
+      </div>
 
       {drawerOpen && (
         <ChaseDrawer
