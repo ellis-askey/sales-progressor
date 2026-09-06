@@ -22,7 +22,7 @@ interface Arm {
 }
 
 function pct(n: number, d: number): string {
-  if (!d) return "—";
+  if (!d) return "-";
   return `${Math.round((n / d) * 100)}%`;
 }
 
@@ -34,7 +34,7 @@ function median(nums: number[]): number | null {
 }
 
 function fmtDuration(ms: number | null): string {
-  if (ms === null) return "—";
+  if (ms === null) return "-";
   const sec = Math.round(ms / 1000);
   if (sec < 60) return `${sec}s`;
   const m = Math.floor(sec / 60);
@@ -92,7 +92,7 @@ export default async function ClaimExperimentPage() {
     { label: "Clicked the CTA", hint: "Reached a claim step", a: String(A.clicked), b: String(B.clicked) },
     {
       label: "Click-through rate",
-      hint: "Clicked ÷ shown — the headline number",
+      hint: "Clicked as a share of shown, the headline number",
       a: pct(A.clicked, A.shown),
       b: pct(B.clicked, B.shown),
       highlight: leader === "tie" ? null : (leader as "A" | "B" | null),
