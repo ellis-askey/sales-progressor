@@ -21,13 +21,16 @@ export function buildChainUpdate(vars: {
   recipientName: string; // the connected neighbour agent/agency, e.g. "Bridgewater Estates"
   agencyName: string; // the sending agency, e.g. "Chen & Partners Estate Agents"
   agencyLogoUrl?: string; // optional — the sending agency's uploaded logo
-  sellerName: string; // the buyer who confirmed, e.g. "Marcus Fielding"
+  sellerName: string; // the client who confirmed, e.g. "Marcus Fielding"
+  actorRelation?: string; // how the client relates to the address. Default "the buyer
+  // of" (onward: they're buying it). "the seller of" for the related-sale mirror.
   onwardAddress: string; // full address, for the body, e.g. "22 Willow Road, Richmond, TW9 1PL"
   onwardAddressShort?: string; // shorter form for the hero, e.g. "22 Willow Road, Richmond"
   labels: string[]; // the confirmed steps, e.g. ["contracts exchanged on their sale", ...]
   chainUrl: string;
   unsubscribeUrl?: string;
 }): { subject: string; html: string; text: string } {
+  const actorRelation = (vars.actorRelation ?? "the buyer of").trim();
   const recipientName = escapeHtml(vars.recipientName.trim());
   const agencyName = escapeHtml(vars.agencyName.trim());
   const sellerName = escapeHtml(vars.sellerName.trim());
@@ -64,7 +67,7 @@ export function buildChainUpdate(vars: {
   const body = [
     `<tr><td style="padding:6px 2px 0;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:#374151;">
       <p style="margin:0 0 16px;">Hi ${recipientName},</p>
-      <p style="margin:0;"><strong style="color:#1a1d29;">${sellerName}</strong>, the buyer of <strong style="color:#1a1d29;">${onwardFull}</strong>, has confirmed:</p>
+      <p style="margin:0;"><strong style="color:#1a1d29;">${sellerName}</strong>, ${actorRelation} <strong style="color:#1a1d29;">${onwardFull}</strong>, has confirmed:</p>
     </td></tr>`,
     `<tr><td style="padding:18px 0 0;">${checklist}</td></tr>`,
     `<tr><td style="padding:18px 2px 0;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:#374151;">
@@ -99,7 +102,7 @@ export function buildChainUpdate(vars: {
   const text = [
     `Hi ${vars.recipientName.trim()},`,
     ``,
-    `${vars.sellerName.trim()}, the buyer of ${vars.onwardAddress.trim()}, has confirmed:`,
+    `${vars.sellerName.trim()}, ${actorRelation} ${vars.onwardAddress.trim()}, has confirmed:`,
     ...vars.labels.map((l) => `  - ${capitalise(l)}`),
     ``,
     `The chain has been updated with their progress, so you can see the latest position across the rest of the chain too.`,

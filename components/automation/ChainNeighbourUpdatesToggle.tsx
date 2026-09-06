@@ -32,9 +32,9 @@ export function ChainNeighbourUpdatesToggle({ initialEnabled }: { initialEnabled
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900">Chain neighbour updates</h2>
           <p className="mt-1 text-[13px] leading-relaxed text-slate-500 max-w-xl">
-            When your seller confirms a step on their onward purchase, we let the agent handling
-            that purchase know. Only agents you&rsquo;ve already invited to the chain are ever
-            emailed, and they can unsubscribe anytime.
+            When your buyer or seller confirms a step on their related sale or onward purchase, we
+            let the neighbouring agent handling that sale know. Only agents you&rsquo;ve already
+            invited to the chain are ever emailed, and they can unsubscribe anytime.
           </p>
         </div>
         <button
@@ -56,7 +56,7 @@ export function ChainNeighbourUpdatesToggle({ initialEnabled }: { initialEnabled
         </button>
       </div>
       <p className="mt-3 text-[12.5px] font-medium text-slate-600">
-        {enabled ? "On. Invited onward agents get a heads-up when your seller confirms a step." : "Off. No neighbour updates are sent."}
+        {enabled ? "On. Invited neighbouring agents get a heads-up when your buyer or seller confirms a step." : "Off. No neighbour updates are sent."}
       </p>
       {error && <p className="mt-2 text-[12.5px] text-red-500">{error}</p>}
     </section>

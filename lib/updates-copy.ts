@@ -134,9 +134,31 @@ const NEIGHBOUR_CLAUSES: Record<string, string> = {
   PM25: "{poss} solicitor is ready to exchange",
 };
 
+// Selling-side mirror — the related-sale neighbour email, where the actor is the
+// SELLER of the property the recipient agent is handling. Same possessive style.
+// Covers only the steps a client actually sees on the collapsed tracker (the
+// granular enquiry steps VM11-VM15 are retired, so no clause is needed). Exchange
+// (VM19) and completion (VM20) are capped and never relayed.
+const NEIGHBOUR_CLAUSES_VENDOR: Record<string, string> = {
+  VM1:  "{poss} solicitor has been instructed",
+  VM2:  "{poss} solicitor has the memorandum of sale",
+  VM3:  "{poss} solicitor has sent {poss} welcome pack",
+  VM4:  "{poss} ID and money-laundering checks are done",
+  VM5:  "{poss} solicitor has sent out the property forms",
+  VM6:  "{poss} property forms are back with {poss} solicitor",
+  VM7:  "{poss} solicitor has issued the draft contract pack",
+  VM8:  "{poss} solicitor has requested the management pack",
+  VM9:  "{poss} solicitor has the management pack",
+  VM10: "{poss} solicitor has received the buyer's enquiries",
+  VM21: "{poss} enquiries are all satisfied",
+  VM16: "{poss} contract is ready to sign",
+  VM17: "{poss} signed contract is back with {poss} solicitor",
+  VM18: "{poss} solicitor is ready to exchange",
+};
+
 export function neighbourStepClause(code: string, sideContact: SideContact | null, milestoneName: string): string {
   const poss = sideContact ? clientPronoun([sideContact]) : "their";
-  const template = NEIGHBOUR_CLAUSES[code];
+  const template = NEIGHBOUR_CLAUSES[code] ?? NEIGHBOUR_CLAUSES_VENDOR[code];
   return template ? template.replace(/\{poss\}/g, poss) : milestoneName;
 }
 

@@ -29,6 +29,21 @@ import { greetingName } from "@/lib/contacts/displayName";
 // Several confirmations within this window collapse into one digest email.
 const BATCH_WINDOW_MS = 10 * 60 * 1000;
 
+// Cap the neighbour update at the last step before exchange of contracts. Exchange
+// and completion are legal moments the client SELF-reports — if that report is wrong
+// and the neighbour acts on it (e.g. releases keys), we'd be in the middle of it. Not
+// ours to relay, so we never send for those. Everything up to "ready to exchange"
+// sends. Onward (buying) codes: PM26/PM27. Related sale (selling) codes: VM19/VM20.
+const CAPPED_MILESTONE_CODES = new Set(["PM26", "PM27", "VM19", "VM20"]);
+
+// Direction of a neighbour update, read from the confirmed step code. Onward
+// (buying) steps are PM*; related-sale (selling) steps are VM*. The two never
+// share codes, so the code alone tells us which copy + which client to name.
+type NeighbourDirection = "onward" | "related";
+function directionForCode(code: string): NeighbourDirection {
+  return code.startsWith("VM") ? "related" : "onward";
+}
+
 function baseUrl(): string {
   return process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
 }
@@ -41,6 +56,9 @@ export async function enqueueOnwardNeighbourUpdate(
   sellerTransactionId: string,
   milestoneCode: string,
 ): Promise<void> {
+  // Never relay exchange / completion — not ours to say on a self-reported step.
+  if (CAPPED_MILESTONE_CODES.has(milestoneCode)) return;
+
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: sellerTransactionId },
     select: { chainLinkId: true, agency: { select: { chainNeighbourUpdatesEnabled: true } } },
@@ -73,6 +91,50 @@ export async function enqueueOnwardNeighbourUpdate(
 }
 
 /**
+ * Mirror of enqueueOnwardNeighbourUpdate for the BUYER's related sale. When a buyer
+ * confirms a step on the home they're selling, let the agent handling that sale (the
+ * chain link BELOW) know. Same queue, guardrails and cap; only the direction (below,
+ * not above) and the VM step codes differ. Fire-and-forget from the buyer's portal.
+ */
+export async function enqueueRelatedSaleNeighbourUpdate(
+  buyerTransactionId: string,
+  milestoneCode: string,
+): Promise<void> {
+  // Never relay exchange / completion — not ours to say on a self-reported step.
+  if (CAPPED_MILESTONE_CODES.has(milestoneCode)) return;
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: buyerTransactionId },
+    select: { chainLinkId: true, agency: { select: { chainNeighbourUpdatesEnabled: true } } },
+  });
+  if (!tx?.chainLinkId || !tx.agency?.chainNeighbourUpdatesEnabled) return;
+
+  const ownLink = await prisma.chainLink.findUnique({
+    where: { id: tx.chainLinkId },
+    select: { position: true, chainId: true },
+  });
+  if (!ownLink) return;
+
+  const below = await prisma.chainLink.findFirst({
+    where: { chainId: ownLink.chainId, position: ownLink.position + 1 },
+    select: { id: true, inviteStatus: true, stubAgentEmail: true, transactionId: true },
+  });
+  // Invited, not-yet-joined neighbour with an email — never cold, never a customer.
+  if (!below || below.transactionId !== null || below.inviteStatus !== "SENT" || !below.stubAgentEmail) return;
+
+  await prisma.chainNeighbourUpdate
+    .create({
+      data: {
+        chainLinkId: below.id,
+        transactionId: buyerTransactionId,
+        milestoneCode,
+        scheduledFor: new Date(Date.now() + BATCH_WINDOW_MS),
+      },
+    })
+    .catch(() => {}); // dedup on (chainLinkId, milestoneCode)
+}
+
+/**
  * Send every due update, one email per neighbour (single or digest). Called by
  * the drain cron. Returns how many emails were sent.
  */
@@ -87,18 +149,25 @@ export async function drainChainNeighbourUpdates(now: Date = new Date()): Promis
   });
   if (due.length === 0) return { sent: 0 };
 
-  const byLink = new Map<string, typeof due>();
+  // Group by neighbour link AND direction (onward vs related). Direction is read
+  // from the step code — PM = onward (buying, notify above), VM = related (selling,
+  // notify below) — so a rare neighbour that receives both gets one email per side.
+  const byGroup = new Map<string, typeof due>();
   for (const r of due) {
-    const list = byLink.get(r.chainLinkId) ?? [];
+    const direction = directionForCode(r.milestoneCode);
+    const key = `${r.chainLinkId}::${direction}`;
+    const list = byGroup.get(key) ?? [];
     list.push(r);
-    byLink.set(r.chainLinkId, list);
+    byGroup.set(key, list);
   }
 
   let sent = 0;
-  for (const [chainLinkId, rows] of byLink) {
+  for (const rows of byGroup.values()) {
+    const chainLinkId = rows[0].chainLinkId;
+    const direction = directionForCode(rows[0].milestoneCode);
     const rowIds = rows.map((r) => r.id);
     try {
-      const emailed = await sendNeighbourGroup(chainLinkId, rows);
+      const emailed = await sendNeighbourGroup(chainLinkId, rows, direction);
       // Mark sent whether we emailed or dropped (opted out / suppressed) so we
       // never retry a dropped neighbour forever. Only a thrown send error leaves
       // the rows for the next drain.
@@ -114,6 +183,7 @@ export async function drainChainNeighbourUpdates(now: Date = new Date()): Promis
 async function sendNeighbourGroup(
   chainLinkId: string,
   rows: { transactionId: string; milestoneCode: string }[],
+  direction: NeighbourDirection,
 ): Promise<boolean> {
   const link = await prisma.chainLink.findUnique({
     where: { id: chainLinkId },
@@ -126,20 +196,28 @@ async function sendNeighbourGroup(
   if (!link || link.transactionId !== null || link.inviteStatus !== "SENT" || !link.stubAgentEmail) return false;
   if (await isInviteEmailSuppressed(chainLinkId)) return false;
 
-  const sellerTransactionId = rows[0].transactionId;
-  const seller = await prisma.propertyTransaction.findUnique({
-    where: { id: sellerTransactionId },
+  // Onward: our client is the SELLER (vendor) buying the neighbour's property above.
+  // Related: our client is the buyer whose SELLER-side sale the neighbour handles
+  // below — the actor we name is the purchaser on our file.
+  const isRelated = direction === "related";
+  const actorRelation = isRelated ? "the seller of" : "the buyer of";
+  const actorRole = isRelated ? "purchaser" : "vendor";
+  const fallbackActor = isRelated ? "your seller" : "your buyer";
+
+  const sourceTransactionId = rows[0].transactionId;
+  const source = await prisma.propertyTransaction.findUnique({
+    where: { id: sourceTransactionId },
     select: {
       agency: { select: { name: true, chainNeighbourUpdatesEnabled: true } },
-      contacts: { where: { roleType: "vendor" }, select: { name: true }, take: 1 },
+      contacts: { where: { roleType: actorRole }, select: { name: true }, take: 1 },
     },
   });
-  if (!seller?.agency?.chainNeighbourUpdatesEnabled) return false;
+  if (!source?.agency?.chainNeighbourUpdatesEnabled) return false;
 
   // Raw name drives the pronoun (his/her from a title, else their); the display
   // name drops the honorific (voice rule: no titles in rendered names). So
   // "Mr Marcus Fielding" shows as "Marcus Fielding" but reads "his".
-  const rawName = seller.contacts[0]?.name ?? "your buyer";
+  const rawName = source.contacts[0]?.name ?? fallbackActor;
   const displayName = rawName.replace(/^(mr|mrs|ms|miss|dr|prof|sir|dame|lord|lady)\.?\s+/i, "").trim() || rawName;
   const onwardAddress = link.stubPropertyAddress ?? "the property";
 
@@ -153,10 +231,10 @@ async function sendNeighbourGroup(
   // mortgage offer") — never the seller's own second-person portal wording.
   const labels = codes.map((c) => neighbourStepClause(c, { name: rawName }, nameByCode.get(c) ?? c));
 
-  const sender = await resolveChainInviteSender(sellerTransactionId, {
-    name: seller.agency.name,
+  const sender = await resolveChainInviteSender(sourceTransactionId, {
+    name: source.agency.name,
     agencyId: null,
-    agencyName: seller.agency.name,
+    agencyName: source.agency.name,
   });
 
   const claimUrl = link.inviteToken ? `${baseUrl()}/claim?token=${link.inviteToken}` : `${baseUrl()}/`;
@@ -166,6 +244,7 @@ async function sendNeighbourGroup(
     recipientName: greetingName(link.stubAgentName),
     agencyName: sender.displayAgency,
     sellerName: displayName,
+    actorRelation,
     onwardAddress,
     labels,
     chainUrl: claimUrl,

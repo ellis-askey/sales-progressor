@@ -27,6 +27,7 @@ import {
   type UndoOnwardResult,
 } from "@/lib/services/onward";
 import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
+import { enqueueRelatedSaleNeighbourUpdate } from "@/lib/services/chain-neighbour-updates";
 
 const KIND = "related_sale" as const;
 
@@ -92,6 +93,12 @@ export async function portalConfirmRelatedSaleStepAction(input: {
     { source: "buyer", contactId: p.contactId },
     KIND,
   );
+  // Mirror of the seller onward note: let the agent handling this sale (the link
+  // below) know a step moved. Invited neighbours only, agency opt-in, capped before
+  // exchange. Fire-and-forget — never blocks or breaks the client's confirm.
+  if (result.ok) {
+    void enqueueRelatedSaleNeighbourUpdate(p.transactionId, input.milestoneCode).catch(() => {});
+  }
   revalidatePortal(input.token);
   const view = await getOnwardTrackerView(p.transactionId, KIND);
   return { result, view };
