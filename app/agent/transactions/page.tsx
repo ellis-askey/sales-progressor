@@ -295,7 +295,7 @@ export default async function AllTransactionsPage({
           </div>
           )
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-5 agent-fade-up">
             {/* Exchange forecast — compact month-pill strip. Refactored
              * 2026-05-12 from tall card to single-row filter affordance.
              * Hidden when hub filter is active (banner replaces forecast in

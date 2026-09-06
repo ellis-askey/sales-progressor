@@ -188,7 +188,7 @@ export default async function AgentPartnersPage() {
   return (
     <>
       <PageHeader title="Partners" subtitle="Solicitors, brokers, and preferred professional partners." />
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-4 agent-stagger">
 
         {showOnboarding ? (
           <PartnersEmptyState

@@ -85,6 +85,18 @@ export type HubSubtitleSignals = {
   attentionCount: number;     // files flagged as needing attention
 };
 
+// Cheap "does this agent have any real files at all?" — a single scoped count,
+// used to send a brand-new (zero-sale) account straight to the empty state
+// without the loading card. Demo + draft rows don't count as a real sale.
+// Same scope as every other hub query, so it can't leak across tenants.
+export async function hubHasFiles(vis: AgentVisibility): Promise<boolean> {
+  const row = await prisma.propertyTransaction.findFirst({
+    where: { ...buildTxWhere(vis), isDemo: false, status: { not: "draft" } },
+    select: { id: true },
+  });
+  return row !== null;
+}
+
 export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSubtitleSignals> {
   const txWhere = buildTxWhere(vis);
   const now = new Date();

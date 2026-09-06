@@ -17,7 +17,7 @@ export function AllFilesEmptyState() {
   const { launch, node } = useDemoExplore();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{

@@ -13,7 +13,7 @@ const SHOW_UPDATES_GUIDE = false;
 // update, so the cards are info-only until the guides are built.
 export function CommsEmptyState() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{

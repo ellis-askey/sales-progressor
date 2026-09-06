@@ -70,7 +70,7 @@ export default async function AgentTodoPage() {
           <TodoEmptyState canUseProgressor={hasOutsourced} />
         </div>
       ) : (
-        <div className="px-4 md:px-8 py-2 md:py-4" style={{ maxWidth: 680 }}>
+        <div className="px-4 md:px-8 py-2 md:py-4 agent-fade-up" style={{ maxWidth: 680 }}>
           <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
         </div>
       )}

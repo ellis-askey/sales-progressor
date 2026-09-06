@@ -25,7 +25,7 @@ import {
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles,
-  getHubSubtitleSignals,
+  getHubSubtitleSignals, hubHasFiles,
 } from "@/lib/services/hub";
 import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
@@ -52,6 +52,7 @@ import Link from "next/link";
 import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb } from "@phosphor-icons/react/dist/ssr";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { TypedText } from "@/components/agent/TypedText";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -226,7 +227,13 @@ export default async function Hub() {
   return (
     <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-      <PageHeader title={greeting} subtitle={subtitle}>
+      {/* Typed in on mount: the header only renders once the greeting + subtitle
+          are known (the loader stays blank), so there's no name-pops-in-late or
+          subtitle-changes flash — it types straight to the final text. */}
+      <PageHeader
+        title={<TypedText text={greeting} speed={32} />}
+        subtitle={<TypedText text={subtitle} speed={20} startDelay={Array.from(greeting).length * 32 + 200} showCaret={false} />}
+      >
         {canCreateSale && (
           <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
             <Plus size={14} weight="bold" />
@@ -251,8 +258,13 @@ export default async function Hub() {
         {/* Body gate — decides empty vs full. NO outer SectionReveal wrap here:
             wrapping the body would fade everything as one block and swallow
             the per-section cascade. Each slot below owns its own SectionReveal
-            with an `order` prop so they cascade top-to-bottom. */}
-        <Suspense fallback={<LoadingCard label="Loading your hub" minHeight={140} />}>
+            with an `order` prop so they cascade top-to-bottom.
+
+            Fallback is null (a brief blank), not the loading card: a brand-new
+            account (no files) resolves to the empty state directly, so it never
+            sees a skeleton. Accounts that DO have files fall through to the
+            inner boundary below, which keeps the loading card for the real load. */}
+        <Suspense fallback={null}>
           <BodyGate ctx={ctx} />
         </Suspense>
 
@@ -270,10 +282,27 @@ export default async function Hub() {
 // ── BodyGate — pipeline zero + attention zero → welcome empty state ─────────
 
 async function BodyGate({ ctx }: { ctx: Ctx }) {
+  // Cheap first: a brand-new account (no real files) goes straight to the empty
+  // state, with no loading card — this runs behind the null fallback above, so
+  // it's a brief blank, then the empty state. Only accounts that actually have
+  // files pay for the heavier pipeline + attention load, which keeps its card.
+  const hasFiles = await hubHasFiles(ctx.vis);
+  if (!hasFiles) return <EmptyStateBody ctx={ctx} />;
+  return (
+    <Suspense fallback={<LoadingCard label="Loading your hub" minHeight={140} />}>
+      <FullBodyGate ctx={ctx} />
+    </Suspense>
+  );
+}
+
+async function FullBodyGate({ ctx }: { ctx: Ctx }) {
   const [pipelineStats, attentionItems] = await Promise.all([
     getHubPipelineStats(ctx.vis),
     getHubAttentionItems(ctx.vis),
   ]);
+  // Rare: has files but they're all e.g. completed/withdrawn, so nothing is
+  // active or needs attention. Keep the exact original semantics — show the
+  // empty state (this path has already shown the loading card).
   const isEmpty = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
   if (isEmpty) return <EmptyStateBody ctx={ctx} />;
   return (

@@ -126,6 +126,25 @@
   to   { opacity: 0; transform: translateY(-3px); }
 }
 
+/* First-load cascade — content rises + fades in on mount instead of popping. */
+@keyframes agent-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Typewriter caret (components/agent/TypedText.tsx) — blinks while typing. */
+.tsp-type-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  opacity: 0.65;
+  animation: tsp-caret-blink 900ms steps(1, end) infinite;
+}
+@keyframes tsp-caret-blink { 0%, 50% { opacity: 0.65; } 50.01%, 100% { opacity: 0; } }
+
 @keyframes agent-dropdown-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0);    }
@@ -1807,6 +1826,18 @@
   .agent-reveal-in  { animation: agent-reveal-in  150ms ease-out both; }
   .agent-reveal-out { animation: agent-reveal-out 150ms ease-in  both; }
 
+  /* First-load fade-up cascade. Put .agent-stagger on a container and its direct
+   * children rise + fade in, in order (hero first, then the next block, …).
+   * Reusable across every empty/first-run state. */
+  .agent-fade-up      { animation: agent-fade-up 520ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .agent-stagger > *  { animation: agent-fade-up 520ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .agent-stagger > *:nth-child(1) { animation-delay: 0ms;   }
+  .agent-stagger > *:nth-child(2) { animation-delay: 90ms;  }
+  .agent-stagger > *:nth-child(3) { animation-delay: 180ms; }
+  .agent-stagger > *:nth-child(4) { animation-delay: 270ms; }
+  .agent-stagger > *:nth-child(5) { animation-delay: 360ms; }
+  .agent-stagger > *:nth-child(6) { animation-delay: 450ms; }
+
   /* ── Dropdown entrance ───────────────────────────────────────────────────── */
   /* Apply on mount. Direction note: downward-opening = translateY(-4px→0).
    * Upward-opening dropdowns (e.g. user nav) need translateY(+4px→0) — invert manually. */
@@ -2007,6 +2038,8 @@
     .agent-rail-item:focus-visible .agent-rail-chevron { transform: none; }
     .agent-reveal-in,
     .agent-reveal-out,
+    .agent-fade-up,
+    .agent-stagger > *,
     .agent-dropdown-in,
     .agent-dropdown-out,
     .agent-row-flash,

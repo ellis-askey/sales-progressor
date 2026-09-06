@@ -10,17 +10,14 @@
 import Link from "next/link";
 import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { LoadingCard } from "@/components/loading/LoadingCard";
-
-function loadingGreeting(): string {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening.";
-}
 
 export default function HubLoading() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <PageHeader title={loadingGreeting()} subtitle="Here's what matters today.">
+      {/* Greeting is intentionally blank here (non-breaking spaces reserve the
+          height): the real header only appears once the name + subtitle are
+          known, then types itself in — so nothing flashes or pops in late. */}
+      <PageHeader title={" "} subtitle={" "}>
         <Link
           href="/agent/transactions/new"
           className="agent-btn agent-btn-primary agent-btn-sm"
@@ -31,12 +28,14 @@ export default function HubLoading() {
         </Link>
       </PageHeader>
 
+      {/* No loading card here: the hub decides empty-vs-full behind a brief
+          blank, and a populated hub shows its own loading card via the
+          in-component Suspense boundary. This keeps a brand-new account from
+          ever seeing a skeleton, and avoids a card→blank→card flicker. */}
       <div
         className="hub-content-pad"
         style={{ padding: "8px 32px 24px", display: "flex", flexDirection: "column", gap: 20 }}
-      >
-        <LoadingCard label="Loading your hub" />
-      </div>
+      />
     </div>
   );
 }

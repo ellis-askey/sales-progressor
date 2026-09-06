@@ -397,7 +397,10 @@ function SpotlightOverlay({
   };
   const veil = "rgba(15, 23, 42, 0.42)";
   const panelTransition = reducedMotion ? "none" : "all 240ms cubic-bezier(0.22,1,0.36,1)";
-  const panelBase: React.CSSProperties = { position: "fixed", background: veil, pointerEvents: "auto", transition: panelTransition };
+  // Transparent now — the veil itself is drawn by the ring's box-shadow below so
+  // it follows the hole's ROUNDED corners. These four panels stay only to block
+  // clicks on the dimmed area (the hole is left open + clickable).
+  const panelBase: React.CSSProperties = { position: "fixed", background: "transparent", pointerEvents: "auto", transition: panelTransition };
 
   // Guide-card placement.
   const roomBelow = vh - (hole.t + hole.h);
@@ -413,7 +416,8 @@ function SpotlightOverlay({
 
   return (
     <>
-      {/* Dim frame — four panels leave the target hole open + clickable. */}
+      {/* Click-blockers around the hole (transparent). The visible dim veil is
+          drawn by the ring's rounded box-shadow so its corners aren't square. */}
       <div style={{ ...panelBase, top: 0, left: 0, width: "100vw", height: hole.t }} />
       <div style={{ ...panelBase, top: hole.t + hole.h, left: 0, width: "100vw", height: Math.max(vh - (hole.t + hole.h), 0) }} />
       <div style={{ ...panelBase, top: hole.t, left: 0, width: hole.l, height: hole.h }} />
@@ -428,7 +432,10 @@ function SpotlightOverlay({
           // Grow the target's radius by the hole padding so the ring's curve
           // stays concentric with the card's rounded corner.
           borderRadius: rect.radius + HOLE_PAD,
-          boxShadow: "0 0 0 2px var(--agent-coral), 0 0 0 6px rgba(var(--agent-coral-rgb), 0.22)",
+          // The huge final layer IS the dim veil — because it sits on this
+          // rounded element, its inner cut-out follows the rounded corners
+          // (the four panels above are transparent, just click-blockers).
+          boxShadow: `0 0 0 2px var(--agent-coral), 0 0 0 6px rgba(var(--agent-coral-rgb), 0.22), 0 0 0 9999px ${veil}`,
           pointerEvents: "none",
           transition: reducedMotion ? "none" : "all 240ms cubic-bezier(0.22,1,0.36,1)",
         }}
