@@ -271,6 +271,23 @@ export function ChainDrawer({
     }
   }
 
+  async function handleUploadPhoto(linkId: string, file: File): Promise<void> {
+    if (!chain) return;
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/chains/${chain.id}/links/${linkId}/photo`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error ?? "Couldn't upload that photo");
+      return;
+    }
+    toast.success("Photo added");
+    await fetchChain();
+  }
+
   async function handleSaveIntel(linkId: string, input: ChainNodeIntelInput) {
     // Server action re-checks edit permission (lib/chain/intel.ts); throws on
     // failure so LinkCard surfaces the inline error. Refetch to show saved values.
@@ -469,6 +486,11 @@ export function ChainDrawer({
         onMoveUp={opts.onMoveUp}
         onMoveDown={opts.onMoveDown}
         onAddOnward={opts.onAddOnward}
+        onUploadPhoto={
+          canEditLink(link, currentUserId, currentUserRole)
+            ? (id, file) => handleUploadPhoto(id, file)
+            : undefined
+        }
       />
     );
   };

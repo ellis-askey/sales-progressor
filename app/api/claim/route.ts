@@ -19,6 +19,7 @@ import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
 import { sendClaimWelcomeIfNotSent } from "@/lib/emails/send-claim-welcome";
 import { normaliseAddressString } from "@/lib/utils/address";
+import { deleteFromStorage } from "@/lib/supabase-storage";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import type { Tenure, PurchaseType } from "@prisma/client";
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
       inviteTokenExpiresAt: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
+      stubPhotoStoragePath: true,
       chain: {
         select: {
           createdByUserId: true,
@@ -205,6 +207,9 @@ export async function POST(req: NextRequest) {
           claimedByUserId: session.user.id,
           claimedAt: new Date(),
           inviteStatus: "CLAIMED",
+          // Wipe the internal stub photo — the claiming agent starts from an empty
+          // tile on their own file, which nudges them to add their own.
+          stubPhotoStoragePath: null,
         },
       });
 
@@ -267,6 +272,11 @@ export async function POST(req: NextRequest) {
           err,
         );
       }
+    }
+
+    // Remove the now-orphaned stub photo object (best-effort).
+    if (link.stubPhotoStoragePath) {
+      deleteFromStorage(link.stubPhotoStoragePath).catch(() => {});
     }
 
     // Stage 3 (onward inheritance): retire the seller-below's reported onward
@@ -336,6 +346,8 @@ export async function POST(req: NextRequest) {
         claimedByUserId: session.user.id,
         claimedAt: new Date(),
         inviteStatus: "CLAIMED",
+        // Wipe the internal stub photo — the claiming agent starts fresh.
+        stubPhotoStoragePath: null,
       },
     });
 
@@ -344,6 +356,11 @@ export async function POST(req: NextRequest) {
       data: { chainLinkId: link.id },
     });
   });
+
+  // Remove the now-orphaned stub photo object (best-effort).
+  if (link.stubPhotoStoragePath) {
+    deleteFromStorage(link.stubPhotoStoragePath).catch(() => {});
+  }
 
   // Stage 3 (onward inheritance): retire the seller-below's reported onward tracker.
   supersedeOnwardTrackerForLink(link.id).catch((err) =>

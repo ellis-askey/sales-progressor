@@ -122,6 +122,11 @@ export type ChainLinkV2 = {
   stubAgentName: string | null;
   stubAgentPhone: string | null;
   stubNotes: string | null;
+  // Signed URL (1h) for this link's property photo, resolved at query time: the
+  // claimed transaction's photo when claimed, else the internal stub photo set on
+  // an unclaimed link. Null → the card shows the house placeholder. Optional so
+  // hand-built demo/dev link objects are unaffected.
+  photoUrl?: string | null;
   inviteStatus: string;
   inviteSentAt: Date | null;
   inviteBouncedAt: Date | null;
@@ -310,6 +315,7 @@ const LINK_V2_SELECT = {
   stubAgentName: true,
   stubAgentPhone: true,
   stubNotes: true,
+  stubPhotoStoragePath: true,
   inviteStatus: true,
   inviteSentAt: true,
   inviteBouncedAt: true,
@@ -558,7 +564,7 @@ export async function getChainV2(
   // links). Unsigned/absent paths simply fall back to the house illustration.
   const { getSignedUrlMap } = await import("@/lib/supabase-storage");
   const photoMap = await getSignedUrlMap(
-    chain.links.map((l) => l.transaction?.photoStoragePath),
+    chain.links.flatMap((l) => [l.transaction?.photoStoragePath, l.stubPhotoStoragePath]),
     3600,
   ).catch(() => new Map<string, string>());
 
@@ -641,10 +647,14 @@ export async function getChainV2(
         expectedTimescale,
         chainNotes,
         lastChainCheckAt,
+        stubPhotoStoragePath,
         transaction: rawTx,
         createdBy: rawCreatedBy,
         ...linkRest
       } = l;
+      // Signed URL for the internal stub photo on an unclaimed link. The raw path
+      // is stripped here (never reaches the wire); only the signed URL ships.
+      const stubPhotoUrl = stubPhotoStoragePath ? photoMap.get(stubPhotoStoragePath) ?? null : null;
       // Rebuild createdBy as {id, name} — the raw row also carries agencyId (for
       // the intel gate below), which must not reach the wire.
       const createdBy = rawCreatedBy ? { id: rawCreatedBy.id, name: rawCreatedBy.name } : null;
@@ -683,6 +693,7 @@ export async function getChainV2(
         return {
           ...linkRest,
           createdBy,
+          photoUrl: stubPhotoUrl,
           transaction: null,
           progressPercent: null,
           predictedExchangeDate: null,
@@ -725,6 +736,10 @@ export async function getChainV2(
       // is the valuePence aggregate above.
       return {
         ...linkRest,
+        // Link-level photo: the claimed transaction's signed photo (falls back to
+        // the stub photo if somehow set). Mirrors transaction.photoUrl below so the
+        // card can read one field regardless of claimed/unclaimed.
+        photoUrl: photoUrl ?? stubPhotoUrl,
         // Explicit public allowlist — id, address, status, agencyId, price, photo,
         // buyer-position label. assignedUserId / agentUserId / clientFirstTimeBuyer
         // stay in txnPublic and are intentionally dropped (only the derived label ships).

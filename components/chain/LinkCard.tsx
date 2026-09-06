@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useState, useEffect, useRef, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent, type ChangeEvent as ReactChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { getChainLinkStatus, chainLinkStatusLabel } from "@/lib/chain/status";
@@ -12,6 +12,7 @@ import { formatChainPriceFull } from "@/lib/chain/summary";
 import { Pill, type PillProps } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
+import { prepareImageForUpload } from "@/lib/images/prepare-upload";
 import type { ChainLinkV2, ChainNodeIntel } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 
@@ -110,6 +111,10 @@ type LinkCardProps = {
   /** Save this node's private chain intel. Present only where the viewer may
    *  edit; the card also gates on link.canEditIntel. */
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
+  /** Upload an internal property photo for this (unclaimed) link. Present only
+   *  where the viewer may edit the stub; the tile becomes a hover-camera dropzone.
+   *  Resolves once the chain has refreshed with the new photo. */
+  onUploadPhoto?: (linkId: string, file: File) => Promise<void>;
   /** Per-direction response state for cascade-aware badge rendering.
    *  Computed at /api/chains and passed down. Omitted → falls back to the
    *  single denormalised link.withdrawalStatus for backwards safety. */
@@ -593,6 +598,7 @@ export function LinkCard({
   onMoveUp,
   onMoveDown,
   onAddOnward,
+  onUploadPhoto,
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
@@ -657,8 +663,28 @@ export function LinkCard({
   // Position tag — "· your file" wins, else the chain-end tag.
   const positionTag = isYourFile ? "your file" : edge ?? null;
 
-  // Photo — real signed URL on claimed links, else the house illustration.
-  const photoUrl = link.transaction?.photoUrl ?? null;
+  // Photo — link-level signed URL (claimed transaction photo, or internal stub
+  // photo on an unclaimed link), else the house illustration.
+  const photoUrl = link.photoUrl ?? link.transaction?.photoUrl ?? null;
+
+  // Internal stub-photo upload: the tile becomes a hover-camera dropzone while the
+  // viewer may edit this (unclaimed) stub. onUploadPhoto is only passed when the
+  // drawer's permission check (canEditLink) allows it, so its presence is the gate.
+  const canUploadPhoto = !!onUploadPhoto && isUnclaimed;
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  async function onPhotoPicked(e: ReactChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file after an error
+    if (!file || !onUploadPhoto) return;
+    setPhotoBusy(true);
+    try {
+      const { file: prepared } = await prepareImageForUpload(file);
+      await onUploadPhoto(link.id, prepared);
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   // Price is private to each agent: only ever shown on the viewer's OWN file
   // (the server strips purchasePrice from every other link). On your own file
@@ -691,11 +717,44 @@ export function LinkCard({
       onClick={expandable ? handleCardToggle : undefined}
       style={expandable ? { cursor: "pointer" } : undefined}
     >
-      {/* Property photo — real signed URL on claimed links, else the chain
-          placeholder illustration. */}
-      <div className="chain-photo">
+      {/* Property photo — signed URL (claimed file or internal stub photo), else
+          the chain placeholder illustration. On unclaimed links the originator /
+          internal staff can click to upload (hover reveals a camera). */}
+      <div className={`chain-photo${canUploadPhoto ? " chain-photo-editable" : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={photoUrl ?? "/chain-empty-photo.png"} alt="" loading="lazy" />
+        {canUploadPhoto && (
+          <>
+            <button
+              type="button"
+              className="chain-photo-upload"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoBusy}
+              aria-label={photoUrl ? "Replace photo" : "Add photo"}
+            >
+              {photoBusy ? (
+                <span className="chain-photo-spinner" aria-hidden="true" />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M4 8.5A1.5 1.5 0 0 1 5.5 7h1.7l.9-1.5A1 1 0 0 1 8.95 5h6.1a1 1 0 0 1 .86.5L16.8 7h1.7A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9Z"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12.5" r="3.1" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              )}
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+              onChange={onPhotoPicked}
+              style={{ display: "none" }}
+            />
+          </>
+        )}
       </div>
 
       <div className="chain-body">

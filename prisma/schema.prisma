@@ -1889,6 +1889,12 @@ model ChainLink {
   stubAgentName       String?
   stubAgentPhone      String?
   stubNotes           String?
+  // Internal-only property thumbnail for an unclaimed link, uploaded from the
+  // chain drawer by the originator or internal staff. Object path in the private
+  // `transaction-documents` bucket (chain-stub-photos/{linkId}.{ext}), signed on
+  // read like PropertyTransaction.photoStoragePath. Cleared (and the object
+  // deleted) the moment the link is claimed, so the claiming agent starts fresh.
+  stubPhotoStoragePath String?
 
   // Invite tracking
   inviteStatus           InviteStatus @default(NOT_SENT)
