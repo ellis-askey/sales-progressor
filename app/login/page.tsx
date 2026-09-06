@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
-import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { WarmLoginForm } from "@/components/login/WarmLoginForm";
 import { BrandMark } from "@/components/brand/BrandMark";
 
@@ -20,59 +19,63 @@ export default async function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <SunriseBackground />
+    <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
+      {/* Architectural line-drawing background (agent desk + UK street). The
+          centre of the artwork is clean white space, where the card sits. A
+          faint white veil keeps the card area legible on narrow screens where
+          the illustration crops inward. */}
+      <div aria-hidden style={{
+        position: "fixed", inset: 0, zIndex: 0,
+        backgroundColor: "#ffffff",
+        backgroundImage: "url(/login-bg.png)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }} />
+      <div aria-hidden style={{
+        position: "fixed", inset: 0, zIndex: 1,
+        background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
+      }} />
 
-      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "380px" }}>
+      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
 
-        <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-          <div style={{ display: "inline-flex", marginBottom: "1.25rem" }}>
-            <BrandMark />
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          {/* Logo lockup: coral mark + TSP / SALES PROGRESSOR wordmark. */}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
+            <BrandMark size={38} />
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1 }}>
+              <span style={{ fontSize: "20px", fontWeight: 800, color: "#FF6B4A", letterSpacing: "0.02em" }}>TSP</span>
+              <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
+            </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "1.625rem", fontWeight: 600, color: "#3D1F0E", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-            Welcome back.
+          <h1 style={{ margin: 0, fontSize: "1.9rem", fontWeight: 800, color: "#20242E", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
+            Welcome back<span style={{ color: "#FF6B4A" }}>.</span>
           </h1>
-          <p style={{ margin: "0.4rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
+          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
             Sign in to Sales Progressor
           </p>
         </div>
 
         <div style={{
-          background: "rgba(255,255,255,0.38)",
-          backdropFilter: "blur(40px) saturate(180%)",
-          WebkitBackdropFilter: "blur(40px) saturate(180%)",
-          borderRadius: "16px",
-          border: "0.5px solid rgba(255,255,255,0.60)",
-          borderTop: "0.5px solid rgba(255,255,255,0.82)",
+          background: "#ffffff",
+          borderRadius: "18px",
+          border: "1px solid rgba(23,23,30,0.06)",
           padding: "1.75rem",
-          boxShadow: "0 20px 60px rgba(200,80,30,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.14)",
+          boxShadow: "0 18px 50px rgba(30,20,15,0.10), 0 4px 14px rgba(30,20,15,0.05)",
         }}>
           <WarmLoginForm />
         </div>
 
-        <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
-            {["SSL encrypted", "GDPR compliant", "UK data"].map((item, i, arr) => (
-              <span key={item} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "11px", color: "rgba(61,31,14,0.52)" }}>{item}</span>
-                {i < arr.length - 1 && <span style={{ fontSize: "11px", color: "rgba(61,31,14,0.25)" }}>·</span>}
-              </span>
-            ))}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "#4CAF50", animation: "lp-pulse 2s ease-in-out infinite" }} />
-            <span style={{ fontSize: "11px", color: "rgba(61,31,14,0.50)" }}>All systems operational</span>
-          </div>
+        <div style={{ marginTop: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
+          {["SSL encrypted", "GDPR compliant", "UK data"].map((item, i, arr) => (
+            <span key={item} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.45)" }}>{item}</span>
+              {i < arr.length - 1 && <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.22)" }}>·</span>}
+            </span>
+          ))}
         </div>
 
       </div>
-
-      <style>{`
-        @keyframes lp-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: 0.6; transform: scale(0.85); }
-        }
-      `}</style>
     </div>
   );
 }

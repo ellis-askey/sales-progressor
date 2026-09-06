@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
@@ -23,11 +21,11 @@ function stripNameChars(v: string): string {
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  background: "rgba(255,255,255,0.50)",
-  border: "0.5px solid rgba(255,255,255,0.70)",
-  borderRadius: "8px",
-  padding: "10px 14px",
-  color: "#3D1F0E",
+  background: "#F4F4F6",
+  border: "0.5px solid rgba(45,24,16,0.12)",
+  borderRadius: "10px",
+  padding: "11px 14px",
+  color: "#20242E",
   fontSize: "16px",
   outline: "none",
   transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
@@ -36,16 +34,14 @@ const inputStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: "11px",
-  fontWeight: 500,
-  color: "#7A4A2E",
+  fontSize: "12px",
+  fontWeight: 600,
+  color: "#3F3F46",
   marginBottom: "6px",
-  letterSpacing: "0.01em",
+  letterSpacing: "0.005em",
 };
 
 export default function RegisterPage() {
-  const router = useRouter();
-
   // First-touch attribution handoff from the marketing site: the /register URL
   // carries utm_*/sp_* params. Persist them to a short-lived first-party cookie
   // so they survive both the password POST and the Google OAuth round-trip; the
@@ -144,7 +140,10 @@ export default function RegisterPage() {
     });
 
     if (result?.ok) {
-      router.push("/agent/hub");
+      // Full navigation (not router.push) so the pre-paint ThemeModeBoot script
+      // runs on the agent app's first load — a client nav skips it and the shell
+      // paints a frame with the wrong theme (the "weird nav" on first sign-up).
+      window.location.assign("/agent/hub");
     } else {
       setLoading(false);
       setError("Account created but sign-in failed. Please go to sign in.");
@@ -152,23 +151,39 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <SunriseBackground />
+    <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
+      {/* Architectural line-drawing background. Centre is clean white space for
+          the card; a faint white veil keeps it legible on narrow screens. */}
+      <div aria-hidden style={{
+        position: "fixed", inset: 0, zIndex: 0,
+        backgroundColor: "#ffffff",
+        backgroundImage: "url(/register-bg.png)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }} />
+      <div aria-hidden style={{
+        position: "fixed", inset: 0, zIndex: 1,
+        background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
+      }} />
 
       <style>{`
-        .ri::placeholder { color: rgba(61,31,14,0.42); }
+        .ri::placeholder { color: rgba(32,36,46,0.38); }
+        .ri:hover:not(:focus) {
+          border-color: rgba(255,138,101,0.45) !important;
+        }
         .ri:focus {
-          background: rgba(255,255,255,0.62) !important;
-          border-color: rgba(255,255,255,0.95) !important;
-          box-shadow: 0 0 0 3px rgba(255,138,101,0.16);
+          background: #ffffff !important;
+          border-color: #FF6B4A !important;
+          box-shadow: none !important;
         }
         .ri-pr { padding-right: 42px !important; }
         .rbtn:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 8px 28px rgba(216,90,53,0.45) !important;
+          box-shadow: 0 8px 28px rgba(255,107,74,0.45) !important;
         }
         .rbtn:active:not(:disabled) { transform: scale(0.98); }
-        .rback:hover { color: #3D1F0E !important; }
+        .rback:hover { color: #20242E !important; }
         @keyframes rpulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%       { opacity: 0.6; transform: scale(0.85); }
@@ -176,9 +191,9 @@ export default function RegisterPage() {
         /* Subtle attention nudge — fires when user hovers the disabled
            submit button. Coral box-shadow blooms outward and fades. */
         @keyframes ri-nudge {
-          0%   { box-shadow: 0 0 0 0 rgba(216,90,53,0.40); }
-          50%  { box-shadow: 0 0 0 6px rgba(216,90,53,0.18); }
-          100% { box-shadow: 0 0 0 0 rgba(216,90,53,0); }
+          0%   { box-shadow: 0 0 0 0 rgba(255,107,74,0.40); }
+          50%  { box-shadow: 0 0 0 6px rgba(255,107,74,0.18); }
+          100% { box-shadow: 0 0 0 0 rgba(255,107,74,0); }
         }
         .ri-nudge { animation: ri-nudge 700ms ease-out; border-radius: 8px; }
       `}</style>
@@ -186,37 +201,38 @@ export default function RegisterPage() {
       <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
 
         {/* Brand mark + heading */}
-        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          <div style={{ display: "inline-flex", marginBottom: "1.1rem" }}>
-            <BrandMark />
+        <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "1.1rem" }}>
+            <BrandMark size={38} />
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1 }}>
+              <span style={{ fontSize: "20px", fontWeight: 800, color: "#FF6B4A", letterSpacing: "0.02em" }}>TSP</span>
+              <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
+            </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 600, color: "#3D1F0E", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+          <h1 style={{ margin: 0, fontSize: "1.9rem", fontWeight: 800, color: "#20242E", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
             Create your account
           </h1>
-          <p style={{ margin: "0.35rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
+          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
             {step === 1 ? "Step 1 of 2: your details" : "Step 2 of 2: Set up your agency"}
           </p>
         </div>
 
         {/* Step indicator */}
-        <div style={{ display: "flex", gap: "6px", marginBottom: "1.1rem" }}>
-          <div style={{ flex: 1, height: "3px", borderRadius: "2px", background: "#D85A35" }} />
+        <div style={{ display: "flex", gap: "8px", marginBottom: "1.1rem" }}>
+          <div style={{ flex: 1, height: "4px", borderRadius: "999px", background: "#FF6B4A" }} />
           <div style={{
-            flex: 1, height: "3px", borderRadius: "2px",
-            background: step === 2 ? "#D85A35" : "rgba(61,31,14,0.15)",
+            flex: 1, height: "4px", borderRadius: "999px",
+            background: step === 2 ? "#FF6B4A" : "rgba(32,36,46,0.12)",
             transition: "background 0.3s ease",
           }} />
         </div>
 
-        {/* Frosted glass card */}
+        {/* Card */}
         <div style={{
-          background: "rgba(255,255,255,0.38)",
-          backdropFilter: "blur(40px) saturate(180%)",
-          WebkitBackdropFilter: "blur(40px) saturate(180%)",
-          borderRadius: "16px",
-          border: "0.5px solid rgba(255,255,255,0.60)",
-          borderTop: "0.5px solid rgba(255,255,255,0.82)",
-          boxShadow: "0 20px 60px rgba(200,80,30,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.14)",
+          background: "#ffffff",
+          borderRadius: "18px",
+          border: "1px solid rgba(23,23,30,0.06)",
+          boxShadow: "0 18px 50px rgba(30,20,15,0.10), 0 4px 14px rgba(30,20,15,0.05)",
           overflow: "hidden",
         }}>
           <div style={{
@@ -250,7 +266,7 @@ export default function RegisterPage() {
                       onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters"
                       required autoComplete="new-password" style={inputStyle} />
                     <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
-                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(61,31,14,0.40)", padding: 0, display: "flex" }}>
+                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(32,36,46,0.40)", padding: 0, display: "flex" }}>
                       {showPassword ? (
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
@@ -274,8 +290,8 @@ export default function RegisterPage() {
                   <div style={{ position: "relative", marginTop: "1px", flexShrink: 0 }}>
                     <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
                     <div style={{
-                      width: "16px", height: "16px", borderRadius: "4px", border: `1.5px solid ${termsAccepted ? "#D85A35" : "rgba(61,31,14,0.30)"}`,
-                      background: termsAccepted ? "#D85A35" : "rgba(255,255,255,0.50)",
+                      width: "16px", height: "16px", borderRadius: "4px", border: `1.5px solid ${termsAccepted ? "#FF6B4A" : "rgba(32,36,46,0.30)"}`,
+                      background: termsAccepted ? "#FF6B4A" : "rgba(255,255,255,0.50)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       transition: "all 0.15s ease",
                     }}>
@@ -286,20 +302,20 @@ export default function RegisterPage() {
                       )}
                     </div>
                   </div>
-                  <span style={{ fontSize: "12px", color: "rgba(61,31,14,0.60)", lineHeight: 1.5 }}>
+                  <span style={{ fontSize: "12px", color: "rgba(32,36,46,0.60)", lineHeight: 1.5 }}>
                     I agree to the{" "}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#D85A35", textDecoration: "underline", textUnderlineOffset: "2px" }}>Terms of Service</a>
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}>Terms of Service</a>
                     {" "}and{" "}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#D85A35", textDecoration: "underline", textUnderlineOffset: "2px" }}>Privacy Policy</a>
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}>Privacy Policy</a>
                   </span>
                 </label>
 
                 <button type="submit" disabled={!step1Valid} className="rbtn" style={{
                   width: "100%", padding: "12px", borderRadius: "8px",
-                  background: step1Valid ? "#D85A35" : "rgba(220,90,55,0.40)",
+                  background: step1Valid ? "#FF6B4A" : "rgba(255,107,74,0.40)",
                   color: "white", fontSize: "14px", fontWeight: 500, border: "none",
                   cursor: step1Valid ? "pointer" : "not-allowed",
-                  boxShadow: "0 4px 20px rgba(216,90,53,0.30)",
+                  boxShadow: "0 4px 20px rgba(255,107,74,0.30)",
                   transition: "transform 0.15s ease, box-shadow 0.15s ease",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                 }}>
@@ -309,9 +325,9 @@ export default function RegisterPage() {
                   </svg>
                 </button>
 
-                <p style={{ textAlign: "center", fontSize: "12px", color: "#7A4A2E", margin: 0 }}>
+                <p style={{ textAlign: "center", fontSize: "12px", color: "#8A8A94", margin: 0 }}>
                   Already have an account?{" "}
-                  <Link href="/login" style={{ color: "#D85A35", fontWeight: 500, textDecoration: "none" }}>Sign in</Link>
+                  <Link href="/login" style={{ color: "#FF6B4A", fontWeight: 500, textDecoration: "none" }}>Sign in</Link>
                 </p>
               </form>
             )}
@@ -344,16 +360,16 @@ export default function RegisterPage() {
                       <label key={value} style={{
                         display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
                         borderRadius: "10px", cursor: "pointer",
-                        border: `1.5px solid ${role === value ? "#D85A35" : "rgba(255,255,255,0.50)"}`,
-                        background: role === value ? "rgba(216,90,53,0.08)" : "rgba(255,255,255,0.30)",
+                        border: `1.5px solid ${role === value ? "#FF6B4A" : "rgba(32,36,46,0.12)"}`,
+                        background: role === value ? "rgba(255,107,74,0.08)" : "#F4F4F6",
                         transition: "all 0.15s ease",
                       }}>
                         <div style={{ position: "relative", marginTop: "2px", flexShrink: 0 }}>
                           <input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
                           <div style={{
                             width: "16px", height: "16px", borderRadius: "50%",
-                            border: `2px solid ${role === value ? "#D85A35" : "rgba(61,31,14,0.30)"}`,
-                            background: role === value ? "#D85A35" : "rgba(255,255,255,0.50)",
+                            border: `2px solid ${role === value ? "#FF6B4A" : "rgba(32,36,46,0.30)"}`,
+                            background: role === value ? "#FF6B4A" : "rgba(255,255,255,0.50)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             transition: "all 0.15s ease",
                           }}>
@@ -361,8 +377,8 @@ export default function RegisterPage() {
                           </div>
                         </div>
                         <div>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#3D1F0E" }}>{label}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)", lineHeight: 1.4 }}>{sub}</p>
+                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#20242E" }}>{label}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "rgba(32,36,46,0.55)", lineHeight: 1.4 }}>{sub}</p>
                         </div>
                       </label>
                     ))}
@@ -380,10 +396,10 @@ export default function RegisterPage() {
                 <div onMouseEnter={nudgeAgencyIfEmpty}>
                 <button type="submit" disabled={loading || !firmName.trim()} className="rbtn" style={{
                   width: "100%", padding: "12px", borderRadius: "8px",
-                  background: (loading || !firmName.trim()) ? "rgba(220,90,55,0.40)" : "#D85A35",
+                  background: (loading || !firmName.trim()) ? "rgba(255,107,74,0.40)" : "#FF6B4A",
                   color: "white", fontSize: "14px", fontWeight: 500, border: "none",
                   cursor: (loading || !firmName.trim()) ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 20px rgba(216,90,53,0.30)",
+                  boxShadow: "0 4px 20px rgba(255,107,74,0.30)",
                   transition: "transform 0.15s ease, box-shadow 0.15s ease",
                 }}>
                   {loading ? LOADING_MESSAGES[msgIndex] : "Create account"}
@@ -391,7 +407,7 @@ export default function RegisterPage() {
                 </div>
 
                 <button type="button" onClick={backToStep1} className="rback" style={{
-                  width: "100%", padding: "8px", fontSize: "12px", color: "rgba(61,31,14,0.45)",
+                  width: "100%", padding: "8px", fontSize: "12px", color: "rgba(32,36,46,0.45)",
                   background: "none", border: "none", cursor: "pointer",
                   transition: "color 0.12s ease",
                 }}>
@@ -404,9 +420,9 @@ export default function RegisterPage() {
         </div>
 
         {/* Footer note */}
-        <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(61,31,14,0.45)", marginTop: "1.25rem" }}>
+        <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(32,36,46,0.45)", marginTop: "1.25rem" }}>
           Already part of an existing agency?{" "}
-          <span style={{ color: "rgba(61,31,14,0.60)" }}>Ask your administrator to invite you.</span>
+          <span style={{ color: "rgba(32,36,46,0.60)" }}>Ask your administrator to invite you.</span>
         </p>
 
       </div>

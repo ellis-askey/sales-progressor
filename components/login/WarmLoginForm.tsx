@@ -2,14 +2,12 @@
 
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { GoogleIcon } from "./GoogleIcon"
 import { MicrosoftIcon } from "./MicrosoftIcon"
 import { loginPrecheck } from "@/app/actions/login-precheck"
 
 export function WarmLoginForm() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -24,7 +22,10 @@ export function WarmLoginForm() {
       setLoading(false)
       setError(code !== undefined ? "That code isn't right. Try again, or use a backup code." : "Incorrect email or password.")
     } else {
-      router.push("/")
+      // Full navigation (not router.push) so the pre-paint ThemeModeBoot script
+      // runs on the agent app's first load — a client nav skips it and the shell
+      // paints a frame with the wrong theme (the "weird nav" on first sign-in).
+      window.location.assign("/")
       // loading stays true — component unmounts on navigation, no flash
     }
   }
@@ -59,11 +60,11 @@ export function WarmLoginForm() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    background: "rgba(255,255,255,0.65)",
-    border: "1px solid rgba(61,31,14,0.18)",
-    borderRadius: "8px",
-    padding: "10px 14px",
-    color: "#3D1F0E",
+    background: "#F4F4F6",
+    border: "0.5px solid rgba(45,24,16,0.12)",
+    borderRadius: "10px",
+    padding: "11px 14px",
+    color: "#20242E",
     fontSize: "16px",
     outline: "none",
     transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
@@ -74,14 +75,14 @@ export function WarmLoginForm() {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
-    minHeight: "44px",
+    minHeight: "46px",
     padding: "10px 12px",
-    borderRadius: "8px",
+    borderRadius: "10px",
     background: "#FFFFFF",
-    border: "1px solid rgba(255,138,101,0.22)",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.03)",
-    color: "#3D1F0E",
-    fontSize: "13px",
+    border: "1px solid rgba(23,23,30,0.10)",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    color: "#20242E",
+    fontSize: "14px",
     fontWeight: 500,
     cursor: "pointer",
     transition: "all 0.15s ease",
@@ -90,26 +91,26 @@ export function WarmLoginForm() {
   return (
     <>
       <style>{`
-        .wi::placeholder { color: rgba(110,60,30,0.50); }
+        .wi::placeholder { color: rgba(32,36,46,0.38); }
         .wi:hover:not(:focus) {
-          border-color: rgba(216,90,53,0.55) !important;
+          border-color: rgba(255,138,101,0.45) !important;
         }
         .wi:focus {
-          background: rgba(255,255,255,0.78) !important;
-          border-color: #D85A35 !important;
+          background: #ffffff !important;
+          border-color: #FF6B4A !important;
           box-shadow: none !important;
         }
         .wi-pw { padding-right: 42px !important; }
         .wbtn:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 8px 28px rgba(216,90,53,0.45) !important;
+          box-shadow: 0 8px 28px rgba(255,107,74,0.45) !important;
         }
         .wbtn:active:not(:disabled) { transform: scale(0.98); }
-        .wlink:hover { color: #3D1F0E !important; }
-        .wcreate:hover { color: #B0432A !important; }
+        .wlink:hover { color: #E55B3D !important; }
+        .wcreate:hover { color: #E55B3D !important; }
         .woauth:hover:not(:disabled) {
           background: rgba(255,255,255,1) !important;
-          border-color: rgba(255,138,101,0.40) !important;
+          border-color: rgba(23,23,30,0.18) !important;
           box-shadow: 0 2px 6px rgba(0,0,0,0.07), 0 4px 10px rgba(0,0,0,0.05) !important;
           transform: translateY(-1px);
         }
@@ -153,13 +154,13 @@ export function WarmLoginForm() {
 
         {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ flex: 1, height: "0.5px", background: "rgba(61,31,14,0.15)" }} />
-          <span style={{ fontSize: "11px", color: "rgba(61,31,14,0.40)", whiteSpace: "nowrap" }}>or sign in with email</span>
-          <div style={{ flex: 1, height: "0.5px", background: "rgba(61,31,14,0.15)" }} />
+          <div style={{ flex: 1, height: "1px", background: "rgba(32,36,46,0.10)" }} />
+          <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.42)", whiteSpace: "nowrap" }}>or sign in with email</span>
+          <div style={{ flex: 1, height: "1px", background: "rgba(32,36,46,0.10)" }} />
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#7A4A2E", marginBottom: "6px", letterSpacing: "0.01em" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#3F3F46", marginBottom: "6px", letterSpacing: "0.005em" }}>
             Email address
           </label>
           <input
@@ -176,7 +177,7 @@ export function WarmLoginForm() {
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#7A4A2E", marginBottom: "6px", letterSpacing: "0.01em" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#3F3F46", marginBottom: "6px", letterSpacing: "0.005em" }}>
             Password
           </label>
           <div style={{ position: "relative" }}>
@@ -214,7 +215,7 @@ export function WarmLoginForm() {
 
         {stage === "totp" && (
           <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#7A4A2E", marginBottom: "6px", letterSpacing: "0.01em" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#3F3F46", marginBottom: "6px", letterSpacing: "0.005em" }}>
               Authenticator code
             </label>
             <input
@@ -250,7 +251,7 @@ export function WarmLoginForm() {
 
         {stage === "password" && (
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <Link href="/forgot-password" className="wlink" style={{ fontSize: "11px", color: "#7A4A2E", textDecoration: "none", transition: "color 0.12s ease" }}>
+            <Link href="/forgot-password" className="wlink" style={{ fontSize: "12px", fontWeight: 500, color: "#FF6B4A", textDecoration: "none", transition: "color 0.12s ease" }}>
               Forgot password?
             </Link>
           </div>
@@ -264,13 +265,13 @@ export function WarmLoginForm() {
             width: "100%",
             padding: "12px",
             borderRadius: "8px",
-            background: submitDisabled ? "rgba(220,90,55,0.45)" : "#D85A35",
+            background: submitDisabled ? "rgba(255,107,74,0.45)" : "#FF6B4A",
             color: "white",
-            fontSize: "14px",
-            fontWeight: 500,
+            fontSize: "15px",
+            fontWeight: 600,
             border: "none",
             cursor: submitDisabled ? "not-allowed" : "pointer",
-            boxShadow: "0 4px 20px rgba(216,90,53,0.35)",
+            boxShadow: "0 4px 20px rgba(255,107,74,0.35)",
             transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
           }}
         >
@@ -278,9 +279,9 @@ export function WarmLoginForm() {
         </button>
 
         {stage === "password" && (
-          <p style={{ textAlign: "center", fontSize: "12px", color: "#7A4A2E", margin: 0 }}>
+          <p style={{ textAlign: "center", fontSize: "13px", color: "#8A8A94", margin: 0 }}>
             Estate agent?{" "}
-            <Link href="/register" className="wcreate" style={{ color: "#D2553A", fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
+            <Link href="/register" className="wcreate" style={{ color: "#FF6B4A", fontWeight: 600, textDecoration: "none", transition: "color 0.12s ease" }}>
               Create an account
             </Link>
           </p>
