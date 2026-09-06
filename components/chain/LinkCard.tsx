@@ -100,6 +100,13 @@ type LinkCardProps = {
   onResendInvite?: (linkId: string) => void;
   onEditStub?: (link: ChainLinkV2) => void;
   onDeleteStub?: (linkId: string) => void;
+  /** Copy a manual share link for this (unclaimed) slot to the clipboard. Present
+   *  only where the viewer may edit the stub; creates the link on first use, then
+   *  re-copies the same one. Lives in the ⋯ menu. */
+  onCopyShareLink?: (linkId: string) => void;
+  /** Revoke this slot's manual share link. Shown in the ⋯ menu only where the
+   *  viewer may edit the stub AND a link currently exists (link.hasShareLink). */
+  onRevokeShareLink?: (linkId: string) => void;
   /** Move this link one step up/down the chain. Present only while the creator
    *  may reorder (all links still their own unclaimed stubs) and there's a
    *  neighbour in that direction. */
@@ -594,6 +601,8 @@ export function LinkCard({
   onResendInvite,
   onEditStub,
   onDeleteStub,
+  onCopyShareLink,
+  onRevokeShareLink,
   onSaveIntel,
   onMoveUp,
   onMoveDown,
@@ -708,6 +717,10 @@ export function LinkCard({
   const canStubActions = link.canEditStub ?? (isOriginator && isUnclaimed);
   const menuItems: MenuItem[] = [];
   if (canStubActions && onEditStub) menuItems.push({ label: "Edit", onClick: () => onEditStub(link) });
+  // Manual share link (⋯ menu): Copy always available on an editable stub; Revoke
+  // only once a link exists. Both sit below Edit, above Remove.
+  if (canStubActions && onCopyShareLink) menuItems.push({ label: "Copy share link", onClick: () => onCopyShareLink(link.id) });
+  if (canStubActions && onRevokeShareLink && link.hasShareLink) menuItems.push({ label: "Revoke share link", onClick: () => onRevokeShareLink(link.id) });
   if (onAddOnward) menuItems.push({ label: "Add another onward purchase", onClick: onAddOnward });
   if (canStubActions && onDeleteStub) menuItems.push({ label: "Remove", onClick: () => onDeleteStub(link.id), danger: true });
 

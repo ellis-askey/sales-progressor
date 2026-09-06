@@ -59,12 +59,14 @@ export default async function ClaimConfirmPage({
   }
 
   const link = await prisma.chainLink.findFirst({
-    where: { inviteToken: token },
+    // Emailed invite token OR manually-shared share token — same slot either way.
+    where: { OR: [{ inviteToken: token }, { shareToken: token }] },
     select: {
       id: true,
       transactionId: true,
       inviteStatus: true,
       inviteTokenExpiresAt: true,
+      shareToken: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
       chain: {
@@ -94,7 +96,7 @@ export default async function ClaimConfirmPage({
         body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
-  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
+  if (link.shareToken !== token && link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
     return (
       <ClaimError
         title="This invite has expired."

@@ -65,12 +65,14 @@ export async function POST(req: NextRequest) {
   }
 
   const link = await prisma.chainLink.findFirst({
-    where: { inviteToken: token },
+    // Emailed invite token OR manually-shared share token — same slot either way.
+    where: { OR: [{ inviteToken: token }, { shareToken: token }] },
     select: {
       id: true,
       transactionId: true,
       inviteStatus: true,
       inviteTokenExpiresAt: true,
+      shareToken: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
       stubPhotoStoragePath: true,
@@ -94,7 +96,9 @@ export async function POST(req: NextRequest) {
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED") {
     return NextResponse.json({ error: "This invite has already been claimed" }, { status: 409 });
   }
-  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) {
+  // Share links never expire; only the emailed invite token carries an expiry.
+  const isShareToken = link.shareToken != null && link.shareToken === token;
+  if (!isShareToken && link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) {
     return NextResponse.json({ error: "This invite link has expired" }, { status: 410 });
   }
 
@@ -210,6 +214,10 @@ export async function POST(req: NextRequest) {
           // Wipe the internal stub photo — the claiming agent starts from an empty
           // tile on their own file, which nudges them to add their own.
           stubPhotoStoragePath: null,
+          // The slot is claimed now — retire any manual share link so a stale copy
+          // can't resolve (the guards above already block re-claiming regardless).
+          shareToken: null,
+          shareTokenCreatedAt: null,
         },
       });
 
@@ -348,6 +356,9 @@ export async function POST(req: NextRequest) {
         inviteStatus: "CLAIMED",
         // Wipe the internal stub photo — the claiming agent starts fresh.
         stubPhotoStoragePath: null,
+        // Retire any manual share link now the slot is claimed.
+        shareToken: null,
+        shareTokenCreatedAt: null,
       },
     });
 

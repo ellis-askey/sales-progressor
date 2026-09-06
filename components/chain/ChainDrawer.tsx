@@ -271,6 +271,36 @@ export function ChainDrawer({
     }
   }
 
+  // Manual share link: create-or-return the slot's token, copy it, and refetch so
+  // the ⋯ menu gains "Revoke" on the next open. Separate from the email invite.
+  async function handleCopyShareLink(linkId: string) {
+    if (!chain) return;
+    try {
+      const res = await fetch(`/api/chains/${chain.id}/links/${linkId}/share`, { method: "POST" });
+      const data: { url?: string } = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        toast.error("Couldn't create the share link");
+        return;
+      }
+      await navigator.clipboard.writeText(data.url);
+      toast.success("Link copied");
+      await fetchChain();
+    } catch {
+      toast.error("Couldn't copy the share link");
+    }
+  }
+
+  async function handleRevokeShareLink(linkId: string) {
+    if (!chain) return;
+    const res = await fetch(`/api/chains/${chain.id}/links/${linkId}/share`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Share link revoked");
+      await fetchChain();
+    } else {
+      toast.error("Couldn't revoke the share link");
+    }
+  }
+
   async function handleUploadPhoto(linkId: string, file: File): Promise<void> {
     if (!chain) return;
     const form = new FormData();
@@ -482,6 +512,16 @@ export function ChainDrawer({
         }
         onEditStub={mayEditStub ? (l) => { onOpenAddNode?.("above", chainId, l); } : undefined}
         onDeleteStub={mayEditStub ? (id) => setConfirmingDeleteId(id) : undefined}
+        onCopyShareLink={
+          canEditLink(link, currentUserId, currentUserRole)
+            ? (id) => { void handleCopyShareLink(id); }
+            : undefined
+        }
+        onRevokeShareLink={
+          canEditLink(link, currentUserId, currentUserRole)
+            ? (id) => { void handleRevokeShareLink(id); }
+            : undefined
+        }
         onSaveIntel={handleSaveIntel}
         onMoveUp={opts.onMoveUp}
         onMoveDown={opts.onMoveDown}

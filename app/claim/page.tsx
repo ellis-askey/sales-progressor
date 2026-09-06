@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { displayChainPosition } from "@/lib/chain/positions";
-import { recordInviteViewed } from "@/lib/chain/funnel";
+import { recordInviteViewed, recordShareLinkViewed } from "@/lib/chain/funnel";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { claimVariantFor, parseVariantOverride } from "@/lib/chain/claim-experiment";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
@@ -86,11 +86,14 @@ export default async function ClaimPage({
     return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const link = await prisma.chainLink.findFirst({
-    where: { inviteToken: token },
+    // Reached by the emailed invite token OR a manually-shared share token — the
+    // same slot either way. shareToken selected so we can tell which was used.
+    where: { OR: [{ inviteToken: token }, { shareToken: token }] },
     select: {
       id: true,
       inviteStatus: true,
       inviteTokenExpiresAt: true,
+      shareToken: true,
       transactionId: true,
       inviteSentAt: true,
       stubPropertyAddress: true,
@@ -126,6 +129,8 @@ export default async function ClaimPage({
         body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
+  // Which token got them here. A share link has no expiry; the emailed invite does.
+  const isShareToken = link.shareToken != null && link.shareToken === token;
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
@@ -133,7 +138,7 @@ export default async function ClaimPage({
         body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
-  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
+  if (!isShareToken && link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
     return (
       <ClaimError
         title="This invite has expired."
@@ -160,14 +165,18 @@ export default async function ClaimPage({
   // A/B experiment: which claim card this invite sees. Frozen deterministic split
   // by link id (see lib/chain/claim-experiment.ts). `?variant=a|b` is a preview
   // override — it changes what renders but records nothing, so it can't skew data.
-  const assignedVariant = claimVariantFor(link.id);
+  // A share link always shows the white card (variant B) and never enters the A/B
+  // split — the experiment is for emailed invites only. `?variant=a|b` still previews.
+  const assignedVariant = isShareToken ? "B" : claimVariantFor(link.id);
   const previewVariant = parseVariantOverride(variantParam);
   const activeVariant = previewVariant ?? assignedVariant;
 
-  // Funnel: this is a genuine view of a live invite — they clicked through from
-  // the email and are now seeing the chain. Stamped once. Skipped for previews.
+  // Funnel: a genuine view of a live link. Share views stamp their own column
+  // (source:"share"); emailed-invite views keep the A/B-tagged stamp. Skipped for
+  // previews so the override can't skew data.
   if (!previewVariant) {
-    await recordInviteViewed(link.id, assignedVariant);
+    if (isShareToken) await recordShareLinkViewed(link.id);
+    else await recordInviteViewed(link.id, assignedVariant);
   }
 
   const session = await getServerSession(authOptions);

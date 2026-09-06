@@ -48,12 +48,14 @@ export default async function ClaimDeclinePage({
   }
 
   const link = await prisma.chainLink.findFirst({
-    where: { inviteToken: token },
+    // Emailed invite token OR manually-shared share token — same slot either way.
+    where: { OR: [{ inviteToken: token }, { shareToken: token }] },
     select: {
       id: true,
       chainId: true,
       inviteStatus: true,
       inviteTokenExpiresAt: true,
+      shareToken: true,
       transactionId: true,
       stubPropertyAddress: true,
       stubAgentEmail: true,
@@ -102,7 +104,9 @@ export default async function ClaimDeclinePage({
     );
   }
 
-  const isExpired = link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date();
+  // Share links never expire; only the emailed invite token carries an expiry.
+  const isExpired =
+    link.shareToken !== token && link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date();
 
   if (isExpired) {
     return (

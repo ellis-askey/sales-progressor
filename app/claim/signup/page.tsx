@@ -48,12 +48,14 @@ export default async function ClaimSignupPage({
     return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const link = await prisma.chainLink.findFirst({
-    where: { inviteToken: token },
+    // Emailed invite token OR manually-shared share token — same slot either way.
+    where: { OR: [{ inviteToken: token }, { shareToken: token }] },
     select: {
       id: true,
       transactionId: true,
       inviteStatus: true,
       inviteTokenExpiresAt: true,
+      shareToken: true,
       inviteSentAt: true,
       stubAgentEmail: true,
       stubAgencyName: true,
@@ -92,7 +94,7 @@ export default async function ClaimSignupPage({
         body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
-  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
+  if (link.shareToken !== token && link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
     return (
       <ClaimError
         title="This invite has expired."

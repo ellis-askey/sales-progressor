@@ -199,6 +199,11 @@ export type ChainLinkV2 = {
   // a director in the creating agency). Lets the internal team fix an
   // agent-added stub whose real-world details changed. False when no viewer.
   canEditStub?: boolean;
+  // Whether this (unclaimed) slot currently has a live manual share link. Only the
+  // flag ships — never the token itself — so the ⋯ menu can decide whether to offer
+  // "Revoke share link". Gated to editors (same set as canEditStub); false for any
+  // other viewer and for claimed links.
+  hasShareLink?: boolean;
   // Compact onward summary — populated only on the viewer's own sale node, and
   // only while the onward is still a reported stand-in (not superseded/abandoned).
   // Null everywhere else. Optional so hand-built demo links are unaffected.
@@ -316,6 +321,7 @@ const LINK_V2_SELECT = {
   stubAgentPhone: true,
   stubNotes: true,
   stubPhotoStoragePath: true,
+  shareToken: true,
   inviteStatus: true,
   inviteSentAt: true,
   inviteBouncedAt: true,
@@ -648,6 +654,7 @@ export async function getChainV2(
         chainNotes,
         lastChainCheckAt,
         stubPhotoStoragePath,
+        shareToken,
         transaction: rawTx,
         createdBy: rawCreatedBy,
         ...linkRest
@@ -673,6 +680,9 @@ export async function getChainV2(
       // set as intel. A claimed link is a real file — its details live there, not
       // on the stub. This is what lets the internal team edit an agent-added stub.
       const canEditStub = l.transactionId === null && canEditIntel;
+      // Share-link flag — only for editors of an unclaimed stub, and only the
+      // boolean (the token never reaches the wire, stripped via the destructure above).
+      const hasShareLink = canEditStub && !!shareToken;
       const intelVisible = viewer ? canViewNodeIntel(viewer, ownership) : false;
       const intel: ChainNodeIntel | null = intelVisible
         ? {
@@ -702,6 +712,7 @@ export async function getChainV2(
           intel,
           canEditIntel,
           canEditStub,
+          hasShareLink,
           onwardSummary: null,
         };
       }
@@ -760,6 +771,7 @@ export async function getChainV2(
         intel,
         canEditIntel,
         canEditStub,
+        hasShareLink,
         onwardSummary: l.transactionId ? onwardByTx.get(l.transactionId) ?? null : null,
       };
     }),
