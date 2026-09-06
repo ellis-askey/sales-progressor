@@ -82,29 +82,39 @@ export async function GET(req: NextRequest) {
     select: {
       transactionId: true,
       completedAt: true,
+      eventDate: true,
       milestoneDefinition: { select: { code: true, name: true } },
     },
   });
 
-  // Per-transaction map of code → completedAt (for prereq lookup).
+  // Effective date = the real-world eventDate the agent captured on confirm
+  // (pre-filled to today, backdated when catching a file up), falling back to
+  // completedAt (the confirm click) when no eventDate was recorded — e.g. rows
+  // confirmed before eventDate capture shipped, or via paths that don't set it.
+  // Using eventDate makes backdated corrections actually count toward the median.
+  const effDate = (c: { eventDate: Date | null; completedAt: Date | null }): Date | null => c.eventDate ?? c.completedAt;
+
+  // Per-transaction map of code → effective date (for prereq lookup).
   const completionsByTxn = new Map<string, Map<string, Date>>();
   for (const c of allCompletions) {
-    if (!c.completedAt || !c.milestoneDefinition) continue;
+    const eff = effDate(c);
+    if (!eff || !c.milestoneDefinition) continue;
     let m = completionsByTxn.get(c.transactionId);
     if (!m) {
       m = new Map();
       completionsByTxn.set(c.transactionId, m);
     }
-    m.set(c.milestoneDefinition.code, c.completedAt);
+    m.set(c.milestoneDefinition.code, eff);
   }
 
-  // Collect durations per milestone code. Duration = completedAt − latest
-  // direct-prereq completedAt. Skip rows where the proxy is uncomputable
+  // Collect durations per milestone code. Duration = effective date − latest
+  // direct-prereq effective date. Skip rows where the proxy is uncomputable
   // (top-of-tree milestones, or any prereq not in the transaction's set).
   const durationsByCode = new Map<string, number[]>();
   const nameByCode = new Map<string, string>();
   for (const c of allCompletions) {
-    if (!c.completedAt || !c.milestoneDefinition) continue;
+    const eff = effDate(c);
+    if (!eff || !c.milestoneDefinition) continue;
     const code = c.milestoneDefinition.code;
     if (!nameByCode.has(code)) nameByCode.set(code, c.milestoneDefinition.name);
 
@@ -123,7 +133,7 @@ export async function GET(req: NextRequest) {
     }
     if (!allKnown || latestPrereq === null) continue;
 
-    const days = Math.floor((c.completedAt.getTime() - latestPrereq) / DAY_MS);
+    const days = Math.floor((eff.getTime() - latestPrereq) / DAY_MS);
     if (days < 0) continue; // out-of-order completion, skip
     const arr = durationsByCode.get(code) ?? [];
     arr.push(days);
