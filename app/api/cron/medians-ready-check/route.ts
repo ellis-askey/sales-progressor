@@ -59,7 +59,10 @@ export async function GET(req: NextRequest) {
     where: {
       state: "complete",
       reconciledAtClaim: false,
-      transaction: { isMigrated: false },
+      // claimedInProgress excluded alongside isMigrated: a file claimed while
+      // already underway has a claim-day createdAt and backdated/unknown
+      // reconciled dates, so its step durations aren't start-to-finish legit.
+      transaction: { isMigrated: false, claimedInProgress: false },
     },
     select: { transactionId: true },
     distinct: ["transactionId"],
@@ -77,7 +80,9 @@ export async function GET(req: NextRequest) {
     where: {
       state: "complete",
       reconciledAtClaim: false,
-      transaction: { isMigrated: false },
+      // Same exclusion as the readiness count above — claimed-in-progress files
+      // must not contribute step durations to the learned medians.
+      transaction: { isMigrated: false, claimedInProgress: false },
     },
     select: {
       transactionId: true,

@@ -409,6 +409,15 @@ model PropertyTransaction {
   // statistics. Set true by the migration action; defaults false.
   isMigrated Boolean @default(false)
 
+  // True when this file was claimed onto the platform while already in
+  // progress (agent reconciled ≥1 past milestone at claim). Like isMigrated,
+  // it EXCLUDES the file from any date-derived velocity metric: its createdAt
+  // is the claim day, not the day the sale was agreed, and its reconciled
+  // milestones carry backdated or unknown eventDates. Throughput counts,
+  // billing, and risk signals still include it — it is a real live file.
+  // Set by reconcileClaimMilestonesAction; defaults false.
+  claimedInProgress Boolean @default(false)
+
   // Demo showcase file, created by the "Add a demo" button on the add-sale page
   // when an agency has no real sales yet. Fully-populated best-practice example
   // (fake address/contacts/solicitors). Excluded from the trial anchor, billing,

@@ -1201,6 +1201,25 @@ export async function reconcileClaimMilestonesAction(input: {
     }
   }
 
+  // Flag the file as claimed-while-in-progress once any past milestone was
+  // reconciled. This is the single chokepoint both reconciliation paths run
+  // through (inline claim route + deferred ReconcileLaterBanner), so setting
+  // it here catches every case. Date-derived velocity metrics (velocity
+  // medians, days-to-exchange, solicitor averages) read claimedInProgress the
+  // same way they read isMigrated and exclude the file: its createdAt is the
+  // claim day, not the day the sale was agreed. Best-effort — a failed flag
+  // write must not fail the reconciliation.
+  if (applied > 0) {
+    await prisma.propertyTransaction
+      .update({
+        where: { id: input.transactionId },
+        data: { claimedInProgress: true },
+      })
+      .catch((err) => {
+        console.error("[reconcileClaimMilestonesAction] claimedInProgress flag write failed", err);
+      });
+  }
+
   // 2026-07-13 fix (Chunk 2a): sync re-eval so any reminder rules that
   // were dormant waiting on a reconciled milestone's eventDate wake up
   // immediately. reconcile-on-claim writes eventDate on every applied code

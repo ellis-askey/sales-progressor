@@ -389,7 +389,9 @@ async function solicitorExchangeStatsFromWhere(txWhere: Prisma.PropertyTransacti
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
 
   // Phase-3 (a)-CLASS resolved: pre-load active round ids for the cross-tx MC filter below.
-  const stTxWhere = { ...txWhere, isMigrated: false };
+  // claimedInProgress excluded with isMigrated: a claimed-in-progress file's
+  // createdAt is the claim day, so its days-to-exchange would read short.
+  const stTxWhere = { ...txWhere, isMigrated: false, claimedInProgress: false };
   const activeRoundIds = await loadActiveRoundIds(stTxWhere);
 
   const txs = await prisma.propertyTransaction.findMany({
@@ -400,6 +402,11 @@ async function solicitorExchangeStatsFromWhere(txWhere: Prisma.PropertyTransacti
         some: {
           milestoneDefinitionId: { in: exchangeDefIds },
           state: "complete",
+          // Match getAvgDaysToExchange: exclude catch-up completions whose
+          // completedAt is the reconciliation/claim moment, not the real
+          // exchange date. Including them skews per-firm averages short.
+          reconciledAtExchange: false,
+          reconciledAtClaim: false,
           OR: roundScopedOR(activeRoundIds),
         },
       },
@@ -412,6 +419,8 @@ async function solicitorExchangeStatsFromWhere(txWhere: Prisma.PropertyTransacti
         where: {
           milestoneDefinitionId: { in: exchangeDefIds },
           state: "complete",
+          reconciledAtExchange: false,
+          reconciledAtClaim: false,
           OR: roundScopedOR(activeRoundIds),
         },
         select: { completedAt: true },
@@ -615,7 +624,9 @@ export async function getAvgDaysToExchange(
 
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
-      transaction: { ...txWhere, status: { not: DRAFT }, isMigrated: false },
+      // claimedInProgress excluded with isMigrated — days-to-exchange is
+      // measured from createdAt, which is the claim day on a claimed file.
+      transaction: { ...txWhere, status: { not: DRAFT }, isMigrated: false, claimedInProgress: false },
       milestoneDefinitionId: { in: exchangeDefs.map((d) => d.id) },
       state: "complete",
       reconciledAtExchange: false,

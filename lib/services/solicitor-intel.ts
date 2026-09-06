@@ -64,7 +64,10 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
       // averages and decide whether to restructure or carry the
       // distortion. Pre-relist parity: byte-identical.
       vendorForTransactions: {
-        where: { isMigrated: false },
+        // claimedInProgress excluded with isMigrated — weeks-to-exchange is
+        // keyed on createdAt (claim day on a claimed file) and search
+        // turnaround on reconciled dates that may be backdated or unknown.
+        where: { isMigrated: false, claimedInProgress: false },
         select: {
           id: true,
           createdAt: true,
@@ -79,7 +82,8 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
         },
       },
       purchaserForTransactions: {
-        where: { isMigrated: false },
+        // Excluded with isMigrated for the same reason as the vendor side above.
+        where: { isMigrated: false, claimedInProgress: false },
         select: {
           id: true,
           createdAt: true,
