@@ -1287,6 +1287,28 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
   position: relative;
   z-index: 60;
 }
+
+/* ─── Explore-a-demo modal ─────────────────────────────────────────────────── */
+/* Mobile full-screen pop-up slide (desktop keeps agent-modal-in / welcome-zoom-out). */
+@keyframes demo-slide-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes demo-slide-down { from { transform: none; } to { transform: translateY(100%); } }
+
+/* DemoSalePreview reflow (base = desktop, unchanged; ≤750px stacks the photo on top
+   and drops the overview cards to a single column). */
+.demo-preview { min-width: 560px; }
+.demo-hero-card { display: flex; }
+.demo-hero-photo { position: relative; flex: 0 0 210px; min-height: 230px; }
+.demo-hero-photo-img { -webkit-mask-image: linear-gradient(to right, #000 62%, transparent 100%); mask-image: linear-gradient(to right, #000 62%, transparent 100%); }
+.demo-overview-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 1060px) {
+  .demo-preview { min-width: 0; }
+  .demo-hero-card { flex-direction: column; }
+  .demo-hero-photo { flex: none; width: 100%; height: 180px; min-height: 0; }
+  .demo-hero-photo-img { -webkit-mask-image: none; mask-image: none; }
+  .demo-overview-grid { grid-template-columns: 1fr; }
+  /* No "Back to files" on the full-screen pop-up — there's nowhere to go back to. */
+  .demo-back-to-files { display: none !important; }
+}
 /* Internal stub-photo upload: a hover-reveal camera over the tile. */
 .chain-photo-editable { cursor: pointer; }
 .chain-photo-upload { position: absolute; inset: 0; display: flex; align-items: center;
