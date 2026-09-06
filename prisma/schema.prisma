@@ -1896,6 +1896,19 @@ model ChainLink {
   // deleted) the moment the link is claimed, so the claiming agent starts fresh.
   stubPhotoStoragePath String?
 
+  // Manual share link (2026-09-06) — a token the originator / internal staff can
+  // copy from the chain drawer's ⋯ menu and paste into WhatsApp, a text, or an
+  // email, instead of us sending the invite. Resolves to the SAME /claim flow and
+  // claims THIS slot, but is deliberately separate from inviteToken so sending or
+  // resending the email invite never rotates (and therefore breaks) a link that's
+  // already been shared, and hand-shared links can be measured apart from emailed
+  // invites. No expiry; revocable (cleared) from the same menu.
+  // shareTokenCreatedAt stamps first creation. shareLinkFirstViewedAt / claimedAt
+  // mirror the invite funnel stamps for the share path.
+  shareToken             String?      @unique
+  shareTokenCreatedAt    DateTime?
+  shareLinkFirstViewedAt DateTime?
+
   // Invite tracking
   inviteStatus           InviteStatus @default(NOT_SENT)
   inviteToken            String?      @unique
