@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ClaimLoginForm } from "@/components/claim/ClaimLoginForm";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
+import { ClaimLogo } from "@/components/claim/ClaimLogo";
 import { recordClaimStarted } from "@/lib/chain/funnel";
 import "../styles/claim-flow.css";
 
@@ -12,14 +13,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="claim-page">
       <ClaimBackground />
       <header className="claim-header">
-        <a
-          href="https://www.thesalesprogressor.co.uk"
-          target="_blank"
-          rel="noopener"
-          className="claim-wordmark"
-        >
-          The Sales Progressor
-        </a>
+        <ClaimLogo />
       </header>
       {children}
     </div>

@@ -61,6 +61,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/prospects", label: "Prospects", Icon: UserPlus },
       { href: "/command/activation", label: "Getting started", Icon: Zap },
       { href: "/command/chain-invites", label: "Chain invites", Icon: Link2 },
+      { href: "/command/claim-experiment", label: "Claim card test", Icon: FlaskConical },
       { href: "/command/adoption", label: "App adoption", Icon: Smartphone },
       { href: "/command/followup-usage", label: "Feature usage", Icon: BarChart3 },
       { href: "/command/retention", label: "Repeat use", Icon: RefreshCw },

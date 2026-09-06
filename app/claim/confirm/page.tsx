@@ -6,6 +6,7 @@ import { findDuplicateTransactions } from "@/lib/chain/duplicate-detection";
 import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
 import { getOnwardInheritanceForLink, getRelatedSaleInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
+import { ClaimLogo } from "@/components/claim/ClaimLogo";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordClaimStarted } from "@/lib/chain/funnel";
 import "../styles/claim-flow.css";
@@ -15,14 +16,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="claim-page">
       <ClaimBackground />
       <header className="claim-header">
-        <a
-          href="https://www.thesalesprogressor.co.uk"
-          target="_blank"
-          rel="noopener"
-          className="claim-wordmark"
-        >
-          The Sales Progressor
-        </a>
+        <ClaimLogo />
       </header>
       {children}
     </div>

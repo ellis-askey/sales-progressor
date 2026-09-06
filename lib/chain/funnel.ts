@@ -17,15 +17,21 @@ const distinctIdFor = (linkId: string) => `chain-invite-${linkId}`;
 
 // Stamp the first time the invited agent opened the /claim landing page. They can
 // only reach it by clicking the email link, so this IS the email click-through.
-// Idempotent: only the first view stamps and fires the event.
-export async function recordInviteViewed(linkId: string): Promise<void> {
+// Idempotent: only the first view stamps and fires the event. `variant` is the
+// claim-card A/B arm this visitor was shown (see lib/chain/claim-experiment.ts) —
+// carried on the event so PostHog can segment; the DB bucket is recomputed from
+// the link id, so no column is stored.
+export async function recordInviteViewed(linkId: string, variant?: string): Promise<void> {
   try {
     const res = await prisma.chainLink.updateMany({
       where: { id: linkId, inviteFirstViewedAt: null },
       data: { inviteFirstViewedAt: new Date() },
     });
     if (res.count > 0) {
-      await trackServerEvent(distinctIdFor(linkId), ANALYTICS_EVENTS.CHAIN_INVITE_VIEWED, { linkId });
+      await trackServerEvent(distinctIdFor(linkId), ANALYTICS_EVENTS.CHAIN_INVITE_VIEWED, {
+        linkId,
+        ...(variant ? { claimCardVariant: variant } : {}),
+      });
     }
   } catch (err) {
     console.error(`[chain-funnel] recordInviteViewed failed for ${linkId}:`, err);

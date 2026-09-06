@@ -3,6 +3,7 @@ import { fireDeclineNotification } from "@/lib/email/chainNotifications";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
+import { ClaimLogo } from "@/components/claim/ClaimLogo";
 import "../styles/claim-flow.css";
 
 // Performs the decline on page load (side effect in server component, mirrors
@@ -19,14 +20,7 @@ export default async function ClaimDeclinePage({
       <div className="claim-page">
         <ClaimBackground />
         <header className="claim-header">
-          <a
-            href="https://www.thesalesprogressor.co.uk"
-            target="_blank"
-            rel="noopener"
-            className="claim-wordmark"
-          >
-            The Sales Progressor
-          </a>
+          <ClaimLogo />
         </header>
         {children}
       </div>

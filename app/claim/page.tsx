@@ -3,22 +3,36 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordInviteViewed } from "@/lib/chain/funnel";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { claimVariantFor, parseVariantOverride } from "@/lib/chain/claim-experiment";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
+import { ClaimLogo } from "@/components/claim/ClaimLogo";
+import { ClaimCtaButton } from "@/components/claim/ClaimCtaButton";
+import { ClaimInviteCard, type LadderRow } from "@/components/claim/ClaimInviteCard";
 import "./styles/claim-flow.css";
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({
+  children,
+  variant = "A",
+  loginHref,
+}: {
+  children: React.ReactNode;
+  variant?: "A" | "B";
+  loginHref?: string | null;
+}) {
   return (
     <div className="claim-page">
       <ClaimBackground />
-      <header className="claim-header">
-        <a
-          href="https://www.thesalesprogressor.co.uk"
-          target="_blank"
-          rel="noopener"
-          className="claim-wordmark"
-        >
-          The Sales Progressor
-        </a>
+      <header className={variant === "B" ? "claim-header claim-header--b" : "claim-header"}>
+        <ClaimLogo />
+        {variant === "B" && loginHref && (
+          <span className="claim-b-login-wrap">
+            <span className="claim-b-login-label">Already have an account?</span>
+            <a href={loginHref} className="claim-b-login">
+              Log in
+            </a>
+          </span>
+        )}
       </header>
       {children}
     </div>
@@ -64,9 +78,9 @@ function ClaimError({
 export default async function ClaimPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; variant?: string }>;
 }) {
-  const { token } = await searchParams;
+  const { token, variant: variantParam } = await searchParams;
 
   if (!token)
     return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
@@ -84,7 +98,7 @@ export default async function ClaimPage({
       chain: {
         select: {
           createdByUserId: true,
-          createdBy: { select: { name: true, firmName: true } },
+          createdBy: { select: { name: true, firmName: true, image: true } },
           agency: { select: { name: true } },
           links: {
             orderBy: { position: "asc" },
@@ -93,9 +107,11 @@ export default async function ClaimPage({
               position: true,
               transactionId: true,
               stubPropertyAddress: true,
+              stubAgencyName: true,
+              stubPhotoStoragePath: true,
               withdrawalStatus: true,
               claimedBy: { select: { firmName: true } },
-              transaction: { select: { propertyAddress: true, status: true } },
+              transaction: { select: { propertyAddress: true, status: true, photoStoragePath: true } },
             },
           },
         },
@@ -141,9 +157,18 @@ export default async function ClaimPage({
     );
   }
 
+  // A/B experiment: which claim card this invite sees. Frozen deterministic split
+  // by link id (see lib/chain/claim-experiment.ts). `?variant=a|b` is a preview
+  // override — it changes what renders but records nothing, so it can't skew data.
+  const assignedVariant = claimVariantFor(link.id);
+  const previewVariant = parseVariantOverride(variantParam);
+  const activeVariant = previewVariant ?? assignedVariant;
+
   // Funnel: this is a genuine view of a live invite — they clicked through from
-  // the email and are now seeing the chain. Stamped once.
-  await recordInviteViewed(link.id);
+  // the email and are now seeing the chain. Stamped once. Skipped for previews.
+  if (!previewVariant) {
+    await recordInviteViewed(link.id, assignedVariant);
+  }
 
   const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;
@@ -183,6 +208,65 @@ export default async function ClaimPage({
   const visibleLinks = chainLinks.length <= MAX_VISIBLE ? chainLinks : chainLinks.slice(0, MAX_VISIBLE);
   const ghostCount = chainLinks.length > MAX_VISIBLE ? chainLinks.length - MAX_VISIBLE : 0;
 
+  // ── Variant B: the illustrated card with avatar, photos and pills ──────────
+  if (activeVariant === "B") {
+    const shaped = visibleLinks.map((cl) => {
+      const isYours = cl.id === link.id;
+      const isClaimed = cl.transactionId !== null;
+      // Claimed links show the real property photo; unclaimed stub links show the
+      // internal stub photo (uploaded from the chain drawer), else the placeholder.
+      const photoPath = isClaimed
+        ? (cl.transaction?.photoStoragePath ?? null)
+        : (cl.stubPhotoStoragePath ?? null);
+      return {
+        id: cl.id,
+        displayNum: displayChainPosition(cl.position, chainLinks.length),
+        status: (isYours ? "you" : isClaimed ? "joined" : "pending") as LadderRow["status"],
+        address: isClaimed
+          ? (cl.transaction?.propertyAddress ?? "")
+          : isYours
+          ? (link.stubPropertyAddress ?? "")
+          : (cl.stubPropertyAddress ?? ""),
+        agency: cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null,
+        photoPath,
+      };
+    });
+    // Batch-sign every property photo in one round trip (claimed + stub).
+    const signed = await getSignedUrlMap(shaped.map((r) => r.photoPath));
+    const ladder: LadderRow[] = shaped.map((r) => ({
+      id: r.id,
+      displayNum: r.displayNum,
+      status: r.status,
+      address: r.address,
+      agency: r.agency,
+      photoUrl: r.photoPath ? (signed.get(r.photoPath) ?? null) : null,
+    }));
+
+    const yourAddress = link.stubPropertyAddress ?? "your sale";
+    const inviterImage = link.chain.createdBy?.image ?? null;
+    return (
+      <Shell variant="B" loginHref={isLoggedIn ? null : `/claim/login?token=${token}`}>
+        <ClaimInviteCard
+          inviterName={originatorName}
+          inviterAgency={originatorAgency}
+          inviterAvatarUrl={inviterImage ?? "/claim/tsp-avatar.svg"}
+          inviterHasPhoto={!!inviterImage}
+          invitedDate={invitedDate}
+          yourAddress={yourAddress}
+          ladder={ladder}
+          ghostCount={ghostCount}
+          claimHref={claimHref}
+          ctaMicrocopy={
+            showLoginLink
+              ? `You'll claim ${yourAddress} and create your free account.`
+              : `You'll claim ${yourAddress}.`
+          }
+        />
+      </Shell>
+    );
+  }
+
+  // ── Variant A: the original coral hero card (control) ──────────────────────
   return (
     <Shell>
       <div className="claim-container">
@@ -211,8 +295,8 @@ export default async function ClaimPage({
                 ? (cl.transaction?.propertyAddress ?? "")
                 : isYours
                 ? (link.stubPropertyAddress ?? "")
-                : "";
-              const agency = cl.claimedBy?.firmName ?? null;
+                : (cl.stubPropertyAddress ?? "");
+              const agency = cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null;
 
               return (
                 <div key={cl.id}>
@@ -262,19 +346,26 @@ export default async function ClaimPage({
                           )}
                         </>
                       ) : (
-                        <div className="claim-chain-head">
-                          <span
-                            className="claim-chain-address"
-                            style={{
-                              color: "rgba(255,255,255,.5)",
-                              fontStyle: "italic",
-                              fontWeight: 400,
-                            }}
-                          >
-                            Invite pending
-                          </span>
-                          <span className="claim-chain-status">Invite sent</span>
-                        </div>
+                        <>
+                          <div className="claim-chain-head">
+                            {address ? (
+                              <span className="claim-chain-address">{address}</span>
+                            ) : (
+                              <span
+                                className="claim-chain-address"
+                                style={{
+                                  color: "rgba(255,255,255,.5)",
+                                  fontStyle: "italic",
+                                  fontWeight: 400,
+                                }}
+                              >
+                                Invite pending
+                              </span>
+                            )}
+                            <span className="claim-chain-status">Invite sent</span>
+                          </div>
+                          {agency && <div className="claim-chain-agency">{agency}</div>}
+                        </>
                       )}
                     </div>
                   </div>
@@ -334,10 +425,8 @@ export default async function ClaimPage({
 
         {/* CTA */}
         <div className="claim-cta" style={{ marginTop: 20 }}>
-          <a href={claimHref} className="claim-btn">
-            Claim this sale
-          </a>
-          <p className="claim-microcopy">Free 14-day trial · No card needed · Cancel anytime</p>
+          <ClaimCtaButton href={claimHref}>Claim this sale</ClaimCtaButton>
+          <p className="claim-microcopy">Free 14-day trial · No card needed · Secure &amp; private</p>
           {showLoginLink && (
             <p className="claim-link-row">
               Already have an account?{" "}
