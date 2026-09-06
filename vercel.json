@@ -135,6 +135,10 @@
     {
       "path": "/api/cron/outlook-sync",
       "schedule": "0 8-18 * * 1-5"
+    },
+    {
+      "path": "/api/cron/whatsapp-promises",
+      "schedule": "*/30 7-19 * * 1-6"
     }
   ]
 }

@@ -65,6 +65,8 @@ export async function createManualTask(data: {
   dueDate?: string;
   isAgentRequest?: boolean;
   isInternalSelfAssigned?: boolean;
+  // Provenance for auto-created tasks (e.g. the WhatsApp "Promises" scan).
+  sourceMessageId?: string;
 }) {
   const task = await prisma.manualTask.create({
     data: {
@@ -77,6 +79,7 @@ export async function createManualTask(data: {
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       isAgentRequest: data.isAgentRequest ?? false,
       isInternalSelfAssigned: data.isInternalSelfAssigned ?? false,
+      sourceMessageId: data.sourceMessageId ?? null,
     },
     include: {
       transaction: { select: { propertyAddress: true } },

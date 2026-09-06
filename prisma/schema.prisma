@@ -1545,6 +1545,10 @@ model OutboundMessage {
   // interpreter (whatever the outcome), so it isn't re-read on every sync.
   aiInterpretedAt DateTime?
 
+  // "Promises" feature: stamped once an OUTBOUND WhatsApp message has been
+  // scanned for a self-commitment (whatever the outcome), so it isn't re-read.
+  promiseScannedAt DateTime?
+
   // Phase 0 shadow attribution. Stamped only when EVERY contactId on
   // the row resolves to a purchaser-role Contact (and at least one
   // exists). Mixed-side, vendor-only, or solicitor-only rows stay
@@ -1744,6 +1748,9 @@ model ManualTask {
   transactionId          String?
   title                  String
   notes                  String?
+  // Provenance for auto-created tasks (e.g. the WhatsApp "Promises" scan): the
+  // OutboundMessage this task was extracted from. Null for hand-made tasks.
+  sourceMessageId        String?
   progressorNote         String?
   progressorNoteAt       DateTime?
   status                 ManualTaskStatus @default(open)
