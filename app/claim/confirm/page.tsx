@@ -7,6 +7,7 @@ import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
 import { getOnwardInheritanceForLink, getRelatedSaleInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordClaimStarted } from "@/lib/chain/funnel";
 import "../styles/claim-flow.css";
@@ -15,11 +16,26 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="claim-page">
       <ClaimBackground />
-      <header className="claim-header">
+      <header className="claim-header claim-header--b">
         <ClaimLogo />
       </header>
       {children}
     </div>
+  );
+}
+
+// Same house fallback the share card uses, for the property tile when there's no photo.
+function HousePlaceholder() {
+  return (
+    <svg className="claim-b-thumb-house" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 11.5 12 5l8 6.5M6 10v9h12v-9M10 19v-5h4v5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -69,6 +85,7 @@ export default async function ClaimConfirmPage({
       shareToken: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
+      stubPhotoStoragePath: true,
       chain: {
         select: {
           createdByUserId: true,
@@ -189,63 +206,73 @@ export default async function ClaimConfirmPage({
       }
     : null;
 
+  // Property photo for the mini-card: the stub's internal photo if one was set,
+  // else the same house fallback the share card uses.
+  const photoMap = link.stubPhotoStoragePath
+    ? await getSignedUrlMap([link.stubPhotoStoragePath])
+    : null;
+  const photoUrl = link.stubPhotoStoragePath
+    ? photoMap?.get(link.stubPhotoStoragePath) ?? null
+    : null;
+  // Split "5 Cowper Road, Hemel Hempstead, HP1 1PF" into street + town/postcode.
+  const addrIdx = stubAddress.indexOf(",");
+  const addr1 = (addrIdx === -1 ? stubAddress : stubAddress.slice(0, addrIdx)).trim();
+  const addr2 = addrIdx === -1 ? "" : stubAddress.slice(addrIdx + 1).trim();
+
   return (
     <Shell>
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 20px 64px" }}>
-        <div className="claim-context-strip">
-          <a href={`/claim?token=${token}`} className="claim-context-back">
-            ← Back
-          </a>
-          <div className="claim-context-info">
-            <div className="claim-context-label">You&apos;re claiming</div>
-            <div className="claim-context-address">
-              {link.stubPropertyAddress ?? "Your sale"}
-            </div>
-          </div>
-        </div>
+      <div className="claim-confirm-page">
+        <a href={`/claim?token=${token}`} className="claim-confirm-back">← Back to chain</a>
 
-        {/* Summary card — shown when no duplicates */}
-        {!hasDuplicates && (
-          <div className="claim-summary">
-            {stubAddress && (
-              <div className="claim-summary-row">
-                <span className="claim-summary-label">Property</span>
-                <span className="claim-summary-value">{stubAddress}</span>
-              </div>
+        <div className="claim-confirm-head">
+          <h1 className="claim-confirm-title">
+            {hasDuplicates ? (
+              "Looks like you already have this sale"
+            ) : (
+              <>
+                Claim {addr1 || "your sale"}
+                <span className="claim-confirm-dot">.</span>
+              </>
             )}
-            {originatorName && (
-              <div className="claim-summary-row">
-                <span className="claim-summary-label">Invited by</span>
-                <span className="claim-summary-value">
-                  {originatorName}
-                  {originatorAgency ? ` · ${originatorAgency}` : ""}
-                </span>
-              </div>
-            )}
-            <div className="claim-summary-row">
-              <span className="claim-summary-label">Your account</span>
-              <span className="claim-summary-value">{session.user.email}</span>
-            </div>
-            {chainPosition !== null && (
-              <div className="claim-summary-row">
-                <span className="claim-summary-label">Chain position</span>
-                <span className="claim-summary-value">
-                  #{chainPosition} of {totalLinks}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="claim-form-card">
-          <h1 className="claim-confirm-h1">
-            {hasDuplicates ? "Looks like you already have this sale." : "Ready to join this chain"}
           </h1>
-          <p className="claim-confirm-p">
+          <p className="claim-confirm-lede">
             {hasDuplicates
               ? "There's already a sale at this address in your files. Link it to this chain, or start a fresh file."
-              : "Confirm the details below and we’ll link your sale to the chain."}
+              : "Confirm two details and we'll add the sale to your account and connect it to the chain."}
           </p>
+        </div>
+
+        <div className="claim-form-card">
+          {/* Decorative "Two quick details…" annotation in the card's top-right,
+              pointing at the fields. mix-blend-multiply drops its white against the
+              card. Hidden once the card narrows enough to reach the address. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/claim/two-quick-details.png" alt="" aria-hidden="true" className="claim-confirm-hint" />
+          {/* Property mini-card — photo (or the share card's house fallback) + address + your-sale badge */}
+          <div className="claim-confirm-prop">
+            <div className="claim-confirm-prop-photo">
+              {photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoUrl} alt="" />
+              ) : (
+                <HousePlaceholder />
+              )}
+            </div>
+            <div className="claim-confirm-prop-main">
+              <div className="claim-confirm-prop-addr">{addr1 || "Your sale"}</div>
+              {addr2 && <div className="claim-confirm-prop-sub">{addr2}</div>}
+              <div className="claim-confirm-prop-badges">
+                {chainPosition !== null && (
+                  <span className="claim-confirm-badge-num">
+                    {String(chainPosition).padStart(2, "0")}
+                  </span>
+                )}
+                <span className="claim-confirm-badge-you">Your sale</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="claim-confirm-prop-divider" />
 
           <ClaimConfirmForm
             token={token}
@@ -259,6 +286,9 @@ export default async function ClaimConfirmPage({
             inheritance={inheritance}
           />
 
+          <p className="claim-confirm-account">
+            Claiming as <strong>{session.user.email}</strong>
+          </p>
           <p className="claim-wrong-note">
             Wrong invite? <a href={`/claim?token=${token}`}>Go back</a>
           </p>

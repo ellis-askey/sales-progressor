@@ -405,6 +405,24 @@ function computeWeightedProgress(completions: CompletionForChain[]): number | nu
   return Math.round((completedWeight / applicableWeight) * 100);
 }
 
+// Weighted progress (0-100) for one file, reusing the pooled chain math above.
+// Used by the public claim share-link page to show "how far our sale is" without
+// pulling the whole (permission-scoped) chain via getChainV2. Null when the file
+// has no applicable milestones yet.
+export async function getFileProgressPercent(transactionId: string): Promise<number | null> {
+  const completions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId },
+    select: {
+      state: true,
+      eventDate: true,
+      completedAt: true,
+      reconciledAtClaim: true,
+      milestoneDefinition: { select: { code: true, weight: true } },
+    },
+  });
+  return computeWeightedProgress(completions);
+}
+
 // Phase-aware predicted exchange date for a chain link, matching the same
 // model used on the file detail page (calculatePhaseAwarePrediction). Returns
 // null when no completions are available. isEarlyEstimate true means the file

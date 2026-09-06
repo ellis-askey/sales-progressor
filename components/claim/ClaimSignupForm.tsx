@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 
-// Capitalise the first letter of each word, leaving the rest as typed — so "jane"
-// becomes "Jane" but intentional caps like "CJ" or "Mcb" are preserved.
-function capitalizeWords(s: string): string {
-  return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
-}
+// Canonical name tidy: title-case each word but keep all-caps acronyms (BWK, CJ).
+const capitalizeWords = titleCaseKeepAcronyms;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -162,7 +161,7 @@ export function ClaimSignupForm({
             {/* Email — editable, pre-filled from the invite */}
             <div className="claim-field">
               <label className="claim-field-label">Email</label>
-              <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" autoCapitalize="off" placeholder="you@youragency.co.uk" />
+              <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }} required autoComplete="email" autoCapitalize="off" placeholder="you@youragency.co.uk" />
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>
                 We&apos;ve filled this in from the invite. Change it if needed.
               </p>
@@ -193,27 +192,14 @@ export function ClaimSignupForm({
                   <p className="claim-sale-card-eyebrow">About your sale</p>
                   <p className="claim-sale-card-address">{stubAddress}</p>
                 </div>
-                <div>
-                  <label className="claim-field-label">Tenure</label>
-                  <div className="claim-segment-pill-row">
-                    <button type="button" className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`} onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}>Freehold</button>
-                    <button type="button" className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`} onClick={() => setTenure("leasehold")}>Leasehold</button>
-                  </div>
-                </div>
-                <div>
-                  <label className="claim-field-label">Purchase type</label>
-                  <div className="claim-segment-pill-row">
-                    <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
-                    <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
-                    <button type="button" className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from Proceeds</button>
-                  </div>
-                </div>
-                {tenure === "leasehold" && (
-                  <label className="claim-share-of-freehold">
-                    <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => setIsShareOfFreehold(e.target.checked)} />
-                    Share of freehold
-                  </label>
-                )}
+                <ClaimSaleTypeFields
+                  tenure={tenure}
+                  purchaseType={purchaseType}
+                  isShareOfFreehold={isShareOfFreehold}
+                  onTenure={setTenure}
+                  onPurchaseType={setPurchaseType}
+                  onShareOfFreehold={setIsShareOfFreehold}
+                />
               </div>
             </div>
 

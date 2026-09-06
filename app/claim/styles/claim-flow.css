@@ -28,7 +28,10 @@
   min-height: 100vh;
   color: var(--claim-text-1);
   position: relative;
-  overflow-x: hidden;
+  /* clip (not hidden) contains horizontal overflow WITHOUT turning .claim-page
+     into a scroll container — so the header stays sticky to the viewport and
+     nothing is clipped vertically as it fades. */
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 /* Illustrated street backdrop — fixed cover layer that fades up on load. Light
@@ -59,13 +62,16 @@
   50%  { background-position: 100% 100%, 0 0; }
   100% { background-position: 0% 0%, 0 0; }
 }
-.claim-page > .claim-header,
+/* Content sits above the fixed ambient ripples. The header is deliberately NOT
+   in this list — it keeps its own `position: sticky` + z-index:20 rule below
+   (this selector's `position: relative` is more specific and would defeat it). */
 .claim-page > .claim-container,
 .claim-page > .claim-container--narrow,
 .claim-page > .claim-signup-grid,
 .claim-page > .claim-error-wrap,
 .claim-page > .claim-decline-wrap,
-.claim-page > .claim-confirm-shell {
+.claim-page > .claim-confirm-shell,
+.claim-page > .claim-confirm-page {
   position: relative;
   z-index: 2;
 }
@@ -123,6 +129,30 @@
   position: sticky;
   top: 0;
   z-index: 20;
+  /* Don't clip the lockup as it lifts + fades on scroll. */
+  overflow: visible;
+}
+
+/* Scroll-driven fade: the header is fully there at the top, then gently lifts and
+   fades away as the card scrolls up under it — so the logo never fights the card.
+   Runs on the compositor, so it's smooth on mobile too (≤950 the logo sits right
+   above the card). Progressive enhancement: browsers without scroll-driven
+   animations keep the plain sticky bar. Reduced-motion opts out via the block above. */
+@supports (animation-timeline: scroll()) {
+  .claim-header {
+    animation-name: claim-header-fade;
+    animation-fill-mode: both;
+    animation-timeline: scroll(root);
+    animation-range: 24px 170px;
+    will-change: opacity, transform;
+  }
+}
+@keyframes claim-header-fade {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
 }
 .claim-wordmark {
   font-size: 13px;
@@ -766,6 +796,91 @@
 }
 .claim-wrong-note a { color: var(--claim-coral); text-decoration: none; font-weight: 600; }
 
+/* ─── Confirm page — redesigned top (heading + property mini-card) ──────────── */
+.claim-confirm-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 4px 20px 72px;
+  /* Same entrance as the share card on the previous page (bg uses the global
+     claim-bg-fade). The whole block rises as one unit; the card's own animation
+     is switched off below to avoid double-animating. */
+  animation: claim-hero-enter 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 180ms;
+}
+.claim-confirm-page .claim-form-card { animation: none; position: relative; scroll-margin-bottom: 24px; }
+/* Decorative "Two quick details…" hint in the card's top-right, pointing at the
+   fields. mix-blend-multiply drops its white against the white card. Hidden once
+   the card narrows enough that it would reach the address. */
+.claim-confirm-hint {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 148px;
+  height: auto;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  animation: claim-hero-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 320ms;
+}
+@media (max-width: 620px) {
+  .claim-confirm-hint { display: none; }
+}
+.claim-confirm-back {
+  display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 16px;
+  font-size: 13.5px; font-weight: 600; color: var(--claim-text-2); text-decoration: none;
+}
+.claim-confirm-back:hover { color: var(--claim-coral-dark); }
+.claim-confirm-head { text-align: center; margin-bottom: 20px; }
+.claim-confirm-title {
+  margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.025em;
+  color: var(--claim-text-1); line-height: 1.1;
+}
+.claim-confirm-dot { color: var(--claim-coral); }
+.claim-confirm-lede {
+  margin: 12px auto 0; max-width: 440px; font-size: 15.5px; line-height: 1.5; color: var(--claim-text-2);
+}
+.claim-confirm-page .claim-form-card {
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(30, 20, 15, 0.1), 0 4px 14px rgba(30, 20, 15, 0.05);
+}
+/* Property mini-card */
+.claim-confirm-prop { display: flex; align-items: center; gap: 16px; }
+.claim-confirm-prop-photo {
+  width: 92px; height: 74px; flex: none; border-radius: 12px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(125% 100% at 22% 16%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(150deg, #ffece3 0%, #ffd9c9 58%, #ffc9b4 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 107, 74, 0.16);
+}
+.claim-confirm-prop-photo img { width: 100%; height: 100%; object-fit: cover; }
+.claim-confirm-prop-photo .claim-b-thumb-house { width: 30px; height: 30px; }
+.claim-confirm-prop-main { min-width: 0; }
+.claim-confirm-prop-addr { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--claim-text-1); }
+.claim-confirm-prop-sub { font-size: 14px; color: var(--claim-text-2); margin-top: 2px; }
+.claim-confirm-prop-badges { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
+.claim-confirm-badge-num {
+  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
+  box-shadow: 0 3px 10px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 5px rgba(150, 44, 18, 0.28);
+}
+.claim-confirm-badge-you {
+  display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #fff;
+  background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
+  box-shadow: 0 2px 8px rgba(255, 107, 74, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.claim-confirm-prop-divider { height: 1px; background: var(--claim-border); margin: 18px 0; }
+.claim-confirm-account { margin: 16px 0 0; text-align: center; font-size: 12.5px; color: var(--claim-text-3); }
+.claim-confirm-account strong { color: var(--claim-text-2); font-weight: 700; }
+@media (max-width: 480px) {
+  .claim-confirm-title { font-size: 28px; }
+  .claim-confirm-prop-photo { width: 76px; height: 64px; }
+  .claim-confirm-prop-addr { font-size: 17px; }
+}
+
 /* Duplicate picker */
 .claim-dup-option {
   display: flex;
@@ -994,6 +1109,17 @@
   margin-top: 0;
   border-top-color: transparent;
 }
+/* When there's no collapse (reconcile hidden on the confirm page): drop the
+   overflow clip + max-height so the selected cards' glow isn't cut off, and drop
+   the block's own top border/spacing so it doesn't double up with the mini-card
+   divider above it (one neat line, not two). */
+.claim-sale-details--nocollapse {
+  overflow: visible;
+  max-height: none;
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
 
 /* Compact summary pill shown above the wizard when sale details are collapsed */
 .claim-sale-details-summary {
@@ -1201,6 +1327,44 @@
   .claim-reconcile-date { margin-left: 0; width: 100%; }
 }
 
+/* ─── Sale-type selectors — elevated cards (ClaimSaleTypeFields) ────────────── */
+.claim-choice-groups { display: flex; flex-direction: column; gap: 18px; }
+.claim-choice-group { display: flex; flex-direction: column; gap: 10px; }
+.claim-choice-q {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 700; color: var(--claim-text-1);
+}
+.claim-choice-q svg { width: 18px; height: 18px; color: var(--claim-text-2); flex: none; }
+.claim-choice { display: grid; gap: 10px; }
+.claim-choice-2 { grid-template-columns: 1fr 1fr; }
+.claim-choice-3 { grid-template-columns: 1fr 1fr 1fr; }
+.claim-choice-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 18px 12px; border-radius: 14px; border: 1.5px solid var(--claim-border);
+  background: var(--claim-surface); cursor: pointer; text-align: center;
+  font: inherit; transition: transform .18s, box-shadow .18s, border-color .18s, background .18s;
+}
+.claim-choice-card:hover { border-color: rgba(255, 107, 74, 0.5); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26, 29, 41, 0.08); }
+.claim-choice-card > svg { width: 22px; height: 22px; color: var(--claim-text-2); transition: color .18s; }
+.claim-choice-label { font-size: 14px; font-weight: 700; color: var(--claim-text-1); }
+.claim-choice-card.on {
+  background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.claim-choice-card.on > svg, .claim-choice-card.on .claim-choice-label { color: #fff; }
+.claim-choice-tick {
+  position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; color: var(--claim-coral-dark);
+  display: none; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.claim-choice-card.on .claim-choice-tick { display: flex; }
+.claim-choice-tick svg { width: 11px; height: 11px; }
+@media (max-width: 420px) {
+  .claim-choice-card { padding: 14px 8px; gap: 6px; }
+  .claim-choice-label { font-size: 12.5px; }
+}
+
 /* ─── Variant B — illustrated invite card (A/B experiment) ─────────────────── */
 /* Transparent floating header: logo left, "Log in" right. */
 .claim-header--b {
@@ -1211,7 +1375,11 @@
   -webkit-backdrop-filter: none;
   border-bottom: none;
   box-shadow: none;
-  position: static;
+  /* Sticky + transparent: the logo floats over the card, then lifts and fades on
+     scroll (via the .claim-header scroll-driven rule above, which this element
+     also matches). z-index:20 is inherited from .claim-header. */
+  position: sticky;
+  top: 0;
   justify-content: space-between;
 }
 .claim-b-login-wrap {
@@ -1355,6 +1523,21 @@
   color: var(--claim-text-2);
 }
 
+/* Share view: our sale's progress shown inside the Joined pill ("Joined · 52%").
+   Lighter than the "Joined" label so it reads as a secondary figure, and counts
+   up on load (ClaimCountUp). */
+.claim-b-pill-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.claim-b-pill-sep {
+  opacity: 0.5;
+  font-weight: 400;
+}
+
 /* Ladder */
 .claim-b-ladder {
   margin-top: 22px;
@@ -1456,8 +1639,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #fff1ec, #ffe0d4);
-  box-shadow: inset 0 0 0 1px rgba(26, 29, 41, 0.05);
+  /* Empty-photo state: a warm coral gradient with a soft top-left highlight and a
+     hairline coral ring, so the placeholder feels finished (a real photo covers it). */
+  background:
+    radial-gradient(125% 100% at 22% 16%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(150deg, #ffece3 0%, #ffd9c9 58%, #ffc9b4 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(255, 107, 74, 0.16);
 }
 .claim-b-thumb-img {
   width: 100%;
@@ -1467,7 +1656,7 @@
 .claim-b-thumb-house {
   width: 26px;
   height: 26px;
-  color: rgba(255, 107, 74, 0.6);
+  color: rgba(232, 90, 53, 0.75);
 }
 .claim-b-rowmain {
   flex: 1;
@@ -1507,6 +1696,47 @@
   font-weight: 600;
 }
 
+/* Share view: the agent contact we hold on file for each sale, so the recipient
+   has the whole chain directory without ringing for it. */
+.claim-b-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(26, 29, 41, 0.12);
+}
+.claim-b-contact-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--claim-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.claim-b-contact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  font-size: 12px;
+  color: var(--claim-text-2);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.claim-b-contact-item svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: var(--claim-coral);
+}
+.claim-b-contact-item:hover {
+  color: var(--claim-coral-dark);
+  text-decoration: underline;
+}
+
 /* Status pills — gradient + polish, never flat. */
 .claim-b-pill {
   flex: none;
@@ -1537,14 +1767,26 @@
   font-size: 10.5px;
 }
 .claim-b-pill--joined {
-  color: #0f7a52;
-  background: linear-gradient(180deg, #ecfaf2 0%, #d5f0e1 100%);
-  box-shadow: inset 0 0 0 1px rgba(15, 122, 82, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #0a6b46;
+  background: linear-gradient(180deg, #e4f7ec 0%, #bfe7cf 100%);
+  box-shadow:
+    0 1px 4px rgba(15, 122, 82, 0.2),
+    inset 0 0 0 1px rgba(15, 122, 82, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+.claim-b-pill--joined svg {
+  color: #12905f;
 }
 .claim-b-pill--pending {
-  color: #6b7280;
-  background: linear-gradient(180deg, #f5f6f8 0%, #e8eaef 100%);
-  box-shadow: inset 0 0 0 1px rgba(26, 29, 41, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #525b6b;
+  background: linear-gradient(180deg, #eef1f5 0%, #d8dde6 100%);
+  box-shadow:
+    0 1px 4px rgba(26, 29, 41, 0.12),
+    inset 0 0 0 1px rgba(26, 29, 41, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.claim-b-pill--pending svg {
+  color: #78808f;
 }
 
 /* CTA + trust */

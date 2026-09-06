@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReconcileMilestonePicker,
   type MilestoneDefinitionLite,
   type ReconciliationState,
 } from "@/components/milestones/ReconcileMilestonePicker";
+import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 
 type DuplicateEntry = {
   transactionId: string;
@@ -70,10 +71,34 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
   // Main submit is gated on:
   //   - non-reconcile path: just need details + a mode picked
   //   - in_progress wizard: only enable on purchaser step (vendor step shows "Next" instead)
-  const onPurchaserStep = reconciliationMode !== "in_progress" || wizardStep === "purchaser";
+  // Reconciliation ("Where is this sale up to?") is hidden here — it's moving to a
+  // post-claim step. All of its code (section + wizard) is kept below, gated on this
+  // flag so it can be relocated without rebuilding. // lands: reconcile relocation.
+  const SHOW_RECONCILE = false;
+  const onPurchaserStep = !SHOW_RECONCILE || reconciliationMode !== "in_progress" || wizardStep === "purchaser";
   const canSubmit = needsSaleDetails
-    ? tenure !== null && purchaseType !== null && reconciliationMode !== null && onPurchaserStep && !loading
+    ? tenure !== null && purchaseType !== null && (!SHOW_RECONCILE || reconciliationMode !== null) && onPurchaserStep && !loading
     : !loading;
+
+  // When both details are chosen (i.e. the 2nd click makes the CTA relevant) and
+  // the card's bottom sits below the fold, scroll it into view so the button + a
+  // little space are visible. Skips if it's already in view; honours reduced-motion.
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const bothSelectedRef = useRef(false);
+  useEffect(() => {
+    const both = tenure !== null && purchaseType !== null;
+    if (both && !bothSelectedRef.current) {
+      const card = submitRef.current?.closest(".claim-form-card");
+      if (card) {
+        const rect = card.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight - 8) {
+          const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
+        }
+      }
+    }
+    bothSelectedRef.current = both;
+  }, [tenure, purchaseType]);
 
   async function claim(action: "create" | "link", existingTransactionId?: string) {
     setError(null);
@@ -84,15 +109,18 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
       body.tenure = tenure;
       body.purchaseType = purchaseType;
       body.isShareOfFreehold = isShareOfFreehold;
-      body.reconciliationMode = reconciliationMode;
-      // Only send completions list when agent is reconciling. Server (Commit 6) processes these.
-      if (reconciliationMode === "in_progress") {
-        body.reconciledMilestones = Object.entries(reconciledMilestones)
-          .filter(([, v]) => v.ticked)
-          .map(([milestoneDefinitionId, v]) => ({
-            milestoneDefinitionId,
-            eventDate: v.eventDate || null,
-          }));
+      // Reconciliation is hidden (moving to a post-claim step) — don't send it, so
+      // the claim just creates a clean file. Kept behind the flag for relocation.
+      if (SHOW_RECONCILE) {
+        body.reconciliationMode = reconciliationMode;
+        if (reconciliationMode === "in_progress") {
+          body.reconciledMilestones = Object.entries(reconciledMilestones)
+            .filter(([, v]) => v.ticked)
+            .map(([milestoneDefinitionId, v]) => ({
+              milestoneDefinitionId,
+              eventDate: v.eventDate || null,
+            }));
+        }
       }
     }
 
@@ -131,7 +159,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
     }
   }
 
-  const isWizardActive = reconciliationMode === "in_progress";
+  const isWizardActive = SHOW_RECONCILE && reconciliationMode === "in_progress";
   const saleDetailsLabel = tenure && purchaseType
     ? `${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : purchaseType === "cash_buyer" ? "Cash purchase" : "Cash from Proceeds"}`
     : "";
@@ -149,66 +177,15 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
           <span className="claim-sale-details-summary-edit">Edit</span>
         </button>
       )}
-    <div className={`claim-sale-details${isWizardActive ? " collapsed" : ""}`}>
-      <p className="claim-sale-details-note">Two details to set up your file.</p>
-
-      <div>
-        <label className="claim-field-label">Tenure</label>
-        <div className="claim-segment-pill-row">
-          <button
-            type="button"
-            className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`}
-            onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}
-          >
-            Freehold
-          </button>
-          <button
-            type="button"
-            className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`}
-            onClick={() => setTenure("leasehold")}
-          >
-            Leasehold
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <label className="claim-field-label">Purchase type</label>
-        <div className="claim-segment-pill-row">
-          <button
-            type="button"
-            className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`}
-            onClick={() => setPurchaseType("mortgage")}
-          >
-            Mortgage
-          </button>
-          <button
-            type="button"
-            className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`}
-            onClick={() => setPurchaseType("cash_buyer")}
-          >
-            Cash purchase
-          </button>
-          <button
-            type="button"
-            className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`}
-            onClick={() => setPurchaseType("cash_from_proceeds")}
-          >
-            Cash from Proceeds
-          </button>
-        </div>
-      </div>
-
-      {tenure === "leasehold" && (
-        <label className="claim-share-of-freehold">
-          <input
-            type="checkbox"
-            checked={isShareOfFreehold}
-            onChange={(e) => setIsShareOfFreehold(e.target.checked)}
-          />
-          Share of freehold
-        </label>
-      )}
+    <div className={`claim-sale-details claim-sale-details--nocollapse${isWizardActive ? " collapsed" : ""}`}>
+      <ClaimSaleTypeFields
+        tenure={tenure}
+        purchaseType={purchaseType}
+        isShareOfFreehold={isShareOfFreehold}
+        onTenure={setTenure}
+        onPurchaseType={setPurchaseType}
+        onShareOfFreehold={setIsShareOfFreehold}
+      />
     </div>
     </>
   );
@@ -292,7 +269,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {saleDetailsSection}
-        {reconciliationSection}
+        {SHOW_RECONCILE && reconciliationSection}
         {error && (
           <div
             style={{
@@ -310,6 +287,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
         )}
         {onPurchaserStep && (
           <button
+            ref={submitRef}
             onClick={handleClaim}
             disabled={!canSubmit}
             className="claim-btn"
@@ -362,7 +340,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
       ))}
 
       {saleDetailsSection}
-      {reconciliationSection}
+      {SHOW_RECONCILE && reconciliationSection}
 
       {error && (
         <div
@@ -381,6 +359,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
 
       {onPurchaserStep && (
         <button
+          ref={submitRef}
           onClick={handleClaim}
           disabled={!canSubmit}
           className="claim-btn"

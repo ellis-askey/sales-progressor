@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordInviteViewed, recordShareLinkViewed } from "@/lib/chain/funnel";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { getFileProgressPercent } from "@/lib/services/chains";
 import { claimVariantFor, parseVariantOverride } from "@/lib/chain/claim-experiment";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
@@ -109,8 +110,13 @@ export default async function ClaimPage({
               id: true,
               position: true,
               transactionId: true,
+              createdByUserId: true,
+              claimedByUserId: true,
               stubPropertyAddress: true,
               stubAgencyName: true,
+              stubAgentName: true,
+              stubAgentEmail: true,
+              stubAgentPhone: true,
               stubPhotoStoragePath: true,
               withdrawalStatus: true,
               claimedBy: { select: { firmName: true } },
@@ -227,6 +233,10 @@ export default async function ClaimPage({
       const photoPath = isClaimed
         ? (cl.transaction?.photoStoragePath ?? null)
         : (cl.stubPhotoStoragePath ?? null);
+      // Share view only: the agent contact we hold on file for this sale, so the
+      // recipient gets the whole chain directory (what we'd give on a chain check).
+      // Never on the email view, never on the recipient's own row.
+      const shareContact = isShareToken && !isYours;
       return {
         id: cl.id,
         displayNum: displayChainPosition(cl.position, chainLinks.length),
@@ -238,10 +248,35 @@ export default async function ClaimPage({
           : (cl.stubPropertyAddress ?? ""),
         agency: cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null,
         photoPath,
+        contactName: shareContact ? (cl.stubAgentName ?? null) : null,
+        contactEmail: shareContact ? (cl.stubAgentEmail ?? null) : null,
+        contactPhone: shareContact ? (cl.stubAgentPhone ?? null) : null,
       };
     });
     // Batch-sign every property photo in one round trip (claimed + stub).
     const signed = await getSignedUrlMap(shaped.map((r) => r.photoPath));
+
+    // Share view only: our own sale's progress, shown as a small figure beside its
+    // status. "Our" sale is the chain originator's file — the link they own (their
+    // seed file) or, failing that, the first claimed sale (the one the invite email
+    // calls the originating sale). Skipped entirely on the email path.
+    let ourLinkId: string | null = null;
+    let ourProgressPercent: number | null = null;
+    if (isShareToken) {
+      const originatorId = link.chain.createdByUserId;
+      const ourLink =
+        chainLinks.find(
+          (l) =>
+            l.transactionId !== null &&
+            (l.claimedByUserId === originatorId ||
+              (l.claimedByUserId === null && l.createdByUserId === originatorId)),
+        ) ?? chainLinks.find((l) => l.transactionId !== null);
+      if (ourLink?.transactionId) {
+        ourLinkId = ourLink.id;
+        ourProgressPercent = await getFileProgressPercent(ourLink.transactionId);
+      }
+    }
+
     const ladder: LadderRow[] = shaped.map((r) => ({
       id: r.id,
       displayNum: r.displayNum,
@@ -249,6 +284,10 @@ export default async function ClaimPage({
       address: r.address,
       agency: r.agency,
       photoUrl: r.photoPath ? (signed.get(r.photoPath) ?? null) : null,
+      contactName: r.contactName,
+      contactEmail: r.contactEmail,
+      contactPhone: r.contactPhone,
+      progressPercent: r.id === ourLinkId ? ourProgressPercent : null,
     }));
 
     const yourAddress = link.stubPropertyAddress ?? "your sale";
@@ -270,6 +309,7 @@ export default async function ClaimPage({
               ? `You'll claim ${yourAddress} and create your free account.`
               : `You'll claim ${yourAddress}.`
           }
+          shareMode={isShareToken}
         />
       </Shell>
     );

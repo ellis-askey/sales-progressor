@@ -9,6 +9,7 @@ import {
   type MilestoneDefinitionLite,
   type ReconciliationState,
 } from "@/components/milestones/ReconcileMilestonePicker";
+import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 
 type Props = {
   token: string;
@@ -166,27 +167,14 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
       {/* Sale details */}
       <div className="claim-sale-details">
         <p className="claim-sale-details-note">Two details to set up your file.</p>
-        <div>
-          <label className="claim-field-label">Tenure</label>
-          <div className="claim-segment-pill-row">
-            <button type="button" className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`} onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}>Freehold</button>
-            <button type="button" className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`} onClick={() => setTenure("leasehold")}>Leasehold</button>
-          </div>
-        </div>
-        <div>
-          <label className="claim-field-label">Purchase type</label>
-          <div className="claim-segment-pill-row">
-            <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
-            <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
-            <button type="button" className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from Proceeds</button>
-          </div>
-        </div>
-        {tenure === "leasehold" && (
-          <label className="claim-share-of-freehold">
-            <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => setIsShareOfFreehold(e.target.checked)} />
-            Share of freehold
-          </label>
-        )}
+        <ClaimSaleTypeFields
+          tenure={tenure}
+          purchaseType={purchaseType}
+          isShareOfFreehold={isShareOfFreehold}
+          onTenure={setTenure}
+          onPurchaseType={setPurchaseType}
+          onShareOfFreehold={setIsShareOfFreehold}
+        />
       </div>
       </div>{/* /.claim-collapsible */}
 

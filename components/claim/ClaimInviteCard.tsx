@@ -1,4 +1,5 @@
 import { ClaimCtaButton } from "@/components/claim/ClaimCtaButton";
+import { ClaimCountUp } from "@/components/claim/ClaimCountUp";
 
 // Variant B of the chain-invite claim landing page: a light editorial card with
 // the inviter's avatar, property thumbnails, polished numbered badges and status
@@ -16,6 +17,15 @@ export interface LadderRow {
   agency: string | null;
   /** Signed photo URL, or null to show the house placeholder. */
   photoUrl: string | null;
+  /** Share-link view only: the agent contact we hold on file for this sale, so
+   *  the recipient has the whole chain directory. Null on the email view and on
+   *  the recipient's own ("you") row. */
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  /** Share view only: this sale's own progress (0-100), shown as a small figure
+   *  beside its status. Currently set on our originating sale; null elsewhere. */
+  progressPercent?: number | null;
 }
 
 export interface ClaimInviteCardProps {
@@ -29,6 +39,10 @@ export interface ClaimInviteCardProps {
   ghostCount: number;
   claimHref: string;
   ctaMicrocopy: string;
+  /** True only for a manually-copied share link (not the email invite). Turns on
+   *  per-sale progress + contacts, softens the pending label to "Not joined yet",
+   *  and hides the trial/trust strip. */
+  shareMode?: boolean;
 }
 
 // Split "22 Willow Road, Berkhamsted, HP4 2AB" into a bold street line and a
@@ -97,6 +111,28 @@ function IconArrow() {
   );
 }
 
+function IconPhone() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M5 3.5h2.2l1.1 3-1.5 1.1a9 9 0 0 0 4.6 4.6l1.1-1.5 3 1.1V16c0 .6-.5 1-1.1 1A11.5 11.5 0 0 1 4 5.6C4 5 4.4 3.5 5 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconMail() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="5" width="14" height="10" rx="1.75" stroke="currentColor" strokeWidth="1.5" />
+      <path d="m4 6.5 6 4 6-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const PILL: Record<LadderStatus, { label: string; icon: React.ReactNode }> = {
   you: { label: "Your sale", icon: null },
   joined: { label: "Joined", icon: <IconCheck /> },
@@ -114,6 +150,7 @@ export function ClaimInviteCard({
   ghostCount,
   claimHref,
   ctaMicrocopy,
+  shareMode = false,
 }: ClaimInviteCardProps) {
   const subLead = inviterAgency ? `${inviterName} at ${inviterAgency}` : inviterName;
 
@@ -156,9 +193,16 @@ export function ClaimInviteCard({
         {/* Chain ladder */}
         <div className="claim-b-ladder">
           {ladder.map((row) => {
-            const { line1, line2 } = splitAddress(row.address || (row.status === "pending" ? "Invite pending" : "Your sale"));
+            // Share view softens the empty-address placeholder and the pending label
+            // (there was no email invite on a hand-shared link).
+            const pendingFallback = shareMode ? "A sale in the chain" : "Invite pending";
+            const { line1, line2 } = splitAddress(row.address || (row.status === "pending" ? pendingFallback : "Your sale"));
             const pill = PILL[row.status];
+            const pillLabel = shareMode && row.status === "pending" ? "Not joined yet" : pill.label;
             const subLabel = row.status === "you" ? "Your sale" : row.agency;
+            const showContact =
+              shareMode && row.status !== "you" && !!(row.contactName || row.contactEmail || row.contactPhone);
+            const showProgress = shareMode && row.progressPercent != null;
             return (
               <div className="claim-b-row" key={row.id}>
                 <span className="claim-b-gutter">
@@ -182,10 +226,35 @@ export function ClaimInviteCard({
                         {subLabel}
                       </span>
                     )}
+                    {showContact && (
+                      <span className="claim-b-contact">
+                        {row.contactName && <span className="claim-b-contact-name">{row.contactName}</span>}
+                        {row.contactPhone && (
+                          <a className="claim-b-contact-item" href={`tel:${row.contactPhone}`}>
+                            <IconPhone />
+                            {row.contactPhone}
+                          </a>
+                        )}
+                        {row.contactEmail && (
+                          <a className="claim-b-contact-item" href={`mailto:${row.contactEmail}`}>
+                            <IconMail />
+                            {row.contactEmail}
+                          </a>
+                        )}
+                      </span>
+                    )}
                   </span>
                   <span className={`claim-b-pill claim-b-pill--${row.status}`}>
                     {pill.icon}
-                    {pill.label}
+                    {pillLabel}
+                    {showProgress && (
+                      <span className="claim-b-pill-pct" aria-label={`${row.progressPercent}% complete`}>
+                        <span className="claim-b-pill-sep" aria-hidden="true">·</span>
+                        <span aria-hidden="true">
+                          <ClaimCountUp value={row.progressPercent ?? 0} />%
+                        </span>
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -210,6 +279,7 @@ export function ClaimInviteCard({
         </div>
         <p className="claim-b-microcopy">{ctaMicrocopy}</p>
 
+        {!shareMode && (
         <div className="claim-b-trust">
           <span className="claim-b-trust-item">
             <IconCheck /> Free to self-progress
@@ -221,6 +291,7 @@ export function ClaimInviteCard({
             <IconLock /> Secure &amp; private
           </span>
         </div>
+        )}
       </div>
     </div>
   );
