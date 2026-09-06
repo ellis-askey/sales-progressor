@@ -1,28 +1,24 @@
 "use client";
 
-// Reconcile-later banner — shown on the transaction page when the agent chose
-// "I'll set this up later" on the claim form (a localStorage flag is set there).
+// "Where's this sale up to?" — the re-homed reconcile step. Shown as a compact
+// prompt strip on a freshly claimed file's Overview, until the agent completes
+// their first step (hasProgress) or dismisses it ("Not now"). Opening it runs the
+// same two-step (vendor → purchaser) tick-list and applies via the existing
+// reconcileClaimMilestonesAction — no data-logic change, just a new home + look.
 //
-// Banner persists until the agent either reconciles via the modal or dismisses
-// it with ×. Both actions clear the localStorage flag.
-//
-// Per Stage 1 ruling Q1: persistent (no auto-timeout), transaction page only,
-// dismissable.
+// (Kept the ReconcileLaterBanner name so the async wrapper wiring is unchanged.)
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Info } from "@phosphor-icons/react";
-import { AgentBanner } from "@/components/ui/AgentBanner";
-import { LinkArrow } from "@/components/ui/LinkArrow";
+import { Clock, X, ArrowRight, ArrowLeft, Check } from "@phosphor-icons/react";
 import {
   ReconcileMilestonePicker,
   type MilestoneDefinitionLite,
   type ReconciliationState,
 } from "@/components/milestones/ReconcileMilestonePicker";
 import { reconcileClaimMilestonesAction } from "@/app/actions/milestones";
-// Loads the .claim-reconcile-* / .claim-btn styles the picker + modal use.
-// CSS selectors are scoped to .claim-page ancestor so they don't bleed onto the rest of the page.
+// Loads the .claim-reconcile-* / .rec-* styles the picker + modal use.
 import "@/app/claim/styles/claim-flow.css";
 
 type Tenure = "freehold" | "leasehold";
@@ -33,54 +29,49 @@ export function ReconcileLaterBanner({
   milestoneDefinitions,
   tenure,
   purchaseType,
+  hasProgress = false,
 }: {
   transactionId: string;
   milestoneDefinitions: MilestoneDefinitionLite[];
   tenure: Tenure | null;
   purchaseType: PurchaseType | null;
+  // True once the file has any completed step — the prompt then retires itself.
+  hasProgress?: boolean;
 }) {
   const router = useRouter();
-  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [state, setState] = useState<ReconciliationState>({});
   const [error, setError] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
+  // Persisted "Not now" so the prompt stays gone once dismissed.
   useEffect(() => {
-    if (typeof window === "undefined") return;
     try {
-      const flag = window.localStorage.getItem(`reconcileLater:${transactionId}`);
-      if (flag === "1") setVisible(true);
+      if (window.localStorage.getItem(`reconcileDismissed:${transactionId}`) === "1") setDismissed(true);
     } catch {
-      // localStorage unavailable — banner just doesn't show. Not fatal.
+      // localStorage unavailable — prompt just shows. Not fatal.
     }
   }, [transactionId]);
 
-  // The claim welcome modal's "Set up" button hands off to this modal: it fires
-  // this event, so the setup opens directly instead of leaving the agent to find
-  // the banner. Show the banner too, in case the flag wasn't set.
+  // The claim welcome modal's "Set up" button opens this directly.
   useEffect(() => {
     function onOpen() {
-      setVisible(true);
+      setDismissed(false);
       setModalOpen(true);
     }
     window.addEventListener("sp:open-reconcile", onOpen);
     return () => window.removeEventListener("sp:open-reconcile", onOpen);
   }, []);
 
-  function clearFlag() {
-    if (typeof window === "undefined") return;
+  function handleDismiss() {
     try {
-      window.localStorage.removeItem(`reconcileLater:${transactionId}`);
+      window.localStorage.setItem(`reconcileDismissed:${transactionId}`, "1");
     } catch {
       // ignore
     }
-  }
-
-  function handleDismiss() {
-    clearFlag();
-    setVisible(false);
+    setDismissed(true);
   }
 
   async function handleSubmit() {
@@ -98,36 +89,49 @@ export function ReconcileLaterBanner({
           eventDate: v.eventDate || null,
         }));
       if (completions.length === 0) {
-        // Nothing ticked — close modal but don't clear flag (agent might come back)
         setModalOpen(false);
         setSubmitting(false);
         return;
       }
       await reconcileClaimMilestonesAction({ transactionId, completions });
-      clearFlag();
-      setVisible(false);
       setModalOpen(false);
       router.refresh();
     } catch (err) {
-      console.error("[ReconcileLaterBanner] reconciliation failed:", err);
+      console.error("[reconcile] failed:", err);
       setError("Couldn't save your selections. Try again.");
       setSubmitting(false);
     }
   }
 
-  if (!visible) return null;
+  const showPrompt = !hasProgress && !dismissed && !!tenure && !!purchaseType;
+
+  if (!showPrompt && !modalOpen) return null;
 
   return (
     <>
-      <AgentBanner
-        kind="info"
-        icon={<Info size={18} weight="fill" />}
-        title="Bring this file up to date"
-        body="Mark which steps are already done and (if you know) when they happened. Your file's timeline and predictions will track accurately from there."
-        action={{ label: "Set up steps →", onClick: () => setModalOpen(true) }}
-        dismissible={{ onDismiss: handleDismiss }}
-        className="mb-1"
-      />
+      {showPrompt && (
+        <div className="rec-prompt">
+          <span className="rec-prompt-icon" aria-hidden="true">
+            <Clock size={30} weight="regular" />
+          </span>
+          <div className="rec-prompt-text">
+            <p className="rec-prompt-title">Where&rsquo;s this sale up to?</p>
+            <p className="rec-prompt-body">
+              Looks like a new file. Tick what&rsquo;s already been done and we&rsquo;ll bring the timeline and
+              predictions up to date.
+            </p>
+          </div>
+          <div className="rec-prompt-actions">
+            <button type="button" className="rec-prompt-cta" onClick={() => setModalOpen(true)}>
+              Update progress
+              <ArrowRight size={15} weight="bold" />
+            </button>
+            <button type="button" className="rec-prompt-dismiss" onClick={handleDismiss}>
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
 
       {modalOpen &&
         typeof document !== "undefined" &&
@@ -150,6 +154,8 @@ export function ReconcileLaterBanner({
     </>
   );
 }
+
+type StepState = "active" | "done" | "pending";
 
 function ReconcileModal({
   tenure,
@@ -176,120 +182,120 @@ function ReconcileModal({
   onClose: () => void;
   onSubmit: () => void;
 }) {
-  const tickedCount = Object.values(state).filter((r) => r.ticked).length;
-  const onPurchaserStep = wizardStep === "purchaser";
+  const onVendor = wizardStep === "vendor";
+
+  const railSteps: { key: string; label: string; sub: string; state: StepState }[] = [
+    {
+      key: "vendor",
+      label: "Selling side",
+      sub: "Tick what's already done",
+      state: submitting ? "done" : onVendor ? "active" : "done",
+    },
+    {
+      key: "purchaser",
+      label: "Buying side",
+      sub: "Then the buyer's steps",
+      state: submitting ? "done" : onVendor ? "pending" : "active",
+    },
+    {
+      key: "done",
+      label: "Done",
+      sub: "We'll update your file",
+      state: submitting ? "active" : "pending",
+    },
+  ];
 
   return (
     <div
+      className="rec-overlay"
       role="dialog"
       aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        zIndex: 1000,
-      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !submitting) onClose();
       }}
     >
-      <div
-        className="claim-page"
-        style={{
-          background: "#fff",
-          borderRadius: 16,
-          padding: 24,
-          maxWidth: 560,
-          width: "100%",
-          maxHeight: "85vh",
-          overflowY: "auto",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.18)",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1a1d29" }}>
-              Set up which steps are done
-            </h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#4a5162" }}>
-              Tick what's already happened. Add the date if you know it; leave blank if you don&apos;t.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: "#8b91a3", padding: 0, lineHeight: 1 }}
-          >
-            ×
-          </button>
-        </div>
+      <div className="rec-modal rec-scope">
+        <button type="button" className="rec-close" aria-label="Close" onClick={onClose} disabled={submitting}>
+          <X size={16} weight="bold" />
+        </button>
 
-        {tenure && purchaseType ? (
-          <>
-            {wizardStep === "purchaser" && (
-              <button
-                type="button"
-                className="claim-wizard-back"
-                onClick={() => onStepChange("vendor")}
-                style={{ marginBottom: 12 }}
-              >
-                ← Back to seller steps
+        <aside className="rec-rail">
+          <p className="rec-rail-eyebrow">Where&rsquo;s this sale up to?</p>
+          <ol className="rec-steps">
+            {railSteps.map((s, i) => (
+              <li key={s.key} className={`rec-step is-${s.state}`}>
+                <span className="rec-step-num">
+                  {s.state === "done" ? <Check size={14} weight="bold" /> : i + 1}
+                </span>
+                <span className="rec-step-text">
+                  <span className="rec-step-label">{s.label}</span>
+                  <span className="rec-step-sub">{s.sub}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </aside>
+
+        <section className="rec-content">
+          <div className="rec-content-scroll">
+            <div className="rec-content-inner" key={wizardStep}>
+              <h2 className="rec-head">{onVendor ? "Let's start with the selling side." : "Now the buying side."}</h2>
+              <p className="rec-lede">
+                Tick the steps that have already been completed. Add the real-world date if you know it.
+              </p>
+
+              {tenure && purchaseType ? (
+                <ReconcileMilestonePicker
+                  milestoneDefinitions={milestoneDefinitions}
+                  tenure={tenure}
+                  purchaseType={purchaseType}
+                  state={state}
+                  onChange={onChange}
+                  side={wizardStep}
+                  layout="wide"
+                />
+              ) : (
+                <p className="rec-missing">
+                  This file is missing tenure or purchase type, so it can&rsquo;t be set up until those are added.
+                </p>
+              )}
+
+              {error && <div className="rec-error">{error}</div>}
+            </div>
+          </div>
+
+          <div className="rec-footer">
+            {onVendor ? (
+              <button type="button" className="rec-textbtn" onClick={onClose} disabled={submitting}>
+                Save and come back
+              </button>
+            ) : (
+              <button type="button" className="rec-textbtn" onClick={() => onStepChange("vendor")} disabled={submitting}>
+                <ArrowLeft size={14} weight="bold" /> Back to selling side
               </button>
             )}
-            <ReconcileMilestonePicker
-              milestoneDefinitions={milestoneDefinitions}
-              tenure={tenure}
-              purchaseType={purchaseType}
-              state={state}
-              onChange={onChange}
-              side={wizardStep}
-            />
-          </>
-        ) : (
-          <p style={{ fontSize: 13, color: "#dc2626" }}>
-            This file is missing tenure or purchase type, so it can&apos;t be set up until those are added.
-          </p>
-        )}
-
-        {error && (
-          <div style={{ fontSize: 13, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginTop: 12 }}>
-            {error}
+            {onVendor ? (
+              <button
+                type="button"
+                className="rec-primary"
+                onClick={() => onStepChange("purchaser")}
+                disabled={!tenure || !purchaseType}
+              >
+                Continue to buying side <ArrowRight size={16} weight="bold" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="rec-primary"
+                onClick={onSubmit}
+                disabled={submitting || !tenure || !purchaseType}
+              >
+                {submitting ? "Updating…" : "Finish and update file"}
+                {!submitting && <ArrowRight size={16} weight="bold" />}
+              </button>
+            )}
           </div>
-        )}
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="claim-btn claim-btn--ghost"
-            type="button"
-          >
-            Cancel
-          </button>
-          {onPurchaserStep ? (
-            <button
-              onClick={onSubmit}
-              disabled={submitting || !tenure || !purchaseType}
-              className="claim-btn"
-              type="button"
-            >
-              {submitting ? "Saving…" : tickedCount > 0 ? `Save ${tickedCount} step${tickedCount === 1 ? "" : "s"}` : "Save"}
-            </button>
-          ) : (
-            <button
-              onClick={() => onStepChange("purchaser")}
-              disabled={submitting || !tenure || !purchaseType}
-              className="claim-btn"
-              type="button"
-            >
-              Next: Buyer steps <LinkArrow />
-            </button>
-          )}
-        </div>
+        </section>
       </div>
     </div>
   );

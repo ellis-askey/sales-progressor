@@ -19,10 +19,17 @@ type Props = {
 async function Inner({ transactionId, chainLinkId, tenure, purchaseType }: Props) {
   if (!chainLinkId) return null;
 
-  const milestoneDefinitions = await prisma.milestoneDefinition.findMany({
-    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-    select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
-  }).catch(() => []);
+  const [milestoneDefinitions, completedCount] = await Promise.all([
+    prisma.milestoneDefinition
+      .findMany({
+        orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+        select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
+      })
+      .catch(() => []),
+    // The prompt retires itself once the file has any real progress — i.e. the
+    // agent has completed their first step (here or on the Steps tab).
+    prisma.milestoneCompletion.count({ where: { transactionId, state: "complete" } }).catch(() => 0),
+  ]);
 
   if (milestoneDefinitions.length === 0) return null;
 
@@ -32,6 +39,7 @@ async function Inner({ transactionId, chainLinkId, tenure, purchaseType }: Props
       milestoneDefinitions={milestoneDefinitions}
       tenure={tenure}
       purchaseType={purchaseType}
+      hasProgress={completedCount > 0}
     />
   );
 }

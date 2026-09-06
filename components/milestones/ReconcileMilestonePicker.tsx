@@ -82,6 +82,7 @@ export function ReconcileMilestonePicker({
   state,
   onChange,
   side,
+  layout = "default",
 }: {
   milestoneDefinitions: MilestoneDefinitionLite[];
   tenure: Tenure;
@@ -92,6 +93,10 @@ export function ReconcileMilestonePicker({
   // single-screen mode — kept for backward compat). The wizard in the claim
   // forms uses side="vendor" then side="purchaser" across two steps.
   side?: "vendor" | "purchaser";
+  // "default" = checkbox left, date appears only when ticked (claim forms).
+  // "wide" = label left, date always shown, tick to the RIGHT of the date
+  // (the re-homed reconcile modal on the file overview).
+  layout?: "default" | "wide";
 }) {
   const autoNr = autoNrCodesFor(tenure, purchaseType);
   const filtered = milestoneDefinitions
@@ -287,6 +292,7 @@ export function ReconcileMilestonePicker({
           onRowChange={handleRowChange}
           unlockedSet={unlockedSet}
           justUnlocked={justUnlocked}
+          layout={layout}
         />
       )}
       {(side === undefined || side === "purchaser") && (
@@ -298,6 +304,7 @@ export function ReconcileMilestonePicker({
           onRowChange={handleRowChange}
           unlockedSet={unlockedSet}
           justUnlocked={justUnlocked}
+          layout={layout}
         />
       )}
     </div>
@@ -312,6 +319,7 @@ function Section({
   onRowChange,
   unlockedSet,
   justUnlocked,
+  layout = "default",
 }: {
   title: string;
   side: Role;
@@ -320,16 +328,21 @@ function Section({
   onRowChange: (id: string, patch: Partial<ReconciliationRow>) => void;
   unlockedSet: Set<string>;
   justUnlocked: Set<string>;
+  layout?: "default" | "wide";
 }) {
   if (milestones.length === 0) return null;
+  const wide = layout === "wide";
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="claim-reconcile-section">
-      <p className="claim-reconcile-section-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <RoleIcon role={side} size={13} />
-        {title}
-      </p>
-      <ul className="claim-reconcile-rows">
+      {!wide && (
+        <p className="claim-reconcile-section-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <RoleIcon role={side} size={13} />
+          {title}
+        </p>
+      )}
+      <ul className={`claim-reconcile-rows${wide ? " claim-reconcile-rows--wide" : ""}`}>
         {milestones.map((m) => {
           const row = state[m.id] ?? DEFAULT_ROW;
           const isAutoSet = !!row.autoFilledFrom;
@@ -337,10 +350,52 @@ function Section({
           const isJustUnlocked = justUnlocked.has(m.id);
           const classes = [
             "claim-reconcile-row",
+            wide ? "claim-reconcile-row--wide" : "",
             row.ticked ? "on" : "",
             !isUnlocked ? "locked" : "",
             isJustUnlocked ? "just-unlocked" : "",
           ].filter(Boolean).join(" ");
+
+          // Wide layout: name (left) · date (always shown, disabled until ticked) ·
+          // tick to the RIGHT of the date. Clicking the row toggles the tick.
+          if (wide) {
+            return (
+              <li key={m.id} className={classes}>
+                <button
+                  type="button"
+                  className="claim-reconcile-row-hit"
+                  disabled={!isUnlocked}
+                  onClick={() => onRowChange(m.id, { ticked: !row.ticked })}
+                  aria-pressed={row.ticked}
+                >
+                  <span className="claim-reconcile-row-name">
+                    {m.name}
+                    {isAutoSet && <span className="claim-reconcile-row-badge">Auto-filled</span>}
+                    {!isUnlocked && (
+                      <span className="claim-reconcile-row-locked"> · tick previous steps first</span>
+                    )}
+                  </span>
+                </button>
+                <span className="claim-reconcile-row-controls">
+                  <input
+                    type="date"
+                    className="claim-reconcile-date"
+                    value={row.eventDate ?? ""}
+                    max={today}
+                    disabled={!row.ticked || !isUnlocked}
+                    onChange={(e) => onRowChange(m.id, { eventDate: e.target.value || null })}
+                    aria-label={`When did this happen? (${m.name})`}
+                  />
+                  <span className={`claim-reconcile-tick${row.ticked ? " on" : ""}`} aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none">
+                      <path d="m4 10.5 3.5 3.5L16 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </span>
+              </li>
+            );
+          }
+
           return (
             <li key={m.id} className={classes}>
               <label className="claim-reconcile-row-main">
@@ -365,7 +420,7 @@ function Section({
                   type="date"
                   className="claim-reconcile-date"
                   value={row.eventDate ?? ""}
-                  max={new Date().toISOString().slice(0, 10)}
+                  max={today}
                   onChange={(e) => onRowChange(m.id, { eventDate: e.target.value || null })}
                   aria-label={`When did this happen? (${m.name})`}
                 />
