@@ -6,6 +6,7 @@ import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
 import { possessiveClientLabel } from "@/lib/updates-copy";
 import { classifyReminder } from "@/lib/reminders/classify";
+import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 
@@ -1584,7 +1585,11 @@ export async function getHubAttentionItems(
   // outsourced / assigned files by buildTxNested).
   const txLogFilter: Prisma.PropertyTransactionWhereInput =
     vis.internalMode
-      ? { status: "active", ...txNested }
+      // Internal staff only chase OUTSOURCED files (admin_all = every outsourced
+      // file; assigned = the SP's own). Never surface an agency's in-house
+      // self-managed chasing here. (admin_all's txNested already adds this; the
+      // guard also enforces it for the assigned branch, matching reminders.ts.)
+      ? { status: "active", serviceType: "outsourced", isDemo: false, ...txNested }
       // isDemo:false — the demo file's seeded reminders must not appear as hub
       // attention items on the agency's real hub.
       : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", isDemo: false, ...txNested };
@@ -1601,8 +1606,18 @@ export async function getHubAttentionItems(
     select: {
       id: true,
       nextDueDate: true,
-      reminderRule: { select: { name: true } },
-      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true } },
+      // targetMilestoneCode + the transaction pause/contact fields below feed
+      // resolveAutopilot (is the auto-chase pipeline still handling this?).
+      reminderRule: { select: { name: true, targetMilestoneCode: true } },
+      transaction: {
+        select: {
+          id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true,
+          agencyId: true, clientEmailsPaused: true, vendorSolicitorEmailsPaused: true, purchaserSolicitorEmailsPaused: true,
+          contacts: { select: { roleType: true, email: true, portalToken: true, unsubscribedAt: true } },
+          vendorSolicitorContact: { select: { email: true } },
+          purchaserSolicitorContact: { select: { email: true } },
+        },
+      },
       // status + snoozedUntil + chase fields all needed by classifyReminder.
       status: true,
       snoozedUntil: true,
@@ -1610,6 +1625,7 @@ export async function getHubAttentionItems(
         where: { status: "pending" },
         select: {
           status: true, priority: true, chaseCount: true,
+          fallbackKind: true, // resolveAutopilot: a handed-back chase is "manual".
           // 2026-07-13 (Chunk 8): needed to build the Escalated tooltip.
           escalationReason: true,
           escalatedAt: true,
@@ -1620,11 +1636,32 @@ export async function getHubAttentionItems(
     },
   });
 
+  // "With the system, not yet raised to a person" doesn't count: resolve each
+  // reminder's autopilot state and drop the ones the auto-chase pipeline is
+  // still handling. An escalated reminder always resolves to "manual", so it's
+  // kept. Same split the Reminders work queue uses for needs-you vs on-autopilot.
+  const agencyIds = [...new Set(logs.map((l) => l.transaction.agencyId).filter((a): a is string => !!a))];
+  const [solSettings, agencies] = await Promise.all([
+    prisma.solicitorChaseSettings.findFirst({ select: { enabledByDefault: true } }),
+    agencyIds.length
+      ? prisma.agency.findMany({ where: { id: { in: agencyIds } }, select: { id: true, chaseEmailsEnabled: true, solicitorChaseEnabled: true } })
+      : Promise.resolve([]),
+  ]);
+  const flags: AutopilotFlags = {
+    clientChaseEnabled: process.env.CLIENT_CHASE_ENABLED === "true",
+    solicitorGlobalEnabled: solSettings?.enabledByDefault ?? false,
+    agencyClientChase: new Map(agencies.map((a) => [a.id, a.chaseEmailsEnabled])),
+    agencySolicitorChase: new Map(agencies.map((a) => [a.id, a.solicitorChaseEnabled])),
+  };
+  const autopilot = resolveAutopilot(logs, flags);
+
   // Apply the canonical classifier — chased rows (chaseCount >= 1) live
   // in Coming up and shouldn't surface on the hub attention card. Only
   // escalated / overdue / due_today land here.
   const items: HubAttentionItem[] = logs
     .map((log) => {
+      // On autopilot (system chasing, not escalated) → not a human's job yet.
+      if (autopilot.get(log.id)?.kind === "auto") return null;
       const bucket = classifyReminder(log, now);
       if (bucket !== "escalated" && bucket !== "overdue" && bucket !== "due_today") return null;
       const task = log.chaseTasks[0];
