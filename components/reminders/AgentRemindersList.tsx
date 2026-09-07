@@ -785,7 +785,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                 </div>
                 <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
               </div>
-              <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
+              <div className={`agent-acc wq-acc${!isCollapsed ? " open" : ""}`}>
                 <div className="agent-acc-in">
                   <div className="space-y-3" style={{ padding: "4px 12px 16px" }}>
                     {fileGroups.map(({ txId, address, logs: fileLogs }) => (

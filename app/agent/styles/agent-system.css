@@ -1805,6 +1805,14 @@
     overflow: hidden;
     min-height: 0;
   }
+  /* Reminders group accordions: the inner clip (needed for the height animation)
+   * also clipped card shadows left/right. Widen just the clip box horizontally
+   * with equal negative margin + padding so shadows have room while the cards
+   * stay put. Bleeds into the page's px-4/px-8 gutter, so no horizontal scroll. */
+  .wq-acc > .agent-acc-in {
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
 
   /* ── Accordion header ────────────────────────────────────────────────────── */
   /* Clickable header for collapsible sections. Pairs with .agent-acc / .agent-acc-in.
