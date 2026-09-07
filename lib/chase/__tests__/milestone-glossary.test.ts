@@ -65,8 +65,13 @@ describe("VM7 — draft contract pack", () => {
     expect(ctx.alsoCalled).toContain("DCP");
   });
 
-  test("misframings identifies seller's solicitor as action-holder", () => {
-    expect(ctx.misframings.toLowerCase()).toContain("seller's solicitor");
+  test("misframings identifies the solicitor as the action-holder", () => {
+    // Reworded 2026-09-04 (commit e802527a): the misframings now says "the seller
+    // can only chase their own solicitor, who is the action-holder" rather than the
+    // literal "seller's solicitor". Assert the intent, not the old exact phrase.
+    const m = ctx.misframings.toLowerCase();
+    expect(m).toContain("solicitor");
+    expect(m).toContain("action-holder");
   });
 });
 

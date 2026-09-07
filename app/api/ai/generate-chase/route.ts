@@ -10,6 +10,9 @@ import { getVoiceProfile, maybeRefreshVoiceProfile } from "@/lib/chase/voice-pro
 import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
 import { greetingName } from "@/lib/utils";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { deriveChaseAsk, partyLabel } from "@/lib/chase/derive-chase-ask";
+import type { Party } from "@/lib/chase/action-holders";
+import { timeGreeting } from "@/lib/emails/greeting";
 
 // Prompt strings are verbatim from PROMPT_SPEC.md §5 and §6 — do not edit here; edit the spec first.
 
@@ -271,6 +274,47 @@ export async function POST(req: NextRequest) {
     ? resolveRecipientRole(primaryRecipient.roleType, resolvedRecipientSide)
     : resolvedRecipientSide;
 
+  // Deterministic ask derivation. The APP decides what we're chasing and of whom;
+  // the AI only writes it up. See lib/chase/derive-chase-ask.ts and
+  // docs/active/chase-action-derivation/00-design.md.
+  const recipientParty: Party = recipientIsSolicitor
+    ? resolvedRecipientSide === "vendor"
+      ? "seller_solicitor"
+      : "buyer_solicitor"
+    : primaryRecipient?.roleType === "purchaser"
+      ? "buyer"
+      : primaryRecipient?.roleType === "broker"
+        ? "broker"
+        : "seller";
+
+  const asks = allTasks.map((t) => {
+    const ms = t.reminderLog.reminderRule.anchorMilestone;
+    const code = ms?.code ?? "";
+    const name = ms?.name ?? t.reminderLog.reminderRule.name;
+    return { code, name, ...deriveChaseAsk({ milestoneCode: code, milestoneName: name, recipientRole: recipientParty }) };
+  });
+  const primaryAsk = asks[0];
+
+  // Time-of-day greeting, decided in code (Europe/London) so the model never
+  // guesses the time. Injected verbatim into the prompt.
+  const greeting = timeGreeting();
+
+  // Diagnosability: log the derivation behind every generation so any future
+  // wrong-chase is immediately traceable to the derived ask, not the model.
+  console.log("[generate-chase] derivation", {
+    txId: tx.id,
+    recipientRole: recipientParty,
+    greeting,
+    milestones: asks.map((a) => ({
+      code: a.code,
+      actionHolder: a.actionHolderRole,
+      shape: a.shape,
+      recipientIsActionHolder: a.recipientIsActionHolder,
+      chaseable: a.chaseable,
+      ...(a.unexpected ? { unexpected: true } : {}),
+    })),
+  });
+
   // Other contacts (exclude primary recipient AND the CC'd solicitor — that's
   // surfaced separately on its own line). PII minimisation: send role label +
   // count only, never full names. The AI's only legitimate use is knowing
@@ -321,7 +365,10 @@ export async function POST(req: NextRequest) {
 
   // Resolved guidance strings (substitutions applied)
   const toneKey = TONE_KEY_MAP[tone] ?? "friendly";
-  const channelGuidance = CHANNEL_GUIDANCE[channel].replace(/\{senderFirstName\}/g, senderFirstName);
+  const channelGuidance = CHANNEL_GUIDANCE[channel]
+    .replace(/\{senderFirstName\}/g, senderFirstName)
+    // Keep the opener example consistent with the code-decided greeting.
+    .replace(/Good morning/g, greeting);
   const toneGuidance = (TONE_GUIDANCE[toneKey] ?? TONE_GUIDANCE.friendly).replace(
     /\{expectedExchangeDate\}/g,
     exchangeGatesConfirmed && tx.expectedExchangeDate ? expectedExchangeDateStr : "our exchange target"
@@ -351,11 +398,14 @@ The recipient is on your team, not in your way. Even when the recipient is the p
 
 When time pressure is real, surface the SHARED stake (the exchange date, the chain, the lender's offer expiry, the momentum), not blame. The recipient and the progressor want the same outcome.
 
-# What you are chasing (stay on this exact step)
+# The ask is decided for you (authoritative, do not override)
 
-Each milestone in the context below has a "THE ASK" line. Your message asks the recipient to do, or confirm, exactly that step, and calls it the name given in "How to name it". Ask for that one thing.
+For each milestone you are given an "ASK" line that states exactly what to ask this recipient, plus who owns the step and whether this recipient is the person who physically completes it (recipientIsActionHolder). Your message is built strictly around that ASK.
 
-Never move the ask onto a different step. Do not chase the earlier steps that had to happen before this one, and do not chase the later steps that follow it. A neighbouring step may be mentioned in at most one short clause, and only when it is genuinely useful shared context. The thing you actually ask the recipient for is always THIS milestone's own action, never a prerequisite or a follow-on.
+- Do not infer, expand, or replace the ASK. Never substitute a different task the recipient could do instead, even to make the message feel more actionable.
+- If the ASK is to check with, or nudge, their own solicitor, ask exactly that. Never ask a client to carry out a legal step that their solicitor performs.
+- Keep the subject on THIS milestone only, named as the "How to name it" line says. Never drift to a prerequisite, a neighbouring step, or a follow-on. A neighbouring step may be mentioned in at most one short clause only when the ASK itself calls for it (e.g. chasing the other side's solicitor).
+- Write it naturally in the voice below. Never copy the ASK wording verbatim, and never let the message read as templated.
 
 # Who you're writing to
 
@@ -365,7 +415,7 @@ ${recipientGuidance}
 
 Warm, human, British. Never corporate. Never American.
 
-Opening: greeting + the recipient's first name (if known) + a brief "Hope you're well" or context-aware variant ("Hope you had a lovely weekend" / "Hope you're having a good week" / "Hope you had a lovely bank holiday"). The opener is never skipped.
+Opening: use exactly the greeting word supplied below ("${greeting}") followed by the recipient's first name if known (e.g. "${greeting} ${recipientFirstName || "there"},"), then a brief "Hope you're well" or context-aware variant ("Hope you had a lovely weekend" / "Hope you're having a good week" / "Hope you had a lovely bank holiday"). Do not infer the time of day yourself; use the supplied greeting word verbatim. The opener is never skipped.
 
 Distinctive vocabulary:
 - "Just" is the most important word in this voice. Use it liberally: "just wanted to," "just a quick," "just checking in," "just chasing up," "just to keep you posted." Multiple uses per message is fine.
@@ -448,11 +498,11 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
       if (!ctx) return null;
       return [
         `${msName} (${msCode}):`,
-        // Lead with the ask — this is the single thing the message must be about.
-        `- THE ASK (what this message must be about): ${ctx.outstanding}`,
+        // Background only. The authoritative ASK is in the "# The ask" section,
+        // derived by the app — not from this glossary text.
         `- What this step is: ${ctx.tracks}`,
-        // The naming steer — kept the message on this step and calls it the
-        // right thing (previously parsed but dropped before the model saw it).
+        `- What 'outstanding' means: ${ctx.outstanding}`,
+        // The naming steer — keeps the message calling the step the right thing.
         ...(ctx.howToRefer ? [`- How to name it with this recipient: ${ctx.howToRefer}`] : []),
         `- Also called: ${ctx.alsoCalled}`,
         `- Pitfalls to avoid: ${ctx.misframings}`,
@@ -461,6 +511,24 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     .filter((p): p is string => p !== null);
   const milestoneContextBlock =
     milestoneContextParts.length > 0 ? milestoneContextParts.join("\n\n") : null;
+
+  // The authoritative, app-decided ask (§3 of the design). This governs the
+  // message; the glossary above is background only.
+  const asksBlock = (() => {
+    const lines: string[] = [`- Writing to: ${recipientRoleLabel}`];
+    if (!isMulti) {
+      if (primaryAsk.actionHolderRole) lines.push(`- Who owns this step: ${partyLabel(primaryAsk.actionHolderRole)}`);
+      lines.push(`- This recipient is the person who completes it: ${primaryAsk.recipientIsActionHolder ? "yes" : "no"}`);
+      lines.push(`- ASK: ${primaryAsk.recipientAction}`);
+    } else {
+      asks.forEach((a, i) => {
+        const owner = a.actionHolderRole ? partyLabel(a.actionHolderRole) : "unknown";
+        lines.push(`${i + 1}. ${a.name}: owner ${owner}${a.recipientIsActionHolder ? " (this recipient)" : ""}`);
+        lines.push(`   ASK: ${a.recipientAction}`);
+      });
+    }
+    return lines.join("\n");
+  })();
 
   // Chase history — timing data only. The verbatim 300-char snippet of the
   // last outbound message was REMOVED for PII minimisation (it could contain
@@ -521,6 +589,9 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     ...(milestoneContextBlock
       ? [`# Milestone context`, ``, milestoneContextBlock, ``]
       : []),
+    `# The ask (authoritative — build the message around exactly this)`,
+    asksBlock,
+    ``,
     ...(vendorFirmName || purchaserFirmName
       ? [
           `# Legal representatives`,
