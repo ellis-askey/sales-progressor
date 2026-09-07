@@ -414,11 +414,14 @@ async function deleteDemoTransactions(txIds: string[]): Promise<void> {
 export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ removed: number }> {
   const expired = await prisma.propertyTransaction.findMany({
     where: { isDemo: true, demoExpiresAt: { not: null, lte: now } },
-    select: { id: true },
+    select: { id: true, agencyId: true },
   });
   const ids = expired.map((t) => t.id);
   try {
     await deleteDemoTransactions(ids);
+    // Also remove each affected agency's placeholder demo agent (best-effort).
+    const agencyIds = [...new Set(expired.map((t) => t.agencyId).filter((a): a is string => !!a))];
+    if (agencyIds.length) await prisma.user.deleteMany({ where: { agencyId: { in: agencyIds }, isDemo: true } }).catch(() => {});
     return { removed: ids.length };
   } catch (err) {
     console.error("[cleanupExpiredDemos] failed", err);
@@ -435,5 +438,8 @@ export async function removeDemoSale(_transactionId: string, agencyId: string): 
   const demos = await prisma.propertyTransaction.findMany({ where: { agencyId, isDemo: true }, select: { id: true } });
   if (demos.length === 0) return false;
   await deleteDemoTransactions(demos.map((d) => d.id));
+  // Also remove the placeholder demo agent now its files are gone (best-effort:
+  // a stray FK never blocks the already-completed teardown).
+  await prisma.user.deleteMany({ where: { agencyId, isDemo: true } }).catch(() => {});
   return true;
 }
