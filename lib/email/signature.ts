@@ -89,10 +89,15 @@ export function renderResolvedSignature(data: RenderSignatureData): ResolvedSign
 }
 
 // DB-backed resolver used by the send/preview surfaces.
+//
+// `override` lets the settings page preview an UNSAVED selection (draft mode +
+// draft custom html). The override html must already be sanitised by the caller
+// (the send/DB path stores only sanitised html, so the resolver never sanitises).
 export async function resolveEmailSignature(opts: {
   userId: string;
   agency?: SignatureAgencyContext | null;
   fallbackName?: string | null;
+  override?: { mode?: EmailSignatureMode; customHtml?: string | null };
 }): Promise<ResolvedSignature> {
   const user = await prisma.user.findUnique({
     where: { id: opts.userId },
@@ -124,9 +129,12 @@ export async function resolveEmailSignature(opts: {
     agencyLogoBandHtml,
   };
   return renderResolvedSignature({
-    mode: user?.emailSignatureMode ?? "BASIC",
+    mode: opts.override?.mode ?? user?.emailSignatureMode ?? "BASIC",
     sigInput,
     imageUrl: getSignatureImageUrl(user?.emailSignatureImagePath),
-    customHtml: user?.emailSignatureHtml ?? null,
+    customHtml:
+      opts.override?.customHtml !== undefined
+        ? opts.override.customHtml
+        : user?.emailSignatureHtml ?? null,
   });
 }

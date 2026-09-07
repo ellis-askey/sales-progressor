@@ -65,7 +65,8 @@
     "remark-gfm": "^4.0.1",
     "replicate": "^1.4.0",
     "stripe": "^22.1.1",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "xss": "^1.0.15"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
