@@ -421,6 +421,21 @@ ${voiceProfile}
 `
     : "";
 
+  // When the sender uses an IMAGE or CUSTOM signature, their signature block is
+  // appended on send and already carries their name/sign-off. Tell the model NOT
+  // to write its own closing sign-off, or the message would sign off twice.
+  const senderSig = await prisma.user
+    .findUnique({ where: { id: session.user.id }, select: { emailSignatureMode: true } })
+    .catch(() => null);
+  const suppressSignoff = !!senderSig && senderSig.emailSignatureMode !== "BASIC";
+  const signoffSection = suppressSignoff
+    ? `# Sign-off
+
+Do NOT write a closing sign-off. No "Best regards" / "Kind regards", and do not type the sender's name or firm at the end. The sender's own signature is added automatically after your message, so any written sign-off would duplicate it. End on the open-door line.
+
+`
+    : "";
+
   // System prompt (§5 verbatim)
   const systemPrompt = `You are writing a chase message on behalf of ${senderFirstName}, a sales progressor at ${firmName}, an estate agency. Your job is to keep a residential property transaction moving toward exchange and completion on behalf of all parties involved.
 
@@ -493,7 +508,7 @@ ${channelGuidance}
 
 ${toneGuidance}
 
-${voiceProfileSection}# Output format
+${signoffSection}${voiceProfileSection}# Output format
 
 Return only the message body. No preamble, no explanation, no "Here is the message:". Plain text. Sender's name appears in the sign-off only when channel guidance specifies.`;
 
