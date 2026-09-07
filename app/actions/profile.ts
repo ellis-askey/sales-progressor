@@ -35,5 +35,8 @@ export async function updateProfileAction(data: {
     data: { name, email, phone, jobTitle, directMobile },
   });
 
-  revalidatePath("/agent/account/profile");
+  // Revalidate the whole /agent layout, not just the profile page: the
+  // top-bar/sidebar name is DB-sourced in the layout (via resolveAgentSession),
+  // so a rename only shows in the chrome once the layout re-runs.
+  revalidatePath("/agent", "layout");
 }

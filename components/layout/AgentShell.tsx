@@ -90,7 +90,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   viewer:           "Viewer",
 };
 
-function UserDropdown({ session, role, userImage }: { session: Session; role: UserRole; userImage?: string | null }) {
+function UserDropdown({ session, role, userName, userImage }: { session: Session; role: UserRole; userName: string; userImage?: string | null }) {
   const [open, setOpen] = useState(false);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -122,7 +122,7 @@ function UserDropdown({ session, role, userImage }: { session: Session; role: Us
       }}>
         <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0 }} />
         <span style={{ fontSize: 13, fontWeight: 500, maxWidth: 120, overflow: "hidden", whiteSpace: "nowrap" }}>
-          {session.user.name}
+          {userName}
         </span>
         <div style={{ width: 11, height: 11, flexShrink: 0 }} />
       </div>
@@ -154,9 +154,9 @@ function UserDropdown({ session, role, userImage }: { session: Session; role: Us
           aria-label="User menu"
           aria-expanded={open}
         >
-          <UserAvatar user={{ name: session.user.name ?? "", image: userImage }} size={26} />
+          <UserAvatar user={{ name: userName, image: userImage }} size={26} />
           <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", flex: 1, textAlign: "left", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {session.user.name}
+            {userName}
           </span>
           <CaretDown
             weight="bold"
@@ -250,10 +250,14 @@ function UserDropdown({ session, role, userImage }: { session: Session; role: Us
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0 }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0 }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
+  // DB-sourced name (falls back to the JWT). Reading it here means a profile
+  // rename shows in the chrome as soon as the /agent layout revalidates,
+  // rather than only after a sign-out/in that refreshes the token.
+  const displayName     = userName ?? session.user.name ?? "";
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
   const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, todoDueCount);
@@ -355,7 +359,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <div className="hidden md:block"><DesignLabToggle /></div>
           )}
           <AgentBell userKey={session.user.email ?? session.user.id} />
-          <div className="hidden md:block"><UserDropdown session={session} role={role} userImage={userImage} /></div>
+          <div className="hidden md:block"><UserDropdown session={session} role={role} userName={displayName} userImage={userImage} /></div>
         </div>
       </header>
 
@@ -517,10 +521,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <UserAvatar user={{ name: session.user.name ?? "", image: userImage }} size={26} />
+            <UserAvatar user={{ name: displayName, image: userImage }} size={26} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {session.user.name}
+                {displayName}
               </p>
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>
                 {ROLE_LABEL[role]}
@@ -564,7 +568,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         {children}
       </main>
 
-      {showWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={session.user.name ?? ""} />}
+      {showWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
     </div>
   );

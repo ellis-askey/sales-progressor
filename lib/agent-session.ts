@@ -75,6 +75,10 @@ export type AgentSessionContext = {
   showWelcome: boolean;
   theme: AgentTheme;
   brandColor: string;
+  // DB-sourced display name (not the JWT). The JWT name goes stale after a
+  // profile rename until the token refreshes; the chrome reads this instead so
+  // a rename shows immediately once the /agent layout revalidates.
+  userName: string;
   userImage: string | null;
   mobileTheme: MobileAgentTheme;
   nightModePref: boolean | null;
@@ -110,6 +114,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
+      name: true,
       hasSeenAgentWelcome: true,
       agentPreferences: true,
       image: true,
@@ -124,6 +129,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const showWelcome = isInternalStaff ? false : !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const brandColor = getBrandColor(userRecord?.agentPreferences);
+  const userName = userRecord?.name ?? session.user.name ?? "";
   const userImage = userRecord?.image ?? null;
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
@@ -140,6 +146,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     showWelcome,
     theme,
     brandColor,
+    userName,
     userImage,
     mobileTheme,
     nightModePref,
