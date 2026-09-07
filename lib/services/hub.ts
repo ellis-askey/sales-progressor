@@ -1746,30 +1746,12 @@ export async function getHubAttentionItems(
     })
     .filter((x): x is HubAttentionItem => x !== null);
 
-  // Enquiries rework: a stalled enquiries loop (no movement in 3 weeks) surfaces
-  // as an escalated attention item too, using the same visibility scoping.
-  const stalled = await prisma.enquiryTracker.findMany({
-    where: { escalatedAt: { not: null }, closedAt: null, transaction: txLogFilter },
-    select: {
-      id: true,
-      escalatedAt: true,
-      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true } },
-    },
-  });
-  for (const t of stalled) {
-    if (!t.escalatedAt) continue;
-    items.push({
-      id: `enq-${t.id}`,
-      urgency: "escalated",
-      reminderName: "Enquiries stalled",
-      transaction: { id: t.transaction.id, propertyAddress: t.transaction.propertyAddress, photoStoragePath: t.transaction.photoStoragePath },
-      nextDueDate: t.escalatedAt,
-      exchangeDate: t.transaction.overridePredictedDate ?? t.transaction.expectedExchangeDate ?? null,
-      escalationReason: "No movement in 3 weeks",
-      escalatedAt: t.escalatedAt,
-      escalatedByName: null,
-    });
-  }
+  // Enquiries no longer surface here. Open enquiry loops (including stalled ones)
+  // live on the dedicated Enquiries triage page, which owns confirming whose
+  // court the ball is in — so they stop inflating this attention count. The
+  // normal reminder flow still chases REACHING enquiries (VM10 / PM14 etc.);
+  // once the tracker opens, the triage page takes over.
+  // See docs/active/enquiries-triage/00-spec.md.
 
   // Scenario D: an exchange whose predicted date has passed while the file has
   // gone quiet surfaces as an overdue attention item, so a stuck file can't

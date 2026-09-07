@@ -15,7 +15,7 @@ import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
-  Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple,
+  Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
   ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
@@ -47,7 +47,7 @@ function formatAgentTime(d: Date): string {
 
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
-function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number) {
+function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number) {
   // Reminders + Auto emails are self-progression surfaces. For agency
   // users (director/negotiator) they only appear when the agency actually
   // progresses a live file itself; agencies that outsource everything get
@@ -55,9 +55,13 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
   // unaffected — hasSelfManagedFiles is true for them. Founder, 2026-08-09.
   const isAgencyUser = role === "director" || role === "negotiator";
   const showSelfPages = isAgencyUser ? hasSelfManagedFiles : true;
+  // Enquiries triage is internal-only for now (widens to agents later — see
+  // docs/active/enquiries-triage/00-spec.md).
+  const isInternal = role === "admin" || role === "sales_progressor" || role === "superadmin";
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
     ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray }] : []),
+    ...(isInternal ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare, badge: todoDueCount > 0 ? todoDueCount : undefined }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
@@ -250,7 +254,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, agentBellClearedAt = null }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; agentBellClearedAt?: string | null }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, agentBellClearedAt = null }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; agentBellClearedAt?: string | null }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -260,7 +264,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   const displayName     = userName ?? session.user.name ?? "";
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
-  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, todoDueCount);
+  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, todoDueCount, enquiriesOpenCount);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);

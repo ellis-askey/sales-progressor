@@ -7,6 +7,8 @@ import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
+import { getAccessScope } from "@/lib/security/access-scope";
+import { countOpenEnquiries } from "@/lib/services/enquiries";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
@@ -63,6 +65,12 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     ? 0
     : await countAgentDueOrOverdue(session.user.id, session.user.agencyId, session.user.role);
 
+  // Enquiries nav badge — open enquiry loops the internal team can triage.
+  // Internal-only for now, so skip the query for agency users entirely.
+  const enquiriesOpenCount = isInternalStaff
+    ? await countOpenEnquiries(getAccessScope(session)).catch(() => 0)
+    : 0;
+
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
       {/* The user's brand colour, derived into the full token set at render
@@ -84,7 +92,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={todoDueCount} agentBellClearedAt={agentBellClearedAt}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={todoDueCount} enquiriesOpenCount={enquiriesOpenCount} agentBellClearedAt={agentBellClearedAt}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />
