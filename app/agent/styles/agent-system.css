@@ -1834,6 +1834,14 @@
   .agent-acc-hdr:active:not([aria-disabled="true"]) {
     background: var(--agent-hover-tint-strong);
   }
+  /* Stacked accordions (the milestone checklist): the top-corner rounding above
+   * is meant for a single header sitting at a card's top edge. When sections are
+   * stacked, only the first should round — the rest are full-width dividers, so
+   * their hover tint must be square, not notched at the top corners. */
+  .ms-check-section:not(:first-child) .agent-acc-hdr {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
   .agent-acc-title {
     font-size: var(--agent-text-body-sm);
     font-weight: var(--agent-weight-semibold);
