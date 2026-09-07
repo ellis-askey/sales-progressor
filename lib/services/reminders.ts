@@ -726,12 +726,22 @@ export async function evaluateTransactionReminders(
     // Calculate first due date: anchor + graceDays, normalised to 06:00 UK
     // on the resulting calendar day (so chases fire before the working day
     // starts, not at the random hour the anchor milestone was confirmed).
-    const firstDueDate = setUkChaseTime(addDays(anchorDate, rule.graceDays));
+    let firstDueDate = setUkChaseTime(addDays(anchorDate, rule.graceDays));
 
     // Find existing active log
     const existingLog = await prisma.reminderLog.findFirst({
       where: { transactionId, reminderRuleId: rule.id, status: "active" },
     });
+
+    // Safety net: a reminder must never be scheduled before it exists. If the
+    // anchor maths lands earlier than the reminder's own creation moment (a
+    // stale or backdated anchor slipping through), floor it to that moment so it
+    // can't be "born overdue". Uses the log's own createdAt (stable) rather than
+    // "now", so the floor can't drift forward on every engine pass.
+    const createdFloor = existingLog?.createdAt ?? new Date();
+    if (firstDueDate.getTime() < createdFloor.getTime()) {
+      firstDueDate = setUkChaseTime(createdFloor);
+    }
 
     // Wake snoozed-but-elapsed logs in-line. Previously a snoozed log only
     // woke when the wake cron ran (or via wakeUpReminderLog called
