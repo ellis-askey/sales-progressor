@@ -250,7 +250,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0 }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, agentBellClearedAt = null }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; agentBellClearedAt?: string | null }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -358,7 +358,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
             <div className="hidden md:block"><DesignLabToggle /></div>
           )}
-          <AgentBell userKey={session.user.email ?? session.user.id} />
+          <AgentBell initialClearedAt={agentBellClearedAt} />
           <div className="hidden md:block"><UserDropdown session={session} role={role} userName={displayName} userImage={userImage} /></div>
         </div>
       </header>

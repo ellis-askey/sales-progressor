@@ -98,6 +98,10 @@ export type AgentSessionContext = {
   // updateGlassPicksAction. 2026-08-08.
   glassPicks: GlassPicks;
   chainDeclineNotif: string | null;
+  // Server-backed baseline for the notification bell's unread count
+  // (User.agentPreferences.agentBellClearedAt). Null until the user first
+  // clears the bell. Replaces the old per-device localStorage stamp.
+  agentBellClearedAt: string | null;
   // Agency.modeProfile — drives the conditional copy in the welcome tour.
   // Defaults to "self_progressed" if the user has no agency (shouldn't
   // happen for non-internal staff, but defensive).
@@ -136,6 +140,13 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
   const backgroundOpacity = readAuroraOpacityFromPrefs(userRecord?.agentPreferences);
   const glassPicks = readGlassPicksFromPrefs(userRecord?.agentPreferences);
+  const agentBellClearedAt =
+    userRecord?.agentPreferences && typeof userRecord.agentPreferences === "object"
+      ? (() => {
+          const v = (userRecord.agentPreferences as Record<string, unknown>).agentBellClearedAt;
+          return typeof v === "string" ? v : null;
+        })()
+      : null;
   const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
   const agencyModeProfile = userRecord?.agency?.modeProfile ?? "self_progressed";
 
@@ -154,6 +165,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     backgroundOpacity,
     glassPicks,
     chainDeclineNotif,
+    agentBellClearedAt,
     agencyModeProfile,
   };
 });

@@ -6,6 +6,7 @@ import { Bell, Scales } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Pill } from "@/components/ui/Pill";
+import { markAgentBellReadAction } from "@/app/actions/agent-preferences";
 
 // Notification bell (rebuilt 2026-08-09). Polls the agent-scoped updates feed
 // and shows an unread badge; clicking opens a dropdown of the latest updates
@@ -14,6 +15,11 @@ import { Pill } from "@/components/ui/Pill";
 //
 // The dropdown renders in-shell (not portaled), so it inherits the --agent-*
 // tokens and flips light/dark automatically.
+//
+// Read-state (the "cleared at" baseline for the unread count) is server-backed
+// on User.agentPreferences.agentBellClearedAt, seeded from the layout via
+// initialClearedAt. This replaced the old per-device localStorage stamp, which
+// zeroed all history on a fresh device and never synced across devices.
 
 type BellItem = {
   id: string;
@@ -60,24 +66,18 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-export function AgentBell({ userKey }: { userKey: string }) {
-  const storageKey = `agent-bell-cleared-${userKey}`;
+export function AgentBell({ initialClearedAt }: { initialClearedAt: string | null }) {
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<BellItem[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  const getCleared = useCallback(() => {
-    const stored = localStorage.getItem(storageKey);
-    if (stored) return stored;
-    const now = new Date().toISOString();
-    localStorage.setItem(storageKey, now);
-    return now;
-  }, [storageKey]);
+  // The unread baseline, server-sourced. A ref (not state) so the 30s poll
+  // always reads the latest value without re-subscribing the interval.
+  const clearedRef = useRef<string>(initialClearedAt ?? new Date().toISOString());
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/agent/notifications?after=${encodeURIComponent(getCleared())}`);
+      const res = await fetch(`/api/agent/notifications?after=${encodeURIComponent(clearedRef.current)}`);
       if (res.ok) {
         const data = await res.json();
         setCount(data.count ?? 0);
@@ -86,7 +86,18 @@ export function AgentBell({ userKey }: { userKey: string }) {
     } catch {
       // ignore — transient
     }
-  }, [getCleared]);
+  }, []);
+
+  // Brand-new user with no server baseline yet: persist "now" once so the
+  // baseline exists server-side and every device agrees from then on. Matches
+  // the previous new-user behaviour (start from now), minus the per-device drift.
+  useEffect(() => {
+    if (initialClearedAt == null) {
+      markAgentBellReadAction()
+        .then((r) => { clearedRef.current = r.clearedAt; })
+        .catch(() => {});
+    }
+  }, [initialClearedAt]);
 
   useEffect(() => {
     fetchData();
@@ -120,10 +131,13 @@ export function AgentBell({ userKey }: { userKey: string }) {
   function toggle() {
     const next = !open;
     setOpen(next);
-    // Opening marks everything read — stamp now and clear the badge.
+    // Opening marks everything read — advance the baseline (server-backed) and
+    // clear the badge. Fire-and-forget; the local ref moves immediately so the
+    // next poll stays at zero.
     if (next && count > 0) {
-      localStorage.setItem(storageKey, new Date().toISOString());
+      clearedRef.current = new Date().toISOString();
       setCount(0);
+      markAgentBellReadAction().catch(() => {});
     }
   }
 

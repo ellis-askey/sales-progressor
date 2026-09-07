@@ -172,6 +172,34 @@ export async function updateAuroraOpacityAction(value: number) {
   return { ok: true as const, value: clamped };
 }
 
+// Persists the agent notification bell's "cleared at" baseline on
+// User.agentPreferences.agentBellClearedAt. The old bell kept this in per-device
+// localStorage, so a fresh device zeroed all history and read-state never synced
+// across devices. Server-backed makes the unread baseline consistent everywhere.
+// No revalidatePath — the bell owns its own count client-side; this only
+// persists the baseline. Read-merge-write so other prefs are preserved.
+export async function markAgentBellReadAction(): Promise<{ ok: true; clearedAt: string }> {
+  const session = await requireSession();
+  const clearedAt = new Date().toISOString();
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { agentPreferences: { ...existingPrefs, agentBellClearedAt: clearedAt } },
+  });
+
+  return { ok: true as const, clearedAt };
+}
+
 export async function updateAgentNightMode(nightMode: boolean | null) {
   const session = await requireSession();
 
