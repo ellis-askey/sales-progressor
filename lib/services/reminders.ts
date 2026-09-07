@@ -665,9 +665,18 @@ export async function evaluateTransactionReminders(
         }
         anchorDate = anchorCompletion.eventDate;
       } else {
+        // Anchor origin preference: the real event date, then when it
+        // completed, then when it was resolved (not-required timestamp, else the
+        // row's last-changed time). Do NOT fall straight to transaction.createdAt
+        // for a satisfied-but-dateless anchor (e.g. a step flipped not_required
+        // with no completedAt/notRequiredAt): that anchors a LATE-created reminder
+        // to the file-start date, so its nextDueDate lands a month before the log
+        // even existed ("born overdue" — e.g. PM20 anchored on an NR'd PM19, due
+        // createdAt+28d). updatedAt is when the anchor was actually resolved:
+        // stable, and a far more accurate origin than the file-start date.
         anchorDate = (rule.useEventDate && anchorCompletion.eventDate)
           ? anchorCompletion.eventDate
-          : (anchorCompletion.completedAt ?? transaction.createdAt);
+          : (anchorCompletion.completedAt ?? anchorCompletion.notRequiredAt ?? anchorCompletion.updatedAt ?? transaction.createdAt);
       }
     } else {
       anchorDate = transaction.createdAt;
