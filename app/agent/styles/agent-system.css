@@ -1805,38 +1805,52 @@
   /* Full-width, transparent container over a right-anchored house-sketch
    * background. Desktop: card left, writing top-right, CTAs beneath. Mobile:
    * background hidden, single column in DOM order (writing -> card -> CTAs). */
-  /* Hidden below 1500px — the wide card + writing + houses layout only holds
-   * together at the largest sizes, so we simply don't show it under that. */
-  .fsh { display: none; }
+  /* The hero (card + writing + CTAs) shows at every size. The house-sketch
+   * BACKGROUND is added only at 1500px+ — below that the picture doesn't sit
+   * well, so we drop just the picture, not the hero. No side padding, so the
+   * card's left edge lines up with the other hub cards; negative top/bottom
+   * margin snugs it to the subtitle above and the attention card below. */
+  .fsh {
+    position: relative;
+    display: grid;
+    width: 100%;
+    padding: 0;
+    margin: -8px 0 -10px;
+    grid-template-columns: minmax(260px, 340px) 1fr;
+    grid-template-areas:
+      "card writing"
+      "card ctas";
+    column-gap: 40px;
+    row-gap: 16px;
+    align-items: center;
+    min-height: 240px;
+    border-radius: var(--agent-radius-xl);
+    background-color: transparent;
+  }
   @media (min-width: 1500px) {
     .fsh {
-      position: relative;
-      display: grid;
-      width: 100%;
-      /* No side padding: the card's left edge lines up with the other hub
-       * cards. Negative top/bottom margin snugs it to the subtitle above and
-       * the attention card below (both felt loose at full padding). */
-      padding: 0;
-      margin: -8px 0 -10px;
-      grid-template-columns: minmax(260px, 340px) 1fr;
-      grid-template-areas:
-        "card writing"
-        "card ctas";
-      column-gap: 40px;
-      row-gap: 16px;
-      align-items: center;
-      min-height: 240px;
-      border-radius: var(--agent-radius-xl);
-      background-color: transparent;
       background-image: url("/first-sale-hero.png");
       background-repeat: no-repeat;
       background-position: right center;
       background-size: contain;
     }
   }
-  .fsh-card    { grid-area: card; }
+  .fsh-card    { grid-area: card; max-width: 360px; }
   .fsh-writing { grid-area: writing; align-self: end; }
-  .fsh-ctas    { grid-area: ctas; align-self: start; }
+  .fsh-ctas    { grid-area: ctas; align-self: start; max-width: 360px; }
+  /* Small screens: stack (writing -> card -> CTAs by DOM order) and let the
+   * card + buttons run full width. */
+  @media (max-width: 860px) {
+    .fsh {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      min-height: 0;
+      margin: 0;
+      row-gap: 14px;
+    }
+    .fsh-card, .fsh-writing, .fsh-ctas { max-width: none; width: 100%; }
+  }
   /* Photo slot: fallback/photo with a hover camera badge that uploads (mirrors
    * the profile-photo affordance). Badge fades in on hover/focus, or stays up
    * while an upload is in flight. */

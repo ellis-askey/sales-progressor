@@ -50,7 +50,6 @@ export function FirstSaleHero({
           overflow: "hidden",
           border: "0.5px solid var(--agent-border-subtle)",
           boxShadow: "0 6px 24px rgba(30,45,74,0.10)",
-          maxWidth: 360,
         }}
       >
         <FirstSalePhoto transactionId={sale.id} photoUrl={photoUrl} />
@@ -74,7 +73,7 @@ export function FirstSaleHero({
       </div>
 
       {/* CTAs (last on mobile) */}
-      <div className="fsh-ctas" style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 360 }}>
+      <div className="fsh-ctas" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <Link
           href={`/agent/transactions/${sale.id}`}
           className="agent-btn agent-btn-primary"
