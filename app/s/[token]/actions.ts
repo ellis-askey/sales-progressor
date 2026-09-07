@@ -9,6 +9,7 @@ import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confi
 import { logEnquiryMovement, setEnquirySnoozeUntil } from "@/lib/enquiries/tracker";
 import { markChaseResponded, recipientForSide } from "@/lib/enquiries/chase-log";
 import { checkSolicitorConfirmLimit } from "@/lib/ratelimit";
+import { validateHandlerContact } from "@/lib/utils";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 import {
   sendAdminMilestoneNotificationToPortal,
@@ -305,12 +306,16 @@ export async function solicitorUpdateMyDetailsAction(
   });
   const contactId = decoded.side === "vendor" ? tx?.vendorSolicitorContactId : tx?.purchaserSolicitorContactId;
   if (!contactId) throw new Error("No handler is recorded on this file.");
+  // A handler's own record must keep a valid phone and email — these are the
+  // details every automated chase and client email button rely on.
+  const contactError = validateHandlerContact(input.phone, input.email);
+  if (contactError) throw new Error(contactError);
   await prisma.solicitorContact.update({
     where: { id: contactId },
     data: {
       name: input.name.trim() || undefined,
-      phone: input.phone.trim() || null,
-      email: input.email.trim() || null,
+      phone: input.phone.trim(),
+      email: input.email.trim().toLowerCase(),
       secondaryEmail: input.secondaryEmail.trim() || null,
     },
   });

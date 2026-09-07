@@ -2,6 +2,7 @@
 
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { validateHandlerContact } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,8 +104,11 @@ export async function addRecommendedSolicitorWithContactAction(input: {
   }
 
   // Only create a contact when a new handler was entered (not when an existing
-  // handler was picked from the shared firm).
+  // handler was picked from the shared firm). A new handler needs both a phone
+  // and an email — see validateHandlerContact.
   if (input.contactName && input.contactName.trim()) {
+    const contactError = validateHandlerContact(input.contactPhone, input.contactEmail);
+    if (contactError) throw new Error(contactError);
     await prisma.solicitorContact.create({
       data: {
         firmId,

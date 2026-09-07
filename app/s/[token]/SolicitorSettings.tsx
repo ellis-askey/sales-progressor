@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Camera } from "@phosphor-icons/react/dist/ssr";
-import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
+import { titleCaseKeepAcronyms, normalizePhone, validateHandlerContact } from "@/lib/utils";
 import { solicitorUpdateMyDetailsAction } from "./actions";
 import { S } from "./ui";
 
@@ -22,6 +22,7 @@ export function SolicitorSettings({ token, firmName, details }: { token: string;
   const [form, setForm] = useState({ name: details.name, phone: details.phone, email: details.email, secondaryEmail: details.secondaryEmail });
   const [image, setImage] = useState(details.image);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -30,6 +31,7 @@ export function SolicitorSettings({ token, firmName, details }: { token: string;
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
     setSaved(false);
+    setError(null);
   }
 
   // Tidy input as focus leaves the field, matching the client portal's edit
@@ -48,13 +50,18 @@ export function SolicitorSettings({ token, firmName, details }: { token: string;
       secondaryEmail: lower(form.secondaryEmail),
     };
     setForm(cleaned);
+    // Phone and email are both required — we chase and email you on these.
+    const invalid = validateHandlerContact(cleaned.phone, cleaned.email);
+    if (invalid) { setError(invalid); return; }
+    setError(null);
     start(async () => {
       try {
         await solicitorUpdateMyDetailsAction(token, cleaned);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
-      } catch {
-        /* keep the form; the field values are still there to retry */
+      } catch (err) {
+        // keep the form; the field values are still there to retry
+        setError(err instanceof Error ? err.message : "Couldn't save. Please try again.");
       }
     });
   }
@@ -130,6 +137,8 @@ export function SolicitorSettings({ token, firmName, details }: { token: string;
       <Field label="Direct phone" value={form.phone} onChange={(v) => set("phone", v)} onBlur={() => blurFmt("phone", normalizePhone)} type="tel" />
       <Field label="Email" value={form.email} onChange={(v) => set("email", v)} onBlur={() => blurFmt("email", lower)} type="email" />
       <Field label="Assistant / CC email" value={form.secondaryEmail} onChange={(v) => set("secondaryEmail", v)} onBlur={() => blurFmt("secondaryEmail", lower)} type="email" />
+
+      {error && <p style={{ margin: "0 0 8px", fontSize: 12, color: S.danger }}>{error}</p>}
 
       <button type="button" onClick={save} disabled={pending} style={{ marginTop: 6, width: "100%", padding: "11px", borderRadius: 9, border: "none", background: S.primary, color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: pending ? "default" : "pointer", opacity: pending ? 0.6 : 1 }}>
         {pending ? "Saving…" : saved ? "✓ Saved" : "Save details"}

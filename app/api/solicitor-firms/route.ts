@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { validateHandlerContact } from "@/lib/utils";
 
 // GET /api/solicitor-firms?q=smith  — typeahead search
 export async function GET(req: NextRequest) {
@@ -35,6 +36,13 @@ export async function POST(req: NextRequest) {
 
   const { name, handler } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Firm name required" }, { status: 400 });
+
+  // A handler (case handler) can only be created with both a phone and an email.
+  // Firm-only creation stays allowed (no handler in the body).
+  if (handler?.name?.trim()) {
+    const contactError = validateHandlerContact(handler.phone, handler.email);
+    if (contactError) return NextResponse.json({ error: contactError }, { status: 400 });
+  }
 
   try {
     // Check for existing firm (case-insensitive) before creating to avoid unique constraint errors

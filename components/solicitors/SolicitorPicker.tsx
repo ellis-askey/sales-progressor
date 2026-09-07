@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { AddFirmModal } from "./AddFirmModal";
-import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { titleCaseKeepAcronyms, normalizePhone, validateHandlerContact } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
 type Handler = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
@@ -17,6 +17,13 @@ export type SolicitorSelection = {
   phone: string | null;
   email: string | null;
   secondaryEmail?: string | null;
+  // Set when a memo turned up a solicitor we could NOT auto-save because the
+  // direct line or email was missing. The firm is resolved (firmId is real) but
+  // no handler exists yet — the picker shows an inline "finish adding" prompt
+  // pre-filled with what the memo gave us, and only creates the handler once
+  // the missing detail is filled in and the user clicks Add. Nothing incomplete
+  // is ever written to the shared solicitor record.
+  pendingHandler?: { name: string; phone: string; email: string } | null;
 };
 
 type Props = {
@@ -144,7 +151,46 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
 
   function selectHandler(h: Handler) {
     if (!value) return;
-    onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null });
+    onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, pendingHandler: null });
+  }
+
+  // A solicitor the memo turned up without a full phone/email. Held pending so
+  // nothing incomplete is written; completed inline here, then created for real.
+  const [pendPhone, setPendPhone] = useState("");
+  const [pendEmail, setPendEmail] = useState("");
+  const [pendError, setPendError] = useState<string | null>(null);
+  const [pendSaving, setPendSaving] = useState(false);
+  useEffect(() => {
+    setPendPhone(value?.pendingHandler?.phone ?? "");
+    setPendEmail(value?.pendingHandler?.email ?? "");
+    setPendError(null);
+  }, [value?.pendingHandler?.name, value?.firmId]);
+
+  async function addPendingHandler() {
+    if (!value?.firmId || !value.pendingHandler) return;
+    const phone = pendPhone.trim() ? normalizePhone(pendPhone) : "";
+    const email = pendEmail.trim().toLowerCase();
+    const invalid = validateHandlerContact(phone, email);
+    if (invalid) { setPendError(invalid); return; }
+    setPendSaving(true);
+    setPendError(null);
+    try {
+      const res = await fetch(`/api/solicitor-firms/${value.firmId}/handlers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: value.pendingHandler.name, phone, email }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setPendError(j?.error ?? "Couldn't add. Try again.");
+        return;
+      }
+      const h: Handler = await res.json();
+      setHandlers((hs) => [...hs, h]);
+      onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, pendingHandler: null });
+    } finally {
+      setPendSaving(false);
+    }
   }
 
   // Assistant/secretary email — edited inline for the selected handler and
@@ -366,6 +412,41 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
                   document.body
                 )}
               </>
+            )}
+
+            {!value?.contactId && value?.pendingHandler && (
+              <div className="space-y-2">
+                <p className="agent-helper-warning">
+                  Found on the memo. Add a direct line and email to save this solicitor.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="tel"
+                    value={pendPhone}
+                    onChange={(e) => { setPendPhone(e.target.value); setPendError(null); }}
+                    onBlur={() => setPendPhone((v) => (v.trim() ? normalizePhone(v) : ""))}
+                    placeholder="Direct line"
+                    className="glass-input agent-focus px-3 py-2 text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={pendEmail}
+                    onChange={(e) => { setPendEmail(e.target.value); setPendError(null); }}
+                    onBlur={() => setPendEmail((v) => v.trim().toLowerCase())}
+                    placeholder="Email"
+                    className="glass-input agent-focus px-3 py-2 text-sm"
+                  />
+                </div>
+                {pendError && <p className="agent-helper-error">{pendError}</p>}
+                <button
+                  type="button"
+                  onClick={addPendingHandler}
+                  disabled={pendSaving}
+                  className="agent-btn agent-btn-xs agent-btn-primary disabled:opacity-50"
+                >
+                  {pendSaving ? "Adding…" : "Add solicitor"}
+                </button>
+              </div>
             )}
 
             {value?.contactId && (

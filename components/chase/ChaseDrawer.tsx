@@ -372,11 +372,12 @@ export function ChaseDrawer({
   }
 
   // Solicitor light-create: find-or-create the firm + handler, attach it to the
-  // right side of the file, then select it. Firm + handler + email is the minimum
-  // to email them; phone / assistant email are optional extras.
+  // right side of the file, then select it. A solicitor handler always needs a
+  // firm, a name, a direct line and an email (assistant email stays optional) —
+  // the same rule the server enforces via validateHandlerContact.
   async function handleAddSolicitor() {
-    if (!solFirm.trim() || !solHandler.trim() || !solEmail.trim()) {
-      setAddError("Firm, handler name and email are needed to email a solicitor.");
+    if (!solFirm.trim() || !solHandler.trim() || !solEmail.trim() || !solPhone.trim()) {
+      setAddError("Firm, handler name, direct line and email are all needed to add a solicitor.");
       return;
     }
     setAddSaving(true);
@@ -793,14 +794,12 @@ export function ChaseDrawer({
                         <input className="agent-focus" value={solFirm} onChange={(e) => setSolFirm(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolFirm(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Firm" style={addInputStyle} />
                         <input className="agent-focus" value={solHandler} onChange={(e) => setSolHandler(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolHandler(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Handler name" style={addInputStyle} />
                         <input className="agent-focus" value={solEmail} onChange={(e) => setSolEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolEmail(e.target.value.trim().toLowerCase()); }} placeholder="Email" type="email" style={addInputStyle} />
+                        <input className="agent-focus" value={solPhone} onChange={(e) => setSolPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setSolPhone(formatUKPhone(e.target.value)); }} placeholder="Direct line" type="tel" style={addInputStyle} />
                         {solMore ? (
-                          <>
-                            <input className="agent-focus" value={solPhone} onChange={(e) => setSolPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setSolPhone(formatUKPhone(e.target.value)); }} placeholder="Phone (optional)" style={addInputStyle} />
-                            <input className="agent-focus" value={solSecondary} onChange={(e) => setSolSecondary(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolSecondary(e.target.value.trim().toLowerCase()); }} placeholder="Assistant email (optional)" type="email" style={addInputStyle} />
-                          </>
+                          <input className="agent-focus" value={solSecondary} onChange={(e) => setSolSecondary(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolSecondary(e.target.value.trim().toLowerCase()); }} placeholder="Assistant email (optional)" type="email" style={addInputStyle} />
                         ) : (
                           <button onClick={() => setSolMore(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontSize: 11, color: "var(--agent-coral-deep)", cursor: "pointer", fontWeight: 600 }}>
-                            + Phone, assistant email
+                            + Assistant email
                           </button>
                         )}
                         <p style={{ margin: 0, fontSize: 10.5, color: "var(--agent-text-tertiary)" }}>Solicitors are emailed. We’ll add them to this file.</p>

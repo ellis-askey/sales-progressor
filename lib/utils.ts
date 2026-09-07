@@ -160,6 +160,24 @@ export function normalizePhone(phone: string): string {
   return cleaned;
 }
 
+// A solicitor handler must carry BOTH a valid phone and a valid email before it
+// can be created. They're a shared record reused across every file the handler
+// is on, and every automated chase, exchange-day message, and client "email your
+// conveyancer" button relies on both being present. This is enforced server-side
+// (and in the portal self-edit) so the requirement can't be bypassed by a caller
+// that skips the add-firm form — memo autofill and the chase-drawer quick-add
+// both used to write a null phone straight past the browser check.
+// Returns null when valid, or a user-facing message describing the first problem.
+export function validateHandlerContact(phone: unknown, email: unknown): string | null {
+  const p = typeof phone === "string" ? phone.trim() : "";
+  const e = typeof email === "string" ? email.trim() : "";
+  if (!p) return "A direct line is required";
+  if (normalizePhone(p).replace(/\D/g, "").length < 10) return "That phone number doesn't look right";
+  if (!e) return "An email address is required";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return "That email address doesn't look right";
+  return null;
+}
+
 /**
  * Build a list of phone-search variants to OR-search a stored phone field.
  *
