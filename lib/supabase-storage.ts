@@ -230,6 +230,40 @@ export async function deleteAvatar(path: string): Promise<void> {
   await client.storage.from(AVATARS_BUCKET).remove([path]);
 }
 
+// ── Email signature images (public bucket) ───────────────────────────────────
+// Agent "Signature image" option: an uploaded, or imported-from-URL, signature
+// image. Public-read so it renders in recipients' inboxes without an expiring
+// signed URL (same reasoning as avatars / agency logos). Path is
+// `{userId}.{ext}` (upsert). Full public URL is derived on read.
+// NOTE (manual step): create the `signatures` bucket in each Supabase project
+// (staging + prod) — see docs/active/ELLIS_MANUAL_TODO.md.
+export const SIGNATURES_BUCKET = "signatures";
+
+export async function uploadSignatureImage(
+  path: string,
+  buffer: Buffer,
+  mimeType: string,
+): Promise<string> {
+  const client = getClient();
+  const { error } = await client.storage
+    .from(SIGNATURES_BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+  if (error) throw new Error(`Signature image upload failed: ${error.message}`);
+  return path;
+}
+
+export function getSignatureImageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  return `${url}/storage/v1/object/public/${SIGNATURES_BUCKET}/${path}`;
+}
+
+export async function deleteSignatureImage(path: string): Promise<void> {
+  const client = getClient();
+  await client.storage.from(SIGNATURES_BUCKET).remove([path]);
+}
+
 // ── WhatsApp media (private bucket) ──────────────────────────────────────────
 // Client WhatsApp attachments (images / PDFs / voice notes / video). PRIVATE
 // like transaction-documents (can contain sensitive survey/enquiry content), so

@@ -8,10 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-import { getAgencyLogoUrl } from "@/lib/supabase-storage";
-import { buildChaseSignatureHtml, chaseSignatureMissing } from "@/lib/email/chase-signature";
-import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
-import type { LogoScale, LogoAlign } from "@/lib/image/logo";
+import { resolveEmailSignature } from "@/lib/email/signature";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -27,29 +24,13 @@ export async function GET(req: NextRequest) {
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
-  const sender = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { name: true, image: true, jobTitle: true, directMobile: true, phone: true },
+  // Same resolver the real send uses, so the drawer preview matches the send
+  // exactly (BASIC / IMAGE / CUSTOM).
+  const sig = await resolveEmailSignature({
+    userId: session.user.id,
+    agency: tx.agency,
+    fallbackName: session.user.name,
   });
 
-  const agencyLogoBandHtml = agencyLogoHeaderHtml({
-    logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
-    tileColor: tx.agency?.logoTileColor,
-    scale: (tx.agency?.logoScale ?? null) as LogoScale | null,
-    align: (tx.agency?.logoAlign ?? null) as LogoAlign | null,
-  });
-  const sigInput = {
-    agentName: sender?.name ?? session.user.name ?? "",
-    agentImageUrl: sender?.image ?? null,
-    jobTitle: sender?.jobTitle ?? null,
-    directMobile: sender?.directMobile ?? null,
-    phone: sender?.phone ?? null,
-    agencyName: tx.agency?.name ?? "",
-    agencyLogoBandHtml,
-  };
-
-  return NextResponse.json({
-    html: buildChaseSignatureHtml(sigInput),
-    missing: chaseSignatureMissing(sigInput),
-  });
+  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode });
 }

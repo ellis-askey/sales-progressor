@@ -3,8 +3,18 @@ import { requireSession } from "@/lib/session";
 import { getVerifiedEmailForSending } from "@/lib/services/verified-emails";
 import { sendFromVerifiedAddress } from "@/lib/services/sendgrid";
 import { resolveSenderForTransaction } from "@/lib/email";
+import { resolveEmailSignature } from "@/lib/email/signature";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+
+const AGENCY_SIG_SELECT = { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } as const;
+
+// Wrap the agent's typed body + resolved signature into an HTML part.
+function composeHtml(body: string, sigHtml: string): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const bodyHtml = esc(body).replace(/\r?\n/g, "<br>");
+  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${bodyHtml}${sigHtml}</div>`;
+}
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
@@ -26,12 +36,13 @@ export async function POST(req: NextRequest) {
     const scope = getAccessScope(session);
     const tx = await prisma.propertyTransaction.findFirst({
       where: scopeOwnershipWhere(scope, transactionId),
-      select: { id: true },
+      select: { id: true, agency: { select: AGENCY_SIG_SELECT } },
     });
     if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
     const { from: resolvedFrom, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
-    await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body, replyTo });
+    const sig = await resolveEmailSignature({ userId: session.user.id, agency: tx.agency, fallbackName: session.user.name });
+    await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body + sig.text, html: composeHtml(body, sig.html), replyTo });
 
     await prisma.outboundMessage.create({
       data: {
@@ -80,11 +91,21 @@ export async function POST(req: NextRequest) {
     if (!txExists) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
   }
 
+  const senderAgency = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agency: { select: AGENCY_SIG_SELECT } },
+  });
+  const sig = await resolveEmailSignature({
+    userId: session.user.id,
+    agency: senderAgency?.agency ?? null,
+    fallbackName: session.user.name,
+  });
   await sendFromVerifiedAddress({
     from: `${session.user.name} <${fromEmail}>`,
     to,
     subject,
-    text: body,
+    text: body + sig.text,
+    html: composeHtml(body, sig.html),
     replyTo: fromEmail,
   });
 

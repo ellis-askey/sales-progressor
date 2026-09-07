@@ -159,6 +159,13 @@ model User {
   // personal number distinct from `phone` (which may be an office line).
   jobTitle            String?
   directMobile        String?
+  // Email signature (2026-09). Per-agent, follows whoever is sending. BASIC =
+  // the auto-generated TSP signature (default, backwards-compatible for all
+  // existing users); IMAGE = an uploaded/imported signature image; CUSTOM = a
+  // pasted, sanitised HTML signature. See docs/active/email-signature/00-audit-and-plan.md.
+  emailSignatureMode      EmailSignatureMode @default(BASIC)
+  emailSignatureImagePath String?
+  emailSignatureHtml      String?
   canViewAllFiles     Boolean    @default(false)
   hasSeenAgentWelcome Boolean    @default(false)
   // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
@@ -305,6 +312,15 @@ enum ClientType {
   legacy
   standard
   free // free self-managed tier — never billed on exchange (Agency.feeTier)
+}
+
+// How an agent's email signature is produced. BASIC is the default for every
+// existing and new user (the auto-generated TSP signature). See
+// docs/active/email-signature/00-audit-and-plan.md.
+enum EmailSignatureMode {
+  BASIC
+  IMAGE
+  CUSTOM
 }
 
 enum ServiceType {
@@ -3353,6 +3369,19 @@ enum EnquiryMovementStatus {
   dismissed // reviewed and rejected
 }
 
+// What KIND of event a movement is, so the triage page can show trustworthy
+// status pills + a typed chase-history timeline instead of guessing from the
+// free-text note. Set by the page's typed actions; older rows default to
+// "update". See docs/active/enquiries-triage/00-spec.md.
+enum EnquiryMovementKind {
+  raised           // the enquiry loop opened (initial enquiries raised)
+  replies_sent     // the holding side sent their replies (moves the ball on)
+  replies_received // replies came back and are being reviewed
+  chased           // we nudged them (email / phone / other)
+  update           // a plain note / status update, no court change
+  correction       // a pure fix of whose court it is
+}
+
 // ─── OnwardTracker ───────────────────────────────────────────────────────────
 //
 // A seller's REPORTED onward-purchase progress, held on their own sale file as a
@@ -3572,6 +3601,9 @@ model EnquiryMovement {
   note            String
   occurredAt      DateTime              @default(now())
   source          EnquiryMovementSource
+  // What kind of event this is (drives the triage page's pills + history).
+  // Older rows default to "update"; the typed page actions set it explicitly.
+  kind            EnquiryMovementKind   @default(update)
   // Set when this movement moves the ball to the other side.
   flipsCourtTo    EnquiryCourt?
   status          EnquiryMovementStatus @default(accepted)
