@@ -1097,6 +1097,9 @@ export function ChaseDrawer({
                   style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, padding: "12px 14px", overflowX: "auto" }}
                   dangerouslySetInnerHTML={{ __html: signature.html }}
                 />
+                <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+                  Added when you use <strong>Send chase</strong>. <strong>Open in my email</strong> uses your own email app&rsquo;s signature instead.
+                </p>
                 {(() => {
                   const personal = signature.missing.filter((m) => m !== "agency logo");
                   if (personal.length === 0) return null;

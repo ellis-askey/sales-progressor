@@ -65,7 +65,20 @@ export function FollowUpCompose({ prospectId, defaultTo, disabled, disabledReaso
       <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Subject</span><input value={subject} onChange={(e) => setSubject(e.target.value)} className={inputCls} /></label>
       <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Body</span><textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className={inputCls} /></label>
 
-      <p className="text-[11px] text-neutral-600">Sent from ellis@thesalesprogressor.co.uk with your signature added automatically. Nothing sends until you press Send.</p>
+      {/* Signature preview — the same image lib/prospects/send.ts appends on send,
+          so the composer matches the sent email. Hidden gracefully until the
+          asset is provided (mirrors the email, which also references this URL). */}
+      <div className="space-y-1">
+        <p className="text-[11px] text-neutral-600">Signature added on send:</p>
+        <img
+          src="https://portal.thesalesprogressor.co.uk/prospect-signature.png"
+          alt="Ellis Askey, Operations Director, The Sales Progressor"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          className="max-w-[280px] h-auto rounded border border-neutral-800"
+        />
+      </div>
+
+      <p className="text-[11px] text-neutral-600">Sent from ellis@thesalesprogressor.co.uk. Nothing sends until you press Send.</p>
       {error && <p className="text-xs text-red-400">{error}</p>}
       <button onClick={send} disabled={sendPending || !to.trim() || !subject.trim() || !body.trim()} className="text-xs px-3 py-1.5 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 transition-colors disabled:opacity-40">
         {sendPending ? "Sending…" : "Send"}

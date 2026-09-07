@@ -261,22 +261,21 @@ export function EmailPreviewModal({ emailId, onClose, onSaved }: Props) {
                   >
                     Body (what most recipients see)
                   </p>
-                  <pre
+                  {/* Render the actual HTML part (what inboxes display), sandboxed
+                      with no scripts — the plain-text part can differ (e.g. its
+                      sign-off), so showing it here misrepresented the real email. */}
+                  <iframe
+                    title="Email preview"
+                    srcDoc={data.html}
+                    sandbox=""
                     style={{
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      color: "var(--agent-text-primary)",
-                      whiteSpace: "pre-wrap",
-                      fontFamily: "inherit",
-                      background: "var(--agent-surface-glass)",
+                      width: "100%",
+                      minHeight: 320,
                       border: "0.5px solid rgba(15,23,42,0.08)",
                       borderRadius: 8,
-                      padding: "12px 14px",
-                      margin: 0,
+                      background: "#fff",
                     }}
-                  >
-                    {data.text}
-                  </pre>
+                  />
                 </>
               ) : (
                 <>
