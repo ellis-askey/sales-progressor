@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import type { AddNodeSavedResult, EditingLinkData } from "@/components/chain/AddNodeDrawer";
@@ -20,6 +21,7 @@ type Props = {
 export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification, label }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const router = useRouter();
   const [addNode, setAddNode] = useState<{
     direction: "above" | "below";
     chainId: string;
@@ -46,6 +48,11 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
   function handleNodeSaved(result?: AddNodeSavedResult) {
     setAddNode(null);
     setRefreshKey((k) => k + 1);
+    // Also refresh the surrounding server surface (the chains workspace counts
+    // and tab membership, or the file page) — adding/editing a node otherwise
+    // only refetches the drawer. The AddNode save goes through an /api/chains
+    // route handler, which can't revalidate on its own.
+    router.refresh();
     if (!result) return;
     if (result.kind === "edited") {
       toast.success("Sale updated");

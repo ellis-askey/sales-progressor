@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -210,7 +211,7 @@ export function ChainDrawer({
         setRespondError(body.error ?? "Couldn't save your response. Please reload and try again.");
         return;
       }
-      await fetchChain();
+      await fetchChainAndRefresh();
     } catch {
       setRespondError("Network error. Please reload and try again.");
     } finally {
@@ -223,6 +224,8 @@ export function ChainDrawer({
   const seenLinkIds = useRef<Set<string>>(new Set());
   const firstLoad = useRef(true);
   const [newLinkIds, setNewLinkIds] = useState<Set<string>>(new Set());
+
+  const router = useRouter();
 
   const fetchChain = useCallback(async () => {
     setLoading(true);
@@ -261,6 +264,18 @@ export function ChainDrawer({
     }
   }, [transactionId]);
 
+  // After a mutation, refetch the drawer AND refresh the current route's server
+  // components. Chain mutations go through /api/chains route handlers, which
+  // cannot revalidate on their own, so without this the surrounding chains
+  // workspace (counts, tab membership), the file page, and the layout
+  // chain-decline banner stay stale until reload. See
+  // docs/UI_STATE_SYNCHRONISATION_AUDIT.md (RC2). The initial load below uses
+  // plain fetchChain so opening the drawer doesn't refresh the page behind it.
+  const fetchChainAndRefresh = useCallback(async () => {
+    await fetchChain();
+    router.refresh();
+  }, [fetchChain, router]);
+
   useEffect(() => {
     fetchChain();
   }, [fetchChain, refreshKey]);
@@ -283,7 +298,7 @@ export function ChainDrawer({
       if (res.ok) {
         const sent = 1;
         toast.success(`${sent} invite${sent !== 1 ? "s" : ""} sent`);
-        await fetchChain();
+        await fetchChainAndRefresh();
       } else {
         toast.error("Couldn't send invite");
       }
@@ -305,7 +320,7 @@ export function ChainDrawer({
       }
       await navigator.clipboard.writeText(data.url);
       toast.success("Link copied");
-      await fetchChain();
+      await fetchChainAndRefresh();
     } catch {
       toast.error("Couldn't copy the share link");
     }
@@ -316,7 +331,7 @@ export function ChainDrawer({
     const res = await fetch(`/api/chains/${chain.id}/links/${linkId}/share`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Share link revoked");
-      await fetchChain();
+      await fetchChainAndRefresh();
     } else {
       toast.error("Couldn't revoke the share link");
     }
@@ -336,14 +351,14 @@ export function ChainDrawer({
       return;
     }
     toast.success("Photo added");
-    await fetchChain();
+    await fetchChainAndRefresh();
   }
 
   async function handleSaveIntel(linkId: string, input: ChainNodeIntelInput) {
     // Server action re-checks edit permission (lib/chain/intel.ts); throws on
     // failure so LinkCard surfaces the inline error. Refetch to show saved values.
     await saveChainIntelAction(linkId, input);
-    await fetchChain();
+    await fetchChainAndRefresh();
   }
 
   async function doDeleteConfirmed(linkId: string) {
@@ -353,7 +368,7 @@ export function ChainDrawer({
       method: "DELETE",
     });
     if (res.ok) {
-      await fetchChain();
+      await fetchChainAndRefresh();
     } else {
       toast.error("Couldn't remove this sale");
     }
@@ -378,7 +393,7 @@ export function ChainDrawer({
     }
     toast.success(`${sent} invite${sent !== 1 ? "s" : ""} sent`);
     setSendingInvites(null);
-    await fetchChain();
+    await fetchChainAndRefresh();
   }
 
   async function handleCreateChain() {
@@ -388,7 +403,7 @@ export function ChainDrawer({
       body: JSON.stringify({ transactionId }),
     });
     if (res.ok) {
-      await fetchChain();
+      await fetchChainAndRefresh();
     }
   }
 
@@ -462,7 +477,7 @@ export function ChainDrawer({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ direction }),
     });
-    if (res.ok) await fetchChain();
+    if (res.ok) await fetchChainAndRefresh();
     else toast.error("Couldn't move this sale");
   }
 
