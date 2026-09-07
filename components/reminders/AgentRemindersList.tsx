@@ -24,10 +24,21 @@ import { withSolicitorRecipients, whoToChase, joinNames, type SolicitorRef, type
 import { renderChaseCardCopy } from "@/lib/chase/chase-card-copy";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
-type MilestoneInfo = Record<string, { outstanding: string; responsible: "client" | "solicitor" | null }>;
+type MilestoneInfo = Record<string, { outstanding: string; responsible: "client" | "solicitor" | null; name?: string }>;
 type AutopilotMap = Map<string, AutopilotStatus>;
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
 type LastComm = { createdAt: Date; method: string | null };
+
+// The card headline is the reminder's OWN step — its target milestone's full
+// name. NOT the anchor milestone's name: the anchor is the step the reminder
+// fires *after*, which for a completion chase (VM20/PM27, anchored on the
+// exchange-confirmation step) reads "…contracts have exchanged" and mislabels a
+// completion chase as an exchange one. Falls back to the terse rule name when
+// the target milestone isn't resolved.
+function reminderDisplayName(log: AgentReminderLog, milestoneInfo?: MilestoneInfo): string {
+  const code = log.reminderRule.targetMilestoneCode;
+  return (code ? milestoneInfo?.[code]?.name : undefined) ?? log.reminderRule.name.replace(/^Chase:\s*/i, "");
+}
 
 // E1 semantic colour-coding (intentional, not canonical class — see ANIMATION_STANDARDS §E1).
 // Header backgrounds now use wq-urgency-bar-* classes (defined in globals.css) so they
@@ -242,9 +253,7 @@ function SplitFileCard({
       {/* Flat rows — worst-first, side as a per-row pill. */}
       <div style={{ padding: "6px 0" }}>
         {openTasks.map(({ log, task }, i) => {
-          // Prefer the full-sentence milestone name ("Seller has received the
-          // memorandum of sale") over the terse reminder name ("Seller MOS received").
-          const name = log.reminderRule.anchorMilestone?.name ?? log.reminderRule.name.replace(/^Chase:\s*/i, "");
+          const name = reminderDisplayName(log, milestoneInfo);
           const isBuyer = isBuyerLog(log);
           const rowTodayStr = toUKDateStr(new Date());
           const dueStr = toUKDateStr(log.nextDueDate);
@@ -382,7 +391,7 @@ function SplitFileCard({
           );
         })}
         {scheduledLogs.map((log, i) => {
-          const name = log.reminderRule.anchorMilestone?.name ?? log.reminderRule.name.replace(/^Chase:\s*/i, "");
+          const name = reminderDisplayName(log, milestoneInfo);
           const isBuyer = isBuyerLog(log);
           const dueDate = new Date(log.nextDueDate);
           const dueDateLabel = dueDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });

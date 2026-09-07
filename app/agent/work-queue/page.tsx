@@ -100,10 +100,27 @@ export default async function WorkQueuePage() {
   // Per-milestone-code glossary (plain-English meaning + who owes the action).
   // Resolved here because the glossary reads from disk (server only); passed to
   // the client list keyed by code.
-  const milestoneInfo: Record<string, { outstanding: string; responsible: "client" | "solicitor" | null }> = {};
-  for (const code of new Set(reminderLogs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c))) {
+  const milestoneInfo: Record<string, { outstanding: string; responsible: "client" | "solicitor" | null; name?: string }> = {};
+  const targetCodes = new Set(reminderLogs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c));
+  // Full-sentence step names for the reminder headline. The headline is the
+  // reminder's OWN target step ("…the sale has completed"), not the anchor step
+  // it fires after ("…contracts have exchanged"), so a completion chase no
+  // longer prints as an exchange one. Resolved from the DB by code.
+  const milestoneNames = targetCodes.size
+    ? new Map(
+        (await prisma.milestoneDefinition.findMany({
+          where: { code: { in: [...targetCodes] } },
+          select: { code: true, name: true },
+        })).map((d) => [d.code, d.name]),
+      )
+    : new Map<string, string>();
+  for (const code of targetCodes) {
     const ctx = getMilestoneContext(code);
-    if (ctx) milestoneInfo[code] = { outstanding: ctx.outstanding, responsible: getMilestoneResponsible(code) };
+    milestoneInfo[code] = {
+      outstanding: ctx?.outstanding ?? "",
+      responsible: ctx ? getMilestoneResponsible(code) : null,
+      name: milestoneNames.get(code),
+    };
   }
 
   // Autopilot split: is the system chasing this row, and when next — or is it the
