@@ -21,16 +21,9 @@ export default async function EnquiriesPage() {
     rows.map((r) => r.photoStoragePath).filter((p): p is string => !!p),
   ).catch(() => new Map<string, string>());
 
-  const subtitle =
-    rows.length === 0
-      ? "No open enquiry loops right now."
-      : rows.length === 1
-        ? "One open enquiry loop. Confirm whose court it's in."
-        : `${rows.length} open enquiry loops. Confirm whose court each is in.`;
-
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <PageHeader title="Enquiries" subtitle={subtitle} />
+      <PageHeader title="Enquiries" subtitle="See what's outstanding, who has it and what needs chasing." />
       <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
         <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} />
       </div>

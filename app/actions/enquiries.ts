@@ -9,12 +9,15 @@ import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { getEnquiryHistory, type EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import {
   logEnquiryMovement,
   setEnquiryOutstandingNote,
   setEnquirySnooze,
+  setEnquirySnoozeUntil,
   type EnquiryCourt,
   type EnquiryMovementMode,
+  type EnquiryMovementKind,
 } from "@/lib/enquiries/tracker";
 
 const courtLabel = (c: EnquiryCourt) =>
@@ -39,6 +42,8 @@ export async function logEnquiryMovementAction(input: {
   // flipping; "relabel" flips without touching the clock. See logEnquiryMovement.
   mode?: EnquiryMovementMode;
   flipsCourtTo?: EnquiryCourt | null;
+  // Event type for the triage page's pills + history. Defaults to "update".
+  kind?: EnquiryMovementKind;
 }): Promise<{ ok: boolean }> {
   const userId = await assertInScope(input.transactionId);
   const mode = input.mode ?? "handover";
@@ -58,10 +63,60 @@ export async function logEnquiryMovementAction(input: {
     // "touch" never moves it to the other side, whatever the caller sends.
     flipsCourtTo: mode === "touch" ? null : flip,
     mode,
+    kind: input.kind,
     createdByUserId: userId,
   });
   revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
   return { ok };
+}
+
+// Log a manual chase (a call / an email we sent by hand). Resets the chase
+// clock (so the auto-chase doesn't fire straight after) without moving the
+// court, and shows in the history as "Chased by …".
+export async function logEnquiryChaseAction(input: {
+  transactionId: string;
+  method: "phone" | "email" | "other";
+}): Promise<{ ok: boolean }> {
+  const userId = await assertInScope(input.transactionId);
+  const note =
+    input.method === "phone" ? "Chased by phone"
+      : input.method === "email" ? "Chased by email"
+        : "Chased";
+  const ok = await logEnquiryMovement({
+    transactionId: input.transactionId,
+    note,
+    mode: "touch",
+    kind: "chased",
+    createdByUserId: userId,
+  });
+  revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
+  return { ok };
+}
+
+// Set (or clear) the expected-replies date. Reuses the "hold the chase until"
+// mechanism — the date a solicitor gives IS the date we expect replies by.
+export async function setEnquiryExpectedDateAction(input: {
+  transactionId: string;
+  date: string | null; // ISO date, or null to clear
+}): Promise<{ ok: boolean }> {
+  await assertInScope(input.transactionId);
+  if (input.date) {
+    await setEnquirySnoozeUntil(input.transactionId, new Date(input.date));
+  } else {
+    await setEnquirySnooze(input.transactionId, null);
+  }
+  revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
+  return { ok: true };
+}
+
+// Load the chase-history timeline for one file's open loop (on row expand).
+export async function getEnquiryHistoryAction(transactionId: string): Promise<EnquiryHistoryEntry[]> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return [];
+  return getEnquiryHistory(getAccessScope(session), transactionId);
 }
 
 export async function setEnquiryOutstandingAction(input: {

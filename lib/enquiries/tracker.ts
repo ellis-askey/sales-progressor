@@ -9,12 +9,15 @@ import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS } from "./cadence";
 
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryTrackerStatus = "closed" | "snoozed" | "stalled" | "chasing";
+export type EnquiryMovementKind =
+  | "raised" | "replies_sent" | "replies_received" | "chased" | "update" | "correction";
 
 export type EnquiryMovementView = {
   id: string;
   note: string;
   occurredAt: Date;
   source: string;
+  kind: EnquiryMovementKind;
   flipsCourtTo: EnquiryCourt | null;
 };
 
@@ -73,6 +76,7 @@ export async function getEnquiryTrackerView(
       note: m.note,
       occurredAt: m.occurredAt,
       source: m.source,
+      kind: m.kind as EnquiryMovementKind,
       flipsCourtTo: (m.flipsCourtTo as EnquiryCourt | null) ?? null,
     })),
   };
@@ -172,6 +176,8 @@ export async function logEnquiryMovement(args: {
   // Defaults to the historical behaviour (reset the clock, flip if a side is
   // given). Only the panel's "correct who has it" control passes "relabel".
   mode?: EnquiryMovementMode;
+  // Event type for the triage page's pills + history. Defaults to "update".
+  kind?: EnquiryMovementKind;
 }): Promise<boolean> {
   const tracker = await prisma.enquiryTracker.findUnique({
     where: { transactionId: args.transactionId },
@@ -187,6 +193,7 @@ export async function logEnquiryMovement(args: {
         note: args.note.trim(),
         occurredAt: args.occurredAt ?? now,
         source: args.source ?? "progressor",
+        kind: args.kind ?? "update",
         flipsCourtTo: args.flipsCourtTo ?? null,
         status: "accepted",
         createdByUserId: args.createdByUserId ?? null,
