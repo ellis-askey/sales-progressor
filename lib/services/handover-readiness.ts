@@ -44,6 +44,31 @@ export function checkOutsourcedHandoverReadiness(input: {
   return { ready: missing.length === 0, missing };
 }
 
+// Agency hand-over bar (director sends their OWN self-progress file to our
+// team). Stricter than the base standard: on top of a reachable buyer + seller,
+// tenure, and purchase type, the file must carry enough for our team to
+// progress it WITHOUT chasing the agency for the essentials — either a
+// memorandum of sale on file, or a solicitor on both sides. (Tenure + purchase
+// type are already guaranteed by the time an agent reaches the file, so in
+// practice only the contact + MOS/solicitor rules ever block here.)
+export function checkAgentHandoverReadiness(input: {
+  tenure: Tenure | null;
+  purchaseType: PurchaseType | null;
+  contacts: { roleType: ContactRole; name?: string | null; phone?: string | null; email?: string | null }[];
+  hasMemoOfSale: boolean;
+  vendorHasSolicitor: boolean;
+  purchaserHasSolicitor: boolean;
+}): HandoverReadiness {
+  const base = checkOutsourcedHandoverReadiness(input);
+  const missing = [...base.missing];
+  const mosOrBothSolicitors =
+    input.hasMemoOfSale || (input.vendorHasSolicitor && input.purchaserHasSolicitor);
+  if (!mosOrBothSolicitors) {
+    missing.push("a memorandum of sale on file, or a solicitor on both sides");
+  }
+  return { ready: missing.length === 0, missing };
+}
+
 // Human-readable message for the thrown error / returned error string. Kept
 // separate so callers can render it directly in a toast or inline checklist.
 export function handoverReadinessMessage(missing: string[]): string {

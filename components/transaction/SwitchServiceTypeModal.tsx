@@ -17,10 +17,13 @@ type Props = {
   open: boolean;
   transactionId: string;
   current: ServiceType;
+  // True when a director is handing their own file over (not an internal admin
+  // switch). Tailors the copy: no internal-hub mention, second-person voice.
+  agentHandover?: boolean;
   onClose: () => void;
 };
 
-export function SwitchServiceTypeModal({ open, transactionId, current, onClose }: Props) {
+export function SwitchServiceTypeModal({ open, transactionId, current, agentHandover = false, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -31,13 +34,19 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
   // "transaction" / "platform". Body explains what happens next so admin
   // can confirm intent.
   const title =
-    target === "outsourced" ? "Switch to outsourced?" : "Switch to self-progress?";
+    target === "outsourced"
+      ? agentHandover ? "Send this file to our team?" : "Switch to outsourced?"
+      : "Switch to self-progress?";
   const body =
     target === "outsourced"
-      ? "Our team will pick this file up and progress it from here. The agent will still see it and any updates as they happen. The file will land in 'Needs SP assigning' on the hub."
+      ? agentHandover
+        ? "Our team will take this file over and progress it from here. You'll still see it and every update as it happens."
+        : "Our team will pick this file up and progress it from here. The agent will still see it and any updates as they happen. The file will land in 'Needs SP assigning' on the hub."
       : "The agent will handle this file from here. Our team won't get any further updates about it.";
   const confirmLabel =
-    target === "outsourced" ? "Switch to outsourced" : "Switch to self-progress";
+    target === "outsourced"
+      ? agentHandover ? "Send to our team" : "Switch to outsourced"
+      : "Switch to self-progress";
 
   // Reset error when the modal opens or the direction changes.
   useEffect(() => {

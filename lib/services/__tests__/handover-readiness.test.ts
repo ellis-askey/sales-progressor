@@ -10,6 +10,7 @@
 
 import {
   checkOutsourcedHandoverReadiness,
+  checkAgentHandoverReadiness,
   handoverReadinessMessage,
 } from "@/lib/services/handover-readiness";
 
@@ -106,5 +107,61 @@ describe("checkOutsourcedHandoverReadiness", () => {
     expect(msg).toContain("can't be handed to the progressor team yet");
     expect(msg).toContain("a buyer");
     expect(msg).toContain("the tenure");
+  });
+});
+
+// Agency (director) hand-over: base standard PLUS a memo of sale on file OR a
+// solicitor on both sides. Directors provide the essentials so our team never
+// chases the agency for them.
+describe("checkAgentHandoverReadiness", () => {
+  const baseOk = {
+    tenure: "freehold" as const,
+    purchaseType: "mortgage" as const,
+    contacts: [reachableVendor, reachablePurchaser],
+  };
+
+  it("passes when a memo of sale is on file (no solicitors needed)", () => {
+    const r = checkAgentHandoverReadiness({
+      ...baseOk,
+      hasMemoOfSale: true,
+      vendorHasSolicitor: false,
+      purchaserHasSolicitor: false,
+    });
+    expect(r.ready).toBe(true);
+    expect(r.missing).toEqual([]);
+  });
+
+  it("passes when both sides have a solicitor (no memo of sale needed)", () => {
+    const r = checkAgentHandoverReadiness({
+      ...baseOk,
+      hasMemoOfSale: false,
+      vendorHasSolicitor: true,
+      purchaserHasSolicitor: true,
+    });
+    expect(r.ready).toBe(true);
+  });
+
+  it("blocks when there is no memo of sale and only one side has a solicitor", () => {
+    const r = checkAgentHandoverReadiness({
+      ...baseOk,
+      hasMemoOfSale: false,
+      vendorHasSolicitor: true,
+      purchaserHasSolicitor: false,
+    });
+    expect(r.ready).toBe(false);
+    expect(r.missing).toContain("a memorandum of sale on file, or a solicitor on both sides");
+  });
+
+  it("still enforces the base standard on top of the memo/solicitor rule", () => {
+    const r = checkAgentHandoverReadiness({
+      tenure: "freehold",
+      purchaseType: "mortgage",
+      contacts: [reachableVendor], // no buyer
+      hasMemoOfSale: true,
+      vendorHasSolicitor: false,
+      purchaserHasSolicitor: false,
+    });
+    expect(r.ready).toBe(false);
+    expect(r.missing).toContain("a buyer with a name and a phone number or email");
   });
 });

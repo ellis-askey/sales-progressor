@@ -47,6 +47,11 @@ type Props = {
    *  reveals a swap icon on hover and opens a confirm-and-switch modal.
    *  Set from the page-level `hasAdminPowers(session)` check. */
   isAdminViewer?: boolean;
+  /** When true, a director may hand THIS self-progress file over to our team.
+   *  One-way only (self-progress -> outsourced); set at the page level as
+   *  director && serviceType === "self_managed" && status active. Directors
+   *  never get the take-back direction — that stays internal-only. */
+  canAgentHandOver?: boolean;
   // 2026-08-08 hero redesign — signed URL for the property photo
   // (PropertyTransaction.photoStoragePath, signed server-side on read).
   // Null when no photo uploaded; the hero renders a coral gradient +
@@ -231,7 +236,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, enquiryChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, enquiryChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -243,7 +248,7 @@ export function PropertyHero({
   // the agent hero below renders its controls; the dark progressor hero and
   // the no-transaction help preview ignore it.
   const photo = usePropertyPhoto(transactionId ?? "", photoUrl);
-  const canSwitchService = isAdminViewer && !!transactionId && !!serviceType && !hideServiceTypeBadge;
+  const canSwitchService = (isAdminViewer || canAgentHandOver) && !!transactionId && !!serviceType && !hideServiceTypeBadge;
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
   if (isAgent) {
@@ -731,6 +736,7 @@ export function PropertyHero({
             open={switchModalOpen}
             transactionId={transactionId}
             current={serviceType}
+            agentHandover={!isAdminViewer && canAgentHandOver}
             onClose={() => setSwitchModalOpen(false)}
           />
         )}

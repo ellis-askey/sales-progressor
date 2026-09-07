@@ -492,6 +492,7 @@ export default async function AgentTransactionDetailPage({
           transactionId={transaction.id}
           inChain={!!transaction.chainLinkId}
           isAdminViewer={isAdminRole}
+          canAgentHandOver={session.user.role === "director" && transaction.serviceType === "self_managed" && transaction.status === "active"}
           photoUrl={heroPhotoUrl}
           overridePredictedDate={transaction.overridePredictedDate ?? null}
           topRightSlot={heroTopRightSlot}

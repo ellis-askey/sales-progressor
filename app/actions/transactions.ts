@@ -9,6 +9,7 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
+import { checkAgentHandoverReadiness } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2 } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
@@ -1154,7 +1155,13 @@ export async function switchServiceTypeAction(
   target: "self_managed" | "outsourced",
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSession();
-  if (!hasAdminPowers(session)) {
+  const isAdmin = hasAdminPowers(session);
+  // Directors may hand their OWN files over to our team (self-progress ->
+  // outsourced) but never the reverse — pulling an outsourced file back to
+  // self-progress is internal-only. Negotiators and everyone else are blocked.
+  const isAgentHandover =
+    !isAdmin && session.user.role === "director" && target === "outsourced";
+  if (!isAdmin && !isAgentHandover) {
     return { ok: false, error: "Forbidden" };
   }
 
@@ -1167,6 +1174,10 @@ export async function switchServiceTypeAction(
       status: true,
       tenure: true,
       purchaseType: true,
+      vendorSolicitorFirmId: true,
+      vendorSolicitorContactId: true,
+      purchaserSolicitorFirmId: true,
+      purchaserSolicitorContactId: true,
       contacts: { select: { roleType: true, name: true, phone: true, email: true } },
     },
   });
@@ -1185,11 +1196,28 @@ export async function switchServiceTypeAction(
   // it to outsourced bypassed the creation-time standard. Validate the
   // PERSISTED data before accepting the file for progression.
   if (target === "outsourced") {
-    const readiness = checkOutsourcedHandoverReadiness({
-      tenure: tx.tenure,
-      purchaseType: tx.purchaseType,
-      contacts: tx.contacts,
-    });
+    let readiness;
+    if (isAgentHandover) {
+      // Agency hand-over: base standard + a memo of sale on file OR a solicitor
+      // on both sides, so our team can progress it without chasing the agency.
+      const mosCount = await prisma.transactionDocument.count({
+        where: { transactionId, docType: "mos" },
+      });
+      readiness = checkAgentHandoverReadiness({
+        tenure: tx.tenure,
+        purchaseType: tx.purchaseType,
+        contacts: tx.contacts,
+        hasMemoOfSale: mosCount > 0,
+        vendorHasSolicitor: !!(tx.vendorSolicitorContactId || tx.vendorSolicitorFirmId),
+        purchaserHasSolicitor: !!(tx.purchaserSolicitorContactId || tx.purchaserSolicitorFirmId),
+      });
+    } else {
+      readiness = checkOutsourcedHandoverReadiness({
+        tenure: tx.tenure,
+        purchaseType: tx.purchaseType,
+        contacts: tx.contacts,
+      });
+    }
     if (!readiness.ready) {
       return { ok: false, error: handoverReadinessMessage(readiness.missing) };
     }
