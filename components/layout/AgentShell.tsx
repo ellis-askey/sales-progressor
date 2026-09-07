@@ -15,7 +15,7 @@ import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
-  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple,
+  Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple,
   ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
@@ -412,17 +412,11 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
               <Link
                 href="/agent/transactions/new"
                 onClick={() => setMobileOpen(false)}
-                className={isNewSale ? "agent-nav-item agent-nav-item-active" : undefined}
-                style={isNewSale ? { marginBottom: 6, fontWeight: 600 } : {
-                  display: "flex", alignItems: "center", gap: 7,
-                  padding: "9px 12px", borderRadius: 10, marginBottom: 6,
-                  textDecoration: "none", fontSize: 13, fontWeight: 600,
-                  color: "var(--agent-coral-deep)",
-                  background: "rgba(var(--agent-coral-rgb), 0.10)",
-                  border: "1px solid rgba(var(--agent-coral-rgb), 0.22)",
-                }}
+                className={`agent-newsale-cta${isNewSale ? " is-active" : ""}`}
               >
-                <PlusCircle weight={isNewSale ? "fill" : "fill"} style={{ width: 16, height: 16, flexShrink: 0, color: isNewSale ? undefined : "var(--agent-coral)" }} />
+                <span className="agent-newsale-badge" aria-hidden>
+                  <Plus size={14} weight="bold" color="#fff" />
+                </span>
                 New sale
               </Link>
             );

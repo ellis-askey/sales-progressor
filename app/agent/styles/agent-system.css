@@ -1409,6 +1409,49 @@
     cursor: not-allowed;
   }
 
+  /* ── New-sale CTA (sidebar) ─────────────────────────────────────────────── */
+  /* A clean surface card with a coral "+" badge — reads as THE action, distinct
+   * from the plain nav rows. Coral is concentrated in the badge; hover deepens
+   * the border + shadow. */
+  .agent-newsale-cta {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px 8px 8px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--agent-text-primary);
+    background: var(--agent-surface-elevated);
+    border: 1px solid var(--agent-border-subtle);
+    box-shadow: 0 1px 3px rgba(43, 38, 32, 0.10);
+    transition: border-color var(--agent-transition-fast),
+                box-shadow  var(--agent-transition-fast);
+  }
+  .agent-newsale-cta:hover {
+    border-color: var(--agent-coral);
+    box-shadow: 0 3px 10px rgba(var(--agent-coral-rgb), 0.20);
+  }
+  .agent-newsale-cta:focus-visible {
+    outline: 2px solid var(--agent-coral-deep);
+    outline-offset: 2px;
+  }
+  .agent-newsale-cta.is-active {
+    border-color: rgba(var(--agent-coral-rgb), 0.45);
+  }
+  .agent-newsale-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--agent-coral), var(--agent-coral-deep));
+    box-shadow: 0 1px 4px rgba(var(--agent-coral-rgb), 0.35);
+  }
+
   /* ── Nav rail (Elevra interaction model, coral) ─────────────────────────── */
   /* Ported behaviour from Elevra's LeftRail (2026-08-09): soft coral
      spotlight active pill that slides between items, hover chevron slide-in,
