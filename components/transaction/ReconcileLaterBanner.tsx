@@ -8,7 +8,7 @@
 //
 // (Kept the ReconcileLaterBanner name so the async wrapper wiring is unchanged.)
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Clock, X, ArrowRight, ArrowLeft, Check } from "@phosphor-icons/react";
@@ -23,6 +23,32 @@ import "@/app/claim/styles/claim-flow.css";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
+
+// Narrate the confirmed steps on the "Finish" button. Each category collapses to
+// its CURRENT state (e.g. searches-back beats searches-underway), ordered by how
+// a sale actually flows, then we show only the latest few. Contracts-signed shows
+// only when BOTH sides have returned signed contracts (VM17 + PM23).
+function buildReconcileNarration(t: Set<string>): string[] {
+  const has = (c: string) => t.has(c);
+  const rules: (string | null)[] = [
+    has("VM1") || has("PM1") ? "Solicitor instruction noted…" : null,
+    has("VM2") || has("PM2") ? "Memorandum received…" : null,
+    has("VM4") || has("PM3") ? "ID & AML checks complete…" : null,
+    has("VM3") ? "Welcome pack received…" : null,
+    has("VM6") ? "Property forms complete…" : null,
+    has("VM7") || has("PM7") ? "Draft contract issued…" : null,
+    has("VM9") ? "Management pack received…" : null,
+    has("PM11") ? "Mortgage offer received…" : has("PM5") ? "Mortgage application in…" : null,
+    has("PM13") ? "Searches back…" : has("PM8") ? "Searches underway…" : null,
+    has("PM10") ? "Survey complete…" : has("PM9") ? "Survey booked…" : null,
+    has("PM20") || has("VM21") ? "Enquiries answered…" : has("PM14") || has("VM10") ? "Enquiries raised…" : null,
+    has("VM17") && has("PM23") ? "Contracts signed…" : null,
+    has("VM18") ? "Seller ready to exchange…" : null,
+    has("PM25") ? "Buyer ready to exchange…" : null,
+  ];
+  // Latest 3-4 present lines (most-advanced = current state).
+  return rules.filter((s): s is string => s !== null).slice(-4);
+}
 
 export function ReconcileLaterBanner({
   transactionId,
@@ -45,6 +71,7 @@ export function ReconcileLaterBanner({
   const [state, setState] = useState<ReconciliationState>({});
   const [error, setError] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
+  const [narration, setNarration] = useState("Updating…");
 
   // Persisted "Not now" so the prompt stays gone once dismissed.
   useEffect(() => {
@@ -80,23 +107,50 @@ export function ReconcileLaterBanner({
       return;
     }
     setError(null);
+
+    const completions = Object.entries(state)
+      .filter(([, v]) => v.ticked)
+      .map(([milestoneDefinitionId, v]) => ({
+        milestoneDefinitionId,
+        eventDate: v.eventDate || null,
+      }));
+    if (completions.length === 0) {
+      setModalOpen(false);
+      return;
+    }
+
+    // Narrate what they confirmed: map ticked steps to their current-state lines,
+    // in real-life flow order, capped to the latest few. Cycles on the button.
+    const codeById = new Map(milestoneDefinitions.map((m) => [m.id, m.code]));
+    const ticked = new Set<string>();
+    for (const c of completions) {
+      const code = codeById.get(c.milestoneDefinitionId);
+      if (code) ticked.add(code);
+    }
+    const lines = buildReconcileNarration(ticked);
+    const seq = lines.length > 0 ? [...lines, "Bringing your timeline up to date…"] : ["Updating your file…"];
+
     setSubmitting(true);
+    let i = 0;
+    setNarration(seq[0]);
+    const STEP_MS = 620;
+    const ticker = setInterval(() => {
+      i = Math.min(i + 1, seq.length - 1);
+      setNarration(seq[i]);
+    }, STEP_MS);
+    const startedAt = Date.now();
+
     try {
-      const completions = Object.entries(state)
-        .filter(([, v]) => v.ticked)
-        .map(([milestoneDefinitionId, v]) => ({
-          milestoneDefinitionId,
-          eventDate: v.eventDate || null,
-        }));
-      if (completions.length === 0) {
-        setModalOpen(false);
-        setSubmitting(false);
-        return;
-      }
       await reconcileClaimMilestonesAction({ transactionId, completions });
+      // Let the sequence play out even if the save was quick.
+      const minMs = seq.length * STEP_MS + 150;
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < minMs) await new Promise((r) => setTimeout(r, minMs - elapsed));
+      clearInterval(ticker);
       setModalOpen(false);
       router.refresh();
     } catch (err) {
+      clearInterval(ticker);
       console.error("[reconcile] failed:", err);
       setError("Couldn't save your selections. Try again.");
       setSubmitting(false);
@@ -117,7 +171,7 @@ export function ReconcileLaterBanner({
           <div className="rec-prompt-text">
             <p className="rec-prompt-title">Where&rsquo;s this sale up to?</p>
             <p className="rec-prompt-body">
-              Looks like a new file. Tick what&rsquo;s already been done and we&rsquo;ll bring the timeline and
+              Tick what&rsquo;s already been done and we&rsquo;ll bring the timeline and
               predictions up to date.
             </p>
           </div>
@@ -148,6 +202,7 @@ export function ReconcileLaterBanner({
             onStepChange={setWizardStep}
             onClose={() => setModalOpen(false)}
             onSubmit={handleSubmit}
+            submitLabel={narration}
           />,
           document.body,
         )}
@@ -169,6 +224,7 @@ function ReconcileModal({
   onStepChange,
   onClose,
   onSubmit,
+  submitLabel,
 }: {
   tenure: Tenure | null;
   purchaseType: PurchaseType | null;
@@ -181,8 +237,16 @@ function ReconcileModal({
   onStepChange: (step: "vendor" | "purchaser") => void;
   onClose: () => void;
   onSubmit: () => void;
+  submitLabel: string;
 }) {
   const onVendor = wizardStep === "vendor";
+
+  // Scroll the content back to the very top (past the heading) when the step
+  // changes, so "Now the buying side." is in view rather than the first rows.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [wizardStep]);
 
   const railSteps: { key: string; label: string; sub: string; state: StepState }[] = [
     {
@@ -237,7 +301,7 @@ function ReconcileModal({
         </aside>
 
         <section className="rec-content">
-          <div className="rec-content-scroll">
+          <div className="rec-content-scroll" ref={scrollRef}>
             <div className="rec-content-inner" key={wizardStep}>
               <h2 className="rec-head">{onVendor ? "Let's start with the selling side." : "Now the buying side."}</h2>
               <p className="rec-lede">
@@ -290,7 +354,7 @@ function ReconcileModal({
                 onClick={onSubmit}
                 disabled={submitting || !tenure || !purchaseType}
               >
-                {submitting ? "Updating…" : "Finish and update file"}
+                {submitting ? submitLabel : "Finish and update file"}
                 {!submitting && <ArrowRight size={16} weight="bold" />}
               </button>
             )}

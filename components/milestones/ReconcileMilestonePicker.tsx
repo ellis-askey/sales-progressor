@@ -198,11 +198,14 @@ export function ReconcileMilestonePicker({
   // then smooth-scroll to the picker's top.
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // The wide (modal) layout scrolls its own content to the top on step change,
+    // so it can reach the heading above the picker — skip the picker's self-scroll.
+    if (layout === "wide") return;
     const t = setTimeout(() => {
       containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 400);
     return () => clearTimeout(t);
-  }, [side]);
+  }, [side, layout]);
 
   // Centralised row-change handler. Applies the user's patch to the source row,
   // clears autoFilledFrom on the source (user has touched it), then runs cascade
@@ -359,13 +362,14 @@ function Section({
           // Wide layout: name (left) · date (always shown, disabled until ticked) ·
           // tick to the RIGHT of the date. Clicking the row toggles the tick.
           if (wide) {
+            const toggle = () => onRowChange(m.id, { ticked: !row.ticked });
             return (
               <li key={m.id} className={classes}>
                 <button
                   type="button"
                   className="claim-reconcile-row-hit"
                   disabled={!isUnlocked}
-                  onClick={() => onRowChange(m.id, { ticked: !row.ticked })}
+                  onClick={toggle}
                   aria-pressed={row.ticked}
                 >
                   <span className="claim-reconcile-row-name">
@@ -377,20 +381,30 @@ function Section({
                   </span>
                 </button>
                 <span className="claim-reconcile-row-controls">
-                  <input
-                    type="date"
-                    className="claim-reconcile-date"
-                    value={row.eventDate ?? ""}
-                    max={today}
-                    disabled={!row.ticked || !isUnlocked}
-                    onChange={(e) => onRowChange(m.id, { eventDate: e.target.value || null })}
-                    aria-label={`When did this happen? (${m.name})`}
-                  />
-                  <span className={`claim-reconcile-tick${row.ticked ? " on" : ""}`} aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none">
-                      <path d="m4 10.5 3.5 3.5L16 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
+                  {row.ticked && isUnlocked && (
+                    <input
+                      type="date"
+                      className="claim-reconcile-date"
+                      value={row.eventDate ?? ""}
+                      max={today}
+                      onChange={(e) => onRowChange(m.id, { eventDate: e.target.value || null })}
+                      aria-label={`When did this happen? (${m.name})`}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="claim-reconcile-tickbtn"
+                    disabled={!isUnlocked}
+                    onClick={toggle}
+                    aria-pressed={row.ticked}
+                    aria-label={`Mark "${m.name}" as done`}
+                  >
+                    <span className={`claim-reconcile-tick${row.ticked ? " on" : ""}`} aria-hidden="true">
+                      <svg viewBox="0 0 20 20" fill="none">
+                        <path d="m4 10.5 3.5 3.5L16 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </button>
                 </span>
               </li>
             );
