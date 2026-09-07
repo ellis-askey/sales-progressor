@@ -8,6 +8,7 @@
 // download it, or remove their own via a 3-dot menu.
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { DotsThree, DownloadSimple, Trash, Plus, FileText, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
@@ -47,6 +48,7 @@ export function PortalDocumentsTab({ token, initialData }: { token: string; init
   const [loading, setLoading] = useState(initialData === undefined);
   const [addOpen, setAddOpen] = useState(false);
   const [preselect, setPreselect] = useState<string | null>(null);
+  const router = useRouter();
 
   async function reload() {
     const d = await getMyPortalDocumentsAction(token);
@@ -133,7 +135,7 @@ export function PortalDocumentsTab({ token, initialData }: { token: string; init
         </div>
       )}
 
-      <AddSheet open={addOpen} token={token} data={data} preselect={preselect} onClose={() => setAddOpen(false)} onDone={() => { setAddOpen(false); reload(); }} />
+      <AddSheet open={addOpen} token={token} data={data} preselect={preselect} onClose={() => setAddOpen(false)} onDone={() => { setAddOpen(false); reload(); router.refresh(); }} />
     </div>
   );
 }

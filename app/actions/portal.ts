@@ -535,7 +535,10 @@ export async function portalDeleteDocument(input: { token: string; docId: string
     where: { id: input.docId, contactId: contact.id },
   });
   if (res.count === 0) return { ok: false };
-  revalidatePath(`/portal/${input.token}`, "page");
+  // Layout scope: the document also shows in the overview "Latest updates" and
+  // the Updates-tab timeline (separate pages), so a page-only revalidate leaves
+  // those stale. Matches the portal-menu.ts convention.
+  revalidatePath(`/portal/${input.token}`, "layout");
   return { ok: true };
 }
 
@@ -555,7 +558,9 @@ export async function portalToggleDocumentShare(input: {
     data: { sharedWithOtherSide: input.shared },
   });
   if (res.count === 0) return { ok: false };
-  revalidatePath(`/portal/${input.token}`, "page");
+  // Layout scope: the shared/unshared state shows in the timelines on other
+  // portal pages too, not just this page's document list.
+  revalidatePath(`/portal/${input.token}`, "layout");
   return { ok: true };
 }
 

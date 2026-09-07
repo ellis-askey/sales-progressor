@@ -5,6 +5,7 @@
 // large PDFs (surveys, TA forms, searches) are no longer capped at ~4.5 MB.
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { storageObjectExists } from "@/lib/supabase-storage";
@@ -78,6 +79,11 @@ export async function POST(req: NextRequest) {
       mimeType,
     },
   });
+
+  // Invalidate the client's portal pages so the new document shows in the
+  // overview "Latest updates" and the Updates-tab timeline (not just the
+  // Documents tab, which refetches its own list client-side).
+  revalidatePath(`/portal/${token}`, "layout");
 
   return NextResponse.json({ document: doc }, { status: 201 });
 }
