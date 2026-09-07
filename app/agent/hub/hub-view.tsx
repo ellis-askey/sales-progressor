@@ -703,9 +703,17 @@ async function LowerHubCards({ vis, attentionTxIds }: { vis: AgentVisibility; at
 
 async function PipelineStagesSlot({ vis }: { vis: AgentVisibility }) {
   const pipelineStages = await getHubPipelineStages(vis);
+  // Sign the one sample photo per stage in a single batch; the card falls back
+  // to the coral placeholder for any path that's absent or fails to sign.
+  const samplePaths = [
+    pipelineStages.new.sample, pipelineStages.onboarding.sample, pipelineStages.searches.sample,
+    pipelineStages.enquiries.sample, pipelineStages.ready.sample, pipelineStages.exchanging.sample,
+    pipelineStages.completed.sample,
+  ].map((s) => s?.photoStoragePath).filter((p): p is string => !!p);
+  const signed = await getSignedUrlMap(samplePaths).catch(() => new Map<string, string>());
   return (
     <SectionReveal order={2}>
-      <PipelineAtAGlance stages={pipelineStages} />
+      <PipelineAtAGlance stages={pipelineStages} signedPhotos={Object.fromEntries(signed)} />
     </SectionReveal>
   );
 }

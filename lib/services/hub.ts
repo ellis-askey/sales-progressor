@@ -1131,6 +1131,15 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
 // director/negotiator see agency-scoped, sales_progressor sees assigned,
 // admin sees everything. All null/optional fields mean "no data yet" for
 // the empty-state renderer.
+// A representative file for a pipeline stage — drives the property preview
+// (thumbnail + address) on the "Pipeline at a glance" stage cards. Null when
+// the stage is empty.
+export type PipelineSample = {
+  id: string;
+  propertyAddress: string;
+  photoStoragePath: string | null;
+};
+
 export type StageStatsNew = {
   count: number;
   oldestDays: number | null;
@@ -1184,14 +1193,16 @@ export type StageStatsCompleted = {
   slaHitRate: number | null;
 };
 
+// Each stage carries a `sample` (a representative file) for the property
+// preview on the new stage cards, on top of its existing stats.
 export type HubPipelineStages = {
-  new: StageStatsNew;
-  onboarding: StageStatsOnboarding;
-  searches: StageStatsSearches;
-  enquiries: StageStatsEnquiries;
-  ready: StageStatsReady;
-  exchanging: StageStatsExchanging;
-  completed: StageStatsCompleted;
+  new: StageStatsNew & { sample: PipelineSample | null };
+  onboarding: StageStatsOnboarding & { sample: PipelineSample | null };
+  searches: StageStatsSearches & { sample: PipelineSample | null };
+  enquiries: StageStatsEnquiries & { sample: PipelineSample | null };
+  ready: StageStatsReady & { sample: PipelineSample | null };
+  exchanging: StageStatsExchanging & { sample: PipelineSample | null };
+  completed: StageStatsCompleted & { sample: PipelineSample | null };
 };
 
 // Phase-entry milestone codes — a file is bucketed into the furthest phase
@@ -1225,14 +1236,25 @@ function sumPence(values: Array<number | null>): number | null {
 }
 
 const EMPTY_STAGES: HubPipelineStages = {
-  new: { count: 0, oldestDays: null, newThisWeek: 0, quietFiles: 0 },
-  onboarding: { count: 0, awaitingDraftPack: 0, oldestDays: null },
-  searches: { count: 0, awaitingResults: 0, oldestDays: null },
-  enquiries: { count: 0, openLoops: 0, oldestDays: null },
-  ready: { count: 0, overdueToExchange: 0, medianDaysToExchange: null, totalValueLocked: null },
-  exchanging: { count: 0, completingThisWeek: 0, medianDaysSinceExchange: null, totalValueClosing: null },
-  completed: { count: 0, totalValueClosed: null, medianDaysToComplete: null, slaHitRate: null },
+  new: { count: 0, oldestDays: null, newThisWeek: 0, quietFiles: 0, sample: null },
+  onboarding: { count: 0, awaitingDraftPack: 0, oldestDays: null, sample: null },
+  searches: { count: 0, awaitingResults: 0, oldestDays: null, sample: null },
+  enquiries: { count: 0, openLoops: 0, oldestDays: null, sample: null },
+  ready: { count: 0, overdueToExchange: 0, medianDaysToExchange: null, totalValueLocked: null, sample: null },
+  exchanging: { count: 0, completingThisWeek: 0, medianDaysSinceExchange: null, totalValueClosing: null, sample: null },
+  completed: { count: 0, totalValueClosed: null, medianDaysToComplete: null, slaHitRate: null, sample: null },
 };
+
+// Representative file for a bucket's preview: the oldest on the books, so the
+// card shows a meaningful, stable pick (not whatever the query happened to
+// order first). Null for an empty bucket.
+function pickSample(
+  files: Array<{ id: string; propertyAddress: string; photoStoragePath: string | null; createdAt: Date }>,
+): PipelineSample | null {
+  if (files.length === 0) return null;
+  const oldest = files.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
+  return { id: oldest.id, propertyAddress: oldest.propertyAddress, photoStoragePath: oldest.photoStoragePath };
+}
 
 export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPipelineStages> {
   const now = new Date();
@@ -1287,6 +1309,8 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         priceAtExchange: true,
         purchasePrice: true,
         twelveWeekTarget: true,
+        propertyAddress: true,
+        photoStoragePath: true,
       },
     }),
     // exchanging = active with VM19 or PM26 completed AND not yet fully
@@ -1331,8 +1355,11 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       },
       select: {
         id: true,
+        createdAt: true,
         completionDate: true,
         purchasePrice: true,
+        propertyAddress: true,
+        photoStoragePath: true,
         milestoneCompletions: {
           where: {
             state: "complete",
@@ -1369,6 +1396,8 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
         lastActivityAt: true,
         expectedExchangeDate: true,
         purchasePrice: true,
+        propertyAddress: true,
+        photoStoragePath: true,
         // Enquiries are tracker-driven since the enquiries rework — an open
         // tracker (closedAt null) means the enquiry loop is still live.
         enquiryTracker: { select: { closedAt: true } },
@@ -1466,39 +1495,46 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       oldestDays: newOldest,
       newThisWeek,
       quietFiles,
+      sample: pickSample(newFiles),
     },
     onboarding: {
       count: onboardingFiles.length,
       awaitingDraftPack: onboardingAwaitingPack,
       oldestDays: oldestDays(onboardingFiles),
+      sample: pickSample(onboardingFiles),
     },
     searches: {
       count: searchesFiles.length,
       awaitingResults: searchesAwaitingResults,
       oldestDays: oldestDays(searchesFiles),
+      sample: pickSample(searchesFiles),
     },
     enquiries: {
       count: enquiriesFiles.length,
       openLoops: enquiriesOpenLoops,
       oldestDays: oldestDays(enquiriesFiles),
+      sample: pickSample(enquiriesFiles),
     },
     ready: {
       count: readyFiles.length,
       overdueToExchange: readyOverdue,
       medianDaysToExchange,
       totalValueLocked,
+      sample: pickSample(readyFiles),
     },
     exchanging: {
       count: exchangingRows.length,
       completingThisWeek,
       medianDaysSinceExchange,
       totalValueClosing,
+      sample: pickSample(exchangingRows),
     },
     completed: {
       count: completedRows.length,
       totalValueClosed,
       medianDaysToComplete,
       slaHitRate,
+      sample: pickSample(completedRows),
     },
   };
 }

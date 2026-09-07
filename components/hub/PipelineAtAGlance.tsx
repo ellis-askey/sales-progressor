@@ -1,256 +1,159 @@
 "use client";
 
-// Hub polish PR 2 — Pipeline at a glance visualization.
+// Pipeline at a glance — horizontal property-card pipeline.
 //
-// Seven connected stage circles: New → Onboarding → Searches → Enquiries →
-// Ready → Exchanged → Completed.
-// Each shows the count for that bucket per getHubPipelineStages(vis), and on
-// hover / focus / tap reveals a glass bubble with per-stage stats (medians,
-// value locked, overdue counts, SLA hit rate). Data is already scoped to the
-// viewer's visibility upstream, so nothing role-specific in this component.
+// Six high-level stages (Just in / Moving / Legal work / Nearly there /
+// Exchanged / Completed), each a card showing its real count and, where it has
+// files, one real property preview (thumbnail + address + status) with a
+// "+N more". Counts, samples and photos all derive from getHubPipelineStages
+// (nothing hardcoded); the sample photo is signed upstream in PipelineStagesSlot.
 //
-// Card lives in the "attention side" column on desktop; collapses to a
-// horizontal-scroll pill strip on mobile via the built-in overflow-x rule
-// on the outer container.
+// Progressive reveal: a stage the pipeline has reached is unlocked (shows its
+// count, 0 included); the next unreached stage gets an "Up next" treatment;
+// later unreached stages stay ghosted ("Not reached yet"). "Reached" is derived
+// as the furthest stage with any files — since files only move forward, an empty
+// middle stage below a populated later one stays unlocked.
 
-import { Fragment, useEffect, useRef, useState } from "react";
-import { HouseSimple, FolderOpen, MagnifyingGlass, ChatCircleDots, Handshake, ArrowsClockwise, Key } from "@phosphor-icons/react/dist/ssr";
-import type { HubPipelineStages } from "@/lib/services/hub";
-import { PipelineStageHover, type StageKey } from "./PipelineStageHover";
+import Link from "next/link";
+import {
+  FolderOpen, MagnifyingGlass, ChatCircleDots, CheckSquare, ArrowsClockwise, Key,
+  Hourglass, Lock, ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
+import type { HubPipelineStages, PipelineSample } from "@/lib/services/hub";
 import { GlassCard } from "@/components/glass/GlassCard";
 
-type Stage = {
-  key: StageKey;
+const FALLBACK = "/property-photo-fallback.png";
+
+type CardDef = {
+  key: string;
   label: string;
-  Icon: typeof HouseSimple;
-  iconBg: string;
-  iconColor: string;
-  ringColor: string;
+  sub: string | null;
+  status: string;
+  tint: string;
+  accent: string;
+  Icon: typeof FolderOpen;
+  count: number;
+  sample: PipelineSample | null;
+  // Deep-link to a filtered files view — only where that plumbing already
+  // exists (Completed maps to the status filter). Null = no filtered route.
+  filesHref: string | null;
 };
 
-const STAGES: Stage[] = [
-  { key: "new",        label: "New",        Icon: HouseSimple,     iconBg: "rgba(16, 185, 129, 0.10)", iconColor: "#047857", ringColor: "rgba(16, 185, 129, 0.35)" },
-  { key: "onboarding", label: "Onboarding", Icon: FolderOpen,      iconBg: "rgba(8, 145, 178, 0.10)",  iconColor: "#0e7490", ringColor: "rgba(8, 145, 178, 0.35)" },
-  { key: "searches",   label: "Searches",   Icon: MagnifyingGlass, iconBg: "rgba(59, 130, 246, 0.10)", iconColor: "#1d4ed8", ringColor: "rgba(59, 130, 246, 0.35)" },
-  { key: "enquiries",  label: "Enquiries",  Icon: ChatCircleDots,  iconBg: "rgba(79, 70, 229, 0.10)",  iconColor: "#4338ca", ringColor: "rgba(79, 70, 229, 0.35)" },
-  { key: "ready",      label: "Ready",      Icon: Handshake,       iconBg: "rgba(245, 158, 11, 0.10)", iconColor: "#b45309", ringColor: "rgba(245, 158, 11, 0.35)" },
-  { key: "exchanging", label: "Exchanged",  Icon: ArrowsClockwise, iconBg: "rgba(139, 92, 246, 0.10)", iconColor: "#6d28d9", ringColor: "rgba(139, 92, 246, 0.35)" },
-  { key: "completed",  label: "Completed",  Icon: Key,             iconBg: "rgba(16, 185, 129, 0.12)", iconColor: "#065f46", ringColor: "rgba(16, 185, 129, 0.35)" },
-];
+export function PipelineAtAGlance({
+  stages,
+  signedPhotos,
+}: {
+  stages: HubPipelineStages;
+  signedPhotos: Record<string, string>;
+}) {
+  const cards: CardDef[] = [
+    { key: "justIn",    label: "Just in",      sub: "New & onboarding",       status: "New",       tint: "rgba(16,185,129,0.06)", accent: "#0d9488", Icon: FolderOpen,      count: stages.new.count + stages.onboarding.count, sample: stages.new.sample ?? stages.onboarding.sample, filesHref: null },
+    { key: "moving",    label: "Moving",       sub: "Searches & early legals", status: "Searches",  tint: "rgba(59,130,246,0.06)", accent: "#2563eb", Icon: MagnifyingGlass, count: stages.searches.count,  sample: stages.searches.sample,  filesHref: null },
+    { key: "legal",     label: "Legal work",   sub: "Enquiries",               status: "Enquiries", tint: "rgba(99,102,241,0.06)", accent: "#4f46e5", Icon: ChatCircleDots,  count: stages.enquiries.count, sample: stages.enquiries.sample, filesHref: null },
+    { key: "nearly",    label: "Nearly there", sub: "Ready to exchange",        status: "Ready",     tint: "rgba(245,158,11,0.07)", accent: "#b45309", Icon: CheckSquare,     count: stages.ready.count,     sample: stages.ready.sample,     filesHref: null },
+    { key: "exchanged", label: "Exchanged",    sub: null,                      status: "Exchanged", tint: "rgba(139,92,246,0.06)", accent: "#7c3aed", Icon: ArrowsClockwise, count: stages.exchanging.count, sample: stages.exchanging.sample, filesHref: null },
+    { key: "completed", label: "Completed",    sub: null,                      status: "Completed", tint: "rgba(16,185,129,0.07)", accent: "#047857", Icon: Key,             count: stages.completed.count,  sample: stages.completed.sample,  filesHref: "/agent/transactions?filter=completed" },
+  ];
 
-export function PipelineAtAGlance({ stages }: { stages: HubPipelineStages }) {
-  const totalActive =
-    stages.new.count + stages.onboarding.count + stages.searches.count +
-    stages.enquiries.count + stages.ready.count + stages.exchanging.count;
-  const anyProgress = totalActive > 0 || stages.completed.count > 0;
+  // Active sales = everything not yet completed (buckets 1–5).
+  const activeFiles = cards.slice(0, 5).reduce((s, c) => s + c.count, 0);
 
-  // Which stage's bubble is currently open. On desktop, mouseover sets it,
-  // mouseout clears. On mobile / keyboard, tap or focus sets it and Escape
-  // / outside-tap clears.
-  const [openKey, setOpenKey] = useState<StageKey | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Furthest reached = highest index with any files. Everything up to it is
+  // unlocked; the next is "up next"; later stages stay ghosted.
+  let furthest = -1;
+  cards.forEach((c, i) => { if (c.count > 0) furthest = i; });
 
-  useEffect(() => {
-    if (openKey === null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenKey(null);
-    };
-    const onOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpenKey(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onOutside);
-    window.addEventListener("touchstart", onOutside);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onOutside);
-      window.removeEventListener("touchstart", onOutside);
-    };
-  }, [openKey]);
+  const photoFor = (s: PipelineSample | null) =>
+    s?.photoStoragePath ? (signedPhotos[s.photoStoragePath] ?? FALLBACK) : FALLBACK;
 
   return (
-    // Design Lab: `hub-pipeline-glance`. Default v22 (Iridescent) per
-    // Ellis's hub pick set, 2026-08-09.
     <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
-      <div className="agent-card-hdr-internal" style={{ marginBottom: 18 }}>
-        <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline at a glance</p>
-        <p className="agent-card-subtitle">
-          Where every file sits right now.
-        </p>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 18 }}>
+        <div style={{ minWidth: 0 }}>
+          <p className="agent-eyebrow" style={{ marginBottom: 6 }}>Pipeline at a glance</p>
+          <p style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.05, color: "var(--agent-text-primary)" }}>
+            {activeFiles} active {activeFiles === 1 ? "sale" : "sales"}
+          </p>
+          <p className="agent-card-subtitle" style={{ marginTop: 4 }}>Here&apos;s where every file sits right now.</p>
+        </div>
+        <Link href="/agent/transactions" className="agent-link" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap", textDecoration: "none" }}>
+          View files <ArrowRight size={13} weight="bold" />
+        </Link>
       </div>
 
-      {!anyProgress ? (
-        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.55 }}>
-          Add your first sale and it will land in the <strong style={{ color: "var(--agent-text-primary)" }}>New</strong> column here.
-        </p>
-      ) : (
-        <div
-          ref={containerRef}
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 0,
-            overflowX: "auto",
-            overflowY: "visible",
-            paddingBottom: 4,
-          }}
-        >
-          {/* Nodes + connectors are siblings (not per-stage wrappers) so the
-              flex:1 connectors distribute the leftover width evenly between
-              the fixed-width circles — even spacing across the strip. */}
-          {STAGES.map((stage, i) => (
-            <Fragment key={stage.key}>
-              <StageNode
-                stage={stage}
-                stages={stages}
-                open={openKey === stage.key}
-                onOpen={() => setOpenKey(stage.key)}
-                onClose={() => setOpenKey(null)}
-                onToggle={() => setOpenKey(openKey === stage.key ? null : stage.key)}
-              />
-              {i < STAGES.length - 1 && <StageConnector />}
-            </Fragment>
-          ))}
-        </div>
-      )}
+      {/* Stage cards */}
+      <div className="pipe-grid">
+        {cards.map((c, i) => {
+          if (i <= furthest) return <ReachedCard key={c.key} c={c} photo={photoFor(c.sample)} />;
+          if (i === furthest + 1) return <UpNextCard key={c.key} c={c} />;
+          return <GhostCard key={c.key} c={c} />;
+        })}
+      </div>
     </GlassCard>
   );
 }
 
-function StageNode({
-  stage, stages, open, onOpen, onClose, onToggle,
-}: {
-  stage: Stage;
-  stages: HubPipelineStages;
-  open: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  onToggle: () => void;
-}) {
-  const stats = stages[stage.key];
-  const count = stats.count;
-  const dim = count === 0;
-  const Icon = stage.Icon;
-
-  const nodeRef = useRef<HTMLDivElement>(null);
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const update = () => {
-      if (nodeRef.current) setAnchor(nodeRef.current.getBoundingClientRect());
-    };
-    update();
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
-  }, [open]);
-
+function ReachedCard({ c, photo }: { c: CardDef; photo: string }) {
+  const moreCount = c.count - 1;
   return (
-    <div
-      ref={nodeRef}
-      role="button"
-      tabIndex={0}
-      aria-expanded={open}
-      aria-label={`${stage.label}: ${count}`}
-      onMouseEnter={onOpen}
-      onMouseLeave={onClose}
-      onFocus={onOpen}
-      onBlur={onClose}
-      onClick={onToggle}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onToggle();
-        }
-      }}
-      style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        flex: "0 0 auto",
-        minWidth: 62,
-        opacity: dim ? 0.6 : 1,
-        transition: "opacity 200ms ease",
-        cursor: "pointer",
-        outline: "none",
-      }}
-    >
-      <div style={{
-        width: 50, height: 50, borderRadius: "50%",
-        background: stage.iconBg,
-        border: `1.5px solid ${stage.ringColor}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: stage.iconColor,
-        // Strip has overflow-x: auto (mobile scroll), which per CSS spec
-        // implicitly clips the vertical axis too. A translateY affordance
-        // would clip the top of the circle — swap for a shadow bump.
-        boxShadow: dim
-          ? "none"
-          : open
-            ? "0 4px 12px rgba(15,23,42,0.14), 0 1px 3px rgba(15,23,42,0.06)"
-            : "0 1px 3px rgba(15,23,42,0.06)",
-        transition: "box-shadow 160ms ease",
-      }}>
-        <Icon size={20} weight="regular" />
+    <div className="pipe-card pipe-card-reached" style={{ background: c.tint }}>
+      <div className="pipe-card-top">
+        <span className="pipe-card-label">{c.label}</span>
+        <span className="pipe-icon" style={{ background: `${c.accent}1f`, color: c.accent }}>
+          <c.Icon size={15} weight="regular" />
+        </span>
       </div>
-      <p style={{
-        margin: 0,
-        fontSize: 20,
-        fontWeight: 700,
-        color: "var(--agent-text-primary)",
-        lineHeight: 1,
-        fontVariantNumeric: "tabular-nums",
-        letterSpacing: "-0.01em",
-      }}>
-        {count}
-      </p>
-      <p style={{
-        margin: 0,
-        fontSize: 11,
-        color: "var(--agent-text-muted)",
-        fontWeight: 500,
-        textAlign: "center",
-      }}>
-        {stage.label}
-      </p>
-      {open && renderHover(stage.key, stages, anchor)}
+      <div className="pipe-count">{c.count}</div>
+      {c.sub && <div className="pipe-sub">{c.sub}</div>}
+
+      {c.sample ? (
+        <>
+          <Link href={`/agent/transactions/${c.sample.id}`} className="pipe-prop">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt="" aria-hidden className="pipe-thumb" />
+            <span className="pipe-prop-text">
+              <span className="pipe-addr" data-sensitive="true">{c.sample.propertyAddress.split(",")[0].trim()}</span>
+              <span className="pipe-status"><span className="pipe-dot" style={{ background: c.accent }} />{c.status}</span>
+            </span>
+          </Link>
+          {moreCount > 0 && (
+            c.filesHref
+              ? <Link href={c.filesHref} className="pipe-more pipe-more-link">+{moreCount} more</Link>
+              : <span className="pipe-more">+{moreCount} more</span>
+          )}
+        </>
+      ) : (
+        <div className="pipe-empty">Nothing here right now.</div>
+      )}
     </div>
   );
 }
 
-function renderHover(key: StageKey, stages: HubPipelineStages, anchor: DOMRect | null) {
-  if (key === "new")        return <PipelineStageHover stage="new"        stats={stages.new}        anchor={anchor} />;
-  if (key === "onboarding") return <PipelineStageHover stage="onboarding" stats={stages.onboarding} anchor={anchor} />;
-  if (key === "searches")   return <PipelineStageHover stage="searches"   stats={stages.searches}   anchor={anchor} />;
-  if (key === "enquiries")  return <PipelineStageHover stage="enquiries"  stats={stages.enquiries}  anchor={anchor} />;
-  if (key === "ready")      return <PipelineStageHover stage="ready"      stats={stages.ready}      anchor={anchor} />;
-  if (key === "exchanging") return <PipelineStageHover stage="exchanging" stats={stages.exchanging} anchor={anchor} />;
-  return                          <PipelineStageHover stage="completed"  stats={stages.completed}  anchor={anchor} />;
+function UpNextCard({ c }: { c: CardDef }) {
+  return (
+    <div className="pipe-card pipe-card-upnext">
+      <div className="pipe-card-top">
+        <span className="pipe-card-label">{c.label}</span>
+      </div>
+      <div className="pipe-upnext-body">
+        <span className="pipe-upnext-badge"><Hourglass size={13} weight="regular" /> Up next</span>
+        <p className="pipe-upnext-hint">Your sales move here as they progress.</p>
+      </div>
+    </div>
+  );
 }
 
-function StageConnector() {
+function GhostCard({ c }: { c: CardDef }) {
   return (
-    <div style={{
-      flex: 1,
-      minWidth: 10,
-      marginTop: 25, // vertical align with circle midpoint (50/2)
-      height: 1,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }}>
-      <div style={{
-        width: "100%",
-        borderTop: "1px dashed var(--agent-pipeline-connector)",
-      }} />
+    <div className="pipe-card pipe-card-ghost">
+      <div className="pipe-card-top">
+        <span className="pipe-card-label pipe-label-ghost">{c.label}</span>
+      </div>
+      <div className="pipe-ghost-body">
+        <Lock size={16} weight="regular" />
+        <span>Not reached yet</span>
+      </div>
     </div>
   );
 }
