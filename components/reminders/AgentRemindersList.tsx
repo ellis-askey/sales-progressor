@@ -761,21 +761,17 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           return (
             <div key={grp.key} className="space-y-2" id={`section-${grp.key}`}>
               <div
-                className="flex items-center justify-between px-3 py-2 rounded-xl"
+                className={`agent-wq-secbar ${grp.you ? "agent-wq-secbar--you" : "agent-wq-secbar--auto"} flex items-center justify-between px-3 py-2 rounded-xl`}
                 role="button"
                 tabIndex={0}
                 aria-expanded={!isCollapsed}
                 onClick={() => toggleCollapse(grp.key)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse(grp.key); } }}
-                style={{
-                  cursor: "pointer",
-                  background: grp.you ? "rgba(var(--agent-coral-rgb), 0.08)" : "var(--agent-surface-glass)",
-                  border: grp.you ? "0.5px solid rgba(var(--agent-coral-rgb), 0.20)" : "0.5px solid var(--agent-border-subtle)",
-                }}
+                style={{ cursor: "pointer" }}
               >
                 <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.01em", color: grp.you ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)" }}>{grp.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 8px", borderRadius: 20, color: grp.you ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", background: grp.you ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(148,163,184,0.16)" }}>{grp.logs.length}</span>
+                  <span className={`agent-wq-count ${grp.you ? "agent-wq-count--coral" : "agent-wq-count--muted"}`}>{grp.logs.length}</span>
                   <span className="hidden sm:inline" style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{grp.sub}</span>
                 </div>
                 <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
