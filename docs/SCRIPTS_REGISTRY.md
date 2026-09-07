@@ -306,3 +306,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Staging-guarded (refuses non-staging DB). Re-runnable.
 - **Author/date:** Claude, 2026-08-31.
 - **Deletion criteria:** delete this script + the demo rows (transactions tagged "(demo)", invoices with stripeInvoiceId prefix "demo_tim_") once the Account/billing redesign review is done.
+
+### seed-vm7-chase-test.ts
+- **Purpose:** one-shot staging test file for the "chase the draft contract pack (VM7)" bug report. Stands up a real self-managed sale on Emily Chen's agency (Hartwell & Partners), completes VM7's prerequisites (VM1/3/4/5/6, backdated), leaves VM7 "draft contract pack issued" available/unconfirmed, and runs the real reminder engine so a due VM7 chase task exists to click Chase on. Also resets the agent's password to a known value for login.
+- **Lifetime:** one-shot (throwaway). Staging-guarded (refuses production DB).
+- **Author/date:** Claude, 2026-09-07.
+- **Deletion criteria:** delete this script + this entry (and remove the seeded transaction) once the VM7 chase behaviour has been verified.
