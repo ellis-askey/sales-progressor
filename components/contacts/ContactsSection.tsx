@@ -10,11 +10,13 @@
 // Vendors always render before purchasers; other roles fall to the bottom.
 //
 // Portal card states (truthful, resilience audit PR 7 — the label reflects what
-// actually happened, not just "does a link exist"):
-//   - ready_to_invite: grey dot,  "Ready to invite",   CTA: Send invite
+// actually happened, not just "does a link exist"). A copy-link button sits to
+// the right of the invite/resend action in EVERY state, so the agent can always
+// share the portal link manually (and has a fallback if an invite can't send):
+//   - ready_to_invite: grey dot,  "Ready to invite",   CTA: Send invite + copy-link
 //   - invited:         amber dot, "Invite sent",       CTA: Resend invite + copy-link
 //   - link_ready:      grey dot,  "Portal link ready", CTA: copy-link (no email on file)
-//   - active:          green dot, "Active",            info: last viewed relative
+//   - active:          green dot, "Active",            CTA: copy-link + last viewed relative
 //
 // Opted-out contacts (Contact.unsubscribedAt) show a small "Opted out"
 // pill next to the email row. Email button stays functional so the agent
@@ -228,7 +230,9 @@ function PortalStatusCard({
         </span>
       </div>
 
-      {/* CTA cluster */}
+      {/* CTA cluster — invite / resend on the left, copy-link ALWAYS to its
+          right so the agent can share the portal link manually in any state
+          (and has a fallback whenever an invite email can't send). */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
         {state === "ready_to_invite" && (
           <button
@@ -241,54 +245,26 @@ function PortalStatusCard({
             {inviteSent ? "✓ Sent" : inviting ? "Sending…" : "Send invite"}
           </button>
         )}
-        {state === "link_ready" && (
+        {state === "invited" && hasEmail && (
           <button
             type="button"
-            onClick={onCopyLink}
-            title="No email on file, so copy the portal link to share it manually"
-            aria-label="Copy portal link"
+            onClick={onSendInvite}
+            disabled={inviting}
             className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-            style={{ minWidth: 34, padding: "0 8px" }}
           >
-            {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
+            {inviteSent ? "✓ Sent" : inviting ? "Sending…" : "Resend invite"}
           </button>
         )}
-        {state === "invited" && (
-          <>
-            {hasEmail && (
-              <button
-                type="button"
-                onClick={onSendInvite}
-                disabled={inviting}
-                className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-              >
-                {inviteSent ? "✓ Sent" : inviting ? "Sending…" : "Resend invite"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onCopyLink}
-              title="Copy portal link"
-              aria-label="Copy portal link"
-              className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-              style={{ minWidth: 34, padding: "0 8px" }}
-            >
-              {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
-            </button>
-          </>
-        )}
-        {state === "active" && (
-          <button
-            type="button"
-            onClick={onCopyLink}
-            title="Copy portal link"
-            aria-label="Copy portal link"
-            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-            style={{ minWidth: 34, padding: "0 8px" }}
-          >
-            {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onCopyLink}
+          title={hasEmail ? "Copy portal link to share it manually" : "No email on file, so copy the portal link to share it manually"}
+          aria-label="Copy portal link"
+          className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+          style={{ minWidth: 34, padding: "0 8px" }}
+        >
+          {copied ? "✓" : <ArrowSquareOut size={12} weight="regular" />}
+        </button>
       </div>
     </div>
   );
@@ -578,6 +554,13 @@ export function ContactsSection({
 
   async function sendInvite(token: string, contactId: string) {
     setInviting(contactId);
+    // When the invite can't go out (e.g. the agency's sending address isn't
+    // authenticated yet), tell the agent plainly and point them at the copy-link
+    // button so they're never left with a dead click and no way forward.
+    const showSendFailure = () =>
+      toast.error("We couldn't send that invite", {
+        description: "Copy the portal link with the button beside Send invite and share it with them directly.",
+      });
     try {
       const res = await fetch("/api/portal/invite", {
         method: "POST",
@@ -590,7 +573,11 @@ export function ContactsSection({
         setInviteSent(contactId);
         setTimeout(() => setInviteSent(null), 3000);
         window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasContactEmail: true } }));
+      } else {
+        showSendFailure();
       }
+    } catch {
+      showSendFailure();
     } finally {
       setInviting(null);
     }
