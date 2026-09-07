@@ -32,9 +32,11 @@ import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZon
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
-import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { getAgencyLogoUrl, getSignatureImageUrl } from "@/lib/supabase-storage";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { EmailSignatureCard, type SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
+import { resolveEmailSignature } from "@/lib/email/signature";
 import { Palette, Image as ImageIcon, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountProfilePage({
@@ -50,9 +52,31 @@ export default async function AccountProfilePage({
     select: {
       phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true,
       chaseVoiceProfile: true, chaseVoiceProfileBuiltAt: true,
+      emailSignatureMode: true, emailSignatureImagePath: true, emailSignatureHtml: true,
     },
   });
   const currentBrand = getBrandColor(userRecord?.agentPreferences);
+
+  // Email signature (per-agent, both roles). The preview uses the same resolver
+  // as the send, so what the agent sees here is what recipients receive.
+  const sigAgency = session.user.agencyId
+    ? await prisma.agency.findUnique({
+        where: { id: session.user.agencyId },
+        select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true },
+      })
+    : null;
+  const sigPreview = await resolveEmailSignature({
+    userId: session.user.id,
+    agency: sigAgency,
+    fallbackName: session.user.name,
+  });
+  const signatureInitial: SignatureInitial = {
+    mode: userRecord?.emailSignatureMode ?? "BASIC",
+    imageUrl: getSignatureImageUrl(userRecord?.emailSignatureImagePath),
+    customHtml: userRecord?.emailSignatureHtml ?? null,
+    previewHtml: sigPreview.html,
+    missing: sigPreview.missing,
+  };
 
   // Agency logo is a director-level, agency-wide brand setting (client emails).
   const isDirector = session.user.role === "director";
@@ -140,6 +164,8 @@ export default async function AccountProfilePage({
           profile={userRecord?.chaseVoiceProfile ?? null}
           builtAt={userRecord?.chaseVoiceProfileBuiltAt?.toISOString() ?? null}
         />
+
+        <EmailSignatureCard initial={signatureInitial} />
 
         {emailCard ? (
           // Desktop: email branding on the right; colour, sending, account

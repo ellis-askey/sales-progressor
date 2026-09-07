@@ -4,7 +4,16 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-08-29
+Last updated: 2026-09-07
+
+---
+
+## Email signature — create the `signatures` storage bucket (2026-09-07)
+
+The new "Signature image" option (Profile → Email signature) uploads/imports the agent's signature image to a public Supabase Storage bucket named **`signatures`**.
+
+- [x] **Staging** — bucket created programmatically (public) on 2026-09-07.
+- [ ] **Production** — create a **public** bucket named `signatures` in the prod Supabase project (`gmkfustgwipgihpmpjpr`) → Storage → New bucket → name `signatures`, Public ON. Until this exists, uploading/importing a signature image on prod will error (Basic/Custom signatures are unaffected). Same pattern as the existing `avatars` / `agency-logos` public buckets.
 
 ---
 
