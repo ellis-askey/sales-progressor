@@ -50,7 +50,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TypedText } from "@/components/agent/TypedText";
@@ -176,6 +176,9 @@ type Ctx = {
   isProgressor: boolean;
   isAdmin: boolean;
   canCreateSale: boolean;
+  // The claimed first sale (or null). Fetched once in the shell so the header
+  // can swap its CTA and FullBodyGate can render the hero without re-querying.
+  claimedFirstSale: Awaited<ReturnType<typeof getClaimedFirstSale>>;
 };
 
 // ── Inline loading card — v05 glass container with a small "Loading X…" line.
@@ -221,9 +224,14 @@ export default async function Hub() {
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const greeting = getGreeting(session.user.name ?? "there");
-  const subtitle = await getSubtitle(vis, isAdmin, isProgressor);
+  const [subtitle, claimedFirstSale] = await Promise.all([
+    getSubtitle(vis, isAdmin, isProgressor),
+    // Agency users only; a claimed single sale flips the header CTA to a
+    // profile nudge and drives the welcome hero further down.
+    isInternalStaff ? Promise.resolve(null) : getClaimedFirstSale(vis).catch(() => null),
+  ]);
 
-  const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale };
+  const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale, claimedFirstSale };
 
   return (
     <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -235,12 +243,19 @@ export default async function Hub() {
         title={<TypedText text={greeting} speed={32} />}
         subtitle={<TypedText text={subtitle} speed={20} startDelay={Array.from(greeting).length * 32 + 200} showCaret={false} />}
       >
-        {canCreateSale && (
+        {claimedFirstSale ? (
+          // While the welcome hero is up, the hero carries "Add another sale",
+          // so this points at the one thing they haven't done: their profile.
+          <Link href="/agent/account/profile" className="agent-btn agent-btn-sm hub-profile-cta" style={{ textDecoration: "none" }}>
+            <UserCircle size={15} weight="regular" />
+            Complete your profile
+          </Link>
+        ) : canCreateSale ? (
           <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
             <Plus size={14} weight="bold" />
             New sale
           </Link>
-        )}
+        ) : null}
         {!isInternalStaff && hasOutsourced && (
           <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
         )}
@@ -297,12 +312,12 @@ async function BodyGate({ ctx }: { ctx: Ctx }) {
 }
 
 async function FullBodyGate({ ctx }: { ctx: Ctx }) {
-  const [pipelineStats, attentionItems, claimedFirstSale] = await Promise.all([
+  const [pipelineStats, attentionItems] = await Promise.all([
     getHubPipelineStats(ctx.vis),
     getHubAttentionItems(ctx.vis),
-    // First-sale hero only applies to agency users who claimed their one sale.
-    ctx.isInternalStaff ? Promise.resolve(null) : getClaimedFirstSale(ctx.vis),
   ]);
+  // Already resolved in the shell (drives the header CTA too) — reuse it.
+  const claimedFirstSale = ctx.claimedFirstSale;
   // Rare: has files but they're all e.g. completed/withdrawn, so nothing is
   // active or needs attention. Keep the exact original semantics — show the
   // empty state (this path has already shown the loading card).

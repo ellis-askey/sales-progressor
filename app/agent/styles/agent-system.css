@@ -1835,6 +1835,18 @@
       background-size: contain;
     }
   }
+  /* Header CTA while the first-sale hero is up: a soft coral outline (not a
+   * filled button, so it doesn't fight the hero's own coral CTAs). Hover only
+   * deepens the border to the same level inputs use on hover — no fill. */
+  .hub-profile-cta {
+    background: var(--agent-surface-glass);
+    color: var(--agent-coral-deep);
+    border: 1px solid rgba(var(--agent-coral-rgb), 0.30);
+    transition: border-color var(--agent-transition-fast);
+  }
+  .hub-profile-cta:hover { border-color: var(--agent-border-focus); }
+  .hub-profile-cta:focus-visible { outline: 2px solid var(--agent-coral-deep); outline-offset: 2px; }
+
   .fsh-card    { grid-area: card; max-width: 360px; }
   .fsh-writing { grid-area: writing; align-self: end; }
   .fsh-ctas    { grid-area: ctas; align-self: start; max-width: 360px; }
