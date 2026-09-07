@@ -37,6 +37,9 @@ type Props = {
   exchangeReady: boolean;
   vendorGateReady: boolean;
   purchaserGateReady: boolean;
+  // Agreed completion date (set at exchange). Drives the late-stage footer cue.
+  // Null until exchange is confirmed with a date.
+  completionDate?: string | Date | null;
   // Map of milestone code → graceDays from active ReminderRules (server-fetched
   // once per page load via getGraceDaysByMilestoneCode). Drives the staleness
   // badge — codes absent from this map get no badge. Plain object on the wire
@@ -62,6 +65,7 @@ export function MilestonePanel({
   exchangeReady,
   vendorGateReady,
   purchaserGateReady,
+  completionDate,
   graceDaysByCode,
   clientChaseByCode,
   purchaseType,
@@ -84,6 +88,31 @@ export function MilestonePanel({
     () => buildCompletionLookup([...vendor, ...purchaser]),
     [vendor, purchaser],
   );
+
+  // Late-stage footer cue: one line that advances with the active side's
+  // exchange → completion steps. Ready to confirm the readiness step →
+  // readiness confirmed, confirm exchange → exchanged, confirm completion →
+  // hidden once complete. Per side (each tab tracks its own codes).
+  const sideLabel = activeTab === "vendor" ? "Vendor" : "Purchaser";
+  const readinessDone = allMilestoneLookup.get(activeTab === "vendor" ? "VM18" : "PM25")?.isComplete ?? false;
+  const exchangeDone = allMilestoneLookup.get(activeTab === "vendor" ? "VM19" : "PM26")?.isComplete ?? false;
+  const completionDone = allMilestoneLookup.get(activeTab === "vendor" ? "VM20" : "PM27")?.isComplete ?? false;
+  const completionDateLabel = completionDate
+    ? new Date(completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" })
+    : null;
+
+  let footerNote: string | null = null;
+  if (completionDone) {
+    footerNote = null; // sale complete on this side, nothing left to confirm
+  } else if (exchangeDone && completionDateLabel) {
+    footerNote = `✓ Exchanged, completing ${completionDateLabel}. You can now confirm completion.`;
+  } else if (exchangeDone) {
+    footerNote = "✓ Exchanged. Add the completion date to finish setting up completion.";
+  } else if (readinessDone) {
+    footerNote = `✓ ${sideLabel} side confirmed ready. You can now confirm exchange.`;
+  } else if (gateReady) {
+    footerNote = `✓ ${sideLabel} side ready. You can now confirm the final step before exchange.`;
+  }
 
   function getCounterpartNotice(code: string): string | undefined {
     if (code === "VM19") {
@@ -422,9 +451,9 @@ export function MilestonePanel({
         </Card>
       )}
 
-      {gateReady && (
+      {footerNote && (
         <p className="mt-3 text-xs text-emerald-600 text-center">
-          ✓ {activeTab === "vendor" ? "Vendor" : "Purchaser"} side ready. You can now confirm the final step before exchange.
+          {footerNote}
         </p>
       )}
     </section>

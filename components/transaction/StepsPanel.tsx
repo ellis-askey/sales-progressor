@@ -43,6 +43,7 @@ export async function StepsPanel({ transactionId, agencyId, purchaseType }: Prop
         exchangeReady={milestoneData.exchangeReady}
         vendorGateReady={milestoneData.vendorGateReady}
         purchaserGateReady={milestoneData.purchaserGateReady}
+        completionDate={milestoneData.completionDate}
         graceDaysByCode={graceDaysByCode}
         clientChaseByCode={clientChaseByCode}
         purchaseType={purchaseType}

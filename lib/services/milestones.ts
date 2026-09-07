@@ -158,6 +158,8 @@ export type MilestonesByTransaction = {
   exchangeReady: boolean;
   vendorGateReady: boolean;
   purchaserGateReady: boolean;
+  // Agreed completion date (set at exchange). Drives the late-stage steps footer.
+  completionDate: Date | null;
 };
 
 // ── Prerequisite maps ──────────────────────────────────────────────────────────
@@ -621,6 +623,7 @@ export async function getMilestonesForTransaction(
       id: true,
       activeBuyerRoundId: true,
       bookedSurveyorName: true,
+      completionDate: true,
       contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true } },
     },
   });
@@ -740,7 +743,7 @@ export async function getMilestonesForTransaction(
   const purchaserGateReady = purchaser.filter((d) => d.blocksExchange).every((d) => d.isComplete || d.isNotRequired);
   const exchangeReady = vendorGateReady && purchaserGateReady;
 
-  return { vendor, purchaser, exchangeReady, vendorGateReady, purchaserGateReady };
+  return { vendor, purchaser, exchangeReady, vendorGateReady, purchaserGateReady, completionDate: transaction.completionDate };
 }
 
 // ── getDownstreamCompleted ───────────────────────────────────────────────────
