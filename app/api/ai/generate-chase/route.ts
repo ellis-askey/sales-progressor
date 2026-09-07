@@ -186,6 +186,38 @@ export async function POST(req: NextRequest) {
   const allTasks = [primaryTask, ...extraTasks];
   const tx = primaryTask.transaction;
 
+  // The milestone being CHASED is the rule's targetMilestoneCode. The rule's
+  // anchorMilestone is only the TIMING anchor: e.g. the VM7 draft-contract-pack
+  // chase is anchored on VM6 (forms returned), so reading anchorMilestone as the
+  // subject made every VM7 chase talk about the forms. Resolve the TARGET
+  // milestone's definition here and use it as the subject everywhere below.
+  const targetCodes = Array.from(
+    new Set(
+      allTasks
+        .map((t) => t.reminderLog.reminderRule.targetMilestoneCode)
+        .filter((c): c is string => !!c),
+    ),
+  );
+  const targetDefs = targetCodes.length
+    ? await prisma.milestoneDefinition.findMany({
+        where: { code: { in: targetCodes } },
+        select: { code: true, name: true, side: true, blocksExchange: true },
+      })
+    : [];
+  const targetDefByCode = new Map(targetDefs.map((d) => [d.code, d]));
+  type MsIdentity = { code: string; name: string; side: string; blocksExchange: boolean };
+  // The milestone a chase task is actually about. Prefer the rule's target;
+  // fall back to the anchor only for legacy rules with no targetMilestoneCode.
+  const targetMsFor = (t: (typeof allTasks)[number]): MsIdentity | null => {
+    const rule = t.reminderLog.reminderRule;
+    if (rule.targetMilestoneCode) {
+      const d = targetDefByCode.get(rule.targetMilestoneCode);
+      if (d) return d;
+    }
+    const a = rule.anchorMilestone;
+    return a ? { code: a.code, name: a.name, side: a.side, blocksExchange: a.blocksExchange } : null;
+  };
+
   const formatDate = (d: Date | null | undefined) =>
     d
       ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -210,7 +242,7 @@ export async function POST(req: NextRequest) {
   const firmName = tx.agency?.name ?? "our agency";
 
   // Recipient side and chase count
-  const recipientSide = allTasks[0].reminderLog.reminderRule.anchorMilestone?.side ?? "vendor";
+  const recipientSide = targetMsFor(allTasks[0])?.side ?? "vendor";
   const maxChaseCount = isMulti
     ? Math.max(...allTasks.map((t) => t.chaseCount))
     : primaryTask.chaseCount;
@@ -288,7 +320,7 @@ export async function POST(req: NextRequest) {
         : "seller";
 
   const asks = allTasks.map((t) => {
-    const ms = t.reminderLog.reminderRule.anchorMilestone;
+    const ms = targetMsFor(t);
     const code = ms?.code ?? "";
     const name = ms?.name ?? t.reminderLog.reminderRule.name;
     return { code, name, ...deriveChaseAsk({ milestoneCode: code, milestoneName: name, recipientRole: recipientParty }) };
@@ -468,7 +500,7 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
   // Milestone(s) block — loop per §6
   const milestonesBlock = (() => {
     const lines = allTasks.map((t, i) => {
-      const ms = t.reminderLog.reminderRule.anchorMilestone;
+      const ms = targetMsFor(t);
       const name = ms?.name ?? t.reminderLog.reminderRule.name;
       const side = ms?.side ?? "vendor";
       const daysOuts = Math.max(
@@ -490,7 +522,7 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
   // Milestone context — per-milestone glossary lookup (§6, PROMPT_SPEC.md)
   const milestoneContextParts = allTasks
     .map((t) => {
-      const ms = t.reminderLog.reminderRule.anchorMilestone;
+      const ms = targetMsFor(t);
       const msCode = ms?.code ?? null;
       const msName = ms?.name ?? t.reminderLog.reminderRule.name;
       if (!msCode) return null;
@@ -676,7 +708,7 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
         : null,
       milestoneName: isMulti
         ? `${allTasks.length} milestones`
-        : (primaryTask.reminderLog.reminderRule.anchorMilestone?.name ??
+        : (targetMsFor(primaryTask)?.name ??
           primaryTask.reminderLog.reminderRule.name),
       chaseCount: maxChaseCount,
       tone,
