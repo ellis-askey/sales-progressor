@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 const dismissedKey    = (userId: string) => `sp_onboarding_dismissed_${userId}`;
 const emailSkippedKey = (userId: string) => `sp_onboarding_email_skipped_${userId}`;
+// Persisted minimise: once the agent collapses the checklist it stays collapsed
+// across reloads + navigation until they click it open again.
+const collapsedKey    = (userId: string) => `sp_onboarding_collapsed_${userId}`;
 
 // Named keys prevent off-by-one errors when steps are reordered or added
 type ProgressData = {
@@ -71,6 +73,19 @@ function isAllDone(p: ProgressData, isDirector: boolean): boolean {
   return requiredKeys(isDirector).every((k) => p[k]);
 }
 
+// The core "Get going" steps (before FINISH_SETUP_START): first sale, client
+// contact details, portal shared. Once these are done the agent is genuinely up
+// and running, so the checklist retires for good even if the optional account /
+// email steps are never completed — they're still reachable from Account/Hub.
+// Founder decision 2026-09-07: don't let it live there forever.
+const CORE_KEYS: (keyof ProgressData)[] = STEPS.slice(0, FINISH_SETUP_START).map((s) => s.progressKey);
+function isCoreDone(p: ProgressData): boolean {
+  return CORE_KEYS.every((k) => p[k]);
+}
+function shouldRetire(p: ProgressData, isDirector: boolean): boolean {
+  return isAllDone(p, isDirector) || isCoreDone(p);
+}
+
 function SectionHeader({ label }: { label: string }) {
   return (
     <p style={{
@@ -114,8 +129,10 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
       setDismissed(true);
       return;
     }
-    // Inline always opens; the floating one opens on desktop only.
-    if (variant === "inline" || window.innerWidth >= 768) setOpen(true);
+    // Stay minimised once the agent has minimised it (persists across reloads +
+    // navigation). Otherwise auto-open: inline always, floating on desktop only.
+    const isCollapsed = !!localStorage.getItem(collapsedKey(userId));
+    if (!isCollapsed && (variant === "inline" || window.innerWidth >= 768)) setOpen(true);
     fetchProgress();
 
     const interval = setInterval(fetchProgress, 15_000);
@@ -128,7 +145,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
       }
       setProgress((prev) => {
         const next = { ...prev, ...patch };
-        if (isAllDone(next, isDirector)) {
+        if (shouldRetire(next, isDirector)) {
           localStorage.setItem(dismissedKey(userId), "1");
           setDismissed(true);
         }
@@ -138,7 +155,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
     window.addEventListener("sp_onboarding_step", onStep);
 
     // "Continue setup" (hub empty state) opens the floating checklist.
-    const onOpen = () => { setForceShow(true); setOpen(true); };
+    const onOpen = () => { setForceShow(true); try { localStorage.removeItem(collapsedKey(userId)); } catch {} setOpen(true); };
     window.addEventListener("sp_open_checklist", onOpen);
 
     return () => {
@@ -156,8 +173,8 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
       const data = await res.json() as { progress: ProgressData; firstTxId: string | null };
       setProgress(data.progress);
       setFirstTxId(data.firstTxId);
-      // If already done, silently dismiss — no flash, no animation
-      if (isAllDone(data.progress, isDirector)) {
+      // If done (all steps, or just the core "Get going" set), silently retire.
+      if (shouldRetire(data.progress, isDirector)) {
         localStorage.setItem(dismissedKey(userId), "1");
         setDismissed(true);
       }
@@ -179,10 +196,21 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
     setEmailSkipped(true);
     // Treat as completion: if everything else is done, dismiss the checklist
     const withSkip = { ...progress, hasVerifiedEmail: true };
-    if (isAllDone(withSkip, isDirector)) {
+    if (shouldRetire(withSkip, isDirector)) {
       localStorage.setItem(dismissedKey(userId), "1");
       setDismissed(true);
     }
+  }
+
+  // Minimise / expand, both persisted. Minimising writes the collapsed flag so
+  // it stays minimised on every reload; opening clears it (deliberate re-open).
+  function collapse() {
+    try { localStorage.setItem(collapsedKey(userId), "1"); } catch {}
+    setOpen(false);
+  }
+  function expand() {
+    try { localStorage.removeItem(collapsedKey(userId)); } catch {}
+    setOpen(true);
   }
 
   if (!mounted || dismissed) return null;
@@ -198,7 +226,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
     .filter((s) => s.progressKey !== "hasVerifiedEmail")
     .every((s) => effectiveProgress[s.progressKey]);
 
-  const counterBadge = <Pill tone="brand" size="sm" style={{ fontWeight: 700 }}>{completedCount}/{totalCount}</Pill>;
+  const counterBadge = <span className="agent-progress-count">{completedCount}/{totalCount}</span>;
 
   // Step list — shared by both variants.
   const stepList = (
@@ -279,7 +307,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
             {counterBadge}
           </div>
           <button
-            onClick={() => setOpen((o) => !o)}
+            onClick={() => (open ? collapse() : expand())}
             style={{ padding: 4, borderRadius: 6, border: "none", background: "none", cursor: "pointer", color: "var(--agent-text-muted)", display: "flex" }}
             aria-label={open ? "Collapse" : "Expand"}
           >
@@ -333,7 +361,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
-                onClick={() => setOpen(false)}
+                onClick={collapse}
                 style={{ padding: 4, borderRadius: 6, border: "none", background: "none", cursor: "pointer", color: "var(--agent-text-muted)", display: "flex" }}
                 aria-label="Collapse"
               >
@@ -354,7 +382,7 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
       ) : (
         /* Collapsed */
         <button
-          onClick={() => setOpen(true)}
+          onClick={expand}
           style={{
             display: "flex",
             alignItems: "center",
