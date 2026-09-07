@@ -102,7 +102,7 @@ export function NoChainSetupCard({
               <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
             )}
             {!confirmed && !sale.resurfaced && !sale.noChainRequired && sale.awaitingClientOnward && (
-              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Asked the seller · awaiting reply</span>
+              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Seller hasn&apos;t said if they&apos;re buying onward</span>
             )}
             {!confirmed && sale.noChainRequired && (
               <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>Looks chain-free</span>
