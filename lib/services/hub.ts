@@ -98,6 +98,37 @@ export async function hubHasFiles(vis: AgentVisibility): Promise<boolean> {
   return row !== null;
 }
 
+// First-sale hero (Hub): a brand-new user who reached us by CLAIMING a chain
+// invite and has exactly one real sale — the one they claimed — and nothing
+// else. Returns that sale so the Hub can show the welcome hero; null the moment
+// they have any other real sale (the hero retires once they add another).
+// Personal scope (agentUserId = the claimer), so it only ever fires for the
+// individual who claimed, never a colleague viewing agency-wide.
+export async function getClaimedFirstSale(
+  vis: AgentVisibility,
+): Promise<{ id: string; address: string; photoStoragePath: string | null } | null> {
+  const where = {
+    agencyId: vis.agencyId,
+    agentUserId: vis.userId,
+    isDemo: false,
+    status: { not: "draft" as const },
+  };
+  // Exactly one real sale, or the hero doesn't apply.
+  if ((await prisma.propertyTransaction.count({ where })) !== 1) return null;
+  const tx = await prisma.propertyTransaction.findFirst({
+    where,
+    select: {
+      id: true,
+      propertyAddress: true,
+      photoStoragePath: true,
+      chainLink: { select: { claimedByUserId: true } },
+    },
+  });
+  // Only when that single sale is one they CLAIMED themselves.
+  if (!tx || tx.chainLink?.claimedByUserId !== vis.userId) return null;
+  return { id: tx.id, address: tx.propertyAddress, photoStoragePath: tx.photoStoragePath };
+}
+
 export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSubtitleSignals> {
   const txWhere = buildTxWhere(vis);
   const now = new Date();

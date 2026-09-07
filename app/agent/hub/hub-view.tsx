@@ -25,7 +25,7 @@ import {
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles,
-  getHubSubtitleSignals, hubHasFiles,
+  getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
 } from "@/lib/services/hub";
 import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
@@ -39,6 +39,7 @@ import {
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
+import { FirstSaleHero } from "@/components/hub/FirstSaleHero";
 import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
@@ -296,17 +297,33 @@ async function BodyGate({ ctx }: { ctx: Ctx }) {
 }
 
 async function FullBodyGate({ ctx }: { ctx: Ctx }) {
-  const [pipelineStats, attentionItems] = await Promise.all([
+  const [pipelineStats, attentionItems, claimedFirstSale] = await Promise.all([
     getHubPipelineStats(ctx.vis),
     getHubAttentionItems(ctx.vis),
+    // First-sale hero only applies to agency users who claimed their one sale.
+    ctx.isInternalStaff ? Promise.resolve(null) : getClaimedFirstSale(ctx.vis),
   ]);
   // Rare: has files but they're all e.g. completed/withdrawn, so nothing is
   // active or needs attention. Keep the exact original semantics — show the
   // empty state (this path has already shown the loading card).
   const isEmpty = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
   if (isEmpty) return <EmptyStateBody ctx={ctx} />;
+
+  // Sign the claimed sale's photo once for the welcome hero (house-glyph
+  // fallback when absent or the sign fails).
+  let heroPhotoUrl: string | null = null;
+  if (claimedFirstSale?.photoStoragePath) {
+    const signed = await getSignedUrlMap([claimedFirstSale.photoStoragePath]).catch(() => new Map<string, string>());
+    heroPhotoUrl = signed.get(claimedFirstSale.photoStoragePath) ?? null;
+  }
+
   return (
-    <FullHubBody ctx={ctx} initialPipelineStats={pipelineStats} initialAttentionItems={attentionItems} />
+    <>
+      {claimedFirstSale && (
+        <FirstSaleHero sale={{ id: claimedFirstSale.id, address: claimedFirstSale.address }} photoUrl={heroPhotoUrl} />
+      )}
+      <FullHubBody ctx={ctx} initialPipelineStats={pipelineStats} initialAttentionItems={attentionItems} />
+    </>
   );
 }
 
