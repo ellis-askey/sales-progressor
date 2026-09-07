@@ -51,7 +51,6 @@ export function NoChainSetupCard({
 }) {
   const agreed = saleAgreedAgo(sale.createdAt);
   const agencyName = showAgency ? sale.agencyName : null;
-  const metaLine = [agreed, agencyName].filter(Boolean).join("  ·  ");
 
   // Split the address like the In-chains cards: street on line 1, town/postcode
   // smaller underneath.
@@ -86,12 +85,18 @@ export function NoChainSetupCard({
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
-            {metaLine && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>{metaLine}</span>}
+            {/* Age carries its own staleness signal: it turns amber once the sale
+                has sat unresolved for 3+ months, so no separate "N months, no
+                chain" pill is needed (it only restated the age + the section). */}
+            {agreed && (
+              <span style={{ fontSize: 10.5, fontWeight: showAge ? 600 : 400, color: showAge ? "var(--agent-warning)" : "var(--agent-text-muted)" }}>
+                {agreed}
+              </span>
+            )}
+            {agreed && agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>·</span>}
+            {agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>{agencyName}</span>}
             {sale.buyerPosition && (
               <Pill tone="muted" size="sm" outline>{sale.buyerPosition}</Pill>
-            )}
-            {showAge && (
-              <Pill glass tone="warning" size="sm">{months} months, no chain</Pill>
             )}
             {sale.resurfaced && (
               <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
