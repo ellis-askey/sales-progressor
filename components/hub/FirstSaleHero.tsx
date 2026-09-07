@@ -9,13 +9,13 @@
 
 import Link from "next/link";
 import {
-  HouseSimple,
   CaretRight,
   CheckCircle,
   LinkSimple,
   ArrowRight,
   Plus,
 } from "@phosphor-icons/react/dist/ssr";
+import { FirstSalePhoto } from "@/components/hub/FirstSalePhoto";
 
 export function FirstSaleHero({
   sale,
@@ -52,16 +52,7 @@ export function FirstSaleHero({
           maxWidth: 360,
         }}
       >
-        <div style={{ height: 152, background: "var(--agent-coral-bg-tint)", position: "relative" }}>
-          {photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-          ) : (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <HouseSimple size={40} weight="duotone" color="var(--agent-coral-deep)" />
-            </div>
-          )}
-        </div>
+        <FirstSalePhoto transactionId={sale.id} photoUrl={photoUrl} />
         <div style={{ padding: "12px 14px 14px" }}>
           <Link href={`/agent/transactions/${sale.id}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
             <span data-sensitive="true" style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>{line1}</span>
