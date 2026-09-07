@@ -16,6 +16,7 @@ import {
   Plus,
 } from "@phosphor-icons/react/dist/ssr";
 import { FirstSalePhoto } from "@/components/hub/FirstSalePhoto";
+import { Pill } from "@/components/ui/Pill";
 
 export function FirstSaleHero({
   sale,
@@ -62,9 +63,9 @@ export function FirstSaleHero({
             <p data-sensitive="true" style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)" }}>{line2}</p>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-success)", background: "var(--agent-success-bg)", padding: "3px 9px", borderRadius: 999 }}>
+            <Pill glass tone="success" size="md">
               <CheckCircle size={13} weight="fill" /> Just added
-            </span>
+            </Pill>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--agent-text-muted)" }}>
               <LinkSimple size={13} /> Added via chain
             </span>

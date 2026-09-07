@@ -1805,25 +1805,34 @@
   /* Full-width, transparent container over a right-anchored house-sketch
    * background. Desktop: card left, writing top-right, CTAs beneath. Mobile:
    * background hidden, single column in DOM order (writing -> card -> CTAs). */
-  .fsh {
-    position: relative;
-    width: 100%;
-    border-radius: var(--agent-radius-xl);
-    padding: 24px 28px;
-    display: grid;
-    grid-template-columns: minmax(260px, 340px) 1fr;
-    grid-template-areas:
-      "card writing"
-      "card ctas";
-    column-gap: 40px;
-    row-gap: 18px;
-    align-items: center;
-    min-height: 250px;
-    background-color: transparent;
-    background-image: url("/first-sale-hero.png");
-    background-repeat: no-repeat;
-    background-position: right center;
-    background-size: contain;
+  /* Hidden below 1500px — the wide card + writing + houses layout only holds
+   * together at the largest sizes, so we simply don't show it under that. */
+  .fsh { display: none; }
+  @media (min-width: 1500px) {
+    .fsh {
+      position: relative;
+      display: grid;
+      width: 100%;
+      /* No side padding: the card's left edge lines up with the other hub
+       * cards. Negative top/bottom margin snugs it to the subtitle above and
+       * the attention card below (both felt loose at full padding). */
+      padding: 0;
+      margin: -8px 0 -10px;
+      grid-template-columns: minmax(260px, 340px) 1fr;
+      grid-template-areas:
+        "card writing"
+        "card ctas";
+      column-gap: 40px;
+      row-gap: 16px;
+      align-items: center;
+      min-height: 240px;
+      border-radius: var(--agent-radius-xl);
+      background-color: transparent;
+      background-image: url("/first-sale-hero.png");
+      background-repeat: no-repeat;
+      background-position: right center;
+      background-size: contain;
+    }
   }
   .fsh-card    { grid-area: card; }
   .fsh-writing { grid-area: writing; align-self: end; }
@@ -1870,18 +1879,6 @@
     transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   .fsh-photo:hover .fsh-photo-cam-badge { transform: scale(1.08); }
-  @media (max-width: 860px) {
-    .fsh {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      min-height: 0;
-      padding: 4px 0 0;
-      row-gap: 16px;
-      background-image: none;
-    }
-    .fsh-card, .fsh-writing, .fsh-ctas { width: 100%; max-width: none; }
-  }
 
   .agent-acc-in {
     overflow: hidden;
