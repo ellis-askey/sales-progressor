@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@phosphor-icons/react";
+import { createManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
@@ -30,12 +31,15 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
   const router = useRouter();
 
   async function handleAdd(input: AddInput) {
-    const res = await fetch("/api/manual-tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (res.ok) router.refresh();
+    try {
+      await createManualTaskAction(input);
+      // The action revalidates the /agent layout, which re-renders this page
+      // with the real list. router.refresh() keeps the empty -> list swap
+      // immediate, matching the previous behaviour.
+      router.refresh();
+    } catch {
+      // Stay on the empty state on failure — matches the previous res.ok gate.
+    }
   }
 
   if (adding) {

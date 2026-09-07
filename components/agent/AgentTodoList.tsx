@@ -4,6 +4,7 @@ import { useState, createContext, useContext } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
+import { createManualTaskAction, updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -112,25 +113,21 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
   const [showInternalDone, setShowInternalDone] = useState(false);
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
-    const res = await fetch(`/api/manual-tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (!res.ok) return;
-    const updated = await res.json();
-    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    try {
+      const updated = await updateManualTaskAction(id, { status: newStatus });
+      setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    } catch {
+      // Leave the row unchanged on failure — matches the previous no-op.
+    }
   }
 
   async function handleDueDate(id: string, dueDate: string | null) {
-    const res = await fetch(`/api/manual-tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dueDate }),
-    });
-    if (!res.ok) return;
-    const updated = await res.json();
-    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    try {
+      const updated = await updateManualTaskAction(id, { dueDate });
+      setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    } catch {
+      // Leave the row unchanged on failure — matches the previous no-op.
+    }
   }
 
   async function handleAdd(input: {
@@ -141,14 +138,12 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
     isAgentRequest?: boolean;
     isInternalSelfAssigned?: boolean;
   }) {
-    const res = await fetch("/api/manual-tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) return;
-    const created = await res.json();
-    setTasks((prev) => [created, ...prev]);
+    try {
+      const created = await createManualTaskAction(input);
+      setTasks((prev) => [created, ...prev]);
+    } catch {
+      // Nothing added on failure — matches the previous no-op.
+    }
   }
 
   async function handleAddInternal(input: {

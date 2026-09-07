@@ -7,6 +7,7 @@ import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
 import { Card } from "@/components/ui/Card";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
@@ -183,43 +184,39 @@ export function ManualTaskList({
     setTasks((prev) => [optimistic, ...prev]);
     updateBadge?.("todos", countForBadge(tasks) + (data.isAgentRequest ? 1 : 0));
 
-    const res = await fetch("/api/manual-tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      console.error("Failed to save to-do:", res.status, await res.text());
+    try {
+      const saved = await createManualTaskAction(data);
+      setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+      toast.success("To-do added");
+    } catch (err) {
+      console.error("Failed to save to-do:", err);
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
       updateBadge?.("todos", countForBadge(tasks));
-      return;
     }
-    const saved = await res.json();
-    setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
-    toast.success("To-do added");
   }
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
-    const res = await fetch(`/api/manual-tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (!res.ok) return;
-    const updated = await res.json();
-    if (updated.isInternalSelfAssigned) {
-      setInternalTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-    } else {
-      const newTasks = tasks.map((t) => (t.id === id ? updated : t));
-      setTasks(newTasks);
-      updateBadge?.("todos", countForBadge(newTasks));
+    try {
+      const updated = await updateManualTaskAction(id, { status: newStatus });
+      if (updated.isInternalSelfAssigned) {
+        setInternalTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      } else {
+        const newTasks = tasks.map((t) => (t.id === id ? updated : t));
+        setTasks(newTasks);
+        updateBadge?.("todos", countForBadge(newTasks));
+      }
+      if (newStatus === "done") toast.success("To-do completed");
+    } catch {
+      // Leave the row unchanged on failure — matches the previous no-op.
     }
-    if (newStatus === "done") toast.success("To-do completed");
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/manual-tasks/${id}`, { method: "DELETE" });
-    if (!res.ok) return;
+    try {
+      await deleteManualTaskAction(id);
+    } catch {
+      return;
+    }
     // Try both task lists — the row could be in either.
     setInternalTasks((prev) => prev.filter((t) => t.id !== id));
     const newTasks = tasks.filter((t) => t.id !== id);
@@ -254,19 +251,14 @@ export function ManualTaskList({
     };
     setInternalTasks((prev) => [optimistic, ...prev]);
 
-    const res = await fetch("/api/manual-tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, isInternalSelfAssigned: true }),
-    });
-    if (!res.ok) {
-      console.error("Failed to save internal to-do:", res.status, await res.text());
+    try {
+      const saved = await createManualTaskAction({ ...data, isInternalSelfAssigned: true });
+      setInternalTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+      toast.success("Internal to-do added");
+    } catch (err) {
+      console.error("Failed to save internal to-do:", err);
       setInternalTasks((prev) => prev.filter((t) => t.id !== tempId));
-      return;
     }
-    const saved = await res.json();
-    setInternalTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
-    toast.success("Internal to-do added");
   }
 
   const myTasks    = tasks.filter((t) => !t.isAgentRequest);

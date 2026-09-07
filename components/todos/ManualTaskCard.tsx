@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
+import { updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { Pill } from "@/components/ui/Pill";
 import { toUKDateStr } from "@/lib/utils";
 
@@ -53,14 +54,12 @@ export function ManualTaskCard({
     const trimmed = progressorNote.trim();
     const current = task.progressorNote ?? "";
     if (trimmed === current) return;
-    const res = await fetch(`/api/manual-tasks/${task.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ progressorNote: trimmed || null }),
-    });
-    if (res.ok) {
+    try {
+      await updateManualTaskAction(task.id, { progressorNote: trimmed || null });
       setRowFlash(true);
       setTimeout(() => setRowFlash(false), 700);
+    } catch {
+      // No flash on failure — matches the previous res.ok gate.
     }
   }
 

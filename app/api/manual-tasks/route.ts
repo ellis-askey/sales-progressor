@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { listManualTasks, createManualTask } from "@/lib/services/manual-tasks";
-import { toUKDateStr } from "@/lib/utils";
-import { prisma } from "@/lib/prisma";
+import { listManualTasks } from "@/lib/services/manual-tasks";
 
-function isInternalRole(role: string | undefined | null): boolean {
-  return role === "sales_progressor" || role === "admin" || role === "superadmin";
-}
-
+// Mutations (create/update/delete) moved to app/actions/manual-tasks.ts so the
+// mutation owns its revalidation (the old route handlers refreshed nothing,
+// leaving the sidebar To-Do badge stale). This endpoint keeps the read only.
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -22,78 +19,4 @@ export async function GET(req: NextRequest) {
   if (!session.user.agencyId) return NextResponse.json([]);
   const tasks = await listManualTasks(session.user.agencyId, status ?? undefined);
   return NextResponse.json(tasks);
-}
-
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-
-  const body = await req.json();
-  const { title, notes, transactionId, assignedToId, dueDate, isAgentRequest, isInternalSelfAssigned } = body;
-
-  if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-
-  if (dueDate) {
-    const dStr = toUKDateStr(new Date(dueDate));
-    const todayStr = toUKDateStr(new Date());
-    if (dStr < todayStr) return NextResponse.json({ error: "Due date cannot be in the past" }, { status: 400 });
-  }
-
-  // Internal self-assigned to-dos: SP/admin/superadmin only. agencyId is
-  // null for the unlinked case; if a transaction is linked, the task's
-  // agencyId mirrors the transaction's (so existing agency-scoped reads
-  // still resolve the row, though they filter by isInternalSelfAssigned=false).
-  if (isInternalSelfAssigned === true) {
-    if (!isInternalRole(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden: internal staff only" }, { status: 403 });
-    }
-    let resolvedAgencyId: string | null = null;
-    if (transactionId) {
-      const tx = await prisma.propertyTransaction.findUnique({
-        where: { id: transactionId },
-        select: { agencyId: true },
-      });
-      resolvedAgencyId = tx?.agencyId ?? null;
-    }
-    const task = await createManualTask({
-      agencyId: resolvedAgencyId,
-      createdById: session.user.id,
-      title: title.trim(),
-      notes,
-      transactionId,
-      assignedToId,
-      dueDate,
-      isInternalSelfAssigned: true,
-    });
-    return NextResponse.json(task, { status: 201 });
-  }
-
-  // Legacy agent path: requires agencyId (customer agency users).
-  if (!session.user.agencyId) {
-    return NextResponse.json({ error: "Cannot create agent task without an agency" }, { status: 400 });
-  }
-
-  // Guard (Law 7): a linked transaction must belong to the caller's agency.
-  // Without this a crafted transactionId would attach another agency's file to
-  // this to-do and leak its property address into the caller's list.
-  if (transactionId) {
-    const owned = await prisma.propertyTransaction.findFirst({
-      where: { id: transactionId, agencyId: session.user.agencyId },
-      select: { id: true },
-    });
-    if (!owned) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-  }
-
-  const task = await createManualTask({
-    agencyId: session.user.agencyId,
-    createdById: session.user.id,
-    title: title.trim(),
-    notes,
-    transactionId,
-    assignedToId,
-    dueDate,
-    isAgentRequest: isAgentRequest === true,
-  });
-
-  return NextResponse.json(task, { status: 201 });
 }
