@@ -1,6 +1,8 @@
 import sgMail from "@sendgrid/mail";
 import { prisma } from "@/lib/prisma";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
@@ -283,8 +285,19 @@ export async function resolveSenderForTransaction(
 ): Promise<{ from: string; replyTo: string }> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId },
-    select: { agencyId: true },
+    select: { agencyId: true, agency: { select: { name: true } } },
   });
+
+  // Manual sends brand like the automated rule: "{sender first name} at {Agency}"
+  // — the person clicking send (an SP on outsourced files, the agent on their
+  // own file), from their own verified address. Mirrors the display in
+  // resolveAgencySenderForTransaction. Falls back to their full name (then SP)
+  // only when there's no agency brand to use.
+  const brand = tx?.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
+  const senderFirst = sessionUser.name ? extractFirstName(sessionUser.name) : undefined;
+  const brandedDisplay = brand
+    ? (senderFirst ? `${senderFirst} at ${brand}` : brand)
+    : (sessionUser.name ?? "Sales Progressor");
 
   // Fallback when the sender has no verified sending address of their own: the
   // agency's authenticated address (Reply-To matching), or the SP default if the
@@ -315,10 +328,7 @@ export async function resolveSenderForTransaction(
     });
     if (!userEmail) return fallback();
 
-    return {
-      from: `${sessionUser.name ?? "Sales Progressor"} <${userEmail.email}>`,
-      replyTo: userEmail.email,
-    };
+    return { from: buildFrom(brandedDisplay, userEmail.email), replyTo: userEmail.email };
   }
 
   // Agent path: auto-select their best verified email (most recently used).
@@ -336,8 +346,5 @@ export async function resolveSenderForTransaction(
   });
   if (!userEmail) return fallback();
 
-  return {
-    from: `${sessionUser.name ?? "Agent"} <${userEmail.email}>`,
-    replyTo: userEmail.email,
-  };
+  return { from: buildFrom(brandedDisplay, userEmail.email), replyTo: userEmail.email };
 }
