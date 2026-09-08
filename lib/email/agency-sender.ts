@@ -25,6 +25,23 @@ const SP_REPLY_TO = "updates@thesalesprogressor.co.uk";
 // (canReply is false when it's used).
 const SP_NOREPLY = "noreply@thesalesprogressor.co.uk";
 
+// The Sales Progressor address a client email falls back to on an OUTSOURCED
+// file when the agency has no verified sender: the assigned progressor's own
+// @thesalesprogressor.co.uk address, else Ellis's as the default progressor.
+const PROGRESSOR_FALLBACK = "ellis@thesalesprogressor.co.uk";
+function progressorFallbackAddress(assignedEmail?: string | null): string {
+  return assignedEmail && assignedEmail.toLowerCase().endsWith("@thesalesprogressor.co.uk")
+    ? assignedEmail
+    : PROGRESSOR_FALLBACK;
+}
+
+// Persona for a per-file client email. "personal" sends from the agent's OWN
+// address (self-managed + authenticated domain only) so chases/replies/invites
+// feel human; "automated" sends from the agency's verified sender for
+// system-generated status updates. Callers pass the persona; the default is
+// "automated". See lib/command/email-senders.ts for the per-email mapping.
+export type SenderPersona = "personal" | "automated";
+
 // logoUrl + tileColor/scale/align: the agency's own logo and how it's presented
 // in the email header, when they've set one. Only populated by the
 // per-transaction resolver.
@@ -55,9 +72,9 @@ export async function resolveAgencySender(
   if (agencyId) {
     const agency = await prisma.agency.findUnique({
       where: { id: agencyId },
-      select: { name: true, quoteSenderEmail: true },
+      select: { name: true, quoteSenderEmail: true, quoteSenderVerified: true },
     });
-    if (agency?.quoteSenderEmail) {
+    if (agency?.quoteSenderEmail && agency.quoteSenderVerified) {
       const brand = stripAgencyLegalSuffix(agency.name);
       const display = opts?.personFirstName ? `${opts.personFirstName} at ${brand}` : brand;
       return { from: buildFrom(display, agency.quoteSenderEmail), replyTo: agency.quoteSenderEmail, canReply: true };
@@ -70,24 +87,32 @@ export async function resolveAgencySender(
  * The canonical per-file outbound sender, keyed by transaction.
  *
  * Display name is ALWAYS the agency's ("{agent first name} at {Agency}"), so a
- * client never sees "Sales Progressor" as the sender. What varies is the actual
- * sending address + reply-to:
+ * client never sees "Sales Progressor" as the sender. The sending address is
+ * chosen so it NEVER leaves from an address SendGrid can't send (which silently
+ * fails); it always lands on a verified address or a Sales Progressor fallback.
  *
- * 1. Agency verified its own domain (quoteSenderEmail = updates@theirdomain):
- *    - if the acting agent's own email is ON that domain, send from THEIR
- *      address (the SP per-person model); otherwise the agency's updates@.
- * 2. Not yet set up:
- *    - OUTSOURCED (we run it): the assigned progressor's own
- *      @thesalesprogressor.co.uk address.
- *    - SELF-MANAGED (Option C): agency-branded display + the agent's own email
- *      as reply-to, sent on our shared updates@ address until they verify a
- *      domain. Hides everything SP-related except the actual sending address,
- *      which the domain step later cleans up.
+ * OUTSOURCED (we run it): the agency's verified sender, else our progressor
+ * address. Never a specific agent's personal inbox — you're the one running it.
  *
- * Reply-To matches the sending address, except in the Option C case where it's
- * the agent's own inbox so replies reach the agency, not us.
+ * SELF-MANAGED (the agent runs it):
+ *  - persona "personal" (chases, replies, invites): the agent's OWN address,
+ *    but only when their whole domain is authenticated (so SendGrid will send
+ *    it); otherwise it falls through to the agency sender.
+ *  - persona "automated" (milestone/status updates) or the fall-through above:
+ *    the agency's verified sender, reply-to preferring the agent so a client
+ *    reply still reaches a human.
+ *  - nothing verified: our shared updates@, agent as reply-to (else noreply so a
+ *    reply never lands with us).
+ *
+ * "Verified" means Agency.quoteSenderVerified — stamped nightly from SendGrid
+ * (authenticated domain OR verified single sender). Persona defaults to
+ * "automated"; callers opt into "personal".
  */
-export async function resolveAgencySenderForTransaction(transactionId: string): Promise<ResolvedSender> {
+export async function resolveAgencySenderForTransaction(
+  transactionId: string,
+  opts?: { persona?: SenderPersona },
+): Promise<ResolvedSender> {
+  const persona = opts?.persona ?? "automated";
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
@@ -95,20 +120,16 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
       serviceType: true,
       agency: {
         select: {
-          name: true, quoteSenderEmail: true,
+          name: true, quoteSenderEmail: true, quoteSenderVerified: true,
           logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true,
         },
       },
       agentUser: { select: { name: true, email: true } },
+      assignedUser: { select: { email: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
 
-  // The client-facing sender is ALWAYS the agency's own agent — even on
-  // outsourced files, where our progressor runs the file but stays invisible to
-  // the client (Ellis, 2026-08-26). Reply-to is the agent's own email (the one
-  // they gave us, e.g. ellis@akeman-residential.co.uk); the sending address is
-  // their verified domain when set, otherwise our shared updates@ fallback.
   const acting = tx.agentUser;
   const firstName = acting?.name?.trim() ? extractFirstName(acting.name) : undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
@@ -120,22 +141,45 @@ export async function resolveAgencySenderForTransaction(transactionId: string): 
     align: (tx.agency?.logoAlign as LogoAlign | null) ?? null,
   };
 
-  // 1) Agency's own verified domain.
-  if (tx.agency?.quoteSenderEmail) {
-    const verifiedDomain = tx.agency.quoteSenderEmail.split("@")[1]?.toLowerCase();
-    const actingDomain = acting?.email?.split("@")[1]?.toLowerCase();
-    // Per-person: acting agent's own address when it's on the verified domain.
-    const addr = acting?.email && actingDomain && actingDomain === verifiedDomain
-      ? acting.email
-      : tx.agency.quoteSenderEmail;
-    return { from: buildFrom(display, addr), replyTo: addr, canReply: true, ...logo };
+  const agencyAddr = tx.agency?.quoteSenderEmail ?? null;
+  const agencyVerified = !!tx.agency?.quoteSenderVerified;
+  const actingEmail = acting?.email ?? null;
+
+  // ── Outsourced: the client sees the agency, never a specific agent's personal
+  // inbox (we run it). Agency verified sender, else our progressor address.
+  if (tx.serviceType === "outsourced") {
+    if (agencyAddr && agencyVerified) {
+      return { from: buildFrom(display, agencyAddr), replyTo: agencyAddr, canReply: true, ...logo };
+    }
+    const prog = progressorFallbackAddress(tx.assignedUser?.email);
+    return { from: buildFrom(display, prog), replyTo: prog, canReply: true, ...logo };
   }
 
-  // 2) Not yet verified — agency-branded display, the agent's own email as
-  // reply-to, our shared updates@ address underneath (Option C, all files).
-  // Self-managed with no agent inbox falls back to noreply, NEVER to us;
-  // outsourced falls back to us, since we run the file.
-  const replyTo = acting?.email ?? (tx.serviceType === "self_managed" ? SP_NOREPLY : SP_REPLY_TO);
+  // ── Self-managed, persona "personal": the agent's own address, but only when
+  // their whole domain is authenticated (so SendGrid will actually send it).
+  if (persona === "personal" && actingEmail) {
+    const actingDomain = actingEmail.split("@")[1]?.toLowerCase();
+    if (actingDomain) {
+      const authed = await prisma.verifiedDomain.findFirst({
+        where: { agencyId: tx.agencyId ?? undefined, domain: actingDomain, status: "verified" },
+        select: { id: true },
+      });
+      if (authed) {
+        return { from: buildFrom(display, actingEmail), replyTo: actingEmail, canReply: true, ...logo };
+      }
+    }
+  }
+
+  // ── Self-managed, automated (or a personal email whose domain isn't
+  // authenticated): the agency's verified sender. Reply-to prefers the agent so
+  // a client reply still reaches a human.
+  if (agencyAddr && agencyVerified) {
+    return { from: buildFrom(display, agencyAddr), replyTo: actingEmail ?? agencyAddr, canReply: true, ...logo };
+  }
+
+  // ── Nothing verified — our shared updates@ underneath an agency-branded
+  // display; agent as reply-to, else noreply so a reply never lands with us.
+  const replyTo = actingEmail ?? SP_NOREPLY;
   return {
     from: buildFrom(display, SP_REPLY_TO),
     replyTo,

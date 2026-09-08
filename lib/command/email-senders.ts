@@ -5,8 +5,17 @@
 // describeSender() MIRRORS the real resolver policy in lib/email/agency-sender.ts
 // + resolveSenderForTransaction (lib/email.ts). Keep the two in step: when a
 // sender changes, update the matching row's `kind` here. Pure + client-safe.
+//
+// Policy (2026-09-07): a sender is only usable when it's actually verified in
+// SendGrid — Agency.quoteSenderVerified (authenticated domain OR verified single
+// sender); otherwise the file-type fallback applies, so an email never leaves
+// from an address SendGrid can't send. On SELF-MANAGED files, "personal" emails
+// (chases, replies, invites) send from the agent's OWN address; "automated" ones
+// from the agency's verified sender. OUTSOURCED files always use the agency
+// sender, never a specific agent's personal inbox.
 
 export type FileType = "outsourced" | "self_managed";
+export type SenderPersona = "personal" | "automated";
 
 // agencyPerson  — per-file agency mail, branded "{person} at {Agency}", file-type-aware fallback
 // agencyPlain   — agency-level mail (digests, invites, chain), plain "{Agency}", updates@ fallback
@@ -20,6 +29,9 @@ export type EmailSender = {
   name: string;
   group: string;
   kind: SenderKind;
+  // Self-managed persona: "personal" sends from the agent's own address,
+  // "automated" (default when omitted) from the agency's verified sender.
+  persona?: SenderPersona;
   reply?: string; // override for the reply-to description
   note?: string;
   scope?: FileType; // only shown for this file type (e.g. outsource-intro)
@@ -36,9 +48,9 @@ export const SENDER_GROUPS = [
 
 export const EMAIL_SENDERS: EmailSender[] = [
   // Solicitors
-  { id: "sol-confirm", group: "Solicitors", name: "Solicitor confirmation / chase digest", kind: "agencyPerson" },
-  { id: "enq-chase", group: "Solicitors", name: "Enquiry chase (reply-loop)", kind: "agencyPerson" },
-  { id: "enq-raise", group: "Solicitors", name: "Enquiry raise-chase", kind: "agencyPerson" },
+  { id: "sol-confirm", group: "Solicitors", name: "Solicitor confirmation / chase digest", kind: "agencyPerson", persona: "personal" },
+  { id: "enq-chase", group: "Solicitors", name: "Enquiry chase (reply-loop)", kind: "agencyPerson", persona: "personal" },
+  { id: "enq-raise", group: "Solicitors", name: "Enquiry raise-chase", kind: "agencyPerson", persona: "personal" },
   { id: "manual", group: "Solicitors", name: "Manual “email from a file”", kind: "agentOwn", note: "sender-chosen recipient" },
 
   // Buyers & sellers
@@ -47,16 +59,16 @@ export const EMAIL_SENDERS: EmailSender[] = [
   { id: "ms-step", group: "Buyers & sellers (clients)", name: "Step-confirmed thank-you", kind: "agencyPerson" },
   { id: "ms-other", group: "Buyers & sellers (clients)", name: "Progress update to the other side", kind: "agencyPerson" },
   { id: "ms-admin", group: "Buyers & sellers (clients)", name: "Admin-confirmed progress / date / completion", kind: "agencyPerson" },
-  { id: "rte", group: "Buyers & sellers (clients)", name: "Ready to exchange", kind: "agencyPerson" },
+  { id: "rte", group: "Buyers & sellers (clients)", name: "Ready to exchange", kind: "agencyPerson", persona: "personal" },
   { id: "survey", group: "Buyers & sellers (clients)", name: "Completion survey / feedback", kind: "agencyPerson" },
   { id: "weekly", group: "Buyers & sellers (clients)", name: "Client weekly “all on track” update", kind: "agencyPerson" },
-  { id: "chase", group: "Buyers & sellers (clients)", name: "Client chase digest", kind: "agencyPerson" },
-  { id: "invite", group: "Buyers & sellers (clients)", name: "Portal invite / portal link", kind: "agencyPerson" },
+  { id: "chase", group: "Buyers & sellers (clients)", name: "Client chase digest", kind: "agencyPerson", persona: "personal" },
+  { id: "invite", group: "Buyers & sellers (clients)", name: "Portal invite / portal link", kind: "agencyPerson", persona: "personal" },
   { id: "outsource-intro", group: "Buyers & sellers (clients)", name: "Outsource-intro to buyer + seller", kind: "agentOwn", note: "outsourced files only", scope: "outsourced" },
   { id: "gap-completion", group: "Buyers & sellers (clients)", name: "Completion pack (“what happens next”)", kind: "spGap" },
-  { id: "gap-reply", group: "Buyers & sellers (clients)", name: "Progressor's reply to a client message", kind: "agencyPerson" },
-  { id: "gap-visible", group: "Buyers & sellers (clients)", name: "“Visible update” to clients (comms tool)", kind: "agencyPerson" },
-  { id: "gap-quotelink", group: "Buyers & sellers (clients)", name: "Survey-quote link to a buyer", kind: "agencyPerson", reply: "the agent's email" },
+  { id: "gap-reply", group: "Buyers & sellers (clients)", name: "Progressor's reply to a client message", kind: "agencyPerson", persona: "personal" },
+  { id: "gap-visible", group: "Buyers & sellers (clients)", name: "“Visible update” to clients (comms tool)", kind: "agencyPerson", persona: "personal" },
+  { id: "gap-quotelink", group: "Buyers & sellers (clients)", name: "Survey-quote link to a buyer", kind: "agencyPerson", persona: "personal", reply: "the agent's email" },
 
   // Surveyors & providers
   { id: "quote-req", group: "Surveyors & providers", name: "Survey quote request to a firm", kind: "agencyPlain", reply: "the client's email" },
@@ -103,7 +115,7 @@ export type SenderResolution = {
   chip: "agency" | "own" | "sp" | "gap";
 };
 
-export type AgencyForSender = { name: string; quoteSenderEmail: string | null };
+export type AgencyForSender = { name: string; quoteSenderEmail: string | null; quoteSenderVerified: boolean };
 
 // The file-type-aware fallback for a PER-FILE send.
 function fileFallback(fileType: FileType): { from: string; addr: string } {
@@ -113,16 +125,31 @@ function fileFallback(fileType: FileType): { from: string; addr: string } {
 }
 
 export function describeSender(email: EmailSender, fileType: FileType, agency: AgencyForSender): SenderResolution {
-  const addr = agency.quoteSenderEmail?.trim() || null;
+  // A sender is only usable when SendGrid can actually send it.
+  const addr = agency.quoteSenderEmail?.trim() && agency.quoteSenderVerified ? agency.quoteSenderEmail.trim() : null;
   const brand = agency.name.replace(/\s+(Ltd|Limited|LLP|PLC|plc)\.?$/i, "").trim();
-  const persona = fileType === "outsourced" ? "⟨progressor⟩" : "⟨agency agent⟩";
+  const slot = fileType === "outsourced" ? "⟨progressor⟩" : "⟨agency agent⟩";
   const ff = fileFallback(fileType);
 
   switch (email.kind) {
-    case "agencyPerson":
+    case "agencyPerson": {
+      // Self-managed + "personal" → the agent's own address (when their domain
+      // is authenticated); otherwise the agency's verified sender; else fallback.
+      if (fileType === "self_managed" && email.persona === "personal") {
+        return {
+          from: `⟨agency agent⟩ at ${brand} <the agent's own address>`,
+          replyTo: "the agent",
+          fallback: addr ? `${addr} → ${ff.from}` : ff.from,
+          chip: "own",
+        };
+      }
+      // Automated (or outsourced): the agency's verified sender; reply-to the
+      // agent on self-managed so a client reply still reaches a human.
+      const replyTo = fileType === "self_managed" ? "the agent" : (addr ?? ff.addr);
       return addr
-        ? { from: `${persona} at ${brand} <${addr}>`, replyTo: addr, fallback: ff.from, chip: "agency" }
-        : { from: ff.from, replyTo: ff.addr, fallback: ff.from, chip: "agency" };
+        ? { from: `${slot} at ${brand} <${addr}>`, replyTo, fallback: ff.from, chip: "agency" }
+        : { from: ff.from, replyTo, fallback: ff.from, chip: "agency" };
+    }
     case "agencyPlain":
       // Agency-level: no persona, always the plain updates@ fallback (not file-type-aware).
       return addr

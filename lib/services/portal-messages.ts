@@ -218,7 +218,7 @@ export async function sendProgressorPortalReply(
 
   if (options?.email !== false && contact.email && contact.portalToken) {
     const portalUrl = `${base}/portal/${contact.portalToken}/updates`;
-    const sender = await resolveAgencySenderForTransaction(transactionId);
+    const sender = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
     sendEmail({
       from:    sender.from,
       replyTo: sender.replyTo,

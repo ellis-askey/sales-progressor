@@ -119,6 +119,32 @@ export async function validateAuthenticatedDomain(
   return { valid, dkimValid, spfValid };
 }
 
+/**
+ * The set of verified SINGLE-SENDER addresses in SendGrid (lower-cased). These
+ * are addresses verified individually (Single Sender Verification) rather than
+ * via full domain authentication. Used by the check-domains cron to decide
+ * whether an agency's quoteSenderEmail can actually send. Returns an empty set
+ * on any error so a transient SendGrid blip never marks a good sender unsendable
+ * (the caller keeps the previous flag when the set is empty).
+ */
+export async function listVerifiedSingleSenders(): Promise<Set<string>> {
+  try {
+    const [, body] = await client.request({
+      method: "GET",
+      url: "/v3/verified_senders?limit=200",
+    });
+    const data = body as { results?: Array<{ from_email?: string; verified?: boolean }> };
+    const rows = data.results ?? [];
+    return new Set(
+      rows
+        .filter((r) => r.verified && r.from_email)
+        .map((r) => r.from_email!.toLowerCase()),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 /** Send a transactional email via SendGrid using a verified sender address. */
 export async function sendFromVerifiedAddress({
   from,

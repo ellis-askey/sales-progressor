@@ -521,7 +521,7 @@ export async function enqueueClientChaseDigest(input: {
   const sourceId = `${transactionId}:${contactId}:${yyyymmdd}`;
 
   // Agency authenticated sender for this file (Reply-To matching, SP fallback).
-  const sender = await resolveAgencySenderForTransaction(transaction.id);
+  const sender = await resolveAgencySenderForTransaction(transaction.id, { persona: "personal" });
 
   // Enqueue. A5's enqueueEmail handles the dedup (P2002 swallowed). If a
   // digest already exists for this (transaction, contact, day) the second

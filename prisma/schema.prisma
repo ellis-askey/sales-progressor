@@ -43,6 +43,14 @@ model Agency {
   // sent from the Sales Progressor fallback (ellis@thesalesprogressor.co.uk).
   // Must be a verified SendGrid sender for the agency's domain.
   quoteSenderEmail String?
+  // Whether quoteSenderEmail can ACTUALLY send in SendGrid right now — either its
+  // domain is authenticated (a verified VerifiedDomain row) or it's a verified
+  // single sender. Stamped nightly by the check-domains cron so the sender
+  // resolver never sends from an unverified address (it falls back to a Sales
+  // Progressor address instead). Default false = treat as not-yet-sendable until
+  // proven. See lib/email/agency-sender.ts.
+  quoteSenderVerified   Boolean   @default(false)
+  quoteSenderVerifiedAt DateTime?
 
   // Weekly "all on track" client update. On by default; a director can switch
   // the whole agency off in settings. Sends never reach an unsubscribed contact

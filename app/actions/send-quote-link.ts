@@ -80,7 +80,7 @@ ${session.user.name ?? "Your agent"}
   try {
     // Agency-branded sender; reply-to stays the acting agent so the buyer's
     // reply reaches the person who sent it.
-    const { from } = await resolveAgencySenderForTransaction(tx.id);
+    const { from } = await resolveAgencySenderForTransaction(tx.id, { persona: "personal" });
     await sendEmail({
       from,
       to: buyer.email!,

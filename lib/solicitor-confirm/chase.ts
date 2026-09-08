@@ -428,7 +428,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   // Reply-To matching, falling back to the SP default when the agency has no
   // authenticated address. (agentId is still needed for the activity record below.)
   const agentId = tx.assignedUserId ?? tx.agentUserId;
-  const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
+  const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id, { persona: "personal" });
 
   // Apply an agent edit (D3). When the body is edited we can't rebuild the
   // branded solicitor shell from free text, so we send the edited text and let

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
+import { validateAuthenticatedDomain, listVerifiedSingleSenders } from "@/lib/services/sendgrid";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildDomainAuth } from "@/lib/emails/domain-auth";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -81,6 +81,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ checked: results.length, results });
+  // ── Stamp each agency's quoteSenderVerified so the sender resolver never
+  // sends from an unverified address. Sendable = its domain is authenticated
+  // (a verified VerifiedDomain) OR it's a verified single sender in SendGrid.
+  let senderStamped = 0;
+  const singleSenders = await listVerifiedSingleSenders();
+  const singleSenderFetchOk = singleSenders.size > 0;
+  const verifiedDomainNames = new Set(
+    (await prisma.verifiedDomain.findMany({ where: { status: "verified" }, select: { domain: true } }))
+      .map((d) => d.domain.toLowerCase()),
+  );
+  const senderAgencies = await prisma.agency.findMany({
+    where: { quoteSenderEmail: { not: null } },
+    select: { id: true, quoteSenderEmail: true, quoteSenderVerified: true },
+  });
+  for (const a of senderAgencies) {
+    const email = a.quoteSenderEmail!.toLowerCase();
+    const domain = email.split("@")[1];
+    const domainAuthed = domain ? verifiedDomainNames.has(domain) : false;
+    const sendable = domainAuthed || singleSenders.has(email);
+    // If the single-sender list failed to load, don't downgrade a
+    // previously-verified sender we can't re-confirm this run.
+    if (!sendable && !singleSenderFetchOk && a.quoteSenderVerified && !domainAuthed) continue;
+    if (sendable !== a.quoteSenderVerified) {
+      await prisma.agency.update({
+        where: { id: a.id },
+        data: { quoteSenderVerified: sendable, quoteSenderVerifiedAt: sendable ? new Date() : null },
+      });
+      senderStamped++;
+    }
+  }
+
+  return NextResponse.json({ checked: results.length, results, senderStamped });
   });
 }

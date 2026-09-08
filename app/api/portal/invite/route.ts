@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 
-  const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(contact.transaction.id);
+  const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(contact.transaction.id, { persona: "personal" });
 
   const greeting = buildGreeting(contact.name);
 

@@ -92,7 +92,7 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
   // Send from the file's own agency authenticated address (branded with the
   // progressor/agent), with the file-type-aware fallback when the agency has
   // no address of its own.
-  const { from, replyTo } = await resolveAgencySenderForTransaction(transactionId);
+  const { from, replyTo } = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;

@@ -140,7 +140,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
     // Sending address = the file's agency authenticated address (Reply-To
     // matching), SP fallback when the agency has none. Body signature identity
     // (senderName / agencyName) resolved separately below.
-    const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id);
+    const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id, { persona: "personal" });
     let senderName = tx.agency?.name ?? "The Sales Progressor";
     let agencyName = tx.agency?.name ?? "The Sales Progressor";
     if (ownerId) {

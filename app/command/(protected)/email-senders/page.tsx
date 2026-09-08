@@ -18,7 +18,7 @@ function modeLabel(m: string): string {
 export default async function EmailSendersPage() {
   const agencies = await commandDb.agency.findMany({
     where: { isInternal: false },
-    select: { id: true, name: true, quoteSenderEmail: true, modeProfile: true },
+    select: { id: true, name: true, quoteSenderEmail: true, quoteSenderVerified: true, modeProfile: true },
     orderBy: { name: "asc" },
   });
 
@@ -26,10 +26,11 @@ export default async function EmailSendersPage() {
     id: a.id,
     name: a.name,
     quoteSenderEmail: a.quoteSenderEmail,
+    quoteSenderVerified: a.quoteSenderVerified,
     modeProfile: a.modeProfile,
   }));
 
-  const configured = agencies.filter((a) => a.quoteSenderEmail).length;
+  const configured = agencies.filter((a) => a.quoteSenderEmail && a.quoteSenderVerified).length;
 
   // Domain-authentication state per agency (self-serve VerifiedDomain rows).
   // Prefer the domain matching the sender email; else the most recent.
@@ -95,9 +96,13 @@ export default async function EmailSendersPage() {
                       {a.quoteSenderEmail ?? <span className="text-neutral-600">— none —</span>}
                     </td>
                     <td className="px-4 py-3 border-b border-neutral-800/70 whitespace-nowrap">
-                      {a.quoteSenderEmail ? (
+                      {a.quoteSenderEmail && a.quoteSenderVerified ? (
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-[#14352a] text-[#6ee7b7] border-[#2c5a3f]">
-                          Configured
+                          Verified
+                        </span>
+                      ) : a.quoteSenderEmail ? (
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-[#3a1a1a] text-[#f87171] border-[#5a2c2c]">
+                          Set, not verified
                         </span>
                       ) : (
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-[#3a2a12] text-[#fbbf24] border-[#5a4426]">

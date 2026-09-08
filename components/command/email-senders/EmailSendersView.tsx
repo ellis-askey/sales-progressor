@@ -23,14 +23,14 @@ const CHIP: Record<string, { cls: string; label: string }> = {
 };
 
 export function EmailSendersView({ agencies }: { agencies: AgencyOption[] }) {
-  const withAddr = agencies.find((a) => a.quoteSenderEmail);
+  const withAddr = agencies.find((a) => a.quoteSenderEmail && a.quoteSenderVerified);
   const [agencyId, setAgencyId] = useState(withAddr?.id ?? agencies[0]?.id ?? "");
   const [fileType, setFileType] = useState<FileType>("outsourced");
 
   const agency = agencies.find((a) => a.id === agencyId) ?? agencies[0];
   if (!agency) return <p className="text-sm text-neutral-500">No agencies found.</p>;
 
-  const hasAddr = !!agency.quoteSenderEmail;
+  const hasAddr = !!agency.quoteSenderEmail && agency.quoteSenderVerified;
   const headline = describeSender(
     { id: "_", name: "Milestone", group: "", kind: "agencyPerson" },
     fileType,
@@ -51,7 +51,7 @@ export function EmailSendersView({ agencies }: { agencies: AgencyOption[] }) {
             {agencies.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
-                {a.quoteSenderEmail ? "" : "  (on fallback)"}
+                {a.quoteSenderEmail && a.quoteSenderVerified ? "" : "  (on fallback)"}
               </option>
             ))}
           </select>

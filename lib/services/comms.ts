@@ -1238,7 +1238,7 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
   const base      = process.env.NEXTAUTH_URL ?? "";
   const address   = tx.propertyAddress;
   const agency    = tx.agency.name;
-  const sender    = await resolveAgencySenderForTransaction(transactionId);
+  const sender    = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
