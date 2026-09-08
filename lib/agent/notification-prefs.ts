@@ -18,7 +18,10 @@ export type NotificationKey =
   | "morningDigest"
   | "weeklyBrief"
   | "clientConfirmationEmails"
-  | "chainEmails";
+  | "chainEmails"
+  // Survey / lender-valuation booking emails: the day-of-booking diary email
+  // and the 7am morning-of nudge. See docs/active/booking-reminders/00-plan.md.
+  | "appointmentReminders";
 
 // Per-event push notification toggles. Distinct namespace from email keys
 // because pushes are more intrusive and have different sensible defaults
@@ -38,6 +41,7 @@ export type NotificationPrefs = {
   weeklyBrief: boolean;
   clientConfirmationEmails: boolean;
   chainEmails: boolean;
+  appointmentReminders: boolean;
   // retentionEmails is derived from User.retentionEmailOptOut. Surfaced here
   // so the settings UI can present it alongside the JSON-backed toggles
   // without callers needing to know about the storage split.
@@ -65,6 +69,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   weeklyBrief: true,
   clientConfirmationEmails: true,
   chainEmails: true,
+  appointmentReminders: true,
   retentionEmails: true,
   push: { ...DEFAULT_PUSH_PREFS },
 };
@@ -74,6 +79,7 @@ export const NOTIFICATION_KEYS: readonly NotificationKey[] = [
   "weeklyBrief",
   "clientConfirmationEmails",
   "chainEmails",
+  "appointmentReminders",
 ];
 
 export const PUSH_KEYS: readonly PushKey[] = [
@@ -108,6 +114,7 @@ function parseNotificationOverrides(prefs: unknown): Partial<NotificationPrefs> 
   if (typeof n.weeklyBrief === "boolean") out.weeklyBrief = n.weeklyBrief;
   if (typeof n.clientConfirmationEmails === "boolean") out.clientConfirmationEmails = n.clientConfirmationEmails;
   if (typeof n.chainEmails === "boolean") out.chainEmails = n.chainEmails;
+  if (typeof n.appointmentReminders === "boolean") out.appointmentReminders = n.appointmentReminders;
 
   // Push sub-object — boolean values only, ignored otherwise.
   if (n.push && typeof n.push === "object") {

@@ -47,6 +47,7 @@ import {
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
+import { maybeSendBookingDiaryEmail } from "@/lib/services/booking-reminders";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -1202,6 +1203,18 @@ export async function releaseProvisionalBooking(input: {
     body: pushBody,
     urlPath: "/progress",
   }).catch(() => {});
+
+  // Booking-day "diary" email to the agency agent (outsourced + keys-from-us
+  // only — the helper enforces it). This is the buyer-provisional path: the
+  // client logged it, we've now confirmed, so the agent gets their heads-up.
+  if (def.code === "PM6" || def.code === "PM9") {
+    maybeSendBookingDiaryEmail({
+      transactionId: input.transactionId,
+      code: def.code,
+      eventDate: effectiveEventDate,
+      keyCollectionRequired: input.keyCollectionRequired,
+    }).catch(() => {});
+  }
 
   return { ok: true };
 }

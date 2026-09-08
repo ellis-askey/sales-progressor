@@ -15,7 +15,7 @@
 // Redaction: password_reset bodies carry a live reset link, so those rows store
 // kind + subject + recipient only (text/html NULL). See REDACTED_KINDS.
 
-import { sendEmail } from "@/lib/email";
+import { sendEmail, type EmailAttachment } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -23,6 +23,11 @@ export type AgentEmailKind =
   | "weekly_brief"
   | "morning_digest"
   | "retention"
+  // Booking reminders (survey / lender valuation): the day-of-booking "put it
+  // in your diary" email, and the 7am morning-of nudge. See
+  // docs/active/booking-reminders/00-plan.md.
+  | "booking_diary"
+  | "booking_morning"
   | "welcome"
   | "claim_welcome"
   | "team_invite"
@@ -51,6 +56,7 @@ type SendAgentEmailParams = {
   cc?: string[];
   emailType?: string;
   templateVersion?: string;
+  attachments?: EmailAttachment[];
   // Logging context + taxonomy.
   kind: AgentEmailKind;
   userId?: string | null;
@@ -70,6 +76,7 @@ export async function sendAgentEmail(params: SendAgentEmailParams) {
     cc,
     emailType,
     templateVersion,
+    attachments,
     kind,
     userId,
     agencyId,
@@ -78,7 +85,7 @@ export async function sendAgentEmail(params: SendAgentEmailParams) {
   } = params;
 
   // Send first; a send failure propagates exactly as with a bare sendEmail.
-  const result = await sendEmail({ to, subject, text, html, from, replyTo, cc, emailType, templateVersion });
+  const result = await sendEmail({ to, subject, text, html, from, replyTo, cc, emailType, templateVersion, attachments });
 
   // Then log, best-effort. Never let a logging failure surface to the caller.
   try {

@@ -37,6 +37,7 @@ import {
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
+import { maybeSendBookingDiaryEmail } from "@/lib/services/booking-reminders";
 import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
@@ -465,6 +466,20 @@ export async function confirmMilestoneAction(input: {
     } catch (err) {
       console.error("[confirmMilestoneAction] notifications-status build failed:", err);
     }
+  }
+
+  // Booking-day "diary" email to the agency agent. Fire-and-forget; the helper
+  // enforces every guard (outsourced only, keys from us, real date, opt-out).
+  // This is the direct-confirm path — a progressor confirming on an outsourced
+  // file; the buyer-provisional path fires the same email from
+  // releaseProvisionalBooking when we confirm it.
+  if (def && !tx.isDemo && (def.code === "PM6" || def.code === "PM9")) {
+    maybeSendBookingDiaryEmail({
+      transactionId: input.transactionId,
+      code: def.code,
+      eventDate: input.eventDate ? new Date(input.eventDate) : null,
+      keyCollectionRequired: input.keyCollectionRequired ?? null,
+    }).catch(() => {});
   }
 
   const isExchangeCode = def?.code === "VM19" || def?.code === "PM26";

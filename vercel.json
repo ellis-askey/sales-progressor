@@ -25,6 +25,10 @@
       "schedule": "*/15 6-9 * * 1-5"
     },
     {
+      "path": "/api/cron/booking-morning",
+      "schedule": "*/15 6-7 * * 1-5"
+    },
+    {
       "path": "/api/cron/prospect-followup-digest",
       "schedule": "30 7 * * 1-5"
     },

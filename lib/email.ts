@@ -75,6 +75,15 @@ export function applyDevEmailRedirect<T extends { to: string | string[]; subject
   return clone as T;
 }
 
+// A file attached to an outbound email. `content` is base64-encoded. Used for
+// the "add to calendar" .ics on booking-diary emails; kept generic.
+export type EmailAttachment = {
+  content: string;
+  filename: string;
+  type: string;
+  disposition?: string;
+};
+
 export async function sendEmail({
   to,
   cc,
@@ -86,6 +95,7 @@ export async function sendEmail({
   queueId,
   emailType,
   templateVersion,
+  attachments,
 }: {
   to: string;
   cc?: string[];
@@ -94,6 +104,7 @@ export async function sendEmail({
   html?: string;
   from?: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
   // Echoes back on every SendGrid Event Webhook event for this message
   // via customArgs. /api/webhooks/sendgrid-bounce uses it to join events
   // to the originating OutboundEmailQueue row for delivery-status writes.
@@ -120,6 +131,7 @@ export async function sendEmail({
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
+    ...(attachments && attachments.length ? { attachments } : {}),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
   }));

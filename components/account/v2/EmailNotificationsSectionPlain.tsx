@@ -29,6 +29,7 @@ const TOGGLES: ToggleSpec[] = [
   { key: "weeklyBrief", label: "Weekly brief", description: "Summary of last week's activity and escalations, every Monday." },
   { key: "clientConfirmationEmails", label: "Client confirmations", description: "Email me when a buyer or seller confirms a milestone." },
   { key: "chainEmails", label: "Chain updates", description: "Email me when a chain link is lost, paused, or asking us to wait." },
+  { key: "appointmentReminders", label: "Appointment reminders", description: "Email me when a survey or lender valuation is booked, and again at 7am on the day." },
   { key: "retentionEmails", label: "Retention emails", description: "Post-exchange follow-ups we use to learn how the file went." },
 ];
 
