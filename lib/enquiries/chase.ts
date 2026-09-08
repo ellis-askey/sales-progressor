@@ -20,6 +20,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
@@ -99,7 +100,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           agencyId: true,
           assignedUserId: true,
           agentUserId: true,
-          agency: { select: { name: true } },
+          agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
           vendorSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
@@ -189,6 +190,13 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
       .map((c) => c.name);
     const handlerName = solicitorContact?.name ?? undefined;
+    // Self-managed → the agent's own signature; outsourced → null (plain sign-off kept).
+    const agentSig = await resolveAgentSignatureForFile({
+      assignedUserId: tx.assignedUserId,
+      agentUserId: tx.agentUserId,
+      agentName: senderName,
+      agency: tx.agency,
+    });
     const mail = buildEnquiryChaseEmail({
       court: seller ? "seller_solicitor" : "buyer_solicitor",
       address: tx.propertyAddress,
@@ -198,6 +206,8 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       agencyName,
       provideUpdateUrl: `${baseUrl()}/s/${token}`,
       now,
+      agentSignatureHtml: agentSig?.html ?? null,
+      agentSignatureText: agentSig?.text ?? null,
     });
 
     try {

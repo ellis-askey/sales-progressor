@@ -25,6 +25,11 @@ export type EnquiryChaseInput = {
   agencyName: string;
   provideUpdateUrl: string;
   now?: Date;
+  // Self-managed files: the agent's own resolved signature. When set, it
+  // replaces the plain "Best regards, {senderName} / {agencyName}" sign-off.
+  // Unset on outsourced files (plain sign-off kept).
+  agentSignatureHtml?: string | null;
+  agentSignatureText?: string | null;
 };
 
 // Join names for a subject line: "A", "A & B", "A, B & C".
@@ -120,9 +125,12 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
     `Alternatively, simply reply to this email and it will come directly to me.`,
     ``,
     `Best regards,`,
-    senderName,
-    agencyName,
+    input.agentSignatureText ?? `${senderName}\n${agencyName}`,
   ].join("\n");
+
+  const signoffHtml = input.agentSignatureHtml
+    ? `<p>Best regards,</p>${input.agentSignatureHtml}`
+    : `<p>Best regards,<br>${esc(senderName)}<br>${esc(agencyName)}</p>`;
 
   const html = `<div style="${WRAP}">
 <p>${esc(greeting)}</p>
@@ -132,7 +140,7 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
 <p>${esc(ifClause)}</p>
 <p><a href="${esc(provideUpdateUrl)}" style="${BTN}">Provide an update</a></p>
 <p>Alternatively, simply reply to this email and it will come directly to me.</p>
-<p>Best regards,<br>${esc(senderName)}<br>${esc(agencyName)}</p>
+${signoffHtml}
 </div>`;
 
   return { subject, text, html };

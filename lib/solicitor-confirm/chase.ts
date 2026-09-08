@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -356,7 +357,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       assignedUserId: true,
       agentUser: { select: { name: true, phone: true, image: true } },
       assignedUser: { select: { name: true, phone: true, image: true } },
-      agency: { select: { name: true } },
+      agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
       vendorSolicitorFirmId: true,
       vendorSolicitorFirm: { select: { name: true } },
       vendorSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
@@ -406,6 +407,14 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   // an outsourced file, otherwise the agency's own agent. Name + phone + avatar
   // sign the email off personally.
   const person = tx.assignedUser ?? tx.agentUser;
+  // Self-managed file → sign off with the agent's own signature (standard,
+  // image, or custom). Outsourced → null, so the in-house person block is used.
+  const agentSig = await resolveAgentSignatureForFile({
+    assignedUserId: tx.assignedUserId,
+    agentUserId: tx.agentUserId,
+    agentName: tx.agentUser?.name,
+    agency: tx.agency,
+  });
   const { subject, html, text } = buildSolicitorDigestEmail({
     brand,
     address: tx.propertyAddress,
@@ -422,6 +431,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     personName: person?.name ?? brand,
     personPhone: person?.phone ?? null,
     avatarUrl: getAvatarPublicUrl(person?.image),
+    agentSignatureHtml: agentSig?.html ?? null,
+    agentSignatureText: agentSig?.text ?? null,
   });
 
   // Sender = the agency's authenticated sending address (Agency.quoteSenderEmail),

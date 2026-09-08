@@ -32,6 +32,12 @@ export type SolicitorDigestInput = {
   personName: string;
   personPhone?: string | null;
   avatarUrl?: string | null; // public avatar URL, or null
+  // Self-managed files: the agent's own resolved signature (their standard card,
+  // or their image / custom signature). When set, it replaces the in-house
+  // name/phone/avatar block below. Left unset on outsourced files, where the
+  // in-house block (personName/personPhone/avatarUrl) is used as before.
+  agentSignatureHtml?: string | null;
+  agentSignatureText?: string | null;
 };
 
 const NAVY = "#0f2740";
@@ -121,8 +127,12 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
        </tr></table>`
     : "";
 
-  // Signature: avatar (if any) + name / agency / phone.
-  const signature = `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+  // Signature: on a self-managed file, the agent's own resolved signature
+  // (standard card, or their image / custom). Otherwise the in-house block:
+  // avatar (if any) + name / agency / phone.
+  const signature = input.agentSignatureHtml
+    ? input.agentSignatureHtml
+    : `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
     ${avatarUrl ? `<td valign="middle" width="48"><img src="${avatarUrl}" width="48" height="48" alt="" style="display:block;border-radius:24px;" /></td>` : ""}
     <td valign="middle" style="${avatarUrl ? "padding-left:12px;" : ""}">
       <p style="margin:0;font-size:14px;font-weight:700;color:${NAVY};line-height:1.4;">${esc(personName)}</p>
@@ -179,7 +189,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
     steps.map((s) => `- ${s.label}`).join("\n") +
     `\n\nUpdate them here: ${confirmUrl}` +
     `\nRather reply by email? Just reply to this message with an update. Thank you!` +
-    `\n\n${personName}\n${brand}${personPhone ? `\n${personPhone}` : ""}` +
+    `\n\n${input.agentSignatureText ?? `${personName}\n${brand}${personPhone ? `\n${personPhone}` : ""}`}` +
     `\n\nStop these emails for this matter: ${stopUrl}`;
 
   return { subject, html, text };

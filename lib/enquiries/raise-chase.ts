@@ -14,6 +14,8 @@ import { prisma } from "@/lib/prisma";
 import { sendChainEmail, solicitorCc } from "@/lib/email";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
+import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
@@ -54,7 +56,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           assignedUserId: true,
           agentUserId: true,
           activeBuyerRoundId: true,
-          agency: { select: { name: true } },
+          agency: { select: { name: true, emailTheme: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
           purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           vendorSolicitorFirm: { select: { name: true } },
@@ -154,6 +156,16 @@ export async function runRaiseChaseCron(now: Date): Promise<{
       }
     }
 
+    // Self-managed → the agent's own signature; outsourced → null (kept plain).
+    const agentSig = await resolveAgentSignatureForFile({
+      assignedUserId: tx.assignedUserId,
+      agentUserId: tx.agentUserId,
+      agentName: senderName,
+      agency: tx.agency,
+    });
+    // Brand theme for the client-styled buyer nudge (agency colours; coral default).
+    const theme = resolveEmailTheme((tx.agency?.emailTheme ?? null) as EmailThemeInput | null);
+
     let didSend = false;
     try {
       if (decision.target === "buyer") {
@@ -175,8 +187,12 @@ export async function runRaiseChaseCron(now: Date): Promise<{
               firstName: firstNameOf(b.name),
               address: tx.propertyAddress,
               senderName,
-              agencyName,
+              // Client-facing: always the client's agency brand, never the SP substitution.
+              agencyName: tx.agency?.name ?? agencyName,
               fileUrl: `${baseUrl()}/portal/${b.portalToken}`,
+              theme,
+              agentSignatureHtml: agentSig?.html ?? null,
+              agentSignatureText: agentSig?.text ?? null,
             });
             await sendChainEmail({ to: b.email as string, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
             await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer", recipientName: b.name }).catch(() => {});
@@ -208,6 +224,8 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             agencyName,
             provideUpdateUrl: `${baseUrl()}/s/${token}`,
             now,
+            agentSignatureHtml: agentSig?.html ?? null,
+            agentSignatureText: agentSig?.text ?? null,
           });
           await sendChainEmail({ to: email, cc: solicitorCc(tx.purchaserSolicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
           await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
