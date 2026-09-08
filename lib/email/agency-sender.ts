@@ -172,30 +172,29 @@ export async function resolveAgencySenderForTransaction(
     return { from: buildFrom(display, prog), replyTo: prog, canReply: true, ...logo };
   }
 
-  // ── Self-managed, persona "personal": the agent's own address, but only when
-  // their whole domain is authenticated (so SendGrid will actually send it).
-  if (persona === "personal" && actingEmail) {
-    const actingDomain = actingEmail.split("@")[1]?.toLowerCase();
-    if (actingDomain) {
-      const authed = await prisma.verifiedDomain.findFirst({
-        where: { agencyId: tx.agencyId ?? undefined, domain: actingDomain, status: "verified" },
-        select: { id: true },
-      });
-      if (authed) {
-        return { from: buildFrom(display, actingEmail), replyTo: actingEmail, canReply: true, ...logo };
-      }
+  // ── Self-managed: the agent runs their own file, so the sender is THEIR own
+  // identity — NEVER the agency's outsourced sender. quoteSenderEmail (e.g.
+  // ellis@viavia.co.uk) is the address the agency gave us to progress on their
+  // behalf; it has no place on a file they run themselves. When their own domain
+  // is authenticated in SendGrid:
+  //   personal  → their own login address           (e.g. danny@dannybaileyproperty.co.uk)
+  //   automated → the generic mailbox on their domain (e.g. updates@dannybaileyproperty.co.uk)
+  // Reply-to is always their own login address.
+  const actingDomain = actingEmail?.split("@")[1]?.toLowerCase();
+  if (actingEmail && actingDomain) {
+    const authed = await prisma.verifiedDomain.findFirst({
+      where: { agencyId: tx.agencyId ?? undefined, domain: actingDomain, status: "verified" },
+      select: { id: true },
+    });
+    if (authed) {
+      const from = persona === "personal" ? actingEmail : `updates@${actingDomain}`;
+      return { from: buildFrom(display, from), replyTo: actingEmail, canReply: true, ...logo };
     }
   }
 
-  // ── Self-managed, automated (or a personal email whose domain isn't
-  // authenticated): the agency's verified sender. Reply-to prefers the agent so
-  // a client reply still reaches a human.
-  if (agencyAddr && agencyVerified) {
-    return { from: buildFrom(display, agencyAddr), replyTo: actingEmail ?? agencyAddr, canReply: true, ...logo };
-  }
-
-  // ── Nothing verified — our shared updates@ underneath an agency-branded
-  // display; agent as reply-to, else noreply so a reply never lands with us.
+  // ── Their domain isn't authenticated — everything sends from our shared
+  // updates@thesalesprogressor.co.uk, reply-to their own login address so
+  // replies reach them (noreply only if there's somehow no agent email on file).
   const replyTo = actingEmail ?? SP_NOREPLY;
   return {
     from: buildFrom(display, SP_REPLY_TO),

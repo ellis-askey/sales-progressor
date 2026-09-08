@@ -141,23 +141,30 @@ export function describeSender(email: EmailSender, fileType: FileType, agency: A
 
   switch (email.kind) {
     case "agencyPerson": {
-      // Self-managed + "personal" → the agent's own address (when their domain
-      // is authenticated); otherwise the agency's verified sender; else fallback.
-      if (fileType === "self_managed" && email.persona === "personal") {
+      // Self-managed uses the AGENT's own identity, never the agency's outsourced
+      // sender (quoteSenderEmail). Personal = their own login address; automated
+      // = the generic mailbox on their domain. Both only when their domain is
+      // verified; otherwise updates@thesalesprogressor.co.uk. Reply-to = the agent.
+      if (fileType === "self_managed") {
+        if (email.persona === "personal") {
+          return {
+            from: `⟨agency agent⟩ at ${brand} <their own address if their domain is verified, otherwise updates@thesalesprogressor.co.uk>`,
+            replyTo: "the agent",
+            fallback: SP_FROM,
+            chip: "own",
+          };
+        }
         return {
-          from: `⟨agency agent⟩ at ${brand} <the agent's own address>`,
+          from: `⟨agency agent⟩ at ${brand} <updates@their-domain if verified, otherwise updates@thesalesprogressor.co.uk>`,
           replyTo: "the agent",
-          fallback: addr ? `${addr} → ${ff.from}` : ff.from,
-          chip: "own",
+          fallback: SP_FROM,
+          chip: "agency",
         };
       }
-      // Automated (or outsourced): the agency's verified sender. Reply-to the
-      // agent on self-managed. On outsourced it's the agency's own address only
-      // when that's a real inbox we can read (a single sender); a send-only
-      // domain-auth address routes replies to the assigned progressor instead.
-      const replyTo = fileType === "self_managed"
-        ? "the agent"
-        : (addr && agency.quoteSenderIsInbox ? addr : ff.addr);
+      // Outsourced: the agency's outsourced sender (quoteSenderEmail) for
+      // branding; reply-to that address only when it's a real inbox we can read
+      // (a single sender), else the assigned progressor.
+      const replyTo = addr && agency.quoteSenderIsInbox ? addr : ff.addr;
       return addr
         ? { from: `${slot} at ${brand} <${addr}>`, replyTo, fallback: ff.from, chip: "agency" }
         : { from: ff.from, replyTo, fallback: ff.from, chip: "agency" };
