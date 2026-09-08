@@ -123,6 +123,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [showEventDate, setShowEventDate] = useState(false);
   const [eventDate, setEventDate] = useState("");
   const [desktopValuation, setDesktopValuation] = useState(false);
+  // Survey (PM9) / valuation (PM6) only: does the surveyor/valuer collect keys
+  // from the branch? Ticked = keys from us; left unticked = straight to the
+  // property. Drives the keys line and whether the diary email sends.
+  const [keyCollection, setKeyCollection] = useState(false);
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
 
@@ -254,6 +258,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           transactionId,
           milestoneDefinitionId: def.id,
           eventDate: eventDate || null,
+          keyCollectionRequired: (isPM6 || isPM9) ? keyCollection : undefined,
         });
         // Prereq gate (2026-06-05): the action returns a structured failure
         // when the user clicks Confirm before a prereq has been committed
@@ -287,6 +292,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       } finally {
         setLoading(false);
         setEventDate("");
+        setKeyCollection(false);
       }
     });
   }
@@ -364,7 +370,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // Survey booked confirm: complete PM9 with the survey date, then record which
   // surveyor was booked. Booking is best-effort — a failure there never blocks
   // the milestone (the surveyor is the backstop).
-  function doSurveyBookingConfirm(surveyDate: string, choice: SurveyBookingChoice) {
+  function doSurveyBookingConfirm(surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean) {
     setSurveyBookingSaving(true);
     startTransition(async () => {
       addOptimistic("complete");
@@ -373,6 +379,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           transactionId,
           milestoneDefinitionId: def.id,
           eventDate: surveyDate || null,
+          keyCollectionRequired,
         });
         if (result.ok === false && result.kind === "prereqs_missing") {
           const first = result.missing[0];
@@ -633,10 +640,26 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   <input
                     type="checkbox"
                     checked={desktopValuation}
-                    onChange={(e) => { setDesktopValuation(e.target.checked); if (e.target.checked) setEventDate(""); }}
+                    onChange={(e) => { setDesktopValuation(e.target.checked); if (e.target.checked) { setEventDate(""); setKeyCollection(false); } }}
                     className="rounded"
                   />
-                  Desktop valuation — no date
+                  Desktop valuation, no date
+                </label>
+              )}
+              {/* Keys/access. A desktop valuation never attends the property, so
+                  the keys question doesn't apply there. */}
+              {(isPM9 || isPM6) && !(isPM6 && desktopValuation) && (
+                <label
+                  className="flex items-center gap-2 text-xs text-slate-900/50 cursor-pointer select-none"
+                  title="Tick if the surveyor or valuer collects keys from the branch. Leave it clear if they go straight to the property."
+                >
+                  <input
+                    type="checkbox"
+                    checked={keyCollection}
+                    onChange={(e) => setKeyCollection(e.target.checked)}
+                    className="rounded"
+                  />
+                  {isPM6 ? "Valuer collecting keys from us" : "Surveyor collecting keys from us"}
                 </label>
               )}
             </div>
@@ -670,7 +693,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   instead of dropping below it. Same handler. */}
               {showEventDate && (
                 <button
-                  onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
+                  onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); setKeyCollection(false); }}
                   className="agent-link agent-link-muted"
                   style={{ fontSize: 12 }}
                 >

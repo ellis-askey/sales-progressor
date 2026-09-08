@@ -22,13 +22,14 @@ export function SurveyBookingModal({
 }: {
   options: SurveyBookingOption[];
   saving: boolean;
-  onConfirm: (surveyDate: string, choice: SurveyBookingChoice) => void;
+  onConfirm: (surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean) => void;
   onCancel: () => void;
 }) {
   const { theme } = usePortalTheme();
   const [surveyDate, setSurveyDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [otherFirmName, setOtherFirmName] = useState("");
+  const [keyCollection, setKeyCollection] = useState(false);
 
   const canConfirm = !!surveyDate && selection !== null && !saving;
 
@@ -116,6 +117,16 @@ export function SurveyBookingModal({
                 </p>
               )}
             </div>
+
+            <div>
+              <label
+                style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none", fontSize: 14, color: "rgba(15,23,42,0.85)" }}
+                title="Tick if the surveyor collects keys from the branch. Leave it clear if they go straight to the property."
+              >
+                <input type="checkbox" checked={keyCollection} onChange={(e) => setKeyCollection(e.target.checked)} />
+                Surveyor collecting keys from us
+              </label>
+            </div>
           </div>
         </Modal.Body>
 
@@ -136,7 +147,7 @@ export function SurveyBookingModal({
               const choice: SurveyBookingChoice = selection.kind === "someone_else"
                 ? { kind: "someone_else", firmName: otherFirmName.trim() || undefined }
                 : selection;
-              onConfirm(surveyDate, choice);
+              onConfirm(surveyDate, choice, keyCollection);
             }}
             disabled={!canConfirm}
             className="agent-btn-color-primary"

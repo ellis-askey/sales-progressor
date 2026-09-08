@@ -61,6 +61,10 @@ export async function confirmMilestoneAction(input: {
   transactionId: string;
   milestoneDefinitionId: string;
   eventDate?: string | null;
+  // Survey (PM9) / lender valuation (PM6) only: true = keys collected from
+  // the branch, false = straight to property. Left undefined for every other
+  // step. Set by the agent/progressor confirming a booking directly.
+  keyCollectionRequired?: boolean | null;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -116,6 +120,7 @@ export async function confirmMilestoneAction(input: {
       milestoneDefinitionId: input.milestoneDefinitionId,
       confirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
+      keyCollectionRequired: input.keyCollectionRequired,
     }, ptx);
 
     if (counterDefId) {

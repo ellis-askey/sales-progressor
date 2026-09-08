@@ -843,6 +843,12 @@ export type CompleteMilestoneInput = {
   milestoneDefinitionId: string;
   confirmer: Confirmer;
   eventDate?: Date | null;
+  // Access arrangement for a booked survey (PM9) / lender valuation (PM6):
+  // true = keys collected from the branch, false = straight to property.
+  // Omit (undefined) for every other milestone and for confirms that don't
+  // set it — Prisma then leaves the column untouched. See the booking
+  // reminders plan (docs/active/booking-reminders/00-plan.md).
+  keyCollectionRequired?: boolean | null;
   completedAt?: Date;
   // Internal use only: skip the direct-prerequisite guard. Set solely by the
   // PM20→VM21 reflection below, where VM21 (seller "all enquiries satisfied")
@@ -982,6 +988,8 @@ export async function completeMilestone(
         state: "complete",
         completedAt: input.completedAt ?? new Date(),
         eventDate: input.eventDate ?? null,
+        // undefined = leave untouched (non-booking steps never pass it).
+        keyCollectionRequired: input.keyCollectionRequired ?? undefined,
         completedById,
         confirmedByPortal,
         confirmedBySolicitorFirmId,
@@ -1013,6 +1021,7 @@ export async function completeMilestone(
           state: "complete",
           completedAt: input.completedAt ?? new Date(),
           eventDate: input.eventDate ?? null,
+          keyCollectionRequired: input.keyCollectionRequired ?? undefined,
           completedById,
           confirmedByPortal,
           confirmedBySolicitorFirmId,
