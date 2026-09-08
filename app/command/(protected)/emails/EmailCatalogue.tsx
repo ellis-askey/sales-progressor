@@ -201,10 +201,10 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
             className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg mb-4"
             style={{ background: "#111", border: `1px solid ${BORDER}` }}
           >
-            <Field label="From" value={result?.ok ? result.from : "—"} />
-            <Field label="Reply-to" value={result?.ok ? result.replyTo : "—"} />
-            <Field label="Signature" value={result?.ok ? result.signature : "—"} />
-            <Field label="Brand theme" value={result?.ok ? result.themeLabel : "—"} />
+            <Field label="From" value={result?.ok ? result.from : "…"} />
+            <Field label="Reply-to" value={result?.ok ? result.replyTo : "…"} />
+            <Field label="Signature" value={result?.ok ? result.signature : "…"} />
+            <Field label="Brand theme" value={result?.ok ? result.themeLabel : "…"} />
           </div>
 
           {selected && (
