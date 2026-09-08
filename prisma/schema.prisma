@@ -1304,6 +1304,24 @@ model MilestoneCompletion {
   // Allows the chase pipeline to track "client said 15 June" engagement
   // without prematurely marking the milestone complete.
   expectedDate                  DateTime?
+  // Access arrangement for a booked survey / lender valuation (PM9 / PM6).
+  // true  = the surveyor/valuer collects keys from the branch (agency must
+  //         have them ready), false = they go straight to the property
+  //         (no agency access role). null = not yet set — e.g. a buyer logged
+  //         the booking on their portal and our side hasn't confirmed access
+  //         with the seller yet. Set by the internal confirmer, never the
+  //         buyer. Drives the keys line in the diary / morning-of emails and
+  //         whether the diary email sends at all.
+  keyCollectionRequired         Boolean?
+  // A buyer logged this booking (PM9 / PM6) on their portal. Their progress
+  // ticks over immediately, but the booking is provisional until our side
+  // confirms date + access with the seller. While true, ALL emails are held
+  // (buyer + seller confirmation emails AND the internal diary email) and the
+  // booking surfaces on the hub "Surveys & valuations to confirm" pile. Flipped
+  // to false when an agent (self-managed) or progressor (outsourced) confirms,
+  // which releases the held emails. Direct agent/progressor bookings never set
+  // this — they are already verified, so emails go straight away.
+  awaitingBookingConfirmation   Boolean        @default(false)
   notRequiredReason             String?
   // NR-specific attribution. Distinct from completedById/completedAt which
   // track the last actor to flip TO the "complete" state. When a milestone
