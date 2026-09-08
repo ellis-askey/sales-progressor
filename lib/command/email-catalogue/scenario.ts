@@ -79,8 +79,8 @@ export function resolveCatalogueIdentity(kind: SenderKind, fileType: FileType): 
     return {
       from: `${FIXTURE_AGENCY.name} <${SP_ADDRESS}>`,
       replyTo: SP_ADDRESS,
-      fromRule: "«{agency}» via our platform address — never the agency's outsourced sender.",
-      fromFallback: "No fallback — always our address.",
+      fromRule: "«{agency}» via our platform address; never the agency's outsourced sender.",
+      fromFallback: "No fallback; always our address.",
       replyToRule: "Our platform inbox.",
     };
   }
