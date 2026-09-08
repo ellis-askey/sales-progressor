@@ -7,7 +7,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
-import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { outwardCode } from "@/lib/utils/address";
 import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onward";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
@@ -110,7 +109,10 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
           purchasePrice: true,
           tenure: true,
           isShareOfFreehold: true,
-          agency: { select: { name: true, quoteSenderEmail: true } },
+          serviceType: true,
+          agency: { select: { name: true } },
+          agentUser: { select: { email: true } },       // the agent running a self-managed file
+          assignedUser: { select: { email: true } },     // the progressor running an outsourced file
         },
       },
     },
@@ -186,14 +188,25 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   // 3. Create one QuoteRequest per valid firm.
   const propertyAddress = effAddress;
   const propertyPostcode = extractPostcodeFromAddress(effAddress);
-  // Send the quote FROM the agency's own verified address (e.g.
-  // ellis@akeman-residential for an Akeman sale). No verified sender on file
-  // (e.g. EXP) → the file-type-aware fallback (outsourced = the progressor's
-  // @thesalesprogressor.co.uk address; in-house = updates@).
+  // Survey-quote requests go out under the AGENCY's name (so the surveyor knows
+  // whose client this is) but from a Sales Progressor sending address — never the
+  // agency's own outsourced sender. Reply-to is the client, whom the surveyor
+  // quotes directly.
+  //   Outsourced (we run it): from the assigned progressor's own SP address
+  //     (ellis@thesalesprogressor.co.uk today, whoever's assigned in future).
+  //     The progressor is the sender, so no CC.
+  //   Self-managed (the agent runs it): from the shared quotes@ mailbox, CC the
+  //     agent looking after the file so they stay in the loop.
   const agencyName = (contact.transaction.agency?.name ?? "Sales Progressor").replace(LEGAL_SUFFIX, "").trim();
-  const senderAddress = contact.transaction.agency?.quoteSenderEmail
-    ?? (await resolveAgencySenderForTransaction(contact.transaction.id)).replyTo;
-  const quoteFrom = buildFrom(agencyName, senderAddress);
+  const isOutsourced = contact.transaction.serviceType === "outsourced";
+  const progressorAddress =
+    contact.transaction.assignedUser?.email?.toLowerCase().endsWith("@thesalesprogressor.co.uk")
+      ? contact.transaction.assignedUser.email
+      : SP_OPS_INBOX;
+  const quoteFrom = buildFrom(agencyName, isOutsourced ? progressorAddress : "quotes@thesalesprogressor.co.uk");
+  const quoteCc = !isOutsourced && contact.transaction.agentUser?.email
+    ? [contact.transaction.agentUser.email]
+    : undefined;
   const pricePence = effPricePence;
   const tenure = effTenure;
   const tenureText = tenureLabel(tenure, effShare);
@@ -278,6 +291,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
             to: firm.email,
             from: quoteFrom,
             replyTo: input.clientEmail.trim(),
+            cc: quoteCc,
             subject,
             text,
             queueId: queueRow.id,

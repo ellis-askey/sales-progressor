@@ -4,7 +4,15 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
+
+---
+
+## Survey quote requests — set up `quotes@thesalesprogressor.co.uk` (2026-09-08)
+
+Survey-quote requests to surveyor firms now send from Sales Progressor addresses (never the agency's outsourced address). On **self-managed** files they send from **`quotes@thesalesprogressor.co.uk`** and CC the file's agent; on **outsourced** files from the assigned progressor's own `@thesalesprogressor.co.uk` address. Reply-to is always the requesting client, so the surveyor quotes them directly.
+
+- [ ] Make `quotes@thesalesprogressor.co.uk` a real or forwarded mailbox you monitor. Sending works without it (our domain is authenticated), but a stray reply or bounce sent straight to `quotes@` would otherwise vanish.
 
 ---
 

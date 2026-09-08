@@ -139,6 +139,16 @@ export function describeSender(email: EmailSender, fileType: FileType, agency: A
   const slot = fileType === "outsourced" ? "⟨progressor⟩" : "⟨agency agent⟩";
   const ff = fileFallback(fileType);
 
+  // Survey quote request to a surveyor firm has bespoke routing (see
+  // app/quote/[token]/actions.ts): the AGENCY's name, a Sales Progressor sending
+  // address, reply to the client. Outsourced = the assigned progressor's address;
+  // self-managed = the shared quotes@ mailbox, CC'ing the file's agent.
+  if (email.id === "quote-req") {
+    return fileType === "outsourced"
+      ? { from: `${brand} <${PROGRESSOR_FALLBACK}>`, replyTo: "the client", fallback: PROGRESSOR_FALLBACK, chip: "sp" }
+      : { from: `${brand} <quotes@thesalesprogressor.co.uk>`, replyTo: "the client, CC the file's agent", fallback: "quotes@thesalesprogressor.co.uk", chip: "sp" };
+  }
+
   switch (email.kind) {
     case "agencyPerson": {
       // Self-managed uses the AGENT's own identity, never the agency's outsourced
