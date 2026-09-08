@@ -37,6 +37,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { EmailSignatureCard, type SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
 import { resolveEmailSignature } from "@/lib/email/signature";
+import { detectSignatureSource } from "@/lib/email/signature-source";
 import { Palette, Image as ImageIcon, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountProfilePage({
@@ -76,6 +77,7 @@ export default async function AccountProfilePage({
     customHtml: userRecord?.emailSignatureHtml ?? null,
     previewHtml: sigPreview.html,
     missing: sigPreview.missing,
+    source: detectSignatureSource(userRecord?.emailSignatureHtml ?? ""),
   };
 
   // Agency logo is a director-level, agency-wide brand setting (client emails).

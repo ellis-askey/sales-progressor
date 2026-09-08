@@ -14,7 +14,8 @@ import { useRouter } from "next/navigation";
 import type { EmailSignatureMode } from "@prisma/client";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { saveSignatureAction, previewSignatureAction } from "@/app/actions/signature";
+import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction } from "@/app/actions/signature";
+import type { SignatureSource } from "@/lib/email/signature-source";
 import { PenNib, UploadSimple, Link as LinkIcon, Trash } from "@phosphor-icons/react";
 
 export interface SignatureInitial {
@@ -23,7 +24,16 @@ export interface SignatureInitial {
   customHtml: string | null;
   previewHtml: string;
   missing: string[];
+  source: SignatureSource;
 }
+
+const SOURCE_OPTIONS: Array<{ value: SignatureSource; label: string }> = [
+  { value: "other", label: "Standard" },
+  { value: "outlook", label: "Outlook" },
+  { value: "gmail", label: "Gmail" },
+  { value: "wisestamp", label: "WiseStamp" },
+  { value: "exclaimer", label: "Exclaimer" },
+];
 
 const MODES: Array<{ value: EmailSignatureMode; label: string; blurb: string }> = [
   { value: "BASIC", label: "Basic", blurb: "Created automatically from your details." },
@@ -235,6 +245,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
       {mode === "CUSTOM" ? (
         <CustomSignatureEditor
           initialHtml={customHtml ?? ""}
+          initialSource={initial.source}
           onSaved={(html) => {
             setCustomHtml(html);
             setStatus("saved");
@@ -263,11 +274,13 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
 // real result. Plain typing auto-saves without re-injecting (keeps the cursor).
 function CustomSignatureEditor({
   initialHtml,
+  initialSource,
   onSaved,
   onSaving,
   onError,
 }: {
   initialHtml: string;
+  initialSource: SignatureSource;
   onSaved: (html: string) => void;
   onSaving: () => void;
   onError: (msg: string) => void;
@@ -276,6 +289,7 @@ function CustomSignatureEditor({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reinjectNext = useRef(false);
   const [empty, setEmpty] = useState(!initialHtml.trim());
+  const [source, setSource] = useState<SignatureSource>(initialSource);
 
   // Seed once.
   useEffect(() => {
@@ -294,6 +308,7 @@ function CustomSignatureEditor({
       onError(res.error);
       return;
     }
+    if (res.source) setSource(res.source);
     // After a paste, replace the raw clipboard HTML with the cleaned, image-
     // hosted result (Outlook markup can include contenteditable="false" regions
     // and a live selection; the clean re-inject makes it fully editable) and
@@ -318,15 +333,44 @@ function CustomSignatureEditor({
     schedule(0);
   }
 
+  async function changeSource(next: SignatureSource) {
+    setSource(next);
+    onSaving();
+    onError("");
+    const res = await applySignatureSourceAction(next);
+    if (!res.ok) {
+      onError(res.error);
+      return;
+    }
+    if (ref.current) ref.current.innerHTML = res.html ?? "";
+    onSaved(res.html ?? "");
+  }
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
         <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", margin: 0 }}>
           Your signature · click to edit
         </p>
-        <button type="button" onClick={clearEditor} disabled={empty} style={{ ...secondaryBtn, padding: "5px 12px", opacity: empty ? 0.5 : 1 }}>
-          <Trash size={14} weight="bold" /> Clear
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {!empty && (
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#9ca3af" }}>
+              Pasted from
+              <select
+                value={source}
+                onChange={(e) => changeSource(e.target.value as SignatureSource)}
+                style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", color: "#374151" }}
+              >
+                {SOURCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button type="button" onClick={clearEditor} disabled={empty} style={{ ...secondaryBtn, padding: "5px 12px", opacity: empty ? 0.5 : 1 }}>
+            <Trash size={14} weight="bold" /> Clear
+          </button>
+        </div>
       </div>
       <div
         ref={ref}

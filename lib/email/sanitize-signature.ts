@@ -70,7 +70,7 @@ const filter = new FilterXSS({
  * links are hardened with target/rel. The caller enforces MAX_SIGNATURE_HTML.
  */
 // Add an inline style declaration to a tag's attributes (appended so it wins).
-function injectStyle(attrs: string, decl: string): string {
+export function injectStyle(attrs: string, decl: string): string {
   if (/style\s*=\s*(["'])/i.test(attrs)) {
     return attrs.replace(/style\s*=\s*(["'])([\s\S]*?)\1/i, (_m, q, val) => {
       const trimmed = val.replace(/;\s*$/, "");

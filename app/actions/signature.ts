@@ -11,6 +11,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { sanitizeSignatureHtml, MAX_SIGNATURE_HTML } from "@/lib/email/sanitize-signature";
 import { processSignatureImages } from "@/lib/email/signature-images";
+import { detectSignatureSource, normalizeBySource, type SignatureSource } from "@/lib/email/signature-source";
 import { resolveEmailSignature } from "@/lib/email/signature";
 
 const AGENCY_SIG_SELECT = {
@@ -30,12 +31,15 @@ async function senderAgency(userId: string) {
 }
 
 export type SaveSignatureResult =
-  | { ok: true; html?: string }
+  | { ok: true; html?: string; source?: SignatureSource }
   | { ok: false; error: string };
 
 export async function saveSignatureAction(input: {
   mode: EmailSignatureMode;
   customHtml?: string | null;
+  // When omitted, the source is auto-detected from the pasted HTML. Supplied by
+  // the manual "Pasted from" override.
+  source?: SignatureSource;
 }): Promise<SaveSignatureResult> {
   const session = await requireSession();
 
@@ -44,13 +48,18 @@ export async function saveSignatureAction(input: {
     emailSignatureHtml?: string | null;
   } = { emailSignatureMode: input.mode };
   let cleanForClient: string | undefined;
+  let source: SignatureSource | undefined;
 
   if (input.mode === "CUSTOM") {
+    // Detect the generator from the RAW paste (some markers, e.g. Outlook mso /
+    // Gmail classes, don't survive sanitising).
+    source = input.source ?? detectSignatureSource(input.customHtml ?? "");
     // Host any pasted inline images first, then sanitise (so the hosted https
-    // srcs survive). Empty is allowed here (the editor may briefly be empty
+    // srcs survive), then apply the per-source clean-up (e.g. un-cramp WiseStamp
+    // contact cells). Empty is allowed here (the editor may briefly be empty
     // mid-edit); we just don't overwrite with nothing.
     const withImages = await processSignatureImages(input.customHtml ?? "", session.user.id);
-    const clean = sanitizeSignatureHtml(withImages);
+    const clean = normalizeBySource(sanitizeSignatureHtml(withImages), source);
     if (clean.length > MAX_SIGNATURE_HTML) {
       return { ok: false, error: "That signature is too large. Try removing or shrinking any images." };
     }
@@ -64,7 +73,27 @@ export async function saveSignatureAction(input: {
   await prisma.user.update({ where: { id: session.user.id }, data });
   revalidatePath("/agent/account/profile");
   revalidatePath("/agent", "layout");
-  return { ok: true, html: cleanForClient };
+  return { ok: true, html: cleanForClient, source };
+}
+
+// Manual "Pasted from" override: re-apply a chosen source's clean-up to the
+// already-stored custom signature. Returns the updated HTML for re-injection.
+export async function applySignatureSourceAction(
+  source: SignatureSource,
+): Promise<SaveSignatureResult> {
+  const session = await requireSession();
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { emailSignatureHtml: true },
+  });
+  const clean = normalizeBySource(sanitizeSignatureHtml(user?.emailSignatureHtml ?? ""), source);
+  if (clean.length > MAX_SIGNATURE_HTML) {
+    return { ok: false, error: "That signature is too large. Try removing or shrinking any images." };
+  }
+  await prisma.user.update({ where: { id: session.user.id }, data: { emailSignatureHtml: clean } });
+  revalidatePath("/agent/account/profile");
+  revalidatePath("/agent", "layout");
+  return { ok: true, html: clean, source };
 }
 
 export type SignaturePreview = { html: string; missing: string[]; mode: EmailSignatureMode };
@@ -79,7 +108,10 @@ export async function previewSignatureAction(input: {
   const agency = await senderAgency(session.user.id);
   const cleanCustom =
     input.mode === "CUSTOM"
-      ? sanitizeSignatureHtml(await processSignatureImages(input.customHtml ?? "", session.user.id))
+      ? normalizeBySource(
+          sanitizeSignatureHtml(await processSignatureImages(input.customHtml ?? "", session.user.id)),
+          detectSignatureSource(input.customHtml ?? ""),
+        )
       : undefined;
   const sig = await resolveEmailSignature({
     userId: session.user.id,
