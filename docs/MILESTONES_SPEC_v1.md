@@ -1,7 +1,7 @@
 # Sales Progressor — Milestone System Specification
 
-**Version:** 1.0 (Canonical)
-**Last updated:** 2026-04-28
+**Version:** 1.1 (Canonical)
+**Last updated:** 2026-09-08 (added §11.1 — provisional buyer confirmation of PM6 / PM9)
 **Status:** Source of truth. The live system aligns to this document, not the other way around.
 
 ---
@@ -494,6 +494,17 @@ Notification audiences are listed per-milestone below in §10 and §11.
 
 ## 11. Purchaser milestones (27)
 
+### 11.1 Provisional booking confirmation (PM6 / PM9)
+
+The two booking steps — PM6 (lender valuation booked) and PM9 (survey booked) — behave differently depending on **who** logs the booking. Added 2026-09-08; see `docs/active/booking-reminders/00-plan.md`.
+
+- **An agent or progressor logs it directly.** It completes as normal and every notification fires immediately.
+- **A buyer logs it on their portal.** The step still shows complete to the buyer (their progress ticks over), but the booking is **provisional**: the row carries `awaitingBookingConfirmation = true`, and every outbound message is held — the buyer and seller confirmation emails, the outsourced-progressor ping, and the internal diary email. The booking surfaces on the hub "Surveys & valuations to confirm" pile for the agency agent (self-managed) or the progressor (outsourced). Confirming it there records the date and a key-collection answer, flips the flag off, and releases the held emails.
+
+So for these two steps a buyer's confirmation is a signal, not the final word: a person on the responsible side confirms the date and access before anything is sent. This is a deliberate departure from §3's "anyone with access can mark any milestone complete" for PM6/PM9 only. All other steps are unchanged.
+
+Related field: `MilestoneCompletion.keyCollectionRequired` records whether the surveyor/valuer collects keys from the branch (drives the diary and morning-of reminder emails).
+
 ### PM1 — Buyer has instructed their solicitor
 
 | Property | Value |
@@ -580,6 +591,8 @@ Notification audiences are listed per-milestone below in §10 and §11.
 | Notification audience | Agent, Progressor, Seller, Buyer |
 | Why it matters | Confirms the lender's assessment of the property value. |
 
+**Provisional when a buyer confirms it (see §11.1).** Captures an appointment date and, when an agent or progressor confirms, a key-collection answer.
+
 ### PM7 — Buyer's solicitor has received the draft contract pack
 
 | Property | Value |
@@ -626,6 +639,8 @@ Notification audiences are listed per-milestone below in §10 and §11.
 | Why it matters | Assesses the physical condition of the property. |
 
 **User confirmation required to mark not required.** Dialog: *"Mark survey as not required? This will be logged in the activity timeline and will recalculate progress. — Cancel / Confirm."*
+
+**Provisional when a buyer confirms it (see §11.1).** Captures an appointment date and, when an agent or progressor confirms, a key-collection answer.
 
 ### PM10 — Buyer has received the survey report
 

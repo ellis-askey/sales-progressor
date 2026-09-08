@@ -39,14 +39,22 @@ One checkbox — "surveyor/valuer collecting keys from us" — set by the intern
 - `keyCollectionRequired Boolean?` — access arrangement; null until an internal person sets it.
 - `awaitingBookingConfirmation Boolean @default(false)` — provisional buyer booking; holds all emails while true.
 
-## Build order
+## Build order (status)
 
-1. Schema + migration (this step). Staging via `prisma db push`, prod via `migrate deploy`.
-2. Keys checkbox on the agent confirm screen (both steps).
-3. Portal buyer path goes provisional + hub "to confirm" pile + email hold/release.
-4. Booking-day diary email + 7am morning-of email + calendar attachment.
-5. Settings toggle: "Appointment reminders" (default on) controlling the two new agent emails.
-6. Spec update + voice pass.
+All six shipped to the `staging` branch 2026-09-08 (not yet pushed). Staging DB carries the two columns (applied via the pooler; prod applies `migration.sql` on deploy).
+
+1. ✅ Schema + migration. Staging synced; prod via `migrate deploy`. (`29d71e36`)
+2. ✅ Keys checkbox on the agent confirm screen (both steps + survey-booking modal). (`5c0d3571`)
+3. ✅ Portal buyer path goes provisional + hub "Surveys & valuations to confirm" pile + email hold/release. (`b71e4f1a`)
+4. ✅ Booking-day diary email + 7am morning-of cron + calendar attachment + settings toggle (folded in). (`40ee7e18`)
+5. ✅ (folded into 4) "Appointment reminders" toggle, default on.
+6. ✅ Spec update (§11.1) + voice pass.
+
+## Deferred follow-ups
+
+- **Reschedule wording.** The diary email carries a `rescheduled` flag and worded branch, but nothing detects a changed date on an already-confirmed booking yet (there's no clean "edit a booked date" path today). Wire when a date-edit surface exists.
+- **"Not actually booked" reject.** The hub confirm pile has Confirm only. A reject that reverses the step and tells the buyer to re-book needs a proper buyer-facing notification, deferred rather than half-built. `reverseMilestone` already clears the two booking fields, so the reversal half is ready.
+- **Weekend morning-of.** The 7am cron runs weekdays only (`*/15 6-7 * * 1-5`), matching the platform's other morning cadence. A Saturday/Sunday appointment gets the diary email + its .ics day-of alarm, but no 7am email.
 
 ## Spec change
 
