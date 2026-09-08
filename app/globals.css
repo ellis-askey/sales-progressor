@@ -1231,6 +1231,12 @@ select {
   overflow: hidden; position: relative;
   background: linear-gradient(155deg, rgba(var(--agent-coral-base-rgb), 0.16), rgba(var(--agent-coral-base-rgb), 0.05)); }
 .chain-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Pasted email signatures (WiseStamp etc.) put a small icon inline before each
+   contact line. Tailwind Preflight sets img{display:block}, which drops the text
+   under the icon in the in-app editor + preview; real emails render img inline,
+   so restore inline flow here so the icon and its contact detail sit on one line
+   and the preview matches the sent email. */
+.sig-editor img, .sig-signature-preview img { display: inline-block; vertical-align: middle; }
 /* Welcome modal CTA + tour link — explicit hover so the primary lifts and the
    tour link (icon included, via currentColor) shifts to coral. */
 .welcome-cta {

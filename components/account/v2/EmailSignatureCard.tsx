@@ -259,6 +259,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
             How your emails will sign off
           </p>
           <div
+            className="sig-signature-preview"
             style={{ borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "#fff", padding: 16, overflowX: "auto" }}
             dangerouslySetInnerHTML={{ __html: previewHtml || "<span style='color:#9ca3af;font-size:13px'>Nothing to preview yet.</span>" }}
           />
