@@ -115,7 +115,15 @@ export type SenderResolution = {
   chip: "agency" | "own" | "sp" | "gap";
 };
 
-export type AgencyForSender = { name: string; quoteSenderEmail: string | null; quoteSenderVerified: boolean };
+export type AgencyForSender = {
+  name: string;
+  quoteSenderEmail: string | null;
+  quoteSenderVerified: boolean;
+  // True when the verified sender is a real inbox we can read (a verified single
+  // sender), false when it's a send-only domain-authenticated address. Drives
+  // the outsourced reply-to: agency inbox vs the progressor.
+  quoteSenderIsInbox: boolean;
+};
 
 // The file-type-aware fallback for a PER-FILE send.
 function fileFallback(fileType: FileType): { from: string; addr: string } {
@@ -144,9 +152,12 @@ export function describeSender(email: EmailSender, fileType: FileType, agency: A
         };
       }
       // Automated (or outsourced): the agency's verified sender. Reply-to the
-      // agent on self-managed; on outsourced it's the assigned progressor's own
-      // inbox (we run the file, and we can't access the agency's address).
-      const replyTo = fileType === "self_managed" ? "the agent" : ff.addr;
+      // agent on self-managed. On outsourced it's the agency's own address only
+      // when that's a real inbox we can read (a single sender); a send-only
+      // domain-auth address routes replies to the assigned progressor instead.
+      const replyTo = fileType === "self_managed"
+        ? "the agent"
+        : (addr && agency.quoteSenderIsInbox ? addr : ff.addr);
       return addr
         ? { from: `${slot} at ${brand} <${addr}>`, replyTo, fallback: ff.from, chip: "agency" }
         : { from: ff.from, replyTo, fallback: ff.from, chip: "agency" };

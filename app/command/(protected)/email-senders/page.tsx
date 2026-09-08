@@ -22,23 +22,33 @@ export default async function EmailSendersPage() {
     orderBy: { name: "asc" },
   });
 
-  const options: AgencyOption[] = agencies.map((a) => ({
-    id: a.id,
-    name: a.name,
-    quoteSenderEmail: a.quoteSenderEmail,
-    quoteSenderVerified: a.quoteSenderVerified,
-    modeProfile: a.modeProfile,
-  }));
-
-  const configured = agencies.filter((a) => a.quoteSenderEmail && a.quoteSenderVerified).length;
-
   // Domain-authentication state per agency (self-serve VerifiedDomain rows).
-  // Prefer the domain matching the sender email; else the most recent.
   const domains = await commandDb.verifiedDomain.findMany({
     where: { agencyId: { in: agencies.map((a) => a.id) } },
     orderBy: { createdAt: "desc" },
   });
   const senderDomainOf = (email: string | null) => email?.split("@")[1]?.toLowerCase() ?? "";
+  // Sender domains that are authenticated (send-only). A verified sender NOT in
+  // here is a real single-sender inbox we can read.
+  const authedDomainSet = new Set(
+    domains.filter((d) => d.status === "verified").map((d) => `${d.agencyId}|${d.domain.toLowerCase()}`),
+  );
+
+  const options: AgencyOption[] = agencies.map((a) => ({
+    id: a.id,
+    name: a.name,
+    quoteSenderEmail: a.quoteSenderEmail,
+    quoteSenderVerified: a.quoteSenderVerified,
+    quoteSenderIsInbox:
+      !!a.quoteSenderEmail &&
+      a.quoteSenderVerified &&
+      !authedDomainSet.has(`${a.id}|${senderDomainOf(a.quoteSenderEmail)}`),
+    modeProfile: a.modeProfile,
+  }));
+
+  const configured = agencies.filter((a) => a.quoteSenderEmail && a.quoteSenderVerified).length;
+
+  // Prefer the domain matching the sender email; else the most recent.
   const domainByAgency = new Map<string, SerializedDomain>();
   for (const a of agencies) {
     const mine = domains.filter((d) => d.agencyId === a.id);

@@ -146,14 +146,28 @@ export async function resolveAgencySenderForTransaction(
   const actingEmail = acting?.email ?? null;
 
   // ── Outsourced: the client sees the agency (From = agency verified sender for
-  // branding), but WE run the file, so replies must reach the assigned
-  // progressor's own inbox — never the agency's sending address, which we can't
-  // access and (for a domain-authenticated sender like updates@theirdomain) may
-  // not even be a real mailbox. Reply-to is always the progressor.
+  // branding), but WE run the file. Reply-to goes to the agency's own address
+  // ONLY when that address is a real inbox we can read — a verified SINGLE
+  // SENDER (someone confirmed a link sent to it, e.g. ellis@viavia.co.uk). A
+  // DOMAIN-authenticated sender (e.g. updates@theirdomain) is send-only and not
+  // ours, so replies there would vanish — those go to the assigned progressor.
+  // Distinguisher: a domain-auth sender has a *verified* VerifiedDomain for its
+  // domain; a single sender does not.
+  // NOTE: while one progressor handles everything this is ideal; when files are
+  // split across progressors, single-sender replies still land in the shared
+  // agency inbox rather than the assigned person's — revisit then.
   if (tx.serviceType === "outsourced") {
     const prog = progressorFallbackAddress(tx.assignedUser?.email);
     if (agencyAddr && agencyVerified) {
-      return { from: buildFrom(display, agencyAddr), replyTo: prog, canReply: true, ...logo };
+      const senderDomain = agencyAddr.split("@")[1]?.toLowerCase();
+      const domainAuthed = senderDomain
+        ? !!(await prisma.verifiedDomain.findFirst({
+            where: { agencyId: tx.agencyId ?? undefined, domain: senderDomain, status: "verified" },
+            select: { id: true },
+          }))
+        : false;
+      const replyTo = domainAuthed ? prog : agencyAddr;
+      return { from: buildFrom(display, agencyAddr), replyTo, canReply: true, ...logo };
     }
     return { from: buildFrom(display, prog), replyTo: prog, canReply: true, ...logo };
   }
