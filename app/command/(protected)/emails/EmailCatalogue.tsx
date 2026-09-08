@@ -5,10 +5,11 @@ import { renderSpecimenAction, type RenderResult } from "./actions";
 import { DEFAULT_SCENARIO, type Scenario, type EmailCategory } from "@/lib/command/email-catalogue/scenario";
 import type { SpecimenMeta } from "@/lib/command/email-catalogue/registry";
 
-const CATEGORY_ORDER: EmailCategory[] = ["client", "solicitor", "agent", "internal", "chain", "platform"];
+const CATEGORY_ORDER: EmailCategory[] = ["client", "solicitor", "provider", "agent", "internal", "chain", "platform"];
 const CATEGORY_LABEL: Record<EmailCategory, string> = {
   client: "Client (buyer / seller)",
   solicitor: "Solicitor",
+  provider: "Surveyor firms",
   agent: "Agent",
   internal: "Internal",
   chain: "Chain",

@@ -9,7 +9,7 @@
 
 import { FIXTURE_AGENCY, FIXTURE_AGENT, FIXTURE_PROGRESSOR } from "./fixtures";
 
-export type EmailCategory = "client" | "agent" | "internal" | "solicitor" | "chain" | "platform";
+export type EmailCategory = "client" | "agent" | "internal" | "solicitor" | "provider" | "chain" | "platform";
 
 export type FileType = "self_managed" | "outsourced";
 export type Side = "vendor" | "purchaser";
@@ -36,6 +36,7 @@ export type SenderKind =
   | "client_automated" // milestone/status updates
   | "solicitor" // replyable agency sender to a solicitor
   | "agent_internal" // notification to the agency's own staff (from us)
+  | "quote" // survey quote request to a surveyor firm
   | "platform"; // Sales Progressor system email
 
 // How an email signs off.
@@ -61,6 +62,12 @@ export function resolveCatalogueIdentity(kind: SenderKind, fileType: FileType): 
   if (kind === "agent_internal") {
     // Internal notification to the agency's own staff: their name, our address.
     return { from: `${FIXTURE_AGENCY.name} <${SP_ADDRESS}>`, replyTo: SP_ADDRESS };
+  }
+  if (kind === "quote") {
+    // Survey quote request to a firm: self-managed from quotes@, outsourced from
+    // the progressor; Reply-To is the client so the firm replies to them direct.
+    const fromAddr = fileType === "outsourced" ? FIXTURE_PROGRESSOR.email : "quotes@thesalesprogressor.co.uk";
+    return { from: `${FIXTURE_AGENCY.name} <${fromAddr}>`, replyTo: "james.carter@example.com" };
   }
 
   if (fileType === "outsourced") {
