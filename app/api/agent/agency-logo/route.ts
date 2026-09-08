@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { uploadAgencyLogo, deleteAgencyLogo, getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { normaliseLogo, type LogoScale, type LogoAlign } from "@/lib/image/logo";
+import { sanitizeEmailThemeInput } from "@/lib/email/brand-theme";
 
 // Director-only: set / adjust / remove the agency's logo (shown in client emails).
 const MAX_BYTES = 2 * 1024 * 1024; // 2MB
@@ -82,14 +84,17 @@ export async function PATCH(req: NextRequest) {
   if ("error" in auth) return auth.error;
   const { agencyId } = auth;
 
-  let body: { tileColor?: string; scale?: string; align?: string };
+  let body: { tileColor?: string; scale?: string; align?: string; theme?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
 
-  const data: { logoTileColor?: string; logoScale?: string; logoAlign?: string } = {};
+  const data: {
+    logoTileColor?: string; logoScale?: string; logoAlign?: string;
+    emailTheme?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+  } = {};
   if (body.tileColor !== undefined) {
     if (!HEX.test(body.tileColor)) return NextResponse.json({ error: "Invalid colour." }, { status: 400 });
     data.logoTileColor = body.tileColor;
@@ -101,6 +106,10 @@ export async function PATCH(req: NextRequest) {
   if (body.align !== undefined) {
     if (!ALIGNS.has(body.align as LogoAlign)) return NextResponse.json({ error: "Invalid alignment." }, { status: 400 });
     data.logoAlign = body.align;
+  }
+  if (body.theme !== undefined) {
+    const clean = sanitizeEmailThemeInput(body.theme);
+    data.emailTheme = clean ? (clean as Prisma.InputJsonValue) : Prisma.DbNull;
   }
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
 

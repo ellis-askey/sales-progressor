@@ -86,13 +86,15 @@ export default async function AccountProfilePage({
   if (isDirector && session.user.agencyId) {
     const agency = await prisma.agency.findUnique({
       where: { id: session.user.agencyId },
-      select: { logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true },
+      select: { logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true },
     });
     branding = {
       logoUrl: getAgencyLogoUrl(agency?.logoPath),
       tileColor: agency?.logoTileColor ?? null,
       scale: (agency?.logoScale as BrandingInitial["scale"]) ?? null,
       align: (agency?.logoAlign as BrandingInitial["align"]) ?? null,
+      theme: (agency?.emailTheme as BrandingInitial["theme"]) ?? null,
+      appAccent: currentBrand ?? null,
     };
   }
 

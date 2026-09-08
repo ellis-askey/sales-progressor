@@ -75,6 +75,15 @@ model Agency {
   logoScale     String?
   logoAlign     String?
 
+  // Client-email brand theme (the hero band under the logo + the CTA button +
+  // links + footer), set in the branding studio. JSON blob with optional keys:
+  // { headerColor, headerColor2, gradientDir, buttonColor, headerTextColor,
+  //   linkColor, footerBg, footerText, bandShape }. Any missing key falls back to
+  // the Sales Progressor coral defaults in lib/email/brand-theme.ts, so an agency
+  // that hasn't customised looks exactly as before. Applies to CLIENT-facing
+  // emails only; platform emails stay Sales-Progressor-branded.
+  emailTheme Json?
+
   // Signup attribution
   signupSource      String?
   signupMedium      String?
