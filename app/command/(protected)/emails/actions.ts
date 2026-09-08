@@ -13,6 +13,9 @@ export type RenderResult =
       html: string;
       from: string;
       replyTo: string;
+      fromRule: string;
+      fromFallback: string;
+      replyToRule: string;
       signature: string;
       themeLabel: string;
     }
@@ -42,6 +45,9 @@ export async function renderSpecimenAction(id: string, scenario: Scenario): Prom
       html: r.html,
       from: identity.from,
       replyTo: identity.replyTo,
+      fromRule: identity.fromRule,
+      fromFallback: identity.fromFallback,
+      replyToRule: identity.replyToRule,
       signature,
       themeLabel,
     };

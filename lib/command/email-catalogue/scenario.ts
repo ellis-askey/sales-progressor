@@ -9,7 +9,7 @@
 
 import { FIXTURE_AGENCY, FIXTURE_AGENT, FIXTURE_PROGRESSOR } from "./fixtures";
 
-export type EmailCategory = "client" | "agent" | "internal" | "solicitor" | "provider" | "chain" | "platform";
+export type EmailCategory = "client" | "agent" | "internal" | "solicitor" | "provider" | "perfected" | "chain" | "platform";
 
 export type FileType = "self_managed" | "outsourced";
 export type Side = "vendor" | "purchaser";
@@ -52,34 +52,75 @@ function display(person: string): string {
   return `${person} at ${FIXTURE_AGENCY.name}`;
 }
 
-export type EmailIdentity = { from: string; replyTo: string };
+export type EmailIdentity = {
+  // The resolved example (fixture values) for this scenario.
+  from: string;
+  replyTo: string;
+  // The RULE behind the From, in placeholder terms, plus the fallback chain, so
+  // the actual resolution logic can be verified (not just the filled example).
+  fromRule: string;
+  fromFallback: string;
+  replyToRule: string;
+};
 
-// Mirrors resolveAgencySenderForTransaction against the fixtures.
+// Mirrors resolveAgencySenderForTransaction + the founder-approved sender map
+// against the fixtures. Returns the resolved example AND the rule + fallbacks.
 export function resolveCatalogueIdentity(kind: SenderKind, fileType: FileType): EmailIdentity {
   if (kind === "platform") {
-    return { from: `Sales Progressor <${SP_ADDRESS}>`, replyTo: SP_ADDRESS };
+    return {
+      from: `Sales Progressor <${SP_ADDRESS}>`,
+      replyTo: SP_ADDRESS,
+      fromRule: "Always our platform address (system email).",
+      fromFallback: "No fallback.",
+      replyToRule: "Our platform inbox.",
+    };
   }
   if (kind === "agent_internal") {
-    // Internal notification to the agency's own staff: their name, our address.
-    return { from: `${FIXTURE_AGENCY.name} <${SP_ADDRESS}>`, replyTo: SP_ADDRESS };
+    return {
+      from: `${FIXTURE_AGENCY.name} <${SP_ADDRESS}>`,
+      replyTo: SP_ADDRESS,
+      fromRule: "«{agency}» via our platform address — never the agency's outsourced sender.",
+      fromFallback: "No fallback — always our address.",
+      replyToRule: "Our platform inbox.",
+    };
   }
   if (kind === "quote") {
-    // Survey quote request to a firm: self-managed from quotes@, outsourced from
-    // the progressor; Reply-To is the client so the firm replies to them direct.
     const fromAddr = fileType === "outsourced" ? FIXTURE_PROGRESSOR.email : "quotes@thesalesprogressor.co.uk";
-    return { from: `${FIXTURE_AGENCY.name} <${fromAddr}>`, replyTo: "james.carter@example.com" };
+    return {
+      from: `${FIXTURE_AGENCY.name} <${fromAddr}>`,
+      replyTo: "«the client's email»",
+      fromRule:
+        fileType === "outsourced"
+          ? "«{agency}» via the assigned progressor's @thesalesprogressor.co.uk."
+          : "«{agency}» via quotes@thesalesprogressor.co.uk.",
+      fromFallback: "Self-managed → quotes@thesalesprogressor.co.uk; outsourced → the assigned progressor's address.",
+      replyToRule: "The client's own email, so the firm replies to them directly.",
+    };
   }
 
-  if (fileType === "outsourced") {
-    // Agency verified sender (domain-authed) → Reply-To goes to the progressor.
-    const from = `${display(FIXTURE_PROGRESSOR.firstName)} <${FIXTURE_AGENCY.quoteSenderEmail}>`;
-    return { from, replyTo: FIXTURE_PROGRESSOR.email };
-  }
-
-  // Self-managed on an authenticated agency domain.
+  // client_personal | client_automated | solicitor
   const personal = kind === "client_personal" || kind === "solicitor";
-  const fromAddr = personal ? FIXTURE_AGENT.email : `updates@${FIXTURE_AGENCY.domain}`;
-  return { from: `${display(FIXTURE_AGENT.firstName)} <${fromAddr}>`, replyTo: FIXTURE_AGENT.email };
+  if (fileType === "outsourced") {
+    return {
+      from: `${display(FIXTURE_PROGRESSOR.firstName)} <${FIXTURE_AGENCY.quoteSenderEmail}>`,
+      replyTo: FIXTURE_PROGRESSOR.email,
+      fromRule: "Agency's verified sending address, shown as «{progressor first} at {agency}».",
+      fromFallback:
+        "No verified agency sender → the assigned progressor's @thesalesprogressor.co.uk → ellis@thesalesprogressor.co.uk.",
+      replyToRule:
+        "The assigned progressor (when the agency address is domain-authenticated) or the agency's own inbox (when it's a verified single sender).",
+    };
+  }
+  // self-managed on an authenticated agency domain
+  return {
+    from: `${display(FIXTURE_AGENT.firstName)} <${personal ? FIXTURE_AGENT.email : `updates@${FIXTURE_AGENCY.domain}`}>`,
+    replyTo: FIXTURE_AGENT.email,
+    fromRule: personal
+      ? "The agent's own address, shown as «{agent first} at {agency}» (when their domain is authenticated)."
+      : "«{agent first} at {agency}» via updates@{agency domain} (when authenticated).",
+    fromFallback: "Agent's domain not authenticated → updates@thesalesprogressor.co.uk.",
+    replyToRule: "The agent's own login address (noreply@thesalesprogressor.co.uk only if the agent has no email on file).",
+  };
 }
 
 // Human description of the signature that renders for a scenario.

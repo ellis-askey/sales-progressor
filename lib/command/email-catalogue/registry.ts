@@ -533,7 +533,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "portal-message-to-agent",
-    category: "agent",
+    category: "perfected",
     name: "Portal message (to the agent)",
     description: "Notifies the agent when a client sends a message on the file.",
     trigger: "A client posts a message in their portal.",
@@ -610,7 +610,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "morning-brief",
-    category: "agent",
+    category: "perfected",
     name: "Morning brief",
     description: "The daily 7am digest of what needs the agent today.",
     trigger: "The morning-brief cron runs for an agent with active files.",
@@ -655,7 +655,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "weekly-brief",
-    category: "agent",
+    category: "perfected",
     name: "Weekly brief",
     description: "The Friday pipeline summary across the agent's active sales.",
     trigger: "The weekly-brief cron runs for an agent.",
@@ -681,7 +681,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "team-invitation",
-    category: "agent",
+    category: "perfected",
     name: "Team invite",
     description: "Invites a colleague to join the agency's account.",
     trigger: "A director invites a new team member.",
@@ -701,7 +701,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "team-joined",
-    category: "agent",
+    category: "perfected",
     name: "Team joined",
     description: "Tells the inviter a colleague has accepted and joined.",
     trigger: "An invited colleague accepts their team invite.",
@@ -723,7 +723,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   // ── Chain ────────────────────────────────────────────────────────────────────
   {
     id: "chain-invite",
-    category: "chain",
+    category: "perfected",
     name: "Chain invite",
     description: "Invites a neighbouring agent to connect their sale into the chain.",
     trigger: "An agent links a chain position to another agency's sale.",
@@ -743,7 +743,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "chain-overview",
-    category: "chain",
+    category: "perfected",
     name: "Chain overview",
     description: "Shows a connected agent the shape of the chain they're in.",
     trigger: "A chain reaches two or more connected agencies.",
@@ -764,7 +764,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "chain-update",
-    category: "chain",
+    category: "perfected",
     name: "Chain update",
     description: "Tells connected agents a step moved on a linked sale.",
     trigger: "A milestone confirms on a file connected into a chain.",
@@ -786,7 +786,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "chain-still-moving",
-    category: "chain",
+    category: "perfected",
     name: "Chain still moving",
     description: "A gentle nudge to an agent who hasn't connected yet.",
     trigger: "A chain invite stays unanswered while the chain progresses.",
@@ -808,7 +808,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   // ── Platform / system ─────────────────────────────────────────────────────────
   {
     id: "password-reset",
-    category: "platform",
+    category: "perfected",
     name: "Password reset",
     description: "The reset-password link.",
     trigger: "A user requests a password reset.",
@@ -819,7 +819,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "email-verification",
-    category: "platform",
+    category: "perfected",
     name: "Email verification",
     description: "Confirms a new account's email address.",
     trigger: "A user signs up or changes their email.",
@@ -831,7 +831,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "domain-auth",
-    category: "platform",
+    category: "perfected",
     name: "Domain authentication alert",
     description: "Tells an agency their sending domain needs DNS attention.",
     trigger: "An agency's sending domain falls out of authentication.",
@@ -843,7 +843,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "agency-invitation",
-    category: "platform",
+    category: "perfected",
     name: "Agency invitation",
     description: "Invites a new agency to set up their account.",
     trigger: "We invite a prospect agency to join.",
@@ -854,7 +854,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "first-exchange",
-    category: "platform",
+    category: "perfected",
     name: "First exchange celebration",
     description: "Celebrates an agency's first exchange on the platform.",
     trigger: "An agency records their first exchange.",
@@ -875,7 +875,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   ...RETENTION_EMAIL_KEYS.map(
     (key): EmailSpecimen => ({
       id: `retention-${key}`,
-      category: "platform",
+      category: "perfected",
       name: RETENTION_LABELS[key] ?? `Retention · ${key}`,
       description: "A lifecycle nudge in the retention series.",
       trigger: "The retention cron matches this key's inactivity window.",
