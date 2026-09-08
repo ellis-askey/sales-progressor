@@ -2,6 +2,41 @@
 
 ---
 
+## Outsourced reply-to on single-sender agencies — multi-progressor routing (deferred, filed 2026-09-08)
+
+DEFERRED. On an OUTSOURCED file where the agency's verified sender is a
+**single sender** (a confirmed individual address like `ellis@viavia.co.uk`,
+NOT a fully authenticated domain), a client reply routes to that one shared
+agency address rather than the progressor assigned to the file. See
+`lib/email/agency-sender.ts:180-194` (`resolveAgencySenderForTransaction`,
+outsourced branch): when the sender is domain-authenticated, reply-to already
+goes to the assigned progressor (`progressorFallbackAddress(tx.assignedUser?.email)`);
+when it's a single sender we deliberately reply-to the agency address, because
+a domain-generic address there would be send-only. The existing code comment
+at lines 176-179 flags this as "revisit then."
+
+**Why it's fine today:** one progressor (Ellis) handles all outsourced files,
+so every reply lands with him regardless.
+
+**When it bites:** the moment outsourced files are split across two or more
+progressors. Replies on single-sender agencies will all pile into the one
+shared inbox instead of reaching the assigned person.
+
+**Fix shape (when the outsourced team grows):** for single-sender outsourced
+agencies, prefer the assigned progressor's own monitored address as reply-to
+(e.g. their `@thesalesprogressor.co.uk`) rather than the shared agency address,
+OR give each progressor a verified single sender and key reply-to off
+`assignedUserId`. No schema change needed — `assignedUser.email` is already
+loaded in the resolver. (Ellis, 2026-09-08.)
+
+**Related, lower priority:** on files that fall back to a
+`@thesalesprogressor.co.uk` address, the display name still reads
+"{name} at {Agency}" while the visible domain is `thesalesprogressor.co.uk`.
+Harmless for deliverability (we own the domain), cosmetic only. Accepted
+behaviour for now; noted so it isn't rediscovered as a "bug."
+
+---
+
 ## Chains workspace — chain-risk signal on In-chains cards (deferred, filed 2026-09-03)
 
 DEFERRED. Surface a "chain at risk / weakest link / fallen-through" flag on the
