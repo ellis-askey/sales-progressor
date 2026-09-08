@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { renderSpecimenAction, type RenderResult } from "./actions";
-import { DEFAULT_SCENARIO, type Scenario, type EmailCategory } from "@/lib/command/email-catalogue/scenario";
+import { DEFAULT_SCENARIO, type Scenario, type EmailCategory, type IdentityTier } from "@/lib/command/email-catalogue/scenario";
 import type { SpecimenMeta } from "@/lib/command/email-catalogue/registry";
 
 const CATEGORY_ORDER: EmailCategory[] = ["client", "solicitor", "provider", "agent", "internal", "perfected"];
@@ -52,20 +52,25 @@ function Seg<T extends string>({
   );
 }
 
-// One identity row: the resolved example, plus the rule + fallback behind it.
-function IdRow({ label, value, rule, fallback }: { label: string; value: string; rule: string; fallback?: string }) {
+// One rung of the sender ladder: active rung marked, label chip, address, condition.
+function Tier({ t }: { t: IdentityTier }) {
   return (
-    <div className="py-3" style={{ borderTop: `1px solid ${BORDER}` }}>
-      <div className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">{label}</div>
-      <div className="text-[13px] text-neutral-100 font-mono break-words mb-1.5">{value}</div>
-      <div className="text-[12px] text-neutral-400 leading-relaxed">
-        <span className="text-neutral-500">Rule:</span> {rule}
-      </div>
-      {fallback && (
-        <div className="text-[12px] text-neutral-400 leading-relaxed mt-0.5">
-          <span className="text-neutral-500">Fallback:</span> {fallback}
+    <div className="flex gap-2.5 py-2" style={{ opacity: t.active ? 1 : 0.72 }}>
+      <span className="w-3 shrink-0 text-[12px] leading-6 text-center" style={{ color: t.active ? GREEN : "#3a3a3a" }}>
+        {t.active ? "●" : "○"}
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold"
+            style={{ background: t.active ? "rgba(34,197,94,0.14)" : "#1a1a1a", color: t.active ? GREEN : "#737373" }}
+          >
+            {t.label}
+          </span>
+          <span className="text-[13px] font-mono text-neutral-100 break-all">{t.value}</span>
         </div>
-      )}
+        <div className="text-[12px] text-neutral-400 mt-0.5 leading-relaxed">{t.condition}</div>
+      </div>
     </div>
   );
 }
@@ -257,16 +262,25 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
             {!selected?.axes.length && <span className="text-[11px] text-neutral-500">This email doesn&apos;t vary by scenario.</span>}
           </div>
 
-          {/* Identity panel — example + rule + fallback */}
-          <div className="px-4 pb-3 rounded-lg mb-4" style={{ background: "#111", border: `1px solid ${BORDER}` }}>
-            <IdRow
-              label="From"
-              value={result?.ok ? result.from : "…"}
-              rule={result?.ok ? result.fromRule : ""}
-              fallback={result?.ok ? result.fromFallback : undefined}
-            />
-            <IdRow label="Reply-to" value={result?.ok ? result.replyTo : "…"} rule={result?.ok ? result.replyToRule : ""} />
-            <div className="grid grid-cols-2 gap-4 py-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+          {/* Identity panel — ranked sender ladder (best case → fallbacks) */}
+          <div className="p-4 rounded-lg mb-4" style={{ background: "#111", border: `1px solid ${BORDER}` }}>
+            <div className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">From</div>
+            {result?.ok ? (
+              result.fromTiers.map((t, i) => <Tier key={i} t={t} />)
+            ) : (
+              <div className="text-[13px] text-neutral-500 py-2">…</div>
+            )}
+
+            <div className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1 mt-3 pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+              Reply-to
+            </div>
+            {result?.ok ? (
+              result.replyToTiers.map((t, i) => <Tier key={i} t={t} />)
+            ) : (
+              <div className="text-[13px] text-neutral-500 py-2">…</div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 pt-3 mt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-neutral-500">Signature</div>
                 <div className="text-[13px] text-neutral-200">{result?.ok ? result.signature : "…"}</div>

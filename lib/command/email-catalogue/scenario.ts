@@ -52,74 +52,78 @@ function display(person: string): string {
   return `${person} at ${FIXTURE_AGENCY.name}`;
 }
 
-export type EmailIdentity = {
-  // The resolved example (fixture values) for this scenario.
-  from: string;
-  replyTo: string;
-  // The RULE behind the From, in placeholder terms, plus the fallback chain, so
-  // the actual resolution logic can be verified (not just the filled example).
-  fromRule: string;
-  fromFallback: string;
-  replyToRule: string;
+// One rung of the sender ladder: the address it resolves to, the condition under
+// which that rung applies, and whether THIS scenario lands on it (the fixture is
+// configured best-case, so the top rung is active).
+export type IdentityTier = {
+  label: string;
+  value: string;
+  condition: string;
+  active: boolean;
 };
 
-// Mirrors resolveAgencySenderForTransaction + the founder-approved sender map
-// against the fixtures. Returns the resolved example AND the rule + fallbacks.
+export type EmailIdentity = { fromTiers: IdentityTier[]; replyToTiers: IdentityTier[] };
+
+// Mirrors resolveAgencySenderForTransaction against the fixtures, expressed as a
+// ranked ladder: best case at the top, then each fallback with its condition.
 export function resolveCatalogueIdentity(kind: SenderKind, fileType: FileType): EmailIdentity {
+  const brandProg = display(FIXTURE_PROGRESSOR.firstName);
+  const brandAgent = display(FIXTURE_AGENT.firstName);
+  const ELLIS = "ellis@thesalesprogressor.co.uk";
+  const QUOTES = "quotes@thesalesprogressor.co.uk";
+  const NOREPLY = "noreply@thesalesprogressor.co.uk";
+
   if (kind === "platform") {
     return {
-      from: `Sales Progressor <${SP_ADDRESS}>`,
-      replyTo: SP_ADDRESS,
-      fromRule: "Always our platform address (system email).",
-      fromFallback: "No fallback.",
-      replyToRule: "Our platform inbox.",
+      fromTiers: [{ label: "Always", value: `Sales Progressor <${SP_ADDRESS}>`, condition: "system email, sent from our platform address", active: true }],
+      replyToTiers: [{ label: "Always", value: SP_ADDRESS, condition: "our platform inbox", active: true }],
     };
   }
   if (kind === "agent_internal") {
     return {
-      from: `${FIXTURE_AGENCY.name} <${SP_ADDRESS}>`,
-      replyTo: SP_ADDRESS,
-      fromRule: "«{agency}» via our platform address; never the agency's outsourced sender.",
-      fromFallback: "No fallback; always our address.",
-      replyToRule: "Our platform inbox.",
+      fromTiers: [{ label: "Always", value: `${FIXTURE_AGENCY.name} <${SP_ADDRESS}>`, condition: "our platform address, never the agency's outsourced sender", active: true }],
+      replyToTiers: [{ label: "Always", value: SP_ADDRESS, condition: "our platform inbox", active: true }],
     };
   }
   if (kind === "quote") {
-    const fromAddr = fileType === "outsourced" ? FIXTURE_PROGRESSOR.email : "quotes@thesalesprogressor.co.uk";
     return {
-      from: `${FIXTURE_AGENCY.name} <${fromAddr}>`,
-      replyTo: "«the client's email»",
-      fromRule:
-        fileType === "outsourced"
-          ? "«{agency}» via the assigned progressor's @thesalesprogressor.co.uk."
-          : "«{agency}» via quotes@thesalesprogressor.co.uk.",
-      fromFallback: "Self-managed → quotes@thesalesprogressor.co.uk; outsourced → the assigned progressor's address.",
-      replyToRule: "The client's own email, so the firm replies to them directly.",
+      fromTiers: [
+        { label: "Self-managed", value: `${FIXTURE_AGENCY.name} <${QUOTES}>`, condition: "on a self-managed file, sent via our quotes mailbox", active: fileType === "self_managed" },
+        { label: "Outsourced", value: `${FIXTURE_AGENCY.name} <${ELLIS}>`, condition: "on an outsourced file, sent via the assigned progressor's address", active: fileType === "outsourced" },
+      ],
+      replyToTiers: [{ label: "Always", value: "the client's own email", condition: "so the surveyor firm replies to the client directly", active: true }],
     };
   }
 
-  // client_personal | client_automated | solicitor
-  const personal = kind === "client_personal" || kind === "solicitor";
   if (fileType === "outsourced") {
     return {
-      from: `${display(FIXTURE_PROGRESSOR.firstName)} <${FIXTURE_AGENCY.quoteSenderEmail}>`,
-      replyTo: FIXTURE_PROGRESSOR.email,
-      fromRule: "Agency's verified sending address, shown as «{progressor first} at {agency}».",
-      fromFallback:
-        "No verified agency sender → the assigned progressor's @thesalesprogressor.co.uk → ellis@thesalesprogressor.co.uk.",
-      replyToRule:
-        "The assigned progressor (when the agency address is domain-authenticated) or the agency's own inbox (when it's a verified single sender).",
+      fromTiers: [
+        { label: "Best", value: `${brandProg} <${FIXTURE_AGENCY.quoteSenderEmail}>`, condition: "the agency's own verified sending address", active: true },
+        { label: "Next best", value: `${brandProg} <${ELLIS}>`, condition: "if the agency has no verified sender: the assigned progressor's @thesalesprogressor.co.uk", active: false },
+        { label: "Last resort", value: ELLIS, condition: "if that progressor has no @thesalesprogressor.co.uk address: our default ellis@thesalesprogressor.co.uk", active: false },
+      ],
+      replyToTiers: [
+        { label: "Usually", value: ELLIS, condition: "the assigned progressor, when the agency's address is domain-authenticated (our fixture case)", active: true },
+        { label: "Otherwise", value: FIXTURE_AGENCY.quoteSenderEmail, condition: "the agency's own inbox, when the sender is a verified single-sender", active: false },
+      ],
     };
   }
+
   // self-managed on an authenticated agency domain
+  const personal = kind === "client_personal" || kind === "solicitor";
+  const bestAddr = personal ? FIXTURE_AGENT.email : `updates@${FIXTURE_AGENCY.domain}`;
+  const bestCond = personal
+    ? "the agent's own address, when the agency's domain DNS is authenticated in SendGrid"
+    : "the generic mailbox on the agency's own domain, when its DNS is authenticated in SendGrid";
   return {
-    from: `${display(FIXTURE_AGENT.firstName)} <${personal ? FIXTURE_AGENT.email : `updates@${FIXTURE_AGENCY.domain}`}>`,
-    replyTo: FIXTURE_AGENT.email,
-    fromRule: personal
-      ? "The agent's own address, shown as «{agent first} at {agency}» (when their domain is authenticated)."
-      : "«{agent first} at {agency}» via updates@{agency domain} (when authenticated).",
-    fromFallback: "Agent's domain not authenticated → updates@thesalesprogressor.co.uk.",
-    replyToRule: "The agent's own login address (noreply@thesalesprogressor.co.uk only if the agent has no email on file).",
+    fromTiers: [
+      { label: "Best", value: `${brandAgent} <${bestAddr}>`, condition: bestCond, active: true },
+      { label: "Next best", value: `${brandAgent} <${SP_ADDRESS}>`, condition: "if the agency's domain isn't authenticated: our updates@thesalesprogressor.co.uk", active: false },
+    ],
+    replyToTiers: [
+      { label: "Best", value: FIXTURE_AGENT.email, condition: "the agent's own login address", active: true },
+      { label: "Fallback", value: NOREPLY, condition: "only if the agent has no email on file", active: false },
+    ],
   };
 }
 

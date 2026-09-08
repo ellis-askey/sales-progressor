@@ -4,18 +4,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { findSpecimen } from "@/lib/command/email-catalogue/registry";
-import { resolveCatalogueIdentity, describeSignature, type Scenario } from "@/lib/command/email-catalogue/scenario";
+import { resolveCatalogueIdentity, describeSignature, type Scenario, type IdentityTier } from "@/lib/command/email-catalogue/scenario";
 
 export type RenderResult =
   | {
       ok: true;
       subject: string;
       html: string;
-      from: string;
-      replyTo: string;
-      fromRule: string;
-      fromFallback: string;
-      replyToRule: string;
+      fromTiers: IdentityTier[];
+      replyToTiers: IdentityTier[];
       signature: string;
       themeLabel: string;
     }
@@ -43,11 +40,8 @@ export async function renderSpecimenAction(id: string, scenario: Scenario): Prom
       ok: true,
       subject: r.subject,
       html: r.html,
-      from: identity.from,
-      replyTo: identity.replyTo,
-      fromRule: identity.fromRule,
-      fromFallback: identity.fromFallback,
-      replyToRule: identity.replyToRule,
+      fromTiers: identity.fromTiers,
+      replyToTiers: identity.replyToTiers,
       signature,
       themeLabel,
     };
