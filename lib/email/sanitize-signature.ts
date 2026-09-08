@@ -85,16 +85,33 @@ export function injectStyle(attrs: string, decl: string): string {
 // (Outlook) get each client's default ~1em paragraph margin, adding big gaps
 // that aren't in the preview. Bake margin:0 into block elements to match, and
 // keep images responsive on mobile. Intentional <br> line breaks are untouched.
+// Make a pasted image responsive WITHOUT wiping an intended fixed size. Every
+// image is capped to the column (max-width:100%); to preserve aspect ratio we
+// scale only the UNfixed dimension:
+//   - width-sized (or width+height) image → height:auto
+//   - HEIGHT-only image (e.g. a signature signoff at height:57px, no width) →
+//     width:auto — forcing height:auto here removes its only dimension and the
+//     image balloons to its natural size (the "signature goes huge" bug).
+// Idempotent: any responsive declarations we injected before are stripped first,
+// so re-processing (and the backfill of already-stored signatures) converges.
+export function normalizeImageSizing(html: string): string {
+  return html.replace(/<img\b([^>]*)>/gi, (_m, attrs) => {
+    const cleaned = attrs
+      .replace(/(?:max-width\s*:\s*100%|height\s*:\s*auto|width\s*:\s*auto)\s*;?/gi, "")
+      .replace(/;\s*;/g, ";");
+    const hasWidth = /\bwidth\s*=\s*["']?\d/i.test(cleaned) || /(?:^|[;\s"'])width\s*:\s*\d/i.test(cleaned);
+    const hasHeight = /\bheight\s*=\s*["']?\d/i.test(cleaned) || /(?:^|[;\s"'])height\s*:\s*\d/i.test(cleaned);
+    const decl = hasHeight && !hasWidth ? "max-width:100%;width:auto" : "max-width:100%;height:auto";
+    return `<img${injectStyle(cleaned, decl)}>`;
+  });
+}
+
 function normalizeBlockSpacing(html: string): string {
-  let out = html.replace(
+  const out = html.replace(
     /<(p|h[1-4]|ul|ol|blockquote)\b([^>]*)>/gi,
     (_m, tag, attrs) => `<${tag}${injectStyle(attrs, "margin:0")}>`,
   );
-  // max-width:100% keeps images inside the column; height:auto MUST come with it
-  // (overriding any fixed pixel/point height) or the image squashes on mobile —
-  // the width shrinks to fit while the fixed height stays, distorting it.
-  out = out.replace(/<img\b([^>]*)>/gi, (_m, attrs) => `<img${injectStyle(attrs, "max-width:100%;height:auto")}>`);
-  return out;
+  return normalizeImageSizing(out);
 }
 
 export function sanitizeSignatureHtml(dirty: string): string {
