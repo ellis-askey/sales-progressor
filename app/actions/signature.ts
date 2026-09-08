@@ -10,6 +10,7 @@ import type { EmailSignatureMode } from "@prisma/client";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { sanitizeSignatureHtml, MAX_SIGNATURE_HTML } from "@/lib/email/sanitize-signature";
+import { processSignatureImages } from "@/lib/email/signature-images";
 import { resolveEmailSignature } from "@/lib/email/signature";
 
 const AGENCY_SIG_SELECT = {
@@ -28,7 +29,9 @@ async function senderAgency(userId: string) {
   return u?.agency ?? null;
 }
 
-export type SaveSignatureResult = { ok: true } | { ok: false; error: string };
+export type SaveSignatureResult =
+  | { ok: true; html?: string }
+  | { ok: false; error: string };
 
 export async function saveSignatureAction(input: {
   mode: EmailSignatureMode;
@@ -40,16 +43,19 @@ export async function saveSignatureAction(input: {
     emailSignatureMode: EmailSignatureMode;
     emailSignatureHtml?: string | null;
   } = { emailSignatureMode: input.mode };
+  let cleanForClient: string | undefined;
 
   if (input.mode === "CUSTOM") {
-    const clean = sanitizeSignatureHtml(input.customHtml ?? "");
-    if (!clean) {
-      return { ok: false, error: "That signature came through empty after cleaning. Try pasting it again." };
-    }
+    // Host any pasted inline images first, then sanitise (so the hosted https
+    // srcs survive). Empty is allowed here (the editor may briefly be empty
+    // mid-edit); we just don't overwrite with nothing.
+    const withImages = await processSignatureImages(input.customHtml ?? "", session.user.id);
+    const clean = sanitizeSignatureHtml(withImages);
     if (clean.length > MAX_SIGNATURE_HTML) {
       return { ok: false, error: "That signature is too large. Try removing or shrinking any images." };
     }
     data.emailSignatureHtml = clean;
+    cleanForClient = clean;
   }
   // IMAGE mode is set by the image upload/import route (it needs the stored
   // image first); switching to IMAGE with no image simply falls back to BASIC
@@ -58,7 +64,7 @@ export async function saveSignatureAction(input: {
   await prisma.user.update({ where: { id: session.user.id }, data });
   revalidatePath("/agent/account/profile");
   revalidatePath("/agent", "layout");
-  return { ok: true };
+  return { ok: true, html: cleanForClient };
 }
 
 export type SignaturePreview = { html: string; missing: string[]; mode: EmailSignatureMode };
@@ -72,7 +78,9 @@ export async function previewSignatureAction(input: {
   const session = await requireSession();
   const agency = await senderAgency(session.user.id);
   const cleanCustom =
-    input.mode === "CUSTOM" ? sanitizeSignatureHtml(input.customHtml ?? "") : undefined;
+    input.mode === "CUSTOM"
+      ? sanitizeSignatureHtml(await processSignatureImages(input.customHtml ?? "", session.user.id))
+      : undefined;
   const sig = await resolveEmailSignature({
     userId: session.user.id,
     agency,

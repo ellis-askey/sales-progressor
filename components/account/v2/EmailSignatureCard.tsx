@@ -4,9 +4,10 @@
 // signature resolver so the preview matches what recipients receive:
 //   BASIC  — auto-generated from profile details (default)
 //   IMAGE  — an uploaded, or imported-from-URL, signature image
-//   CUSTOM — a pasted signature (sanitised server-side)
+//   CUSTOM — a pasted, editable signature (sanitised + images hosted server-side)
 //
-// See docs/active/email-signature/00-audit-and-plan.md.
+// Everything auto-saves: picking an option saves it; editing the custom
+// signature saves as you go. See docs/active/email-signature/00-audit-and-plan.md.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,6 +31,8 @@ const MODES: Array<{ value: EmailSignatureMode; label: string; blurb: string }> 
   { value: "CUSTOM", label: "Custom", blurb: "Paste the signature you already use." },
 ];
 
+type Status = "idle" | "saving" | "saved";
+
 export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
   const router = useRouter();
   const { toast } = useAgentToast();
@@ -40,17 +43,11 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
   const [previewHtml, setPreviewHtml] = useState<string>(initial.previewHtml);
   const [missing, setMissing] = useState<string[]>(initial.missing);
 
-  const [savedMode, setSavedMode] = useState<EmailSignatureMode>(initial.mode);
-  const [savedCustom, setSavedCustom] = useState<string | null>(initial.customHtml);
-  const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [urlValue, setUrlValue] = useState("");
-
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const dirty =
-    mode !== savedMode || (mode === "CUSTOM" && (customHtml ?? "") !== (savedCustom ?? ""));
 
   const refreshPreview = useCallback(async (m: EmailSignatureMode, html: string | null) => {
     try {
@@ -62,33 +59,14 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     }
   }, []);
 
-  // Debounced preview when the pasted custom html changes.
-  useEffect(() => {
-    if (mode !== "CUSTOM") return;
-    const t = setTimeout(() => refreshPreview("CUSTOM", customHtml), 350);
-    return () => clearTimeout(t);
-  }, [customHtml, mode, refreshPreview]);
-
-  function selectMode(m: EmailSignatureMode) {
+  async function selectMode(m: EmailSignatureMode) {
     setMode(m);
     setError("");
-    setSaving("idle");
-    refreshPreview(m, customHtml);
-  }
-
-  async function onSave() {
-    setSaving("saving");
-    setError("");
-    const res = await saveSignatureAction({ mode, customHtml });
-    if (!res.ok) {
-      setError(res.error);
-      setSaving("idle");
-      return;
-    }
-    setSavedMode(mode);
-    setSavedCustom(customHtml);
-    setSaving("saved");
-    toast.success("Signature saved");
+    setStatus("saving");
+    const res = await saveSignatureAction({ mode: m, customHtml });
+    setStatus(res.ok ? "saved" : "idle");
+    if (!res.ok) setError(res.error);
+    if (m !== "CUSTOM") await refreshPreview(m, customHtml);
     router.refresh();
   }
 
@@ -103,7 +81,6 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
       setImageUrl(data.url);
       setMode("IMAGE");
-      setSavedMode("IMAGE");
       await refreshPreview("IMAGE", customHtml);
       toast.success("Signature image saved");
       router.refresh();
@@ -128,7 +105,6 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
       if (!res.ok) throw new Error(data.error ?? "Import failed");
       setImageUrl(data.url);
       setMode("IMAGE");
-      setSavedMode("IMAGE");
       setUrlValue("");
       await refreshPreview("IMAGE", customHtml);
       toast.success("Signature image saved");
@@ -148,7 +124,6 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
       if (!res.ok) throw new Error("Couldn't remove the image.");
       setImageUrl(null);
       setMode("BASIC");
-      setSavedMode("BASIC");
       await refreshPreview("BASIC", customHtml);
       toast.success("Reverted to your basic signature");
       router.refresh();
@@ -159,43 +134,23 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     }
   }
 
-  function onPaste(e: React.ClipboardEvent<HTMLDivElement>) {
-    e.preventDefault();
-    const html = e.clipboardData.getData("text/html");
-    const text = e.clipboardData.getData("text/plain");
-    const pasted = html || (text ? text.replace(/\n/g, "<br>") : "");
-    if (!pasted) return;
-    setCustomHtml(pasted); // raw; sanitised server-side on preview + save
-  }
-
-  function clearCustom() {
-    setCustomHtml(null);
-    refreshPreview("CUSTOM", null);
-  }
-
-  const saveButton = (
-    <button
-      type="button"
-      onClick={onSave}
-      disabled={!dirty || saving === "saving"}
-      style={{
-        fontSize: 13, fontWeight: 600, padding: "8px 16px", borderRadius: 8, border: "none",
-        cursor: !dirty || saving === "saving" ? "default" : "pointer",
-        background: !dirty ? "rgba(0,0,0,0.08)" : "#111827",
-        color: !dirty ? "#9ca3af" : "#fff",
-      }}
-    >
-      {saving === "saving" ? "Saving…" : saving === "saved" && !dirty ? "Saved" : "Save"}
-    </button>
-  );
+  const statusLabel = status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "";
 
   return (
     <AccountCard
       icon={<PenNib size={18} weight="bold" />}
       title="Email signature"
       subtitle="How your emails sign off. Applies to chases and any email you send from Sales Progressor."
-      headerAction={saveButton}
+      headerAction={
+        statusLabel ? (
+          <span style={{ fontSize: 12, fontWeight: 600, color: status === "saving" ? "#9ca3af" : "#059669" }}>
+            {statusLabel}
+          </span>
+        ) : undefined
+      }
     >
+      <style>{`.sig-editor:empty:before{content:attr(data-placeholder);color:#9ca3af;}`}</style>
+
       {/* Mode selector */}
       <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
         {MODES.map((m) => {
@@ -274,47 +229,105 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
         </div>
       )}
 
-      {mode === "CUSTOM" && (
-        <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
-          <div
-            role="textbox"
-            tabIndex={0}
-            onPaste={onPaste}
-            style={{
-              minHeight: 90, borderRadius: 10, border: "1px dashed rgba(0,0,0,0.25)",
-              padding: 14, fontSize: 13, color: customHtml ? "#111827" : "#9ca3af", outline: "none",
-              background: "#fff",
-            }}
-          >
-            {customHtml ? (
-              <span style={{ color: "#059669", fontWeight: 600 }}>
-                Signature captured. See the preview below, then Save.
-              </span>
-            ) : (
-              "Copy your signature from Outlook, Gmail or your signature tool, then click here and paste (Ctrl/Cmd+V)."
-            )}
-          </div>
-          {customHtml && (
-            <button type="button" onClick={clearCustom} style={{ ...secondaryBtn, width: "fit-content" }}>
-              <Trash size={15} weight="bold" /> Clear
-            </button>
-          )}
-        </div>
-      )}
-
       {error && <p style={{ fontSize: 13, color: "#dc2626", marginBottom: 12 }}>{error}</p>}
 
-      {/* Live preview — exactly what recipients receive */}
-      <div>
-        <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", marginBottom: 8 }}>
-          How your emails will sign off
-        </p>
-        <div
-          style={{ borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "#fff", padding: 16, overflowX: "auto" }}
-          dangerouslySetInnerHTML={{ __html: previewHtml || "<span style='color:#9ca3af;font-size:13px'>Nothing to preview yet.</span>" }}
+      {/* Preview / editor */}
+      {mode === "CUSTOM" ? (
+        <CustomSignatureEditor
+          initialHtml={customHtml ?? ""}
+          onSaved={(html) => {
+            setCustomHtml(html);
+            setStatus("saved");
+          }}
+          onSaving={() => setStatus("saving")}
+          onError={setError}
         />
-      </div>
+      ) : (
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", marginBottom: 8 }}>
+            How your emails will sign off
+          </p>
+          <div
+            style={{ borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "#fff", padding: 16, overflowX: "auto" }}
+            dangerouslySetInnerHTML={{ __html: previewHtml || "<span style='color:#9ca3af;font-size:13px'>Nothing to preview yet.</span>" }}
+          />
+        </div>
+      )}
     </AccountCard>
+  );
+}
+
+// Editable, paste-capable custom signature. Native paste (so Outlook/Gmail images
+// come through), then auto-saves; the save hosts inline images + sanitises and
+// returns clean HTML, which we re-inject after a paste so the editor shows the
+// real result. Plain typing auto-saves without re-injecting (keeps the cursor).
+function CustomSignatureEditor({
+  initialHtml,
+  onSaved,
+  onSaving,
+  onError,
+}: {
+  initialHtml: string;
+  onSaved: (html: string) => void;
+  onSaving: () => void;
+  onError: (msg: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reinjectNext = useRef(false);
+
+  // Seed once.
+  useEffect(() => {
+    if (ref.current && ref.current.innerHTML.trim() === "") {
+      ref.current.innerHTML = initialHtml;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const save = useCallback(async () => {
+    const html = ref.current?.innerHTML ?? "";
+    const reinject = reinjectNext.current;
+    reinjectNext.current = false;
+    onSaving();
+    onError("");
+    const res = await saveSignatureAction({ mode: "CUSTOM", customHtml: html });
+    if (!res.ok) {
+      onError(res.error);
+      return;
+    }
+    if (reinject && ref.current) ref.current.innerHTML = res.html ?? "";
+    onSaved(res.html ?? html);
+  }, [onSaved, onSaving, onError]);
+
+  function schedule(delay: number) {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(save, delay);
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", marginBottom: 8 }}>
+        How your emails will sign off · click to edit
+      </p>
+      <div
+        ref={ref}
+        className="sig-editor"
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder="Paste your signature from Outlook, Gmail or your signature tool (Ctrl/Cmd+V), or type it here."
+        onPaste={() => { reinjectNext.current = true; schedule(900); }}
+        onInput={() => schedule(1000)}
+        onBlur={() => schedule(0)}
+        style={{
+          borderRadius: 10, border: "1px solid rgba(0,0,0,0.14)", background: "#fff",
+          padding: 16, minHeight: 120, outline: "none", fontSize: 14, color: "#111827",
+          overflowX: "auto", lineHeight: 1.5,
+        }}
+      />
+      <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
+        Changes save automatically. Pasted images are hosted for you so they show in inboxes.
+      </p>
+    </div>
   );
 }
 
