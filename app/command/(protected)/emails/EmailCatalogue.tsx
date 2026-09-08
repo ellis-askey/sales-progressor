@@ -52,8 +52,10 @@ function Seg<T extends string>({
   );
 }
 
-// One rung of the sender ladder: active rung marked, label chip, address, condition.
+// One rung of the sender ladder: active rung marked, label chip, the variable
+// (template) form, the filled example beneath it, and the condition.
 function Tier({ t }: { t: IdentityTier }) {
+  const showExample = t.value !== t.template;
   return (
     <div className="flex gap-2.5 py-2" style={{ opacity: t.active ? 1 : 0.72 }}>
       <span className="w-3 shrink-0 text-[12px] leading-6 text-center" style={{ color: t.active ? GREEN : "#3a3a3a" }}>
@@ -67,8 +69,9 @@ function Tier({ t }: { t: IdentityTier }) {
           >
             {t.label}
           </span>
-          <span className="text-[13px] font-mono text-neutral-100 break-all">{t.value}</span>
+          <span className="text-[13px] font-mono text-neutral-100 break-all">{t.template}</span>
         </div>
+        {showExample && <div className="text-[11px] font-mono text-neutral-500 mt-0.5 break-all">e.g. {t.value}</div>}
         <div className="text-[12px] text-neutral-400 mt-0.5 leading-relaxed">{t.condition}</div>
       </div>
     </div>
