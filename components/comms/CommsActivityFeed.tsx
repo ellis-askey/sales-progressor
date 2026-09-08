@@ -283,11 +283,12 @@ function FilterGroup<T extends string>({
 }
 
 export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
-  // openDays: true = open, false = closed.
-  // "Today" and "Yesterday" default open; all other labels default closed.
-  const [openDays, setOpenDays] = useState<Record<string, boolean>>(
-    Object.fromEntries(days.map((d) => [d.label, d.defaultOpen]))
-  );
+  // openDays holds ONLY days the user has explicitly toggled (true = open,
+  // false = closed). Empty until they click, so the fallback below can apply
+  // "auto-open while filtering / defaultOpen otherwise" — and a manual toggle
+  // always wins over it (previously a filter hard-locked every day open, so
+  // clicking a header did nothing).
+  const [openDays, setOpenDays] = useState<Record<string, boolean>>({});
 
   // Filters. Empty set in a group = "all" for that group. Groups combine with AND.
   const [types, setTypes] = useState<Set<UpdateKind>>(new Set());
@@ -329,8 +330,11 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
     .filter((d) => d.txGroups.length > 0);
   const visibleCount = visibleDays.reduce((n, d) => n + d.txGroups.reduce((m, t) => m + t.updates.length, 0), 0);
 
-  function toggle(label: string) {
-    setOpenDays((prev) => ({ ...prev, [label]: !prev[label] }));
+  // Toggle from what's ACTUALLY shown (currentlyOpen), not prev[label] — the
+  // latter is undefined until first click, which would mis-flip a day that's
+  // open via the filter/default fallback.
+  function toggle(label: string, currentlyOpen: boolean) {
+    setOpenDays((prev) => ({ ...prev, [label]: !currentlyOpen }));
   }
 
   return (
@@ -362,9 +366,10 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
 
       {visibleDays.map((d) => {
         const { label, txGroups } = d;
-        // With a filter on, open every day that has matches so results show
-        // without a manual expand.
-        const open = filterActive ? true : (openDays[label] ?? d.defaultOpen);
+        // A manual toggle (openDays[label]) always wins. Otherwise: open every
+        // matching day while a filter is on (so results show without expanding),
+        // else fall back to the day's default (Today/Yesterday open).
+        const open = openDays[label] ?? (filterActive ? true : d.defaultOpen);
         const updateCount = txGroups.reduce((n, t) => n + t.updates.length, 0);
         const countLabel = `${updateCount} update${updateCount !== 1 ? "s" : ""}`;
 
@@ -374,8 +379,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
               className="agent-acc-hdr"
               role="button"
               tabIndex={0}
-              onClick={() => toggle(label)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(label); } }}
+              onClick={() => toggle(label, open)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(label, open); } }}
             >
               <span className="agent-acc-title">{label}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
