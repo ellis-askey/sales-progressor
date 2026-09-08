@@ -2,6 +2,8 @@
 // emails to the buyer's + seller's solicitor individually. Founder-approved
 // copy — see docs/active/exchange-day-SPEC.md. No buttons; bold sign-off name.
 
+import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
+
 export type ExchangeDaySlot = "morning" | "midday" | "afternoon";
 
 export type ExchangeDayEmailVars = {
@@ -89,9 +91,10 @@ function clientSignOff(senderName: string, agencyName: string): string {
   return `<p style="margin:22px 0 0;font-size:15px;line-height:1.5;color:#1a1d29">Kind regards,<br /><strong>${esc(senderName)}</strong><br /><span style="color:#5b6273">${esc(agencyName)}</span></p>`;
 }
 
-// Bulletproof (td bgcolor) button so it renders in Outlook etc.
-function clientButton(url: string, label: string): string {
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 20px"><tr><td align="center" bgcolor="#FF6B4A" style="border-radius:12px"><a href="${esc(url)}" style="display:inline-block;padding:14px 30px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px">${esc(label)}</a></td></tr></table>`;
+// Bulletproof (td bgcolor) button so it renders in Outlook etc. Themed to the
+// agency's brand colour (coral default).
+function clientButton(url: string, label: string, theme: EmailTheme = resolveEmailTheme(null)): string {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 20px"><tr><td align="center" bgcolor="${theme.buttonBg}" style="border-radius:12px"><a href="${esc(url)}" style="display:inline-block;padding:14px 30px;font-size:15px;font-weight:700;color:${theme.buttonText};text-decoration:none;border-radius:12px">${esc(label)}</a></td></tr></table>`;
 }
 
 function clientShell(inner: string): string {
@@ -136,7 +139,7 @@ export function buildExchangeDayClientMorningEmail(
 // 11am — short authority nudge with a button to the portal confirm. Only sent
 // to contacts who haven't confirmed authority yet this activation.
 export function buildExchangeDayClientAuthorityEmail(
-  v: ExchangeDayClientVars & { authorityUrl: string },
+  v: ExchangeDayClientVars & { authorityUrl: string; theme?: EmailTheme },
   content: ExchangeDayAuthorityCopy,
 ): { subject: string; text: string; html: string } {
   const subject = interpClient(content.subject, v);
@@ -146,7 +149,7 @@ export function buildExchangeDayClientAuthorityEmail(
   const html = clientShell(
     intro.map(clientPara).join("\n") +
       "\n" +
-      clientButton(v.authorityUrl, "I've given authority") +
+      clientButton(v.authorityUrl, "I've given authority", v.theme) +
       "\n" +
       clientPara(closing) +
       "\n" +

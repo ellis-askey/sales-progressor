@@ -41,6 +41,7 @@ import { applyChaseToTask } from "@/lib/services/reminders";
 import { getChaseOverridesForBuild, consumeSkip } from "@/lib/services/chase-overrides";
 import { toUKDateStr } from "@/lib/utils";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 
 // Guard for the multi-contact chase-inflation bug (2026-08-17).
@@ -81,6 +82,8 @@ export type AssembleDigestInput = {
   // our rotating default), plus an intro/outro line that bracket the dynamic
   // body. Resolved by the caller; empty everywhere == unchanged default output.
   agencyCopy?: { subject: string; intro: string; outro: string };
+  // Agency brand theme (colours). Optional; omitted = Sales Progressor coral.
+  theme?: EmailTheme;
 };
 
 export type AssembledDigest = {
@@ -179,6 +182,7 @@ function subjectVariantIndex(seed: string, n: number): number {
 
 export function assembleDigestPayload(input: AssembleDigestInput): AssembledDigest {
   const { transaction, contact, milestones, agencyName, recipientSide } = input;
+  const theme = input.theme ?? resolveEmailTheme(null);
   const base = portalBase();
   // "your sale" for vendors, "your purchase" for buyers. Single source of
   // truth used by every body opener so the voice never drifts back to
@@ -382,10 +386,10 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     <tr><td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
-          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>${htmlInner}
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:${theme.buttonBg};text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>${htmlInner}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-            <tr><td style="border-radius:8px;background:#FF6B4A;">
-              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
+            <tr><td style="border-radius:8px;background:${theme.buttonBg};">
+              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
             </td></tr>
           </table>
         </td></tr>
@@ -489,6 +493,11 @@ export async function enqueueClientChaseDigest(input: {
   // Agency personalisation for the chase (subject override + optional intro/outro).
   const agencyCopy = await resolveClientChaseContent(transaction.agencyId);
 
+  // Agency authenticated sender for this file (Reply-To matching, SP fallback).
+  // Resolved here (before the payload) because it also carries the brand theme.
+  const sender = await resolveAgencySenderForTransaction(transaction.id, { persona: "personal" });
+  const theme = sender.theme ?? resolveEmailTheme(null);
+
   const payload = assembleDigestPayload({
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
@@ -499,6 +508,7 @@ export async function enqueueClientChaseDigest(input: {
     // to vendor/purchaser only before reaching this path.
     recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
     agencyCopy,
+    theme,
   });
 
   // Apply an agent edit (D2): swap subject/body and rebuild the branded chase
@@ -513,15 +523,13 @@ export async function enqueueClientChaseDigest(input: {
       respondUrl: payload.respondUrl,
       pauseUrl: buildContactPauseUrl(contact.id),
       unsubscribeUrl: payload.unsubscribeUrl,
+      theme,
     });
   }
 
   const today = new Date();
   const yyyymmdd = today.toISOString().slice(0, 10); // YYYY-MM-DD
   const sourceId = `${transactionId}:${contactId}:${yyyymmdd}`;
-
-  // Agency authenticated sender for this file (Reply-To matching, SP fallback).
-  const sender = await resolveAgencySenderForTransaction(transaction.id, { persona: "personal" });
 
   // Enqueue. A5's enqueueEmail handles the dedup (P2002 swallowed). If a
   // digest already exists for this (transaction, contact, day) the second
@@ -702,8 +710,10 @@ export function renderEditedChaseEmailHtml(args: {
   respondUrl: string;
   pauseUrl: string;
   unsubscribeUrl: string;
+  theme?: EmailTheme;
 }): string {
   const { agencyName, subject, text, respondUrl, pauseUrl, unsubscribeUrl } = args;
+  const theme = args.theme ?? resolveEmailTheme(null);
   const isLinkLine = (line: string) =>
     (respondUrl && line.includes(respondUrl)) ||
     (pauseUrl && line.includes(pauseUrl)) ||
@@ -730,11 +740,11 @@ export function renderEditedChaseEmailHtml(args: {
     <tr><td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
-          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:${theme.buttonBg};text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>
           ${paragraphs}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-            <tr><td style="border-radius:8px;background:#FF6B4A;">
-              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
+            <tr><td style="border-radius:8px;background:${theme.buttonBg};">
+              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
             </td></tr>
           </table>
         </td></tr>

@@ -23,6 +23,8 @@ import { prisma } from "@/lib/prisma";
 import { renderEditedEmailHtml } from "@/lib/email/milestone-digest";
 import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
 
 type ActionResult<T = void> =
   | ({ ok: true } & (T extends void ? object : { data: T }))
@@ -671,6 +673,12 @@ export async function updateEmailPayload(
   // pauseUrl / unsubscribeUrl) so the branded chase shell rebuilds around
   // the edited body; older pending rows keep their original html.
   const currentPayload = (email.payload ?? {}) as Record<string, unknown>;
+  // Brand theme (agency colours; coral default) so the rebuilt shell matches
+  // what actually sends — resolved from the file it belongs to.
+  const rebuildTxId = email.recipientContact?.propertyTransactionId ?? null;
+  const rebuildTheme = rebuildTxId
+    ? (await resolveAgencySenderForTransaction(rebuildTxId)).theme ?? resolveEmailTheme(null)
+    : resolveEmailTheme(null);
   let rebuiltHtml: string | null = null;
   if (email.emailType === "MILESTONE_CONFIRMATION") {
     const address = typeof currentPayload.address === "string" ? currentPayload.address : null;
@@ -682,6 +690,7 @@ export async function updateEmailPayload(
         text: patch.text.trim(),
         portalUrl,
         logoBand: await agencyLogoBand(tx.agencyId),
+        theme: rebuildTheme,
       });
     }
   } else if (email.emailType === "CLIENT_CHASE") {
@@ -697,6 +706,7 @@ export async function updateEmailPayload(
         respondUrl,
         pauseUrl,
         unsubscribeUrl,
+        theme: rebuildTheme,
       });
     }
   }

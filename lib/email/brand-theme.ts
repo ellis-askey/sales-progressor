@@ -116,7 +116,10 @@ export function resolveEmailTheme(input: EmailThemeInput | null | undefined): Em
   return { headerBg, headerText, buttonBg, buttonText, linkColor, footerBg, footerText, bandRadius };
 }
 
-function tone(headerText: string, white: string, dark: string): string {
+// Pick a header-relative colour: the white-on-dark value when the header text is
+// white, the black-on-light value otherwise. Exported so the hand-rolled milestone
+// renderers can tone their own eyebrow/subline the same way as emailHeroBand.
+export function tone(headerText: string, white: string, dark: string): string {
   return headerText === "#ffffff" ? white : dark;
 }
 

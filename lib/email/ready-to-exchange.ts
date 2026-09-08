@@ -17,6 +17,7 @@ import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
 
 const GATE_CODES = ["VM18", "PM25"];
 
@@ -25,8 +26,8 @@ function escapeHtml(s: string): string {
 }
 
 function buildReadyToExchangeEmail({
-  first, address, agencyName,
-}: { first: string; address: string; agencyName: string }): { subject: string; text: string; html: string } {
+  first, address, agencyName, theme,
+}: { first: string; address: string; agencyName: string; theme: EmailTheme }): { subject: string; text: string; html: string } {
   const short = address.split(",")[0];
   const subject = `Ready to exchange on ${short}`;
 
@@ -38,7 +39,7 @@ function buildReadyToExchangeEmail({
 
   const html =
 `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("Both sides are ready. Here's what happens next.")}
-<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase">${escapeHtml(agencyName)}</p>
+<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;color:${theme.buttonBg};text-transform:uppercase">${escapeHtml(agencyName)}</p>
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Ready to exchange</h1>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Everything's ready for exchange on <strong>${escapeHtml(address)}</strong>. This is the last big step before exchange itself, and both sides are now in place.</p>
 <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">If an exchange date hasn't already been agreed, your solicitor will be in touch to arrange it.</p>
@@ -92,12 +93,13 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
   // Send from the file's own agency authenticated address (branded with the
   // progressor/agent), with the file-type-aware fallback when the agency has
   // no address of its own.
-  const { from, replyTo } = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+  const { from, replyTo, theme } = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+  const emailTheme = theme ?? resolveEmailTheme(null);
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;
     const first = extractFirstName(c.name);
-    const email = buildReadyToExchangeEmail({ first, address: tx.propertyAddress, agencyName });
+    const email = buildReadyToExchangeEmail({ first, address: tx.propertyAddress, agencyName, theme: emailTheme });
     await enqueueEmail({
       emailType: "READY_TO_EXCHANGE",
       sourceId: transactionId,

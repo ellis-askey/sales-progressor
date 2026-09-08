@@ -8,6 +8,7 @@ import type { CommType, CommMethod } from "@prisma/client";
 import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
@@ -1239,6 +1240,7 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
   const address   = tx.propertyAddress;
   const agency    = tx.agency.name;
   const sender    = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+  const theme     = sender.theme ?? resolveEmailTheme(null);
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
@@ -1263,12 +1265,12 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
         agency,
       ].join("\n"),
       html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FF6B4A">${agency}</p>
+<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${theme.buttonBg}">${agency}</p>
 <p style="margin:0 0 20px;font-size:14px;color:#4a5162">${address}</p>
 <p style="margin:0 0 16px;font-size:15px">${greeting}</p>
 <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#8b91a3;text-transform:uppercase;letter-spacing:0.06em">New update</p>
 <div style="margin:0 0 24px;padding:16px 20px;background:#F8F9FB;border-radius:12px;font-size:14px;line-height:1.6;color:#1a1d29;white-space:pre-wrap">${content}</div>
-<p><a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View in portal</a></p>
+<p><a href="${portalUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View in portal</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b91a3">You're receiving this because you have a ${saleWord} in progress with ${agency}.</p>
 </body></html>`,
     }).catch(() => {});

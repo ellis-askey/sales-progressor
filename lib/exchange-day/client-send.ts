@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import {
   buildExchangeDayClientMorningEmail,
@@ -102,7 +103,8 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
     const due = computeDueClientSlots(tx, now);
     if (due.length === 0) continue;
 
-    const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined }));
+    const { from, replyTo, theme } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined, theme: undefined }));
+    const emailTheme = theme ?? resolveEmailTheme(null);
     // Effective client copy — the agency's own version, else our default.
     const edContent = await resolveExchangeDayClientContent(tx.agencyId);
     const senderName = tx.assignedUser?.name ?? tx.agentUser?.name ?? "Sales Progressor";
@@ -130,7 +132,7 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
           // Skip anyone who has already given authority this activation.
           const given = !!c.exchangeAuthorityGivenAt && !!tx.exchangeDayStartedAt && c.exchangeAuthorityGivenAt >= tx.exchangeDayStartedAt;
           if (given || !c.portalToken) continue;
-          built = buildExchangeDayClientAuthorityEmail({ ...vars, authorityUrl: `${PORTAL_BASE}/portal/${c.portalToken}?authority=1` }, edContent.authority);
+          built = buildExchangeDayClientAuthorityEmail({ ...vars, authorityUrl: `${PORTAL_BASE}/portal/${c.portalToken}?authority=1`, theme: emailTheme }, edContent.authority);
         } else {
           built = buildExchangeDayClientMorningEmail(vars, edContent.morning);
         }

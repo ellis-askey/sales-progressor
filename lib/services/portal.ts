@@ -7,6 +7,7 @@ import { sendEmail } from "@/lib/email";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
@@ -1332,7 +1333,7 @@ export async function logPortalMilestoneConfirm(
   const progressorEmail = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
   // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
@@ -1462,7 +1463,7 @@ export async function logPortalMilestoneConfirm(
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
-      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       sendEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }).catch(() => {});
@@ -1512,6 +1513,7 @@ export async function logPortalMilestoneConfirm(
           stepLabel: portalLabel,
           portalUrl,
           logoBand: agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }),
+          theme: agencyTheme,
         }),
       }).catch(() => {});
       logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText).catch(() => {});
@@ -1673,7 +1675,7 @@ export async function sendAdminMilestoneNotificationToPortal(
 
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17).
-  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme } = await resolveAgencySenderForTransaction(transactionId);
   const logoBand = agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign });
 
   // Use per-recipient rich email when available
@@ -1736,7 +1738,7 @@ export async function sendAdminMilestoneNotificationToPortal(
       stepLabel = portalLabel;
     }
 
-    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand });
+    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand, theme: agencyTheme });
     const lines = [`Hi ${firstName},`, "", intro.replace(/<[^>]+>/g, ""), ""];
     if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? `: ${stepDate}` : ""}`, "");
     lines.push(`View your portal: ${portalUrl}`);
@@ -1758,9 +1760,9 @@ export async function sendAdminMilestoneNotificationToPortal(
   }
 }
 
-function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "" }: {
+function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
   firstName: string; address: string; headline: string; intro: string;
-  stepLabel: string | null; stepDate: string | null; portalUrl: string; logoBand?: string;
+  stepLabel: string | null; stepDate: string | null; portalUrl: string; logoBand?: string; theme?: EmailTheme;
 }) {
   const stepBlock = stepLabel ? `
   <div style="margin:0 0 24px;padding:14px 18px;background:#F0FDF4;border-left:3px solid #10B981;border-radius:8px">
@@ -1770,29 +1772,29 @@ function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabe
   </div>` : "";
 
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${headline}</h1>
+<div style="background:${theme.headerBg};padding:32px 32px 28px;border-radius:${theme.bandRadius}">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${tone(theme.headerText, "rgba(255,255,255,0.75)", "rgba(0,0,0,0.55)")}">${address}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:${theme.headerText};line-height:1.3">${headline}</h1>
 </div>
 <div style="padding:28px 32px">
   <p style="margin:0 0 20px;font-size:15px">Hi ${firstName},</p>
   <p style="margin:0 0 ${stepLabel ? "20px" : "28px"};font-size:14px;line-height:1.6;color:#4a5162">${intro}</p>
   ${stepBlock}
   <p style="margin:0 0 24px">
-    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a>
+    <a href="${portalUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a>
   </p>
   <p style="margin:0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
 </div>
 </body></html>`;
 }
 
-function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "" }: {
-  firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string; logoBand?: string;
+function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
+  firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string; logoBand?: string; theme?: EmailTheme;
 }) {
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Step confirmed</h1>
+<div style="background:${theme.headerBg};padding:32px 32px 28px;border-radius:${theme.bandRadius}">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${tone(theme.headerText, "rgba(255,255,255,0.75)", "rgba(0,0,0,0.55)")}">${address}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:${theme.headerText};line-height:1.3">Step confirmed</h1>
 </div>
 <div style="padding:28px 32px">
   <p style="margin:0 0 20px;font-size:15px">Hi ${firstName},</p>
@@ -1803,7 +1805,7 @@ function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, port
   </div>
   <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#4a5162">Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.</p>
   <p style="margin:0 0 24px">
-    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a>
+    <a href="${portalUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a>
   </p>
   <p style="margin:0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
 </div>
@@ -1863,6 +1865,7 @@ function richMilestoneEmailHtml({
   whatsappNumber,
   extraVars,
   logo,
+  theme = resolveEmailTheme(null),
 }: {
   greeting: string;
   copy: RecipientEmailCopy;
@@ -1876,9 +1879,12 @@ function richMilestoneEmailHtml({
   whatsappNumber?: string;
   extraVars?: Record<string, string>;
   logo?: { logoUrl?: string | null; tileColor?: string | null; scale?: LogoScale | null; align?: LogoAlign | null };
+  theme?: EmailTheme;
 }): string {
   const vars = { address, ...extraVars };
-  const ctaBg   = isProgressor ? "#3B82F6" : "#FF6B4A";
+  // Client sends use the agency's brand button; the internal progressor copy keeps its blue.
+  const ctaBg    = isProgressor ? "#3B82F6" : theme.buttonBg;
+  const ctaText  = isProgressor ? "#fff" : theme.buttonText;
   const ctaLabel = copy.action ?? "View portal";
 
   // Agency logo band (Option B: colour-matched full-width band above the coral
@@ -1904,16 +1910,16 @@ function richMilestoneEmailHtml({
         : `<p style="margin:0;font-size:13px;color:#4a5162">Questions? Your progressor is <strong>${progressorName}</strong>.</p>`;
 
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader("A step just moved forward. Here's where things are up to.")}${logoBand}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${interpolate(copy.heroLabel, vars)}</h1>
+<div style="background:${theme.headerBg};padding:32px 32px 28px;border-radius:${theme.bandRadius}">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${tone(theme.headerText, "rgba(255,255,255,0.75)", "rgba(0,0,0,0.55)")}">${address}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:${theme.headerText};line-height:1.3">${interpolate(copy.heroLabel, vars)}</h1>
 </div>
 <div style="padding:28px 32px">
   <p style="margin:0 0 16px;font-size:15px">${greeting}</p>
   <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a1d29;line-height:1.5">${interpolate(copy.opening, vars)}</p>
   <p style="margin:0 0 ${copy.whatNext ? "20px" : "28px"};font-size:14px;line-height:1.7;color:#4a5162">${interpolate(copy.whatHappened, vars)}</p>
   ${whatNextBlock}
-  ${copy.action ? `<p style="margin:0 0 28px"><a href="${ctaUrl}" style="display:inline-block;background:${ctaBg};color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">${ctaLabel}</a></p>` : ""}
+  ${copy.action ? `<p style="margin:0 0 28px"><a href="${ctaUrl}" style="display:inline-block;background:${ctaBg};color:${ctaText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">${ctaLabel}</a></p>` : ""}
   ${signatureBlock}
 </div>
 </body></html>`;
@@ -2116,7 +2122,7 @@ async function sendRichMilestoneEmails(
   const progressorEmail  = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)
@@ -2212,7 +2218,7 @@ async function sendRichMilestoneEmails(
     const vars     = { address, eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 

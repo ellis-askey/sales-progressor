@@ -3,6 +3,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildGreeting } from "@/lib/portal-copy";
 import { buildClientNarrative } from "@/lib/services/client-narrative";
 import { resolveWeeklyUpdateContent } from "@/lib/agency-email/templates";
@@ -84,7 +85,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ? `\n\nYou can view your progress at any time here:\n${base}/portal/${contact.portalToken}`
         : "";
 
-      const { from: fromAddr, replyTo, canReply } = await resolveAgencySenderForTransaction(tx.id);
+      const { from: fromAddr, replyTo, canReply, theme } = await resolveAgencySenderForTransaction(tx.id);
+      const emailTheme = theme ?? resolveEmailTheme(null);
 
       // Piece 1: a real per-file narrative drafted from the file's actual state.
       // Falls back to the safe generic reassurance if the draft can't be built.
@@ -115,7 +117,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       const text = [buildGreeting(contact.name), ``, ...(introText ? [introText, ``] : []), ...bodyParas.flatMap((p) => [p, ``]), closing + portalLink].join("\n");
 
       const portalSection = contact.portalToken
-        ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
+        ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:${emailTheme.buttonBg};color:${emailTheme.buttonText};padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
         : "";
 
       const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A quick update on where your move is up to.")}

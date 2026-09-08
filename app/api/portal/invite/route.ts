@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import { resolveEmailTheme, emailHeroBand, emailButton, type EmailThemeInput } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { buildGreeting } from "@/lib/portal-copy";
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
           agencyId: true,
           agentUser: { select: { name: true } },
           assignedUser: { select: { name: true } },
-          agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
+          agency: { select: { name: true, emailTheme: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
         },
       },
     },
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
   const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(contact.transaction.id, { persona: "personal" });
 
   const greeting = buildGreeting(contact.name);
+  const theme = resolveEmailTheme((contact.transaction.agency.emailTheme ?? null) as EmailThemeInput | null);
 
   await sendEmail({
     to: contact.email,
@@ -74,21 +76,13 @@ export async function POST(req: NextRequest) {
       agencyName,
     ].join("\n"),
     html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader(`Follow every step of your ${saleWord} in one place, whenever you want to check.`)}${agencyLogoHeaderHtml({ logoUrl: getAgencyLogoUrl(contact.transaction.agency.logoPath), tileColor: contact.transaction.agency.logoTileColor, scale: contact.transaction.agency.logoScale as LogoScale | null, align: contact.transaction.agency.logoAlign as LogoAlign | null })}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:40px 32px 32px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${agencyName}</p>
-  <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#fff;line-height:1.2">${address}</h1>
-  <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85)">Your ${saleWord} portal is ready</p>
-</div>
+${emailHeroBand({ theme, eyebrow: agencyName, headline: address, subline: `Your ${saleWord} portal is ready` })}
 <div style="padding:32px">
   <p style="margin:0 0 16px;font-size:15px">${greeting}</p>
   <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#4a5162">
     You can now track the progress of your ${saleWord} online. Check in any time to see what's been completed, what's coming next, and get updates from your team.
   </p>
-  <p style="margin:0 0 32px">
-    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;box-shadow:0 4px 16px rgba(255,107,74,0.35)">
-      Open my portal
-    </a>
-  </p>
+  <p style="margin:0 0 32px">${emailButton({ theme, href: portalUrl, label: "Open my portal" })}</p>
   <div style="padding:14px 16px;background:#F8F9FB;border-radius:10px;margin-bottom:24px">
     <p style="margin:0;font-size:12px;color:#8b91a3">
       This link is personal to you — please don't share it with others. You can bookmark it and return any time.

@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { resolveEmailTheme, type EmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
@@ -56,6 +57,9 @@ export type ResolvedSender = {
   tileColor?: string | null;
   scale?: LogoScale | null;
   align?: LogoAlign | null;
+  // Resolved client-email brand theme (agency colours; coral default). Only
+  // populated by the per-transaction resolver.
+  theme?: EmailTheme;
 };
 
 /**
@@ -138,6 +142,7 @@ export async function resolveAgencySenderForTransaction(
         select: {
           name: true, quoteSenderEmail: true, quoteSenderVerified: true,
           logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true,
+          emailTheme: true,
         },
       },
       agentUser: { select: { name: true, email: true } },
@@ -155,11 +160,13 @@ export async function resolveAgencySenderForTransaction(
   const firstName = brandPerson?.name?.trim() ? extractFirstName(brandPerson.name) : undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
+  const theme = resolveEmailTheme((tx.agency?.emailTheme ?? null) as EmailThemeInput | null);
   const logo = {
     logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
     tileColor: tx.agency?.logoTileColor ?? null,
     scale: (tx.agency?.logoScale as LogoScale | null) ?? null,
     align: (tx.agency?.logoAlign as LogoAlign | null) ?? null,
+    theme,
   };
 
   const agencyAddr = tx.agency?.quoteSenderEmail ?? null;

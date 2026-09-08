@@ -26,6 +26,7 @@
 
 import { JOURNEY_ORDER, BILATERAL_PAIR_OF } from "@/lib/email-skeletons/journey-order";
 import { preheader } from "@/lib/email/preheader";
+import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-theme";
 
 // ─── Digest payload shape ────────────────────────────────────────────────
 //
@@ -301,6 +302,7 @@ function escapeHtml(s: string): string {
 export function assembleMilestoneDigest(
   rows: MilestoneDigestPayload[],
   logoBand = "",
+  theme: EmailTheme = resolveEmailTheme(null),
 ): AssembledDigest {
   if (rows.length < 2) {
     throw new Error(`[milestone-digest] assembleMilestoneDigest called with ${rows.length} rows; N>=2 required (N=1 sends as-is)`);
@@ -385,14 +387,14 @@ export function assembleMilestoneDigest(
   renderSection(counterpart);
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader("A few steps just moved forward. Here's where things are up to.")}${logoBand}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${escapeHtml(address)}</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Updates</h1>
+<div style="background:${theme.headerBg};padding:32px 32px 28px;border-radius:${theme.bandRadius}">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${tone(theme.headerText, "rgba(255,255,255,0.75)", "rgba(0,0,0,0.55)")}">${escapeHtml(address)}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:${theme.headerText};line-height:1.3">Updates</h1>
 </div>
 <div style="padding:28px 32px">
   <p style="margin:0 0 16px;font-size:15px">Hi ${escapeHtml(firstName)},</p>
   ${sectionHtmls.join("\n  ")}
-  <p style="margin:0 0 28px"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
+  <p style="margin:0 0 28px"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
 </div>
 </body></html>`;
 
@@ -420,8 +422,9 @@ export function renderEditedEmailHtml(args: {
   text: string;      // edited plain-text body, greeting included
   portalUrl: string;
   logoBand?: string; // agency logo band above the coral header (Option B)
+  theme?: EmailTheme; // agency brand theme (coral default)
 }): string {
-  const { address, heading, text, portalUrl, logoBand = "" } = args;
+  const { address, heading, text, portalUrl, logoBand = "", theme = resolveEmailTheme(null) } = args;
   const paragraphs = text
     .split(/\r?\n\r?\n/)
     .map((block) =>
@@ -436,13 +439,13 @@ export function renderEditedEmailHtml(args: {
     .join("\n  ");
 
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
-<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${escapeHtml(address)}</p>
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${escapeHtml(heading)}</h1>
+<div style="background:${theme.headerBg};padding:32px 32px 28px;border-radius:${theme.bandRadius}">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${tone(theme.headerText, "rgba(255,255,255,0.75)", "rgba(0,0,0,0.55)")}">${escapeHtml(address)}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:${theme.headerText};line-height:1.3">${escapeHtml(heading)}</h1>
 </div>
 <div style="padding:28px 32px">
   ${paragraphs}
-  <p style="margin:0 0 28px"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
+  <p style="margin:0 0 28px"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
 </div>
 </body></html>`;
 }
