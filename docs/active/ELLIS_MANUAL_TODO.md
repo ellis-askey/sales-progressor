@@ -13,7 +13,7 @@ Last updated: 2026-09-07
 The new "Signature image" option (Profile → Email signature) uploads/imports the agent's signature image to a public Supabase Storage bucket named **`signatures`**.
 
 - [x] **Staging** — bucket created programmatically (public) on 2026-09-07.
-- [ ] **Production** — create a **public** bucket named `signatures` in the prod Supabase project (`gmkfustgwipgihpmpjpr`) → Storage → New bucket → name `signatures`, Public ON. Until this exists, uploading/importing a signature image on prod will error (Basic/Custom signatures are unaffected). Same pattern as the existing `avatars` / `agency-logos` public buckets.
+- [x] ~~**Production** — create a public `signatures` bucket.~~ DONE 2026-09-08 — created programmatically via the prod service key (public=true), verified present alongside `avatars` / `agency-logos`.
 
 ---
 
