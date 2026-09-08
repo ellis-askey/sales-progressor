@@ -17,12 +17,14 @@
 export type FileType = "outsourced" | "self_managed";
 export type SenderPersona = "personal" | "automated";
 
-// agencyPerson  — per-file agency mail, branded "{person} at {Agency}", file-type-aware fallback
-// agencyPlain   — agency-level mail (digests, invites, chain), plain "{Agency}", updates@ fallback
-// agentOwn      — the acting sender's own verified address, else agency, else file-type fallback
-// sp            — Sales Progressor platform/chain email (intended)
-// spGap         — client mail that STILL sends from SP (a gap, not yet routed to the agency)
-export type SenderKind = "agencyPerson" | "agencyPlain" | "agentOwn" | "sp" | "spGap";
+// agencyPerson   — per-file agency mail, branded "{person} at {Agency}", file-type-aware fallback
+// agencyPlain    — agency-level mail branded "{Agency}" from the agency's verified sender (chain invite)
+// agencyInternal — the agency's OWN-staff notifications (digests, team invites, chain-bounce): the
+//                  agency name in the display, but sent from our updates@ address (never their sender)
+// agentOwn       — the acting sender's own verified address, else agency, else file-type fallback
+// sp             — Sales Progressor platform/internal email (also the internal agent notifications)
+// spGap          — client mail that STILL sends from SP (a gap, not yet routed to the agency)
+export type SenderKind = "agencyPerson" | "agencyPlain" | "agencyInternal" | "agentOwn" | "sp" | "spGap";
 
 export type EmailSender = {
   id: string;
@@ -51,6 +53,7 @@ export const EMAIL_SENDERS: EmailSender[] = [
   { id: "sol-confirm", group: "Solicitors", name: "Solicitor confirmation / chase digest", kind: "agencyPerson", persona: "personal" },
   { id: "enq-chase", group: "Solicitors", name: "Enquiry chase (reply-loop)", kind: "agencyPerson", persona: "personal" },
   { id: "enq-raise", group: "Solicitors", name: "Enquiry raise-chase", kind: "agencyPerson", persona: "personal" },
+  { id: "exch-sol", group: "Solicitors", name: "Exchange-day updates to solicitors", kind: "agencyPerson", note: "3 daily slots; SP fallback if resolver errors" },
   { id: "manual", group: "Solicitors", name: "Manual “email from a file”", kind: "agentOwn", note: "sender-chosen recipient" },
 
   // Buyers & sellers
@@ -65,7 +68,8 @@ export const EMAIL_SENDERS: EmailSender[] = [
   { id: "chase", group: "Buyers & sellers (clients)", name: "Client chase digest", kind: "agencyPerson", persona: "personal" },
   { id: "invite", group: "Buyers & sellers (clients)", name: "Portal invite / portal link", kind: "agencyPerson", persona: "personal" },
   { id: "outsource-intro", group: "Buyers & sellers (clients)", name: "Outsource-intro to buyer + seller", kind: "agentOwn", note: "outsourced files only", scope: "outsourced" },
-  { id: "gap-completion", group: "Buyers & sellers (clients)", name: "Completion pack (“what happens next”)", kind: "spGap" },
+  { id: "exch-client", group: "Buyers & sellers (clients)", name: "Exchange-day updates to clients", kind: "agencyPerson", note: "SP fallback if resolver errors" },
+  { id: "gap-completion", group: "Buyers & sellers (clients)", name: "Completion pack (“what happens next”)", kind: "agencyPerson" },
   { id: "gap-reply", group: "Buyers & sellers (clients)", name: "Progressor's reply to a client message", kind: "agencyPerson", persona: "personal" },
   { id: "gap-visible", group: "Buyers & sellers (clients)", name: "“Visible update” to clients (comms tool)", kind: "agencyPerson", persona: "personal" },
   { id: "gap-quotelink", group: "Buyers & sellers (clients)", name: "Survey-quote link to a buyer", kind: "agencyPerson", persona: "personal", reply: "the agent's email" },
@@ -75,15 +79,15 @@ export const EMAIL_SENDERS: EmailSender[] = [
   { id: "quote-heads", group: "Surveyors & providers", name: "Internal “quote requested” heads-up", kind: "sp", reply: "none", note: "to your ops inbox (ellis@…)" },
 
   // Agents & agency users
-  { id: "ag-confirm-prog", group: "Agents & agency users", name: "“Client confirmed milestone” → progressor", kind: "agencyPerson" },
-  { id: "ag-confirm-agent", group: "Agents & agency users", name: "“Client confirmed milestone” → agent", kind: "agencyPerson" },
-  { id: "ag-note", group: "Agents & agency users", name: "Agent operational milestone note", kind: "agencyPerson" },
-  { id: "prog-note", group: "Agents & agency users", name: "Progressor milestone note", kind: "agencyPerson" },
+  { id: "ag-confirm-prog", group: "Agents & agency users", name: "“Client confirmed milestone” → progressor", kind: "sp", reply: "none", note: "internal notification" },
+  { id: "ag-confirm-agent", group: "Agents & agency users", name: "“Client confirmed milestone” → agent", kind: "sp", reply: "none", note: "internal notification" },
+  { id: "ag-note", group: "Agents & agency users", name: "Agent operational milestone note", kind: "sp", reply: "none", note: "internal notification" },
+  { id: "prog-note", group: "Agents & agency users", name: "Progressor milestone note", kind: "sp", reply: "none", note: "internal notification" },
   { id: "gap-portalmsg", group: "Agents & agency users", name: "Portal message → agent (client wrote in)", kind: "spGap" },
-  { id: "digest-morning", group: "Agents & agency users", name: "Morning digest", kind: "agencyPlain", note: "agency-level" },
-  { id: "digest-weekly", group: "Agents & agency users", name: "Weekly brief", kind: "agencyPlain", note: "agency-level" },
-  { id: "team", group: "Agents & agency users", name: "Team invites + accepted (director & negotiator)", kind: "agencyPlain", note: "agency-level" },
-  { id: "chain-bounce", group: "Agents & agency users", name: "Chain-invite bounced notice", kind: "agencyPlain" },
+  { id: "digest-morning", group: "Agents & agency users", name: "Morning digest", kind: "agencyInternal", note: "agency staff" },
+  { id: "digest-weekly", group: "Agents & agency users", name: "Weekly brief", kind: "agencyInternal", note: "agency staff" },
+  { id: "team", group: "Agents & agency users", name: "Team invites + accepted (director & negotiator)", kind: "agencyInternal", note: "agency staff" },
+  { id: "chain-bounce", group: "Agents & agency users", name: "Chain-invite bounced notice", kind: "agencyInternal" },
 
   // External agents & chain
   { id: "chain-invite", group: "External agents & chain", name: "Chain invite (to unclaimed agent)", kind: "agencyPlain", note: "originator agency" },
@@ -91,10 +95,10 @@ export const EMAIL_SENDERS: EmailSender[] = [
   { id: "chain-wait", group: "External agents & chain", name: "Wait-nudge / invite-declined notice", kind: "sp", reply: "support@thesalesprogressor.co.uk" },
 
   // Platform & internal
-  { id: "pw", group: "Platform & internal", name: "Password reset", kind: "sp", reply: "none" },
+  { id: "pw", group: "Platform & internal", name: "Password reset", kind: "sp", reply: "support@thesalesprogressor.co.uk" },
   { id: "welcome", group: "Platform & internal", name: "Welcome / activation", kind: "sp", reply: "none" },
   { id: "retention", group: "Platform & internal", name: "Retention sequence", kind: "sp", reply: "inbox@thesalesprogressor.co.uk" },
-  { id: "verify", group: "Platform & internal", name: "Verified-email verification code", kind: "sp", reply: "none" },
+  { id: "verify", group: "Platform & internal", name: "Verified-email verification code", kind: "sp", reply: "support@thesalesprogressor.co.uk" },
   { id: "domain", group: "Platform & internal", name: "Domain-auth alert / DNS instructions", kind: "sp", reply: "none" },
   { id: "founder", group: "Platform & internal", name: "Founder brief / weekly / content digest", kind: "sp", reply: "none" },
 ];
@@ -180,10 +184,19 @@ export function describeSender(email: EmailSender, fileType: FileType, agency: A
         : { from: ff.from, replyTo, fallback: ff.from, chip: "agency" };
     }
     case "agencyPlain":
-      // Agency-level: no persona, always the plain updates@ fallback (not file-type-aware).
+      // Agency-level (chain invite): the agency's verified sender, plain "{Agency}".
       return addr
         ? { from: `${brand} <${addr}>`, replyTo: email.reply ?? addr, fallback: SP_FROM, chip: "agency" }
         : { from: SP_FROM, replyTo: email.reply ?? SP_ADDR, fallback: SP_FROM, chip: "agency" };
+    case "agencyInternal":
+      // The agency's own-staff notifications: the agency name in the display, but
+      // sent from OUR address — never their outsourced sender.
+      return {
+        from: brand ? `${brand} <${SP_ADDR}>` : SP_FROM,
+        replyTo: email.reply ?? SP_ADDR,
+        fallback: SP_FROM,
+        chip: "sp",
+      };
     case "agentOwn":
       return {
         from: "the sender's own verified address",
