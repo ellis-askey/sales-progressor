@@ -172,9 +172,9 @@ export default async function AccountProfilePage({
         <EmailSignatureCard initial={signatureInitial} />
 
         {emailCard ? (
-          // Desktop: email branding on the right; colour, sending, account
-          // stacked on the left. Mobile (1 col): colour, email, sending,
-          // account — the same order as before.
+          // Desktop: colour + sending side by side on top, email branding full
+          // width below (its preview needs the room), account full width last.
+          // Mobile (1 col): colour, sending, email, account.
           <div className="profile-grid">
             <div style={{ gridArea: "colour" }}>{colourCard}</div>
             <div style={{ gridArea: "email" }}>{emailCard}</div>
@@ -197,17 +197,17 @@ export default async function AccountProfilePage({
           align-items: start;
           grid-template-columns: 1fr 1fr;
           grid-template-areas:
-            "colour  email"
-            "sending email"
-            "account email";
+            "colour  sending"
+            "email   email"
+            "account account";
         }
         @media (max-width: 1024px) {
           .profile-grid {
             grid-template-columns: 1fr;
             grid-template-areas:
               "colour"
-              "email"
               "sending"
+              "email"
               "account";
           }
         }

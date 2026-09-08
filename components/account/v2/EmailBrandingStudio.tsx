@@ -202,7 +202,7 @@ export function EmailBrandingStudio({
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="eb-grid">
       {/* ── Live preview ── */}
       <div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
@@ -251,8 +251,39 @@ export function EmailBrandingStudio({
           )}
         </div>
         <p style={{ margin: "8px 2px 0", fontSize: 12, color: "#9ca3af" }}>A live preview of the emails your clients receive.</p>
+
+        {/* Advanced (Tier 2) sits under the preview to balance the two columns. */}
+        <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(0,0,0,0.07)", display: "flex", flexDirection: "column", gap: 16 }}>
+          <button type="button" onClick={() => setAdvanced((a) => !a)} style={{ alignSelf: "flex-start", fontSize: 12.5, fontWeight: 600, color: "#4b5563", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            {advanced ? "Hide advanced" : "Advanced options"} {advanced ? "▲" : "▼"}
+          </button>
+          {advanced && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Control label="Header text">
+                <Segmented value={headerTextMode} onChange={(v) => { setHeaderTextMode(v as "auto" | "custom"); touch(); }} options={[{ value: "auto", label: "Auto contrast" }, { value: "custom", label: "Custom" }]} />
+                {headerTextMode === "custom" && <div style={{ marginTop: 8 }}><CustomColor value={headerTextColor} onChange={(v) => { setHeaderTextColor(v); touch(); }} /></div>}
+              </Control>
+              <Control label="Link colour">
+                <CustomColor value={linkColor} onChange={(v) => { setLinkColor(v); touch(); }} />
+              </Control>
+              <Control label="Footer">
+                <Segmented value={footerMode} onChange={(v) => { setFooterMode(v as "default" | "custom"); touch(); }} options={[{ value: "default", label: "None" }, { value: "custom", label: "Coloured band" }]} />
+                {footerMode === "custom" && (
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                    <CustomColor value={footerBg} onChange={(v) => { setFooterBg(v); touch(); }} label="Background" />
+                    <CustomColor value={footerText} onChange={(v) => { setFooterText(v); touch(); }} label="Text" />
+                  </div>
+                )}
+              </Control>
+              <Control label="Header corners">
+                <Segmented value={bandShape} onChange={(v) => { setBandShape(v as BandShape); touch(); }} options={[{ value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }]} />
+              </Control>
+            </div>
+          )}
+        </div>
       </div>
 
+      <div className="eb-col-controls" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {/* ── Logo upload / replace / remove ── */}
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <button type="button" onClick={() => inputRef.current?.click()} disabled={busy} className="eb-btn" style={{ fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.14)", background: "#fff", color: "#111827", cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
@@ -312,34 +343,6 @@ export function EmailBrandingStudio({
         </div>
       </Control>
 
-      {/* ── Advanced (Tier 2) ── */}
-      <button type="button" onClick={() => setAdvanced((a) => !a)} style={{ alignSelf: "flex-start", fontSize: 12.5, fontWeight: 600, color: "#4b5563", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-        {advanced ? "Hide advanced" : "Advanced options"} {advanced ? "▲" : "▼"}
-      </button>
-      {advanced && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Control label="Header text">
-            <Segmented value={headerTextMode} onChange={(v) => { setHeaderTextMode(v as "auto" | "custom"); touch(); }} options={[{ value: "auto", label: "Auto contrast" }, { value: "custom", label: "Custom" }]} />
-            {headerTextMode === "custom" && <div style={{ marginTop: 8 }}><CustomColor value={headerTextColor} onChange={(v) => { setHeaderTextColor(v); touch(); }} /></div>}
-          </Control>
-          <Control label="Link colour">
-            <CustomColor value={linkColor} onChange={(v) => { setLinkColor(v); touch(); }} />
-          </Control>
-          <Control label="Footer">
-            <Segmented value={footerMode} onChange={(v) => { setFooterMode(v as "default" | "custom"); touch(); }} options={[{ value: "default", label: "None" }, { value: "custom", label: "Coloured band" }]} />
-            {footerMode === "custom" && (
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
-                <CustomColor value={footerBg} onChange={(v) => { setFooterBg(v); touch(); }} label="Background" />
-                <CustomColor value={footerText} onChange={(v) => { setFooterText(v); touch(); }} label="Text" />
-              </div>
-            )}
-          </Control>
-          <Control label="Header corners">
-            <Segmented value={bandShape} onChange={(v) => { setBandShape(v as BandShape); touch(); }} options={[{ value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }]} />
-          </Control>
-        </div>
-      )}
-
       {/* ── Save ── */}
       <div style={{ display: "flex", gap: 12, alignItems: "center", paddingTop: 2 }}>
         <button type="button" onClick={onSave} disabled={!dirty || savingState === "saving"} style={{ fontSize: 13, fontWeight: 700, padding: "9px 18px", borderRadius: 8, border: "none", background: !dirty ? "rgba(0,0,0,0.08)" : "#FF6B4A", color: !dirty ? "#9ca3af" : "#fff", cursor: !dirty || savingState === "saving" ? "default" : "pointer" }}>
@@ -352,6 +355,8 @@ export function EmailBrandingStudio({
         Text colours over your header and button are chosen automatically for legibility. Only your client-facing emails use these colours.
       </p>
       {error && <p style={{ margin: 0, fontSize: 12, color: "#dc2626" }} role="alert">{error}</p>}
+      </div>
+      <style>{`.eb-grid{display:grid;grid-template-columns:minmax(0,440px) 1fr;gap:28px;align-items:start}.eb-col-controls{min-width:0}@media(max-width:820px){.eb-grid{grid-template-columns:1fr}}`}</style>
     </div>
   );
 }
