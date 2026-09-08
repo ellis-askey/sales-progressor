@@ -51,7 +51,10 @@ const filter = new FilterXSS({
       return "";
     }
     if (name === "href") {
-      if (/^(?:https:|mailto:|tel:)/i.test(value)) return defaultSafeAttrValue(tag, name, value, cssFilter);
+      // http + https for links: a link is navigated on click, not loaded as a
+      // sub-resource, so http is not a mixed-content risk (unlike img src). This
+      // keeps agency websites on http from becoming dead links.
+      if (/^(?:https?:|mailto:|tel:)/i.test(value)) return defaultSafeAttrValue(tag, name, value, cssFilter);
       return "";
     }
     // Default handling for everything else (this is what filters inline CSS via
@@ -66,6 +69,31 @@ const filter = new FilterXSS({
  * <svg>/<iframe>/<object>, tracking pixels and unsafe schemes are removed, and
  * links are hardened with target/rel. The caller enforces MAX_SIGNATURE_HTML.
  */
+// Add an inline style declaration to a tag's attributes (appended so it wins).
+function injectStyle(attrs: string, decl: string): string {
+  if (/style\s*=\s*(["'])/i.test(attrs)) {
+    return attrs.replace(/style\s*=\s*(["'])([\s\S]*?)\1/i, (_m, q, val) => {
+      const trimmed = val.replace(/;\s*$/, "");
+      return `style=${q}${trimmed ? `${trimmed};` : ""}${decl}${q}`;
+    });
+  }
+  return `${attrs} style="${decl}"`;
+}
+
+// Make a real inbox match the in-app preview. The app renders with a CSS reset
+// (block margins zeroed); email clients don't, so pasted <p>-per-line signatures
+// (Outlook) get each client's default ~1em paragraph margin, adding big gaps
+// that aren't in the preview. Bake margin:0 into block elements to match, and
+// keep images responsive on mobile. Intentional <br> line breaks are untouched.
+function normalizeBlockSpacing(html: string): string {
+  let out = html.replace(
+    /<(p|h[1-4]|ul|ol|blockquote)\b([^>]*)>/gi,
+    (_m, tag, attrs) => `<${tag}${injectStyle(attrs, "margin:0")}>`,
+  );
+  out = out.replace(/<img\b([^>]*)>/gi, (_m, attrs) => `<img${injectStyle(attrs, "max-width:100%")}>`);
+  return out;
+}
+
 export function sanitizeSignatureHtml(dirty: string): string {
   if (!dirty || !dirty.trim()) return "";
   let clean = filter.process(dirty);
@@ -78,5 +106,6 @@ export function sanitizeSignatureHtml(dirty: string): string {
   // Harden every remaining link (target/rel are not whitelisted, so any pasted
   // ones were stripped — we add our own).
   clean = clean.replace(/<a\s+(?=[^>]*\bhref=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
+  clean = normalizeBlockSpacing(clean);
   return clean.trim();
 }

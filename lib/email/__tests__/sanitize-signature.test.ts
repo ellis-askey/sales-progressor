@@ -53,4 +53,22 @@ describe("sanitizeSignatureHtml", () => {
     expect(sanitizeSignatureHtml("")).toBe("");
     expect(sanitizeSignatureHtml("   ")).toBe("");
   });
+
+  it("forces margin:0 on paragraphs so email spacing matches the app", () => {
+    const out = sanitizeSignatureHtml('<p style="color:#111">Line 1</p><p>Line 2</p>');
+    // Both paragraphs get margin:0 (one appended to existing style, one created).
+    expect(out).toMatch(/<p style="color:#111;margin:0">/i);
+    expect(out).toMatch(/<p style="margin:0">/i);
+  });
+
+  it("keeps http links (not just https) so agency sites aren't dead", () => {
+    const out = sanitizeSignatureHtml('<a href="http://www.longsons.co.uk">Website</a>');
+    expect(out).toContain("http://www.longsons.co.uk");
+    expect(out).toContain('target="_blank"');
+  });
+
+  it("adds max-width:100% to images for mobile", () => {
+    const out = sanitizeSignatureHtml('<img src="https://x/banner.png" width="450" height="150">');
+    expect(out).toMatch(/max-width:100%/i);
+  });
 });
