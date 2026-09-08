@@ -20,6 +20,10 @@ const CATEGORY_LABEL: Record<EmailCategory, string> = {
 const MILESTONE_CODES = ["VM3", "VM7", "VM18", "VM19", "PM5", "PM9", "PM14", "PM25", "PM26"];
 const STORAGE_KEY = "email-catalogue-reviewed-v1";
 
+// Standard preview widths. Desktop = full pane (email max-width centres itself).
+type Device = "desktop" | "tablet" | "mobile";
+const DEVICE_WIDTHS: Record<Device, number | null> = { desktop: null, tablet: 768, mobile: 390 };
+
 const ACCENT = "#2563eb";
 const BORDER = "#262626";
 const GREEN = "#22c55e";
@@ -84,6 +88,10 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
   const [result, setResult] = useState<RenderResult | null>(null);
   const [pending, startTransition] = useTransition();
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  // Preview width. Defaults to desktop and is NOT persisted (fresh load = desktop);
+  // stays put as you move between emails within a session, for a polish sweep.
+  const [device, setDevice] = useState<Device>("desktop");
+  const deviceWidth = DEVICE_WIDTHS[device];
 
   const selected = useMemo(() => specimens.find((s) => s.id === selectedId), [specimens, selectedId]);
 
@@ -303,23 +311,44 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
 
           {/* Render */}
           <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
-            <div className="px-4 py-2.5 text-[12px] text-neutral-300 flex items-center justify-between" style={{ background: "#141414", borderBottom: `1px solid ${BORDER}` }}>
-              <span>
+            <div className="px-4 py-2.5 text-[12px] text-neutral-300 flex items-center justify-between gap-4" style={{ background: "#141414", borderBottom: `1px solid ${BORDER}` }}>
+              <span className="truncate">
                 <span className="text-neutral-500">Subject:</span> {result?.ok ? result.subject : pending ? "Rendering…" : ""}
               </span>
-              {pending && <span className="text-neutral-500">…</span>}
+              <div className="flex items-center gap-3 shrink-0">
+                {deviceWidth && <span className="text-[11px] text-neutral-500 font-mono">{deviceWidth}px</span>}
+                <Seg
+                  value={device}
+                  onChange={setDevice}
+                  options={[
+                    { value: "desktop", label: "Desktop" },
+                    { value: "tablet", label: "Tablet" },
+                    { value: "mobile", label: "Mobile" },
+                  ]}
+                />
+              </div>
             </div>
             {result && !result.ok ? (
               <div className="p-6 text-[13px] text-red-400" style={{ background: "#fff" }}>
                 Could not render: {result.error}
               </div>
             ) : (
-              <iframe
-                title="email-preview"
-                sandbox=""
-                srcDoc={result?.ok ? result.html : ""}
-                style={{ width: "100%", height: 720, background: "#fff", border: "none", display: "block" }}
-              />
+              <div style={{ background: "#0a0a0a", display: "flex", justifyContent: "center", padding: deviceWidth ? 20 : 0 }}>
+                <iframe
+                  title="email-preview"
+                  sandbox=""
+                  srcDoc={result?.ok ? result.html : ""}
+                  style={{
+                    width: deviceWidth ?? "100%",
+                    maxWidth: "100%",
+                    height: 720,
+                    background: "#fff",
+                    border: deviceWidth ? `1px solid ${BORDER}` : "none",
+                    borderRadius: deviceWidth ? 12 : 0,
+                    display: "block",
+                  }}
+                />
+              </div>
             )}
           </div>
         </div>
