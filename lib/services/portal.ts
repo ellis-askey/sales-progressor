@@ -1558,6 +1558,7 @@ export async function logPortalMilestoneConfirm(
           body: otherUpdateHtml,
           ctaText: "View your portal",
           ctaUrl: portalUrl,
+          theme: agencyTheme,
         }),
       }).catch(() => {});
       otherIds.push(other.id);
@@ -1812,13 +1813,13 @@ function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, port
 </body></html>`;
 }
 
-function portalEmailHtml({ greeting, body, ctaText, ctaUrl }: {
-  greeting: string; body: string; ctaText: string; ctaUrl: string;
+function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null) }: {
+  greeting: string; body: string; ctaText: string; ctaUrl: string; theme?: EmailTheme;
 }) {
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 16px">${greeting}</p>
 <p style="margin:0 0 24px;line-height:1.6;color:#4a5162">${body}</p>
-<p><a href="${ctaUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${ctaText}</a></p>
+<p><a href="${ctaUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${ctaText}</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b91a3">If you have any questions, just reply to this email.</p>
 </body></html>`;
 }
@@ -2361,8 +2362,11 @@ function renderCompletionPackBody(args: {
   // Effective copy for this side — our default, or the agency's own version.
   // Resolved once per side in loadCompletionPackContext.
   content: CompletionPackContent;
+  // Agency brand theme — only its button colour is applied (coral default).
+  theme?: EmailTheme;
 }): { subject: string; text: string; html: string; recipientEmail: string } {
   const { contact, address, completionDate, agentName, content } = args;
+  const emailTheme = args.theme ?? resolveEmailTheme(null);
   const base = process.env.NEXTAUTH_URL ?? "";
   const completionStr = completionDate
     ? new Date(completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -2406,6 +2410,7 @@ function renderCompletionPackBody(args: {
     body: bodyHtml,
     ctaText: "View your portal",
     ctaUrl: portalUrl,
+    theme: emailTheme,
   });
 
   return { subject, text, html, recipientEmail: contact.email };
@@ -2461,12 +2466,12 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   if (!ctx) return;
 
   // Client-facing pack — send from the agency (Option C), not Sales Progressor.
-  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, theme } = await resolveAgencySenderForTransaction(transactionId);
 
   const vendorIds: string[] = [];
   let vendorPlainForLog = "";
   for (const c of ctx.vendors) {
-    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent });
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme });
     await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
     vendorIds.push(c.id);
     if (!vendorPlainForLog) vendorPlainForLog = body.text;
@@ -2478,7 +2483,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   const purchaserIds: string[] = [];
   let purchaserPlainForLog = "";
   for (const c of ctx.purchasers) {
-    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent });
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme });
     await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
     purchaserIds.push(c.id);
     if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
@@ -2499,11 +2504,11 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
 
   // Client-facing pack — carry the agency sender through to the drain so the
   // scheduled send goes out as the agency (Option C), not Sales Progressor.
-  const { from: agencyEmailFrom, replyTo } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, theme } = await resolveAgencySenderForTransaction(transactionId);
 
   const sourceIdBase = `${transactionId}:${milestoneCode}`;
   for (const c of ctx.vendors) {
-    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent });
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme });
     await enqueueEmail({
       emailType: "COMPLETION_PACK",
       sourceId: sourceIdBase,
@@ -2514,7 +2519,7 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
     }).catch(() => {});
   }
   for (const c of ctx.purchasers) {
-    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent });
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme });
     await enqueueEmail({
       emailType: "COMPLETION_PACK",
       sourceId: sourceIdBase,
