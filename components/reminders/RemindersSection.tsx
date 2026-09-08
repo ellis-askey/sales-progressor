@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
+import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import type { Contact } from "@/components/reminders/ReminderCard";
@@ -154,7 +155,7 @@ function PriorityList({
   vendorSolicitor?: SolicitorRef | null;
   purchaserSolicitor?: SolicitorRef | null;
   loading: string | null;
-  handleComplete: (logId: string, taskId: string) => void;
+  handleComplete: (logId: string, taskId: string, code?: string | null, name?: string) => void;
   handleSnooze: (logId: string, taskId: string, choice: SnoozeChoice) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], choice: SnoozeChoice) => void;
   handleChased: (taskId: string, logId?: string) => void;
@@ -293,7 +294,7 @@ function PriorityList({
                     ↻ Chased
                   </button>
                   <button
-                    onClick={() => handleComplete(log.id, task.id)}
+                    onClick={() => handleComplete(log.id, task.id, log.reminderRule.targetMilestoneCode, name)}
                     disabled={loading === task.id}
                     title="Confirm milestone done"
                     style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", height: 28, padding: "0 9px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}
@@ -420,6 +421,9 @@ export function RemindersSection({
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
+  // Exchange/completion date prompt — open when a VM19/PM26/VM20/PM27 "Done"
+  // is clicked, so the real event date is captured before confirming.
+  const [datePrompt, setDatePrompt] = useState<{ logId: string; taskId: string; code: string | null; name?: string } | null>(null);
   // Optimistic hide: rows are dropped from the rendered list immediately on
   // action, without waiting for revalidatePath to round-trip. auto-animate
   // (attached to the list containers below) handles the fade-out + sibling
@@ -529,12 +533,15 @@ export function RemindersSection({
     });
   }
 
-  function handleComplete(logId: string, taskId: string) {
+  // Exchange/completion steps (VM19/PM26/VM20/PM27) capture the real event
+  // date before confirming, exactly like the Steps tab. handleComplete opens
+  // the date prompt for those; every other step confirms in one click.
+  function runComplete(logId: string, taskId: string, eventDate?: string) {
     setHiddenIds((prev) => new Set([...prev, logId]));
     setLoading(taskId);
     startTransition(async () => {
       try {
-        const result = await completeTaskAction(taskId, pathname);
+        const result = await completeTaskAction(taskId, pathname, eventDate);
         if ("blocked" in result && result.blocked) {
           // Server refused to confirm the milestone because an earlier
           // one in the chain isn't done yet. Un-hide the row and toast
@@ -550,6 +557,14 @@ export function RemindersSection({
         }
       } finally { setLoading(null); }
     });
+  }
+
+  function handleComplete(logId: string, taskId: string, code?: string | null, name?: string) {
+    if (milestoneNeedsDatePrompt(code)) {
+      setDatePrompt({ logId, taskId, code: code ?? null, name });
+      return;
+    }
+    runComplete(logId, taskId);
   }
 
   // Wake-up moment for the optimistic placement: a picked date, else the gap.
@@ -830,6 +845,18 @@ export function RemindersSection({
         </Card>
       )}
       </div>
+
+      <ConfirmMilestoneDateModal
+        open={!!datePrompt}
+        milestoneCode={datePrompt?.code ?? null}
+        milestoneName={datePrompt?.name}
+        onConfirm={(eventDate) => {
+          const p = datePrompt;
+          setDatePrompt(null);
+          if (p) runComplete(p.logId, p.taskId, eventDate);
+        }}
+        onClose={() => setDatePrompt(null)}
+      />
     </section>
   );
 }

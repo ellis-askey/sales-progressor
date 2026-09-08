@@ -79,6 +79,7 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | `PanelSkeletons.tsx` inline pulse implementation | Migrate to canonical `Skeleton` primitive | defer-Q3-2026 | 2026-06-26 | Bundle with file-detail Phase 3 remediation |
 | Form fields use raw HTML elements with bespoke styling | Extract `Field` / `Input` / `Select` / `TextArea` primitives | defer-Q3-2026 | 2026-06-26 | Designed from real consumer (Phase 3) rather than in vacuum |
 | Inline empty states across 4+ surfaces | Migrate to canonical `EmptyState` (already exists) | migrate | 2026-06-26 | Phase 2 sweep |
+| Milestone-confirmation notification block duplicated in `confirmMilestoneAction` (app/actions/milestones.ts) and `lib/services/milestone-confirm-notify.ts` | Unify: have `confirmMilestoneAction` call the shared helper too, so the notification set has one source of truth | defer-Q4-2026 | 2026-09-08 | Filed by CC during the reminders-confirm-emails fix. Helper was added so Reminders "Done" sends the same client emails as the Steps tab; the Steps-tab path was left untouched on founder instruction (don't change how it functions), so the block now exists in two places. Drift risk — keep in sync until unified. |
 
 ### Voice / copy polish
 

@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
 import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime, type SnoozeWake, type SnoozeResult } from "@/lib/services/reminders";
 import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
+import { sendMilestoneConfirmationNotifications } from "@/lib/services/milestone-confirm-notify";
 import { createCommunicationRecord } from "@/lib/services/comms";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
@@ -62,6 +63,12 @@ export type CompleteTaskResult =
 export async function completeTaskAction(
   taskId: string,
   pathname: string,
+  // The real exchange/completion date, captured by the date prompt shown when
+  // the target milestone is VM19/PM26/VM20/PM27. Null/omitted for every other
+  // step (one-click "Done"). Passed through to the notification step so the
+  // completion email isn't wrongly suppressed by the 24h staleness rule, and
+  // so the file's recorded exchange/completion date is set.
+  eventDate?: string | null,
 ): Promise<CompleteTaskResult> {
   const session = await requireSession();
   const { transactionId, reminderLogId, targetMilestoneCode } = await completeChaseTask(
@@ -80,8 +87,37 @@ export async function completeTaskAction(
           transactionId,
           milestoneDefinitionId: def.id,
           confirmer: { kind: "user", id: session.user.id, name: session.user.name ?? "" },
+          eventDate: eventDate ? new Date(eventDate) : null,
         });
         // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
+
+        // Record the real exchange/completion date on the file when captured, so
+        // the diary/forecast and the completion-email staleness check see the
+        // right date. Mirrors the date syncs in confirmMilestoneAction (the
+        // Steps-tab path). Best-effort — never blocks the confirm.
+        if (eventDate && (targetMilestoneCode === "VM19" || targetMilestoneCode === "PM26")) {
+          await prisma.propertyTransaction.update({
+            where: { id: transactionId },
+            data: { expectedExchangeDate: new Date(eventDate) },
+          }).catch((err) => console.error("[completeTaskAction] expectedExchangeDate sync failed:", err));
+        }
+        if (eventDate && (targetMilestoneCode === "VM20" || targetMilestoneCode === "PM27")) {
+          const actualDate = new Date(eventDate);
+          const txData = await prisma.propertyTransaction.findFirst({
+            where: { id: transactionId },
+            select: { completionDate: true },
+          });
+          const existingDate = txData?.completionDate;
+          const dateMismatch = !existingDate ||
+            Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
+          if (dateMismatch) {
+            await prisma.propertyTransaction.update({
+              where: { id: transactionId },
+              data: { completionDate: actualDate },
+            }).catch((err) => console.error("[completeTaskAction] completionDate sync failed:", err));
+          }
+        }
+
         // Auto-flip tx.status to "completed" once both completion milestones
         // land. Mirrors confirmMilestoneAction line 232 + the reconciliation
         // action fix from 2026-08-08. Without this, ticking Done on a
@@ -92,6 +128,24 @@ export async function completeTaskAction(
             actorUserId: session.user.id,
           });
         }
+
+        // Fire the SAME client/agent notifications the Steps-tab confirm sends
+        // for this milestone. This is the fix for confirmations made from the
+        // Reminders surfaces (page, in-file tab, work queue, next-action card)
+        // silently completing steps without emailing the buyer/seller.
+        // includeCounterpartEmail: false — a "Done" completes only this
+        // milestone, so the bilateral counterpart (e.g. PM27 when VM20 is
+        // ticked) is NOT auto-emailed; its own reminder fires its email when
+        // confirmed. Best-effort; never blocks the confirm.
+        await sendMilestoneConfirmationNotifications({
+          transactionId,
+          milestoneCode: targetMilestoneCode,
+          eventDate: eventDate ?? null,
+          confirmerUserId: session.user.id,
+          confirmerName: session.user.name ?? null,
+          confirmerRole: session.user.role,
+          includeCounterpartEmail: false,
+        }).catch((err) => console.error("[completeTaskAction] milestone notifications failed:", err));
       } catch (err) {
         const e = err as Error & { missing?: { code: string; name: string }[] };
         if (e.message === "PREREQUISITES_NOT_COMPLETE") {

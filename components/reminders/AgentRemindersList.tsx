@@ -9,6 +9,7 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder, chaseCountWord } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
+import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -475,6 +476,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, autopilot: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+  // Exchange/completion date prompt — open when a VM19/PM26/VM20/PM27 "Done"
+  // is clicked, so the real event date is captured before confirming.
+  const [datePrompt, setDatePrompt] = useState<{ taskId: string; code: string | null } | null>(null);
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
   const { toast } = useAgentToast();
 
@@ -569,7 +573,10 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   // Two-step exit: setExitingIds → 150ms (matches agent-row-exit duration) → hideByTaskId
   // + fire server action. agent-row-exit's `forwards` fill keeps the row collapsed until
   // the React filter removes it via hiddenIds.
-  function handleComplete(taskId: string) {
+  // Exchange/completion steps (VM19/PM26/VM20/PM27) capture the real event
+  // date before confirming, exactly like the Steps tab. handleComplete opens
+  // the date prompt for those; every other step confirms in one click.
+  function runComplete(taskId: string, eventDate?: string) {
     const logId = taskToLogId.get(taskId);
     if (logId) setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
     setTimeout(() => {
@@ -581,7 +588,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
       setLoading(taskId);
       startTransition(async () => {
         try {
-          const result = await completeTaskAction(taskId, "/agent/work-queue");
+          const result = await completeTaskAction(taskId, "/agent/work-queue", eventDate);
           if ("blocked" in result && result.blocked) {
             // Un-hide the row + clear the exit animation so it reappears.
             if (logId) {
@@ -597,6 +604,17 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         } finally { setLoading(null); }
       });
     }, 150);
+  }
+
+  function handleComplete(taskId: string) {
+    const logId = taskToLogId.get(taskId);
+    const log = logs.find((l) => l.id === logId);
+    const code = log?.reminderRule.targetMilestoneCode ?? null;
+    if (milestoneNeedsDatePrompt(code)) {
+      setDatePrompt({ taskId, code });
+      return;
+    }
+    runComplete(taskId);
   }
   function handleSnooze(taskId: string, choice: SnoozeChoice) {
     const logId = taskToLogId.get(taskId);
@@ -856,6 +874,17 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           </div>
         )
       )}
+
+      <ConfirmMilestoneDateModal
+        open={!!datePrompt}
+        milestoneCode={datePrompt?.code ?? null}
+        onConfirm={(eventDate) => {
+          const p = datePrompt;
+          setDatePrompt(null);
+          if (p) runComplete(p.taskId, eventDate);
+        }}
+        onClose={() => setDatePrompt(null)}
+      />
     </div>
   );
 }

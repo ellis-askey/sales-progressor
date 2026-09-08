@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { NextActionCard } from "./NextActionCard";
 import { useTabContext } from "./TabContext";
 import { completeTaskAction } from "@/app/actions/tasks";
+import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { daysUntil, formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -24,6 +25,9 @@ export type NextActionInput = {
     ruleName: string;
     topTaskId: string | null;
     nextDueDate: Date | string;
+    // The milestone the top task confirms, when it targets one. Drives the
+    // exchange/completion date prompt on "Mark complete".
+    targetMilestoneCode?: string | null;
   } | null;
   fallbackMilestone: { name: string; code: string } | null;
   otherReminders: MiniReminder[];
@@ -87,8 +91,24 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Exchange/completion date prompt — open when the top reminder targets a
+  // VM19/PM26/VM20/PM27 step, so the real event date is captured first.
+  const [datePrompt, setDatePrompt] = useState<{ taskId: string; code: string | null } | null>(null);
 
   const goReminders = () => setActiveTab("reminders");
+
+  function runComplete(taskId: string, eventDate?: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await completeTaskAction(taskId, pathname, eventDate);
+      if ("blocked" in result && result.blocked) {
+        const names = result.missing.map((m) => m.name.replace(/\.$/, "")).join(", ");
+        setError(`Confirm ${names} first.`);
+      } else {
+        router.refresh();
+      }
+    });
+  }
   const list = otherReminders.length > 0
     ? <UpNext reminders={otherReminders} totalActive={totalActive} onViewAll={goReminders} />
     : undefined;
@@ -100,16 +120,13 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
     const onMarkComplete = reminder.topTaskId
       ? () => {
           const taskId = reminder.topTaskId!;
-          setError(null);
-          startTransition(async () => {
-            const result = await completeTaskAction(taskId, pathname);
-            if ("blocked" in result && result.blocked) {
-              const names = result.missing.map((m) => m.name.replace(/\.$/, "")).join(", ");
-              setError(`Confirm ${names} first.`);
-            } else {
-              router.refresh();
-            }
-          });
+          // Exchange/completion steps capture the real event date first
+          // (mirrors the Steps tab).
+          if (milestoneNeedsDatePrompt(reminder.targetMilestoneCode)) {
+            setDatePrompt({ taskId, code: reminder.targetMilestoneCode ?? null });
+            return;
+          }
+          runComplete(taskId);
         }
       : undefined;
 
@@ -128,6 +145,16 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
           belowActions={list}
         />
         {error && <p style={{ margin: "8px 4px 0", fontSize: 12, color: "var(--agent-warning)", lineHeight: 1.4 }}>{error}</p>}
+        <ConfirmMilestoneDateModal
+          open={!!datePrompt}
+          milestoneCode={datePrompt?.code ?? null}
+          onConfirm={(eventDate) => {
+            const p = datePrompt;
+            setDatePrompt(null);
+            if (p) runComplete(p.taskId, eventDate);
+          }}
+          onClose={() => setDatePrompt(null)}
+        />
       </div>
     );
   }

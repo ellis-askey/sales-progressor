@@ -310,6 +310,7 @@ export async function OverviewPanel({
         ruleName: topActiveReminder.reminderRule.name,
         topTaskId: topPendingTaskId,
         nextDueDate: topActiveReminder.nextDueDate,
+        targetMilestoneCode: topActiveReminder.reminderRule.targetMilestoneCode ?? null,
       }
     : null;
 

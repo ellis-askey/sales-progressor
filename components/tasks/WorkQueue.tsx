@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
+import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import type { WorkQueueTask, WorkQueueCounts, SnoozedItem } from "@/lib/services/tasks";
@@ -30,6 +31,9 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
   );
   const [activeFilter, setActiveFilter] = useState<Filter>("all");
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  // Exchange/completion date prompt — open when a VM19/PM26/VM20/PM27 "Done"
+  // is clicked, so the real event date is captured before confirming.
+  const [datePrompt, setDatePrompt] = useState<{ taskId: string; code: string | null } | null>(null);
 
   const todayStr = toUKDateStr(new Date());
 
@@ -40,14 +44,36 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
     return task.status === "pending";
   });
 
+  function runComplete(taskId: string, eventDate?: string) {
+    setLoadingId(taskId);
+    startTransition(async () => {
+      addOptimistic({ taskId, action: "complete" });
+      try {
+        await completeTaskAction(taskId, pathname, eventDate);
+        // revalidatePath in server action triggers page re-render
+      } finally {
+        setLoadingId(null);
+      }
+    });
+  }
+
   function handleAction(taskId: string, action: "complete" | "snooze", snoozeHours?: number) {
+    if (action === "complete") {
+      // Exchange/completion steps capture the real event date first (mirrors
+      // the Steps tab), so the recorded date + completion email are correct.
+      const code = optimisticTasks.find((t) => t.id === taskId)?.reminderLog.reminderRule.targetMilestoneCode ?? null;
+      if (milestoneNeedsDatePrompt(code)) {
+        setDatePrompt({ taskId, code });
+        return;
+      }
+      runComplete(taskId);
+      return;
+    }
     setLoadingId(taskId);
     startTransition(async () => {
       addOptimistic({ taskId, action });
       try {
-        if (action === "complete") {
-          await completeTaskAction(taskId, pathname);
-        } else if (action === "snooze" && snoozeHours) {
+        if (action === "snooze" && snoozeHours) {
           await snoozeTaskAction(taskId, { hours: snoozeHours }, pathname);
         }
         // revalidatePath in server action triggers page re-render
@@ -183,6 +209,17 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
           </div>
         )
       )}
+
+      <ConfirmMilestoneDateModal
+        open={!!datePrompt}
+        milestoneCode={datePrompt?.code ?? null}
+        onConfirm={(eventDate) => {
+          const p = datePrompt;
+          setDatePrompt(null);
+          if (p) runComplete(p.taskId, eventDate);
+        }}
+        onClose={() => setDatePrompt(null)}
+      />
     </div>
   );
 }
