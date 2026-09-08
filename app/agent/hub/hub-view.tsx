@@ -682,13 +682,16 @@ function buildBookingRows(
   });
 }
 
-// Fetches the lower cards together so a property shows in at most one place:
-// Needs-attention wins, then bookings to confirm (a client is waiting on us),
-// then mortgage (a hard deadline), then gone-quiet.
+// Fetches the lower cards together. Mortgage + gone-quiet are deduped against
+// Needs-attention (and each other) so a passive nag never stacks. Bookings to
+// confirm are the exception: confirming a client's booking is a distinct action
+// from an overdue chase, so a file legitimately appears in both — bookings are
+// NOT deduped against attention (only mortgage/gone-quiet dedupe against them).
 async function LowerHubCards({ vis, attentionTxIds }: { vis: AgentVisibility; attentionTxIds: string[] }) {
   // Provisional buyer bookings awaiting our confirmation — agency (self-managed)
   // and internal (outsourced) both see their own, scoped inside the service.
-  const bookings = await getBookingsToConfirm(vis, attentionTxIds);
+  // Deliberately not excluded by attentionTxIds (see above).
+  const bookings = await getBookingsToConfirm(vis);
   const bookingTxIds = bookings.map((b) => b.transactionId);
   const mortgage = await getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
