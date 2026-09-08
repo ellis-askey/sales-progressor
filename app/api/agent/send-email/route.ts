@@ -4,6 +4,7 @@ import { getVerifiedEmailForSending } from "@/lib/services/verified-emails";
 import { sendFromVerifiedAddress } from "@/lib/services/sendgrid";
 import { resolveSenderForTransaction } from "@/lib/email";
 import { resolveEmailSignature } from "@/lib/email/signature";
+import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
@@ -41,7 +42,19 @@ export async function POST(req: NextRequest) {
     if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
     const { from: resolvedFrom, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
-    const sig = await resolveEmailSignature({ userId: session.user.id, agency: tx.agency, fallbackName: session.user.name });
+    // Outsourced / internal send: a standardised in-house sign-off — never the
+    // internal person's customised signature, image, or the agency logo. Signs
+    // as name / agency it's sent on behalf of / contact number, matching the
+    // automated outsourced chases.
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, phone: true, directMobile: true },
+    });
+    const sig = buildInHouseSignoff({
+      name: me?.name ?? session.user.name ?? "",
+      agency: tx.agency?.name ?? "",
+      phone: me?.directMobile ?? me?.phone ?? null,
+    });
     await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body + sig.text, html: composeHtml(body, sig.html), replyTo });
 
     await prisma.outboundMessage.create({
