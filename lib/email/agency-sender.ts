@@ -64,21 +64,37 @@ export type ResolvedSender = {
  * @param agencyId the agency the email is sent on behalf of (null → SP fallback)
  * @param opts.personFirstName when set, brands the display name as
  *   "{first} at {Agency}" (client-facing tone) instead of just "{Agency}"
+ * @param opts.fromPlatformAddress for AGENCY-INTERNAL notifications (morning
+ *   digest, weekly brief, team invites, chain-bounce) that go to the agency's
+ *   OWN staff: keep the agency's name in the display but send from our own
+ *   updates@thesalesprogressor.co.uk address — never the agency's outsourced
+ *   sender (quoteSenderEmail), which is only for progressing their files.
  */
 export async function resolveAgencySender(
   agencyId: string | null | undefined,
-  opts?: { personFirstName?: string },
+  opts?: { personFirstName?: string; fromPlatformAddress?: boolean },
 ): Promise<ResolvedSender> {
-  if (agencyId) {
-    const agency = await prisma.agency.findUnique({
-      where: { id: agencyId },
-      select: { name: true, quoteSenderEmail: true, quoteSenderVerified: true },
-    });
-    if (agency?.quoteSenderEmail && agency.quoteSenderVerified) {
-      const brand = stripAgencyLegalSuffix(agency.name);
-      const display = opts?.personFirstName ? `${opts.personFirstName} at ${brand}` : brand;
-      return { from: buildFrom(display, agency.quoteSenderEmail), replyTo: agency.quoteSenderEmail, canReply: true };
-    }
+  const agency = agencyId
+    ? await prisma.agency.findUnique({
+        where: { id: agencyId },
+        select: { name: true, quoteSenderEmail: true, quoteSenderVerified: true },
+      })
+    : null;
+  const brand = agency ? stripAgencyLegalSuffix(agency.name) : null;
+  const display = brand ? (opts?.personFirstName ? `${opts.personFirstName} at ${brand}` : brand) : null;
+
+  // Agency-internal notification: keep the agency's name (when we have it) but
+  // send from our own address, never their outsourced sender.
+  if (opts?.fromPlatformAddress) {
+    return display
+      ? { from: buildFrom(display, SP_REPLY_TO), replyTo: SP_REPLY_TO, canReply: true }
+      : { from: SP_FROM, replyTo: SP_REPLY_TO, canReply: true };
+  }
+
+  // Otherwise (e.g. chain invite): the agency's verified sender if it can
+  // actually send, else the Sales Progressor fallback.
+  if (agency?.quoteSenderEmail && agency.quoteSenderVerified && display) {
+    return { from: buildFrom(display, agency.quoteSenderEmail), replyTo: agency.quoteSenderEmail, canReply: true };
   }
   return { from: SP_FROM, replyTo: SP_REPLY_TO, canReply: true };
 }

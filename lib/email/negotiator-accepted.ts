@@ -28,7 +28,7 @@ export async function sendNegotiatorAcceptedEmail(
     ctaUrl: teamUrl,
   });
 
-  const { from, replyTo } = await resolveAgencySender(agencyId);
+  const { from, replyTo } = await resolveAgencySender(agencyId, { fromPlatformAddress: true });
   await sendAgentEmail({
     to,
     subject: built.subject,

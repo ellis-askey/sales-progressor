@@ -23,7 +23,7 @@ export async function sendDirectorInvitationEmail(input: DirectorInvitationEmail
     acceptUrl: input.acceptUrl,
   });
 
-  const { from, replyTo } = await resolveAgencySender(input.agencyId);
+  const { from, replyTo } = await resolveAgencySender(input.agencyId, { fromPlatformAddress: true });
   return sendAgentEmail({
     to: input.directorEmail,
     subject: built.subject,

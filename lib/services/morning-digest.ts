@@ -110,7 +110,7 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
 }
 
 export async function sendMorningDigests(agencyId: string): Promise<number> {
-  const { from: fromAddr, replyTo } = await resolveAgencySender(agencyId);
+  const { from: fromAddr, replyTo } = await resolveAgencySender(agencyId, { fromPlatformAddress: true });
 
   const digests = await buildMorningDigest(agencyId);
 

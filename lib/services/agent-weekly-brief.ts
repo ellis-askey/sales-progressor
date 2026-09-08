@@ -75,7 +75,7 @@ function currentStageLabel(stages: ResolvedStage[]): string {
 const FILE_CAP = 8; // rows shown; the rest roll into a "+N more" link
 
 export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
-  const { from: fromAddr, replyTo } = await resolveAgencySender(agencyId);
+  const { from: fromAddr, replyTo } = await resolveAgencySender(agencyId, { fromPlatformAddress: true });
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
 

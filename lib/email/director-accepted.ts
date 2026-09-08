@@ -23,7 +23,7 @@ export async function sendDirectorAcceptedEmail(input: DirectorAcceptedEmailInpu
     ctaUrl: `${process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk"}/agent/hub`,
   });
 
-  const { from, replyTo } = await resolveAgencySender(input.agencyId);
+  const { from, replyTo } = await resolveAgencySender(input.agencyId, { fromPlatformAddress: true });
   return sendAgentEmail({
     to: input.negotiatorEmail,
     subject: built.subject,

@@ -214,7 +214,7 @@ export async function handleBouncedInvite(email: string): Promise<void> {
   const address = link.stubPropertyAddress ?? "a sale in your chain";
 
   if (originatorEmail) {
-    const bounceSender = await resolveAgencySender(link.chain.createdBy?.agencyId ?? null);
+    const bounceSender = await resolveAgencySender(link.chain.createdBy?.agencyId ?? null, { fromPlatformAddress: true });
     await sendEmail({
       to: originatorEmail,
       subject: `Chain invite to ${email} couldn't be delivered`,
