@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { preheader } from "@/lib/email/preheader";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
-import { resolveEmailTheme, emailHeroBand, emailButton, type EmailThemeInput } from "@/lib/email/brand-theme";
+import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
+import { buildPortalInviteEmail } from "@/lib/email/portal-invite";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { buildGreeting } from "@/lib/portal-copy";
@@ -59,39 +59,14 @@ export async function POST(req: NextRequest) {
   const greeting = buildGreeting(contact.name);
   const theme = resolveEmailTheme((contact.transaction.agency.emailTheme ?? null) as EmailThemeInput | null);
 
-  await sendEmail({
-    to: contact.email,
-    subject: `Your ${saleWord} portal — ${address}`,
-    from: fromAddr,
-    replyTo,
-    text: [
-      greeting,
-      "",
-      `You can now track the progress of your ${saleWord} at ${address} using the link below.`,
-      "",
-      `Your portal: ${portalUrl}`,
-      "",
-      "This link is personal to you, so please don't share it with others.",
-      "",
-      agencyName,
-    ].join("\n"),
-    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader(`Follow every step of your ${saleWord} in one place, whenever you want to check.`)}${agencyLogoHeaderHtml({ logoUrl: getAgencyLogoUrl(contact.transaction.agency.logoPath), tileColor: contact.transaction.agency.logoTileColor, scale: contact.transaction.agency.logoScale as LogoScale | null, align: contact.transaction.agency.logoAlign as LogoAlign | null })}
-${emailHeroBand({ theme, eyebrow: agencyName, headline: address, subline: `Your ${saleWord} portal is ready` })}
-<div style="padding:32px">
-  <p style="margin:0 0 16px;font-size:15px">${greeting}</p>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#4a5162">
-    You can now track the progress of your ${saleWord} online. Check in any time to see what's been completed, what's coming next, and get updates from your team.
-  </p>
-  <p style="margin:0 0 32px">${emailButton({ theme, href: portalUrl, label: "Open my portal" })}</p>
-  <div style="padding:14px 16px;background:#F8F9FB;border-radius:10px;margin-bottom:24px">
-    <p style="margin:0;font-size:12px;color:#8b91a3">
-      This link is personal to you — please don't share it with others. You can bookmark it and return any time.
-    </p>
-  </div>
-  <p style="margin:0;font-size:12px;color:#8b91a3">${agencyName}</p>
-</div>
-</body></html>`,
+  const logoBand = agencyLogoHeaderHtml({
+    logoUrl: getAgencyLogoUrl(contact.transaction.agency.logoPath),
+    tileColor: contact.transaction.agency.logoTileColor,
+    scale: contact.transaction.agency.logoScale as LogoScale | null,
+    align: contact.transaction.agency.logoAlign as LogoAlign | null,
   });
+  const invite = buildPortalInviteEmail({ agencyName, address, saleWord, greeting, portalUrl, theme, logoBand });
+  await sendEmail({ to: contact.email, subject: invite.subject, from: fromAddr, replyTo, text: invite.text, html: invite.html });
 
   // Record the send so the contacts card can show a truthful "Invite sent"
   // (resilience audit PR 7). Logged as a normal outbound email BY the acting

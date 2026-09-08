@@ -25,7 +25,7 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function buildReadyToExchangeEmail({
+export function buildReadyToExchangeEmail({
   first, address, agencyName, theme,
 }: { first: string; address: string; agencyName: string; theme: EmailTheme }): { subject: string; text: string; html: string } {
   const short = address.split(",")[0];

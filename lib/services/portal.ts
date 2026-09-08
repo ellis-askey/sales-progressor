@@ -1761,7 +1761,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   }
 }
 
-function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
+export function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
   firstName: string; address: string; headline: string; intro: string;
   stepLabel: string | null; stepDate: string | null; portalUrl: string; logoBand?: string; theme?: EmailTheme;
 }) {
@@ -1789,7 +1789,7 @@ function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabe
 </body></html>`;
 }
 
-function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
+export function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
   firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string; logoBand?: string; theme?: EmailTheme;
 }) {
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
@@ -1813,7 +1813,7 @@ function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, port
 </body></html>`;
 }
 
-function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null) }: {
+export function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null) }: {
   greeting: string; body: string; ctaText: string; ctaUrl: string; theme?: EmailTheme;
 }) {
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
@@ -1853,7 +1853,7 @@ function formatWeekdayOrdinal(date: Date): string {
   return `${weekday} ${day}${suffix} ${month} ${year}`;
 }
 
-function richMilestoneEmailHtml({
+export function richMilestoneEmailHtml({
   greeting,
   copy,
   address,
@@ -2348,7 +2348,7 @@ type CompletionPackContact = {
   portalToken: string | null;
 };
 
-function renderCompletionPackBody(args: {
+export function renderCompletionPackBody(args: {
   side: "vendor" | "purchaser";
   contact: CompletionPackContact;
   address: string;
