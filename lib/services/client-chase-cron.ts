@@ -379,6 +379,19 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     stateByKey.set(`${s.transactionId}:${s.contactId}:${s.milestoneCode}`, s);
   }
 
+  // Couple-as-one engagement: joint buyers (or joint sellers) on a milestone are
+  // treated as a single party for chasing. If EITHER of them has engaged, the
+  // whole side's chase clock is paused. Keyed by (transaction, milestoneCode) —
+  // a milestone code is one side, so every state row under a code is the couple.
+  // Value = the most recent engagement across them.
+  const coupleEngagedByTxCode = new Map<string, Date>();
+  for (const s of states) {
+    if (!s.lastEngagedAt) continue;
+    const key = `${s.transactionId}:${s.milestoneCode}`;
+    const cur = coupleEngagedByTxCode.get(key);
+    if (!cur || s.lastEngagedAt > cur) coupleEngagedByTxCode.set(key, s.lastEngagedAt);
+  }
+
   // Per-transaction exchangeReady computation (in-memory walk over the
   // bulk-loaded completions). All blocksExchange milestones must be
   // complete or not_required.
@@ -553,10 +566,11 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
           } else {
             const nextDue = addDays(state.lastChasedAt, repeatEveryDays);
             if (now < nextDue) continue;
-            // Engagement gate: if the client engaged AFTER the last chase,
-            // pause. The next chase only fires once they've gone quiet
-            // (lastEngagedAt < lastChasedAt) again.
-            if (state.lastEngagedAt && state.lastEngagedAt > state.lastChasedAt) {
+            // Engagement gate (couple-as-one): if EITHER person on this side
+            // engaged after this contact's last chase, pause. The next chase
+            // only fires once the whole couple has gone quiet again.
+            const coupleEngagedAt = coupleEngagedByTxCode.get(`${transaction.id}:${targetCode}`) ?? null;
+            if (coupleEngagedAt && coupleEngagedAt > state.lastChasedAt) {
               continue;
             }
             reason = "repeat_due";
@@ -595,6 +609,11 @@ export type EscalationCandidate = {
   contactId: string;
   milestoneCode: string;
   reason: "chase_count" | "silence_14d";
+  // Carried so the escalation pass can hand the milestone to the agent with a
+  // truthful reason (see createAgentChaseTaskForMilestone).
+  chaseCount: number;
+  firstChasedAt: Date | null;
+  lastChasedAt: Date | null;
 };
 
 export async function findEscalationCandidates(now: Date): Promise<EscalationCandidate[]> {
@@ -641,6 +660,24 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
     return snap?.repeatEveryDays ?? liveRepeatByCode.get(code);
   }
 
+  // Couple-as-one engagement (mirrors the chase pass). A joint side is one party:
+  // if EITHER person engaged, the whole side's silence/escalation clock resets.
+  // Loaded across ALL states for these (transaction, milestone) pairs — not just
+  // the chaseCount>0 rows above — so a partner who engaged before their own first
+  // chase still counts. Clamped to `now` to match the per-row future-date guard.
+  const coupleEngagedByTxCode = new Map<string, Date>();
+  const engagementRows = await prisma.clientChaseState.findMany({
+    where: { transactionId: { in: txIds }, milestoneCode: { in: codes }, lastEngagedAt: { not: null } },
+    select: { transactionId: true, milestoneCode: true, lastEngagedAt: true },
+  });
+  for (const r of engagementRows) {
+    if (!r.lastEngagedAt) continue;
+    const val = r.lastEngagedAt > now ? now : r.lastEngagedAt;
+    const key = `${r.transactionId}:${r.milestoneCode}`;
+    const cur = coupleEngagedByTxCode.get(key);
+    if (!cur || val > cur) coupleEngagedByTxCode.set(key, val);
+  }
+
   const candidates: EscalationCandidate[] = [];
 
   for (const row of rows) {
@@ -653,7 +690,9 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
     // read as "now" and the check behaves as if there was engagement
     // right this moment. Row still processes normally on subsequent
     // cron runs once real time catches up.
-    const lastEngagedAt = row.lastEngagedAt && row.lastEngagedAt > now ? now : row.lastEngagedAt;
+    // Couple-as-one: use the whole side's most recent engagement, not just this
+    // contact's, so a partner responding pauses this row's escalation too.
+    const lastEngagedAt = coupleEngagedByTxCode.get(`${row.transactionId}:${row.milestoneCode}`) ?? null;
     const firstChasedAt = row.firstChasedAt && row.firstChasedAt > now ? now : row.firstChasedAt;
 
     // 14-day silence path. Anchor = max(lastEngagedAt, firstChasedAt).
@@ -668,6 +707,9 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
         contactId: row.contactId,
         milestoneCode: row.milestoneCode,
         reason: "silence_14d",
+        chaseCount: row.chaseCount,
+        firstChasedAt: row.firstChasedAt,
+        lastChasedAt: row.lastChasedAt,
       });
       continue; // whichever-hits-first → don't also flag chase_count
     }
@@ -686,7 +728,8 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
       if (repeat == null) continue; // no rule for this code (data hygiene)
       const windowEnd = addDays(lastChasedAt, repeat);
       if (now < windowEnd) continue;
-      // Engagement gate: if engaged AFTER last chase, NOT a silence event.
+      // Engagement gate (couple-as-one): if either person engaged after this
+      // contact's last chase, it's not a no-reply event — don't escalate.
       if (lastEngagedAt && lastEngagedAt > lastChasedAt) continue;
       candidates.push({
         stateId: row.id,
@@ -694,6 +737,9 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
         contactId: row.contactId,
         milestoneCode: row.milestoneCode,
         reason: "chase_count",
+        chaseCount: row.chaseCount,
+        firstChasedAt: row.firstChasedAt,
+        lastChasedAt: row.lastChasedAt,
       });
     }
   }
@@ -885,12 +931,28 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
   // same run — its second window must close (repeatEveryDays from today)
   // before escalation can fire on subsequent runs. Interpretation B.
   const candidates = await findEscalationCandidates(now);
+  // Contact names for the hand-off note (one query for the whole pass).
+  const escContactIds = Array.from(new Set(candidates.map((c) => c.contactId)));
+  const escNameById = new Map<string, string>();
+  if (escContactIds.length > 0) {
+    const escContacts = await prisma.contact.findMany({
+      where: { id: { in: escContactIds } },
+      select: { id: true, name: true },
+    });
+    for (const c of escContacts) escNameById.set(c.id, c.name);
+  }
+
   let escalations = 0;
   let chaseCountReason = 0;
   let silenceReason = 0;
+  // One agent hand-off per (file, milestone) even when both halves of a couple
+  // escalate together — the hand-off is per-milestone and writes an activity
+  // note, so a second call would duplicate it.
+  const handedBack = new Set<string>();
   for (const c of candidates) {
+    let escalated = false;
     try {
-      const { escalated } = await escalateClientChaseState(c);
+      ({ escalated } = await escalateClientChaseState(c));
       if (escalated) {
         escalations += 1;
         if (c.reason === "chase_count") chaseCountReason += 1;
@@ -900,6 +962,42 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
       failures += 1;
       console.error(
         `[client-chase] escalation failed for state=${c.stateId} tx=${c.transactionId}:`,
+        err,
+      );
+      continue;
+    }
+    if (!escalated) continue;
+
+    // Hand the milestone to the agent so it leaves autopilot and lands in their
+    // "needs you" pile with a truthful reason. Previously escalation only flipped
+    // the chase state, so a given-up chase silently sat in the autopilot lane.
+    const key = `${c.transactionId}:${c.milestoneCode}`;
+    if (handedBack.has(key)) continue;
+    handedBack.add(key);
+    try {
+      const contactName = escNameById.get(c.contactId) ?? "the client";
+      if (c.reason === "chase_count") {
+        await createAgentChaseTaskForMilestone({
+          transactionId: c.transactionId,
+          milestoneCode: c.milestoneCode,
+          contactName,
+          kind: "max_chases_exhausted",
+          chaseCount: c.chaseCount,
+          lastChasedAt: c.lastChasedAt ?? now,
+        });
+      } else {
+        await createAgentChaseTaskForMilestone({
+          transactionId: c.transactionId,
+          milestoneCode: c.milestoneCode,
+          contactName,
+          kind: "days_cap_exhausted",
+          firstChasedAt: c.firstChasedAt ?? now,
+        });
+      }
+    } catch (err) {
+      failures += 1;
+      console.error(
+        `[client-chase] escalation hand-off failed for tx=${c.transactionId} milestone=${c.milestoneCode}:`,
         err,
       );
     }

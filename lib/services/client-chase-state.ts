@@ -20,18 +20,24 @@
 // they've gone quiet — chip should re-flag).
 //
 // status="completed" rows are skipped: the milestone is done, no chip needed.
-// status="escalated" rows ARE counted as "opted_out" for chip purposes —
-// the chase has been handed off to the agent, so the message to the agent
-// is the same: "this is your problem now, not the client's."
+// status="escalated" rows surface a distinct "exhausted" chip ("Chased N times,
+// no reply") — auto-chasing has given up and handed the milestone to the agent.
+// That is NOT the same as a client unsubscribing: a genuine opt-out
+// (status="opted_out") keeps its own chip. The two used to be conflated under
+// one "Client opted out" label, which was misleading — nobody had opted out.
 
 import { prisma } from "@/lib/prisma";
 
-export type ClientChaseChipKind = "chased" | "engaged" | "opted_out";
+export type ClientChaseChipKind = "chased" | "engaged" | "exhausted" | "opted_out";
 
 export type AggregatedClientChase = {
   kind: ClientChaseChipKind;
   lastChasedAt: Date | null;
   lastEngagedAt: Date | null;
+  // Highest chase count across the contacts on this milestone. Drives the
+  // "Chased N times" text on the exhausted chip so it reflects the real number
+  // (auto-chase caps at 2, but a silence hand-off can happen after just 1).
+  chaseCount: number;
   // For multi-contact transparency. Not rendered in the chip text v1, but
   // available for hover tooltips or future per-contact drill-down.
   contactCount: number;
@@ -67,7 +73,11 @@ export async function getClientChaseStatesForTransaction(
 
   const out: Record<string, AggregatedClientChase> = {};
   for (const [code, group] of grouped) {
-    const anyOptedOut = group.some((r) => r.status === "opted_out" || r.status === "escalated");
+    // A genuine unsubscribe wins the chip; otherwise a "given up, handed to
+    // agent" (escalated) row shows the exhausted chip.
+    const anyOptedOut = group.some((r) => r.status === "opted_out");
+    const anyExhausted = group.some((r) => r.status === "escalated");
+    const chaseCount = group.reduce((acc, r) => Math.max(acc, r.chaseCount), 0);
     const lastChasedAt = group.reduce<Date | null>(
       (acc, r) => (r.lastChasedAt && (!acc || r.lastChasedAt > acc) ? r.lastChasedAt : acc),
       null,
@@ -80,6 +90,8 @@ export async function getClientChaseStatesForTransaction(
     let kind: ClientChaseChipKind;
     if (anyOptedOut) {
       kind = "opted_out";
+    } else if (anyExhausted) {
+      kind = "exhausted";
     } else if (lastEngagedAt && lastChasedAt && lastEngagedAt > lastChasedAt) {
       kind = "engaged";
     } else if (lastEngagedAt && !lastChasedAt) {
@@ -100,6 +112,7 @@ export async function getClientChaseStatesForTransaction(
       kind,
       lastChasedAt,
       lastEngagedAt,
+      chaseCount,
       contactCount: group.length,
     };
   }

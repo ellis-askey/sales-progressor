@@ -504,7 +504,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 const text = clientChase.kind === "engaged"
                   ? `Client engaged ${formatRelative(clientChase.lastEngagedAt)}`
                   : clientChase.kind === "opted_out"
-                  ? "Client opted out"
+                  ? "Opted out of emails"
+                  : clientChase.kind === "exhausted"
+                  ? `Chased ${clientChase.chaseCount} time${clientChase.chaseCount === 1 ? "" : "s"}, no reply`
                   : `Client chased ${formatRelative(clientChase.lastChasedAt)}`;
                 const tooltip = [
                   clientChase.lastChasedAt ? `Last chased: ${formatDate(clientChase.lastChasedAt)}` : null,
