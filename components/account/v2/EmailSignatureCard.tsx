@@ -275,12 +275,11 @@ function CustomSignatureEditor({
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reinjectNext = useRef(false);
+  const [empty, setEmpty] = useState(!initialHtml.trim());
 
   // Seed once.
   useEffect(() => {
-    if (ref.current && ref.current.innerHTML.trim() === "") {
-      ref.current.innerHTML = initialHtml;
-    }
+    if (ref.current) ref.current.innerHTML = initialHtml;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -295,7 +294,15 @@ function CustomSignatureEditor({
       onError(res.error);
       return;
     }
-    if (reinject && ref.current) ref.current.innerHTML = res.html ?? "";
+    // After a paste, replace the raw clipboard HTML with the cleaned, image-
+    // hosted result (Outlook markup can include contenteditable="false" regions
+    // and a live selection; the clean re-inject makes it fully editable) and
+    // clear the lingering selection so a click lands normally.
+    if (reinject && ref.current) {
+      ref.current.innerHTML = res.html ?? "";
+      window.getSelection?.()?.removeAllRanges();
+    }
+    setEmpty(!(res.html ?? html).replace(/<[^>]*>/g, "").trim());
     onSaved(res.html ?? html);
   }, [onSaved, onSaving, onError]);
 
@@ -304,28 +311,42 @@ function CustomSignatureEditor({
     timer.current = setTimeout(save, delay);
   }
 
+  function clearEditor() {
+    if (ref.current) ref.current.innerHTML = "";
+    reinjectNext.current = false;
+    setEmpty(true);
+    schedule(0);
+  }
+
   return (
     <div>
-      <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", marginBottom: 8 }}>
-        How your emails will sign off · click to edit
-      </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", margin: 0 }}>
+          Your signature · click to edit
+        </p>
+        <button type="button" onClick={clearEditor} disabled={empty} style={{ ...secondaryBtn, padding: "5px 12px", opacity: empty ? 0.5 : 1 }}>
+          <Trash size={14} weight="bold" /> Clear
+        </button>
+      </div>
       <div
         ref={ref}
         className="sig-editor"
         contentEditable
         suppressContentEditableWarning
-        data-placeholder="Paste your signature from Outlook, Gmail or your signature tool (Ctrl/Cmd+V), or type it here."
-        onPaste={() => { reinjectNext.current = true; schedule(900); }}
-        onInput={() => schedule(1000)}
+        role="textbox"
+        tabIndex={0}
+        data-placeholder="Paste JUST your signature here (Ctrl/Cmd+V), or type it. Tip: copy only the sign-off block, not a whole email."
+        onPaste={() => { reinjectNext.current = true; schedule(500); }}
+        onInput={() => { setEmpty(!(ref.current?.textContent ?? "").trim()); schedule(1000); }}
         onBlur={() => schedule(0)}
         style={{
           borderRadius: 10, border: "1px solid rgba(0,0,0,0.14)", background: "#fff",
-          padding: 16, minHeight: 120, outline: "none", fontSize: 14, color: "#111827",
-          overflowX: "auto", lineHeight: 1.5,
+          padding: 16, minHeight: 120, maxHeight: 340, overflowY: "auto", outline: "none",
+          fontSize: 14, color: "#111827", lineHeight: 1.5, cursor: "text",
         }}
       />
-      <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
-        Changes save automatically. Pasted images are hosted for you so they show in inboxes.
+      <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6, lineHeight: 1.45 }}>
+        Paste only your signature block, not a whole email. Click into the box to edit or delete anything you don&rsquo;t want. Changes save automatically, and pasted images are hosted so they show in inboxes.
       </p>
     </div>
   );
