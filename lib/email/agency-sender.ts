@@ -141,13 +141,18 @@ export async function resolveAgencySenderForTransaction(
         },
       },
       agentUser: { select: { name: true, email: true } },
-      assignedUser: { select: { email: true } },
+      assignedUser: { select: { email: true, name: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
 
   const acting = tx.agentUser;
-  const firstName = acting?.name?.trim() ? extractFirstName(acting.name) : undefined;
+  // Whose name brands the email ("{first} at {Agency}"): on OUTSOURCED files WE
+  // run it, so it's the assigned PROGRESSOR (e.g. "Ellis at VIA Properties"); on
+  // SELF-MANAGED files the AGENT runs their own, so it's the agent. (Was always
+  // using the agent's name, which mis-branded outsourced files.)
+  const brandPerson = tx.serviceType === "outsourced" ? tx.assignedUser : tx.agentUser;
+  const firstName = brandPerson?.name?.trim() ? extractFirstName(brandPerson.name) : undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
   const logo = {
