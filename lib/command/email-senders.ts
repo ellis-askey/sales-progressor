@@ -143,9 +143,10 @@ export function describeSender(email: EmailSender, fileType: FileType, agency: A
           chip: "own",
         };
       }
-      // Automated (or outsourced): the agency's verified sender; reply-to the
-      // agent on self-managed so a client reply still reaches a human.
-      const replyTo = fileType === "self_managed" ? "the agent" : (addr ?? ff.addr);
+      // Automated (or outsourced): the agency's verified sender. Reply-to the
+      // agent on self-managed; on outsourced it's the assigned progressor's own
+      // inbox (we run the file, and we can't access the agency's address).
+      const replyTo = fileType === "self_managed" ? "the agent" : ff.addr;
       return addr
         ? { from: `${slot} at ${brand} <${addr}>`, replyTo, fallback: ff.from, chip: "agency" }
         : { from: ff.from, replyTo, fallback: ff.from, chip: "agency" };

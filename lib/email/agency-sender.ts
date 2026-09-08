@@ -145,13 +145,16 @@ export async function resolveAgencySenderForTransaction(
   const agencyVerified = !!tx.agency?.quoteSenderVerified;
   const actingEmail = acting?.email ?? null;
 
-  // ── Outsourced: the client sees the agency, never a specific agent's personal
-  // inbox (we run it). Agency verified sender, else our progressor address.
+  // ── Outsourced: the client sees the agency (From = agency verified sender for
+  // branding), but WE run the file, so replies must reach the assigned
+  // progressor's own inbox — never the agency's sending address, which we can't
+  // access and (for a domain-authenticated sender like updates@theirdomain) may
+  // not even be a real mailbox. Reply-to is always the progressor.
   if (tx.serviceType === "outsourced") {
-    if (agencyAddr && agencyVerified) {
-      return { from: buildFrom(display, agencyAddr), replyTo: agencyAddr, canReply: true, ...logo };
-    }
     const prog = progressorFallbackAddress(tx.assignedUser?.email);
+    if (agencyAddr && agencyVerified) {
+      return { from: buildFrom(display, agencyAddr), replyTo: prog, canReply: true, ...logo };
+    }
     return { from: buildFrom(display, prog), replyTo: prog, canReply: true, ...logo };
   }
 
