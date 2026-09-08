@@ -67,8 +67,9 @@ describe("sanitizeSignatureHtml", () => {
     expect(out).toContain('target="_blank"');
   });
 
-  it("adds max-width:100% to images for mobile", () => {
-    const out = sanitizeSignatureHtml('<img src="https://x/banner.png" width="450" height="150">');
+  it("makes images responsive without squashing (max-width + height:auto)", () => {
+    const out = sanitizeSignatureHtml('<img src="https://x/banner.png" style="width:450pt;height:150pt">');
     expect(out).toMatch(/max-width:100%/i);
+    expect(out).toMatch(/height:auto/i);
   });
 });

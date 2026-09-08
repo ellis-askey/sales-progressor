@@ -90,7 +90,10 @@ function normalizeBlockSpacing(html: string): string {
     /<(p|h[1-4]|ul|ol|blockquote)\b([^>]*)>/gi,
     (_m, tag, attrs) => `<${tag}${injectStyle(attrs, "margin:0")}>`,
   );
-  out = out.replace(/<img\b([^>]*)>/gi, (_m, attrs) => `<img${injectStyle(attrs, "max-width:100%")}>`);
+  // max-width:100% keeps images inside the column; height:auto MUST come with it
+  // (overriding any fixed pixel/point height) or the image squashes on mobile —
+  // the width shrinks to fit while the fixed height stays, distorting it.
+  out = out.replace(/<img\b([^>]*)>/gi, (_m, attrs) => `<img${injectStyle(attrs, "max-width:100%;height:auto")}>`);
   return out;
 }
 
