@@ -61,7 +61,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ agencyId: 
     where: { id: agencyId },
     select: { logoPath: true, logoScale: true, logoAlign: true },
   });
-  const path = `${agencyId}.png`;
+  // Unique path per upload so replacing the logo produces a NEW public URL. A
+  // fixed path reuses the same URL, so the browser + CDN keep serving the cached
+  // OLD image (the logo appears to "revert"). The previous file is deleted
+  // below, keeping it to one file per agency.
+  const path = `${agencyId}-${Date.now()}.png`;
   try {
     await uploadAgencyLogo(path, png, "image/png");
   } catch {
