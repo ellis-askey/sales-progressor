@@ -983,6 +983,13 @@ export async function portalCompleteMilestone(input: {
     }
 
     return primary;
+  }, {
+    // Default 5s is too tight: completeMilestone fans out 6-10 queries and the
+    // bilateral counterpart doubles that, so a portal confirm was hitting P2028
+    // ("Transaction already closed") after ~8s. Mirrors the same bump on the
+    // agent path in app/actions/milestones.ts (confirmMilestoneAction).
+    timeout: 30000,
+    maxWait: 10000,
   });
 
   // Completion-date sync (matches agent action, post-transaction)

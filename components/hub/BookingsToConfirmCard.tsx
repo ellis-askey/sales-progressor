@@ -201,22 +201,26 @@ function ConfirmPanel({
   const noun = row.kind === "valuation" ? "valuer" : "surveyor";
 
   return (
-    <div className="agent-reveal-in" style={{ padding: "0 20px 14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div>
-        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 4 }}>
-          Appointment date
+    <div className="agent-reveal-in" style={{ padding: "16px 20px 14px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Date + keys sit side by side when there's room (40px apart); the keys
+          row wraps underneath on narrow widths. */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", columnGap: 40, rowGap: 12 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 4 }}>
+            Appointment date
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="glass-input px-2 py-1.5 text-sm"
+          />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none", fontSize: 13, color: "var(--agent-text-secondary)", paddingBottom: 6 }}>
+          <input type="checkbox" checked={keys} onChange={(e) => setKeys(e.target.checked)} />
+          {`${noun.charAt(0).toUpperCase()}${noun.slice(1)} collecting keys from us`}
         </label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="glass-input px-2 py-1.5 text-sm"
-        />
       </div>
-      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none", fontSize: 13, color: "var(--agent-text-secondary)" }}>
-        <input type="checkbox" checked={keys} onChange={(e) => setKeys(e.target.checked)} />
-        {`${noun.charAt(0).toUpperCase()}${noun.slice(1)} collecting keys from us`}
-      </label>
       <div style={{ display: "flex", gap: 8 }}>
         <button
           type="button"
