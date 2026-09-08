@@ -929,6 +929,16 @@ export async function portalCompleteMilestone(input: {
 
   const confirmer = { kind: "contact" as const, id: contact.id, name: contact.name };
 
+  // A buyer logging a survey (PM9) or lender valuation (PM6) is PROVISIONAL:
+  // the step shows complete to them (progress ticks), but the booking is held
+  // for our side to confirm the date + access with the seller. While held, we
+  // suppress every outbound notification below — the client emails, the push
+  // to other portal contacts, and the outsourced-progressor ping. The booking
+  // surfaces on the hub "Surveys & valuations to confirm" pile; confirming it
+  // there (releaseProvisionalBooking) releases these. See the booking reminders
+  // plan (docs/active/booking-reminders/00-plan.md).
+  const isProvisionalBooking = def.code === "PM6" || def.code === "PM9";
+
   // Atomic primary + bilateral counterpart + exchange-date sync
   const completion = await prisma.$transaction(async (ptx) => {
     const primary = await completeMilestone({
@@ -936,6 +946,7 @@ export async function portalCompleteMilestone(input: {
       milestoneDefinitionId: input.milestoneDefinitionId,
       confirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
+      awaitingBookingConfirmation: isProvisionalBooking,
     }, ptx);
 
     if (counterDefId) {
@@ -1036,11 +1047,13 @@ export async function portalCompleteMilestone(input: {
     pushTitle = `Date confirmed: ${short}`;
     pushBody = `${label} booked for ${fmtDate}`;
   }
-  pushToTransaction(contact.propertyTransactionId, {
-    title: pushTitle,
-    body: pushBody,
-    urlPath: "/progress",
-  }).catch(() => {});
+  if (!isProvisionalBooking) {
+    pushToTransaction(contact.propertyTransactionId, {
+      title: pushTitle,
+      body: pushBody,
+      urlPath: "/progress",
+    }).catch(() => {});
+  }
 
   // First-exchange retention email — fires for the file's agent, not the
   // confirming contact (the retention reward goes to the agent for whom this
@@ -1050,8 +1063,9 @@ export async function portalCompleteMilestone(input: {
   }
 
   // Outsourced-SP notification — clients are never the SP, so any client
-  // confirm on an outsourced file pings the assigned progressor.
-  if (tx?.serviceType === "outsourced" && tx.assignedUserId) {
+  // confirm on an outsourced file pings the assigned progressor. Held for a
+  // provisional booking (the hub pile is the progressor's signal instead).
+  if (!isProvisionalBooking && tx?.serviceType === "outsourced" && tx.assignedUserId) {
     notifyOutsourcedMilestoneConfirmed({
       spUserId: tx.assignedUserId,
       transactionId: contact.propertyTransactionId,
@@ -1061,15 +1075,18 @@ export async function portalCompleteMilestone(input: {
     }).catch(() => {});
   }
 
-  // Existing portal-specific notifications preserved exactly as before.
-  logPortalMilestoneConfirm(
-    contact.propertyTransactionId,
-    contact.id,
-    contact.name,
-    def.name,
-    def.code,
-    input.eventDate ?? null
-  ).catch(() => {});
+  // Existing portal-specific notifications preserved exactly as before —
+  // EXCEPT held for a provisional booking, which releases them on our confirm.
+  if (!isProvisionalBooking) {
+    logPortalMilestoneConfirm(
+      contact.propertyTransactionId,
+      contact.id,
+      contact.name,
+      def.name,
+      def.code,
+      input.eventDate ?? null
+    ).catch(() => {});
+  }
 
   // Auto-counterpart fan-out for the four exchange/completion codes
   // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
@@ -1088,6 +1105,105 @@ export async function portalCompleteMilestone(input: {
   }
 
   return completion;
+}
+
+/**
+ * Confirm a provisional buyer-logged booking (PM6 / PM9) from our side.
+ *
+ * The milestone is already `state: "complete"` (the buyer saw it tick over);
+ * this flips off the hold, records the access answer + any corrected date, and
+ * releases the notifications that were suppressed at provisional time — the
+ * buyer + seller confirmation emails, the outsourced-progressor ping, and the
+ * portal push. Returns { ok:false } if the row is no longer awaiting (e.g. a
+ * second confirmer got there first). Called by confirmProvisionalBookingAction.
+ * See docs/active/booking-reminders/00-plan.md.
+ */
+export async function releaseProvisionalBooking(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  keyCollectionRequired: boolean;
+  eventDate?: string | null;
+}): Promise<{ ok: boolean }> {
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true, name: true },
+  });
+  if (!def) throw new Error("Milestone definition not found");
+
+  const row = await prisma.milestoneCompletion.findFirst({
+    where: {
+      transactionId: input.transactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
+      awaitingBookingConfirmation: true,
+    },
+    select: { id: true, eventDate: true, confirmedByContactId: true },
+  });
+  // Already released (or never provisional) — nothing to do.
+  if (!row) return { ok: false };
+
+  const effectiveEventDate = input.eventDate ? new Date(input.eventDate) : row.eventDate;
+
+  await prisma.milestoneCompletion.update({
+    where: { id: row.id },
+    data: {
+      awaitingBookingConfirmation: false,
+      keyCollectionRequired: input.keyCollectionRequired,
+      ...(input.eventDate ? { eventDate: new Date(input.eventDate) } : {}),
+    },
+  });
+
+  // Attribution for the released client emails — the client who logged it.
+  let contactName = "your client";
+  if (row.confirmedByContactId) {
+    const c = await prisma.contact.findUnique({
+      where: { id: row.confirmedByContactId },
+      select: { name: true },
+    });
+    if (c?.name) contactName = c.name;
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { serviceType: true, assignedUserId: true, propertyAddress: true },
+  });
+
+  const label = getMilestoneCopy(def.code).label;
+  const eventDateStr = effectiveEventDate ? effectiveEventDate.toISOString().slice(0, 10) : null;
+
+  // Release the held buyer + seller confirmation emails, now carrying the
+  // confirmed date.
+  logPortalMilestoneConfirm(
+    input.transactionId,
+    row.confirmedByContactId ?? "",
+    contactName,
+    def.name,
+    def.code,
+    eventDateStr,
+  ).catch(() => {});
+
+  // Outsourced-progressor ping held at provisional time.
+  if (tx?.serviceType === "outsourced" && tx.assignedUserId) {
+    notifyOutsourcedMilestoneConfirmed({
+      spUserId: tx.assignedUserId,
+      transactionId: input.transactionId,
+      confirmerName: contactName,
+      milestoneLabel: label,
+      milestoneCode: def.code,
+    }).catch(() => {});
+  }
+
+  // Portal push to the other contacts, now that the date is confirmed.
+  const short = tx?.propertyAddress?.split(",")[0] ?? "Your file";
+  const pushBody = effectiveEventDate
+    ? `${label} booked for ${effectiveEventDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`
+    : `${label}, confirmed at ${short}.`;
+  pushToTransaction(input.transactionId, {
+    title: `Date confirmed: ${short}`,
+    body: pushBody,
+    urlPath: "/progress",
+  }).catch(() => {});
+
+  return { ok: true };
 }
 
 export async function logPortalMilestoneConfirm(

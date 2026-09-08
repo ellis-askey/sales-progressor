@@ -731,6 +731,88 @@ export type MortgageExpiryItem = {
   exchangeDate: Date | null;
 };
 
+// Hub card feed: provisional survey / lender-valuation bookings a BUYER logged
+// on their portal (awaitingBookingConfirmation) that our side hasn't confirmed
+// yet. The responsible confirmer is the agency agent on self-managed files and
+// the progressor on outsourced ones — the same self_managed/outsourced split
+// the attention list uses. Confirming (releaseProvisionalBooking) releases the
+// held client emails. See docs/active/booking-reminders/00-plan.md.
+export type BookingToConfirmItem = {
+  completionId: string;
+  transactionId: string;
+  milestoneDefinitionId: string;
+  code: "PM6" | "PM9";
+  kind: "survey" | "valuation";
+  propertyAddress: string;
+  photoStoragePath: string | null;
+  // The appointment date the buyer entered (always present — the portal forces
+  // it for these steps). Null-safe for older rows.
+  eventDate: Date | null;
+  // First name of the client who logged it, or null if it can't be resolved.
+  bookedByName: string | null;
+};
+
+export async function getBookingsToConfirm(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<BookingToConfirmItem[]> {
+  const txNested = buildTxNested(vis);
+  // Agency viewers confirm their own self-managed files; internal staff confirm
+  // outsourced files (scoped by txNested to admin=all / progressor=assigned).
+  // agencyId only applies to agency viewers (internal staff carry null) — same
+  // guard as the attention list's txLogFilter.
+  const txFilter: Prisma.PropertyTransactionWhereInput = vis.internalMode
+    ? { status: "active", serviceType: "outsourced", isDemo: false, ...txNested }
+    : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", isDemo: false, ...txNested };
+
+  const rows = await prisma.milestoneCompletion.findMany({
+    where: {
+      awaitingBookingConfirmation: true,
+      state: "complete",
+      milestoneDefinition: { code: { in: ["PM6", "PM9"] } },
+      transaction: {
+        ...txFilter,
+        ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
+      },
+    },
+    // Soonest appointment first — the one most likely to need action today.
+    orderBy: { eventDate: "asc" },
+    select: {
+      id: true,
+      eventDate: true,
+      milestoneDefinitionId: true,
+      confirmedByContactId: true,
+      milestoneDefinition: { select: { code: true } },
+      transaction: {
+        select: {
+          id: true,
+          propertyAddress: true,
+          photoStoragePath: true,
+          contacts: { select: { id: true, name: true, roleType: true } },
+        },
+      },
+    },
+  });
+
+  return rows.map((r) => {
+    const code = (r.milestoneDefinition.code === "PM6" ? "PM6" : "PM9") as "PM6" | "PM9";
+    // Prefer the exact contact who logged it; else the sole buyer.
+    const byId = r.confirmedByContactId
+      ? r.transaction.contacts.find((c) => c.id === r.confirmedByContactId)
+      : undefined;
+    const buyers = r.transaction.contacts.filter((c) => c.roleType === "purchaser");
+    const who = byId ?? (buyers.length === 1 ? buyers[0] : undefined);
+    return {
+      completionId: r.id,
+      transactionId: r.transaction.id,
+      milestoneDefinitionId: r.milestoneDefinitionId,
+      code,
+      kind: code === "PM6" ? ("valuation" as const) : ("survey" as const),
+      propertyAddress: r.transaction.propertyAddress,
+      photoStoragePath: r.transaction.photoStoragePath,
+      eventDate: r.eventDate,
+      bookedByName: who ? extractFirstName(who.name) : null,
+    };
+  });
+}
+
 // Hub card feed: client-supplied mortgage-offer expiries on active, not-yet-
 // exchanged files in the viewer's scope, expiring within ~30 days (or recently
 // lapsed). Same visibility rules as getExpiredHolds. Read-only surfacing of the

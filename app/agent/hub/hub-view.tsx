@@ -24,7 +24,7 @@ import {
   getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
-  getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles,
+  getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm,
   getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
 } from "@/lib/services/hub";
 import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
@@ -41,6 +41,7 @@ import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
 import { FirstSaleHero } from "@/components/hub/FirstSaleHero";
 import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
+import { BookingsToConfirmCard, type BookingConfirmRow } from "@/components/hub/BookingsToConfirmCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { SectionLoading } from "@/components/hub/SectionLoading";
@@ -658,25 +659,57 @@ function buildMortgageRows(
   });
 }
 
-// Fetches both lower cards together so a property shows in at most one place:
-// Needs-attention wins, then mortgage (a hard deadline), then gone-quiet.
+function buildBookingRows(
+  items: Awaited<ReturnType<typeof getBookingsToConfirm>>,
+  photoMap: Map<string, string>,
+): BookingConfirmRow[] {
+  return items.map((i) => {
+    const dateLabel = i.eventDate
+      ? new Date(i.eventDate).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+      : "a date to confirm";
+    const who = i.bookedByName ?? "A client";
+    return {
+      transactionId: i.transactionId,
+      milestoneDefinitionId: i.milestoneDefinitionId,
+      href: `/agent/transactions/${i.transactionId}`,
+      photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
+      address: i.propertyAddress,
+      kind: i.kind,
+      pillLabel: i.kind === "valuation" ? "Valuation" : "Survey",
+      subtext: `${who} booked this for ${dateLabel}`,
+      eventDateISO: i.eventDate ? new Date(i.eventDate).toISOString().slice(0, 10) : null,
+    };
+  });
+}
+
+// Fetches the lower cards together so a property shows in at most one place:
+// Needs-attention wins, then bookings to confirm (a client is waiting on us),
+// then mortgage (a hard deadline), then gone-quiet.
 async function LowerHubCards({ vis, attentionTxIds }: { vis: AgentVisibility; attentionTxIds: string[] }) {
-  const mortgage = await getUpcomingMortgageExpiries(vis, attentionTxIds);
+  // Provisional buyer bookings awaiting our confirmation — agency (self-managed)
+  // and internal (outsourced) both see their own, scoped inside the service.
+  const bookings = await getBookingsToConfirm(vis, attentionTxIds);
+  const bookingTxIds = bookings.map((b) => b.transactionId);
+  const mortgage = await getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
   // Gone quiet is internal-staff only for now; also drop anything already shown
-  // in mortgage above it.
+  // in the cards above it.
   const goneQuiet = vis.internalMode
-    ? await getGoneQuietFiles(vis, [...attentionTxIds, ...mortgageTxIds])
+    ? await getGoneQuietFiles(vis, [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds])
     : [];
-  if (goneQuiet.length === 0 && mortgage.length === 0) return null;
+  if (goneQuiet.length === 0 && mortgage.length === 0 && bookings.length === 0) return null;
 
   const photoMap = await getSignedUrlMap([
+    ...bookings.map((i) => i.photoStoragePath),
     ...goneQuiet.map((i) => i.photoStoragePath),
     ...mortgage.map((i) => i.photoStoragePath),
   ]);
 
   return (
     <>
+      {bookings.length > 0 && (
+        <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} />
+      )}
       {goneQuiet.length > 0 && (
         <HubListCard
           cardKind="gone_quiet"

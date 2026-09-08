@@ -849,6 +849,12 @@ export type CompleteMilestoneInput = {
   // set it — Prisma then leaves the column untouched. See the booking
   // reminders plan (docs/active/booking-reminders/00-plan.md).
   keyCollectionRequired?: boolean | null;
+  // Set true only when a BUYER logs a PM6/PM9 booking on their portal: the
+  // step shows complete to them, but the booking is provisional and every
+  // outbound email is held until our side confirms it (releaseProvisionalBooking
+  // in lib/services/portal.ts flips it back to false). Never set on a direct
+  // agent/progressor confirm.
+  awaitingBookingConfirmation?: boolean;
   completedAt?: Date;
   // Internal use only: skip the direct-prerequisite guard. Set solely by the
   // PM20→VM21 reflection below, where VM21 (seller "all enquiries satisfied")
@@ -990,6 +996,7 @@ export async function completeMilestone(
         eventDate: input.eventDate ?? null,
         // undefined = leave untouched (non-booking steps never pass it).
         keyCollectionRequired: input.keyCollectionRequired ?? undefined,
+        awaitingBookingConfirmation: input.awaitingBookingConfirmation ?? undefined,
         completedById,
         confirmedByPortal,
         confirmedBySolicitorFirmId,
@@ -1022,6 +1029,7 @@ export async function completeMilestone(
           completedAt: input.completedAt ?? new Date(),
           eventDate: input.eventDate ?? null,
           keyCollectionRequired: input.keyCollectionRequired ?? undefined,
+          awaitingBookingConfirmation: input.awaitingBookingConfirmation ?? undefined,
           completedById,
           confirmedByPortal,
           confirmedBySolicitorFirmId,
@@ -1487,6 +1495,11 @@ export async function reverseMilestone(
       notRequiredById: null,
       notRequiredAt: null,
       notRequiredReason: null,
+      // A reversed booking is a fresh, unactioned step again — drop the
+      // provisional-hold flag and the access answer so a later re-book
+      // starts clean (used by the "send back to buyer" path).
+      awaitingBookingConfirmation: false,
+      keyCollectionRequired: null,
     },
   });
 
