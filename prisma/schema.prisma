@@ -4173,6 +4173,7 @@ model BrandProfile {
   associations      String @default("") // what people should associate Ellis with
   desiredReputation String @default("") // the reputation we're deliberately building
   targetAudiences   Json? // string[] — who we're trying to reach
+  quarterFocus      String @default("") // rolling "what to be known for this quarter" (docs Phase 2.3)
 }
 
 // Content & Personal Brand: structured brand memory (docs/active/content-brand/
@@ -4258,4 +4259,23 @@ model BrandOpportunity {
   draftPostId    String?
 
   @@index([status, createdAt])
+}
+
+// Content & Personal Brand: brand review (docs/active/content-brand/SPEC.md,
+// Phase 2.3). A periodic, AI-generated read of where Ellis's public brand
+// stands: themes to lean into, ones getting overused, potential breakout
+// themes, and expertise he's underusing. Each refresh stores a new row so the
+// review has a history; the Strategy page shows the latest. Never invents his
+// opinions or extrapolates Sales Progressor's data to the whole UK market.
+model BrandReview {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  leanInto           Json? // string[]
+  overused           Json? // string[]
+  breakout           Json? // string[]
+  underusedExpertise Json? // string[]
+  summary            String @default("") // what Ellis is becoming known for, evidence-based
+
+  @@index([createdAt])
 }

@@ -12,6 +12,7 @@ export type BrandProfile = {
   associations: string;
   desiredReputation: string;
   targetAudiences: string[];
+  quarterFocus: string;
 };
 
 export type MemoryEntry = {
@@ -37,6 +38,7 @@ export async function getBrandProfile(): Promise<BrandProfile | null> {
     associations: row.associations,
     desiredReputation: row.desiredReputation,
     targetAudiences: Array.isArray(row.targetAudiences) ? (row.targetAudiences as string[]) : [],
+    quarterFocus: row.quarterFocus,
   };
 }
 
