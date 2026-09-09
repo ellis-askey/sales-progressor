@@ -4,7 +4,21 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
+
+---
+
+## Prospect outreach — set up the new sending domain `salesprogressorapp.co.uk` (2026-09-09)
+
+Prospect outreach is moving off your main domain onto the new domain you bought (`salesprogressorapp.co.uk`). This firewalls your main mail reputation: if cold outreach ever gets marked as spam, it can't drag down your client/solicitor mail. Emails will send from **`ellis@salesprogressorapp.co.uk`**. Replies keep coming back through the existing smart address (`reply.thesalesprogressor.co.uk`) so the flow can auto-detect replies. Nothing sends from the new domain until you finish these steps AND we flip the env var, so there's no rush-risk: the code safely falls back to the current address until then.
+
+- [ ] **Authenticate the domain in SendGrid.** SendGrid → Settings → Sender Authentication → **Authenticate Your Domain** → enter `salesprogressorapp.co.uk`. It generates ~3 CNAME records.
+- [ ] **Add those CNAME records in GoDaddy.** GoDaddy → your `salesprogressorapp.co.uk` domain → DNS → add each CNAME exactly as SendGrid shows (name + value). Then back in SendGrid click **Verify**. DNS usually validates within minutes; can take up to ~48h.
+- [ ] **Tell me when it's verified** and I'll set `PROSPECT_FROM_EMAIL=ellis@salesprogressorapp.co.uk` in Vercel (production). That one env var flips every prospect email over — no code change, no deploy risk. To undo, just remove the var.
+- [ ] **Make `ellis@salesprogressorapp.co.uk` a real or forwarded mailbox you can read.** Replies come back through the smart address, but a bounce or the occasional "reply to sender" can hit the from-address directly; without a mailbox there, those vanish.
+- [ ] **Recommended for deliverability — add a DMARC record.** In GoDaddy DNS add a TXT record: host `_dmarc`, value `v=DMARC1; p=none; rua=mailto:ellis@salesprogressorapp.co.uk`. Start at `p=none` (monitor only); tighten later.
+- [ ] **Depends on the existing reply setup being live.** Reply auto-detection (which stops the flow when a prospect replies) relies on SendGrid Inbound Parse for `reply.thesalesprogressor.co.uk` — the unchecked item in the "email + reply tracking setup (2026-08-29)" section below. If that isn't done yet, replies still land in your inbox but won't auto-stop the flow.
+- The **`.com`** you also bought needs nothing now. Keep it as a protective backup; we can point it at the marketing site later if you want.
 
 ---
 
