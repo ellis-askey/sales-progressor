@@ -148,6 +148,30 @@ export async function changeProspectStatusAction(id: string, toStatus: string, n
   return { ok: true };
 }
 
+// Set the status of several prospects at once (list bulk action).
+export async function bulkSetProspectStatusAction(ids: string[], toStatus: string): Promise<{ ok: true; n: number } | { ok: false; error: string }> {
+  const session = await requireSuperAdmin();
+  const valid: ProspectStatus[] = ["new", "contacted", "replied", "interested", "trial", "active", "lost"];
+  if (!valid.includes(toStatus as ProspectStatus)) return { ok: false, error: "Unknown status." };
+  if (!ids.length) return { ok: false, error: "Nothing selected." };
+  await commandDb.prospect.updateMany({ where: { id: { in: ids } }, data: { status: toStatus as ProspectStatus } });
+  await commandDb.prospectActivity.createMany({
+    data: ids.map((id) => ({ prospectId: id, actorUserId: session.user.id, type: "status_changed", summary: `Status set to ${toStatus}`, metadata: { toStatus, bulk: true } as Prisma.InputJsonValue })),
+  });
+  revalidatePath("/command/prospects");
+  return { ok: true, n: ids.length };
+}
+
+// Archive (remove from the list) several prospects at once. Soft: sets
+// archivedAt, so nothing is destroyed.
+export async function bulkArchiveProspectsAction(ids: string[]): Promise<{ ok: true; n: number } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  if (!ids.length) return { ok: false, error: "Nothing selected." };
+  await commandDb.prospect.updateMany({ where: { id: { in: ids } }, data: { archivedAt: new Date() } });
+  revalidatePath("/command/prospects");
+  return { ok: true, n: ids.length };
+}
+
 export async function addProspectNoteAction(id: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSuperAdmin();
   const text = body.trim();

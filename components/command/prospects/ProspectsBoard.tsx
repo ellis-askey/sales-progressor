@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createProspectAction, addProspectContactAction, updateProspectContactAction, updateProspectAction, researchProspectAction } from "@/app/actions/prospects";
-import { PROSPECT_SOURCES, SOURCE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/command/prospect-labels";
+import { createProspectAction, addProspectContactAction, updateProspectContactAction, updateProspectAction, researchProspectAction, bulkSetProspectStatusAction, bulkArchiveProspectsAction } from "@/app/actions/prospects";
+import { PROSPECT_SOURCES, PROSPECT_STATUSES, SOURCE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/command/prospect-labels";
 import { ProspectDrawer } from "./ProspectDrawer";
 import type { ProspectListRow } from "@/lib/command/prospects";
 import { formatUKPhone } from "@/lib/utils/address";
@@ -49,6 +49,7 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [quickId, setQuickId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const groups = useMemo(() => groupRows(rows), [rows]);
   const multiBranch = groups.some((g) => g.rows.length > 1);
@@ -63,6 +64,10 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
   const onQuick = (id: string) => setQuickId((prev) => (prev === id ? null : id));
   const onSaved = () => { setQuickId(null); router.refresh(); };
 
+  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const setSelMany = (ids: string[], on: boolean) => setSelected((prev) => { const n = new Set(prev); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n; });
+  const clearSel = () => setSelected(new Set());
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -76,11 +81,14 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
 
       {adding && <AddForm onDone={() => { setAdding(false); router.refresh(); }} />}
 
+      {selected.size > 0 && <BulkBar ids={[...selected]} onDone={() => { clearSel(); router.refresh(); }} onClear={clearSel} />}
+
       <div className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[820px]">
+          <table className="w-full text-sm min-w-[860px]">
             <thead>
               <tr className="bg-neutral-950/60 text-left text-[10px] font-mono uppercase tracking-wider text-neutral-500">
+                <th className="px-3 py-2.5 w-8"></th>
                 <th className="px-4 py-2.5">Agency</th>
                 <th className="px-4 py-2.5">Location</th>
                 <th className="px-4 py-2.5">Contact</th>
@@ -92,11 +100,11 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
             </thead>
             <tbody className="divide-y divide-neutral-800/70">
               {rows.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-neutral-500">No prospects yet. Add one, or import a list.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-neutral-500">No prospects yet. Add one, or import a list.</td></tr>
               ) : (
                 groups.map((g) => {
                   if (g.rows.length === 1) {
-                    return <BranchRow key={g.rows[0].id} r={g.rows[0]} onOpen={setOpenId} indent={multiBranch} quickOpen={quickId === g.rows[0].id} onQuick={onQuick} onSaved={onSaved} />;
+                    return <BranchRow key={g.rows[0].id} r={g.rows[0]} onOpen={setOpenId} indent={multiBranch} quickOpen={quickId === g.rows[0].id} onQuick={onQuick} onSaved={onSaved} selected={selected.has(g.rows[0].id)} onSelect={toggleSel} />;
                   }
                   const isOpen = expanded.has(g.key);
                   return (
@@ -109,6 +117,9 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
                       quickId={quickId}
                       onQuick={onQuick}
                       onSaved={onSaved}
+                      selected={selected}
+                      onSelect={toggleSel}
+                      onSelectMany={setSelMany}
                     />
                   );
                 })
@@ -127,13 +138,17 @@ const hasFillableGap = (r: ProspectListRow) => !r.hasContact || !r.hasEmail || !
 
 // A single prospect row. `indent` aligns standalone rows with branch rows when
 // the table also contains expandable businesses.
-function BranchRow({ r, onOpen, indent, child, quickOpen, onQuick, onSaved }: {
+function BranchRow({ r, onOpen, indent, child, quickOpen, onQuick, onSaved, selected, onSelect }: {
   r: ProspectListRow; onOpen: (id: string) => void; indent?: boolean; child?: boolean;
   quickOpen: boolean; onQuick: (id: string) => void; onSaved: () => void;
+  selected: boolean; onSelect: (id: string) => void;
 }) {
   return (
     <>
-      <tr onClick={() => onOpen(r.id)} className={`cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300 ${child ? "bg-neutral-950/30" : ""}`}>
+      <tr onClick={() => onOpen(r.id)} className={`cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300 ${child ? "bg-neutral-950/30" : ""} ${selected ? "bg-blue-950/20" : ""}`}>
+        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={selected} onChange={() => onSelect(r.id)} className="align-middle" />
+        </td>
         <td className="px-4 py-2.5">
           <div className={`text-xs text-neutral-100 font-medium ${indent || child ? "pl-6" : ""}`}>{child ? (r.location ?? r.agencyName) : r.agencyName}</div>
           {!child && r.branch && <div className="text-[11px] text-neutral-500">{r.branch}</div>}
@@ -192,11 +207,14 @@ function GapBadges({ r }: { r: ProspectListRow }) {
 }
 
 // A multi-branch business: one parent row that expands to its branch rows.
-function BusinessRows({ group, open, onToggle, onOpen, quickId, onQuick, onSaved }: {
+function BusinessRows({ group, open, onToggle, onOpen, quickId, onQuick, onSaved, selected, onSelect, onSelectMany }: {
   group: Group; open: boolean; onToggle: () => void; onOpen: (id: string) => void;
   quickId: string | null; onQuick: (id: string) => void; onSaved: () => void;
+  selected: Set<string>; onSelect: (id: string) => void; onSelectMany: (ids: string[], on: boolean) => void;
 }) {
   const n = group.rows.length;
+  const ids = group.rows.map((r) => r.id);
+  const allSel = ids.every((id) => selected.has(id));
   const noContact = group.rows.filter((r) => !r.hasContact).length;
   const noEmail = group.rows.filter((r) => r.hasContact && !r.hasEmail).length;
   const unresearched = group.rows.filter((r) => !r.researched).length;
@@ -208,6 +226,9 @@ function BusinessRows({ group, open, onToggle, onOpen, quickId, onQuick, onSaved
   return (
     <>
       <tr onClick={onToggle} className="cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300">
+        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={allSel} onChange={() => onSelectMany(ids, !allSel)} className="align-middle" title="Select all branches" />
+        </td>
         <td className="px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className={`text-neutral-500 text-[10px] transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
@@ -219,7 +240,7 @@ function BusinessRows({ group, open, onToggle, onOpen, quickId, onQuick, onSaved
         </td>
         <td className="px-4 py-2.5 text-xs text-neutral-500" colSpan={6}>{open ? "" : "Click to see branches"}</td>
       </tr>
-      {open && group.rows.map((r) => <BranchRow key={r.id} r={r} onOpen={onOpen} child quickOpen={quickId === r.id} onQuick={onQuick} onSaved={onSaved} />)}
+      {open && group.rows.map((r) => <BranchRow key={r.id} r={r} onOpen={onOpen} child quickOpen={quickId === r.id} onQuick={onQuick} onSaved={onSaved} selected={selected.has(r.id)} onSelect={onSelect} />)}
     </>
   );
 }
@@ -263,7 +284,7 @@ function QuickFill({ r, onSaved, onCancel }: { r: ProspectListRow; onSaved: () =
 
   return (
     <tr className="bg-neutral-950/70" onClick={(e) => e.stopPropagation()}>
-      <td colSpan={7} className="px-4 py-3">
+      <td colSpan={8} className="px-4 py-3">
         <div className="flex flex-wrap items-end gap-2 pl-6">
           {noContact ? (
             <>
@@ -293,6 +314,36 @@ function QField({ label, value, onChange, placeholder, autoFocus }: { label: str
       <span className="text-[10px] text-neutral-500">{label}</span>
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoFocus={autoFocus} className="text-xs bg-[#0a0a0a] border border-[#262626] rounded px-2 py-1 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb] w-44" />
     </label>
+  );
+}
+
+// Actions on the selected prospects: set status, or remove (archive) in bulk.
+function BulkBar({ ids, onDone, onClear }: { ids: string[]; onDone: () => void; onClear: () => void }) {
+  const [pending, startTransition] = useTransition();
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const setStatus = (s: string) => startTransition(async () => { await bulkSetProspectStatusAction(ids, s); onDone(); });
+  const archive = () => startTransition(async () => { await bulkArchiveProspectsAction(ids); onDone(); });
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-900/70 bg-blue-950/30 px-4 py-2.5">
+      <span className="text-xs text-blue-200 font-medium">{ids.length} selected</span>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-neutral-400">Set status</span>
+        <select value="" onChange={(e) => { if (e.target.value) setStatus(e.target.value); }} disabled={pending} className="text-xs bg-neutral-900 text-neutral-200 border border-neutral-700 rounded-md px-2 py-1 focus:outline-none focus:border-neutral-500">
+          <option value="" className="bg-neutral-900">Choose…</option>
+          {PROSPECT_STATUSES.map((s) => <option key={s} value={s} className="bg-neutral-900">{STATUS_LABEL[s]}</option>)}
+        </select>
+      </div>
+      {confirmArchive ? (
+        <span className="flex items-center gap-2 text-[11px]">
+          <span className="text-neutral-300">Remove {ids.length}?</span>
+          <button onClick={archive} disabled={pending} className="text-red-400 hover:text-red-300 font-medium">Yes, remove</button>
+          <button onClick={() => setConfirmArchive(false)} className="text-neutral-500 hover:text-neutral-300">No</button>
+        </span>
+      ) : (
+        <button onClick={() => setConfirmArchive(true)} disabled={pending} className="text-[11px] text-red-400/80 hover:text-red-300">Remove from list</button>
+      )}
+      <button onClick={onClear} className="text-[11px] text-neutral-500 hover:text-neutral-300 ml-auto">Clear</button>
+    </div>
   );
 }
 
