@@ -307,13 +307,20 @@ function ContactCard({ c, shared, onConfirmField, onEditField, onMakePrimary, on
   onConfirmField: (field: string) => Promise<{ ok: boolean; error?: string }>;
   onEditField: (field: string, value: string) => Promise<{ ok: boolean; error?: string }>;
   onMakePrimary?: () => void;
-  onUpdate: (patch: { name?: string; isDecisionMaker?: boolean }) => void;
+  onUpdate: (patch: { name?: string; jobTitle?: string; email?: string; phone?: string; isDecisionMaker?: boolean }) => void;
   onDelete: () => void;
   pending: boolean;
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [name, setName] = useState(c.name);
+  const [role, setRole] = useState(c.jobTitle ?? "");
+  const [email, setEmail] = useState(c.email ?? "");
+  const [phone, setPhone] = useState(c.phone ?? "");
   const [dm, setDm] = useState(c.isDecisionMaker);
+  function openEdit() {
+    setName(c.name); setRole(c.jobTitle ?? ""); setEmail(c.email ?? ""); setPhone(c.phone ?? ""); setDm(c.isDecisionMaker);
+    setMode(mode === "edit" ? "view" : "edit");
+  }
   return (
     <div className="border border-neutral-800/70 rounded-lg p-2.5 space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -325,7 +332,7 @@ function ContactCard({ c, shared, onConfirmField, onEditField, onMakePrimary, on
         </div>
         <div className="flex items-center gap-2 shrink-0 text-[10px]">
           {!shared && !c.isPrimary && onMakePrimary && <button onClick={onMakePrimary} disabled={pending} className="text-neutral-500 hover:text-neutral-300">Make primary</button>}
-          <button onClick={() => { setName(c.name); setDm(c.isDecisionMaker); setMode(mode === "edit" ? "view" : "edit"); }} className="text-neutral-500 hover:text-neutral-300">Edit</button>
+          <button onClick={openEdit} className="text-neutral-500 hover:text-neutral-300">Edit</button>
           <button onClick={() => setMode("delete")} className="text-red-400/70 hover:text-red-300">Remove</button>
         </div>
       </div>
@@ -338,19 +345,30 @@ function ContactCard({ c, shared, onConfirmField, onEditField, onMakePrimary, on
         </div>
       )}
 
-      {mode === "edit" && (
+      {mode === "edit" ? (
+        // One form for the whole contact — no need to hop between tiles.
         <div className="space-y-2 bg-neutral-900 border border-neutral-800 rounded p-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Name" className={inputCls} />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Name" className={inputCls} />
+            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role" className={inputCls} />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }} placeholder="Email" className={inputCls} />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setPhone(formatUKPhone(e.target.value)); }} placeholder="Phone" className={inputCls} />
+          </div>
           <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={dm} onChange={(e) => setDm(e.target.checked)} /> Decision-maker</label>
-          <button onClick={() => { onUpdate({ name, isDecisionMaker: dm }); setMode("view"); }} disabled={pending || !name.trim()} className="text-[11px] px-2 py-1 rounded bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">Save</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { onUpdate({ name, jobTitle: role, email, phone, isDecisionMaker: dm }); setMode("view"); }} disabled={pending || !name.trim()} className="text-[11px] px-2 py-1 rounded bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">Save</button>
+            <button onClick={() => setMode("view")} className="text-[11px] px-2 py-1 text-neutral-500 hover:text-neutral-300">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        // View mode: verified/confirmed values read plainly; gaps + flagged
+        // (needs-check) fields keep the confirm/edit affordance.
+        <div className="grid grid-cols-2 gap-1.5">
+          <VerifiedField label="Role" value={c.jobTitle} meta={c.research?.jobTitle} expected onConfirm={() => onConfirmField("jobTitle")} onEdit={(v) => onEditField("jobTitle", v)} />
+          <VerifiedField label="Email" value={c.email} meta={c.research?.email} expected onConfirm={() => onConfirmField("email")} onEdit={(v) => onEditField("email", v)} />
+          <VerifiedField label="Phone" value={c.phone} meta={c.research?.phone} expected onConfirm={() => onConfirmField("phone")} onEdit={(v) => onEditField("phone", v)} format={formatUKPhone} />
         </div>
       )}
-
-      <div className="grid grid-cols-2 gap-1.5">
-        <VerifiedField label="Role" value={c.jobTitle} meta={c.research?.jobTitle} expected onConfirm={() => onConfirmField("jobTitle")} onEdit={(v) => onEditField("jobTitle", v)} />
-        <VerifiedField label="Email" value={c.email} meta={c.research?.email} expected onConfirm={() => onConfirmField("email")} onEdit={(v) => onEditField("email", v)} />
-        <VerifiedField label="Phone" value={c.phone} meta={c.research?.phone} expected onConfirm={() => onConfirmField("phone")} onEdit={(v) => onEditField("phone", v)} format={formatUKPhone} />
-      </div>
     </div>
   );
 }
