@@ -19,15 +19,15 @@ export const FOLLOWUP_TEMPLATES: FollowUpTemplate[] = [
     label: "Cold introduction",
     build: (c) => ({
       subject: `Sales progression for ${c.agencyName}`,
-      body: `${hi(c)}\n\nI run The Sales Progressor. We take the chasing and progression work off estate agents so more sales exchange, faster, without the day to day admin.\n\nWould you be open to a quick look at how it would work for ${c.agencyName}? Happy to run one of your live sales through it so you can see it in action, no commitment.\n\nBest,\n${c.senderName}`,
+      body: `${hi(c)}\n\nI run The Sales Progressor. We’ve spent the last few years building software around how property transactions actually progress, with one goal: helping agents get more of their agreed sales through to exchange.\n\nIt’s completely free for agents to use themselves. It tracks what’s happening across each sale, flags where things are starting to stall and gives you a live prediction of when your exchanges are likely to land, rather than relying on guesswork.\n\nAnd if you’d rather not progress a sale yourself, you can simply hand it to us and we’ll do it for you.\n\nWould you be open to trying it with a live sale at ${c.agencyName}?\n\nBest,`,
     }),
   },
   {
     key: "no_response",
     label: "No response yet",
     build: (c) => ({
-      subject: `Following up — ${c.agencyName}`,
-      body: `${hi(c)}\n\nJust floating this back to the top of your inbox. I know how busy a sales floor gets.\n\nIf it helps, I can show you the difference on a single live file with no setup on your side. Worth a five minute look?\n\nBest,\n${c.senderName}`,
+      subject: `Following up - ${c.agencyName}`,
+      body: `${hi(c)}\n\nJust floating this back to the top of your inbox.\n\nThere’s no trial or subscription with The Sales Progressor. The software is completely free, so you can add a live sale and see what’s outstanding, where it’s starting to stall and when it’s currently predicted to exchange.\n\nThe idea is simply to give the team a much clearer view of the pipeline and catch problems earlier, before they put an agreed sale at risk.\n\nAnd if you’d rather take the progression off the team altogether, you can hand the file to us instead.\n\nWorth trying it on one?\n\nBest,`,
     }),
   },
   {
@@ -59,7 +59,7 @@ export const FOLLOWUP_TEMPLATES: FollowUpTemplate[] = [
     label: "Re-engagement",
     build: (c) => ({
       subject: `Still worth a look?`,
-      body: `${hi(c)}\n\nIt has been a while, so I wanted to check whether progression is still a headache worth solving at ${c.agencyName}.\n\nWe have made the trial even simpler since we last spoke. One live sale, run entirely by us. Fancy giving it a go?\n\nBest,\n${c.senderName}`,
+      body: `${hi(c)}\n\nOne last nudge from me.\n\nWe built The Sales Progressor because far too many agreed sales still fall through unnecessarily. By the time it becomes obvious that a transaction has stalled, weeks can already have been lost.\n\nThe software is free for agents to use and is designed to flag those problems earlier, keep the progression moving and give you a much better idea of which exchanges are actually coming.\n\nIf you fancy giving it a go, add one live sale and see what you think. Or send it our way and we can progress it for you.\n\nBest,`,
     }),
   },
 ];
