@@ -24,6 +24,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createPublicKey, createVerify } from "node:crypto";
 import { handleBouncedInvite } from "@/lib/chain/invite";
 import { prisma } from "@/lib/prisma";
+import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import {
   classifyEvent,
   extractQueueIds,
@@ -228,7 +229,11 @@ async function applyProspectEmailEvent(id: string, event: SendGridEvent): Promis
     case "blocked": {
       await prisma.prospectEmail.updateMany({ where: { id }, data: { bouncedAt: at, bouncedReason: event.reason ?? event.status ?? null } });
       const pe = await prisma.prospectEmail.findUnique({ where: { id }, select: { prospectId: true } });
-      if (pe) await prisma.prospect.update({ where: { id: pe.prospectId }, data: { bouncedAt: at } }).catch(() => {});
+      if (pe) {
+        await prisma.prospect.update({ where: { id: pe.prospectId }, data: { bouncedAt: at } }).catch(() => {});
+        // A bounce halts any running outreach flow — the address is dead.
+        await haltActiveFlows(pe.prospectId, "bounced").catch(() => {});
+      }
       return;
     }
   }

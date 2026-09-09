@@ -1,6 +1,7 @@
 import { commandDb } from "@/lib/command/prisma";
 import { PROSPECT_STATUSES as STATUS_ORDER } from "@/lib/command/prospect-labels";
 import type { ResearchMeta } from "@/lib/command/prospect-labels";
+import { sequenceStepLabel } from "@/lib/prospects/flow";
 import type { ProspectStatus, ProspectSource } from "@prisma/client";
 
 // Command Centre → Prospects. Read helpers for the acquisition-CRM list, detail
@@ -123,6 +124,19 @@ export type ProspectDetail = {
     id: string; subject: string; toEmail: string; sentAt: Date; deliveredAt: Date | null;
     openedAt: Date | null; clickedAt: Date | null; bouncedAt: Date | null; repliedAt: Date | null; aiGenerated: boolean;
   }>;
+  // The prospect's most recent outreach flow (active, completed, or stopped),
+  // with its steps in order. Null if a flow has never been started.
+  flow: {
+    id: string;
+    status: string;
+    haltedReason: string | null;
+    startedAt: Date;
+    steps: Array<{
+      id: string; stepIndex: number; templateKey: string; status: string;
+      scheduledFor: Date | null; subject: string | null; body: string | null;
+      toEmail: string | null; sentAt: Date | null; skippedAt: Date | null;
+    }>;
+  } | null;
 };
 
 export async function getProspectDetail(id: string): Promise<ProspectDetail | null> {
@@ -133,6 +147,7 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
       activities: { orderBy: { occurredAt: "desc" }, take: 100 },
       emails: { orderBy: { sentAt: "desc" }, take: 50 },
       convertedAgency: { select: { id: true, name: true } },
+      flows: { orderBy: { createdAt: "desc" }, take: 1, include: { steps: { orderBy: { stepIndex: "asc" } } } },
       group: {
         select: {
           id: true, name: true, website: true, notes: true,
@@ -184,7 +199,40 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
       id: e.id, subject: e.subject, toEmail: e.toEmail, sentAt: e.sentAt, deliveredAt: e.deliveredAt,
       openedAt: e.openedAt, clickedAt: e.clickedAt, bouncedAt: e.bouncedAt, repliedAt: e.repliedAt, aiGenerated: e.aiGenerated,
     })),
+    flow: p.flows[0]
+      ? {
+          id: p.flows[0].id,
+          status: p.flows[0].status,
+          haltedReason: p.flows[0].haltedReason,
+          startedAt: p.flows[0].startedAt,
+          steps: p.flows[0].steps.map((s) => ({
+            id: s.id, stepIndex: s.stepIndex, templateKey: s.templateKey, status: s.status,
+            scheduledFor: s.scheduledFor, subject: s.subject, body: s.body, toEmail: s.toEmail,
+            sentAt: s.sentAt, skippedAt: s.skippedAt,
+          })),
+        }
+      : null,
   };
+}
+
+// Steps sitting in "ready to approve" across all active flows. Powers the
+// morning digest nudge and the follow-up queue's flow section.
+export async function getReadyFlowSteps(): Promise<
+  Array<{ prospectId: string; agencyName: string; stepLabel: string; subject: string | null; queuedAt: Date | null }>
+> {
+  const steps = await commandDb.prospectFlowStep.findMany({
+    where: { status: "queued", flow: { status: "active" } },
+    include: { flow: { include: { prospect: { select: { id: true, agencyName: true } } } } },
+    orderBy: { queuedAt: "asc" },
+    take: 100,
+  });
+  return steps.map((s) => ({
+    prospectId: s.flow.prospectId,
+    agencyName: s.flow.prospect.agencyName,
+    stepLabel: sequenceStepLabel(s.stepIndex),
+    subject: s.subject,
+    queuedAt: s.queuedAt,
+  }));
 }
 
 // ─── Phase 2: follow-up queue + pipeline ─────────────────────────────────────

@@ -3905,6 +3905,7 @@ model Prospect {
   contacts        ProspectContact[]
   activities      ProspectActivity[]
   emails          ProspectEmail[]
+  flows           ProspectFlow[]
 
   @@index([status, nextFollowUpAt])
   @@index([nextFollowUpAt])
@@ -4045,6 +4046,62 @@ model ProspectEmail {
   @@index([prospectId, sentAt])
   @@index([replyToken])
   @@index([sgMessageId])
+}
+
+// An outreach sequence running against a single prospect: a fixed set of emails
+// spaced over time (see DEFAULT_SEQUENCE in lib/prospects/flow.ts). Auto-queue,
+// human-approve: when a step falls due it is drafted and set to `queued`, never
+// sent automatically — the operator approves each send. Only one flow is active
+// per prospect at a time (enforced in the start action). A reply, opt-out, or
+// bounce halts the flow and skips its remaining steps.
+model ProspectFlow {
+  id          String    @id @default(cuid())
+  prospectId  String
+  status      String    @default("active") // active | completed | halted | cancelled
+  haltedReason String?  // replied | opted_out | bounced | manual
+  startedById String?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  prospect Prospect           @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  steps    ProspectFlowStep[]
+
+  @@index([prospectId])
+  @@index([status])
+}
+
+// One email within a flow. Starts `scheduled` (scheduledFor is set for step 0 at
+// start time, and for later steps the moment the previous step actually sends).
+// When due it is drafted and flipped to `queued` for approval; on approval it
+// sends through the normal prospect-outreach path and is linked to its
+// ProspectEmail. `skipped` covers both a manual skip and a flow-level halt.
+model ProspectFlowStep {
+  id           String    @id @default(cuid())
+  flowId       String
+  stepIndex    Int
+  templateKey  String
+  status       String    @default("scheduled") // scheduled | queued | sent | skipped
+  scheduledFor DateTime? // when it becomes due; null until the previous step sends
+
+  // Draft, populated when the step is queued (editable before approval).
+  contactId String?
+  toEmail   String?
+  subject   String?
+  body      String?
+
+  prospectEmailId String? // the ProspectEmail created when this step sends
+  queuedAt        DateTime?
+  sentAt          DateTime?
+  skippedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  flow ProspectFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId, stepIndex])
+  @@index([status, scheduledFor])
 }
 
 enum ProspectStatus {

@@ -16,6 +16,7 @@ import {
   CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS, LOST_REASON_LABEL,
 } from "@/lib/command/prospect-labels";
 import { FollowUpCompose } from "./FollowUpCompose";
+import { FlowPanel } from "./FlowPanel";
 import { VerifiedField } from "./VerifiedField";
 import type { ProspectDetail, AgencyMatch, ConvertedAgencyStats, GroupMatch } from "@/lib/command/prospects";
 import type { ResearchMeta } from "@/lib/command/prospect-labels";
@@ -164,6 +165,11 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
               onLink={async (groupId) => { const r = await linkProspectToGroupAction(id, groupId); if (r.ok) after(); return r; }}
               onCreate={async (name) => { const r = await createGroupAndLinkAction(id, name); if (r.ok) after(); return r; }}
             />}
+
+            {/* Outreach flow — start a sequence, approve each email as it comes due */}
+            <Section title="Flow">
+              <FlowPanel flow={d.flow} prospectId={id} canEmail={canEmail} disabledReason={emailDisabledReason} onChanged={after} />
+            </Section>
 
             {/* Agency info — verified fields look normal, NEEDS_CHECK flags, gaps highlighted */}
             <Section title="Agency">

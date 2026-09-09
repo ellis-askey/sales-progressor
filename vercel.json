@@ -29,6 +29,10 @@
       "schedule": "*/15 6-7 * * 1-5"
     },
     {
+      "path": "/api/cron/prospect-flow-tick",
+      "schedule": "15 7 * * 1-5"
+    },
+    {
       "path": "/api/cron/prospect-followup-digest",
       "schedule": "30 7 * * 1-5"
     },

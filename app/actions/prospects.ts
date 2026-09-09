@@ -15,6 +15,7 @@ import { CALL_OUTCOMES, CALL_OUTCOME_LABEL, LOST_REASONS } from "@/lib/command/p
 import { anthropic } from "@/lib/anthropic";
 import { buildTemplate } from "@/lib/prospects/templates";
 import { sendProspectOutreach } from "@/lib/prospects/send";
+import { performProspectSend } from "@/lib/prospects/perform-send";
 import { buildAgencyInvitation } from "@/lib/emails/agency-invitation";
 import { researchAgency, type ResearchField, type ResearchResult } from "@/lib/prospects/research";
 import { randomUUID } from "crypto";
@@ -325,31 +326,16 @@ export async function sendProspectEmailAction(prospectId: string, input: {
   contactId?: string; to: string; subject: string; body: string; aiGenerated?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSuperAdmin();
-  const to = input.to.trim(), subject = input.subject.trim(), body = input.body.trim();
-  if (!to || !subject || !body) return { ok: false, error: "To, subject and body are all required." };
-
-  const p = await commandDb.prospect.findUnique({ where: { id: prospectId }, select: { optedOutAt: true, bouncedAt: true, status: true } });
-  if (!p) return { ok: false, error: "Prospect not found." };
-  if (p.optedOutAt) return { ok: false, error: "This prospect has opted out of email." };
-  if (p.bouncedAt) return { ok: false, error: "A previous email to this prospect bounced." };
-
-  const replyToken = randomUUID().replace(/-/g, "");
-  const pe = await commandDb.prospectEmail.create({
-    data: { prospectId, contactId: input.contactId ?? null, toEmail: to, subject, body, replyToken, aiGenerated: !!input.aiGenerated, createdById: session.user.id },
+  const res = await performProspectSend({
+    prospectId,
+    actorUserId: session.user.id,
+    contactId: input.contactId ?? null,
+    to: input.to,
+    subject: input.subject,
+    body: input.body,
+    aiGenerated: input.aiGenerated,
   });
-  try {
-    const { sgMessageId } = await sendProspectOutreach({ to, subject, text: body, replyToken, prospectEmailId: pe.id });
-    await commandDb.prospectEmail.update({ where: { id: pe.id }, data: { sgMessageId } });
-  } catch (err) {
-    await commandDb.prospectEmail.delete({ where: { id: pe.id } }).catch(() => {});
-    return { ok: false, error: err instanceof Error ? err.message.slice(0, 140) : "The email failed to send." };
-  }
-
-  await logActivity(prospectId, session.user.id, "email_sent", `Email: ${subject}`, body, { prospectEmailId: pe.id });
-  await commandDb.prospect.update({
-    where: { id: prospectId },
-    data: { lastContactedAt: new Date(), followUpCount: { increment: 1 }, nextFollowUpAt: null, ...(p.status === "new" ? { status: "contacted" as ProspectStatus } : {}) },
-  });
+  if (!res.ok) return res;
   revalidatePath("/command/prospects");
   return { ok: true };
 }

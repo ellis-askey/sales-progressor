@@ -12,6 +12,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
   if (prospect && (prospect.status === "new" || prospect.status === "contacted")) {
     await prisma.prospect.update({ where: { id: email.prospectId }, data: { status: "replied" } }).catch(() => {});
   }
+
+  // Stop any running outreach flow — we never chase someone who has replied.
+  await haltActiveFlows(email.prospectId, "replied").catch(() => {});
 
   const snippet = bodyText.replace(/\s+/g, " ").trim().slice(0, 400);
   await prisma.prospectActivity.create({

@@ -21,7 +21,10 @@ function escapeHtml(s: string): string {
 // Public site the signature image links to.
 const SITE_URL = process.env.PROSPECT_SITE_URL ?? "https://www.thesalesprogressor.co.uk";
 
-function renderHtml(text: string): string {
+// Wrap plain outreach text in the standard signature template. Exported so the
+// prospect drawer can preview a queued email exactly as the recipient sees it,
+// using the same markup the send path produces.
+export function renderProspectEmailHtml(text: string): string {
   const bodyHtml = escapeHtml(text).replace(/\n/g, "<br>");
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111;line-height:1.5">
     <div>${bodyHtml}</div>
@@ -50,7 +53,7 @@ export async function sendProspectOutreach(args: {
     replyTo: `reply+${args.replyToken}@${INBOUND_DOMAIN}`,
     subject: args.subject,
     text: args.html ? args.text : `${args.text}\n\nEllis Askey\nOperations Director, The Sales Progressor\nellis@thesalesprogressor.co.uk`,
-    html: args.html ?? renderHtml(args.text),
+    html: args.html ?? renderProspectEmailHtml(args.text),
     customArgs: { prospectEmailId: args.prospectEmailId },
     trackingSettings: { openTracking: { enable: true }, clickTracking: { enable: true, enableText: false } },
     mailSettings: { sandboxMode: { enable: isSandbox } },
