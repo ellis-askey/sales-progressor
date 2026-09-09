@@ -10,6 +10,7 @@ export function AddManualTaskForm({
   transactionAddress,
   showOwnership = false,
   internalMode = false,
+  allowReview = false,
   onAdd,
 }: {
   transactionId?: string;
@@ -19,12 +20,16 @@ export function AddManualTaskForm({
   // primary button, and the caller is responsible for setting
   // isInternalSelfAssigned on the POST.
   internalMode?: boolean;
+  // When true, offers a "Mark as a review" toggle (only meaningful when a file
+  // is linked). A review lands in the "Reviews due" section on /agent/to-do.
+  allowReview?: boolean;
   onAdd: (task: {
     title: string;
     notes?: string;
     dueDate?: string;
     transactionId?: string;
     isAgentRequest?: boolean;
+    isReview?: boolean;
   }) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -32,8 +37,11 @@ export function AddManualTaskForm({
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [owner, setOwner] = useState<"mine" | "progressor">("mine");
+  const [isReview, setIsReview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateError, setDateError] = useState("");
+  // A review only makes sense on a linked file with a date to come back on.
+  const canReview = allowReview && !!transactionId;
   // Design Lab: `todo-add-form`. The composer is a <form> (can't be a
   // GlassCard div), so it's tagged in place — variant class + data
   // attributes computed from the current pick (default v03). 2026-08-09.
@@ -68,6 +76,7 @@ export function AddManualTaskForm({
     setNotes("");
     setDueDate("");
     setOwner("mine");
+    setIsReview(false);
     setDateError("");
   }
 
@@ -80,6 +89,11 @@ export function AddManualTaskForm({
       setDateError("Due date cannot be in the past.");
       return;
     }
+    // A review needs a date to come back on.
+    if (canReview && isReview && !dueDate) {
+      setDateError("Pick a date for the review.");
+      return;
+    }
     setDateError("");
 
     setSaving(true);
@@ -89,8 +103,9 @@ export function AddManualTaskForm({
       dueDate: dueDate || undefined,
       transactionId,
       isAgentRequest: showOwnership && owner === "progressor",
+      isReview: canReview && isReview,
     });
-    setTitle(""); setNotes(""); setDueDate(""); setOwner("mine");
+    setTitle(""); setNotes(""); setDueDate(""); setOwner("mine"); setIsReview(false);
     setSaving(false);
     setOpen(false);
   }
@@ -153,6 +168,17 @@ export function AddManualTaskForm({
             </button>
           </div>
         </div>
+      )}
+      {canReview && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={isReview}
+            onChange={(e) => setIsReview(e.target.checked)}
+            style={{ width: 15, height: 15, accentColor: "var(--agent-coral-base, #FF6B4A)", cursor: "pointer" }}
+          />
+          <span className="text-xs text-slate-900/60">Mark as a review. We&apos;ll bring this file back on the date below.</span>
+        </label>
       )}
       <div className="flex items-center gap-3 pt-1" style={{ borderTop: "0.5px solid var(--agent-border-subtle)" }}>
         <div>

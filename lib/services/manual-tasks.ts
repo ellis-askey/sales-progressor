@@ -13,6 +13,7 @@ export type ManualTaskWithRelations = {
   createdAt: Date;
   isAgentRequest: boolean;
   isInternalSelfAssigned: boolean;
+  isReview: boolean;
   transactionId: string | null;
   transaction: { propertyAddress: string } | null;
   assignedTo: { id: string; name: string } | null;
@@ -65,6 +66,9 @@ export async function createManualTask(data: {
   dueDate?: string;
   isAgentRequest?: boolean;
   isInternalSelfAssigned?: boolean;
+  // Marks a deliberate "come back on the due date" review (surfaced in the
+  // Reviews-due section on /agent/to-do). See lib/services/reviews.ts.
+  isReview?: boolean;
   // Provenance for auto-created tasks (e.g. the WhatsApp "Promises" scan).
   sourceMessageId?: string;
 }) {
@@ -79,6 +83,7 @@ export async function createManualTask(data: {
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       isAgentRequest: data.isAgentRequest ?? false,
       isInternalSelfAssigned: data.isInternalSelfAssigned ?? false,
+      isReview: data.isReview ?? false,
       sourceMessageId: data.sourceMessageId ?? null,
     },
     include: {

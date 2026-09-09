@@ -46,6 +46,7 @@ export interface CreateManualTaskInput {
   dueDate?: string;
   isAgentRequest?: boolean;
   isInternalSelfAssigned?: boolean;
+  isReview?: boolean;
 }
 
 export async function createManualTaskAction(
@@ -54,7 +55,7 @@ export async function createManualTaskAction(
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("Unauthorised");
 
-  const { title, notes, transactionId, assignedToId, dueDate, isAgentRequest, isInternalSelfAssigned } = input;
+  const { title, notes, transactionId, assignedToId, dueDate, isAgentRequest, isInternalSelfAssigned, isReview } = input;
 
   if (!title?.trim()) throw new Error("Title is required");
 
@@ -88,6 +89,7 @@ export async function createManualTaskAction(
       assignedToId,
       dueDate,
       isInternalSelfAssigned: true,
+      isReview: isReview === true,
     });
     revalidateTodos();
     return task as ManualTaskWithRelations;
@@ -118,6 +120,7 @@ export async function createManualTaskAction(
     assignedToId,
     dueDate,
     isAgentRequest: isAgentRequest === true,
+    isReview: isReview === true,
   });
   revalidateTodos();
   return task as ManualTaskWithRelations;

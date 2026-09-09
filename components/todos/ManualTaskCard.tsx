@@ -122,6 +122,9 @@ export function ManualTaskCard({
           {task.isAgentRequest && (
             <Pill glass tone="brand" size="sm" className="flex-shrink-0">From agent</Pill>
           )}
+          {task.isReview && (
+            <Pill glass tone="warning" size="sm" className="flex-shrink-0">Review</Pill>
+          )}
         </div>
 
         {/* Agent's creation note (read-only) */}

@@ -159,9 +159,13 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
 
   // Three-way partition. Internal tasks take precedence — a task can't be
   // both an agent-request and internal-self-assigned in practice.
-  const internalTasks = tasks.filter((t) =>  t.isInternalSelfAssigned);
-  const ownTasks      = tasks.filter((t) => !t.isInternalSelfAssigned && !t.isAgentRequest);
-  const progTasks     = tasks.filter((t) => !t.isInternalSelfAssigned &&  t.isAgentRequest);
+  // Reviews (isReview) are excluded everywhere here — they render in the
+  // dedicated "Reviews due" section above this list, so they must not
+  // double-appear in My-to-dos / Internal / progressor buckets.
+  const visible       = tasks.filter((t) => !t.isReview);
+  const internalTasks = visible.filter((t) =>  t.isInternalSelfAssigned);
+  const ownTasks      = visible.filter((t) => !t.isInternalSelfAssigned && !t.isAgentRequest);
+  const progTasks     = visible.filter((t) => !t.isInternalSelfAssigned &&  t.isAgentRequest);
 
   const ownOpen  = sortTasks(ownTasks.filter((t) => t.status === "open"));
   const ownDone  = sortTasks(ownTasks.filter((t) => t.status === "done"));

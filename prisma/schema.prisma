@@ -1813,6 +1813,14 @@ model ManualTask {
   // internal staff member, regardless of creator. Mutually exclusive
   // in practice with isAgentRequest.
   isInternalSelfAssigned Boolean          @default(false)
+  // A deliberate "come back to this file on the due date" review (as opposed
+  // to an ordinary dated to-do). Set via the "Mark as a review" affordance on
+  // a file's To-Do tab. Surfaced in the dedicated "Reviews due" section on
+  // /agent/to-do and excluded from the normal My-to-dos / Internal partitions
+  // there so it never double-renders. Holds-with-a-return-date are ALSO
+  // reviews but are read straight from TransactionHoldPeriod (single source of
+  // truth) — this flag only marks the hand-typed ones. See lib/services/reviews.ts.
+  isReview               Boolean          @default(false)
   createdById            String
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt

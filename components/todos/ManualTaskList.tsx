@@ -163,6 +163,7 @@ export function ManualTaskList({
     dueDate?: string;
     transactionId?: string;
     isAgentRequest?: boolean;
+    isReview?: boolean;
   }) {
     const tempId = `temp-${Date.now()}`;
     const optimistic: ManualTaskWithRelations = {
@@ -176,6 +177,7 @@ export function ManualTaskList({
       createdAt: new Date(),
       isAgentRequest: data.isAgentRequest ?? false,
       isInternalSelfAssigned: false,
+      isReview: data.isReview ?? false,
       transactionId: data.transactionId ?? null,
       transaction: null,
       assignedTo: null,
@@ -231,6 +233,7 @@ export function ManualTaskList({
     dueDate?: string;
     transactionId?: string;
     isAgentRequest?: boolean;
+    isReview?: boolean;
   }) {
     const tempId = `temp-${Date.now()}`;
     const optimistic: ManualTaskWithRelations = {
@@ -244,6 +247,7 @@ export function ManualTaskList({
       createdAt: new Date(),
       isAgentRequest: false,
       isInternalSelfAssigned: true,
+      isReview: data.isReview ?? false,
       transactionId: data.transactionId ?? null,
       transaction: null,
       assignedTo: null,
@@ -287,6 +291,7 @@ export function ManualTaskList({
             transactionId={transactionId}
             transactionAddress={transactionAddress}
             showOwnership={showOwnership}
+            allowReview
             onAdd={handleAdd}
           />
         )}
@@ -389,6 +394,7 @@ export function ManualTaskList({
           transactionId={transactionId}
           transactionAddress={transactionAddress}
           internalMode
+          allowReview
           onAdd={handleAddInternal}
         />
       </div>

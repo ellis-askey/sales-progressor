@@ -1,0 +1,11 @@
+-- Reviews-due surface: mark a ManualTask as a deliberate "come back to this
+-- file on the due date" review (rendered in the Reviews-due section on
+-- /agent/to-do). Holds-with-a-return-date are also reviews but are read
+-- straight from TransactionHoldPeriod; this flag only marks hand-typed ones.
+-- See lib/services/reviews.ts.
+--
+-- IF NOT EXISTS keeps this safe to re-run: the column is applied to staging
+-- via the pooled connection at authoring time (the direct migrate endpoint is
+-- unreachable from the dev machine), and Vercel's `migrate deploy` then records
+-- + no-ops it on staging and applies it cleanly on production.
+ALTER TABLE "ManualTask" ADD COLUMN IF NOT EXISTS "isReview" BOOLEAN NOT NULL DEFAULT false;

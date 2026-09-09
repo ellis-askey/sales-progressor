@@ -23,7 +23,7 @@ import type { AgentVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
-  getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
+  getHubUnassignedFiles, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm,
   getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
 } from "@/lib/services/hub";
@@ -51,8 +51,10 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { countReviewsDue } from "@/lib/services/reviews";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TypedText } from "@/components/agent/TypedText";
 
@@ -476,6 +478,13 @@ function FullHubBody({
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
+      {/* Reviews due — compact pointer to the "Reviews due" section on /agent/to-do.
+          Files on hold past their return date (incl. chain-collapse waits) live
+          there now, not in Needs-you. Hidden when nothing is due. */}
+      <Suspense fallback={null}>
+        <ReviewsDuePointerSlot ctx={ctx} />
+      </Suspense>
+
       {/* Gone quiet + mortgage expiries — deduped against Needs-attention AND
           each other so a property never stacks across cards. Hidden when none. */}
       <Suspense fallback={null}>
@@ -563,14 +572,17 @@ async function AttentionSlot({
   vis: AgentVisibility;
   initialAttentionItems: Awaited<ReturnType<typeof getHubAttentionItems>>;
 }) {
-  const [expiredHolds, unassignedFiles, relistsToAcknowledge, chainSetupPending] = await Promise.all([
-    getExpiredHolds(vis),
+  // Expired holds moved OUT of "Needs your attention" (2026-09-09): files on
+  // hold with a return date are reviews, not steps to chase, so they now live
+  // in the "Reviews due" section on /agent/to-do (see lib/services/reviews.ts +
+  // ReviewsDuePointerSlot below). Needs-you is now cleanly reminders +
+  // exchange-passed + the internal assign/relist/chain-setup queues.
+  const [unassignedFiles, relistsToAcknowledge, chainSetupPending] = await Promise.all([
     getHubUnassignedFiles(vis),
     getHubRelistsToAcknowledge(vis),
     getHubChainSetupPending(vis),
   ]);
   const photoUrlMap = await getSignedUrlMap([
-    ...expiredHolds.map((h) => h.photoStoragePath),
     ...initialAttentionItems.map((i) => i.transaction.photoStoragePath),
     ...unassignedFiles.map((f) => f.photoStoragePath),
     ...relistsToAcknowledge.map((r) => r.photoStoragePath),
@@ -582,13 +594,44 @@ async function AttentionSlot({
     <SectionReveal order={1}>
       <AnimatedSection>
         <AttentionCard
-          holds={expiredHolds.map((h) => ({ ...h, photoUrl: signed(h.photoStoragePath) }))}
+          holds={[]}
           reminders={initialAttentionItems.map((i) => ({ ...i, photoUrl: signed(i.transaction.photoStoragePath) }))}
           unassigned={unassignedFiles.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
           relists={relistsToAcknowledge.map((r) => ({ ...r, photoUrl: signed(r.photoStoragePath) }))}
           chainSetup={chainSetupPending.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
         />
       </AnimatedSection>
+    </SectionReveal>
+  );
+}
+
+// Compact pointer to the "Reviews due" section on /agent/to-do. Renders only
+// when at least one review is due (on-hold files past their return date +
+// hand-typed reviews due today/earlier), scoped to what this user can see.
+async function ReviewsDuePointerSlot({ ctx }: { ctx: Ctx }) {
+  const count = await countReviewsDue(getAccessScope(ctx.session)).catch(() => 0);
+  if (count === 0) return null;
+  return (
+    <SectionReveal order={1}>
+      <Link href="/agent/to-do#section-reviews" style={{ textDecoration: "none", display: "block" }}>
+        <div className="agent-glass agent-hover-row" style={{ borderRadius: "var(--agent-radius-xl)", padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span aria-hidden style={{ width: 34, height: 34, borderRadius: 999, background: "var(--agent-coral-bg-tint)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <CalendarCheck size={17} weight="bold" />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              {count} {count === 1 ? "file" : "files"} to review
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
+              Return dates have arrived. Decide: wait on, resume, or move on.
+            </p>
+          </div>
+          <span className="agent-link" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            Reviews
+            <LinkArrow />
+          </span>
+        </div>
+      </Link>
     </SectionReveal>
   );
 }

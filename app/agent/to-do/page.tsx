@@ -1,7 +1,10 @@
 import { requireSession } from "@/lib/session";
 import { listAllTasksForAgent, listProgressorInboxTasks, listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
+import { listReviews } from "@/lib/services/reviews";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
+import { ReviewsSection } from "@/components/agent/ReviewsSection";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
@@ -23,6 +26,15 @@ export default async function AgentTodoPage() {
   const inboxTasks = isProgressor ? await listProgressorInboxTasks(session.user.id) : [];
   const internalTasks = isInternal ? await listInternalSelfAssignedTasks() : [];
   const tasks = [...ownTasks, ...inboxTasks, ...internalTasks];
+
+  // "Reviews due" — files on hold with a return date (incl. chain-collapse
+  // waits + remarketing) plus hand-typed reviews, scoped to what this user can
+  // see. Read straight from the hold periods, so no duplicate rows to sync.
+  const reviews = await listReviews(getAccessScope(session));
+  const reviewsDueCount = reviews.items.filter(
+    (i) => i.reviewDate && toUKDateStr(i.reviewDate) <= toUKDateStr(new Date()),
+  ).length;
+  const hasReviews = reviews.items.length > 0 || reviews.done.length > 0;
 
   // "Your progressor" wording + controls only make sense once the agency has a
   // file being progressed by our team. Self-managed-only agencies never see it.
@@ -48,6 +60,7 @@ export default async function AgentTodoPage() {
   const progLabel = isProgressor ? "from agents" : "with progressor";
 
   const statSegs = [
+    reviewsDueCount > 0 && { key: "reviews", label: `${reviewsDueCount} to review`,                                href: "#section-reviews",    pillColor: "warning" as PillColor },
     ownOpen.length > 0  && { key: "mine",    label: `${ownOpen.length} to-do${ownOpen.length === 1 ? "" : "s"}`, href: "#section-mine",       pillColor: "muted"   as PillColor },
     progOpen.length > 0 && { key: "prog",    label: `${progOpen.length} ${progLabel}`,                            href: "#section-progressor", pillColor: "warning" as PillColor },
     overdueCount > 0    && { key: "overdue", label: `${overdueCount} overdue`,                                     href: "#section-mine",       pillColor: "danger"  as PillColor },
@@ -64,13 +77,16 @@ export default async function AgentTodoPage() {
         ))}
       </PageHeader>
 
-      {tasks.length === 0 && !isInternal ? (
+      {tasks.length === 0 && !hasReviews && !isInternal ? (
         // Brand-new agency user: the onboarding empty state (full width, mock).
         <div className="px-4 md:px-8 py-2 md:py-4">
           <TodoEmptyState canUseProgressor={hasOutsourced} />
         </div>
       ) : (
-        <div className="px-4 md:px-8 py-2 md:py-4 agent-fade-up" style={{ maxWidth: 680 }}>
+        <div className="px-4 md:px-8 py-2 md:py-4 agent-fade-up space-y-8" style={{ maxWidth: 680 }}>
+          {hasReviews && (
+            <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />
+          )}
           <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
         </div>
       )}

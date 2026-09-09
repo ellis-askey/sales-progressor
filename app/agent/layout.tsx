@@ -7,6 +7,7 @@ import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
+import { countReviewsDue } from "@/lib/services/reviews";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { countOpenEnquiries } from "@/lib/services/enquiries";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
@@ -59,11 +60,13 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     session.user.agencyId,
   );
 
-  // To-Do nav badge: count of the user's own due-today + overdue to-dos.
-  // Admins don't get the To-Do nav item, so skip the query for them.
+  // To-Do nav badge: due-today + overdue to-dos, PLUS reviews due (files on
+  // hold past their return date + hand-typed reviews due). Admins don't get
+  // the To-Do nav item, so skip the queries for them.
   const todoDueCount = session.user.role === "admin"
     ? 0
-    : await countAgentDueOrOverdue(session.user.id, session.user.agencyId, session.user.role);
+    : (await countAgentDueOrOverdue(session.user.id, session.user.agencyId, session.user.role))
+      + (await countReviewsDue(getAccessScope(session)).catch(() => 0));
 
   // Enquiries nav badge — open enquiry loops the internal team can triage.
   // Internal-only for now, so skip the query for agency users entirely.
