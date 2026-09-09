@@ -8,6 +8,22 @@ Last updated: 2026-09-09
 
 ---
 
+## Content inbox — schedule the refresh cron (2026-09-09)
+
+The Content & Personal Brand area (Command Centre → Content) ships with an inbox
+that surfaces things worth talking about. It refreshes **on demand** today (the
+"Refresh" button on `/command/content/inbox`), which is enough to use it.
+
+To make it refresh automatically, register the cron once you're ready:
+- Route already exists: `GET /api/cron/content-inbox` (guarded by `CRON_SECRET`).
+- Add an entry to `vercel.json` `crons` (e.g. daily `0 5 * * *`). Note: the
+  account is on the **Vercel Hobby** plan (daily-cron limit), so keep it to once
+  a day, or point an external scheduler at the route with the `CRON_SECRET`.
+- The existing `content-topics` cron is also unscheduled; scheduling it first
+  gives the inbox more activity-derived candidates to enrich.
+
+No new third-party service or secret is required for this. Optional only.
+
 ## Prospect outreach — set up the new sending domain `salesprogressorapp.co.uk` (2026-09-09)
 
 Prospect outreach is moving off your main domain onto the new domain you bought (`salesprogressorapp.co.uk`). This firewalls your main mail reputation: if cold outreach ever gets marked as spam, it can't drag down your client/solicitor mail. Emails will send from **`ellis@salesprogressorapp.co.uk`**. Replies keep coming back through the existing smart address (`reply.thesalesprogressor.co.uk`) so the flow can auto-detect replies. Nothing sends from the new domain until you finish these steps AND we flip the env var, so there's no rush-risk: the code safely falls back to the current address until then.
