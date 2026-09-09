@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { commandDb } from "@/lib/command/prisma";
 import { VOICE_QUESTIONS } from "@/lib/command/content/voice-questions";
+import { getVoiceProfile, MIN_EDITS } from "@/lib/command/content/voice-learning";
+import { VoiceLearningPanel } from "@/components/command/content/VoiceLearningPanel";
 import {
   addVoiceSampleAction,
   deleteVoiceSampleAction,
@@ -13,9 +15,10 @@ export default async function VoicePage({
 }) {
   const sp = await searchParams;
 
-  const samples = await commandDb.voiceSample.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [samples, profile] = await Promise.all([
+    commandDb.voiceSample.findMany({ orderBy: { createdAt: "desc" } }),
+    getVoiceProfile(),
+  ]);
 
   const answeredKeys = new Set(
     samples.filter((s) => s.sampleType === "qa_response").map((s) => s.questionKey)
@@ -35,6 +38,22 @@ export default async function VoicePage({
           ← Back to drafts
         </Link>
       </div>
+
+      {/* Learned from your edits */}
+      <section className="space-y-4">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+          Learned from your edits
+        </h2>
+        <VoiceLearningPanel
+          initial={{
+            characteristics: profile.characteristics,
+            generatedAt: profile.generatedAt ? profile.generatedAt.toISOString() : null,
+            sampleCount: profile.sampleCount,
+            totalEdits: profile.totalEdits,
+          }}
+          minEdits={MIN_EDITS}
+        />
+      </section>
 
       {/* Q&A answers */}
       <section className="space-y-4">

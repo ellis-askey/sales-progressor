@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { markAsPostedAction, discardDraftAction, approveForBatchAction, removeFromBatchAction } from "@/app/actions/draft-posts";
+import { captureVoiceEditAction } from "@/app/actions/voice-learning";
 import { REFINE_ACTIONS, type PromoIntensity } from "@/lib/command/content/refine-actions";
 import { detectAiTells } from "@/lib/command/content/ai-tell";
 
@@ -67,6 +68,11 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
   function markPosted(formData: FormData) {
     startTransition(async () => {
       await markAsPostedAction(formData);
+      // Learn from the edit: capture the AI baseline vs the final text.
+      const cap = new FormData();
+      cap.set("baseline", baseline);
+      cap.set("final", text);
+      await captureVoiceEditAction(cap);
       setPosted(true);
     });
   }

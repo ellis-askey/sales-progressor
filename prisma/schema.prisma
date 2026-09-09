@@ -4279,3 +4279,18 @@ model BrandReview {
 
   @@index([createdAt])
 }
+
+// Content & Personal Brand: learned voice profile (docs/active/content-brand/
+// SPEC.md, Phase 3.3). A single, inspectable + correctable summary of how Ellis
+// edits AI drafts (VoiceSample rows of type draft_edit_diff). Only patterns seen
+// across multiple edits are kept (anti-overfit); dismissed characteristics are
+// remembered so a refresh never re-adds a wrong assumption.
+model VoiceProfile {
+  id        String   @id @default(cuid())
+  updatedAt DateTime @updatedAt
+
+  characteristics Json? // { id: string, text: string }[]
+  dismissed       Json? // string[] of dismissed characteristic texts
+  generatedAt     DateTime?
+  sampleCount     Int      @default(0) // how many edits the current profile was built from
+}
