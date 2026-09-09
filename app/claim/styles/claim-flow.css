@@ -600,7 +600,6 @@
 }
 .claim-field-input:focus {
   border-color: var(--claim-coral);
-  box-shadow: 0 0 0 3px rgba(255,107,74,.12);
 }
 .claim-field-row {
   position: relative;
@@ -740,6 +739,8 @@
 .claim-sale-reveal.open {
   max-height: 440px;
   opacity: 1;
+  /* Let the selected sale-type card's coral glow spill past the reveal clip. */
+  overflow: visible;
 }
 .claim-sale-reveal-inner {
   display: flex;
@@ -1119,6 +1120,9 @@
   margin-top: 0;
   border-top-color: transparent;
 }
+/* Expanded: let the selected sale-type card's coral glow spill past the clip.
+   Collapsing re-applies overflow:hidden via the base rule for a clean close. */
+.claim-sale-details:not(.collapsed) { overflow: visible; }
 /* When there's no collapse (reconcile hidden on the confirm page): drop the
    overflow clip + max-height so the selected cards' glow isn't cut off, and drop
    the block's own top border/spacing so it doesn't double up with the mini-card
@@ -1173,6 +1177,9 @@
   margin: 0;
   padding: 0;
 }
+/* Expanded: allow the sale-type card glow through; collapsing reverts to the
+   base overflow:hidden so the wizard collapse stays clean. */
+.claim-collapsible:not(.collapsed) { overflow: visible; }
 .claim-sale-details-note {
   font-size: 12px;
   color: var(--claim-text-3);
