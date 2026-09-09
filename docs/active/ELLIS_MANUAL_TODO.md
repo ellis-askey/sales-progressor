@@ -8,6 +8,26 @@ Last updated: 2026-09-09
 
 ---
 
+## Reviews-due surface — deploy + one small test follow-up (2026-09-09)
+
+The "Reviews due" section on `/agent/to-do` shipped (files on hold with a return
+date, incl. chain-collapse waits, plus hand-typed reviews). Two things to be
+aware of, neither urgent:
+
+- **Prod migration on next deploy.** A new column `ManualTask.isReview` was added.
+  It is applied to **staging** already. When you next deploy to production,
+  Vercel's `prisma migrate deploy` will add it there too (the migration uses
+  `ADD COLUMN IF NOT EXISTS`, so it is safe even though staging was hand-applied).
+  Just confirm the Vercel build goes green after the deploy.
+- **Behaviour change to expect:** any file currently **on hold with a return
+  date** no longer appears in the hub's "Needs your attention" — it now shows in
+  "Reviews due" on `/agent/to-do` (with a compact "Reviews due" pointer on the
+  hub). This is the intended move.
+- **Low-priority test tidy:** the hub e2e check `hub-expired-holds-extender`
+  (`e2e/surface-agent-hub-migration.spec.ts`) now always self-skips (holds no
+  longer render on the hub). It doesn't fail CI. When convenient, relocate that
+  assertion to the Reviews section on `/agent/to-do`.
+
 ## Content inbox — schedule the refresh cron (2026-09-09)
 
 The Content & Personal Brand area (Command Centre → Content) ships with an inbox
