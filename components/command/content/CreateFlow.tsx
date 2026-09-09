@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PURPOSES, ANGLE_TYPES, FORMATS } from "@/lib/command/content/create-taxonomy";
-import { DraftVariantPanel } from "@/components/command/content/DraftVariantPanel";
+import { Composer } from "@/components/command/content/Composer";
 import { ClaimBadge } from "@/components/command/content/ClaimBadge";
 
 // Guided creation flow (docs/active/content-brand/SPEC.md, Phase 1.4). Source ->
@@ -32,6 +32,7 @@ export function CreateFlow({ initialSource, presetAngles = [], inboxItemId, clai
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [chosenVariant, setChosenVariant] = useState<1 | 2>(1);
 
   const ready = source.trim() && purposeId && point.trim() && formatId;
 
@@ -48,6 +49,7 @@ export function CreateFlow({ initialSource, presetAngles = [], inboxItemId, clai
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
       setResult(data as Result);
+      setChosenVariant(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
@@ -61,10 +63,15 @@ export function CreateFlow({ initialSource, presetAngles = [], inboxItemId, clai
   }
 
   if (result) {
+    const chosenText = chosenVariant === 1 ? result.variant1 : result.variant2;
+    const previews: Array<{ num: 1 | 2; text: string }> = [
+      { num: 1, text: result.variant1 },
+      { num: 2, text: result.variant2 },
+    ];
     return (
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <p className="text-[13px] text-neutral-400">Two drafts to the point you chose. Edit, copy, or mark as posted.</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[13px] text-neutral-400">Two starting drafts to your point. Pick one, then shape it.</p>
           <div className="flex items-center gap-3">
             <button onClick={generate} disabled={busy} className="rounded-lg border border-neutral-700 px-3 py-1.5 text-[12px] text-neutral-300 transition-colors hover:text-neutral-100 disabled:opacity-40">
               {busy ? "Regenerating…" : "Regenerate"}
@@ -73,11 +80,32 @@ export function CreateFlow({ initialSource, presetAngles = [], inboxItemId, clai
           </div>
         </div>
 
+        {/* Pick a starting draft */}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {previews.map((v) => {
+            const on = chosenVariant === v.num;
+            return (
+              <button
+                key={v.num}
+                onClick={() => setChosenVariant(v.num)}
+                className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? "border-blue-600/50 bg-blue-950/20" : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"}`}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Draft {v.num}{on ? " · editing" : ""}</span>
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] leading-relaxed text-neutral-400">{v.text}</p>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
-          <div className="space-y-4">
-            <DraftVariantPanel draftId={result.draftId} variantNum={1} text={result.variant1} charLimit={result.charLimit} onAction={() => {}} />
-            <DraftVariantPanel draftId={result.draftId} variantNum={2} text={result.variant2} charLimit={result.charLimit} onAction={() => {}} />
-          </div>
+          <Composer
+            key={`${result.draftId}-${chosenVariant}`}
+            draftId={result.draftId}
+            variantNum={chosenVariant}
+            initialText={chosenText}
+            charLimit={result.charLimit}
+            onDiscarded={startOver}
+          />
           <ClaimInspector claimClass={claimClass} evidenceSummary={evidenceSummary} point={point} />
         </div>
       </div>
