@@ -38,6 +38,10 @@ export type ProspectListRow = {
   lastContactedAt: Date | null;
   nextFollowUpAt: Date | null;
   latestNote: string | null;
+  // Business grouping: the linked business (if any) so the list can collapse a
+  // brand's branches into one expandable row.
+  groupId: string | null;
+  groupName: string | null;
 };
 
 export async function getProspects(filter: ProspectFilter): Promise<ProspectListRow[]> {
@@ -59,7 +63,10 @@ export async function getProspects(filter: ProspectFilter): Promise<ProspectList
     },
     orderBy: { createdAt: "desc" },
     take: 500,
-    include: { contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], take: 1 } },
+    include: {
+      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], take: 1 },
+      group: { select: { name: true } },
+    },
   });
 
   return rows.map((p) => {
@@ -76,6 +83,8 @@ export async function getProspects(filter: ProspectFilter): Promise<ProspectList
       lastContactedAt: p.lastContactedAt,
       nextFollowUpAt: p.nextFollowUpAt,
       latestNote: p.notes ? p.notes.slice(0, 140) : null,
+      groupId: p.groupId,
+      groupName: p.group?.name ?? null,
     };
   });
 }

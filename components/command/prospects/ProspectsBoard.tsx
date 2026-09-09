@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createProspectAction } from "@/app/actions/prospects";
 import { PROSPECT_SOURCES, SOURCE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/command/prospect-labels";
@@ -18,15 +18,54 @@ function overdue(d: Date | null): boolean {
 
 const inputCls = "w-full text-xs bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb]";
 
+// Collapse a name to a comparison key so a brand's branches group even when
+// they were typed in separately (no formal business link). Light on purpose:
+// only lowercase + strip Ltd/Limited/LLP/PLC and punctuation, so we don't
+// accidentally merge two genuinely different agencies.
+function normBrand(name: string): string {
+  return name.toLowerCase().replace(/\b(ltd|limited|llp|plc)\b/g, "").replace(/[^a-z0-9]/g, "");
+}
+
+type Group = { key: string; name: string; rows: ProspectListRow[] };
+
+// One entry per business: rows linked to the same business group collapse
+// together; unlinked rows fall back to matching on the (normalised) name.
+function groupRows(rows: ProspectListRow[]): Group[] {
+  const map = new Map<string, Group>();
+  const order: string[] = [];
+  for (const r of rows) {
+    const key = r.groupId ?? `name:${normBrand(r.agencyName)}`;
+    let g = map.get(key);
+    if (!g) { g = { key, name: r.groupName ?? r.agencyName, rows: [] }; map.set(key, g); order.push(key); }
+    if (r.groupName) g.name = r.groupName; // prefer the formal business name if there is one
+    g.rows.push(r);
+  }
+  return order.map((k) => map.get(k)!);
+}
+
 export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const groups = useMemo(() => groupRows(rows), [rows]);
+  const multiBranch = groups.some((g) => g.rows.length > 1);
+
+  function toggle(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   return (
     <>
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">{rows.length} shown</p>
+        <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+          {groups.length === rows.length ? `${rows.length} shown` : `${groups.length} businesses · ${rows.length} branches`}
+        </p>
         <button onClick={() => setAdding((v) => !v)} className="text-xs px-3 py-1.5 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 transition-colors">
           {adding ? "Close" : "+ Add prospect"}
         </button>
@@ -52,26 +91,21 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
               {rows.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-10 text-center text-neutral-500">No prospects yet. Add one, or import a list.</td></tr>
               ) : (
-                rows.map((r) => (
-                  <tr key={r.id} onClick={() => setOpenId(r.id)} className="cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300">
-                    <td className="px-4 py-2.5">
-                      <div className="text-xs text-neutral-100 font-medium">{r.agencyName}</div>
-                      {r.branch && <div className="text-[11px] text-neutral-500">{r.branch}</div>}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-neutral-400">{r.location ?? "—"}</td>
-                    <td className="px-4 py-2.5">
-                      {r.primaryContactName ? (
-                        <><span className="text-xs text-neutral-200">{r.primaryContactName}</span>{r.primaryContactRole && <div className="text-[11px] text-neutral-500">{r.primaryContactRole}</div>}</>
-                      ) : <span className="text-xs text-neutral-600">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${STATUS_TONE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-neutral-400">{fmt(r.lastContactedAt)}</td>
-                    <td className={`px-4 py-2.5 text-xs ${overdue(r.nextFollowUpAt) ? "text-amber-400" : "text-neutral-400"}`}>{fmt(r.nextFollowUpAt)}</td>
-                    <td className="px-4 py-2.5 text-xs text-neutral-500">{SOURCE_LABEL[r.source]}</td>
-                  </tr>
-                ))
+                groups.map((g) => {
+                  if (g.rows.length === 1) {
+                    return <BranchRow key={g.rows[0].id} r={g.rows[0]} onOpen={setOpenId} indent={multiBranch} />;
+                  }
+                  const isOpen = expanded.has(g.key);
+                  return (
+                    <BusinessRows
+                      key={g.key}
+                      group={g}
+                      open={isOpen}
+                      onToggle={() => toggle(g.key)}
+                      onOpen={setOpenId}
+                    />
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -79,6 +113,54 @@ export function ProspectsBoard({ rows }: { rows: ProspectListRow[] }) {
       </div>
 
       {openId && <ProspectDrawer id={openId} onClose={() => setOpenId(null)} />}
+    </>
+  );
+}
+
+// A single prospect row. `indent` aligns standalone rows with branch rows when
+// the table also contains expandable businesses.
+function BranchRow({ r, onOpen, indent, child }: { r: ProspectListRow; onOpen: (id: string) => void; indent?: boolean; child?: boolean }) {
+  return (
+    <tr onClick={() => onOpen(r.id)} className={`cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300 ${child ? "bg-neutral-950/30" : ""}`}>
+      <td className="px-4 py-2.5">
+        <div className={`text-xs text-neutral-100 font-medium ${indent || child ? "pl-6" : ""}`}>{child ? (r.location ?? r.agencyName) : r.agencyName}</div>
+        {!child && r.branch && <div className="text-[11px] text-neutral-500">{r.branch}</div>}
+        {child && r.branch && <div className="text-[11px] text-neutral-500 pl-6">{r.branch}</div>}
+      </td>
+      <td className="px-4 py-2.5 text-xs text-neutral-400">{r.location ?? "—"}</td>
+      <td className="px-4 py-2.5">
+        {r.primaryContactName ? (
+          <><span className="text-xs text-neutral-200">{r.primaryContactName}</span>{r.primaryContactRole && <div className="text-[11px] text-neutral-500">{r.primaryContactRole}</div>}</>
+        ) : <span className="text-xs text-neutral-600">—</span>}
+      </td>
+      <td className="px-4 py-2.5">
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${STATUS_TONE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+      </td>
+      <td className="px-4 py-2.5 text-xs text-neutral-400">{fmt(r.lastContactedAt)}</td>
+      <td className={`px-4 py-2.5 text-xs ${overdue(r.nextFollowUpAt) ? "text-amber-400" : "text-neutral-400"}`}>{fmt(r.nextFollowUpAt)}</td>
+      <td className="px-4 py-2.5 text-xs text-neutral-500">{SOURCE_LABEL[r.source]}</td>
+    </tr>
+  );
+}
+
+// A multi-branch business: one parent row that expands to its branch rows.
+function BusinessRows({ group, open, onToggle, onOpen }: { group: Group; open: boolean; onToggle: () => void; onOpen: (id: string) => void }) {
+  const n = group.rows.length;
+  return (
+    <>
+      <tr onClick={onToggle} className="cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300">
+        <td className="px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className={`text-neutral-500 text-[10px] transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
+            <div>
+              <div className="text-xs text-neutral-100 font-medium">{group.name}</div>
+              <div className="text-[11px] text-neutral-500">{n} branches</div>
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-2.5 text-xs text-neutral-500" colSpan={6}>{open ? "" : "Click to see branches"}</td>
+      </tr>
+      {open && group.rows.map((r) => <BranchRow key={r.id} r={r} onOpen={onOpen} child />)}
     </>
   );
 }
