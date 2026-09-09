@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X, Plus } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
@@ -735,21 +735,27 @@ export function ChainDrawer({
             />
           )}
 
-          {/* No chain linked */}
+          {/* No chain linked — primary "build the chain" moment, given a
+              larger hero treatment than the icon+EmptyState used elsewhere. */}
           {!loading && !chain && !notAParticipant && (
-            <EmptyState
-              icon={<ChainIcon />}
-              title="No chain yet"
-              description="Create a chain to track your sale's position and invite other agents to share updates."
-              action={
-                <button
-                  onClick={handleCreateChain}
-                  className="px-4 py-2 text-sm font-medium rounded-xl agent-btn-color-primary transition-colors"
-                >
-                  + Create chain
-                </button>
-              }
-            />
+            <div className="flex flex-col items-center justify-center text-center px-6 py-16">
+              <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+                Build this sale&rsquo;s chain
+              </h3>
+              <p className="text-sm text-slate-900/50 mt-2 max-w-sm leading-relaxed">
+                Add the properties above and below this sale to see the full chain and keep track of progress across it.
+              </p>
+              <button
+                onClick={handleCreateChain}
+                className="mt-6 inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl agent-btn-color-primary transition-colors"
+              >
+                <Plus weight="bold" className="w-4 h-4" />
+                Create chain
+              </button>
+              <p className="text-xs text-slate-900/35 mt-4">
+                You can add or change links at any time.
+              </p>
+            </div>
           )}
 
           {/* Chain exists but no links yet */}

@@ -28,6 +28,11 @@ type Props = {
   memoSources?: AddressMemoSources;
   onEdit?: (field: string) => void;
   onLookup?: () => void;
+  // When the fields sit under a section header that already names them, hide the
+  // internal "Property address" label + lookup row (chain add-node drawer).
+  hideHeading?: boolean;
+  // Render a red asterisk on each label (street / city / postcode).
+  required?: boolean;
 };
 
 export function AddressFields({
@@ -40,7 +45,10 @@ export function AddressFields({
   memoSources,
   onEdit,
   onLookup,
+  hideHeading,
+  required,
 }: Props) {
+  const req = required ? <span style={{ color: "var(--agent-danger)", marginLeft: 2 }}>*</span> : null;
   const [postcodeError, setPostcodeError] = useState("");
   const [touched, setTouched] = useState({ street: false, city: false, postcode: false });
 
@@ -50,34 +58,36 @@ export function AddressFields({
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          Property address
-        </p>
-        {onLookup && (
-          <button
-            type="button"
-            onClick={onLookup}
-            disabled={!isLookupReady(postcode)}
-            className={isLookupReady(postcode) ? "agent-link" : undefined}
-            style={{
-              display: "flex", alignItems: "center", gap: 4,
-              background: "none", border: "none", padding: 0,
-              cursor: isLookupReady(postcode) ? "pointer" : "default",
-              fontSize: 11, fontWeight: 600,
-              color: isLookupReady(postcode) ? "var(--agent-coral-deep)" : "var(--nv2-text-ghost)",
-            }}
-          >
-            <MagnifyingGlass size={11} weight="bold" />
-            Look up this property
-          </button>
-        )}
-      </div>
+      {!hideHeading && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Property address
+          </p>
+          {onLookup && (
+            <button
+              type="button"
+              onClick={onLookup}
+              disabled={!isLookupReady(postcode)}
+              className={isLookupReady(postcode) ? "agent-link" : undefined}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                background: "none", border: "none", padding: 0,
+                cursor: isLookupReady(postcode) ? "pointer" : "default",
+                fontSize: 11, fontWeight: 600,
+                color: isLookupReady(postcode) ? "var(--agent-coral-deep)" : "var(--nv2-text-ghost)",
+              }}
+            >
+              <MagnifyingGlass size={11} weight="bold" />
+              Look up this property
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Street address */}
       <div style={{ marginBottom: 10 }}>
         <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
-          Street address
+          Street address{req}
           {memoSources && <FieldIndicator source={memoSources.streetAddress} valid={streetValid} />}
         </label>
         <input

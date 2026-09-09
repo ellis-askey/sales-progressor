@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X, House, Buildings, User, Note } from "@phosphor-icons/react";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
-import { Pill } from "@/components/ui/Pill";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 function joinAddress(street: string, city: string, postcode: string): string {
@@ -74,6 +73,41 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <p className="agent-section-label mb-2">
       {children}
     </p>
+  );
+}
+
+// Richer section header for the stub form: an outline icon, a bold title with
+// an optional inline "(optional)" note, and a one-line description beneath.
+function SectionHeader({
+  icon,
+  title,
+  note,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  note?: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 mb-3">
+      <span className="shrink-0 mt-0.5" style={{ color: "var(--agent-text-secondary)" }}>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-[15px] font-bold leading-tight" style={{ color: "var(--agent-text-primary)" }}>
+          {title}
+          {note && (
+            <span className="ml-1.5 text-xs font-normal" style={{ color: "var(--agent-text-muted)" }}>
+              ({note})
+            </span>
+          )}
+        </h3>
+        <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--agent-text-muted)" }}>
+          {description}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -378,11 +412,10 @@ export function AddNodeDrawer({
   // required stub fields in stub mode.
   const canSubmit = mode === "own" ? !!selectedFile : requiredFilled;
 
-  const directionPill = !isEditMode && (
-    <Pill glass tone="info" size="sm">
-      {direction === "above" ? "↑ Above" : "↓ Below"}
-    </Pill>
-  );
+  const propertyDesc =
+    direction === "above"
+      ? "Add the property that sits above this sale in the chain."
+      : "Add the property that sits below this sale in the chain.";
 
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
@@ -408,7 +441,6 @@ export function AddNodeDrawer({
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
             <SheetBandHeader kicker="Chain" title={title} />
-            {directionPill}
           </div>
           <button
             onClick={doClose}
@@ -506,102 +538,112 @@ export function AddNodeDrawer({
             </div>
           )}
 
-          {/* Property section */}
+          {/* Stub form — hand-typed placeholder link. Sections divided by
+              hairlines, each led by an icon + title + one-line description. */}
           {mode === "stub" && (
-          <div>
-            <SectionLabel>Property</SectionLabel>
-            <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
-              <AddressFields
-                streetAddress={streetAddress}
-                city={city}
-                postcode={postcode}
-                onStreetAddressChange={setStreetAddress}
-                onCityChange={setCity}
-                onPostcodeChange={setPostcode}
-              />
-            </div>
-          </div>
-          )}
-
-          {/* Agency section */}
-          {mode === "stub" && (
-          <div>
-            <SectionLabel>Agency</SectionLabel>
-            <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
-              <Field
-                label="Agency name"
-                required
-                value={form.stubAgencyName}
-                onChange={update("stubAgencyName")}
-                onBlur={applyTitleCase("stubAgencyName")}
-                placeholder="e.g. Bristol Estates"
-                maxLength={100}
-              />
-            </div>
-          </div>
-          )}
-
-          {/* Agent contact section */}
-          {mode === "stub" && (
-          <div>
-            <SectionLabel>
-              Agent contact{" "}
-              <span className="normal-case font-normal">(optional)</span>
-            </SectionLabel>
-            <div className="rounded-xl agent-chain-callout px-4 py-3 space-y-3">
-              <Field
-                label="Agent name"
-                value={form.stubAgentName}
-                onChange={update("stubAgentName")}
-                onBlur={applyTitleCase("stubAgentName")}
-                placeholder="e.g. Sarah Jones"
-                maxLength={100}
-              />
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-900/65">Agent email</label>
-                <input
-                  type="email"
-                  value={form.stubAgentEmail}
-                  onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
-                  onBlur={() => { validateEmail(); if (form.stubAgentEmail.trim()) update("stubAgentEmail")(form.stubAgentEmail.trim().toLowerCase()); }}
-                  placeholder="agent@agency.co.uk"
-                  className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
+            <div>
+              {/* Property */}
+              <section className="pb-5">
+                <SectionHeader
+                  icon={<House size={22} />}
+                  title="Property"
+                  description={propertyDesc}
                 />
-                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
-                {!form.stubAgentEmail.trim() && !emailError && <p className="text-xs text-slate-900/40">Add an email to send them an invite</p>}
-              </div>
-              <Field
-                label="Contact number"
-                type="tel"
-                value={form.stubAgentPhone}
-                onChange={(v) => update("stubAgentPhone")(cleanPhone(v))}
-                onBlur={() => {
-                  const formatted = formatUKPhone(form.stubAgentPhone);
-                  if (formatted !== form.stubAgentPhone) update("stubAgentPhone")(formatted);
-                }}
-                placeholder="07700 900000"
-              />
-            </div>
-          </div>
-          )}
+                <AddressFields
+                  hideHeading
+                  required
+                  streetAddress={streetAddress}
+                  city={city}
+                  postcode={postcode}
+                  onStreetAddressChange={setStreetAddress}
+                  onCityChange={setCity}
+                  onPostcodeChange={setPostcode}
+                />
+              </section>
 
-          {/* Notes section */}
-          {mode === "stub" && (
-          <div>
-            <SectionLabel>
-              Notes <span className="normal-case font-normal">(only you see this)</span>
-            </SectionLabel>
-            <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
-              <Field
-                label=""
-                value={form.stubNotes}
-                onChange={update("stubNotes")}
-                placeholder="Anything useful about this link…"
-                rows={3}
-                maxLength={1000}
-              />
+              {/* Agency */}
+              <section className="py-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
+                <SectionHeader
+                  icon={<Buildings size={22} />}
+                  title="Agency"
+                  description="The estate agent handling this sale."
+                />
+                <Field
+                  label="Agency name"
+                  required
+                  value={form.stubAgencyName}
+                  onChange={update("stubAgencyName")}
+                  onBlur={applyTitleCase("stubAgencyName")}
+                  placeholder="e.g. Bristol Estates"
+                  maxLength={100}
+                />
+              </section>
+
+              {/* Agent contact */}
+              <section className="py-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
+                <SectionHeader
+                  icon={<User size={22} />}
+                  title="Agent contact"
+                  note="optional"
+                  description="Add a contact at the agency, and we'll send them an invite."
+                />
+                <div className="space-y-3">
+                  <Field
+                    label="Agent name"
+                    value={form.stubAgentName}
+                    onChange={update("stubAgentName")}
+                    onBlur={applyTitleCase("stubAgentName")}
+                    placeholder="e.g. Sarah Jones"
+                    maxLength={100}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-slate-900/65">Agent email</label>
+                      <input
+                        type="email"
+                        value={form.stubAgentEmail}
+                        onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
+                        onBlur={() => { validateEmail(); if (form.stubAgentEmail.trim()) update("stubAgentEmail")(form.stubAgentEmail.trim().toLowerCase()); }}
+                        placeholder="agent@agency.co.uk"
+                        className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
+                      />
+                    </div>
+                    <Field
+                      label="Contact number"
+                      type="tel"
+                      value={form.stubAgentPhone}
+                      onChange={(v) => update("stubAgentPhone")(cleanPhone(v))}
+                      onBlur={() => {
+                        const formatted = formatUKPhone(form.stubAgentPhone);
+                        if (formatted !== form.stubAgentPhone) update("stubAgentPhone")(formatted);
+                      }}
+                      placeholder="07700 900000"
+                    />
+                  </div>
+                  {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                  {!emailError && !isEditMode && (
+                    <p className="text-xs text-slate-900/40">We&apos;ll use this to send them an invite.</p>
+                  )}
+                </div>
+              </section>
+
+              {/* Notes */}
+              <section className="py-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
+                <SectionHeader
+                  icon={<Note size={22} />}
+                  title="Notes"
+                  description="Only you can see this."
+                />
+                <Field
+                  label=""
+                  value={form.stubNotes}
+                  onChange={update("stubNotes")}
+                  placeholder="Anything useful about this link…"
+                  rows={3}
+                  maxLength={1000}
+                />
+              </section>
             </div>
-          </div>
           )}
 
           {serverError && (
@@ -616,14 +658,14 @@ export function AddNodeDrawer({
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="w-24 py-2.5 text-xs rounded-xl agent-btn-ghost-bordered"
+              className="px-3 py-2.5 text-sm font-medium text-slate-900/55 hover:text-slate-900/85 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => { void handleSave(); }}
               disabled={!canSubmit || saving}
-              className="flex-1 py-2.5 text-sm font-semibold rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 py-3 text-sm font-semibold rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? "Saving…" : submitLabel}
             </button>
