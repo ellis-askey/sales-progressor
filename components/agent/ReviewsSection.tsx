@@ -18,7 +18,6 @@ import { CaretDown, Check, CalendarPlus } from "@phosphor-icons/react";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { updateManualTaskAction } from "@/app/actions/manual-tasks";
-import { Card } from "@/components/ui/Card";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { toUKDateStr } from "@/lib/utils";
@@ -30,6 +29,9 @@ function tomorrowStr(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return toUKDateStr(d);
+}
+function todayStr(): string {
+  return toUKDateStr(new Date());
 }
 
 // Origin → pill label + tone. Keys off the hold reason (see reviews.ts).
@@ -70,8 +72,13 @@ export function ReviewsSection({
   const [items, setItems] = useState(initialItems);
   const [done, setDone] = useState(initialDone);
   const [showDone, setShowDone] = useState(false);
+  // Due now = open by default (most urgent, most-overdue-first). Upcoming =
+  // closed by default. Both collapse/expand with the standard accordion slide.
+  const [dueOpen, setDueOpen] = useState(true);
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
   const [, startTransition] = useTransition();
-  const [listRef] = useAutoAnimate<HTMLDivElement>();
+  const [dueRef] = useAutoAnimate<HTMLDivElement>();
+  const [upcomingRef] = useAutoAnimate<HTMLDivElement>();
 
   // Hold action state
   const [resumeFor, setResumeFor] = useState<ResumeTarget | null>(null);
@@ -132,6 +139,23 @@ export function ReviewsSection({
     });
   }
 
+  function handleManualDate(id: string, dateStr: string) {
+    setBusyId(id);
+    startTransition(async () => {
+      try {
+        const updated = await updateManualTaskAction(id, { dueDate: dateStr });
+        setItems((prev) =>
+          prev
+            .map((i) => (i.kind === "manual" && i.id === id ? { ...i, reviewDate: updated.dueDate } : i))
+            .sort((a, b) => (a.reviewDate?.getTime() ?? Infinity) - (b.reviewDate?.getTime() ?? Infinity)),
+        );
+      } catch {
+        toast.error("Couldn't update the date. Try again.");
+      }
+      setBusyId(null);
+    });
+  }
+
   async function completeManual(id: string) {
     setBusyId(id);
     try {
@@ -177,80 +201,75 @@ export function ReviewsSection({
         )}
       </div>
 
-      {openCount === 0 ? (
+      {openCount === 0 && done.length === 0 ? (
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "24px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>Nothing to review right now.</p>
         </div>
       ) : (
-        <Card glassId="reviews-list" glassLabel="To-Do · Reviews due" glassDefault="v05" padding="none">
-          <div ref={listRef}>
-            {dueItems.length > 0 && <GroupLabel>Due now</GroupLabel>}
-            {dueItems.map((item, i) => (
-              <ReviewRow
-                key={item.key}
-                item={item}
-                topBorder={i > 0}
-                busyId={busyId}
-                extenderFor={extenderFor}
-                extenderDate={extenderDate}
-                setExtenderDate={setExtenderDate}
-                onOpenExtender={(id) => { setExtenderFor(id); setExtenderDate(""); }}
-                onCloseExtender={() => { setExtenderFor(null); setExtenderDate(""); }}
-                onExtend={handleExtend}
-                onOpenResume={(id, address) => setResumeFor({ id, address })}
-                onComplete={completeManual}
-              />
-            ))}
+        <div className="space-y-3">
+          {/* Due now — open by default, most-overdue first */}
+          {dueItems.length > 0 && (
+            <ReviewDrawer title="Due now" count={dueItems.length} open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">
+              <div ref={dueRef}>
+                {dueItems.map((item, i) => (
+                  <ReviewRow
+                    key={item.key}
+                    item={item}
+                    topBorder={i > 0}
+                    busyId={busyId}
+                    extenderFor={extenderFor}
+                    extenderDate={extenderDate}
+                    setExtenderDate={setExtenderDate}
+                    onOpenExtender={(id) => { setExtenderFor(id); setExtenderDate(""); }}
+                    onCloseExtender={() => { setExtenderFor(null); setExtenderDate(""); }}
+                    onExtend={handleExtend}
+                    onOpenResume={(id, address) => setResumeFor({ id, address })}
+                    onComplete={completeManual}
+                    onSetManualDate={handleManualDate}
+                  />
+                ))}
+              </div>
+            </ReviewDrawer>
+          )}
 
-            {upcomingItems.length > 0 && <GroupLabel topBorder={dueItems.length > 0}>Upcoming</GroupLabel>}
-            {upcomingItems.map((item, i) => (
-              <ReviewRow
-                key={item.key}
-                item={item}
-                topBorder={i > 0 || dueItems.length > 0}
-                busyId={busyId}
-                extenderFor={extenderFor}
-                extenderDate={extenderDate}
-                setExtenderDate={setExtenderDate}
-                onOpenExtender={(id) => { setExtenderFor(id); setExtenderDate(""); }}
-                onCloseExtender={() => { setExtenderFor(null); setExtenderDate(""); }}
-                onExtend={handleExtend}
-                onOpenResume={(id, address) => setResumeFor({ id, address })}
-                onComplete={completeManual}
-              />
-            ))}
-          </div>
-        </Card>
-      )}
+          {/* Upcoming — closed by default */}
+          {upcomingItems.length > 0 && (
+            <ReviewDrawer title="Upcoming" count={upcomingItems.length} open={upcomingOpen} onToggle={() => setUpcomingOpen((v) => !v)}>
+              <div ref={upcomingRef}>
+                {upcomingItems.map((item, i) => (
+                  <ReviewRow
+                    key={item.key}
+                    item={item}
+                    topBorder={i > 0}
+                    busyId={busyId}
+                    extenderFor={extenderFor}
+                    extenderDate={extenderDate}
+                    setExtenderDate={setExtenderDate}
+                    onOpenExtender={(id) => { setExtenderFor(id); setExtenderDate(""); }}
+                    onCloseExtender={() => { setExtenderFor(null); setExtenderDate(""); }}
+                    onExtend={handleExtend}
+                    onOpenResume={(id, address) => setResumeFor({ id, address })}
+                    onComplete={completeManual}
+                    onSetManualDate={handleManualDate}
+                  />
+                ))}
+              </div>
+            </ReviewDrawer>
+          )}
 
-      {/* Completed manual reviews */}
-      {done.length > 0 && (
-        <div className="agent-glass" style={{ borderRadius: 12, overflow: "hidden" }}>
-          <div
-            className="agent-acc-hdr"
-            style={{ borderBottom: "none" }}
-            role="button"
-            tabIndex={0}
-            aria-expanded={showDone}
-            onClick={() => setShowDone((v) => !v)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowDone((v) => !v); } }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="agent-acc-title" style={{ color: "var(--agent-text-muted)" }}>Completed</span>
-              <span className="agent-badge">{done.length}</span>
-            </div>
-            <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4,0,0.2,1)", transform: showDone ? "rotate(180deg)" : "rotate(0deg)" }} />
-          </div>
-          <div className={`agent-acc${showDone ? " open" : ""}`}>
-            <div className="agent-acc-in">
-              {done.map((item, i) => (
-                <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed busyId={null}
-                  extenderFor={null} extenderDate="" setExtenderDate={() => {}}
-                  onOpenExtender={() => {}} onCloseExtender={() => {}} onExtend={() => {}}
-                  onOpenResume={() => {}} onComplete={() => {}} />
-              ))}
-            </div>
-          </div>
+          {/* Completed manual reviews — same drawer, closed by default */}
+          {done.length > 0 && (
+            <ReviewDrawer title="Completed" count={done.length} open={showDone} onToggle={() => setShowDone((v) => !v)} muted>
+              <div>
+                {done.map((item, i) => (
+                  <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed busyId={null}
+                    extenderFor={null} extenderDate="" setExtenderDate={() => {}}
+                    onOpenExtender={() => {}} onCloseExtender={() => {}} onExtend={() => {}}
+                    onOpenResume={() => {}} onComplete={() => {}} onSetManualDate={() => {}} />
+                ))}
+              </div>
+            </ReviewDrawer>
+          )}
         </div>
       )}
 
@@ -292,15 +311,41 @@ export function ReviewsSection({
   );
 }
 
-function GroupLabel({ children, topBorder = false }: { children: React.ReactNode; topBorder?: boolean }) {
+// Collapsible group drawer — clickable header, rotating chevron, and the
+// standard agent-acc grid-rows slide open/closed. Matches the To-Do page's
+// "Completed" disclosure so every collapsible strip on the page feels the same.
+function ReviewDrawer({
+  title, count, open, onToggle, children, accent, muted = false,
+}: {
+  title: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  accent?: string;
+  muted?: boolean;
+}) {
   return (
-    <div style={{
-      padding: "8px 16px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
-      color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)",
-      borderTop: topBorder ? "0.5px solid var(--agent-border-subtle)" : undefined,
-      borderBottom: "0.5px solid var(--agent-border-subtle)",
-    }}>
-      {children}
+    <div className="agent-glass" style={{ borderRadius: 12, overflow: "hidden" }}>
+      <div
+        className="agent-acc-hdr"
+        style={{ borderBottom: "none" }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {accent && <span aria-hidden style={{ width: 6, height: 6, borderRadius: 99, background: accent, flexShrink: 0 }} />}
+          <span className="agent-acc-title" style={{ color: muted ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>{title}</span>
+          <span className="agent-badge">{count}</span>
+        </div>
+        <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4,0,0.2,1)", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
+      </div>
+      <div className={`agent-acc${open ? " open" : ""}`}>
+        <div className="agent-acc-in">{children}</div>
+      </div>
     </div>
   );
 }
@@ -308,7 +353,7 @@ function GroupLabel({ children, topBorder = false }: { children: React.ReactNode
 function ReviewRow({
   item, topBorder, dimmed = false, busyId,
   extenderFor, extenderDate, setExtenderDate,
-  onOpenExtender, onCloseExtender, onExtend, onOpenResume, onComplete,
+  onOpenExtender, onCloseExtender, onExtend, onOpenResume, onComplete, onSetManualDate,
 }: {
   item: ReviewItem;
   topBorder: boolean;
@@ -322,7 +367,9 @@ function ReviewRow({
   onExtend: (id: string, date: Date | null) => void;
   onOpenResume: (id: string, address: string) => void;
   onComplete: (id: string) => void;
+  onSetManualDate: (id: string, dateStr: string) => void;
 }) {
+  const [editingDate, setEditingDate] = useState(false);
   const due = dueLabel(item.reviewDate);
   const rowStyle: React.CSSProperties = {
     display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap",
@@ -406,7 +453,31 @@ function ReviewRow({
           <Link href={`/agent/transactions/${item.transactionId}`} className="agent-link" style={{ fontSize: 11, display: "inline-block", marginTop: 3 }}>{item.address}</Link>
         )}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap", marginLeft: "auto", marginTop: 1 }}>{due.label}</span>
+      {/* Due label — click to reschedule the review (open rows only) */}
+      {dimmed || isDone ? (
+        <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap", marginLeft: "auto", marginTop: 1 }}>{due.label}</span>
+      ) : editingDate ? (
+        <input
+          type="date"
+          autoFocus
+          defaultValue={item.reviewDate ? toUKDateStr(item.reviewDate) : ""}
+          min={todayStr()}
+          onChange={(e) => { if (e.target.value && e.target.value >= todayStr()) onSetManualDate(item.id, e.target.value); setEditingDate(false); }}
+          onBlur={() => setEditingDate(false)}
+          className="agent-input"
+          style={{ padding: "4px 8px", fontSize: 12, marginLeft: "auto", marginTop: 1 }}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditingDate(true)}
+          disabled={busy}
+          title="Change review date"
+          style={{ background: "none", border: "none", padding: 0, cursor: busy ? "wait" : "pointer", marginLeft: "auto", marginTop: 1, textAlign: "right" }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap", textDecoration: "underline", textUnderlineOffset: 2, textDecorationColor: "var(--agent-border-default)" }}>{due.label}</span>
+        </button>
+      )}
     </div>
   );
 }
