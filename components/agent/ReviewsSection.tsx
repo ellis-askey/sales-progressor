@@ -156,6 +156,35 @@ export function ReviewsSection({
     });
   }
 
+  function reopenManual(id: string) {
+    setBusyId(id);
+    startTransition(async () => {
+      try {
+        const updated = await updateManualTaskAction(id, { status: "open" });
+        setDone((prev) => prev.filter((i) => !(i.kind === "manual" && i.id === id)));
+        setItems((prev) =>
+          [
+            ...prev,
+            {
+              kind: "manual" as const,
+              key: `task-${id}`,
+              id,
+              transactionId: updated.transactionId,
+              address: updated.transaction?.propertyAddress ?? null,
+              title: updated.title,
+              notes: updated.notes,
+              reviewDate: updated.dueDate,
+              status: "open" as const,
+            },
+          ].sort((a, b) => (a.reviewDate?.getTime() ?? Infinity) - (b.reviewDate?.getTime() ?? Infinity)),
+        );
+      } catch {
+        toast.error("Couldn't reopen. Try again.");
+      }
+      setBusyId(null);
+    });
+  }
+
   async function completeManual(id: string) {
     setBusyId(id);
     try {
@@ -225,6 +254,7 @@ export function ReviewsSection({
                     onExtend={handleExtend}
                     onOpenResume={(id, address) => setResumeFor({ id, address })}
                     onComplete={completeManual}
+                    onReopen={reopenManual}
                     onSetManualDate={handleManualDate}
                   />
                 ))}
@@ -250,6 +280,7 @@ export function ReviewsSection({
                     onExtend={handleExtend}
                     onOpenResume={(id, address) => setResumeFor({ id, address })}
                     onComplete={completeManual}
+                    onReopen={reopenManual}
                     onSetManualDate={handleManualDate}
                   />
                 ))}
@@ -262,10 +293,10 @@ export function ReviewsSection({
             <ReviewDrawer title="Completed" count={done.length} open={showDone} onToggle={() => setShowDone((v) => !v)} muted>
               <div>
                 {done.map((item, i) => (
-                  <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed busyId={null}
+                  <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed busyId={busyId}
                     extenderFor={null} extenderDate="" setExtenderDate={() => {}}
                     onOpenExtender={() => {}} onCloseExtender={() => {}} onExtend={() => {}}
-                    onOpenResume={() => {}} onComplete={() => {}} onSetManualDate={() => {}} />
+                    onOpenResume={() => {}} onComplete={() => {}} onReopen={reopenManual} onSetManualDate={() => {}} />
                 ))}
               </div>
             </ReviewDrawer>
@@ -353,7 +384,7 @@ function ReviewDrawer({
 function ReviewRow({
   item, topBorder, dimmed = false, busyId,
   extenderFor, extenderDate, setExtenderDate,
-  onOpenExtender, onCloseExtender, onExtend, onOpenResume, onComplete, onSetManualDate,
+  onOpenExtender, onCloseExtender, onExtend, onOpenResume, onComplete, onReopen, onSetManualDate,
 }: {
   item: ReviewItem;
   topBorder: boolean;
@@ -367,6 +398,7 @@ function ReviewRow({
   onExtend: (id: string, date: Date | null) => void;
   onOpenResume: (id: string, address: string) => void;
   onComplete: (id: string) => void;
+  onReopen: (id: string) => void;
   onSetManualDate: (id: string, dateStr: string) => void;
 }) {
   const [editingDate, setEditingDate] = useState(false);
@@ -428,15 +460,16 @@ function ReviewRow({
   return (
     <div style={rowStyle}>
       <button
-        onClick={() => !isDone && onComplete(item.id)}
-        disabled={isDone || busy}
-        aria-label={isDone ? "Completed" : "Mark review done"}
+        onClick={() => (isDone ? onReopen(item.id) : onComplete(item.id))}
+        disabled={busy}
+        aria-label={isDone ? "Reopen review" : "Mark review done"}
+        title={isDone ? "Reopen" : undefined}
         className="agent-circle-btn"
         style={{
           width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 1,
           border: isDone ? "none" : "1.5px solid var(--agent-coral-base, var(--agent-coral-deep))",
           background: isDone ? "var(--agent-success)" : "transparent",
-          cursor: isDone ? "default" : busy ? "wait" : "pointer",
+          cursor: busy ? "wait" : "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}
       >
