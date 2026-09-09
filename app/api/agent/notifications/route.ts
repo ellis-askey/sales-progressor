@@ -99,6 +99,9 @@ export async function GET(req: NextRequest) {
         address: m.transaction.propertyAddress,
         sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name, isDesktopValuation: m.milestoneDefinition.code === "PM6" && !m.eventDate }),
         who: confirmer.kind,
+        // The confirming side, so the bell can tint the branded fallback avatar
+        // (seller blue / buyer green) when the client has no photo.
+        side,
         avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
           : confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.image ?? null)
           : null,
@@ -130,6 +133,9 @@ export async function GET(req: NextRequest) {
         address: n.transaction?.propertyAddress ?? "",
         sentence: bellNotificationSentence(n.type, payload),
         who: "client" as const,
+        // Non-milestone notifications are genuinely side-agnostic (chain agent
+        // added, chase note, etc.) — no side to tint by, so the neutral person.
+        side: null as "vendor" | "purchaser" | null,
         avatarImage: null as string | null,
         avatarName: "",
         at: n.createdAt.toISOString(),

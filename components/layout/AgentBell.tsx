@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Bell, Scales } from "@phosphor-icons/react";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { Bell } from "@phosphor-icons/react";
+import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Pill } from "@/components/ui/Pill";
 import { markAgentBellReadAction } from "@/app/actions/agent-preferences";
@@ -26,7 +26,10 @@ type BellItem = {
   txId: string;
   address: string;
   sentence: string;
-  who: "client" | "agent" | "solicitor";
+  who: "client" | "helper" | "agent" | "solicitor";
+  // The confirming side, when there is one — drives the buyer/seller tint on the
+  // branded fallback avatar. Null for side-agnostic notifications.
+  side: "vendor" | "purchaser" | null;
   avatarImage: string | null;
   avatarName: string;
   at: string;
@@ -40,17 +43,15 @@ function BellAvatar({ it }: { it: BellItem }) {
   if (it.who === "agent") {
     return <UserAvatar user={{ name: it.avatarName, image: it.avatarImage }} size={30} />;
   }
-  if (it.who === "client") {
-    // The client's own uploaded photo if they've set one (audit #16 phase 2),
-    // otherwise a friendly generic person.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={it.avatarImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={30} height={30} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />;
-  }
-  return (
-    <span aria-hidden style={{ width: 30, height: 30, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <Scales size={15} weight="regular" />
-    </span>
-  );
+  // The client/helper/solicitor's own photo if they've set one (audit #16 phase
+  // 2), otherwise the branded, side-tinted fallback: seller blue, buyer green,
+  // solicitor a grey id-card. The same art the Updates page uses.
+  const role: ActorRole =
+    it.who === "solicitor" ? "solicitor"
+    : it.side === "vendor" ? "seller"
+    : it.side === "purchaser" ? "buyer"
+    : "other";
+  return <ActorAvatar name={it.avatarName} role={role} image={it.avatarImage} size={30} />;
 }
 
 function relativeTime(iso: string): string {

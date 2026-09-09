@@ -2,10 +2,10 @@
 
 import { useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import Link from "next/link";
-import { CaretDown, Scales, Tag, ChatCircle, Paperclip } from "@phosphor-icons/react";
+import { CaretDown, Tag, ChatCircle, Paperclip } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 function relativeDate(iso: string) {
@@ -101,17 +101,15 @@ function Leading({ u }: { u: UpdateRow }) {
     if (u.who === "agent") {
       return <UserAvatar user={{ name: u.byName ?? "", image: u.byImage }} size={26} className="flex-shrink-0" />;
     }
-    if (u.who === "client" || u.who === "helper") {
-      // The client's (or helper's) own photo if uploaded (audit #16 phase 2),
-      // otherwise the generic silhouette. A helper is a person on the side.
-      // eslint-disable-next-line @next/next/no-img-element
-      return <img src={u.byImage || "/client-avatar-fallback.png"} alt="" aria-hidden width={26} height={26} style={{ borderRadius: 999, flexShrink: 0, display: "block", objectFit: "cover" }} />;
-    }
-    return (
-      <span aria-hidden style={{ width: 26, height: 26, borderRadius: 999, background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Scales size={14} weight="regular" />
-      </span>
-    );
+    // The client/helper/solicitor's own photo if uploaded (audit #16 phase 2),
+    // otherwise the branded, side-tinted fallback: seller blue, buyer green,
+    // solicitor a grey id-card. A helper is a person on the side.
+    const role: ActorRole =
+      u.who === "solicitor" ? "solicitor"
+      : u.side === "vendor" ? "seller"
+      : u.side === "purchaser" ? "buyer"
+      : "other";
+    return <ActorAvatar name={u.byName ?? ""} role={role} image={u.byImage} size={26} className="flex-shrink-0" />;
   }
   if (u.kind === "price") return <KindBadge><Tag size={14} weight="regular" /></KindBadge>;
   if (u.kind === "reply") return <KindBadge><ChatCircle size={14} weight="regular" /></KindBadge>;
