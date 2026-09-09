@@ -4227,3 +4227,34 @@ model ContentInboxItem {
 
   @@index([status, freshnessAt])
 }
+
+// Content & Personal Brand: brand opportunities (docs/active/content-brand/
+// SPEC.md, Phase 2.1). Reputation-building moves BEYOND a single post: a
+// position to establish, an article or series to start, a case study, a press
+// or podcast angle, a debate to weigh in on. AI-proposed from Ellis's brand +
+// what he's posted; nothing here is invented as his view until he pursues it.
+model BrandOpportunity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind            String // comment | position | article | series | press | podcast | case_study
+  title           String
+  rationale       String  @default("") // why this builds Ellis's reputation
+  suggestedAction String  @default("") // the concrete next move
+  audience        Json? // string[]
+  effort          String? // low | medium | high
+  horizon         String? // now | soon | ongoing
+  brandFit        String?
+  claimClass      String  @default("inference") // of any factual claim behind it
+  evidence        Json?
+
+  dedupeKey String  @unique // stable (slug of title) so a refresh never duplicates
+  status    String  @default("new") // new | pursuing | done | dismissed
+  decidedAt DateTime?
+
+  sourceSignalId String?
+  draftPostId    String?
+
+  @@index([status, createdAt])
+}

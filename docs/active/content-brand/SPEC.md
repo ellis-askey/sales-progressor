@@ -1,6 +1,6 @@
 # Content & Personal Brand — Command Centre area
 
-**Status:** Phase 1 in progress. Spec created 2026-09-09.
+**Status:** Phase 1 complete (Thoughts, Brand memory, Inbox, Creation flow, Overview). Phase 2 in progress. Spec created 2026-09-09.
 **Surface:** Command Centre (`superadmin` only), routes under `app/command/(protected)/`.
 **Owner decision:** Extend & absorb the existing content system · Phase 1 = Inbox + Brand Memory + Thoughts + creation flow · scheduling is "prepared + copy + reminder" until publishing APIs are wired (all confirmed by Ellis 2026-09-09).
 
@@ -91,7 +91,11 @@ Delivers the success criterion without any external integration.
 - **P1.5 — Overview.** Operational summary (published this week / scheduled / ready / ideas available / posting consistency / next post) + "Create something" + top 3 opportunities.
 
 ### Phase 2 — Strategist / PR consultant
-Rolling strategy (what to be known for this quarter, lean-into / overused / breakout / underused-expertise), content pillars as balance controls, **Brand Opportunities** (comment-on-this, establish-a-position, press/article/podcast/series ideas), balance warnings ("4 of last 6 referenced TSP — publish something useful next"), periodic Brand Review.
+The higher-level layer that reviews Ellis's positioning like a good PR consultant. Sequenced so the most valuable, data-independent piece ships first (pre-launch there is no published history yet).
+
+- **P2.1 — Brand Opportunities.** Reputation-building moves *beyond* individual posts: a position to establish, an article/series worth starting, a case study, a press/podcast angle, a debate to comment on. AI-generated from Ellis's positioning + approved memory + what he's recently posted + open thoughts (not raw per-agency signals, Law 20). Human pursue/dismiss; comment/article kinds hand off to the creation flow. Works now; doesn't need posting history.
+- **P2.2 — Content pillars + balance.** Pillars as balance controls (not a rigid calendar). `DraftPost.pillar` set at compose time from purpose+angle; a balance view of the recent mix with a repetition warning ("4 of the last 6 referenced the product; publish something useful next"). Honest "not enough posts yet" state until history exists.
+- **P2.3 — Rolling strategy + brand review.** A Strategy page: what to be known for this quarter (editable + AI-suggested), lean-into / overused / breakout / underused-expertise, and a periodic brand review. Grows richer as published + performance data accumulates.
 
 ### Phase 3 — Composer + voice learning
 Premium calm composer; steering controls (Audience, Angle, Goal, Platform, Voice, Promotional intensity low→high); AI actions (More like me, More specific, Make the point stronger, Less polished, Shorter, Add evidence, Remove the sales pitch, Try another opening, Explain what changed); AI-tell detector; voice-learning from AI-draft→Ellis-final diffs (`VoiceSample.sampleType = "draft_edit_diff"` already exists) with anti-overfit + an inspectable/correctable learned profile.

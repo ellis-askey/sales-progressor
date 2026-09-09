@@ -24,7 +24,7 @@ function summariseEvidence(evidence: unknown): string | null {
 export default async function CreatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ item?: string; thought?: string }>;
+  searchParams: Promise<{ item?: string; thought?: string; opp?: string }>;
 }) {
   const sp = await searchParams;
 
@@ -46,6 +46,12 @@ export default async function CreatePage({
   } else if (sp.thought) {
     const th = await commandDb.ellisThought.findUnique({ where: { id: sp.thought } });
     if (th) initialSource = th.body;
+  } else if (sp.opp) {
+    const opp = await commandDb.brandOpportunity.findUnique({ where: { id: sp.opp } });
+    if (opp) {
+      initialSource = opp.suggestedAction ? `${opp.title}\n\n${opp.suggestedAction}` : opp.title;
+      claimClass = opp.claimClass;
+    }
   }
 
   return (
