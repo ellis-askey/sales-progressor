@@ -17,7 +17,8 @@ import { buildTemplate } from "@/lib/prospects/templates";
 import { sendProspectOutreach } from "@/lib/prospects/send";
 import { performProspectSend } from "@/lib/prospects/perform-send";
 import { buildAgencyInvitation } from "@/lib/emails/agency-invitation";
-import { researchAgency, type ResearchField, type ResearchResult } from "@/lib/prospects/research";
+import { researchAgency, type ResearchResult } from "@/lib/prospects/research";
+import { parseImportLines, applyResearchToProspect, processNextItem } from "@/lib/prospects/import-core";
 import { randomUUID } from "crypto";
 import type { Prisma, ProspectStatus, ProspectSource, ProspectLostReason } from "@prisma/client";
 
@@ -605,74 +606,9 @@ export async function deleteProspectContactAction(contactId: string): Promise<{ 
 }
 
 // ─── Automated research (Phase B) ────────────────────────────────────────────
-
-function metaFrom(rf: ResearchField, at: string) {
-  return { state: rf.state, sourceName: rf.sourceName, sourceUrl: rf.sourceUrl, confidence: rf.confidence, note: rf.note, researchedAt: at };
-}
-
-// Apply a research result to a prospect: fill-blanks-only, never overwrite a
-// confirmed field. Creates the primary contact from the researched decision-maker
-// if none exists, else fills blanks on the existing primary. Shared by the
-// single-prospect research action and the batch importer.
-async function applyResearchToProspect(prospectId: string, result: ResearchResult): Promise<void> {
-  const p = await commandDb.prospect.findUnique({
-    where: { id: prospectId },
-    include: { contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] } },
-  });
-  if (!p) return;
-
-  const at = new Date().toISOString();
-  const research = { ...((p.research as Record<string, Record<string, unknown>> | null) ?? {}) };
-  const data: Record<string, unknown> = {};
-  const fill = (field: string, current: string | null, rf?: ResearchField | null) => {
-    if (!rf?.value) return;
-    if ((research[field]?.state as string) === "confirmed") return; // never overwrite confirmed
-    if (current && current.trim()) return; // fill blanks only
-    data[field] = rf.value;
-    research[field] = metaFrom(rf, at);
-  };
-  fill("location", p.location, result.agency.location);
-  fill("postcode", p.postcode, result.agency.postcode);
-  fill("website", p.website, result.agency.website);
-  fill("phone", p.phone, result.agency.phone);
-  fill("generalEmail", p.generalEmail, result.agency.generalEmail);
-  if (result.notes && !(p.notes && p.notes.trim())) data.notes = result.notes;
-  data.research = research;
-  await commandDb.prospect.update({ where: { id: prospectId }, data: data as Prisma.ProspectUpdateInput });
-
-  const c = result.contact;
-  if (c?.name?.value) {
-    if (p.contacts.length === 0) {
-      const cResearch: Record<string, ReturnType<typeof metaFrom>> = { name: metaFrom(c.name, at) };
-      if (c.role) cResearch.jobTitle = metaFrom(c.role, at);
-      if (c.email) cResearch.email = metaFrom(c.email, at);
-      if (c.phone) cResearch.phone = metaFrom(c.phone, at);
-      await commandDb.prospectContact.create({
-        data: {
-          prospectId, name: c.name.value, jobTitle: c.role?.value ?? null, email: c.email?.value ?? null,
-          phone: c.phone?.value ?? null, isDecisionMaker: !!c.isDecisionMaker, isPrimary: true,
-          research: cResearch as Prisma.InputJsonValue,
-        },
-      });
-    } else {
-      const primary = p.contacts[0];
-      const pr = { ...((primary.research as Record<string, Record<string, unknown>> | null) ?? {}) };
-      const cdata: Record<string, unknown> = {};
-      const fillC = (field: string, current: string | null, rf?: ResearchField | null) => {
-        if (!rf?.value) return;
-        if ((pr[field]?.state as string) === "confirmed") return;
-        if (current && current.trim()) return;
-        cdata[field] = rf.value;
-        pr[field] = metaFrom(rf, at);
-      };
-      fillC("jobTitle", primary.jobTitle, c.role);
-      fillC("email", primary.email, c.email);
-      fillC("phone", primary.phone, c.phone);
-      cdata.research = pr;
-      await commandDb.prospectContact.update({ where: { id: primary.id }, data: cdata as Prisma.ProspectContactUpdateInput });
-    }
-  }
-}
+// The research-apply + batch-import engine lives in lib/prospects/import-core.ts
+// (shared with the drain cron). applyResearchToProspect, importOne,
+// parseImportLines and processNextItem are imported from there.
 
 // Research one existing prospect and apply the result. Safe to re-run.
 export async function researchProspectAction(prospectId: string): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -693,86 +629,9 @@ export async function researchProspectAction(prospectId: string): Promise<{ ok: 
 }
 
 // ─── Batch import (Phase C) ──────────────────────────────────────────────────
-
-const IMPORT_MAX = 15; // tuned for ~10; a single number to lift later.
-
-const normName = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/\b(ltd|limited|llp|plc)\b/g, "").replace(/[^a-z0-9]/g, "");
-const normLoc = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-const normDomain = (url: string | null | undefined) => (url ? url.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].trim() : "");
-
-function parseImportLines(raw: string): Array<{ agency: string; location: string | null }> {
-  const out: Array<{ agency: string; location: string | null }> = [];
-  for (const line of raw.split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t) continue;
-    const parts = t.split("|").map((s) => s.trim());
-    if (!parts[0]) continue;
-    out.push({ agency: parts[0], location: parts[1] || null });
-    if (out.length >= IMPORT_MAX) break;
-  }
-  return out;
-}
-
-function importReviewNeeded(result: ResearchResult): boolean {
-  const fields = [result.agency.website, result.agency.phone, result.agency.generalEmail, result.agency.location, result.agency.postcode, result.contact?.name, result.contact?.role, result.contact?.email, result.contact?.phone];
-  const anyNeedsCheck = fields.some((f) => f?.state === "needs_check");
-  const missingKey = !result.agency.website || !result.agency.phone || !result.contact;
-  return anyNeedsCheck || missingKey;
-}
-
-// Research + dedupe + create one agency. Returns its final import status.
-async function importOne(agency: string, location: string | null, createdById: string): Promise<{ status: "imported" | "needs_review" | "exists"; prospectId?: string }> {
-  const candidates = await commandDb.prospect.findMany({
-    where: { archivedAt: null },
-    select: { id: true, agencyName: true, location: true, website: true, groupId: true },
-  });
-  const nName = normName(agency);
-  const nLoc = normLoc(location);
-
-  // Cheap pre-check: an exact branch (same name + same location) already exists.
-  const preMatch = candidates.find((c) => nName && normName(c.agencyName) === nName && normLoc(c.location) === nLoc);
-  if (preMatch) return { status: "exists", prospectId: preMatch.id };
-
-  const result = await researchAgency(agency, location);
-  const domain = normDomain(result.agency.website?.value ?? null);
-  const tradingName = result.agency.tradingName?.value || agency;
-  const nTrade = normName(tradingName);
-  const effLoc = normLoc(location || result.agency.location?.value || "");
-
-  // Same-company candidates: matched by domain or by (trading) name.
-  const sameCompany = candidates.filter((c) =>
-    (domain && normDomain(c.website) === domain) ||
-    (nTrade && normName(c.agencyName) === nTrade) ||
-    (nName && normName(c.agencyName) === nName),
-  );
-  const sameBranch = sameCompany.find((c) => normLoc(c.location) === effLoc);
-  if (sameBranch) return { status: "exists", prospectId: sameBranch.id };
-
-  const created = await commandDb.prospect.create({
-    data: {
-      agencyName: tradingName,
-      location: location || result.agency.location?.value || null,
-      source: "cold",
-      ownerUserId: createdById, createdById,
-    },
-  });
-
-  // Different branch of a company we already have → put them in one business.
-  if (sameCompany.length > 0) {
-    const sibling = sameCompany[0];
-    if (sibling.groupId) {
-      await commandDb.prospect.update({ where: { id: created.id }, data: { groupId: sibling.groupId } });
-    } else {
-      await commandDb.prospectGroup.create({
-        data: { name: tradingName, ownerUserId: createdById, createdById, prospects: { connect: [{ id: sibling.id }, { id: created.id }] } },
-      });
-    }
-  }
-
-  await applyResearchToProspect(created.id, result);
-  await logActivity(created.id, createdById, "created", `Imported via research${result.companyNumber ? ` (Companies House ${result.companyNumber})` : ""}`);
-  return { status: importReviewNeeded(result) ? "needs_review" : "imported", prospectId: created.id };
-}
+// Engine (parse, research+dedupe+group, atomic claim, stale reclaim, drain) is in
+// lib/prospects/import-core.ts and shared with the drain cron. These actions are
+// the superadmin-gated entry points.
 
 export async function createImportBatchAction(raw: string): Promise<{ ok: true; batchId: string; count: number } | { ok: false; error: string }> {
   const session = await requireSuperAdmin();
@@ -787,36 +646,20 @@ export async function createImportBatchAction(raw: string): Promise<{ ok: true; 
   return { ok: true, batchId: batch.id, count: lines.length };
 }
 
-// Claim + process the next pending item. One item per call keeps each request
-// within the serverless timeout; the client loops until done.
+// Claim + process the next pending item (via the shared engine, which also
+// reclaims any item stuck mid-research). One item per call keeps each request
+// within the serverless timeout; the client loops until nothing is claimed, and
+// the drain cron finishes anything left if the tab is closed.
 export async function processNextImportItemAction(batchId: string): Promise<{ done: boolean; remaining: number }> {
   const session = await requireSuperAdmin();
-  const item = await commandDb.prospectImportItem.findFirst({ where: { batchId, status: "pending" }, orderBy: { createdAt: "asc" } });
-  if (!item) {
-    await commandDb.prospectImportBatch.update({ where: { id: batchId }, data: { status: "done" } });
-    revalidatePath("/command/prospects");
-    return { done: true, remaining: 0 };
-  }
-  await commandDb.prospectImportItem.update({ where: { id: item.id }, data: { status: "researching" } });
-
-  let status = "imported";
-  let prospectId: string | null = null;
-  let error: string | null = null;
-  try {
-    const res = await importOne(item.inputAgency, item.inputLocation, session.user.id);
-    status = res.status; prospectId = res.prospectId ?? null;
-  } catch (err) {
-    status = "failed"; error = err instanceof Error ? err.message.slice(0, 200) : "Research failed.";
-  }
-  await commandDb.prospectImportItem.update({ where: { id: item.id }, data: { status, prospectId, error } });
-  const remaining = await commandDb.prospectImportItem.count({ where: { batchId, status: "pending" } });
+  const r = await processNextItem(batchId, session.user.id);
   revalidatePath("/command/prospects");
-  return { done: false, remaining };
+  return { done: !r.claimed, remaining: r.remaining };
 }
 
 export async function retryImportItemAction(itemId: string): Promise<{ ok: true }> {
   await requireSuperAdmin();
-  const item = await commandDb.prospectImportItem.update({ where: { id: itemId }, data: { status: "pending", error: null } });
+  const item = await commandDb.prospectImportItem.update({ where: { id: itemId }, data: { status: "pending", attempts: 0, error: null } });
   await commandDb.prospectImportBatch.update({ where: { id: item.batchId }, data: { status: "processing" } });
   revalidatePath("/command/prospects");
   return { ok: true };

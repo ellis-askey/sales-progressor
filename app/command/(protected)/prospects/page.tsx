@@ -18,7 +18,10 @@ import type { ProspectStatus, ProspectSource } from "@prisma/client";
 export const dynamic = "force-dynamic";
 // Web research (Sonnet + web search) can take up to ~a minute; give server
 // actions triggered from this page room to finish.
-export const maxDuration = 60;
+// Import research (Claude + web search) runs ~1 min per agency via a server
+// action invoked from this route, so give it headroom rather than the 60s
+// default. The drain cron backs this up if anything still runs long.
+export const maxDuration = 300;
 
 type View = "all" | "pipeline" | "followups" | "insights" | "import";
 type SP = { q?: string; status?: string; source?: string; view?: string; bucket?: string };

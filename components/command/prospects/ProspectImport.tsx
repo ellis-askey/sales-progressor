@@ -22,18 +22,35 @@ export function ProspectImport() {
   const [batch, setBatch] = useState<ImportBatchView | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [background, setBackground] = useState(false);
   const cancelled = useRef(false);
 
   async function runLoop(batchId: string) {
     setRunning(true);
-    while (!cancelled.current) {
-      const r = await processNextImportItemAction(batchId);
-      const view = await getImportBatchAction(batchId);
-      if (view) setBatch(view);
-      if (r.done) break;
+    setBackground(false);
+    let consecutiveErrors = 0;
+    try {
+      while (!cancelled.current) {
+        let done = false;
+        try {
+          const r = await processNextImportItemAction(batchId);
+          done = r.done;
+          consecutiveErrors = 0;
+        } catch {
+          // A slow or failed request must never kill the whole run. Retry a few
+          // times, then hand off to the background drainer, which finishes the
+          // batch server-side even if this tab is closed.
+          consecutiveErrors++;
+          if (consecutiveErrors >= 5) { setBackground(true); break; }
+        }
+        const view = await getImportBatchAction(batchId).catch(() => null);
+        if (view) setBatch(view);
+        if (done) break;
+      }
+    } finally {
+      setRunning(false);
+      router.refresh();
     }
-    setRunning(false);
-    router.refresh();
   }
 
   async function start() {
@@ -54,7 +71,7 @@ export function ProspectImport() {
     void runLoop(batchId);
   }
 
-  function reset() { cancelled.current = true; setBatch(null); setRaw(""); setError(null); setRunning(false); }
+  function reset() { cancelled.current = true; setBatch(null); setRaw(""); setError(null); setBackground(false); setRunning(false); }
 
   const lineCount = raw.split(/\r?\n/).filter((l) => l.trim()).length;
 
@@ -96,6 +113,12 @@ export function ProspectImport() {
         </div>
         <button onClick={reset} className="text-[11px] text-neutral-500 hover:text-neutral-300">New import</button>
       </div>
+
+      {background && (
+        <div className="rounded-lg border border-amber-900/60 bg-amber-950/20 px-4 py-2.5 text-[12px] text-amber-300">
+          Some agencies are taking a while. They&rsquo;ll keep processing in the background, so you can leave this page. Come back later, or hit New import to check progress.
+        </div>
+      )}
 
       {allDone && (
         <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm text-neutral-200">

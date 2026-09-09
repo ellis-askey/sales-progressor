@@ -3960,6 +3960,7 @@ model ProspectImportItem {
   inputLocation String?
   // pending | researching | imported | needs_review | exists | failed
   status        String   @default("pending")
+  attempts      Int      @default(0) // claim count; caps retries on stuck/failing items
   prospectId    String? // the created/matched prospect (loose ref, not a FK)
   error         String?
   createdAt     DateTime @default(now())
