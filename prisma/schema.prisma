@@ -2944,6 +2944,7 @@ model DraftPost {
 
   approvedForBatch Boolean @default(false) // user flagged this variant for the morning batch
   postedUrl        String? // URL of the live post (filled when marking as posted)
+  pillar           String? // content pillar for balance tracking (set by the guided creation flow); docs/active/content-brand/SPEC.md Phase 2.2
 
   @@index([createdAt])
   @@index([channel, createdAt])

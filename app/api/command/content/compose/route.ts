@@ -10,6 +10,7 @@ import { buildComposeSystemPrompt, buildComposeUserMessage } from "@/lib/command
 import { getBrandProfile, getBrandMemory } from "@/lib/command/content/brand";
 import { getPurpose, getFormat } from "@/lib/command/content/create-taxonomy";
 import { getChannelById } from "@/lib/command/content/channels";
+import { pillarForBrief } from "@/lib/command/content/pillars";
 
 // Guided-flow composer (docs/active/content-brand/SPEC.md, Phase 1.4). Generates
 // a post ONLY after the source, purpose, angle, point and format are decided.
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
     data: {
       channel: format.channelId,
       tone: purposeId,
+      pillar: pillarForBrief(purposeId, angleLabel),
       topicSeed: point.trim(),
       sourceType: item?.sourceType ?? "manual",
       prompt: userMessage,
