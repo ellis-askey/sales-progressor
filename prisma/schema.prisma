@@ -4079,3 +4079,24 @@ enum ProspectLostReason {
   doesnt_outsource
   other
 }
+
+// Content & Personal Brand: Ellis's thoughts.
+// Low-friction raw-thought capture (docs/active/content-brand/SPEC.md, Phase
+// 1.1). A thought is an unpolished opinion / frustration / observation Ellis
+// saves in seconds; the content engine can revisit it later and suggest it when
+// relevant. Never generated: always Ellis's own words. Command-Centre-owned,
+// no agencyId.
+model EllisThought {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  body            String // the raw thought, Ellis's own words
+  topic           String? // optional freeform tag ("chain transparency")
+  source          String  @default("manual") // "manual" | "global_capture" | "inbox_notme"
+  status          String  @default("open") // "open" | "used" | "archived"
+  usedInDraftId   String? // DraftPost this thought was turned into, when used
+  relatedEvidence Json? // evidence/content discovered later that supports it
+
+  @@index([status, createdAt])
+}

@@ -5,12 +5,13 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useTransition, useState, useRef, useEffect, Suspense } from "react";
 import { signOut } from "next-auth/react";
 import { saveCommandPreferencesAction } from "@/app/actions/command-preferences";
+import { ThoughtQuickCapture } from "@/components/command/content/ThoughtQuickCapture";
 import type { CommandMode } from "@/lib/command/scope";
 import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen,
+  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen, PenLine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -68,6 +69,15 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/growth", label: "Trends", Icon: TrendingUp },
       { href: "/command/experiments", label: "Growth tests", Icon: FlaskConical },
       { href: "/command/enquiries-chase", label: "Chase experiment", Icon: MailCheck },
+    ],
+  },
+  {
+    // Content & Personal Brand (docs/active/content-brand/SPEC.md). Being built
+    // in phases; nav items are added as each real page ships (no dead links).
+    label: "Content",
+    items: [
+      { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
+      { href: "/command/content", label: "Drafts & images", Icon: PenLine },
     ],
   },
   {
@@ -339,6 +349,11 @@ export function CommandSidebar({
           </div>
         ))}
       </nav>
+
+      {/* Global thought capture — available on every Command Centre page */}
+      <div className="py-2.5 border-t border-[#1f1f1f] flex-shrink-0">
+        <ThoughtQuickCapture />
+      </div>
 
       {/* Footer */}
       <div className="px-3 py-3 border-t border-[#1f1f1f] flex-shrink-0">
