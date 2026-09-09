@@ -70,36 +70,7 @@ export async function setInboxItemStatusAction(formData: FormData): Promise<{ ok
   return { ok: true };
 }
 
-// Hand off to drafting: create a ContentTopic from the item (optionally a chosen
-// angle) so it lands in the existing composer's topic queue, and mark the item
-// explored. When the guided Source -> Angle -> Post flow ships (Phase 1.4) this
-// becomes that flow's entry point.
-export async function draftFromInboxAction(formData: FormData): Promise<{ ok: boolean; topicId?: string }> {
-  await assertSuperadmin();
-
-  const id = formData.get("id") as string;
-  const topicText = ((formData.get("topicText") as string) ?? "").trim();
-  if (!id || !topicText) return { ok: false };
-
-  const item = await commandDb.contentInboxItem.findUnique({ where: { id } });
-  if (!item) return { ok: false };
-
-  const topic = await commandDb.contentTopic.create({
-    data: { text: topicText, source: item.sourceType === "saved_thought" ? "manual" : "activity_derived" },
-  });
-
-  await commandDb.contentInboxItem.update({
-    where: { id },
-    data: { status: "explored", decidedAt: new Date(), topicId: topic.id },
-  });
-
-  // If this came from one of Ellis's saved thoughts, mark that thought used so
-  // it stops resurfacing.
-  if (item.sourceThoughtId) {
-    await commandDb.ellisThought.update({ where: { id: item.sourceThoughtId }, data: { status: "used" } }).catch(() => {});
-    revalidatePath("/command/content/thoughts");
-  }
-
-  revalidate();
-  return { ok: true, topicId: topic.id };
-}
+// Drafting is a deliberate second step: the inbox links to the guided creation
+// flow (/command/content/create?item=<id>, Phase 1.4), which composes the post
+// and marks the item explored + its source thought used on generation. No
+// separate "send to topic queue" action is needed here.

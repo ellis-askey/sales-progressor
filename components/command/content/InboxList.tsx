@@ -3,11 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkle, ArrowRight } from "lucide-react";
-import {
-  refreshInboxAction,
-  setInboxItemStatusAction,
-  draftFromInboxAction,
-} from "@/app/actions/content-inbox";
+import { refreshInboxAction, setInboxItemStatusAction } from "@/app/actions/content-inbox";
 import { ClaimBadge } from "@/components/command/content/ClaimBadge";
 
 // Content inbox (docs/active/content-brand/SPEC.md, Phase 1.3). The list of real
@@ -140,15 +136,7 @@ export function InboxList({ board }: { board: Board }) {
                   if (res.ok) router.refresh();
                 });
               }}
-              onDraft={(topicText) => {
-                const fd = new FormData();
-                fd.set("id", it.id);
-                fd.set("topicText", topicText);
-                startTransition(async () => {
-                  const res = await draftFromInboxAction(fd);
-                  if (res.ok) router.push("/command/content");
-                });
-              }}
+              onDraft={() => router.push(`/command/content/create?item=${it.id}`)}
             />
           ))}
         </div>
@@ -164,7 +152,7 @@ function InboxCard({
   tab: Tab;
   pending: boolean;
   onStatus: (status: string) => void;
-  onDraft: (topicText: string) => void;
+  onDraft: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const figures = it.evidence && typeof it.evidence.figures === "object" ? (it.evidence.figures as Record<string, unknown>) : null;
@@ -219,16 +207,9 @@ function InboxCard({
             <div className="space-y-1.5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">Angles you could take</p>
               {it.suggestedAngles.map((a, i) => (
-                <div key={i} className="group flex items-start gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2">
+                <div key={i} className="flex items-start gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2">
                   <span className="mt-0.5 rounded border border-neutral-700 bg-neutral-800/60 px-1.5 py-0.5 text-[10px] font-medium text-neutral-300">{a.angle}</span>
                   <span className="flex-1 text-[12.5px] leading-relaxed text-neutral-300">{a.point}</span>
-                  <button
-                    onClick={() => onDraft(a.point)}
-                    disabled={pending}
-                    className="mt-0.5 shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-neutral-400 opacity-0 transition-all hover:bg-neutral-800 hover:text-neutral-100 group-hover:opacity-100 disabled:opacity-40"
-                  >
-                    Draft this
-                  </button>
                 </div>
               ))}
             </div>
@@ -246,9 +227,8 @@ function InboxCard({
           {open ? "Less" : "Explore"}
         </button>
         <button
-          onClick={() => onDraft(it.observation)}
-          disabled={pending}
-          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-40"
+          onClick={onDraft}
+          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-blue-500"
         >
           Draft from this <ArrowRight size={12} />
         </button>
