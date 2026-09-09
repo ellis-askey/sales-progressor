@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { markAsPostedAction, discardDraftAction, approveForBatchAction, removeFromBatchAction } from "@/app/actions/draft-posts";
 import { REFINE_ACTIONS, type PromoIntensity } from "@/lib/command/content/refine-actions";
+import { detectAiTells } from "@/lib/command/content/ai-tell";
 
 // Premium composer (docs/active/content-brand/SPEC.md, Phase 3.1). The post
 // dominates. A calm toolbar of substance-steering AI actions, a low-to-high
@@ -34,6 +35,7 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
   const [pending, startTransition] = useTransition();
 
   const over = text.length > charLimit;
+  const tells = useMemo(() => detectAiTells(text), [text]);
 
   async function refine(action: string) {
     setBusy(true);
@@ -136,6 +138,29 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
         rows={12}
         className="w-full resize-y rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3.5 text-[15px] leading-relaxed text-neutral-100 focus:border-blue-600/50 focus:outline-none"
       />
+
+      {/* AI-tell detector */}
+      {tells.length > 0 && (
+        <div className="rounded-lg border border-amber-900/50 bg-amber-950/10 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-amber-300">This reads a bit AI</span>
+            <button
+              onClick={() => refine("de_ai")}
+              disabled={busy || pending}
+              className="ml-auto rounded-md border border-amber-900/60 px-2 py-0.5 text-[11px] font-medium text-amber-200 transition-colors hover:bg-amber-950/40 disabled:opacity-40"
+            >
+              Clean it up
+            </button>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {tells.map((t, i) => (
+              <span key={i} className="rounded border border-amber-900/50 bg-amber-950/20 px-1.5 py-0.5 text-[10.5px] text-amber-300/90">
+                {t.label}{t.detail ? `: ${t.detail}` : ""}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* AI actions */}
       <div className="flex flex-wrap items-center gap-1.5">

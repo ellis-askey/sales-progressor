@@ -17,8 +17,16 @@ export const REFINE_ACTIONS: RefineAction[] = [
   { id: "another_opening", label: "Try another opening", instruction: "Rewrite with a completely different opening line and hook, keeping the same core point and voice." },
 ];
 
+// A dedicated de-AI rewrite, offered only when the AI-tell detector fires (not a
+// permanent toolbar button). Handled by getRefineAction like the rest.
+export const DE_AI_ACTION: RefineAction = {
+  id: "de_ai",
+  label: "Clean up AI tells",
+  instruction: "Rewrite so it reads like a real person wrote it, not an AI. Remove clichéd phrases, drama line breaks (one-sentence-per-paragraph), emojis, hashtags, em dashes, forced rhetorical questions and engagement-bait closers. Keep the exact point and Ellis's voice.",
+};
+
 export function getRefineAction(id: string): RefineAction | undefined {
-  return REFINE_ACTIONS.find((a) => a.id === id);
+  return [...REFINE_ACTIONS, DE_AI_ACTION].find((a) => a.id === id);
 }
 
 // Promotional intensity: a simple low to high control. Most content should stay
