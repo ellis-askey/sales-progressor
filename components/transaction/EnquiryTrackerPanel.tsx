@@ -17,7 +17,9 @@ import {
   logEnquiryMovementAction,
   setEnquiryOutstandingAction,
   setEnquirySnoozeAction,
+  markEnquiriesSatisfiedAction,
 } from "@/app/actions/enquiries";
+import type { EnquiryMovementKind } from "@/lib/enquiries/tracker";
 
 type Court = "seller_solicitor" | "buyer_solicitor";
 type Status = "closed" | "snoozed" | "stalled" | "chasing";
@@ -52,7 +54,12 @@ export function EnquiryTrackerPanel({
   const [outstanding, setOutstanding] = useState(data.outstandingNote ?? "");
 
   const closed = data.status === "closed";
-  const other: Court = data.currentlyWith === "seller_solicitor" ? "buyer_solicitor" : "seller_solicitor";
+  const isSeller = data.currentlyWith === "seller_solicitor";
+  const withBuyer = !isSeller;
+  const other: Court = isSeller ? "buyer_solicitor" : "seller_solicitor";
+  // Two-tap guard for "Mark satisfied": it closes the loop and opens the
+  // exchange gate, so it confirms before committing (same as the enquiries page).
+  const [armed, setArmed] = useState(false);
 
   function run(fn: () => Promise<unknown>) {
     start(async () => {
@@ -61,7 +68,7 @@ export function EnquiryTrackerPanel({
     });
   }
 
-  function move(mode: Mode, flip: Court | null) {
+  function move(mode: Mode, flip: Court | null, kind?: EnquiryMovementKind) {
     const text = note.trim();
     run(async () => {
       await logEnquiryMovementAction({
@@ -69,9 +76,14 @@ export function EnquiryTrackerPanel({
         note: text || undefined,
         mode,
         flipsCourtTo: flip,
+        kind,
       });
       setNote("");
     });
+  }
+
+  function markSatisfied() {
+    run(() => markEnquiriesSatisfiedAction({ transactionId }));
   }
 
   // Option B — status-first. Lead with a plain-English headline of where the
@@ -101,6 +113,12 @@ export function EnquiryTrackerPanel({
     border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)",
     color: "var(--agent-text-secondary)", cursor: "pointer", whiteSpace: "nowrap",
   };
+  const primaryBtn: CSSProperties = {
+    fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "7px 13px", border: "none",
+    background: "var(--agent-coral)", color: "#fff", cursor: "pointer", whiteSpace: "nowrap",
+    opacity: pending ? 0.5 : 1,
+  };
+  const satisfiedBtn: CSSProperties = { ...primaryBtn, background: "var(--agent-success)" };
 
   return (
     <div className="glass-card p-5" style={{ clipPath: "inset(0 round 20px)" }}>
@@ -132,27 +150,45 @@ export function EnquiryTrackerPanel({
             style={{ fontSize: 12.5, borderRadius: 10, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)", padding: "8px 10px", outline: "none" }}
           />
 
-          {/* Actions — every control kept, all visible */}
+          {/* Actions — court-aware, matching the enquiries page. With the seller's
+              solicitor: send their replies on. With the buyer's solicitor: they're
+              reviewing, so mark satisfied or raise a fresh round. "Still with them",
+              "Wrong side?" and pause are the file's extra desk controls. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12, alignItems: "center" }}>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => move("handover", other)}
-              title={`Marks it as now with ${courtLabel(other)} and restarts the chase timer`}
-              style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "7px 13px", border: "none", background: "var(--agent-coral)", color: "#fff", cursor: "pointer", whiteSpace: "nowrap", opacity: pending ? 0.5 : 1 }}
-            >
-              {pending ? "Saving…" : `Replies in → ${courtLabel(other).replace("the ", "")}`}
-            </button>
-            <button type="button" disabled={pending} onClick={() => move("touch", null)} title="Restarts the chase timer but keeps it on the same side" style={secBtn}>
-              Still with them
-            </button>
-            <button type="button" disabled={pending} onClick={() => move("relabel", other)} title={`Corrects who it's with without resetting the chase timer — switch to ${courtLabel(other)}`} style={secBtn}>
-              Wrong side?
-            </button>
-            {data.status === "snoozed" ? (
-              <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: null }))} style={secBtn}>Resume now</button>
+            {armed ? (
+              <>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Mark satisfied? This opens exchange.</span>
+                <button type="button" disabled={pending} onClick={() => { setArmed(false); markSatisfied(); }} style={satisfiedBtn}>Confirm</button>
+                <button type="button" disabled={pending} onClick={() => setArmed(false)} style={secBtn}>Cancel</button>
+              </>
             ) : (
-              <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: 5 }))} title="Pause chasing for 5 working days" style={secBtn}>⏸ Pause chasing</button>
+              <>
+                {isSeller ? (
+                  <button type="button" disabled={pending} onClick={() => move("handover", "buyer_solicitor", "replies_sent")} title="Marks the replies as sent to the buyer's solicitor and restarts the chase timer" style={primaryBtn}>
+                    Replies sent → buyer&apos;s side
+                  </button>
+                ) : (
+                  <button type="button" disabled={pending} onClick={() => move("handover", "seller_solicitor", "raised")} title="Buyer's solicitor raised a fresh round, hands it back to the seller's solicitor and restarts the chase timer" style={primaryBtn}>
+                    Raise further → seller&apos;s side
+                  </button>
+                )}
+                {withBuyer && (
+                  <button type="button" disabled={pending} onClick={() => setArmed(true)} title="Enquiries all satisfied, closes the loop and opens the exchange gate" style={satisfiedBtn}>
+                    Mark satisfied
+                  </button>
+                )}
+                <button type="button" disabled={pending} onClick={() => move("touch", null)} title="Restarts the chase timer but keeps it on the same side" style={secBtn}>
+                  Still with them
+                </button>
+                <button type="button" disabled={pending} onClick={() => move("relabel", other, "correction")} title={`Corrects who it's with without resetting the chase timer, switch to ${courtLabel(other)}`} style={secBtn}>
+                  Wrong side?
+                </button>
+                {data.status === "snoozed" ? (
+                  <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: null }))} style={secBtn}>Resume now</button>
+                ) : (
+                  <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: 5 }))} title="Pause chasing for 5 working days" style={secBtn}>⏸ Pause chasing</button>
+                )}
+              </>
             )}
           </div>
 

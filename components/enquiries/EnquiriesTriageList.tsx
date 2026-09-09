@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import {
   logEnquiryMovementAction, logEnquiryChaseAction, setEnquiryExpectedDateAction, getEnquiryHistoryAction,
+  markEnquiriesSatisfiedAction,
 } from "@/app/actions/enquiries";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
@@ -54,12 +55,15 @@ function statusPill(r: OpenEnquiryRow): Pill {
     }
     if (chaseMs < tomorrow) return { label: "Due today", tone: "danger" };
   }
-  const k = r.lastMovement?.kind;
-  if (k === "replies_sent" || k === "replies_received") return { label: "Replies received", tone: "green" };
   if (r.expectedDate && new Date(r.expectedDate).getTime() >= new Date().setHours(0, 0, 0, 0)) {
     return { label: `Expected ${fmtDay(r.expectedDate)}`, tone: "amber" };
   }
-  return { label: "Waiting", tone: "blue" };
+  // Court-driven, not last-event-driven: with the buyer's solicitor means the
+  // replies are in and they're deciding (satisfied / raise further); with the
+  // seller's solicitor means they still owe the replies. A logged chase no
+  // longer flips this back to "waiting" the way reading lastMovement.kind did.
+  if (r.currentlyWith === "buyer_solicitor") return { label: "Being reviewed", tone: "green" };
+  return { label: "Awaiting replies", tone: "blue" };
 }
 
 type SortKey = "attention" | "quietest" | "recent";
@@ -75,6 +79,10 @@ export function EnquiriesTriageList({
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  // The row whose "Mark satisfied" is armed (awaiting the confirm tap). Marking
+  // satisfied closes the loop and opens the exchange gate, so it's a two-tap
+  // action here rather than a one-click blitz like the court flips.
+  const [armedId, setArmedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, EnquiryHistoryEntry[] | "loading">>({});
 
@@ -190,7 +198,8 @@ export function EnquiriesTriageList({
           const busy = busyId === r.transactionId;
           const pill = statusPill(r);
           const isSeller = r.currentlyWith === "seller_solicitor";
-          const reviewing = r.lastMovement?.kind === "replies_sent" || r.lastMovement?.kind === "replies_received";
+          const withBuyer = !isSeller;
+          const armed = armedId === r.transactionId;
           const [line1, ...rest] = r.address.split(",");
           const expanded = expandedId === r.transactionId;
           return (
@@ -223,23 +232,46 @@ export function EnquiriesTriageList({
                 {/* Status */}
                 <div className="enq-statuscol">
                   <span className={`enq-pill2 enq-pill-${pill.tone}`}>{pill.tone === "green" ? <CheckCircle size={12} weight="fill" /> : pill.tone === "danger" ? <WarningCircle size={12} weight="fill" /> : pill.tone === "amber" ? <CalendarBlank size={12} /> : <ClockCountdown size={12} />}{pill.label}</span>
-                  <span className="enq-substatus">{reviewing ? "Being reviewed" : (r.outstandingNote || "Replies outstanding")}</span>
+                  <span className="enq-substatus">{r.outstandingNote || (withBuyer ? "With the buyer's solicitor to review" : "Replies outstanding")}</span>
                 </div>
 
-                {/* Actions */}
+                {/* Actions — court-aware. With the seller's solicitor: they owe
+                    replies (send them on). With the buyer's solicitor: they're
+                    reviewing, so the two real outcomes are satisfied or a fresh
+                    round. "Still with them" (reset the clock, no move) in both. */}
                 <div className="enq-actions2">
-                  {reviewing ? (
-                    <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "touch", kind: "update", note: "Update logged" }), "Update logged")}>
-                      <Check size={14} weight="bold" /> Add update
-                    </button>
+                  {armed ? (
+                    <>
+                      <span className="enq-confirm-q">Mark satisfied? This opens exchange.</span>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-satisfied" onClick={() => { setArmedId(null); run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied"); }}>
+                        <Check size={14} weight="bold" /> Confirm
+                      </button>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => setArmedId(null)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : withBuyer ? (
+                    <>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-satisfied" onClick={() => setArmedId(r.transactionId)}>
+                        <CheckCircle size={14} weight="fill" /> Mark satisfied
+                      </button>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised" }), "Further enquiries raised, moved to the seller's side")}>
+                        <ArrowRight size={14} /> Raise further
+                      </button>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "touch", kind: "update" }), "Confirmed, still with them")}>
+                        <ArrowsLeftRight size={14} /> Still with them
+                      </button>
+                    </>
                   ) : (
-                    <button type="button" disabled={busy} className="enq-btn enq-btn-primary2" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent" }), `Replies sent — moved to the ${courtShort(other)}`)}>
-                      <PaperPlaneTilt size={14} weight="fill" /> Replies sent
-                    </button>
+                    <>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-primary2" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent" }), `Replies sent, moved to the ${courtShort(other)}`)}>
+                        <PaperPlaneTilt size={14} weight="fill" /> Replies sent
+                      </button>
+                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "touch", kind: "update" }), "Confirmed, still with them")}>
+                        <ArrowsLeftRight size={14} /> Still with them
+                      </button>
+                    </>
                   )}
-                  <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "touch", kind: "update" }), "Confirmed, still with them")}>
-                    <ArrowsLeftRight size={14} /> Still with them
-                  </button>
                   <button type="button" className="enq-expand" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={() => toggleExpand(r.transactionId)}>
                     <CaretDown size={15} weight="bold" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
                   </button>
