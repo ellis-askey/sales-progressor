@@ -1,8 +1,10 @@
 import Link from "next/link";
 import {
   getProspects, getProspectSummary, getPipeline, getFollowUpQueue, getFollowUpCounts,
-  getAcquisitionFunnel, getChainLeads,
-  PROSPECT_STATUSES, PROSPECT_SOURCES, STATUS_LABEL, SOURCE_LABEL, type ProspectFilter, type FollowUpBucket,
+  getAcquisitionFunnel, getChainLeads, getDataGapCounts,
+  PROSPECT_STATUSES, PROSPECT_SOURCES, STATUS_LABEL, SOURCE_LABEL,
+  PROSPECT_DATA_FILTERS, DATA_FILTER_LABEL,
+  type ProspectFilter, type FollowUpBucket, type ProspectDataFilter, type DataGapCounts,
 } from "@/lib/command/prospects";
 import { ProspectsBoard } from "@/components/command/prospects/ProspectsBoard";
 import { ProspectPipeline } from "@/components/command/prospects/ProspectPipeline";
@@ -24,27 +26,42 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 type View = "all" | "pipeline" | "followups" | "insights" | "import";
-type SP = { q?: string; status?: string; source?: string; view?: string; bucket?: string };
+type SP = { q?: string; status?: string; source?: string; data?: string; view?: string; bucket?: string };
 
 const parseView = (v: string | undefined): View => (v === "pipeline" || v === "followups" || v === "insights" || v === "import" ? v : "all");
 const parseBucket = (b: string | undefined): FollowUpBucket => (b === "overdue" || b === "upcoming" || b === "all" ? b : "today");
 const parseStatus = (r: string | undefined): ProspectStatus | null => (PROSPECT_STATUSES.includes(r as ProspectStatus) ? (r as ProspectStatus) : null);
 const parseSource = (r: string | undefined): ProspectSource | null => (PROSPECT_SOURCES.includes(r as ProspectSource) ? (r as ProspectSource) : null);
+const parseData = (d: string | undefined): ProspectDataFilter | null => (PROSPECT_DATA_FILTERS.includes(d as ProspectDataFilter) ? (d as ProspectDataFilter) : null);
+
+function dataCount(g: DataGapCounts, d: ProspectDataFilter): number | undefined {
+  switch (d) {
+    case "needs_contact": return g.needsContact;
+    case "needs_email": return g.needsEmail;
+    case "unresearched": return g.unresearched;
+    case "needs_review": return g.needsReview;
+    case "bounced": return g.bounced;
+    case "opted_out": return g.optedOut;
+    default: return undefined;
+  }
+}
 
 export default async function ProspectsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const view = parseView(sp.view);
   const bucket = parseBucket(sp.bucket);
-  const filter: ProspectFilter = { q: sp.q, status: parseStatus(sp.status), source: parseSource(sp.source) };
+  const filter: ProspectFilter = { q: sp.q, status: parseStatus(sp.status), source: parseSource(sp.source), data: parseData(sp.data) };
 
   const summary = await getProspectSummary();
+  const gaps = view === "all" ? await getDataGapCounts() : null;
 
   function href(over: Partial<SP>): string {
     const p = new URLSearchParams();
-    const m = { q: sp.q, status: sp.status, source: sp.source, view: sp.view, bucket: sp.bucket, ...over };
+    const m = { q: sp.q, status: sp.status, source: sp.source, data: sp.data, view: sp.view, bucket: sp.bucket, ...over };
     if (m.q) p.set("q", m.q);
     if (m.status) p.set("status", m.status);
     if (m.source) p.set("source", m.source);
+    if (m.data) p.set("data", m.data);
     if (m.view && m.view !== "all") p.set("view", m.view);
     if (m.bucket && m.bucket !== "today") p.set("bucket", m.bucket);
     const qs = p.toString();
@@ -81,7 +98,8 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
             <form method="GET" className="max-w-md">
               {sp.status && <input type="hidden" name="status" value={sp.status} />}
               {sp.source && <input type="hidden" name="source" value={sp.source} />}
-              <input name="q" defaultValue={sp.q ?? ""} placeholder="Search agency, location or contact…" className="w-full text-sm bg-[#0a0a0a] border border-[#262626] rounded-lg px-3 py-2 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb]" />
+              {sp.data && <input type="hidden" name="data" value={sp.data} />}
+              <input name="q" defaultValue={sp.q ?? ""} placeholder="Search agency, contact, email, phone, postcode…" className="w-full text-sm bg-[#0a0a0a] border border-[#262626] rounded-lg px-3 py-2 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb]" />
             </form>
             <div className="flex flex-wrap gap-1.5">
               <Link href={href({ status: undefined })} className={chip(!filter.status)}>All statuses</Link>
@@ -90,6 +108,19 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
             <div className="flex flex-wrap gap-1.5">
               <Link href={href({ source: undefined })} className={chip(!filter.source, true)}>All sources</Link>
               {PROSPECT_SOURCES.map((s) => <Link key={s} href={href({ source: filter.source === s ? undefined : s })} className={chip(filter.source === s, true)}>{SOURCE_LABEL[s]}</Link>)}
+            </div>
+            {/* Data completeness: which prospects have data vs need it */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-600 mr-0.5">Data</span>
+              <Link href={href({ data: undefined })} className={chip(!filter.data, true)}>All</Link>
+              {PROSPECT_DATA_FILTERS.map((d) => {
+                const count = gaps ? dataCount(gaps, d) : undefined;
+                return (
+                  <Link key={d} href={href({ data: filter.data === d ? undefined : d })} className={chip(filter.data === d, true)}>
+                    {DATA_FILTER_LABEL[d]}{count != null && <span className="ml-1.5 text-[10px] opacity-70 tabular-nums">{count}</span>}
+                  </Link>
+                );
+              })}
             </div>
           </div>
           <ProspectsBoard rows={await getProspects(filter)} />

@@ -126,6 +126,7 @@ function BranchRow({ r, onOpen, indent, child }: { r: ProspectListRow; onOpen: (
         <div className={`text-xs text-neutral-100 font-medium ${indent || child ? "pl-6" : ""}`}>{child ? (r.location ?? r.agencyName) : r.agencyName}</div>
         {!child && r.branch && <div className="text-[11px] text-neutral-500">{r.branch}</div>}
         {child && r.branch && <div className="text-[11px] text-neutral-500 pl-6">{r.branch}</div>}
+        <div className={indent || child ? "pl-6" : ""}><GapBadges r={r} /></div>
       </td>
       <td className="px-4 py-2.5 text-xs text-neutral-400">{r.location ?? "—"}</td>
       <td className="px-4 py-2.5">
@@ -143,9 +144,40 @@ function BranchRow({ r, onOpen, indent, child }: { r: ProspectListRow; onOpen: (
   );
 }
 
+// Small coloured tag used for data-gap signals on a row.
+function GapPill({ tone, children }: { tone: "amber" | "neutral" | "red"; children: React.ReactNode }) {
+  const cls = {
+    amber: "bg-amber-950/60 text-amber-300 border-amber-900",
+    neutral: "bg-neutral-800 text-neutral-400 border-neutral-700",
+    red: "bg-red-950 text-red-400 border-red-900",
+  }[tone];
+  return <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${cls}`}>{children}</span>;
+}
+
+// At-a-glance "what's missing / wrong" tags for a prospect row.
+function GapBadges({ r }: { r: ProspectListRow }) {
+  const badges: { label: string; tone: "amber" | "neutral" | "red" }[] = [];
+  if (!r.hasContact) badges.push({ label: "no contact", tone: "amber" });
+  else if (!r.hasEmail) badges.push({ label: "no email", tone: "amber" });
+  if (!r.researched) badges.push({ label: "unresearched", tone: "neutral" });
+  if (r.needsReview) badges.push({ label: "review", tone: "amber" });
+  if (r.bounced) badges.push({ label: "bounced", tone: "red" });
+  if (r.optedOut) badges.push({ label: "opted out", tone: "red" });
+  if (badges.length === 0) return null;
+  return <div className="flex flex-wrap gap-1 mt-1">{badges.map((b, i) => <GapPill key={i} tone={b.tone}>{b.label}</GapPill>)}</div>;
+}
+
 // A multi-branch business: one parent row that expands to its branch rows.
 function BusinessRows({ group, open, onToggle, onOpen }: { group: Group; open: boolean; onToggle: () => void; onOpen: (id: string) => void }) {
   const n = group.rows.length;
+  const noContact = group.rows.filter((r) => !r.hasContact).length;
+  const noEmail = group.rows.filter((r) => r.hasContact && !r.hasEmail).length;
+  const unresearched = group.rows.filter((r) => !r.researched).length;
+  const gapBits = [
+    noContact > 0 ? `${noContact} no contact` : null,
+    noEmail > 0 ? `${noEmail} no email` : null,
+    unresearched > 0 ? `${unresearched} unresearched` : null,
+  ].filter(Boolean);
   return (
     <>
       <tr onClick={onToggle} className="cursor-pointer hover:bg-neutral-800/40 transition-colors text-neutral-300">
@@ -154,7 +186,7 @@ function BusinessRows({ group, open, onToggle, onOpen }: { group: Group; open: b
             <span className={`text-neutral-500 text-[10px] transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
             <div>
               <div className="text-xs text-neutral-100 font-medium">{group.name}</div>
-              <div className="text-[11px] text-neutral-500">{n} branches</div>
+              <div className="text-[11px] text-neutral-500">{n} branches{gapBits.length > 0 && <span className="text-amber-400/80"> · {gapBits.join(" · ")}</span>}</div>
             </div>
           </div>
         </td>

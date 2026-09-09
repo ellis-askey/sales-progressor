@@ -2,6 +2,7 @@ import { commandDb } from "@/lib/command/prisma";
 import { PROSPECT_STATUSES as STATUS_ORDER } from "@/lib/command/prospect-labels";
 import type { ResearchMeta } from "@/lib/command/prospect-labels";
 import { sequenceStepLabel } from "@/lib/prospects/flow";
+import { Prisma } from "@prisma/client";
 import type { ProspectStatus, ProspectSource } from "@prisma/client";
 
 // Command Centre → Prospects. Read helpers for the acquisition-CRM list, detail
@@ -24,7 +25,78 @@ export async function getProspectSummary(): Promise<ProspectSummary> {
   return { total, followUpsDue, interested, trial, active };
 }
 
-export type ProspectFilter = { q?: string; status?: ProspectStatus | null; source?: ProspectSource | null };
+// Data-completeness filters: "which prospects have data vs need it".
+export type ProspectDataFilter =
+  | "has_contact" | "needs_contact"
+  | "has_email" | "needs_email"
+  | "has_phone"
+  | "has_website"
+  | "researched" | "unresearched"
+  | "needs_review"
+  | "bounced" | "opted_out";
+
+export const PROSPECT_DATA_FILTERS: ProspectDataFilter[] = [
+  "needs_contact", "needs_email", "has_email", "has_phone", "has_website",
+  "unresearched", "researched", "needs_review", "bounced", "opted_out",
+];
+
+export const DATA_FILTER_LABEL: Record<ProspectDataFilter, string> = {
+  has_contact: "Has contact",
+  needs_contact: "Needs contact",
+  has_email: "Has email",
+  needs_email: "Needs email",
+  has_phone: "Has phone",
+  has_website: "Has website",
+  researched: "Researched",
+  unresearched: "Not researched",
+  needs_review: "Needs review",
+  bounced: "Bounced",
+  opted_out: "Opted out",
+};
+
+// The Prisma where-fragment for a data filter. "needs_review" returns {} because
+// it depends on JSON field-states and is applied in JS after the fetch.
+function dataFilterWhere(data: ProspectDataFilter | null | undefined): Prisma.ProspectWhereInput {
+  switch (data) {
+    case "has_contact": return { contacts: { some: {} } };
+    case "needs_contact": return { contacts: { none: {} } };
+    case "has_email": return { OR: [{ generalEmail: { not: null } }, { contacts: { some: { email: { not: null } } } }] };
+    case "needs_email": return { generalEmail: null, contacts: { none: { email: { not: null } } } };
+    case "has_phone": return { OR: [{ phone: { not: null } }, { contacts: { some: { phone: { not: null } } } }] };
+    case "has_website": return { website: { not: null } };
+    case "researched": return { research: { not: Prisma.DbNull } };
+    case "unresearched": return { research: { equals: Prisma.DbNull } };
+    case "bounced": return { bouncedAt: { not: null } };
+    case "opted_out": return { optedOutAt: { not: null } };
+    default: return {};
+  }
+}
+
+export type DataGapCounts = { needsContact: number; needsEmail: number; unresearched: number; needsReview: number; bounced: number; optedOut: number };
+
+// Counts for the data-gap filter chips. needsReview is derived in JS from the
+// research JSON (any agency field still marked needs_check).
+export async function getDataGapCounts(): Promise<DataGapCounts> {
+  const base: Prisma.ProspectWhereInput = { archivedAt: null };
+  const [needsContact, needsEmail, unresearched, bounced, optedOut, researched] = await Promise.all([
+    commandDb.prospect.count({ where: { ...base, contacts: { none: {} } } }),
+    commandDb.prospect.count({ where: { ...base, generalEmail: null, contacts: { none: { email: { not: null } } } } }),
+    commandDb.prospect.count({ where: { ...base, research: { equals: Prisma.DbNull } } }),
+    commandDb.prospect.count({ where: { ...base, bouncedAt: { not: null } } }),
+    commandDb.prospect.count({ where: { ...base, optedOutAt: { not: null } } }),
+    commandDb.prospect.findMany({ where: { ...base, research: { not: Prisma.DbNull } }, select: { research: true }, take: 2000 }),
+  ]);
+  const needsReview = researched.filter((r) => researchNeedsReview(r.research)).length;
+  return { needsContact, needsEmail, unresearched, needsReview, bounced, optedOut };
+}
+
+// True when any agency research field is still marked "needs_check".
+function researchNeedsReview(research: unknown): boolean {
+  if (!research || typeof research !== "object") return false;
+  return Object.values(research as Record<string, { state?: string }>).some((v) => v?.state === "needs_check");
+}
+
+export type ProspectFilter = { q?: string; status?: ProspectStatus | null; source?: ProspectSource | null; data?: ProspectDataFilter | null };
 
 export type ProspectListRow = {
   id: string;
@@ -42,34 +114,56 @@ export type ProspectListRow = {
   // brand's branches into one expandable row.
   groupId: string | null;
   groupName: string | null;
+  // Data-completeness signals, for the at-a-glance gap badges + filters.
+  hasContact: boolean;
+  hasEmail: boolean;
+  hasPhone: boolean;
+  hasWebsite: boolean;
+  researched: boolean;
+  needsReview: boolean;
+  bounced: boolean;
+  optedOut: boolean;
 };
 
 export async function getProspects(filter: ProspectFilter): Promise<ProspectListRow[]> {
   const q = filter.q?.trim();
+
+  // Combine every condition through an AND array so multiple `contacts`
+  // constraints (search + data filter) can't clobber each other.
+  const and: Prisma.ProspectWhereInput[] = [{ archivedAt: null }];
+  if (filter.status) and.push({ status: filter.status });
+  if (filter.source) and.push({ source: filter.source });
+  if (q) {
+    and.push({
+      OR: [
+        { agencyName: { contains: q, mode: "insensitive" } },
+        { location: { contains: q, mode: "insensitive" } },
+        { postcode: { contains: q, mode: "insensitive" } },
+        { generalEmail: { contains: q, mode: "insensitive" } },
+        { phone: { contains: q, mode: "insensitive" } },
+        { notes: { contains: q, mode: "insensitive" } },
+        { contacts: { some: { OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+          { phone: { contains: q, mode: "insensitive" } },
+        ] } } },
+      ],
+    });
+  }
+  const dw = dataFilterWhere(filter.data);
+  if (Object.keys(dw).length) and.push(dw);
+
   const rows = await commandDb.prospect.findMany({
-    where: {
-      archivedAt: null,
-      ...(filter.status ? { status: filter.status } : {}),
-      ...(filter.source ? { source: filter.source } : {}),
-      ...(q
-        ? {
-            OR: [
-              { agencyName: { contains: q, mode: "insensitive" } },
-              { location: { contains: q, mode: "insensitive" } },
-              { contacts: { some: { name: { contains: q, mode: "insensitive" } } } },
-            ],
-          }
-        : {}),
-    },
+    where: { AND: and },
     orderBy: { createdAt: "desc" },
     take: 500,
     include: {
-      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], take: 1 },
+      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], select: { name: true, jobTitle: true, email: true, phone: true } },
       group: { select: { name: true } },
     },
   });
 
-  return rows.map((p) => {
+  const list = rows.map((p) => {
     const c = p.contacts[0] ?? null;
     return {
       id: p.id,
@@ -85,8 +179,23 @@ export async function getProspects(filter: ProspectFilter): Promise<ProspectList
       latestNote: p.notes ? p.notes.slice(0, 140) : null,
       groupId: p.groupId,
       groupName: p.group?.name ?? null,
+      hasContact: p.contacts.length > 0,
+      hasEmail: !!p.generalEmail || p.contacts.some((x) => !!x.email),
+      hasPhone: !!p.phone || p.contacts.some((x) => !!x.phone),
+      hasWebsite: !!p.website,
+      researched: researchHasKeys(p.research),
+      needsReview: researchNeedsReview(p.research),
+      bounced: !!p.bouncedAt,
+      optedOut: !!p.optedOutAt,
     };
   });
+
+  // needs_review isn't DB-expressible (JSON field-states), so filter it here.
+  return filter.data === "needs_review" ? list.filter((r) => r.needsReview) : list;
+}
+
+function researchHasKeys(research: unknown): boolean {
+  return !!research && typeof research === "object" && Object.keys(research as object).length > 0;
 }
 
 export type ProspectDetail = {
