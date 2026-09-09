@@ -4100,3 +4100,38 @@ model EllisThought {
 
   @@index([status, createdAt])
 }
+
+// Content & Personal Brand: brand positioning (docs/active/content-brand/
+// SPEC.md, Phase 1.2). One active row describing Ellis's current public
+// positioning. Editable free-text; refined manually now, AI-assisted later.
+model BrandProfile {
+  id        String   @id @default(cuid())
+  updatedAt DateTime @updatedAt
+
+  primaryIdentity   String @default("") // e.g. founder/operator building around real property problems
+  credibility       String @default("") // why he's credible (worked inside sales progression)
+  personality       String @default("") // public personality (direct, practical, curious…)
+  associations      String @default("") // what people should associate Ellis with
+  desiredReputation String @default("") // the reputation we're deliberately building
+  targetAudiences   Json? // string[] — who we're trying to reach
+}
+
+// Content & Personal Brand: structured brand memory (docs/active/content-brand/
+// SPEC.md, Phase 1.2). One row per known thing about Ellis's public persona.
+// NEVER invented: AI may propose a row as status "suggested", but it stays out
+// of generation until Ellis approves it. claimClass keeps facts, opinions,
+// inferences and unverified statements honestly separated.
+model BrandMemory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind        String // opinion | belief | anecdote | phrase_used | phrase_disliked | expertise | passion | position_change | frustration | humour | avoid_topic | successful_post | rejected_idea
+  body        String
+  claimClass  String @default("ellis_opinion") // verified_fact | ellis_opinion | inference | unverified
+  status      String @default("approved") // suggested | approved | rejected
+  source      String @default("manual") // manual | edit_learning | inbox_action | performance
+  evidenceRef Json? // source/query/date-range/sample for data-backed claims
+
+  @@index([status, kind, createdAt])
+}
