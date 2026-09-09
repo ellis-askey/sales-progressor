@@ -105,6 +105,7 @@ export type ProspectListRow = {
   location: string | null;
   status: ProspectStatus;
   source: ProspectSource;
+  primaryContactId: string | null;
   primaryContactName: string | null;
   primaryContactRole: string | null;
   lastContactedAt: Date | null;
@@ -158,7 +159,7 @@ export async function getProspects(filter: ProspectFilter): Promise<ProspectList
     orderBy: { createdAt: "desc" },
     take: 500,
     include: {
-      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], select: { name: true, jobTitle: true, email: true, phone: true } },
+      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], select: { id: true, name: true, jobTitle: true, email: true, phone: true } },
       group: { select: { name: true } },
     },
   });
@@ -172,6 +173,7 @@ export async function getProspects(filter: ProspectFilter): Promise<ProspectList
       location: p.location,
       status: p.status,
       source: p.source,
+      primaryContactId: c?.id ?? null,
       primaryContactName: c?.name ?? null,
       primaryContactRole: c?.jobTitle ?? null,
       lastContactedAt: p.lastContactedAt,
