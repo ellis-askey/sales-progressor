@@ -346,7 +346,7 @@ function ReviewRow({
             </span>
           </div>
           <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-            {item.reason ?? "On hold — no reason recorded"}
+            {item.reason ?? "On hold. No reason recorded."}
           </p>
         </div>
 
