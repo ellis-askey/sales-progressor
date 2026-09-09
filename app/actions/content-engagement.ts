@@ -74,5 +74,5 @@ export async function logEngagementAction(formData: FormData): Promise<void> {
     }
   }
 
-  redirect("/command/content");
+  redirect("/command/content/drafts");
 }

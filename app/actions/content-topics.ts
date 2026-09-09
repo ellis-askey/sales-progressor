@@ -24,7 +24,7 @@ export async function addTopicAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/command/content/topics");
-  revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function skipTopicAction(formData: FormData): Promise<void> {
@@ -39,7 +39,7 @@ export async function skipTopicAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/command/content/topics");
-  revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function prioritiseTopicAction(formData: FormData): Promise<void> {
@@ -54,7 +54,7 @@ export async function prioritiseTopicAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/command/content/topics");
-  revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function deleteTopicAction(formData: FormData): Promise<void> {
@@ -66,7 +66,7 @@ export async function deleteTopicAction(formData: FormData): Promise<void> {
   await commandDb.contentTopic.delete({ where: { id } }).catch(() => {});
 
   revalidatePath("/command/content/topics");
-  revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function restoreTopicAction(formData: FormData): Promise<void> {

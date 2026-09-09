@@ -29,10 +29,10 @@ export default async function VoicePage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-neutral-100">Voice samples</h1>
         <Link
-          href="/command/content"
+          href="/command/content/drafts"
           className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
         >
-          ← Back to content
+          ← Back to drafts
         </Link>
       </div>
 

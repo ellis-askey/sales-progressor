@@ -64,6 +64,7 @@ export async function markAsPostedAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function approveForBatchAction(formData: FormData): Promise<void> {
@@ -90,6 +91,7 @@ export async function approveForBatchAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function removeFromBatchAction(formData: FormData): Promise<void> {
@@ -104,6 +106,7 @@ export async function removeFromBatchAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }
 
 export async function discardDraftAction(formData: FormData): Promise<void> {
@@ -115,4 +118,5 @@ export async function discardDraftAction(formData: FormData): Promise<void> {
   await commandDb.draftPost.delete({ where: { id: draftId } }).catch(() => {});
 
   revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }

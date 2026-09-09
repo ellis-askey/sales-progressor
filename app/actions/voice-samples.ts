@@ -25,12 +25,12 @@ export async function saveVoiceSamplesAction(formData: FormData): Promise<void> 
   })).filter((r) => r.content.length > 0);
 
   if (records.length === 0) {
-    redirect("/command/content?error=empty");
+    redirect("/command/content/drafts?error=empty");
   }
 
   await commandDb.voiceSample.createMany({ data: records });
 
-  redirect("/command/content");
+  redirect("/command/content/drafts");
 }
 
 export async function addVoiceSampleAction(formData: FormData): Promise<void> {
@@ -63,5 +63,5 @@ export async function deleteVoiceSampleAction(formData: FormData): Promise<void>
   await commandDb.voiceSample.delete({ where: { id } }).catch(() => {});
 
   revalidatePath("/command/content/voice");
-  revalidatePath("/command/content");
+  revalidatePath("/command/content/drafts");
 }

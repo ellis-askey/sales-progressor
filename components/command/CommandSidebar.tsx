@@ -22,6 +22,9 @@ interface NavItem {
   label: string;
   Icon: LucideIcon;
   soon?: boolean;
+  // Match this route exactly (used for a section landing whose href is a prefix
+  // of its siblings, e.g. /command/content), so it doesn't stay active on them.
+  exact?: boolean;
 }
 
 // Operator-oriented structure (redesign 2026-08-13). Grouped by what the
@@ -76,11 +79,12 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     // in phases; nav items are added as each real page ships (no dead links).
     label: "Content",
     items: [
+      { href: "/command/content", label: "Overview", Icon: LayoutDashboard, exact: true },
       { href: "/command/content/inbox", label: "Content inbox", Icon: Inbox },
       { href: "/command/content/create", label: "Create", Icon: Sparkle },
       { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
       { href: "/command/content/brand", label: "Your brand", Icon: Fingerprint },
-      { href: "/command/content", label: "Drafts & images", Icon: PenLine },
+      { href: "/command/content/drafts", label: "Drafts & images", Icon: PenLine },
     ],
   },
   {
@@ -321,9 +325,10 @@ export function CommandSidebar({
             <p className="text-[9px] font-bold text-[#404040] uppercase tracking-widest px-2 mb-1">
               {section.label}
             </p>
-            {section.items.map(({ href, label, Icon, soon }) => {
-              const isActive =
-                pathname === href || pathname.startsWith(href + "/");
+            {section.items.map(({ href, label, Icon, soon, exact }) => {
+              const isActive = exact
+                ? pathname === href
+                : pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link
                   key={href}

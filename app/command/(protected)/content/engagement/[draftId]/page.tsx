@@ -78,10 +78,10 @@ export default async function EngagementPage({
     <div className="space-y-8 max-w-xl">
       <div>
         <Link
-          href="/command/content"
+          href="/command/content/drafts"
           className="text-[11px] text-neutral-600 hover:text-neutral-400 transition-colors"
         >
-          ← Back to content
+          ← Back to drafts
         </Link>
         <h1 className="text-2xl font-semibold text-neutral-100 mt-3">Log engagement</h1>
         <p className="text-xs text-neutral-500 mt-1">
