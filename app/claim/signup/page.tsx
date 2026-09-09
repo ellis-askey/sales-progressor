@@ -9,7 +9,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="claim-page">
       <ClaimBackground />
-      <header className="claim-header">
+      <header className="claim-header claim-header--b">
         <ClaimLogo />
       </header>
       {children}

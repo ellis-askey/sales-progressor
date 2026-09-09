@@ -1,5 +1,13 @@
 # Chain-invite conversion — build plan
 
+> **Update 2026-09-09 — claim-card A/B concluded.** The `/claim` landing ran an
+> A/B between the coral hero card (A) and the light illustrated card (B). White
+> (B) won and is now the only landing. The experiment split, the `?variant=`
+> preview, the `lib/chain/claim-experiment.ts` module and the
+> `/command/claim-experiment` results page were removed, and the login / signup /
+> decline sub-pages were brought onto the same white style (coral kept only as an
+> accent). Funnel stamps are unchanged.
+
 **Goal:** lift the number of invited agents who actually join a chain (and end up
 using the app). North-star metric: **invited → joined** conversion, broken down by
 funnel step so we can see *where* the drop is.

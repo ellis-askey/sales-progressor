@@ -5,28 +5,24 @@ import { displayChainPosition } from "@/lib/chain/positions";
 import { recordInviteViewed, recordShareLinkViewed } from "@/lib/chain/funnel";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getFileProgressPercent } from "@/lib/services/chains";
-import { claimVariantFor, parseVariantOverride } from "@/lib/chain/claim-experiment";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
-import { ClaimCtaButton } from "@/components/claim/ClaimCtaButton";
 import { ClaimInviteCard, type LadderRow } from "@/components/claim/ClaimInviteCard";
 import "./styles/claim-flow.css";
 
 function Shell({
   children,
-  variant = "A",
   loginHref,
 }: {
   children: React.ReactNode;
-  variant?: "A" | "B";
   loginHref?: string | null;
 }) {
   return (
     <div className="claim-page">
       <ClaimBackground />
-      <header className={variant === "B" ? "claim-header claim-header--b" : "claim-header"}>
+      <header className="claim-header claim-header--b">
         <ClaimLogo />
-        {variant === "B" && loginHref && (
+        {loginHref && (
           <span className="claim-b-login-wrap">
             <span className="claim-b-login-label">Already have an account?</span>
             <a href={loginHref} className="claim-b-login">
@@ -79,9 +75,9 @@ function ClaimError({
 export default async function ClaimPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; variant?: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
-  const { token, variant: variantParam } = await searchParams;
+  const { token } = await searchParams;
 
   if (!token)
     return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
@@ -168,22 +164,10 @@ export default async function ClaimPage({
     );
   }
 
-  // A/B experiment: which claim card this invite sees. Frozen deterministic split
-  // by link id (see lib/chain/claim-experiment.ts). `?variant=a|b` is a preview
-  // override — it changes what renders but records nothing, so it can't skew data.
-  // A share link always shows the white card (variant B) and never enters the A/B
-  // split — the experiment is for emailed invites only. `?variant=a|b` still previews.
-  const assignedVariant = isShareToken ? "B" : claimVariantFor(link.id);
-  const previewVariant = parseVariantOverride(variantParam);
-  const activeVariant = previewVariant ?? assignedVariant;
-
   // Funnel: a genuine view of a live link. Share views stamp their own column
-  // (source:"share"); emailed-invite views keep the A/B-tagged stamp. Skipped for
-  // previews so the override can't skew data.
-  if (!previewVariant) {
-    if (isShareToken) await recordShareLinkViewed(link.id);
-    else await recordInviteViewed(link.id, assignedVariant);
-  }
+  // (source:"share"); emailed-invite views keep the invite stamp.
+  if (isShareToken) await recordShareLinkViewed(link.id);
+  else await recordInviteViewed(link.id);
 
   const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;
@@ -223,273 +207,95 @@ export default async function ClaimPage({
   const visibleLinks = chainLinks.length <= MAX_VISIBLE ? chainLinks : chainLinks.slice(0, MAX_VISIBLE);
   const ghostCount = chainLinks.length > MAX_VISIBLE ? chainLinks.length - MAX_VISIBLE : 0;
 
-  // ── Variant B: the illustrated card with avatar, photos and pills ──────────
-  if (activeVariant === "B") {
-    const shaped = visibleLinks.map((cl) => {
-      const isYours = cl.id === link.id;
-      const isClaimed = cl.transactionId !== null;
-      // Claimed links show the real property photo; unclaimed stub links show the
-      // internal stub photo (uploaded from the chain drawer), else the placeholder.
-      const photoPath = isClaimed
-        ? (cl.transaction?.photoStoragePath ?? null)
-        : (cl.stubPhotoStoragePath ?? null);
-      // Share view only: the agent contact we hold on file for this sale, so the
-      // recipient gets the whole chain directory (what we'd give on a chain check).
-      // Never on the email view, never on the recipient's own row.
-      const shareContact = isShareToken && !isYours;
-      return {
-        id: cl.id,
-        displayNum: displayChainPosition(cl.position, chainLinks.length),
-        status: (isYours ? "you" : isClaimed ? "joined" : "pending") as LadderRow["status"],
-        address: isClaimed
-          ? (cl.transaction?.propertyAddress ?? "")
-          : isYours
-          ? (link.stubPropertyAddress ?? "")
-          : (cl.stubPropertyAddress ?? ""),
-        agency: cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null,
-        photoPath,
-        contactName: shareContact ? (cl.stubAgentName ?? null) : null,
-        contactEmail: shareContact ? (cl.stubAgentEmail ?? null) : null,
-        contactPhone: shareContact ? (cl.stubAgentPhone ?? null) : null,
-      };
-    });
-    // Batch-sign every property photo in one round trip (claimed + stub).
-    const signed = await getSignedUrlMap(shaped.map((r) => r.photoPath));
+  // The illustrated white claim card (avatar, photos and pills). This is now the
+  // only claim landing — the coral hero A/B variant was retired 2026-09-09 (white
+  // won). See docs/active/chain-invite-conversion/00-plan.md.
+  const shaped = visibleLinks.map((cl) => {
+    const isYours = cl.id === link.id;
+    const isClaimed = cl.transactionId !== null;
+    // Claimed links show the real property photo; unclaimed stub links show the
+    // internal stub photo (uploaded from the chain drawer), else the placeholder.
+    const photoPath = isClaimed
+      ? (cl.transaction?.photoStoragePath ?? null)
+      : (cl.stubPhotoStoragePath ?? null);
+    // Share view only: the agent contact we hold on file for this sale, so the
+    // recipient gets the whole chain directory (what we'd give on a chain check).
+    // Never on the email view, never on the recipient's own row.
+    const shareContact = isShareToken && !isYours;
+    return {
+      id: cl.id,
+      displayNum: displayChainPosition(cl.position, chainLinks.length),
+      status: (isYours ? "you" : isClaimed ? "joined" : "pending") as LadderRow["status"],
+      address: isClaimed
+        ? (cl.transaction?.propertyAddress ?? "")
+        : isYours
+        ? (link.stubPropertyAddress ?? "")
+        : (cl.stubPropertyAddress ?? ""),
+      agency: cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null,
+      photoPath,
+      contactName: shareContact ? (cl.stubAgentName ?? null) : null,
+      contactEmail: shareContact ? (cl.stubAgentEmail ?? null) : null,
+      contactPhone: shareContact ? (cl.stubAgentPhone ?? null) : null,
+    };
+  });
+  // Batch-sign every property photo in one round trip (claimed + stub).
+  const signed = await getSignedUrlMap(shaped.map((r) => r.photoPath));
 
-    // Share view only: our own sale's progress, shown as a small figure beside its
-    // status. "Our" sale is the chain originator's file — the link they own (their
-    // seed file) or, failing that, the first claimed sale (the one the invite email
-    // calls the originating sale). Skipped entirely on the email path.
-    let ourLinkId: string | null = null;
-    let ourProgressPercent: number | null = null;
-    if (isShareToken) {
-      const originatorId = link.chain.createdByUserId;
-      const ourLink =
-        chainLinks.find(
-          (l) =>
-            l.transactionId !== null &&
-            (l.claimedByUserId === originatorId ||
-              (l.claimedByUserId === null && l.createdByUserId === originatorId)),
-        ) ?? chainLinks.find((l) => l.transactionId !== null);
-      if (ourLink?.transactionId) {
-        ourLinkId = ourLink.id;
-        ourProgressPercent = await getFileProgressPercent(ourLink.transactionId);
-      }
+  // Share view only: our own sale's progress, shown as a small figure beside its
+  // status. "Our" sale is the chain originator's file — the link they own (their
+  // seed file) or, failing that, the first claimed sale (the one the invite email
+  // calls the originating sale). Skipped entirely on the email path.
+  let ourLinkId: string | null = null;
+  let ourProgressPercent: number | null = null;
+  if (isShareToken) {
+    const originatorId = link.chain.createdByUserId;
+    const ourLink =
+      chainLinks.find(
+        (l) =>
+          l.transactionId !== null &&
+          (l.claimedByUserId === originatorId ||
+            (l.claimedByUserId === null && l.createdByUserId === originatorId)),
+      ) ?? chainLinks.find((l) => l.transactionId !== null);
+    if (ourLink?.transactionId) {
+      ourLinkId = ourLink.id;
+      ourProgressPercent = await getFileProgressPercent(ourLink.transactionId);
     }
-
-    const ladder: LadderRow[] = shaped.map((r) => ({
-      id: r.id,
-      displayNum: r.displayNum,
-      status: r.status,
-      address: r.address,
-      agency: r.agency,
-      photoUrl: r.photoPath ? (signed.get(r.photoPath) ?? null) : null,
-      contactName: r.contactName,
-      contactEmail: r.contactEmail,
-      contactPhone: r.contactPhone,
-      progressPercent: r.id === ourLinkId ? ourProgressPercent : null,
-    }));
-
-    const yourAddress = link.stubPropertyAddress ?? "your sale";
-    const inviterImage = link.chain.createdBy?.image ?? null;
-    return (
-      <Shell variant="B" loginHref={isLoggedIn ? null : `/claim/login?token=${token}`}>
-        <ClaimInviteCard
-          inviterName={originatorName}
-          inviterAgency={originatorAgency}
-          inviterAvatarUrl={inviterImage ?? "/claim/tsp-avatar.svg"}
-          inviterHasPhoto={!!inviterImage}
-          invitedDate={invitedDate}
-          yourAddress={yourAddress}
-          ladder={ladder}
-          ghostCount={ghostCount}
-          claimHref={claimHref}
-          ctaMicrocopy={
-            showLoginLink
-              ? `You'll claim ${yourAddress} and create your free account.`
-              : `You'll claim ${yourAddress}.`
-          }
-          shareMode={isShareToken}
-        />
-      </Shell>
-    );
   }
 
-  // ── Variant A: the original coral hero card (control) ──────────────────────
+  const ladder: LadderRow[] = shaped.map((r) => ({
+    id: r.id,
+    displayNum: r.displayNum,
+    status: r.status,
+    address: r.address,
+    agency: r.agency,
+    photoUrl: r.photoPath ? (signed.get(r.photoPath) ?? null) : null,
+    contactName: r.contactName,
+    contactEmail: r.contactEmail,
+    contactPhone: r.contactPhone,
+    progressPercent: r.id === ourLinkId ? ourProgressPercent : null,
+  }));
+
+  const yourAddress = link.stubPropertyAddress ?? "your sale";
+  const inviterImage = link.chain.createdBy?.image ?? null;
   return (
-    <Shell>
-      <div className="claim-container">
-        <div className="claim-hero">
-          <p className="claim-hero-eyebrow">
-            {originatorAgency
-              ? `${originatorName.toUpperCase()} · ${originatorAgency.toUpperCase()}`
-              : originatorName.toUpperCase()}
-          </p>
-          <h1 className="claim-hero-h1">Your sale is part of a live chain.</h1>
-          <p className="claim-hero-sub">
-            {originatorAgency
-              ? `${originatorName} at ${originatorAgency}`
-              : originatorName}{" "}
-            has linked {link.stubPropertyAddress ?? "your sale"} to their chain. Join to see
-            how the other sales are progressing.
-          </p>
-          <div className="claim-hero-rule" />
-
-          {/* Chain visual — hybrid editorial ladder */}
-          <div className="claim-chain">
-            {visibleLinks.map((cl, i) => {
-              const isYours = cl.id === link.id;
-              const isClaimed = cl.transactionId !== null;
-              const address = isClaimed
-                ? (cl.transaction?.propertyAddress ?? "")
-                : isYours
-                ? (link.stubPropertyAddress ?? "")
-                : (cl.stubPropertyAddress ?? "");
-              const agency = cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null;
-
-              return (
-                <div key={cl.id}>
-                  {i > 0 && (
-                    <div className="claim-chain-connector">
-                      <div className="claim-chain-connector-dot" />
-                      <div className="claim-chain-connector-line" />
-                      <div className="claim-chain-connector-dot" />
-                    </div>
-                  )}
-                  <div className="claim-chain-row">
-                    <div className="claim-chain-gutter">
-                      <span className="claim-chain-num">
-                        {String(displayChainPosition(cl.position, chainLinks.length)).padStart(2, "0")}
-                      </span>
-                    </div>
-                    <div
-                      className={`claim-chain-card ${
-                        isYours
-                          ? "claim-chain-card--yours"
-                          : isClaimed
-                          ? "claim-chain-card--claimed"
-                          : "claim-chain-card--pending"
-                      }`}
-                    >
-                      {isYours ? (
-                        <>
-                          <div className="claim-chain-head">
-                            <span className="claim-chain-address">{address || "Your sale"}</span>
-                            <span className="claim-chain-status">YOU</span>
-                          </div>
-                          <div className="claim-chain-inner">
-                            <span className="claim-chain-inner-text">
-                              Your sale · Claim to join
-                            </span>
-                            <span className="claim-chain-inner-arrow">→</span>
-                          </div>
-                        </>
-                      ) : isClaimed ? (
-                        <>
-                          <div className="claim-chain-head">
-                            <span className="claim-chain-address">{address}</span>
-                            <span className="claim-chain-status">✓ Joined</span>
-                          </div>
-                          {agency && (
-                            <div className="claim-chain-agency">{agency}</div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div className="claim-chain-head">
-                            {address ? (
-                              <span className="claim-chain-address">{address}</span>
-                            ) : (
-                              <span
-                                className="claim-chain-address"
-                                style={{
-                                  color: "rgba(255,255,255,.5)",
-                                  fontStyle: "italic",
-                                  fontWeight: 400,
-                                }}
-                              >
-                                Invite pending
-                              </span>
-                            )}
-                            <span className="claim-chain-status">Invite sent</span>
-                          </div>
-                          {agency && <div className="claim-chain-agency">{agency}</div>}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {ghostCount > 0 && (
-              <>
-                <div className="claim-chain-connector">
-                  <div className="claim-chain-connector-dot" />
-                  <div className="claim-chain-connector-line" />
-                  <div className="claim-chain-connector-dot" />
-                </div>
-                <div className="claim-chain-row">
-                  <div className="claim-chain-gutter">
-                    <span className="claim-chain-num" style={{ fontSize: 14, opacity: 0.5 }}>
-                      ··
-                    </span>
-                  </div>
-                  <div className="claim-chain-card claim-chain-card--ghost">
-                    <span
-                      className="claim-chain-address"
-                      style={{ color: "rgba(255,255,255,.4)", fontSize: 12, fontWeight: 400 }}
-                    >
-                      and {ghostCount} more
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Meta strip */}
-          <div
-            style={{
-              marginTop: 16,
-              paddingTop: 14,
-              borderTop: "1px solid rgba(255,255,255,.15)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,.60)" }}>
-              Invited by:{" "}
-              <strong style={{ color: "rgba(255,255,255,.85)" }}>{originatorName}</strong>
-              {originatorAgency ? `, ${originatorAgency}` : ""}
-            </span>
-            {invitedDate && (
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,.50)" }}>
-                Invited on: {invitedDate}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="claim-cta" style={{ marginTop: 20 }}>
-          <ClaimCtaButton href={claimHref}>Claim this sale</ClaimCtaButton>
-          <p className="claim-microcopy">Free 14-day trial · No card needed · Secure &amp; private</p>
-          {showLoginLink && (
-            <p className="claim-link-row">
-              Already have an account?{" "}
-              <a href={`/claim/login?token=${token}`}>Log in</a>
-            </p>
-          )}
-          {isLoggedIn && (
-            <p className="claim-microcopy">Logged in as {session.user.email}</p>
-          )}
-          <a href={`/claim/decline?token=${token}`} className="claim-decline-link">
-            This isn&apos;t mine. Decline invite
-          </a>
-        </div>
-      </div>
+    <Shell loginHref={isLoggedIn ? null : `/claim/login?token=${token}`}>
+      <ClaimInviteCard
+        inviterName={originatorName}
+        inviterAgency={originatorAgency}
+        inviterAvatarUrl={inviterImage ?? "/claim/tsp-avatar.svg"}
+        inviterHasPhoto={!!inviterImage}
+        invitedDate={invitedDate}
+        yourAddress={yourAddress}
+        ladder={ladder}
+        ghostCount={ghostCount}
+        claimHref={claimHref}
+        ctaMicrocopy={
+          showLoginLink
+            ? `You'll claim ${yourAddress} and create your free account.`
+            : `You'll claim ${yourAddress}.`
+        }
+        shareMode={isShareToken}
+      />
     </Shell>
   );
 }

@@ -278,7 +278,7 @@ export function ClaimSignupForm({
                       </>
                     ) : (
                       <div className="claim-chain-head">
-                        <span className="claim-chain-address" style={{ color: "rgba(255,255,255,.5)", fontStyle: "italic", fontWeight: 400 }}>Pending</span>
+                        <span className="claim-chain-address" style={{ color: "rgba(26,29,41,.45)", fontStyle: "italic", fontWeight: 400 }}>Pending</span>
                       </div>
                     )}
                   </div>
@@ -299,7 +299,7 @@ export function ClaimSignupForm({
                   <span className="claim-chain-num" style={{ fontSize: 14, opacity: 0.5 }}>··</span>
                 </div>
                 <div className="claim-chain-card claim-chain-card--ghost">
-                  <span className="claim-chain-address" style={{ color: "rgba(255,255,255,.4)", fontSize: 11, fontWeight: 400 }}>and {panelGhostCount} more</span>
+                  <span className="claim-chain-address" style={{ color: "rgba(26,29,41,.42)", fontSize: 11, fontWeight: 400 }}>and {panelGhostCount} more</span>
                 </div>
               </div>
             </>
