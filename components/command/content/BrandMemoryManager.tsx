@@ -8,13 +8,8 @@ import {
   setMemoryStatusAction,
   deleteMemoryAction,
 } from "@/app/actions/brand";
-import {
-  MEMORY_KINDS,
-  CLAIM_CLASSES,
-  memoryKindLabel,
-  claimClass as resolveClaim,
-  type ClaimTone,
-} from "@/lib/command/content/brand-taxonomy";
+import { MEMORY_KINDS, CLAIM_CLASSES, memoryKindLabel } from "@/lib/command/content/brand-taxonomy";
+import { ClaimBadge } from "@/components/command/content/ClaimBadge";
 
 // Brand memory manager (docs/active/content-brand/SPEC.md, Phase 1.2). Add,
 // classify, approve and prune the structured facts about Ellis's public
@@ -32,18 +27,6 @@ type Entry = {
 };
 
 type StatusFilter = "active" | "suggested" | "rejected";
-
-const TONE_CLASS: Record<ClaimTone, string> = {
-  good: "border-emerald-900/60 bg-emerald-950/30 text-emerald-300",
-  info: "border-blue-900/60 bg-blue-950/30 text-blue-300",
-  watch: "border-amber-900/60 bg-amber-950/30 text-amber-300",
-  bad: "border-red-900/60 bg-red-950/30 text-red-300",
-};
-
-function ClaimBadge({ id }: { id: string }) {
-  const { label, tone } = resolveClaim(id);
-  return <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${TONE_CLASS[tone]}`}>{label}</span>;
-}
 
 export function BrandMemoryManager({ entries }: { entries: Entry[] }) {
   const router = useRouter();

@@ -76,6 +76,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     // in phases; nav items are added as each real page ships (no dead links).
     label: "Content",
     items: [
+      { href: "/command/content/inbox", label: "Content inbox", Icon: Inbox },
       { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
       { href: "/command/content/brand", label: "Your brand", Icon: Fingerprint },
       { href: "/command/content", label: "Drafts & images", Icon: PenLine },

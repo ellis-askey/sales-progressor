@@ -4192,3 +4192,37 @@ model BrandMemory {
 
   @@index([status, kind, createdAt])
 }
+
+// Content & Personal Brand: the content inbox (docs/active/content-brand/
+// SPEC.md, Phase 1.3). One row per real thing worth talking about, sourced from
+// anonymised TSP signals, activity-derived topics, and Ellis's own thoughts,
+// then AI-enriched (why it's interesting, angles, audience, a qualitative reach
+// reason) and honestly claim-classified. Nothing here is a finished post: the
+// inbox identifies interesting things, it does not fill a calendar.
+model ContentInboxItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sourceType     String // product_data | customer_behaviour | recurring_issue | product_dev | saved_thought | customer_question | feedback | milestone | revisit | industry_news | manual
+  dedupeKey      String  @unique // stable key so a refresh never duplicates a source
+  observation    String // the thing worth talking about, in plain terms
+  whyInteresting String  @default("")
+  brandFit       String? // why it fits Ellis's positioning
+  reachReason    String? // qualitative note on why it might land (never a fake number)
+  claimClass     String  @default("inference") // of the core claim: verified_fact | ellis_opinion | inference | unverified
+  likelyAudience Json? // string[]
+  suggestedAngles Json? // { angle, point }[] — genuinely different things to say
+  evidence       Json? // dataset / query / sample / date-range / figures behind any numeric claim
+
+  freshnessAt DateTime @default(now())
+  status      String   @default("new") // new | saved | explored | dismissed | already_said | not_me
+  decidedAt   DateTime?
+
+  sourceSignalId  String? // Signal.id when sourced from the signal engine
+  sourceThoughtId String? // EllisThought.id when sourced from a saved thought
+  topicId         String? // ContentTopic created when Ellis drafts from this
+  draftPostId     String? // DraftPost, once a post is produced
+
+  @@index([status, freshnessAt])
+}
