@@ -265,7 +265,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Contract pack received",
         opening: "The contract pack is now with your solicitor.",
         whatHappened: "The seller's solicitor has sent the contract pack to your solicitor. This is the full bundle of legal documents: the draft contract, title documents, property information forms, and more. Your solicitor will now review everything in detail.",
-        whatNext: "Your solicitor will go through the contract pack and raise any questions that need answering. In the meantime, if you're buying with a mortgage, it's worth keeping an eye on your application and any searches have been ordered.",
+        whatNext: "Your solicitor will go through the contract pack and raise any questions that need answering. In the meantime, if you're buying with a mortgage, it's worth keeping your mortgage application moving and checking that any searches have been ordered.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -1495,7 +1495,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Deposit received",
         opening: "A little update on where things are with your sale.",
         whatHappened: "The buyer has transferred their deposit to their solicitor's client account as cleared funds. This is one of the final requirements before exchange can take place.",
-        whatNext: "Everything on the buyer's side is in place. That leaves the buyer's side close to being ready for exchange.",
+        whatNext: "Everything on the buyer's side is in place. That leaves them close to being ready for exchange.",
         action: "View your portal",
       },
       purchaser: {
