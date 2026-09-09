@@ -5,36 +5,20 @@ import { signIn } from "next-auth/react";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
+import { ClaimChainLadder, type LadderRow } from "@/components/claim/ClaimChainLadder";
 
 // Canonical name tidy: title-case each word but keep all-caps acronyms (BWK, CJ).
 const capitalizeWords = titleCaseKeepAcronyms;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Inlined (not imported from lib/chain/positions, which imports prisma) so this
-// client component's browser bundle stays clean. Bottom of chain = #1, up.
-function displayChainPosition(dbPosition: number, totalLinks: number): number {
-  return totalLinks - dbPosition;
-}
-
-export type PanelLink = {
-  id: string;
-  position: number;
-  transactionId: string | null;
-  stubPropertyAddress: string | null;
-  claimedFirmName: string | null;
-  transactionAddress: string | null;
-};
-
 type Props = {
   token: string;
   stubEmail: string;
   stubAgencyName: string;
   stubAddress: string;
-  ownLinkId: string;
-  chainLinksCount: number;
-  panelLinks: PanelLink[];
-  panelGhostCount: number;
+  ladder: LadderRow[];
+  ghostCount: number;
   originatorName: string;
   originatorAgency: string | null;
   invitedDate: string | null;
@@ -49,10 +33,8 @@ export function ClaimSignupForm({
   stubEmail,
   stubAgencyName,
   stubAddress,
-  ownLinkId,
-  chainLinksCount,
-  panelLinks,
-  panelGhostCount,
+  ladder,
+  ghostCount,
   originatorName,
   originatorAgency,
   invitedDate,
@@ -238,73 +220,7 @@ export function ClaimSignupForm({
         <p className="claim-panel-address">{stubAddress}</p>
         <div className="claim-panel-rule" />
 
-        <div className="claim-chain">
-          {panelLinks.map((cl, i) => {
-            const isYours = cl.id === ownLinkId;
-            const isClaimed = cl.transactionId !== null;
-            const address = isClaimed ? (cl.transactionAddress ?? "") : isYours ? (stubAddress ?? "") : "";
-            const agency = cl.claimedFirmName ?? null;
-            return (
-              <div key={cl.id}>
-                {i > 0 && (
-                  <div className="claim-chain-connector">
-                    <div className="claim-chain-connector-dot" />
-                    <div className="claim-chain-connector-line" />
-                    <div className="claim-chain-connector-dot" />
-                  </div>
-                )}
-                <div className="claim-chain-row">
-                  <div className="claim-chain-gutter">
-                    <span className="claim-chain-num">{String(displayChainPosition(cl.position, chainLinksCount)).padStart(2, "0")}</span>
-                  </div>
-                  <div className={`claim-chain-card ${isYours ? "claim-chain-card--yours" : isClaimed ? "claim-chain-card--claimed" : "claim-chain-card--pending"}`}>
-                    {isYours ? (
-                      <>
-                        <div className="claim-chain-head">
-                          <span className="claim-chain-address">{address || "Your sale"}</span>
-                          <span className="claim-chain-status">YOU</span>
-                        </div>
-                        <div className="claim-chain-inner">
-                          <span className="claim-chain-inner-text">Your sale</span>
-                        </div>
-                      </>
-                    ) : isClaimed ? (
-                      <>
-                        <div className="claim-chain-head">
-                          <span className="claim-chain-address">{address}</span>
-                          <span className="claim-chain-status">✓</span>
-                        </div>
-                        {agency && <div className="claim-chain-agency">{agency}</div>}
-                      </>
-                    ) : (
-                      <div className="claim-chain-head">
-                        <span className="claim-chain-address" style={{ color: "rgba(26,29,41,.45)", fontStyle: "italic", fontWeight: 400 }}>Pending</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {panelGhostCount > 0 && (
-            <>
-              <div className="claim-chain-connector">
-                <div className="claim-chain-connector-dot" />
-                <div className="claim-chain-connector-line" />
-                <div className="claim-chain-connector-dot" />
-              </div>
-              <div className="claim-chain-row">
-                <div className="claim-chain-gutter">
-                  <span className="claim-chain-num" style={{ fontSize: 14, opacity: 0.5 }}>··</span>
-                </div>
-                <div className="claim-chain-card claim-chain-card--ghost">
-                  <span className="claim-chain-address" style={{ color: "rgba(26,29,41,.42)", fontSize: 11, fontWeight: 400 }}>and {panelGhostCount} more</span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <ClaimChainLadder ladder={ladder} ghostCount={ghostCount} showPill={false} />
 
         <p className="claim-panel-invite">
           Invited by {originatorName}

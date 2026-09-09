@@ -674,41 +674,6 @@
   margin-top: 14px;
 }
 
-/* Chain ladder inside the (now light) signup panel — dark text on light cards.
-   Scoped to .claim-panel so the shared .claim-chain-* base is untouched; coral
-   survives as the "your sale" accent. Retired-coral migration 2026-09-09. */
-.claim-panel .claim-chain-num { color: var(--claim-text-2); }
-.claim-panel .claim-chain-connector-dot { border-color: rgba(26, 29, 41, 0.22); }
-.claim-panel .claim-chain-connector-line { background: rgba(26, 29, 41, 0.16); }
-.claim-panel .claim-chain-card--claimed {
-  background: rgba(26, 29, 41, 0.04);
-  border: 1px solid rgba(26, 29, 41, 0.10);
-  box-shadow: 0 2px 8px rgba(26, 29, 41, 0.05);
-}
-.claim-panel .claim-chain-card--yours {
-  background: #fff;
-  border: 2px solid var(--claim-coral);
-  box-shadow: 0 6px 18px rgba(26, 29, 41, 0.10);
-}
-.claim-panel .claim-chain-card--pending {
-  background: rgba(26, 29, 41, 0.02);
-  border: 1px solid rgba(26, 29, 41, 0.08);
-  box-shadow: none;
-}
-.claim-panel .claim-chain-card--ghost {
-  background: transparent;
-  border: 1px dashed rgba(26, 29, 41, 0.18);
-}
-.claim-panel .claim-chain-address { color: var(--claim-text-1); }
-.claim-panel .claim-chain-status { color: var(--claim-coral-dark); }
-.claim-panel .claim-chain-agency { color: var(--claim-text-3); }
-.claim-panel .claim-chain-inner {
-  background: rgba(255, 107, 74, 0.06);
-  border: 1px solid rgba(255, 107, 74, 0.20);
-}
-.claim-panel .claim-chain-inner-text { color: var(--claim-coral-dark); }
-.claim-panel .claim-chain-inner-arrow { color: var(--claim-coral-dark); }
-
 /* ─── Signup two-column layout ───────────────────────────────────────────── */
 .claim-signup-grid {
   display: grid;

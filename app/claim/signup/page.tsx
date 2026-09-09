@@ -3,6 +3,9 @@ import { ClaimSignupForm } from "@/components/claim/ClaimSignupForm";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
 import { recordClaimStarted } from "@/lib/chain/funnel";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { displayChainPosition } from "@/lib/chain/positions";
+import type { LadderRow } from "@/components/claim/ClaimChainLadder";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -71,8 +74,10 @@ export default async function ClaimSignupPage({
               position: true,
               transactionId: true,
               stubPropertyAddress: true,
+              stubAgencyName: true,
+              stubPhotoStoragePath: true,
               claimedBy: { select: { firmName: true } },
-              transaction: { select: { propertyAddress: true } },
+              transaction: { select: { propertyAddress: true, photoStoragePath: true } },
             },
           },
         },
@@ -117,17 +122,37 @@ export default async function ClaimSignupPage({
       })
     : null;
 
-  const MAX_PANEL_LINKS = 4;
-  const shown = chainLinks.length <= MAX_PANEL_LINKS ? chainLinks : chainLinks.slice(0, MAX_PANEL_LINKS);
-  const panelLinks = shown.map((cl) => ({
-    id: cl.id,
-    position: cl.position,
-    transactionId: cl.transactionId,
-    stubPropertyAddress: cl.stubPropertyAddress,
-    claimedFirmName: cl.claimedBy?.firmName ?? null,
-    transactionAddress: cl.transaction?.propertyAddress ?? null,
+  // Build the same white chain ladder the /claim landing shows (photos + numbered
+  // badges), so the signup panel matches it. Pills + contacts are off on signup.
+  const MAX_VISIBLE = 4;
+  const visibleLinks = chainLinks.length <= MAX_VISIBLE ? chainLinks : chainLinks.slice(0, MAX_VISIBLE);
+  const ghostCount = chainLinks.length > MAX_VISIBLE ? chainLinks.length - MAX_VISIBLE : 0;
+  const shaped = visibleLinks.map((cl) => {
+    const isYours = cl.id === link.id;
+    const isClaimed = cl.transactionId !== null;
+    const photoPath = isClaimed ? (cl.transaction?.photoStoragePath ?? null) : (cl.stubPhotoStoragePath ?? null);
+    return {
+      id: cl.id,
+      displayNum: displayChainPosition(cl.position, chainLinks.length),
+      status: (isYours ? "you" : isClaimed ? "joined" : "pending") as LadderRow["status"],
+      address: isClaimed
+        ? (cl.transaction?.propertyAddress ?? "")
+        : isYours
+        ? (link.stubPropertyAddress ?? "")
+        : (cl.stubPropertyAddress ?? ""),
+      agency: cl.claimedBy?.firmName ?? cl.stubAgencyName ?? null,
+      photoPath,
+    };
+  });
+  const signed = await getSignedUrlMap(shaped.map((r) => r.photoPath));
+  const ladder: LadderRow[] = shaped.map((r) => ({
+    id: r.id,
+    displayNum: r.displayNum,
+    status: r.status,
+    address: r.address,
+    agency: r.agency,
+    photoUrl: r.photoPath ? (signed.get(r.photoPath) ?? null) : null,
   }));
-  const panelGhostCount = chainLinks.length > MAX_PANEL_LINKS ? chainLinks.length - MAX_PANEL_LINKS : 0;
 
   return (
     <Shell>
@@ -136,10 +161,8 @@ export default async function ClaimSignupPage({
         stubEmail={link.stubAgentEmail ?? ""}
         stubAgencyName={link.stubAgencyName ?? ""}
         stubAddress={link.stubPropertyAddress ?? "Your sale"}
-        ownLinkId={link.id}
-        chainLinksCount={chainLinks.length}
-        panelLinks={panelLinks}
-        panelGhostCount={panelGhostCount}
+        ladder={ladder}
+        ghostCount={ghostCount}
         originatorName={originatorName}
         originatorAgency={originatorAgency}
         invitedDate={invitedDate}
