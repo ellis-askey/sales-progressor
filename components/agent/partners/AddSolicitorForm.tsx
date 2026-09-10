@@ -121,14 +121,12 @@ export function AddSolicitorForm({
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "9px 12px", fontSize: 13, borderRadius: 9,
-    border: `1px solid rgba(${ACCENT},0.24)`, background: "var(--agent-surface-glass)",
-    color: "var(--agent-text-primary)", outline: "none", boxSizing: "border-box",
-  };
   const labelStyle: React.CSSProperties = {
-    display: "block", fontSize: 11, fontWeight: 600, color: `rgba(${ACCENT},0.85)`,
-    marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em",
+    display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", marginBottom: 6,
+  };
+  const sectionLabelStyle: React.CSSProperties = {
+    margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
+    textTransform: "uppercase", color: "var(--agent-text-muted)",
   };
 
   const locked = !firm; // the block below fades until a firm is set.
@@ -138,7 +136,7 @@ export function AddSolicitorForm({
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Firm select / create (locked in edit mode) */}
       <div ref={searchRef} style={{ position: "relative" }}>
-        <label style={labelStyle}>Solicitor firm <span style={{ color: "#f87171" }}>*</span></label>
+        <label style={labelStyle}>Solicitor firm <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
         {firm ? (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
@@ -165,7 +163,7 @@ export function AddSolicitorForm({
               onClick={() => setShowList(true)}
               placeholder="Search or add a solicitor firm…"
               autoFocus
-              style={inputStyle}
+              className="agent-input"
             />
             {showList && (query.length > 0 || filtered.length > 0) && (
               <div style={{
@@ -212,8 +210,8 @@ export function AddSolicitorForm({
           transition: "opacity 220ms ease",
         }}
       >
-        <div style={{ borderTop: `0.5px solid rgba(${ACCENT},0.16)`, paddingTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: `rgba(${ACCENT},0.7)`, textTransform: "uppercase", letterSpacing: "0.05em" }}>Case handler</p>
+        <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={sectionLabelStyle}>Case handler</p>
 
           {firm && handlers === null && (
             <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)" }}>Loading handlers…</p>
@@ -270,24 +268,24 @@ export function AddSolicitorForm({
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>This firm has no case handlers yet — add one so we can reach them.</p>
               )}
               <div>
-                <label style={labelStyle}>Name <span style={{ color: "#f87171" }}>*</span></label>
-                <input ref={nameRef} type="text" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="e.g. Sarah Jones" style={inputStyle} />
+                <label style={labelStyle}>Name <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
+                <input ref={nameRef} type="text" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="e.g. Sarah Jones" className="agent-input" />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={labelStyle}>Phone <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="tel" value={cPhone} onChange={(e) => setCPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }} maxLength={20} placeholder="01234 567890" style={inputStyle} />
+                  <label style={labelStyle}>Phone <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
+                  <input type="tel" value={cPhone} onChange={(e) => setCPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }} maxLength={20} placeholder="01234 567890" className="agent-input" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Email <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }} maxLength={100} placeholder="sarah@firm.co.uk" style={inputStyle} />
+                  <label style={labelStyle}>Email <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
+                  <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }} maxLength={100} placeholder="sarah@firm.co.uk" className="agent-input" />
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <div style={{ borderTop: `0.5px solid rgba(${ACCENT},0.16)`, paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
           <label style={{ ...labelStyle, margin: 0, flexShrink: 0 }}>Default referral fee</label>
           <NumericFormat
             value={feePence != null ? feePence / 100 : ""}
@@ -298,31 +296,31 @@ export function AddSolicitorForm({
             allowNegative={false}
             inputMode="decimal"
             placeholder="£250"
-            style={{ ...inputStyle, width: 120 }}
+            className="agent-input" style={{ width: 120 }}
           />
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>(optional)</span>
         </div>
       </div>
 
-      {error && <p style={{ margin: 0, fontSize: 12, color: "#f87171" }}>{error}</p>}
+      {error && <p style={{ margin: 0, fontSize: 12, color: "var(--agent-danger, #dc2626)" }}>{error}</p>}
 
-      {/* Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      {/* Actions — Cancel + primary, matching the standard modal footer. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 2 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{ padding: "10px 16px", fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)", background: "transparent", border: "none", borderRadius: 12, cursor: "pointer" }}
+        >
+          Cancel
+        </button>
         <button
           type="button"
           onClick={confirm}
           disabled={saving || !firm}
-          className="agent-btn-primary"
-          style={{ padding: "9px 18px", fontSize: 13, borderRadius: 9, border: "none", opacity: !firm ? 0.5 : 1 }}
+          className="agent-btn-color-primary"
+          style={{ flex: 1, padding: "10px 16px", fontSize: 13, fontWeight: 600, borderRadius: 12, border: "none", opacity: !firm ? 0.5 : 1, cursor: (saving || !firm) ? "default" : "pointer" }}
         >
-          {saving ? "Saving…" : isEdit ? "Save changes" : "Add solicitor firm"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{ fontSize: 12, color: "var(--agent-text-muted)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-        >
-          Cancel
+          {saving ? "Saving…" : isEdit ? "Save changes" : "Add firm"}
         </button>
       </div>
     </div>

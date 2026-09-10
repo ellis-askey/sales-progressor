@@ -396,17 +396,33 @@ function SplitFileCard({
           const isBuyer = isBuyerLog(log);
           const dueDate = new Date(log.nextDueDate);
           const dueDateLabel = dueDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+          // Same supporting sentence as an active chase, so a scheduled reminder
+          // still explains who needs to do what (tokens filled for this file+side).
+          const code = log.reminderRule.targetMilestoneCode;
+          const info = code ? milestoneInfo?.[code] : undefined;
+          const clientRole = isBuyer ? "purchaser" : "vendor";
+          const clientList = contacts.filter((c) => c.roleType === clientRole).map((c) => c.name);
+          const clientNames = clientList.length > 0 ? joinNames(clientList) : (isBuyer ? "the buyer" : "the seller");
+          const sideSol = isBuyer ? purchaserSolicitor : vendorSolicitor;
+          const solicitorFirm = sideSol?.firm?.name || sideSol?.name || (isBuyer ? "the buyer's solicitor" : "the seller's solicitor");
+          const copy = renderChaseCardCopy(code, clientNames, solicitorFirm, clientList.length <= 1);
+          const supporting = copy?.line ?? info?.outstanding;
           return (
             <div
               key={log.id}
-              style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
+              style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                   <SidePill isBuyer={isBuyer} />
                 </div>
                 <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
-                <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
+                {supporting && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                    {supporting}
+                  </p>
+                )}
+                <p style={{ margin: "3px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
               </div>
             </div>
           );

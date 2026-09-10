@@ -29,7 +29,7 @@ export type UnavailableRange = { start: string; end?: string | null };
 
 export type MoveInfo = {
   preferredCompletionDate: string | null;
-  noCompletionPreference: boolean;
+  noCompletionPreference: boolean | null;
   flexibility: string | null;
   mortgageOfferExpiry: string | null;
   fundsInPlace: string | null;
@@ -50,7 +50,7 @@ export type MoveInfo = {
 };
 
 const EMPTY: MoveInfo = {
-  preferredCompletionDate: null, noCompletionPreference: false, flexibility: null,
+  preferredCompletionDate: null, noCompletionPreference: null, flexibility: null,
   mortgageOfferExpiry: null, fundsInPlace: null, fundsSource: null,
   needsNotice: null, noticePeriod: null, noticeGiven: null, noticeEndDate: null,
   buyingOnward: null, onwardReadyToExchange: null, onwardMortgageOfferExpiry: null,

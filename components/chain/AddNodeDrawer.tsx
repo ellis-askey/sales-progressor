@@ -418,7 +418,7 @@ export function AddNodeDrawer({
       : "Add the property that sits below this sale in the chain.";
 
   return createPortal(
-    <div data-theme={theme} data-night={isNight ? "" : undefined} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
       {/* Backdrop */}
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
 

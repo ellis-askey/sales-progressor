@@ -25,6 +25,7 @@ import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
+import { getMilestoneCopy } from "@/lib/portal-copy";
 
 type ActionResult<T = void> =
   | ({ ok: true } & (T extends void ? object : { data: T }))
@@ -198,7 +199,8 @@ export type EmailSettingsContact = {
   id: string;
   name: string;
   roleType: "vendor" | "purchaser";
-  paused: boolean;
+  paused: boolean;            // chase emails paused for this person
+  stepConfirmPaused: boolean; // step-confirmation emails paused for this person
 };
 
 export type EmailSettingsState = {
@@ -210,6 +212,38 @@ export type EmailSettingsState = {
   vendorSolicitor: { name: string; paused: boolean } | null;
   purchaserSolicitor: { name: string; paused: boolean } | null;
 };
+
+// Per-person pause on STEP-CONFIRMATION emails. Independent of the chase pause
+// (setContactEmailsPaused) and of the file-wide suppressPortalConfirmEmails
+// master — this just flips one client contact's stepConfirmPausedAt. The portal
+// milestone-confirmation send skips a contact while it's set.
+export async function setContactStepConfirmPaused(
+  transactionId: string,
+  contactId: string,
+  paused: boolean,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({ where, select: { id: true } });
+  if (!tx) return { ok: false, error: "Not found" };
+
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, propertyTransactionId: tx.id, roleType: { in: ["vendor", "purchaser"] } },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false, error: "Not found" };
+
+  await prisma.contact.update({
+    where: { id: contact.id },
+    data: { stepConfirmPausedAt: paused ? new Date() : null },
+  });
+
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/transactions/${transactionId}`);
+  return { ok: true };
+}
 
 export async function loadEmailSettings(
   transactionId: string,
@@ -240,6 +274,7 @@ export async function loadEmailSettings(
           name: true,
           roleType: true,
           emailsPausedAt: true,
+          stepConfirmPausedAt: true,
           buyerRoundId: true,
         },
         orderBy: { createdAt: "asc" },
@@ -262,6 +297,7 @@ export async function loadEmailSettings(
       name: c.name,
       roleType: c.roleType as "vendor" | "purchaser",
       paused: c.emailsPausedAt != null,
+      stepConfirmPaused: c.stepConfirmPausedAt != null,
     }));
 
   return {
@@ -757,6 +793,14 @@ export async function getEmailForPreview(emailId: string): Promise<{
     editedByName: string | null;
     canEdit: boolean;
     transactionId: string;
+    // The step being chased ("Searches ordered"), from the payload's milestone
+    // codes — so the drawer names the thing, not just "Client chase". Null for
+    // non-chase mail and rows with no milestone codes stored.
+    contextLabel: string | null;
+    // 1-based "this is chase N", from ClientChaseState. Null off the chase path.
+    chaseNumber: number | null;
+    // Client emails always have their real rendered HTML → openable in a new tab.
+    canOpenInNewWindow: boolean;
   };
 } | { ok: false; error: string }> {
   const session = await requireSession();
@@ -768,6 +812,7 @@ export async function getEmailForPreview(emailId: string): Promise<{
       emailType: true,
       payload: true,
       recipientEmail: true,
+      recipientContactId: true,
       scheduledFor: true,
       sentAt: true,
       errorAt: true,
@@ -812,7 +857,27 @@ export async function getEmailForPreview(emailId: string): Promise<{
     email.sentAt === null &&
     email.errorAt === null;
 
-  const payload = (email.payload ?? {}) as { subject?: string; text?: string; html?: string };
+  const payload = (email.payload ?? {}) as { subject?: string; text?: string; html?: string; milestoneCodes?: string[] };
+
+  // Name the step being chased + which chase this is. Both derive from the
+  // chase payload's milestone codes; non-chase mail leaves them null.
+  const codes = Array.isArray(payload.milestoneCodes) ? payload.milestoneCodes : [];
+  let contextLabel: string | null = null;
+  let chaseNumber: number | null = null;
+  if (email.emailType === "CLIENT_CHASE" && codes.length > 0) {
+    contextLabel = codes.length === 1
+      ? getMilestoneCopy(codes[0]).label
+      : `${codes.length} steps outstanding`;
+    if (email.recipientContactId) {
+      const ccs = await prisma.clientChaseState.findFirst({
+        where: { transactionId: email.recipientContact!.propertyTransactionId, contactId: email.recipientContactId, milestoneCode: codes[0] },
+        select: { chaseCount: true },
+      });
+      // This send is the (count-so-far + 1)th chase. Before it has ever sent,
+      // chaseCount is 0, so the pending row reads "Chase 1 of 2".
+      chaseNumber = (ccs?.chaseCount ?? 0) + 1;
+    }
+  }
 
   return {
     ok: true,
@@ -832,6 +897,9 @@ export async function getEmailForPreview(emailId: string): Promise<{
       editedByName: email.editedBy?.name ?? null,
       canEdit,
       transactionId: email.recipientContact?.propertyTransactionId ?? "",
+      contextLabel,
+      chaseNumber,
+      canOpenInNewWindow: true,
     },
   };
 }

@@ -34,10 +34,10 @@ import { AddNodeDrawer, type EditingLinkData } from "@/components/chain/AddNodeD
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { EmailSettingsButton } from "@/components/transaction/EmailSettingsDrawer";
-import { ArchivedRoundDrawer } from "@/components/transaction/ArchivedRoundDrawer";
+import { ArchivedRoundDrawer, type ArchivedRoundPayload } from "@/components/transaction/ArchivedRoundDrawer";
 import { StampDutyQuickAction } from "@/components/transaction/StampDutyDrawer";
 import { ReconciliationDrawer, type ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
-import { EmailDetailDrawer } from "@/components/automated-emails/EmailDetailDrawer";
+import { EmailDetailDrawer, type PreviewData } from "@/components/automated-emails/EmailDetailDrawer";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { MemberManageDrawer, type ManageableMember } from "@/components/account/v2/MemberManageDrawer";
 import type { IntroCallData } from "@/app/actions/intro-call";
@@ -60,7 +60,7 @@ const EDITING_LINK: EditingLinkData = {
 // A full, empty-ish MoveInfo (the drawer prefills every field from it).
 const demoMove = (over: Partial<MoveInfo> = {}): MoveInfo => ({
   preferredCompletionDate: null,
-  noCompletionPreference: false,
+  noCompletionPreference: null,
   flexibility: null,
   mortgageOfferExpiry: null,
   fundsInPlace: null,
@@ -86,6 +86,8 @@ const demoMove = (over: Partial<MoveInfo> = {}): MoveInfo => ({
 const INTRO_DATA: IntroCallData = {
   transactionId: DEMO_TX_ID,
   introDone: false,
+  introDoneVendor: false,
+  introDonePurchaser: false,
   hasVendor: true,
   hasPurchaser: true,
   vendor: { id: "demo-vendor", name: NAME, phone: "07700 900111", email: "priya.c@gmail.com" },
@@ -93,7 +95,7 @@ const INTRO_DATA: IntroCallData = {
   purchaseType: null,
   tenure: null,
   isShareOfFreehold: false,
-  costs: { depositGBP: 47500, mortgageGBP: 380000, otherFundsGBP: null, firstTimeBuyer: false, additionalProperty: false },
+  costs: { depositGBP: 47500, mortgageGBP: 380000, otherFundsGBP: null, firstTimeBuyer: null, additionalProperty: null },
   moveVendor: demoMove({ buyingOnward: true, progressorNote: SHORT_NOTE }),
   movePurchaser: demoMove({ sellingRelated: false }),
   chainLinkId: null,
@@ -147,6 +149,58 @@ const EMAIL_ROW_QUEUE: EmailRow = {
   chaseNumber: 1,
 };
 
+// Seeded preview for the queue row so /dev/sheets renders the full email body
+// instead of the "Email not found" backend-miss state.
+const EMAIL_PREVIEW_SEED: PreviewData = {
+  id: "demo-email-queue",
+  emailType: "CLIENT_CHASE",
+  subject: "A quick nudge on your searches",
+  text: "Hi Priya,\n\nJust a quick check-in on 14 Oakwood Avenue. Your searches have been with the local authority for a couple of weeks now. That's normal, but we like to keep things moving.\n\nThere's nothing you need to do right now. We're chasing the council for an update and will let you know as soon as they're back.\n\nKind regards,\n\nThe Sales Progressor Team",
+  // Representative rendered email so the drawer's iframe shows exactly what the
+  // inbox sees. Structured like the real client-chase template (grey page +
+  // fixed 560px white card) so the drawer's preview-CSS injection normalises it
+  // the same way it will the live payload HTML — /dev/sheets mirrors the app.
+  html: `<!DOCTYPE html><html><head><meta charset="utf-8"><title>A quick nudge on your searches</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 16px;">Hi Priya,</p>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 16px;">Just a quick check-in on <strong>14 Oakwood Avenue</strong>. Your searches have been with the local authority for a couple of weeks now. That&rsquo;s normal, but we like to keep things moving.</p>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 24px;">There&rsquo;s nothing you need to do right now. We&rsquo;re chasing the council for an update and will let you know as soon as they&rsquo;re back.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+            <td style="border-radius:8px;background:#FF6B4A;"><a href="#" style="display:inline-block;padding:12px 24px;color:#fff;text-decoration:none;font-weight:500;font-size:15px;">Open the page</a></td>
+          </tr></table>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:28px 0 4px;">Kind regards,</p>
+          <p style="font-size:15px;color:#1a1d29;font-weight:700;margin:0;">The Sales Progressor Team</p>
+        </td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="#" style="color:#c0c4d0;text-decoration:none;">Pause reminders for a week</a> &nbsp;&middot;&nbsp;
+        <a href="#" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>`,
+  recipientName: NAME,
+  recipientEmail: "priya.c@gmail.com",
+  recipientRole: "purchaser",
+  scheduledFor: new Date("2026-09-05T09:30:00Z"),
+  sentAt: null,
+  errorAt: null,
+  editedAt: null,
+  editedByName: null,
+  canEdit: true,
+  transactionId: DEMO_TX_ID,
+  // Real getEmailForPreview derives this from the chased milestone's canonical
+  // label — so the seed uses a real label, not an invented phrase.
+  contextLabel: "Search results received",
+  chaseNumber: 1,
+  canOpenInNewWindow: true,
+};
+
 const EMAIL_ROW_MESSAGE: EmailRow = {
   id: "demo-email-message",
   source: "message",
@@ -163,6 +217,171 @@ const EMAIL_ROW_MESSAGE: EmailRow = {
   sentAt: new Date("2026-09-02T14:05:00Z"),
   errorAt: null,
   errorMessage: null,
+};
+
+// Seeded preview for the solicitor (message) row. Solicitor chases now store the
+// email they sent, so the drawer shows the real thing — this seed mirrors that:
+// the actual rendered solicitor digest (navy header, matter block, steps, CTA,
+// signature), the same shape buildSolicitorDigestEmail produces.
+const SOLICITOR_SEED_STEPS = ["Draft contract pack issued to the buyer's solicitor", "Management pack requested"];
+const EMAIL_MESSAGE_PREVIEW_SEED: PreviewData = {
+  id: "demo-email-message",
+  emailType: "SOLICITOR_CHASE",
+  subject: "118-124 Cranbrook Road - Client: Whitlock",
+  text: `Automated confirmation request sent to ${LONG_NAME} for: ${SOLICITOR_SEED_STEPS.join(", ")}.`,
+  html: `<!doctype html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px;background:#eef1f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;"><tr><td>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f2740;border-radius:10px 10px 0 0;">
+    <tr><td style="padding:22px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:.2px;">Sales Progressor</td>
+      <td align="right" style="font-size:11px;color:#9fb3c8;text-transform:uppercase;letter-spacing:1.4px;">Progress update</td>
+    </tr></table></td></tr>
+  </table>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-left:1px solid #dfe5ec;border-right:1px solid #dfe5ec;">
+    <tr><td style="padding:30px 28px 6px;">
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#33475b;">I hope you&rsquo;re well. I&rsquo;m looking after <strong style="color:#0f2740;">Jane &amp; Tom Whitlock</strong> and helping keep things moving on this sale.</p>
+      <p style="margin:0;font-size:15px;line-height:1.6;color:#33475b;">When you get a moment, could you let me know where things stand with the items below?</p>
+    </td></tr>
+    <tr><td style="padding:18px 28px 6px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fb;border:1px solid #e3e9f0;border-radius:8px;"><tr><td style="padding:16px 18px;">
+        <p style="margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#6b7c93;">Matter details</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:6px 0;color:#6b7c93;font-size:13px;">Property</td><td align="right" style="padding:6px 0;color:#0f2740;font-size:13px;font-weight:600;">118-124 Cranbrook Road</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7c93;font-size:13px;">Seller</td><td align="right" style="padding:6px 0;color:#0f2740;font-size:13px;font-weight:600;">Jane &amp; Tom Whitlock</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7c93;font-size:13px;">You are acting for</td><td align="right" style="padding:6px 0;color:#0f2740;font-size:13px;font-weight:600;">The seller</td></tr>
+        </table>
+      </td></tr></table>
+    </td></tr>
+    <tr><td style="padding:20px 28px 4px;">
+      <p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#0f2740;">Could you update me on these items?</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dde5ee;border-radius:10px;">
+        ${SOLICITOR_SEED_STEPS.map((s, i) => `<tr><td style="padding:14px 16px;${i < SOLICITOR_SEED_STEPS.length - 1 ? "border-bottom:1px solid #eaeff5;" : ""}font-size:14px;font-weight:600;color:#0f2740;">${s}</td></tr>`).join("")}
+      </table>
+    </td></tr>
+    <tr><td style="padding:22px 28px 4px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+        <td align="center" bgcolor="#0f2740" style="border-radius:8px;padding:15px 18px;"><a href="#" style="font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Update these items</a></td>
+      </tr></table>
+      <p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:#33475b;">Rather reply by email? Just reply to this message with an update. Thank you!</p>
+    </td></tr>
+    <tr><td style="padding:18px 28px 26px;">
+      <p style="margin:0 0 12px;font-size:14px;color:#33475b;line-height:1.6;">Many thanks for your help,</p>
+      <p style="margin:0;font-size:14px;font-weight:700;color:#0f2740;">Jordan Hayes</p>
+      <p style="margin:2px 0 0;font-size:13px;color:#6b7c93;">Sales Progressor</p>
+    </td></tr>
+  </table>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fb;border:1px solid #dfe5ec;border-top:none;border-radius:0 0 10px 10px;">
+    <tr><td style="padding:18px 28px;"><p style="margin:0;font-size:11px;line-height:1.6;color:#8493a8;">Sent by Sales Progressor in relation to the matter above. If you&rsquo;re not the right person for this file, just reply and let me know.</p></td></tr>
+  </table>
+</td></tr></table></body></html>`,
+  recipientName: LONG_NAME,
+  recipientEmail: LONG_EMAIL,
+  recipientRole: "solicitor",
+  scheduledFor: new Date("2026-09-02T14:05:00Z"),
+  sentAt: new Date("2026-09-02T14:05:00Z"),
+  errorAt: null,
+  editedAt: null,
+  editedByName: null,
+  canEdit: false,
+  transactionId: DEMO_TX_ID,
+  contextLabel: SOLICITOR_SEED_STEPS.join(", "),
+  chaseNumber: null,
+  canOpenInNewWindow: true,
+};
+
+// Seeded payloads for the Previous-sale (archived round) drawer, so /dev/sheets
+// renders it fully instead of the "Loading…" fetch state. Shape mirrors the
+// /api/transactions/[id]/rounds/[roundId] response the app uses.
+function makeArchivedSeed(opts: {
+  roundNumber: number;
+  buyerName: string;
+  buyerEmail: string;
+  pricePence: number | null;
+  archivedAt: string;
+  fallThroughReason: string | null;
+  withChain?: boolean;
+}): ArchivedRoundPayload {
+  const { roundNumber, buyerName, buyerEmail, pricePence, archivedAt, fallThroughReason, withChain } = opts;
+  return {
+    round: {
+      id: `demo-round-${roundNumber}`,
+      roundNumber,
+      status: "archived",
+      archivedAt,
+      fallThroughReason,
+      createdAt: "2026-03-02T09:00:00Z",
+      purchasePrice: pricePence,
+      purchaserSolicitorFirm: { id: "sf1", name: "Marsden & Cole Solicitors" },
+      purchaserSolicitorContact: { id: "sc1", name: "Rachel Okonkwo", phone: "0117 496 2210", email: "r.okonkwo@marsdencole.co.uk" },
+      brokerFirm: { id: "bf1", name: "Southgate Mortgage Partners" },
+      brokerContact: { id: "bc1", name: "Daniel Price", phone: "0117 496 3300", email: null },
+      vendorMilestoneSnapshot: [
+        { code: "VM1", name: "Instruct your solicitor", orderIndex: 0, state: "complete", completedAt: "2026-03-05T10:00:00Z", eventDate: null, summaryText: null },
+        { code: "VM7", name: "Draft contract pack issued", orderIndex: 6, state: "complete", completedAt: "2026-03-20T14:00:00Z", eventDate: null, summaryText: null },
+        { code: "VM10", name: "Initial enquiries received", orderIndex: 9, state: "available", completedAt: null, eventDate: null, summaryText: null },
+        { code: "VM12", name: "Replies sent to buyer's solicitor", orderIndex: 11, state: "locked", completedAt: null, eventDate: null, summaryText: null },
+      ],
+      chainSnapshot: withChain
+        ? {
+            chainId: "chain-demo",
+            ourLinkId: "link-2",
+            ourPosition: 2,
+            withdrawalReason: "BUYER_WITHDREW",
+            capturedAt: archivedAt,
+            neighbours: [
+              { linkId: "link-3", position: 3, withdrawalStatus: null, claimedByUserId: "u3", claimedAgentName: "Priya Shah", claimedAgencyName: "Hillcrest Estates", claimedTransactionId: "t3", claimedAddress: "8 Marlborough Court, Bristol", stubAddress: null, stubAgencyName: null, stubAgentName: null },
+              { linkId: "link-2", position: 2, withdrawalStatus: "WITHDRAWN", claimedByUserId: "u2", claimedAgentName: "You", claimedAgencyName: "Brightmove", claimedTransactionId: DEMO_TX_ID, claimedAddress: ADDRESS, stubAddress: null, stubAgencyName: null, stubAgentName: null },
+              { linkId: "link-1", position: 1, withdrawalStatus: null, claimedByUserId: null, claimedAgentName: null, claimedAgencyName: null, claimedTransactionId: null, claimedAddress: null, stubAddress: "14 Beacon Rise, Bristol", stubAgencyName: "Foxton Vale", stubAgentName: "Mark Ellery" },
+            ],
+            detachedSegment: null,
+          }
+        : null,
+      chainNotifications: withChain
+        ? [
+            { id: "n1", type: "LOST_BUYER", direction: "outbound", recipientLinkId: "link-1", recipientEmail: "mark@foxtonvale.co.uk", response: "REMARKETING", respondedAt: "2026-05-12T11:00:00Z", emailSentAt: "2026-05-10T09:00:00Z", createdAt: "2026-05-10T09:00:00Z" },
+          ]
+        : [],
+    },
+    buyerContacts: [
+      { id: "b1", name: buyerName, email: buyerEmail, phone: "07700 900321", roleType: "purchaser" },
+    ],
+    pmCompletions: [
+      { code: "PM1", name: "Instruct your solicitor", orderIndex: 0, state: "complete", completedAt: "2026-03-06T10:00:00Z", completedByName: buyerName, eventDate: null, summaryText: null, confirmedByPortal: true },
+      { code: "PM3", name: "Complete ID & AML checks", orderIndex: 2, state: "complete", completedAt: "2026-03-09T10:00:00Z", completedByName: buyerName, eventDate: null, summaryText: null, confirmedByPortal: true },
+      { code: "PM4", name: "Pay money on account to solicitor", orderIndex: 3, state: "complete", completedAt: "2026-03-12T10:00:00Z", completedByName: buyerName, eventDate: null, summaryText: null, confirmedByPortal: false },
+      { code: "PM7", name: "Draft contract pack received", orderIndex: 6, state: "complete", completedAt: "2026-03-22T10:00:00Z", completedByName: "Rachel Okonkwo", eventDate: null, summaryText: null, confirmedByPortal: false },
+      { code: "PM8", name: "Searches ordered", orderIndex: 7, state: "available", completedAt: null, completedByName: null, eventDate: null, summaryText: null, confirmedByPortal: false },
+      { code: "PM9", name: "Book your survey", orderIndex: 8, state: "not_required", completedAt: null, completedByName: null, eventDate: null, summaryText: null, confirmedByPortal: false },
+      { code: "PM13", name: "Search results received", orderIndex: 12, state: "locked", completedAt: null, completedByName: null, eventDate: null, summaryText: null, confirmedByPortal: false },
+    ],
+    comms: [
+      { id: "c1", type: "outbound", method: "email", content: "Chased the buyer's solicitor for an update on searches. They confirmed the local authority is running about three weeks behind.", createdAt: "2026-04-18T13:30:00Z", createdByName: "You", senderLabel: null, visibleToClient: false, isAutomated: false },
+      { id: "c2", type: "note", method: null, content: "Buyer mentioned their mortgage offer was close to expiring and they were getting nervous about the searches delay.", createdAt: "2026-05-02T16:10:00Z", createdByName: "You", senderLabel: null, visibleToClient: false, isAutomated: false },
+    ],
+    fileDocuments: [
+      { id: "d1", filename: "Memorandum of Sale.pdf", mimeType: "application/pdf", fileSize: 184320, source: "agent upload", createdAt: "2026-03-03T09:30:00Z", signedUrl: "#" },
+      { id: "d2", filename: "Buyer proof of funds.pdf", mimeType: "application/pdf", fileSize: 96256, source: "buyer upload", createdAt: "2026-03-11T15:00:00Z", signedUrl: null },
+    ],
+  };
+}
+
+const ARCHIVED_SEED_SINGLE: Record<string, ArchivedRoundPayload> = {
+  "demo-round-1": makeArchivedSeed({
+    roundNumber: 1,
+    buyerName: "Marcus Bellingham",
+    buyerEmail: "m.bellingham@gmail.com",
+    pricePence: 47500000,
+    archivedAt: "2026-05-14T10:00:00Z",
+    fallThroughReason: "Buyer's mortgage offer expired before searches came back and they were unable to secure new finance in time.",
+    withChain: true,
+  }),
+};
+
+const ARCHIVED_SEED_MANY: Record<string, ArchivedRoundPayload> = {
+  "demo-round-3": makeArchivedSeed({ roundNumber: 3, buyerName: "Aisha Rahman", buyerEmail: "aisha.rahman@outlook.com", pricePence: 48200000, archivedAt: "2026-08-01T10:00:00Z", fallThroughReason: "Survey flagged damp the buyer wasn't willing to take on.", withChain: true }),
+  "demo-round-2": makeArchivedSeed({ roundNumber: 2, buyerName: "Tom & Ellie Grant", buyerEmail: "tomgrant@gmail.com", pricePence: 47500000, archivedAt: "2026-06-20T10:00:00Z", fallThroughReason: "Buyers pulled out to pursue a new-build instead.", withChain: false }),
+  "demo-round-1": makeArchivedSeed({ roundNumber: 1, buyerName: "Marcus Bellingham", buyerEmail: "m.bellingham@gmail.com", pricePence: 47000000, archivedAt: "2026-05-14T10:00:00Z", fallThroughReason: "Buyer's mortgage offer expired before searches came back.", withChain: false }),
 };
 
 // Team member for MemberManageDrawer.
@@ -291,19 +510,16 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
     usedIn: "Property file · contact card · intro call",
     file: "components/transaction/IntroCallDrawer.tsx",
     componentName: "IntroCallDrawer",
-    note: "Two-page drawer (script + questions). Field edits fire per-field server actions on blur against demo ids — dev-only and safe (they hit non-existent records). focusSide scopes to one side. The embedded SolicitorSection renders from the fixture (both firms null).",
+    note: "Two-page drawer (script + questions). Opened per side — buyer or seller — with no in-drawer toggle; the launching contact fixes the side. Field edits fire per-field server actions on blur against demo ids (dev-only, safe). Solicitor section is scoped to that side with the briefcase tile.",
     preview: "overlay",
     states: [
-      { id: "both-sides", label: "Both sides", hint: "buyer + seller question sets" },
-      { id: "vendor-only", label: "Seller only", hint: "focusSide vendor" },
-      { id: "purchaser-only", label: "Buyer only", hint: "focusSide purchaser" },
+      { id: "buyer", label: "Buyer intro", hint: "focusSide purchaser" },
+      { id: "seller", label: "Seller intro", hint: "focusSide vendor" },
     ],
     render: (ctx) => (
       <IntroCallDrawer
         data={INTRO_DATA}
-        focusSide={
-          ctx.stateId === "vendor-only" ? "vendor" : ctx.stateId === "purchaser-only" ? "purchaser" : null
-        }
+        focusSide={ctx.stateId === "seller" ? "vendor" : "purchaser"}
         onClose={ctx.onClose}
         onCompleted={ctx.onClose}
       />
@@ -319,10 +535,32 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
     usedIn: "Property file · hero · email settings",
     file: "components/transaction/EmailSettingsDrawer.tsx",
     componentName: "EmailSettingsButton",
-    note: "Exports a trigger button that owns the drawer state. Click the 'Email settings' pill to open — the drawer loads its state via a server action which fails with no backend, so it shows the drawer chrome + the 'Loading…' state.",
+    note: "Trigger button that owns the drawer state. Seeded here via seedState so it renders populated without a backend — click the 'Email settings' pill to open. Toggles call server actions that no-op in dev.",
     preview: "overlay",
-    states: [{ id: "default", label: "Trigger + drawer", hint: "click the pill to open" }],
-    render: () => <EmailSettingsButton transactionId={DEMO_TX_ID} />,
+    states: [
+      { id: "active", label: "Everything on", hint: "active file, all recipients sending" },
+      { id: "on-hold", label: "On hold", hint: "sale paused, a recipient paused" },
+    ],
+    render: (ctx) => {
+      const onHold = ctx.stateId === "on-hold";
+      return (
+        <EmailSettingsButton
+          transactionId={DEMO_TX_ID}
+          seedState={{
+            suppressPortalConfirmEmails: false,
+            status: onHold ? "on_hold" : "active",
+            clientEmailsPaused: onHold,
+            serviceType: null,
+            contacts: [
+              { id: "seed-vendor", name: "Joe Court", roleType: "vendor", paused: false, stepConfirmPaused: false },
+              { id: "seed-purchaser", name: "Livia Benova", roleType: "purchaser", paused: onHold, stepConfirmPaused: true },
+            ],
+            vendorSolicitor: { name: "Bower & Bailey", paused: false },
+            purchaserSolicitor: { name: "Gough Thorne", paused: false },
+          }}
+        />
+      );
+    },
   },
 
   // 6 ── Archived (previous) sale ──────────────────────────────────────────────
@@ -334,10 +572,10 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
     usedIn: "Property file · previous sales chip",
     file: "components/transaction/ArchivedRoundDrawer.tsx",
     componentName: "ArchivedRoundDrawer",
-    note: "Canonical Drawer. Fetches the selected sale's payload on open (errors with no backend — inspect the error state + the sale-switcher pills). Many-rounds state renders the switcher pill group.",
+    note: "Canonical Drawer. Seeded (seedByRoundId) so the full payload renders here without a backend — buyer, price, solicitor, broker, both step lists, comms, chain-at-withdrawal and documents. Many-rounds state renders the switcher pill group; switching sale swaps the seeded payload.",
     preview: "overlay",
     states: [
-      { id: "single-round", label: "One previous sale", hint: "no switcher" },
+      { id: "single-round", label: "One previous sale", hint: "no switcher, includes chain section" },
       { id: "many-rounds", label: "Several previous sales", hint: "switcher pill group" },
     ],
     render: (ctx) => (
@@ -353,6 +591,7 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
               ]
             : [{ id: "demo-round-1", roundNumber: 1 }]
         }
+        seedByRoundId={ctx.stateId === "many-rounds" ? ARCHIVED_SEED_MANY : ARCHIVED_SEED_SINGLE}
         onClose={ctx.onClose}
       />
     ),
@@ -417,15 +656,16 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
     usedIn: "Automated emails · row",
     file: "components/automated-emails/EmailDetailDrawer.tsx",
     componentName: "EmailDetailDrawer",
-    note: "Canonical Drawer keyed off row !== null. Queue rows load the full payload + the file's timeline via server actions on open (error with no backend — inspect the 'Couldn't load' preview state + the Send now / Cancel footer). Message rows show metadata only.",
+    note: "Canonical Drawer keyed off row !== null, seeded (seedPreview) so it renders without a backend. Client chase: pending, full rendered email, Send now / Cancel / Edit (an edit re-renders the preview to match what sends). Solicitor chase: already sent; the sent email is now stored at send time, so the drawer shows the real solicitor email (older rows sent before this fall back to a steps summary).",
     preview: "overlay",
     states: [
-      { id: "queued-editable", label: "Queued client chase", hint: "pending — send now / cancel" },
-      { id: "sent-message", label: "Sent solicitor chase", hint: "message row, metadata only" },
+      { id: "queued-editable", label: "Queued client chase", hint: "pending, real email, send now / cancel / edit" },
+      { id: "sent-message", label: "Sent solicitor chase", hint: "real stored email, no pending actions" },
     ],
     render: (ctx) => (
       <EmailDetailDrawer
         row={ctx.open ? (ctx.stateId === "sent-message" ? EMAIL_ROW_MESSAGE : EMAIL_ROW_QUEUE) : null}
+        seedPreview={ctx.stateId === "sent-message" ? EMAIL_MESSAGE_PREVIEW_SEED : EMAIL_PREVIEW_SEED}
         onClose={ctx.onClose}
         onChanged={noop}
       />

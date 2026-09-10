@@ -25,6 +25,7 @@ import {
 // ── Real components ──────────────────────────────────────────────────────────
 import { AddBrokerModal } from "@/components/brokers/AddBrokerModal";
 import { PartnerPopup } from "@/components/agent/partners/PartnerPopup";
+import { BrokerForm } from "@/components/agent/PreferredBrokerSettings";
 import { AddFirmModal } from "@/components/solicitors/AddFirmModal";
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { MortgageModal } from "@/components/milestones/MortgageModal";
@@ -218,30 +219,24 @@ export const MODAL_ENTRIES: SheetEntry[] = [
   },
   {
     id: "modal-partner-popup",
-    name: "Add partner popup (shell)",
+    name: "Add partner (mortgage broker)",
     type: "modal",
     area: "Brokers & partners",
     usedIn: "Partners page · add broker / add firm",
     file: "components/agent/partners/PartnerPopup.tsx",
     componentName: "PartnerPopup",
-    note: "Generic responsive shell (centred card desktop, bottom sheet mobile, animated in AND out). Rendered here with fixture form content so the chrome and scroll can be judged.",
+    note: "The real add-broker form inside the PartnerPopup shell (responsive: centred card desktop, bottom sheet mobile). Save posts to the API (errors here without a session). The solicitor variant uses the same shell + AddSolicitorForm.",
     preview: "overlay",
     states: [{ id: "default", label: "Default" }],
     render: ({ open, onClose }) => (
-      <PartnerPopup open={open} onClose={onClose} ariaLabel="Add a partner" title="Add a partner">
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label className="agent-section-label" style={{ display: "block", marginBottom: 6 }}>Firm name</label>
-            <input className="agent-input" defaultValue={FIRM} readOnly />
-          </div>
-          <div>
-            <label className="agent-section-label" style={{ display: "block", marginBottom: 6 }}>Contact email</label>
-            <input className="agent-input" defaultValue={EMAIL} readOnly />
-          </div>
-          <button type="button" onClick={onClose} className="agent-btn agent-btn-color-primary" style={{ justifyContent: "center", padding: "10px 16px" }}>
-            Save partner
-          </button>
-        </div>
+      <PartnerPopup
+        open={open}
+        onClose={onClose}
+        ariaLabel="Add mortgage broker"
+        title="Add mortgage broker"
+        subtitle="The mortgage broker your agency works with."
+      >
+        <BrokerForm initial={null} isEdit={false} onCancel={onClose} onSaved={() => onClose()} />
       </PartnerPopup>
     ),
   },

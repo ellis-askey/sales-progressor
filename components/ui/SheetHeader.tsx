@@ -35,7 +35,7 @@ export function SheetBandHeader({
 }: {
   kicker?: string;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   icon?: ReactNode;
 }) {
   return (

@@ -1258,7 +1258,7 @@ export async function logPortalMilestoneConfirm(
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true, stepConfirmPausedAt: true },
       },
     },
   });
@@ -1456,6 +1456,10 @@ export async function logPortalMilestoneConfirm(
     const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
     for (const c of tx.contacts) {
       if (!c.email || !c.portalToken) continue;
+      // Per-person step-confirmation pause (agent-set in Email settings). The
+      // file-wide master (suppressPortalConfirmEmails) is checked by callers;
+      // this skips just this contact when they're individually paused.
+      if (c.stepConfirmPausedAt) continue;
       const recipientKey = c.roleType as "vendor" | "purchaser";
       const copy = milestoneCode
         ? resolveRecipientCopy(milestoneCode, recipientKey, richCopy, portalFileShape)

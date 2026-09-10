@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -12,11 +11,15 @@ type Firm = { id: string; name: string };
 
 type Props = {
   prefillName: string;
+  // Subtext under the title. Defaults to the purchase phrasing (a mortgage
+  // broker only ever helps with a purchase). Overridable so a future non-file
+  // entry point (e.g. an agency broker directory) can pass its own line.
+  subtitle?: string;
   onClose: () => void;
   onCreated: (firm: Firm, handler: Handler | null) => void;
 };
 
-export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
+export function AddBrokerModal({ prefillName, subtitle = "Add the broker helping with this purchase.", onClose, onCreated }: Props) {
   const { theme } = usePortalTheme();
   const [firmName, setFirmName] = useState(prefillName);
   const [handlerName, setHandlerName] = useState("");
@@ -25,23 +28,12 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [touched, setTouched] = useState({ firm: false, name: false, phone: false, email: false });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const firmValid = touched.firm && firmName.trim().length >= 2;
-  const nameValid = touched.name && handlerName.trim().length >= 2;
-  const phoneValid = touched.phone && /\d{10,}/.test(handlerPhone.replace(/\D/g, ""));
-  const emailValid = touched.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim());
-
-  function touch(field: keyof typeof touched) {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-  }
-
-  function blurFirm() { touch("firm"); setFirmName((v) => titleCaseKeepAcronyms(v)); }
-  function blurName() { touch("name"); setHandlerName((v) => titleCaseKeepAcronyms(v)); }
-  function blurPhone() { touch("phone"); setHandlerPhone((v) => normalizePhone(v)); }
+  function blurFirm() { setFirmName((v) => titleCaseKeepAcronyms(v)); }
+  function blurName() { setHandlerName((v) => titleCaseKeepAcronyms(v)); }
+  function blurPhone() { setHandlerPhone((v) => normalizePhone(v)); }
   function blurEmail() {
-    touch("email");
     const formatted = handlerEmail.trim().toLowerCase();
     setHandlerEmail(formatted);
     if (formatted && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formatted)) {
@@ -107,21 +99,16 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <Modal.Header style={SHEET_BAND_STYLE}>
-          <SheetBandHeader kicker="Mortgage broker" title="Add broker" />
+          <SheetBandHeader title="Add mortgage broker" subtitle={subtitle} />
         </Modal.Header>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
           <Modal.Body>
             <div className="space-y-5">
-              {/* Firm name — required */}
+              {/* Brokerage — required */}
               <div>
-                <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                  Brokerage name
-                  {firmValid
-                    ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
-                    : touched.firm && firmName.trim().length < 2
-                      ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
-                      : null}
+                <label className="block text-sm font-semibold text-slate-900/80 mb-2">
+                  Brokerage <span style={{ color: "var(--agent-coral-deep)", marginLeft: 1 }}>*</span>
                 </label>
                 <input
                   ref={inputRef}
@@ -134,57 +121,43 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
                 />
               </div>
 
-              {/* Broker contact — optional */}
-              <div>
-                <p className="agent-section-label mb-3">Broker contact</p>
-                <div className="space-y-3">
-                  {/* Full name + Mobile on same row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                        Full name
-                        {nameValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
-                      </label>
-                      <input
-                        value={handlerName}
-                        onChange={(e) => setHandlerName(e.target.value)}
-                        onBlur={blurName}
-                        placeholder="e.g. James Morris"
-                        className="agent-input"
-                      />
-                    </div>
-                    <div>
-                      <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                        Contact number
-                        {phoneValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
-                      </label>
-                      <input
-                        type="tel"
-                        value={handlerPhone}
-                        onChange={(e) => setHandlerPhone(e.target.value)}
-                        onBlur={blurPhone}
-                        placeholder="07700 900 000"
-                        className="agent-input"
-                      />
-                    </div>
-                  </div>
-                  {/* Email — full width */}
-                  <div>
-                    <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                      Email
-                      {emailValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
-                    </label>
-                    <input
-                      type="email"
-                      value={handlerEmail}
-                      onChange={(e) => { setHandlerEmail(e.target.value); setEmailError(null); }}
-                      onBlur={blurEmail}
-                      placeholder="j.morris@broker.co.uk"
-                      className={`agent-input${emailError ? " agent-input-error" : ""}`}
-                    />
-                    {emailError && <p className="agent-helper-error">{emailError}</p>}
-                  </div>
+              {/* Broker name + Contact number — optional, side by side */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900/80 mb-2">Broker name</label>
+                  <input
+                    value={handlerName}
+                    onChange={(e) => setHandlerName(e.target.value)}
+                    onBlur={blurName}
+                    placeholder="e.g. James Morris"
+                    className="agent-input"
+                  />
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900/80 mb-2">Contact number</label>
+                  <input
+                    type="tel"
+                    value={handlerPhone}
+                    onChange={(e) => setHandlerPhone(e.target.value)}
+                    onBlur={blurPhone}
+                    placeholder="e.g. 07700 900 000"
+                    className="agent-input"
+                  />
+                </div>
+              </div>
+
+              {/* Email — full width, optional */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-900/80 mb-2">Email address</label>
+                <input
+                  type="email"
+                  value={handlerEmail}
+                  onChange={(e) => { setHandlerEmail(e.target.value); setEmailError(null); }}
+                  onBlur={blurEmail}
+                  placeholder="e.g. james@broker.co.uk"
+                  className={`agent-input${emailError ? " agent-input-error" : ""}`}
+                />
+                {emailError && <p className="agent-helper-error">{emailError}</p>}
               </div>
 
               {error && (
@@ -211,7 +184,7 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
               disabled={!firmName.trim() || loading}
               className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
             >
-              {loading ? "Saving…" : "Save brokerage"}
+              {loading ? "Adding…" : "Add broker"}
             </button>
           </Modal.Footer>
         </form>

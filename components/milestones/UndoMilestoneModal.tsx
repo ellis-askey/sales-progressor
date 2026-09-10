@@ -58,7 +58,6 @@ export function UndoMilestoneModal({
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <Modal.Header style={SHEET_BAND_STYLE}>
           <SheetBandHeader
-            kicker="Milestone"
             title="Undo step"
             subtitle={hasCascade
               ? `${milestoneName}. What next?`
@@ -73,19 +72,16 @@ export function UndoMilestoneModal({
               <p style={{ fontSize: 14, color: "rgba(15,23,42,0.60)", margin: 0 }}>
                 This step is undone. Steps that follow stay as they are.
               </p>
-              <div style={{ borderRadius: 12, border: "0.5px solid rgba(15,23,42,0.08)", background: "rgba(15,23,42,0.02)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginBottom: 2, marginTop: 0 }}>Current</p>
-                  <p style={{ fontSize: 20, fontWeight: 600, color: "rgba(15,23,42,0.70)", margin: 0 }}>{undoData.currentPercent}%</p>
-                </div>
-                <svg style={{ width: 16, height: 16, color: "rgba(15,23,42,0.30)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginBottom: 2, marginTop: 0 }}>After</p>
-                  <p style={{ fontSize: 20, fontWeight: 600, margin: 0, color: undoData.targetOnlyPercent < undoData.currentPercent ? "#f97316" : "rgba(15,23,42,0.70)" }}>
+              <div style={{ borderRadius: 12, border: "0.5px solid rgba(15,23,42,0.08)", background: "rgba(15,23,42,0.02)", padding: "14px 16px" }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.45)", margin: "0 0 6px" }}>Sale progress</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24, fontWeight: 700, color: "rgba(15,23,42,0.80)", lineHeight: 1 }}>{undoData.currentPercent}%</span>
+                  <svg style={{ width: 16, height: 16, color: "rgba(15,23,42,0.30)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                  <span style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, color: undoData.targetOnlyPercent < undoData.currentPercent ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.80)" }}>
                     {undoData.targetOnlyPercent}%
-                  </p>
+                  </span>
                 </div>
               </div>
             </div>
@@ -195,21 +191,17 @@ export function UndoMilestoneModal({
           <button
             onClick={() => onConfirm(undoMode)}
             disabled={isPending}
+            className="agent-btn-color-primary"
             style={{
               flex: 1,
               padding: "10px 16px",
               borderRadius: 12,
-              background: "#f97316",
-              color: "white",
               fontWeight: 600,
               fontSize: 14,
               border: "none",
               cursor: isPending ? "not-allowed" : "pointer",
-              opacity: isPending ? 0.5 : 1,
-              transition: "background 150ms, opacity 150ms",
+              transition: "filter 150ms ease, box-shadow 150ms ease, transform 150ms ease",
             }}
-            onMouseEnter={(e) => { if (!isPending) e.currentTarget.style.background = "#ea580c"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#f97316"; }}
           >
             {isPending
               ? "Undoing…"

@@ -20,12 +20,14 @@ export function PartnerPopup({
   onClose,
   ariaLabel,
   title,
+  subtitle,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   ariaLabel: string;
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
 }) {
   // Keep the node mounted through the exit animation: render stays true until
@@ -118,7 +120,7 @@ export function PartnerPopup({
             ...SHEET_BAND_STYLE,
           }}
         >
-          <SheetBandHeader kicker="Partner" title={title} />
+          <SheetBandHeader title={title} subtitle={subtitle} />
           <button
             type="button"
             onClick={onClose}

@@ -502,6 +502,10 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
         recipientName: firmName ?? undefined,
         subject: finalSubject,
         content: `Automated confirmation request sent to ${firmName ?? "the solicitor"} for: ${sendSteps.map((s) => s.label).join(", ")}.`,
+        // Keep the exact email we sent so the automated-emails drawer can show a
+        // true-to-inbox preview. An edited send has no branded html (sendChainEmail
+        // wraps the plain text), so store null there and let the drawer fall back.
+        sentEmailHtml: finalHtml ?? null,
         contactIds: [],
         createdById: agentId,
         createdByRole: "director",

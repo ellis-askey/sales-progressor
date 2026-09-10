@@ -41,21 +41,21 @@ function IconChat() {
 }
 function IconBug() {
   return (
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
     </svg>
   );
 }
 function IconBulb() {
   return (
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.355a3.375 3.375 0 01-3 0m3-11.25a5.25 5.25 0 10-7.5 4.77V15h7.5v-1.477A5.25 5.25 0 0017.25 9z" />
     </svg>
   );
 }
 function IconQuestion() {
   return (
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
     </svg>
   );
@@ -136,7 +136,7 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
     return (
       <div>
         <p style={{ fontSize: 11, fontWeight: 600, color: "var(--fw-text-faint, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--fw-card-bg, #f9faf8)", border: "0.5px solid #e5e7eb", borderRadius: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--fw-card-bg, #f9faf8)", border: "0.5px solid var(--fw-border, #e5e7eb)", borderRadius: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value.preview} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -157,16 +157,17 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       <button type="button"
+        className="fw-dropzone"
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
         onClick={() => inputRef.current?.click()}
-        style={{ width: "100%", padding: "14px 12px", border: `1px dashed ${dragging ? "#f97316" : "#d1d5db"}`, borderRadius: 10, background: dragging ? "rgba(249,115,22,0.04)" : "var(--fw-card-bg, #fafaf9)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, transition: "all 150ms ease" }}
+        style={{ width: "100%", padding: "14px 12px", border: `1px dashed ${dragging ? "var(--fw-accent-deep, #FF6B4A)" : "var(--fw-border, #d1d5db)"}`, borderRadius: 10, background: dragging ? "rgba(var(--fw-accent-rgb, 255,107,74),0.05)" : "var(--fw-card-bg, #fafaf9)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, transition: "all 150ms ease" }}
       >
-        <span style={{ color: "var(--fw-text-faint, #9ca3af)" }}><IconCamera /></span>
+        <span className="fw-cam" style={{ color: "var(--fw-text-faint, #9ca3af)", transition: "color 150ms ease" }}><IconCamera /></span>
         <span style={{ fontSize: 12, color: "var(--fw-text-muted, #6b7280)" }}>Click or drag to upload screenshot</span>
       </button>
-      {err && <p style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>{err}</p>}
+      {err && <p style={{ fontSize: 11, color: "var(--agent-danger, #ef4444)", marginTop: 6 }}>{err}</p>}
     </div>
   );
 }
@@ -180,13 +181,13 @@ function Field({ label, value, onChange, rows = 3, placeholder, required }: {
   return (
     <div>
       <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fw-text-muted, #6b7280)", marginBottom: 6 }}>
-        {label}{required && <span style={{ color: "#f97316", marginLeft: 2 }}>*</span>}
+        {label}{required && <span style={{ color: "var(--fw-accent-deep, #FF6B4A)", marginLeft: 2 }}>*</span>}
       </label>
       <textarea
         value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} required={required}
-        style={{ width: "100%", padding: "10px 12px", border: "0.5px solid #e5e7eb", borderRadius: 10, background: "var(--fw-input-bg, rgba(255,255,255,0.7))", fontSize: 13, color: "var(--fw-text, #111827)", resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 150ms" }}
-        onFocus={(e) => { e.target.style.borderColor = "#f97316"; }}
-        onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; }}
+        style={{ width: "100%", padding: "10px 12px", border: "0.5px solid var(--fw-border, #e5e7eb)", borderRadius: 10, background: "var(--fw-input-bg, rgba(255,255,255,0.7))", fontSize: 13, color: "var(--fw-text, #111827)", resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 150ms" }}
+        onFocus={(e) => { e.target.style.borderColor = "var(--fw-accent-deep, #FF6B4A)"; }}
+        onBlur={(e) => { e.target.style.borderColor = "var(--fw-border, #e5e7eb)"; }}
       />
     </div>
   );
@@ -195,20 +196,14 @@ function Field({ label, value, onChange, rows = 3, placeholder, required }: {
 // ── Category card ─────────────────────────────────────────────────────────────
 
 function CategoryCard({ icon, title, description, onClick }: { icon: React.ReactNode; title: string; description: string; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
   return (
-    <button type="button" onClick={onClick}
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: hovered ? "var(--fw-card-hover, #fff7ed)" : "var(--fw-card-bg, #fafaf9)", border: `0.5px solid ${hovered ? "#fed7aa" : "#e5e7eb"}`, borderRadius: 10, cursor: "pointer", transition: "all 150ms ease", textAlign: "left" }}
-    >
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(249,115,22,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#f97316" }}>
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--fw-text, #1f2937)" }}>{title}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--fw-text-faint, #9ca3af)" }}>{description}</p>
-      </div>
-      <span style={{ color: "#d1d5db", flexShrink: 0 }}><IconChevron /></span>
+    <button type="button" onClick={onClick} className="fw-cat">
+      <span className="fw-cat-icon">{icon}</span>
+      <span className="fw-cat-body">
+        <span className="fw-cat-title">{title}</span>
+        <span className="fw-cat-desc">{description}</span>
+      </span>
+      <span className="fw-cat-chev"><IconChevron /></span>
     </button>
   );
 }
@@ -218,7 +213,7 @@ function CategoryCard({ icon, title, description, onClick }: { icon: React.React
 function SubmitBtn({ label, disabled, submitting }: { label: string; disabled: boolean; submitting: boolean }) {
   return (
     <button type="submit" disabled={disabled}
-      style={{ width: "100%", padding: "11px 16px", background: disabled ? "#fed7aa" : "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", transition: "background 150ms ease" }}
+      style={{ width: "100%", padding: "11px 16px", background: disabled ? "rgba(var(--fw-accent-rgb, 255,107,74),0.45)" : "var(--fw-accent-deep, #FF6B4A)", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", transition: "background 150ms ease" }}
     >
       {submitting ? "Sending…" : label}
     </button>
@@ -228,7 +223,7 @@ function SubmitBtn({ label, disabled, submitting }: { label: string; disabled: b
 // ── Main widget ───────────────────────────────────────────────────────────────
 
 export function FeedbackWidget({ portalToken, checklistAware, userId }: { portalToken?: string; checklistAware?: boolean; userId?: string }) {
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [isCompact, setIsCompact]   = useState(false);
   const [isOpen, setIsOpen]         = useState(false);
   const [stage, setStage]           = useState<Stage>("categories");
@@ -398,7 +393,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           </button>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <SheetBandHeader kicker="Feedback" title={title} subtitle={subtitle} />
+          <SheetBandHeader title={title} subtitle={subtitle} />
         </div>
         <button ref={closeRef} onClick={close} aria-label="Close feedback panel" style={whiteBtn}
           onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
@@ -419,7 +414,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           </div>
           <p style={{ fontSize: 18, fontWeight: 600, color: "var(--fw-text, #111827)", margin: "0 0 8px" }}>Thanks</p>
           <p style={{ fontSize: 13, color: "var(--fw-text-muted, #6b7280)", margin: "0 0 24px" }}>We'll get back to you within 1 business day.</p>
-          <button onClick={close} style={{ padding: "9px 28px", background: "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Done</button>
+          <button onClick={close} style={{ padding: "9px 28px", background: "var(--fw-accent-deep, #FF6B4A)", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Done</button>
         </div>
       );
     }
@@ -433,8 +428,8 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           <p style={{ fontSize: 16, fontWeight: 600, color: "var(--fw-text, #111827)", margin: "0 0 8px" }}>Couldn't send your message</p>
           <p style={{ fontSize: 13, color: "var(--fw-text-muted, #6b7280)", margin: "0 0 24px" }}>Check your connection and try again.</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            <button onClick={() => setStage("form")} style={{ padding: "9px 20px", background: "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Try again</button>
-            <button onClick={close} style={{ padding: "9px 20px", background: "none", color: "var(--fw-text-muted, #6b7280)", border: "0.5px solid #e5e7eb", borderRadius: 10, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            <button onClick={() => setStage("form")} style={{ padding: "9px 20px", background: "var(--fw-accent-deep, #FF6B4A)", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Try again</button>
+            <button onClick={close} style={{ padding: "9px 20px", background: "none", color: "var(--fw-text-muted, #6b7280)", border: "0.5px solid var(--fw-border, #e5e7eb)", borderRadius: 10, fontSize: 13, cursor: "pointer" }}>Cancel</button>
           </div>
         </div>
       );
@@ -512,6 +507,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         className="feedback-panel-wrap"
         data-surface={portalToken ? "portal" : undefined}
         data-theme={theme}
+        data-night={isNight ? "" : undefined}
         role="dialog" aria-modal="true" aria-label="Support and Feedback"
         style={{
           ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
@@ -530,7 +526,11 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           pointerEvents: isOpen ? "auto" : "none",
         }}
       >
-        {panelContent()}
+        {/* Keyed so switching stage (categories ↔ form ↔ success) cross-fades
+            + slides in, rather than swapping instantly. */}
+        <div key={stage} className="fw-stage" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          {panelContent()}
+        </div>
       </div>
 
       {/* Trigger button — fades out for the onboarding checklist and while a
@@ -539,6 +539,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         ref={triggerWrapRef}
         className="feedback-trigger-wrap"
         data-surface={portalToken ? "portal" : undefined}
+        data-night={isNight ? "" : undefined}
         aria-hidden={triggerHidden}
         style={{
           zIndex: 40,
@@ -567,7 +568,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             boxShadow: "0 8px 24px rgba(45,24,16,0.10), 0 1px 0 rgba(255,255,255,0.80) inset",
             cursor: "pointer",
             transition: "padding 250ms ease, gap 250ms ease, box-shadow 200ms ease",
-            color: "#f97316",
+            color: "var(--fw-accent-deep, #FF6B4A)",
             overflow: "hidden",
             whiteSpace: "nowrap",
           }}
@@ -588,6 +589,55 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           </span>
         </button>
       </div>
+
+      <style>{`
+        .feedback-panel-wrap, .feedback-trigger-wrap {
+          --fw-panel-bg: #ffffff;
+          --fw-border: rgba(15,23,42,0.10);
+          --fw-card-bg: #fafaf9;
+          --fw-text: #1f2937;
+          --fw-text-muted: #6b7280;
+          --fw-text-faint: #9ca3af;
+          --fw-input-bg: rgba(255,255,255,0.7);
+          --fw-trigger-bg: rgba(255,255,255,0.82);
+          --fw-trigger-border: rgba(255,255,255,0.70);
+          --fw-accent: var(--agent-coral, #FF8A65);
+          --fw-accent-deep: var(--agent-coral-deep, #FF6B4A);
+          --fw-accent-rgb: var(--agent-coral-rgb, 255,107,74);
+        }
+        .feedback-panel-wrap[data-night], .feedback-trigger-wrap[data-night] {
+          --fw-panel-bg: #1a2130;
+          --fw-border: rgba(255,255,255,0.10);
+          --fw-card-bg: rgba(255,255,255,0.045);
+          --fw-text: #EAF0F7;
+          --fw-text-muted: #9fb0c3;
+          --fw-text-faint: #7c8aa0;
+          --fw-input-bg: rgba(255,255,255,0.05);
+          --fw-trigger-bg: rgba(26,33,48,0.86);
+          --fw-trigger-border: rgba(255,255,255,0.14);
+        }
+        .fw-cat {
+          width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+          background: var(--fw-card-bg); border: 0.5px solid var(--fw-border); border-radius: 12px;
+          cursor: pointer; text-align: left; transition: border-color 150ms ease, transform 90ms ease;
+        }
+        .fw-cat:hover { border-color: var(--fw-accent-deep); }
+        .fw-cat:active { transform: scale(0.99); }
+        .fw-cat-icon { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--fw-text-muted); transition: color 150ms ease; }
+        .fw-cat:hover .fw-cat-icon { color: var(--fw-accent-deep); }
+        .fw-cat-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .fw-cat-title { font-size: 14px; font-weight: 600; color: var(--fw-text); }
+        .fw-cat-desc { font-size: 12px; color: var(--fw-text-faint); margin-top: 2px; }
+        .fw-cat-chev { flex-shrink: 0; display: inline-flex; color: var(--fw-text-faint); transition: transform 150ms ease, color 150ms ease; }
+        .fw-cat:hover .fw-cat-chev { transform: translateX(2px); color: var(--fw-accent-deep); }
+        .fw-dropzone:hover .fw-cam { color: var(--fw-accent-deep); }
+        .fw-stage { animation: fw-stage-in 240ms cubic-bezier(0.22,1,0.36,1) both; }
+        @keyframes fw-stage-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) {
+          .fw-stage { animation: none; }
+          .fw-cat, .fw-cat-icon, .fw-cat-chev, .fw-cam { transition: none; }
+        }
+      `}</style>
     </>,
     document.body,
   );

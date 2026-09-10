@@ -18,10 +18,6 @@ import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { calculateSdlt } from "@/lib/sdlt";
 
-// One info-blue for every stamp-duty figure, matching the buyer's portal card
-// (PortalCostsCard) so the two views read as the same tool. Semantic, not the
-// agent accent — the agent coral stays the drawer's top accent line.
-const INFO = "#3B82F6";
 const FTB_CAP = 500_000;
 
 function fmtGBP(n: number) {
@@ -79,7 +75,6 @@ export function StampDutyQuickAction({ priceGBP }: { priceGBP: number }) {
       <Drawer open={open} onClose={() => setOpen(false)} ariaLabel="Stamp duty calculator" size="sm" closeTone="onDark">
         <Drawer.Header style={SHEET_BAND_STYLE}>
           <SheetBandHeader
-            kicker="Stamp duty"
             title="Stamp duty calculator"
             subtitle="What the buyer pays. Same figures they see in their portal."
           />
@@ -154,9 +149,9 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
         <label htmlFor="sdlt-price" style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
           Sale price
         </label>
-        <div style={{
+        <div className="sdlt-price-field" style={{
           display: "flex", alignItems: "center", gap: 4,
-          border: "1px solid var(--agent-border-default)", borderRadius: 10,
+          borderRadius: 10,
           padding: "0 12px", background: isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.6)",
         }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-muted)" }}>£</span>
@@ -169,7 +164,7 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
             aria-label="Sale price"
             style={{
               flex: 1, border: "none", background: "transparent", padding: "10px 4px",
-              textAlign: "right", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)",
+              textAlign: "left", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)",
               fontVariantNumeric: "tabular-nums", outline: "none",
               colorScheme: isNight ? "dark" : "light",
             }}
@@ -194,65 +189,82 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
         />
       </div>
 
-      {/* Result. */}
+      {/* Result — a clean surface card with an accent border (not an orange
+          wash). The breakdown folds in beneath a divider with an animated
+          height reveal + rotating chevron. */}
       <div style={{
-        borderRadius: 14, padding: "15px 16px",
-        background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.16)",
+        borderRadius: 14, overflow: "hidden",
+        background: "var(--agent-surface-elevated)",
+        border: "1px solid rgba(var(--agent-coral-rgb), 0.40)",
+        boxShadow: "0 1px 3px rgba(15,23,42,0.06), 0 6px 18px rgba(15,23,42,0.05)",
       }}>
-        <p style={{ margin: "0 0 4px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INFO }}>
-          Estimated stamp duty
-        </p>
-        <p style={{ margin: 0, fontSize: 30, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
-          {fmtGBP(result.total)}
-        </p>
-        <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-          Effective rate {fmtPct(result.effectiveRate)} of the purchase price
-        </p>
-      </div>
-
-      {/* How it's worked out. */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowBands((v) => !v)}
-          aria-expanded={showBands}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            background: "none", border: "none", cursor: "pointer", padding: "2px 0",
-            fontSize: 12.5, fontWeight: 600, color: INFO, fontFamily: "inherit",
-          }}
-        >
-          {showBands ? "Hide how this is worked out" : "See how this is worked out"}
-          <CaretDown size={13} weight="bold" style={{ transform: showBands ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }} />
-        </button>
-        {showBands && (
-          <div style={{ marginTop: 8, border: "1px solid var(--agent-border-subtle)", borderRadius: 10, overflow: "hidden" }}>
-            {result.bands.length === 0 ? (
-              <p style={{ margin: 0, padding: "10px 13px", fontSize: 12.5, color: "var(--agent-text-muted)" }}>
-                No stamp duty on this price.
-              </p>
-            ) : (
-              result.bands.map((b, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "9px 13px", fontSize: 12.5, color: "var(--agent-text-secondary)",
-                    borderBottom: i < result.bands.length - 1 ? "1px solid var(--agent-border-subtle)" : "none",
-                  }}
-                >
-                  <span>{fmtGBP(b.from)} to {fmtGBP(b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
-                  <span style={{ fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmtGBP(b.tax)}</span>
-                </div>
-              ))
-            )}
+        <div style={{ padding: "15px 16px" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)" }}>
+            Estimated stamp duty
+          </p>
+          <p style={{ margin: 0, fontSize: 30, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
+            {fmtGBP(result.total)}
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
+            Effective rate {fmtPct(result.effectiveRate)} of the purchase price
+          </p>
+        </div>
+        <div style={{ borderTop: "1px solid var(--agent-border-subtle)" }}>
+          <button
+            type="button"
+            onClick={() => setShowBands((v) => !v)}
+            aria-expanded={showBands}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, width: "100%",
+              background: "none", border: "none", cursor: "pointer", padding: "12px 16px",
+              fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", fontFamily: "inherit", textAlign: "left",
+            }}
+          >
+            <CaretDown size={14} weight="bold" style={{ flexShrink: 0, transform: showBands ? "rotate(180deg)" : "none", transition: "transform 220ms cubic-bezier(0.25,0,0,1)" }} />
+            {showBands ? "Hide how this is worked out" : "See how this is worked out"}
+          </button>
+          {/* grid-rows 0fr->1fr morphs the height both ways without measuring. */}
+          <div style={{ display: "grid", gridTemplateRows: showBands ? "1fr" : "0fr", transition: "grid-template-rows 260ms cubic-bezier(0.25,0,0,1)", overflow: "hidden" }}>
+            <div style={{ minHeight: 0 }}>
+              <div style={{ padding: "0 16px 14px" }}>
+                {result.bands.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)" }}>
+                    No stamp duty on this price.
+                  </p>
+                ) : (
+                  <div style={{ border: "1px solid var(--agent-border-subtle)", borderRadius: 10, overflow: "hidden" }}>
+                    {result.bands.map((b, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          padding: "9px 13px", fontSize: 12.5, color: "var(--agent-text-secondary)",
+                          borderBottom: i < result.bands.length - 1 ? "1px solid var(--agent-border-subtle)" : "none",
+                        }}
+                      >
+                        <span>{fmtGBP(b.from)} to {fmtGBP(b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
+                        <span style={{ fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmtGBP(b.tax)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
         Estimate using Stamp Duty Land Tax rates for England and Northern Ireland. Rates differ in Scotland and Wales. The buyer&apos;s solicitor confirms the exact figure for their purchase.
       </p>
+
+      {/* Price field border states — 0.5px resting, primary on hover, deeper
+          primary once focused (matches the app's input treatment). */}
+      <style>{`
+        .sdlt-price-field { border: 0.5px solid var(--agent-border-default); transition: border-color 140ms ease; }
+        .sdlt-price-field:hover { border-color: var(--agent-coral); }
+        .sdlt-price-field:focus-within { border-color: var(--agent-coral-deep); }
+      `}</style>
     </div>
   );
 }
@@ -276,21 +288,24 @@ function ToggleRow({
       style={{
         display: "flex", alignItems: "flex-start", gap: 11, textAlign: "left", width: "100%",
         padding: "11px 13px", borderRadius: 11, cursor: disabled ? "not-allowed" : "pointer",
-        border: `${on ? 1.5 : 1}px solid ${on ? INFO : "var(--agent-border-default)"}`,
-        background: on ? "rgba(59,130,246,0.06)" : isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.5)",
+        border: `${on ? 1.5 : 1}px solid ${on ? "var(--agent-coral-deep)" : "var(--agent-border-default)"}`,
+        background: on ? "rgba(var(--agent-coral-rgb), 0.06)" : isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.5)",
         opacity: disabled ? 0.5 : 1, fontFamily: "inherit",
         transition: "border-color 140ms ease, background 140ms ease",
       }}
     >
+      {/* Same checkbox as the sign-up T&C tick: rounded square, accent fill +
+          white tick when on, hairline border when off. */}
       <span style={{
-        width: 19, height: 19, borderRadius: 6, flexShrink: 0, marginTop: 1,
+        width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 1,
         display: "flex", alignItems: "center", justifyContent: "center",
-        background: on ? INFO : "transparent",
-        border: on ? "none" : "1.5px solid var(--agent-border-strong)",
+        background: on ? "var(--agent-coral-deep)" : "transparent",
+        border: `1.5px solid ${on ? "var(--agent-coral-deep)" : "var(--agent-border-strong)"}`,
+        transition: "all 0.15s ease",
       }}>
         {on && (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
       </span>

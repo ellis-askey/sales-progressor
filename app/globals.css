@@ -2057,9 +2057,16 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
 /* Tailwind class overrides for portalled modals carrying data-night directly.
    The :root[data-theme="dark"] .agent-shell-root selectors above don't reach portal content
    in document.body — these selectors handle AddFirmModal and similar. */
+.nv2-night[data-night] .text-slate-900      { color: rgba(239,246,255,0.92); }
 .nv2-night[data-night] .text-slate-900\/90  { color: rgba(239,246,255,0.90); }
+.nv2-night[data-night] .text-slate-900\/80  { color: rgba(239,246,255,0.80); }
+.nv2-night[data-night] .text-slate-900\/70  { color: rgba(203,213,225,0.85); }
 .nv2-night[data-night] .text-slate-900\/65  { color: rgba(148,163,184,0.90); }
+.nv2-night[data-night] .text-slate-900\/60  { color: rgba(148,163,184,0.92); }
 .nv2-night[data-night] .text-slate-900\/50  { color: rgba(148,163,184,0.85); }
+.nv2-night[data-night] .text-slate-900\/40  { color: rgba(148,163,184,0.62); }
+.nv2-night[data-night] .text-slate-900\/35  { color: rgba(148,163,184,0.55); }
+.nv2-night[data-night] .placeholder\:text-slate-900\/30::placeholder { color: rgba(148,163,184,0.45); }
 .nv2-night[data-night] .hover\:text-slate-900\/80:hover { color: rgba(239,246,255,0.90); }
 .nv2-night[data-night] .border-white\/20    { border-color: rgba(255,255,255,0.07); }
 .nv2-night[data-night] .hover\:bg-white\/20:hover { background-color: rgba(30,41,59,0.35); }
@@ -2126,6 +2133,13 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
   background: #ffffff;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
   animation: partner-pop-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Dark mode: the panel carries data-night (set by PartnerPopup), so flip the
+   hardcoded white surface to a dark one — otherwise the theme-aware light text
+   inside lands on a white panel and vanishes. */
+.partner-popup-panel[data-night] {
+  background: #161d2e;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 .partner-popup-panel[data-closing="true"] {
   animation: partner-pop-out 190ms ease forwards;
@@ -2477,6 +2491,23 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 :root[data-theme="dark"] [data-night] .agent-textarea::placeholder,
 :root[data-theme="dark"] [data-night] .glass-input::placeholder {
   color: #475569;
+}
+/* Native form-control chrome (select option lists, the date calendar-picker
+   icon, spinners, scrollbars) is browser-drawn and ignores our tokens. In a
+   dark portalled overlay, tell the UA to render those parts dark too — this
+   fixes light select popups + the invisible dark calendar icon. Any explicit
+   background/colour we set on the control still wins; only UA chrome adapts. */
+:root[data-theme="dark"] [data-night] input,
+:root[data-theme="dark"] [data-night] select,
+:root[data-theme="dark"] [data-night] textarea {
+  color-scheme: dark;
+}
+/* The native <select> popup inherits the control's (often translucent) inline
+   background, which reads as a faint low-contrast panel in dark mode. Options
+   carry no inline style, so style them directly with a solid dark fill. */
+:root[data-theme="dark"] [data-night] option {
+  background-color: #1e293b;
+  color: #eff6ff;
 }
 /* Nested/elevated surface fills used by inset field wells + card-on-card. */
 :root[data-theme="dark"] [data-night] .glass-card {

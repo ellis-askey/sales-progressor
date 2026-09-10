@@ -93,6 +93,118 @@ export async function getFileEmailTimeline(transactionId: string): Promise<FileE
   return items.slice(0, 6);
 }
 
+// ── Solicitor (OutboundMessage) preview ─────────────────────────────────────
+//
+// Message rows are solicitor chases sent directly (never queued), so there's no
+// OutboundEmailQueue payload. We do NOT store the sent email for these — only
+// the subject, and a one-line internal summary in OutboundMessage.content of the
+// form: "Automated confirmation request sent to <firm> for: <step>, <step>."
+// (see lib/solicitor-confirm/chase.ts). So we can honestly show the subject, the
+// recipient, and WHICH steps were requested (parsed from that summary) — but not
+// the exact email body, which isn't kept. The preview says so plainly rather
+// than dressing the summary up as the email. Not editable (already sent).
+
+function escapeMessageHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Pull the step labels out of the internal summary line. Stable format, our own
+// string. Returns [] if the shape ever changes (caller falls back gracefully).
+function parseSolicitorSummarySteps(summary: string): string[] {
+  const m = summary.match(/\bfor:\s*(.+?)\.?\s*$/i);
+  if (!m) return [];
+  return m[1].split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+// Honest preview: names the steps we asked the solicitor to confirm, and is
+// explicit that the exact sent email isn't archived. Rendered white + full
+// width so it sits in the same card the client preview uses.
+function solicitorRequestHtml(firm: string, steps: string[]): string {
+  const items = steps.length
+    ? `<ul style="margin:0 0 18px;padding-left:22px;">${steps.map((s) => `<li style="margin:0 0 8px;">${escapeMessageHtml(s)}</li>`).join("")}</ul>`
+    : `<p style="margin:0 0 18px;color:#6b7280;">The requested steps weren't recorded on this row.</p>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;">
+  <div style="padding:22px 24px;font-size:15px;line-height:1.65;">
+      <p style="margin:0 0 14px;">We emailed <strong>${escapeMessageHtml(firm)}</strong> asking them to confirm where things stand with:</p>
+      ${items}
+      <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.55;">The exact email we sent isn't stored on our side. Open the file to see it on the timeline.</p>
+  </div>
+</body></html>`;
+}
+
+export async function getMessageForPreview(messageId: string): Promise<
+  | { ok: true; data: {
+      id: string; emailType: string; subject: string; text: string; html: string;
+      recipientName: string; recipientEmail: string; recipientRole: string;
+      scheduledFor: Date; sentAt: Date | null; errorAt: Date | null;
+      editedAt: Date | null; editedByName: string | null;
+      canEdit: boolean; transactionId: string;
+      contextLabel: string | null; chaseNumber: number | null;
+      canOpenInNewWindow: boolean;
+    } }
+  | { ok: false; error: string }
+> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const msg = await prisma.outboundMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      id: true, transactionId: true, subject: true, content: true, sentEmailHtml: true,
+      recipientName: true, recipientEmail: true,
+      scheduledFor: true, sentAt: true, failedAt: true, createdAt: true,
+    },
+  });
+  if (!msg || !msg.transactionId) return { ok: false, error: "Message not found." };
+
+  // Multi-tenant guard: caller must be able to see the file this message is on.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, msg.transactionId),
+    select: { id: true },
+  });
+  if (!tx) return { ok: false, error: "Not found." };
+
+  const firm = msg.recipientName ?? "the solicitor";
+  const steps = parseSolicitorSummarySteps(msg.content ?? "");
+  // Rows sent from 2026-09-10 carry the real email HTML → show it exactly as the
+  // solicitor received it. Older rows have none → fall back to a summary that
+  // names the steps and says the body isn't stored.
+  const hasRealEmail = !!msg.sentEmailHtml;
+  return {
+    ok: true,
+    data: {
+      id: msg.id,
+      emailType: "SOLICITOR_CHASE",
+      subject: msg.subject ?? "(no subject)",
+      text: msg.content ?? "",
+      html: hasRealEmail ? msg.sentEmailHtml! : solicitorRequestHtml(firm, steps),
+      recipientName: msg.recipientName ?? "(solicitor)",
+      recipientEmail: msg.recipientEmail ?? "",
+      recipientRole: "solicitor",
+      scheduledFor: msg.scheduledFor ?? msg.createdAt,
+      sentAt: msg.sentAt,
+      errorAt: msg.failedAt,
+      editedAt: null,
+      editedByName: null,
+      canEdit: false,
+      transactionId: msg.transactionId,
+      // What it is: the step(s) chased, so the drawer names them instead of the
+      // generic "Solicitor chase".
+      contextLabel: steps.length ? steps.join(", ") : null,
+      chaseNumber: null,
+      // Only offer "open in a new window" when it's the real email, not the
+      // summary fallback.
+      canOpenInNewWindow: hasRealEmail,
+    },
+  };
+}
+
 // ── Pending-email controls (race-safe) ──────────────────────────────────────
 
 // Cancel a still-pending email. Atomic compare-and-swap on (sentAt null,

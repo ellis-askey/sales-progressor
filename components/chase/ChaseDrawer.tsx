@@ -237,7 +237,7 @@ export function ChaseDrawer({
   const ccSolicitorContact =
     contacts.find((c) => c.roleType === "solicitor" && c.email && c.id !== selectedRecipient?.id) ?? null;
 
-  const { theme } = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
 
   const [channel, setChannel] = useState<Channel>("email");
   const [tone, setTone] = useState<Tone>(autoTone(nextChaseNumber));
@@ -735,7 +735,7 @@ export function ChaseDrawer({
   const hasAttachments = attachments.length > 0;
 
   return createPortal(
-    <div className="fixed inset-0 flex justify-end" data-theme={theme} style={{ zIndex: 1000 }}>
+    <div className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} data-theme={theme} data-night={isNight ? "" : undefined} style={{ zIndex: 1000 }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0"
@@ -872,6 +872,7 @@ export function ChaseDrawer({
               {(toMenuOpen || toMenuClosing) && toMenuPos && typeof document !== "undefined" && createPortal(
                 <div
                   data-theme={theme}
+                  data-night={isNight ? "" : undefined}
                   className={toMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
                   onAnimationEnd={() => { if (toMenuClosing) setToMenuClosing(false); }}
                   style={{ position: "fixed", top: toMenuPos.top, left: toMenuPos.left, width: toMenuPos.width, zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)", borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden" }}
@@ -1098,6 +1099,7 @@ export function ChaseDrawer({
               {(toneMenuOpen || toneMenuClosing) && toneMenuPos && typeof document !== "undefined" && createPortal(
                 <div
                   data-theme={theme}
+                  data-night={isNight ? "" : undefined}
                   className={toneMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
                   onAnimationEnd={() => { if (toneMenuClosing) setToneMenuClosing(false); }}
                   style={{
@@ -1267,7 +1269,9 @@ export function ChaseDrawer({
                 "Open in my email" path uses the agent's own client signature. */}
             {channel === "email" && signature && !isHtmlEmpty(message) && (
               <div>
-                <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: signature.html }} />
+                {/* Rendered on white regardless of drawer theme — it's a preview
+                    of the email, which is always light. */}
+                <div style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, padding: "4px 16px 14px", overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: signature.html }} />
                 <p style={{ margin: "12px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
                   Your signature is added when you send. Open in my email uses your own email app&rsquo;s signature instead.
                 </p>

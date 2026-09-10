@@ -192,26 +192,16 @@ export function BrokerForm({
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: 13,
-    borderRadius: 9,
-    border: "1px solid rgba(99,102,241,0.20)",
-    background: "var(--agent-surface-glass)",
-    color: "var(--agent-text-primary)",
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
   const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 600,
-    color: "rgba(99,102,241,0.70)",
-    marginBottom: 5,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
+    color: "var(--agent-text-primary)",
+    marginBottom: 6,
+  };
+  const sectionLabelStyle: React.CSSProperties = {
+    margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
+    textTransform: "uppercase", color: "var(--agent-text-muted)",
   };
 
   return (
@@ -220,14 +210,14 @@ export function BrokerForm({
       {/* Firm name + website */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div>
-          <label style={labelStyle}>Firm name <span style={{ color: "#f87171" }}>*</span></label>
+          <label style={labelStyle}>Firm name <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
           <input
             type="text"
             value={firmName}
             onChange={(e) => setFirmName(e.target.value)}
             onBlur={(e) => { if (e.target.value.trim()) setFirmName(titleCaseKeepAcronyms(e.target.value)); }}
             placeholder="e.g. Mortgage Masters Ltd"
-            style={inputStyle}
+            className="agent-input"
             autoFocus={!isEdit}
           />
         </div>
@@ -238,28 +228,28 @@ export function BrokerForm({
             value={firmWebsite}
             onChange={(e) => setFirmWebsite(e.target.value)}
             placeholder="e.g. https://mortgagemasters.co.uk"
-            style={inputStyle}
+            className="agent-input"
           />
         </div>
       </div>
 
       {/* Contact details */}
-      <div style={{ borderTop: "0.5px solid rgba(99,102,241,0.12)", paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(99,102,241,0.55)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Contact details</p>
+      <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={sectionLabelStyle}>Contact details</p>
         <div>
-          <label style={labelStyle}>Contact name <span style={{ color: "#f87171" }}>*</span></label>
+          <label style={labelStyle}>Contact name <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
           <input
             type="text"
             value={contactName}
             onChange={(e) => setContactName(e.target.value)}
             onBlur={(e) => { if (e.target.value.trim()) setContactName(titleCaseKeepAcronyms(e.target.value)); }}
             placeholder="e.g. James Morris"
-            style={inputStyle}
+            className="agent-input"
           />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={labelStyle}>Phone <span style={{ color: "#f87171" }}>*</span></label>
+            <label style={labelStyle}>Phone <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
             <input
               type="tel"
               value={contactPhone}
@@ -267,11 +257,11 @@ export function BrokerForm({
               onBlur={(e) => { if (e.target.value.trim()) setContactPhone(formatUKPhone(e.target.value)); }}
               maxLength={20}
               placeholder="07700 900 000"
-              style={inputStyle}
+              className="agent-input"
             />
           </div>
           <div>
-            <label style={labelStyle}>Email <span style={{ color: "#f87171" }}>*</span></label>
+            <label style={labelStyle}>Email <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
             <input
               type="email"
               value={contactEmail}
@@ -279,14 +269,14 @@ export function BrokerForm({
               onBlur={(e) => { if (e.target.value.trim()) setContactEmail(e.target.value.trim().toLowerCase()); }}
               maxLength={100}
               placeholder="james@firm.co.uk"
-              style={inputStyle}
+              className="agent-input"
             />
           </div>
         </div>
       </div>
 
       {/* Referral fee */}
-      <div style={{ borderTop: "0.5px solid rgba(99,102,241,0.12)", paddingTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
         <label style={{ ...labelStyle, margin: 0, flexShrink: 0 }}>Default referral fee</label>
         <NumericFormat
           value={feePence != null ? feePence / 100 : ""}
@@ -297,32 +287,33 @@ export function BrokerForm({
           allowNegative={false}
           inputMode="decimal"
           placeholder="£250"
-          style={{ ...inputStyle, width: 120 }}
+          className="agent-input"
+          style={{ width: 120 }}
         />
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>(optional)</span>
       </div>
 
-      {error && <p style={{ margin: 0, fontSize: 12, color: "#f87171" }}>{error}</p>}
+      {error && <p style={{ margin: 0, fontSize: 12, color: "var(--agent-danger, #dc2626)" }}>{error}</p>}
 
-      {/* Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="agent-btn-primary"
-          style={{ padding: "8px 18px", fontSize: 13, borderRadius: 9, border: "none" }}
-        >
-          {saving ? "Saving…" : isEdit ? "Save changes" : "Set as broker partner"}
-        </button>
-
-        {isEdit && onCancel && (
+      {/* Actions — Cancel + primary, matching the standard modal footer. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 2 }}>
+        {onCancel && (
           <button
+            type="button"
             onClick={onCancel}
-            style={{ fontSize: 12, color: "var(--agent-text-muted)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            style={{ padding: "10px 16px", fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)", background: "transparent", border: "none", borderRadius: 12, cursor: "pointer" }}
           >
             Cancel
           </button>
         )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="agent-btn-color-primary"
+          style={{ flex: 1, padding: "10px 16px", fontSize: 13, fontWeight: 600, borderRadius: 12, border: "none", cursor: saving ? "default" : "pointer" }}
+        >
+          {saving ? "Saving…" : isEdit ? "Save changes" : "Add broker"}
+        </button>
       </div>
     </div>
   );

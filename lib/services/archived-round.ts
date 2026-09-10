@@ -345,6 +345,35 @@ export async function getArchivedRoundData(
     }));
   }
 
+  // Property photos for the chain section. The snapshot froze positions +
+  // addresses but not photos, so we resolve each claimed link's CURRENT photo
+  // live from its transaction (same source the live chain drawer signs from) and
+  // attach it as photoUrl. Unclaimed stubs / files with no photo stay null, so
+  // the drawer shows the chain's own fallback image. (These are current photos,
+  // not frozen — a property doesn't change appearance, so this reads correctly.)
+  let chainSnapshotOut: unknown = round.chainSnapshot;
+  const snap = round.chainSnapshot as { neighbours?: Array<{ claimedTransactionId?: string | null }> } | null;
+  if (snap?.neighbours?.length) {
+    const claimedIds = snap.neighbours.map((n) => n.claimedTransactionId).filter((v): v is string => Boolean(v));
+    if (claimedIds.length > 0) {
+      const txs = await prisma.propertyTransaction.findMany({
+        where: { id: { in: claimedIds } },
+        select: { id: true, photoStoragePath: true },
+      });
+      const pathByTx = new Map(txs.map((t) => [t.id, t.photoStoragePath]));
+      const paths = txs.map((t) => t.photoStoragePath).filter((v): v is string => Boolean(v));
+      const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+      const photoMap = paths.length > 0 ? await getSignedUrlMap(paths) : new Map<string, string>();
+      chainSnapshotOut = {
+        ...snap,
+        neighbours: snap.neighbours.map((n) => {
+          const path = n.claimedTransactionId ? pathByTx.get(n.claimedTransactionId) ?? null : null;
+          return { ...n, photoUrl: path ? photoMap.get(path) ?? null : null };
+        }),
+      };
+    }
+  }
+
   return {
     round: {
       id: round.id,
@@ -359,7 +388,7 @@ export async function getArchivedRoundData(
       brokerFirm,
       brokerContact,
       vendorMilestoneSnapshot: snapshotEnriched,
-      chainSnapshot: round.chainSnapshot,
+      chainSnapshot: chainSnapshotOut,
       chainNotifications,
     },
     buyerContacts,

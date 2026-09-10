@@ -421,6 +421,13 @@ model PropertyTransaction {
   // introCallCompletedById is the acting user's id (no relation; resolve name at read).
   introCallCompletedAt        DateTime?
   introCallCompletedById      String?
+  // Per-side intro completion (2026-09-10): buyer and seller intros are separate
+  // conversations, completed independently. The legacy introCallCompletedAt is
+  // kept as the "either side done" aggregate (stamped on the first completion).
+  introCallVendorCompletedAt      DateTime?
+  introCallVendorCompletedById    String?
+  introCallPurchaserCompletedAt   DateTime?
+  introCallPurchaserCompletedById String?
   referredFirmId              String?
   referralFee                 Int?
   referralFeeReceived         Boolean           @default(false)
@@ -879,6 +886,11 @@ model Contact {
   // Distinct from unsubscribedAt: that is the CLIENT opting out of
   // everything; this is the AGENT pausing chasing for one person.
   emailsPausedAt        DateTime?
+  // Agent-set pause on STEP-CONFIRMATION emails for this one person (2026-09-10),
+  // independent of emailsPausedAt (chasing). The portal milestone-confirmation
+  // send skips this contact while set. The file-wide suppressPortalConfirmEmails
+  // remains the master switch; this is the per-person override under it.
+  stepConfirmPausedAt   DateTime?
   // Client-set timed pause on CHASE emails only (audit #11 / #15). Set to a
   // future date when a client hits "pause for a week" in a chase email or
   // picks a pause length in the portal menu. The chase cron skips them while
@@ -1533,6 +1545,12 @@ model OutboundMessage {
   subject    String?
   bodyFormat String      @default("plain")
 
+  // The exact rendered email HTML that was sent, kept so the automated-emails
+  // detail drawer can show a true-to-inbox preview of solicitor chases (which
+  // send directly and have no queue payload). Null on rows sent before this was
+  // added, and on non-email rows — the drawer falls back to a summary preview.
+  sentEmailHtml String?
+
   // Client self-notes ("You updated…" for the actor vs "Lauren updated…" for
   // co-clients) render from ONE shared row. `content` holds the name-led form;
   // when the viewing contact IS the actor we show `selfNoteSelfText` instead.
@@ -1732,7 +1750,10 @@ model ClientMoveInfo {
 
   // Your move
   preferredCompletionDate DateTime?
-  noCompletionPreference  Boolean   @default(false)
+  // Nullable so "no preference?" reads as unanswered until the client/agent
+  // actually chooses (2026-09-10). Was Boolean @default(false), which showed a
+  // "No" selection nobody made.
+  noCompletionPreference  Boolean?
   flexibility             String? // "very" | "somewhat" | "not"
 
   // Situation — mortgage + funds (buyers)

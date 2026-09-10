@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, PhoneCall, CheckCircle, Plus } from "@phosphor-icons/react";
+import { X, PhoneCall, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {
@@ -34,12 +34,12 @@ type CostsPatch = {
 
 // ── The script (talking points for the team to deliver) ──────────────────────
 // Copy is Ellis-approved (voice rules apply). Kept as data so it's easy to tune.
-const SCRIPT_POINTS: { title: string; body: string }[] = [
-  { title: "Keep in touch with your solicitor", body: "Try to speak to them at least once a fortnight, and follow up on anything they're waiting for from you. We'll do plenty of chasing too, but keeping that direct relationship going really helps." },
-  { title: "Keep us in the loop", body: "If anything changes, tell us. A survey issue, a change of plan, something your solicitor has mentioned, even something that seems minor. The more we know, the more useful we can be." },
-  { title: "We'll tell you when we need you", body: "You don't need to constantly wonder what you should be doing next. When something needs your attention, we'll let you know what it is and what you need to do." },
-  { title: "Make the most of your portal", body: "Your portal is the easiest place to see where things stand, what's happened and what comes next. And if something doesn't make sense, just ask us. That's what we're here for." },
-  { title: "If something feels stuck, tell us", body: "Don't assume we already know. If you've been waiting too long, can't get an answer or something just doesn't feel right, let us know. Getting hold-ups unstuck is a big part of what we do." },
+const SCRIPT_POINTS: { title: string; body: string; note: string }[] = [
+  { title: "Keep in touch with your solicitor", body: "Try to speak to them at least once a fortnight, and follow up on anything they're waiting for from you.", note: "We'll do plenty of chasing too, but keeping that direct relationship going really helps." },
+  { title: "Keep us in the loop", body: "If anything changes, tell us. A survey issue, a change of plan, something your solicitor has mentioned, even something that seems minor.", note: "The more we know, the more useful we can be." },
+  { title: "We'll tell you when we need you", body: "You don't need to constantly wonder what you should be doing next. When something needs your attention, we'll let you know what it is and what you need to do.", note: "Until then, you can get on with everything else." },
+  { title: "Make the most of your portal", body: "Your portal is the easiest place to see where things stand, what's happened and what comes next.", note: "And if something doesn't make sense, just ask us. That's what we're here for." },
+  { title: "If something feels stuck, tell us", body: "Don't assume we already know. If you've been waiting too long, can't get an answer or something just doesn't feel right, let us know.", note: "We'd much rather you tell us early, so we can look into it and help move things forward." },
 ];
 
 // ── field primitives ─────────────────────────────────────────────────────────
@@ -50,21 +50,81 @@ const inputStyle: CSSProperties = {
   color: "var(--agent-text-primary)", width: "100%", fontFamily: "inherit",
 };
 
-function Row({ children }: { children: ReactNode }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>{children}</div>;
-}
-
-function TextField({ label, initial, onSave, placeholder, type = "text", format }: { label: string; initial: string; onSave: (v: string) => void; placeholder?: string; type?: string; format?: (v: string) => string }) {
+function TextField({ label, initial, onSave, placeholder, type = "text", format, icon }: { label: string; initial: string; onSave: (v: string) => void; placeholder?: string; type?: string; format?: (v: string) => string; icon?: ReactNode }) {
   const [v, setV] = useState(initial);
   const last = useRef(initial);
   return (
     <label style={labelStyle}>
       {label}
-      <input type={type} value={v} placeholder={placeholder} style={inputStyle}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
+      <div style={{ position: "relative" }}>
+        {icon && <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", color: "var(--agent-text-muted)", pointerEvents: "none" }}>{icon}</span>}
+        <input type={type} value={v} placeholder={placeholder} style={{ ...inputStyle, ...(icon ? { paddingLeft: 32 } : {}) }}
+          onChange={(e) => setV(e.target.value)}
+          onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
+      </div>
     </label>
   );
+}
+
+// Dimensional number chip shared by the script + question sections.
+const sectionCircleStyle: CSSProperties = {
+  width: 26, height: 26, borderRadius: 99, flexShrink: 0,
+  background: "radial-gradient(circle at 50% 32%, #ffffff 0%, var(--agent-coral-bg-tint) 100%)",
+  border: "1px solid rgba(var(--agent-coral-rgb), 0.30)",
+  boxShadow: "0 1px 3px rgba(var(--agent-coral-rgb), 0.22), inset 0 1px 0 rgba(255,255,255,0.85)",
+  color: "var(--agent-coral-deep)", fontSize: 11.5, fontWeight: 800,
+  display: "inline-flex", alignItems: "center", justifyContent: "center",
+};
+
+// One numbered question section (circle + title + description + fields).
+function QSection({ n, title, desc, first, children }: { n: number; title: string; desc: string; first?: boolean; children: ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 13, paddingTop: first ? 0 : 22, paddingBottom: 22, borderTop: first ? "none" : "1px solid var(--agent-border-subtle)" }}>
+      <span style={sectionCircleStyle}>{n}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{title}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>{desc}</p>
+        <div style={{ marginTop: 12, display: "grid", gap: 12 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// Responsive field grid. Packs as many equal columns as fit, then collapses to
+// more rows (eventually a single column) as the drawer narrows — no media
+// queries. `n` is the intended column count on a wide drawer; it sets the
+// per-column min-width so wide screens still show the full row and narrow ones
+// stack. min(100%, …) keeps a single column from overflowing very small widths.
+function Cols({ n = 2, children }: { n?: number; children: ReactNode }) {
+  const min = n >= 4 ? 148 : n === 3 ? 162 : 200;
+  return <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))`, gap: 12 }}>{children}</div>;
+}
+
+// Small progress ring for the "N of M captured" header pill.
+function ProgressRing({ filled, total }: { filled: number; total: number }) {
+  const pct = total > 0 ? filled / total : 0;
+  const r = 9, c = 2 * Math.PI * r;
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      <circle cx={12} cy={12} r={r} fill="none" stroke="var(--agent-border-default)" strokeWidth={3} />
+      <circle cx={12} cy={12} r={r} fill="none" stroke="var(--agent-coral-deep)" strokeWidth={3} strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 12 12)" style={{ transition: "stroke-dashoffset 300ms ease" }} />
+    </svg>
+  );
+}
+
+// Per-side completeness gauge — only the questions that apply to THIS side.
+function computeSideProgress(d: IntroCallData, side: "vendor" | "purchaser"): { filled: number; total: number } {
+  const items: (unknown | null | undefined)[] = [];
+  if (side === "purchaser") {
+    items.push(d.purchaseType, d.costs.depositGBP, d.movePurchaser.fundsSource, d.movePurchaser.fundsInPlace, d.costs.firstTimeBuyer, d.costs.additionalProperty, d.movePurchaser.preferredCompletionDate, d.movePurchaser.flexibility, d.movePurchaser.noticePeriod, d.movePurchaser.removalStatus, d.movePurchaser.sellingRelated);
+    if (d.purchaseType !== "cash_buyer") items.push(d.costs.mortgageGBP, d.movePurchaser.mortgageOfferExpiry);
+  } else {
+    items.push(d.moveVendor.buyingOnward, d.moveVendor.vacantBeforeCompletion, d.moveVendor.preferredCompletionDate, d.moveVendor.flexibility, d.moveVendor.noticePeriod, d.moveVendor.removalStatus);
+    if (d.chainLinkId) items.push(d.chainIntel?.breakChainStance);
+  }
+  const filled = items.filter((v) => v !== null && v !== undefined && v !== "").length;
+  return { filled, total: items.length };
 }
 
 function MoneyField({ label, initial, onSave }: { label: string; initial: number | null; onSave: (v: number | null) => void }) {
@@ -150,31 +210,6 @@ function AvailabilityField({ label, initial, onSave }: { label: string; initial:
   );
 }
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{title}</p>
-      {children}
-    </div>
-  );
-}
-
-// Rough completeness gauge for the footer: of the questions that apply to this
-// file, how many already have an answer. Computed from the loaded snapshot.
-function computeProgress(d: IntroCallData): { filled: number; total: number } {
-  const items: (unknown | null | undefined)[] = [];
-  if (d.hasPurchaser) {
-    items.push(d.purchaseType, d.costs.depositGBP, d.movePurchaser.fundsSource, d.movePurchaser.fundsInPlace, d.costs.firstTimeBuyer, d.costs.additionalProperty, d.movePurchaser.preferredCompletionDate, d.movePurchaser.flexibility, d.movePurchaser.noticePeriod, d.movePurchaser.removalStatus, d.movePurchaser.sellingRelated);
-    if (d.purchaseType !== "cash_buyer") items.push(d.costs.mortgageGBP, d.movePurchaser.mortgageOfferExpiry);
-  }
-  if (d.hasVendor) {
-    items.push(d.moveVendor.buyingOnward, d.moveVendor.vacantBeforeCompletion, d.moveVendor.preferredCompletionDate, d.moveVendor.flexibility, d.moveVendor.noticePeriod, d.moveVendor.removalStatus);
-  }
-  if (d.chainLinkId) items.push(d.chainIntel?.breakChainStance);
-  const filled = items.filter((v) => v !== null && v !== undefined && v !== "").length;
-  return { filled, total: items.length };
-}
-
 // ── option sets ──────────────────────────────────────────────────────────────
 const POSITION_OPTS = [
   { value: "mortgage", label: "Buying with a mortgage" },
@@ -252,7 +287,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   async function complete() {
     setCompleting(true);
     try {
-      await completeIntroCallAction(tx);
+      await completeIntroCallAction(tx, side);
       onCompleted();
     } catch {
       setErr("Couldn't mark it complete. Try again.");
@@ -264,10 +299,12 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   // just that side (vendor card -> seller sections, buyer card -> buyer
   // sections). No focusSide (fallback) shows both. Either way it's one intro
   // record; this only controls what's on screen.
-  const showBuyer = data.hasPurchaser && focusSide !== "vendor";
-  const showSeller = data.hasVendor && focusSide !== "purchaser";
+  // The intro is per-side: whichever contact launched it fixes the side. The
+  // drawer shows only that side; there is no in-drawer buyer/seller toggle.
+  const side: "vendor" | "purchaser" = focusSide ?? (data.hasPurchaser ? "purchaser" : "vendor");
+  const isBuyerSide = side === "purchaser";
   const isCashBuyer = data.purchaseType === "cash_buyer";
-  const prog = computeProgress(data);
+  const prog = computeSideProgress(data, side);
 
   // Add a sale into the chain (onward above / related sale below), reusing the
   // exact chain flow. Creates a chain first if the file isn't in one yet.
@@ -303,48 +340,54 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   };
 
   return createPortal(
-    <div data-theme={theme} data-night={isNight ? "" : undefined} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
       <div
         role="dialog"
         aria-label="Intro call"
         className="relative z-10 flex flex-col h-full"
         style={{
-          width: "min(760px, 100vw)",
+          width: "min(880px, 100vw)",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
           animation: closing ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards" : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
-        {/* Header + page tabs */}
-        <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <SheetBandHeader kicker="Intro call" title={data.address} icon={<PhoneCall size={18} weight="fill" />} />
+        {/* Header — address full width with the close top-right, then the
+            Script/Questions toggle beneath it, bottom-right. Reads the same at
+            every width (the address wraps instead of fighting the toggle). */}
+        <div style={{ ...SHEET_BAND_STYLE, display: "flex", flexDirection: "column", gap: 10, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <SheetBandHeader kicker="Intro call" title={data.address} icon={<PhoneCall size={18} weight="fill" />} />
+            </div>
+            <button
+              onClick={doClose}
+              aria-label="Close"
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ color: "rgba(255,255,255,0.85)", background: "transparent", flexShrink: 0 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <X size={14} weight="bold" />
+            </button>
           </div>
-          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.18)", borderRadius: 99, padding: 3 }}>
-            {(["script", "questions"] as const).map((p) => (
-              <button key={p} type="button" onClick={() => setPage(p)}
-                style={{
-                  padding: "5px 14px", fontSize: 12, fontWeight: 600, borderRadius: 99, cursor: "pointer", border: "none",
-                  background: page === p ? "var(--agent-surface-elevated)" : "transparent",
-                  color: page === p ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-                  boxShadow: page === p ? "0 1px 2px rgba(0,0,0,.12)" : "none",
-                }}>
-                {p === "script" ? "Script" : "Questions"}
-              </button>
-            ))}
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.18)", borderRadius: 99, padding: 3 }}>
+              {(["script", "questions"] as const).map((p) => (
+                <button key={p} type="button" onClick={() => setPage(p)}
+                  style={{
+                    padding: "5px 14px", fontSize: 12, fontWeight: 600, borderRadius: 99, cursor: "pointer", border: "none",
+                    background: page === p ? "var(--agent-surface-elevated)" : "transparent",
+                    color: page === p ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
+                    boxShadow: page === p ? "0 1px 2px rgba(0,0,0,.12)" : "none",
+                  }}>
+                  {p === "script" ? "Script" : "Questions"}
+                </button>
+              ))}
+            </div>
           </div>
-          <button
-            onClick={doClose}
-            aria-label="Close"
-            className="agent-icon-btn agent-icon-btn-sm"
-            style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            <X size={14} weight="bold" />
-          </button>
         </div>
 
         {/* Sliding track (two pages) */}
@@ -354,18 +397,36 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
             <div style={{ width: "50%", height: "100%", overflowY: "auto", padding: "22px 24px" }}>
               <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>A few things that make a real difference</p>
               <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
-                We'll keep an eye on the bigger picture and help keep things moving. There are a few simple things you can do along the way that make our job much easier and help us get you to exchange.
+                We'll keep an eye on the bigger picture and help keep things moving. There are a few simple things you can do along the way that really help us get you to exchange.
               </p>
-              <div style={{ display: "grid", gap: 12 }}>
-                {SCRIPT_POINTS.map((s, i) => (
-                  <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", background: "var(--agent-hover-tint)", border: "1px solid var(--agent-border-subtle)", borderRadius: 12, padding: "12px 14px" }}>
-                    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 99, background: "var(--agent-coral-bg-tint)", color: "var(--agent-coral-darker)", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.title}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>{s.body}</p>
+              <div>
+                {SCRIPT_POINTS.map((s, i) => {
+                  const last = i === SCRIPT_POINTS.length - 1;
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 14 }}>
+                      {/* Number + connector — a timeline down the left edge */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                        <span style={{
+                          width: 30, height: 30, borderRadius: 99, flexShrink: 0,
+                          background: "radial-gradient(circle at 50% 32%, #ffffff 0%, var(--agent-coral-bg-tint) 100%)",
+                          border: "1px solid rgba(var(--agent-coral-rgb), 0.30)",
+                          boxShadow: "0 1px 3px rgba(var(--agent-coral-rgb), 0.22), inset 0 1px 0 rgba(255,255,255,0.85)",
+                          color: "var(--agent-coral-deep)", fontSize: 12.5, fontWeight: 800,
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        }}>{i + 1}</span>
+                        {!last && (
+                          <span aria-hidden style={{ flex: 1, width: 1.5, minHeight: 10, marginTop: 6, borderRadius: 2, background: "rgba(var(--agent-coral-rgb), 0.18)" }} />
+                        )}
+                      </div>
+                      {/* Text — hairline divider between items, no card behind it */}
+                      <div style={{ flex: 1, minWidth: 0, paddingTop: 4, paddingBottom: last ? 2 : 18, borderBottom: last ? "none" : "1px solid var(--agent-border-subtle)" }}>
+                        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.title}</p>
+                        <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{s.body}</p>
+                        <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>{s.note}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <button type="button" onClick={() => setPage("questions")} className="agent-btn-color-primary"
                 style={{ marginTop: 20, padding: "9px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600 }}>
@@ -373,153 +434,181 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
               </button>
             </div>
 
-            {/* Page 2 — questions */}
-            <div style={{ width: "50%", height: "100%", overflowY: "auto", padding: "22px 24px" }}>
-              <div style={{ display: "grid", gap: 24 }}>
-                {/* Contacts */}
-                {((showSeller && data.vendor) || (showBuyer && data.purchaser)) && (
-                  <Group title="Who we're speaking to">
-                    {showSeller && data.vendor && (
-                      <Row>
-                        <TextField label={`Seller phone (${data.vendor.name})`} initial={data.vendor.phone ?? ""} type="tel" format={formatUKPhone}
-                          onSave={(v) => run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email }))} />
-                        <TextField label="Seller email" initial={data.vendor.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
-                          onSave={(v) => run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: data.vendor!.phone, email: v || null }))} />
-                      </Row>
-                    )}
-                    {showBuyer && data.purchaser && (
-                      <Row>
-                        <TextField label={`Buyer phone (${data.purchaser.name})`} initial={data.purchaser.phone ?? ""} type="tel" format={formatUKPhone}
-                          onSave={(v) => run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email }))} />
-                        <TextField label="Buyer email" initial={data.purchaser.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
-                          onSave={(v) => run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: data.purchaser!.phone, email: v || null }))} />
-                      </Row>
-                    )}
-                  </Group>
+            {/* Page 2 — questions (single side, fixed by focusSide) */}
+            <div style={{ width: "50%", height: "100%", display: "flex", flexDirection: "column" }}>
+              {/* Sub-header: back to script + progress up top */}
+              <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", borderBottom: "1px solid var(--agent-border-subtle)" }}>
+                <button type="button" onClick={() => setPage("script")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
+                  <CaretLeft size={15} weight="bold" /> Back
+                </button>
+                {prog.total > 0 && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ textAlign: "right", lineHeight: 1.15 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{prog.filled} of {prog.total}</div>
+                      <div style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>captured</div>
+                    </div>
+                    <ProgressRing filled={prog.filled} total={prog.total} />
+                  </div>
                 )}
+              </div>
 
-                {/* Buyer */}
-                {showBuyer && (
-                  <Group title="The buyer">
-                    <SelectField label="How they're buying" initial={data.purchaseType} options={POSITION_OPTS} placeholder="Not set"
-                      onSave={(v) => { if (v) run(() => savePurchaseTypeAction(tx, v as PurchaseType)); }} />
-                    <Row>
-                      <MoneyField label="Deposit" initial={data.costs.depositGBP} onSave={(v) => saveCosts({ depositGBP: v })} />
-                      {!isCashBuyer && <MoneyField label="Mortgage amount" initial={data.costs.mortgageGBP} onSave={(v) => saveCosts({ mortgageGBP: v })} />}
-                    </Row>
-                    <Row>
-                      <SelectField label="Where the money's coming from" initial={data.movePurchaser.fundsSource} options={FUNDS_SOURCE_OPTS} onSave={(v) => saveMove("purchaser", { fundsSource: v })} />
-                      <SelectField label="Are the funds in place?" initial={data.movePurchaser.fundsInPlace} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("purchaser", { fundsInPlace: v })} />
-                    </Row>
-                    <Row>
-                      <ToggleField label="First-time buyer?" initial={data.costs.firstTimeBuyer} onSave={(v) => saveCosts({ firstTimeBuyer: v })} />
-                      <ToggleField label="Will own another property after?" initial={data.costs.additionalProperty} onSave={(v) => saveCosts({ additionalProperty: v })} />
-                    </Row>
-                    {!isCashBuyer && (
-                      <TextField label="Mortgage offer expiry (if they have one)" initial={data.movePurchaser.mortgageOfferExpiry ?? ""} type="date"
-                        onSave={(v) => saveMove("purchaser", { mortgageOfferExpiry: v || null })} />
+              {/* Scrollable sections */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 28px" }}>
+                <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--agent-text-primary)" }}>{isBuyerSide ? "Buyer" : "Seller"}</p>
+                <p style={{ margin: "2px 0 18px", fontSize: 12.5, color: "var(--agent-text-muted)" }}>
+                  {isBuyerSide ? "Their position, funding and plans." : "Their onward position, timing and logistics."}
+                </p>
+
+                {isBuyerSide ? (
+                  <>
+                    <QSection first n={1} title="Contact" desc="Who we're speaking to">
+                      <Cols n={3}>
+                        <label style={labelStyle}>Name(s)
+                          <div style={{ ...inputStyle, display: "flex", alignItems: "center", color: "var(--agent-text-primary)", background: "var(--agent-surface-subtle)" }}>{data.purchaser?.name ?? "—"}</div>
+                        </label>
+                        <TextField label="Phone" icon={<Phone size={14} />} initial={data.purchaser?.phone ?? ""} type="tel" format={formatUKPhone}
+                          onSave={(v) => { if (data.purchaser) run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email })); }} />
+                        <TextField label="Email" icon={<EnvelopeSimple size={14} />} initial={data.purchaser?.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
+                          onSave={(v) => { if (data.purchaser) run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: data.purchaser!.phone, email: v || null })); }} />
+                      </Cols>
+                    </QSection>
+
+                    <QSection n={2} title="Buying position" desc="How they're buying and any related sale.">
+                      <Cols n={3}>
+                        <SelectField label="How they're buying" initial={data.purchaseType} options={POSITION_OPTS} placeholder="Not set"
+                          onSave={(v) => { if (v) run(() => savePurchaseTypeAction(tx, v as PurchaseType)); }} />
+                        <ToggleField label="First-time buyer?" initial={data.costs.firstTimeBuyer} onSave={(v) => saveCosts({ firstTimeBuyer: v })} />
+                        <ToggleField label="Will own another property after?" initial={data.costs.additionalProperty} onSave={(v) => saveCosts({ additionalProperty: v })} />
+                      </Cols>
+                    </QSection>
+
+                    <QSection n={3} title="Funding" desc="Deposit, mortgage and source of funds.">
+                      <Cols n={isCashBuyer ? 3 : 4}>
+                        <MoneyField label="Deposit" initial={data.costs.depositGBP} onSave={(v) => saveCosts({ depositGBP: v })} />
+                        {!isCashBuyer && <MoneyField label="Mortgage amount" initial={data.costs.mortgageGBP} onSave={(v) => saveCosts({ mortgageGBP: v })} />}
+                        <SelectField label="Where the money's coming from" initial={data.movePurchaser.fundsSource} options={FUNDS_SOURCE_OPTS} onSave={(v) => saveMove("purchaser", { fundsSource: v })} />
+                        <SelectField label="Are the funds in place?" initial={data.movePurchaser.fundsInPlace} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("purchaser", { fundsInPlace: v })} />
+                      </Cols>
+                      {!isCashBuyer && (
+                        <TextField label="Mortgage offer expiry (if they have one)" initial={data.movePurchaser.mortgageOfferExpiry ?? ""} type="date"
+                          onSave={(v) => saveMove("purchaser", { mortgageOfferExpiry: v || null })} />
+                      )}
+                    </QSection>
+
+                    <QSection n={4} title="Related sale" desc="Are they also selling another property?">
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ flex: "0 0 220px", minWidth: 180 }}>
+                          <ToggleField label="Are they also selling?" initial={data.movePurchaser.sellingRelated} onSave={(v) => saveMove("purchaser", { sellingRelated: v })} />
+                        </div>
+                        {!isCashBuyer && (
+                          <button type="button" onClick={() => void openAddSale("below")} disabled={preparingChain} style={addSaleBtnStyle}>
+                            <Plus size={13} weight="bold" /> Add their related sale to the chain
+                          </button>
+                        )}
+                      </div>
+                    </QSection>
+
+                    <QSection n={5} title="Timing & logistics" desc="Their preferred dates and any constraints.">
+                      <Cols n={3}>
+                        <TextField label="Preferred completion date" initial={data.movePurchaser.preferredCompletionDate ?? ""} type="date" onSave={(v) => saveMove("purchaser", { preferredCompletionDate: v || null })} />
+                        <SelectField label="How flexible?" initial={data.movePurchaser.flexibility} options={FLEX_OPTS} onSave={(v) => saveMove("purchaser", { flexibility: v })} />
+                        <ToggleField label="No completion preference yet?" initial={data.movePurchaser.noCompletionPreference} onSave={(v) => saveMove("purchaser", { noCompletionPreference: v })} />
+                      </Cols>
+                      <Cols n={3}>
+                        <SelectField label="Notice to give?" initial={data.movePurchaser.noticePeriod} options={NOTICE_OPTS} onSave={(v) => saveMove("purchaser", { noticePeriod: v, needsNotice: v ? true : null })} />
+                        <ToggleField label="Notice given?" initial={data.movePurchaser.noticeGiven} onSave={(v) => saveMove("purchaser", { noticeGiven: v })} />
+                        <TextField label="Notice ends" initial={data.movePurchaser.noticeEndDate ?? ""} type="date" onSave={(v) => saveMove("purchaser", { noticeEndDate: v || null })} />
+                      </Cols>
+                      <Cols n={2}>
+                        <SelectField label="Removals" initial={data.movePurchaser.removalStatus} options={REMOVAL_OPTS} onSave={(v) => saveMove("purchaser", { removalStatus: v })} />
+                        <TextField label="Removal company" initial={data.movePurchaser.removalCompany ?? ""} onSave={(v) => saveMove("purchaser", { removalCompany: v || null })} />
+                      </Cols>
+                      <AvailabilityField label="Any dates they can't do?" initial={data.movePurchaser.unavailableDates} onSave={(v) => saveMove("purchaser", { unavailableDates: v })} />
+                      <AreaField label="Anything else about the buyer?" initial={data.movePurchaser.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("purchaser", { progressorNote: v || null })} />
+                    </QSection>
+
+                    <QSection n={6} title="Solicitor" desc="Their solicitor acting on this transaction.">
+                      <SolicitorSection transactionId={tx} vendor={data.solVendor} purchaser={data.solPurchaser} referredFirmId={data.referredFirmId} referralFee={data.referralFee} address={data.address} contacts={data.contactRoles} onlySide="purchaser" hideHeader briefcaseIcon embedded />
+                    </QSection>
+                  </>
+                ) : (
+                  <>
+                    <QSection first n={1} title="Contact" desc="Who we're speaking to">
+                      <Cols n={3}>
+                        <label style={labelStyle}>Name
+                          <div style={{ ...inputStyle, display: "flex", alignItems: "center", color: "var(--agent-text-primary)", background: "var(--agent-surface-subtle)" }}>{data.vendor?.name ?? "—"}</div>
+                        </label>
+                        <TextField label="Phone" icon={<Phone size={14} />} initial={data.vendor?.phone ?? ""} type="tel" format={formatUKPhone}
+                          onSave={(v) => { if (data.vendor) run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email })); }} />
+                        <TextField label="Email" icon={<EnvelopeSimple size={14} />} initial={data.vendor?.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
+                          onSave={(v) => { if (data.vendor) run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: data.vendor!.phone, email: v || null })); }} />
+                      </Cols>
+                    </QSection>
+
+                    <QSection n={2} title="Onward position" desc="What they're doing next.">
+                      <ToggleField label="Are they buying onward?" initial={data.moveVendor.buyingOnward} onSave={(v) => saveMove("vendor", { buyingOnward: v })} />
+                      {!data.onward.typeFactsSet ? (
+                        <Cols n={3}>
+                          <SelectField label="Onward: freehold or leasehold?" initial={onwardTenure || null} options={TENURE_OPTS}
+                            onSave={(v) => { setOnwardTenure(v ?? ""); maybeSetupOnward(v ?? "", onwardMethod); }} />
+                          <SelectField label="Onward: how they're funding it" initial={onwardMethod || null} options={POSITION_OPTS}
+                            onSave={(v) => { setOnwardMethod(v ?? ""); maybeSetupOnward(onwardTenure, v ?? ""); }} />
+                          <SelectField label="Onward ready to exchange?" initial={data.moveVendor.onwardReadyToExchange} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("vendor", { onwardReadyToExchange: v })} />
+                        </Cols>
+                      ) : (
+                        <>
+                          <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>Onward tracker is set up. Manage its steps from the file.</p>
+                          <Cols n={2}>
+                            <SelectField label="Onward ready to exchange?" initial={data.moveVendor.onwardReadyToExchange} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("vendor", { onwardReadyToExchange: v })} />
+                          </Cols>
+                        </>
+                      )}
+                      <Cols n={2}>
+                        <TextField label="Onward mortgage offer expiry" initial={data.moveVendor.onwardMortgageOfferExpiry ?? ""} type="date" onSave={(v) => saveMove("vendor", { onwardMortgageOfferExpiry: v || null })} />
+                        <div style={{ display: "flex", alignItems: "flex-end" }}>
+                          <button type="button" onClick={() => void openAddSale("above")} disabled={preparingChain} style={addSaleBtnStyle}>
+                            <Plus size={13} weight="bold" /> Add the onward property to the chain
+                          </button>
+                        </div>
+                      </Cols>
+                    </QSection>
+
+                    <QSection n={3} title="Timing & logistics" desc="Completion, notice and moving details.">
+                      <Cols n={3}>
+                        <TextField label="Preferred completion date" initial={data.moveVendor.preferredCompletionDate ?? ""} type="date" onSave={(v) => saveMove("vendor", { preferredCompletionDate: v || null })} />
+                        <SelectField label="How flexible?" initial={data.moveVendor.flexibility} options={FLEX_OPTS} onSave={(v) => saveMove("vendor", { flexibility: v })} />
+                        <ToggleField label="No completion preference yet?" initial={data.moveVendor.noCompletionPreference} onSave={(v) => saveMove("vendor", { noCompletionPreference: v })} />
+                      </Cols>
+                      <Cols n={3}>
+                        <SelectField label="Vacant before completion?" initial={data.moveVendor.vacantBeforeCompletion} options={VACANT_OPTS} onSave={(v) => saveMove("vendor", { vacantBeforeCompletion: v })} />
+                        <SelectField label="Notice to give?" initial={data.moveVendor.noticePeriod} options={NOTICE_OPTS} onSave={(v) => saveMove("vendor", { noticePeriod: v, needsNotice: v ? true : null })} />
+                        <ToggleField label="Notice given?" initial={data.moveVendor.noticeGiven} onSave={(v) => saveMove("vendor", { noticeGiven: v })} />
+                      </Cols>
+                      <Cols n={3}>
+                        <TextField label="Notice ends" initial={data.moveVendor.noticeEndDate ?? ""} type="date" onSave={(v) => saveMove("vendor", { noticeEndDate: v || null })} />
+                        <SelectField label="Removals" initial={data.moveVendor.removalStatus} options={REMOVAL_OPTS} onSave={(v) => saveMove("vendor", { removalStatus: v })} />
+                        <TextField label="Removal company" initial={data.moveVendor.removalCompany ?? ""} onSave={(v) => saveMove("vendor", { removalCompany: v || null })} />
+                      </Cols>
+                      <AvailabilityField label="Dates they can't do" initial={data.moveVendor.unavailableDates} onSave={(v) => saveMove("vendor", { unavailableDates: v })} />
+                      <AreaField label="Anything else about the seller?" initial={data.moveVendor.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("vendor", { progressorNote: v || null })} />
+                    </QSection>
+
+                    {data.chainLinkId && intel && (
+                      <QSection n={4} title="Chain" desc="Their position in the chain.">
+                        <SelectField label="Will they break the chain?" initial={intel.breakChainStance} options={STANCE_OPTS} onSave={(v) => saveIntel({ ...intel, breakChainStance: v })} />
+                        <Cols n={2}>
+                          <TextField label="Conditions around breaking" initial={intel.breakChainConditions ?? ""} onSave={(v) => saveIntel({ ...intel, breakChainConditions: v || null })} />
+                          <TextField label="Expected timescale / delays" initial={intel.expectedTimescale ?? ""} onSave={(v) => saveIntel({ ...intel, expectedTimescale: v || null })} />
+                        </Cols>
+                        <AreaField label="Chain notes" initial={intel.chainNotes ?? ""} onSave={(v) => saveIntel({ ...intel, chainNotes: v || null })} />
+                      </QSection>
                     )}
-                    <ToggleField label="Are they also selling?" initial={data.movePurchaser.sellingRelated} onSave={(v) => saveMove("purchaser", { sellingRelated: v })} />
-                    {!isCashBuyer && (
-                      <button type="button" onClick={() => void openAddSale("below")} disabled={preparingChain} style={addSaleBtnStyle}>
-                        <Plus size={13} weight="bold" /> Add their related sale to the chain
-                      </button>
-                    )}
-                  </Group>
-                )}
 
-                {/* Seller */}
-                {showSeller && (
-                  <Group title="The seller">
-                    <ToggleField label="Are they buying onward?" initial={data.moveVendor.buyingOnward} onSave={(v) => saveMove("vendor", { buyingOnward: v })} />
-                    {!data.onward.typeFactsSet ? (
-                      <Row>
-                        <SelectField label="Onward: freehold or leasehold?" initial={onwardTenure || null} options={TENURE_OPTS}
-                          onSave={(v) => { setOnwardTenure(v ?? ""); maybeSetupOnward(v ?? "", onwardMethod); }} />
-                        <SelectField label="Onward: how they're funding it" initial={onwardMethod || null} options={POSITION_OPTS}
-                          onSave={(v) => { setOnwardMethod(v ?? ""); maybeSetupOnward(onwardTenure, v ?? ""); }} />
-                      </Row>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>Onward tracker is set up. Manage its steps from the file.</p>
-                    )}
-                    <button type="button" onClick={() => void openAddSale("above")} disabled={preparingChain} style={addSaleBtnStyle}>
-                      <Plus size={13} weight="bold" /> Add the onward property to the chain
-                    </button>
-                    <Row>
-                      <SelectField label="Onward ready to exchange?" initial={data.moveVendor.onwardReadyToExchange} options={FUNDS_IN_PLACE_OPTS} onSave={(v) => saveMove("vendor", { onwardReadyToExchange: v })} />
-                      <TextField label="Onward mortgage offer expiry" initial={data.moveVendor.onwardMortgageOfferExpiry ?? ""} type="date" onSave={(v) => saveMove("vendor", { onwardMortgageOfferExpiry: v || null })} />
-                    </Row>
-                    <SelectField label="Vacant before completion?" initial={data.moveVendor.vacantBeforeCompletion} options={VACANT_OPTS} onSave={(v) => saveMove("vendor", { vacantBeforeCompletion: v })} />
-                  </Group>
-                )}
-
-                {/* Timescales & logistics — per present side */}
-                {showSeller && (
-                  <Group title="Seller: timing & logistics">
-                    <Row>
-                      <TextField label="Preferred completion date" initial={data.moveVendor.preferredCompletionDate ?? ""} type="date" onSave={(v) => saveMove("vendor", { preferredCompletionDate: v || null })} />
-                      <SelectField label="How flexible?" initial={data.moveVendor.flexibility} options={FLEX_OPTS} onSave={(v) => saveMove("vendor", { flexibility: v })} />
-                    </Row>
-                    <ToggleField label="No completion preference yet?" initial={data.moveVendor.noCompletionPreference} onSave={(v) => saveMove("vendor", { noCompletionPreference: v })} />
-                    <Row>
-                      <SelectField label="Notice to give?" initial={data.moveVendor.noticePeriod} options={NOTICE_OPTS} onSave={(v) => saveMove("vendor", { noticePeriod: v, needsNotice: v ? true : null })} />
-                      <SelectField label="Removals" initial={data.moveVendor.removalStatus} options={REMOVAL_OPTS} onSave={(v) => saveMove("vendor", { removalStatus: v })} />
-                    </Row>
-                    <Row>
-                      <ToggleField label="Notice given?" initial={data.moveVendor.noticeGiven} onSave={(v) => saveMove("vendor", { noticeGiven: v })} />
-                      <TextField label="Notice ends" initial={data.moveVendor.noticeEndDate ?? ""} type="date" onSave={(v) => saveMove("vendor", { noticeEndDate: v || null })} />
-                    </Row>
-                    <TextField label="Removal company" initial={data.moveVendor.removalCompany ?? ""} onSave={(v) => saveMove("vendor", { removalCompany: v || null })} />
-                    <AvailabilityField label="Dates they can't do" initial={data.moveVendor.unavailableDates} onSave={(v) => saveMove("vendor", { unavailableDates: v })} />
-                    <AreaField label="Anything else about the seller" initial={data.moveVendor.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("vendor", { progressorNote: v || null })} />
-                  </Group>
-                )}
-                {showBuyer && (
-                  <Group title="Buyer: timing & logistics">
-                    <Row>
-                      <TextField label="Preferred completion date" initial={data.movePurchaser.preferredCompletionDate ?? ""} type="date" onSave={(v) => saveMove("purchaser", { preferredCompletionDate: v || null })} />
-                      <SelectField label="How flexible?" initial={data.movePurchaser.flexibility} options={FLEX_OPTS} onSave={(v) => saveMove("purchaser", { flexibility: v })} />
-                    </Row>
-                    <ToggleField label="No completion preference yet?" initial={data.movePurchaser.noCompletionPreference} onSave={(v) => saveMove("purchaser", { noCompletionPreference: v })} />
-                    <Row>
-                      <SelectField label="Notice to give?" initial={data.movePurchaser.noticePeriod} options={NOTICE_OPTS} onSave={(v) => saveMove("purchaser", { noticePeriod: v, needsNotice: v ? true : null })} />
-                      <SelectField label="Removals" initial={data.movePurchaser.removalStatus} options={REMOVAL_OPTS} onSave={(v) => saveMove("purchaser", { removalStatus: v })} />
-                    </Row>
-                    <Row>
-                      <ToggleField label="Notice given?" initial={data.movePurchaser.noticeGiven} onSave={(v) => saveMove("purchaser", { noticeGiven: v })} />
-                      <TextField label="Notice ends" initial={data.movePurchaser.noticeEndDate ?? ""} type="date" onSave={(v) => saveMove("purchaser", { noticeEndDate: v || null })} />
-                    </Row>
-                    <TextField label="Removal company" initial={data.movePurchaser.removalCompany ?? ""} onSave={(v) => saveMove("purchaser", { removalCompany: v || null })} />
-                    <AvailabilityField label="Dates they can't do" initial={data.movePurchaser.unavailableDates} onSave={(v) => saveMove("purchaser", { unavailableDates: v })} />
-                    <AreaField label="Anything else about the buyer" initial={data.movePurchaser.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("purchaser", { progressorNote: v || null })} />
-                  </Group>
-                )}
-
-                {/* Chain intel */}
-                {data.chainLinkId && intel && (
-                  <Group title="Chain">
-                    <SelectField label="Will they break the chain?" initial={intel.breakChainStance} options={STANCE_OPTS} onSave={(v) => saveIntel({ ...intel, breakChainStance: v })} />
-                    <TextField label="Conditions around breaking" initial={intel.breakChainConditions ?? ""} onSave={(v) => saveIntel({ ...intel, breakChainConditions: v || null })} />
-                    <TextField label="Expected timescale / delays" initial={intel.expectedTimescale ?? ""} onSave={(v) => saveIntel({ ...intel, expectedTimescale: v || null })} />
-                    <AreaField label="Chain notes" initial={intel.chainNotes ?? ""} onSave={(v) => saveIntel({ ...intel, chainNotes: v || null })} />
-                  </Group>
-                )}
-
-                {/* Solicitors — the full manager (change firm / edit / add), so this
-                 *  is the one place everything gets verified accurate. */}
-                {(data.hasVendor || data.hasPurchaser) && (
-                  <Group title="Solicitors">
-                    <SolicitorSection
-                      transactionId={tx}
-                      vendor={data.solVendor}
-                      purchaser={data.solPurchaser}
-                      referredFirmId={data.referredFirmId}
-                      referralFee={data.referralFee}
-                      address={data.address}
-                      contacts={data.contactRoles}
-                      embedded
-                    />
-                  </Group>
+                    <QSection n={data.chainLinkId && intel ? 5 : 4} title="Solicitor" desc="Their solicitor acting on this transaction.">
+                      <SolicitorSection transactionId={tx} vendor={data.solVendor} purchaser={data.solPurchaser} referredFirmId={data.referredFirmId} referralFee={data.referralFee} address={data.address} contacts={data.contactRoles} onlySide="vendor" hideHeader briefcaseIcon embedded />
+                    </QSection>
+                  </>
                 )}
               </div>
             </div>
@@ -531,13 +620,12 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
           {err && <p role="alert" style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", flex: 1 }}>
-              {prog.total > 0 && <strong style={{ color: "var(--agent-text-secondary)" }}>Captured {prog.filled} of {prog.total}. </strong>}
               Answers save as you go.
             </p>
             <button type="button" onClick={() => void complete()} disabled={completing} className="agent-btn-color-primary"
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, opacity: completing ? 0.6 : 1, cursor: completing ? "wait" : "pointer" }}>
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, opacity: completing ? 0.6 : 1, cursor: completing ? "wait" : "pointer", transition: "transform 140ms ease, filter 180ms ease, box-shadow 180ms ease" }}>
               <CheckCircle size={16} weight="fill" />
-              {completing ? "Saving…" : "Introduction complete"}
+              {completing ? "Saving…" : "Mark introduction complete"}
             </button>
           </div>
         </div>

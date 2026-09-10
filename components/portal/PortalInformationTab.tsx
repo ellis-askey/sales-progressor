@@ -114,7 +114,7 @@ export function PortalInformationTab({
             </Row>
             <ToggleRow
               label="No preference yet"
-              on={info.noCompletionPreference}
+              on={info.noCompletionPreference ?? false}
               disabled={readOnly}
               onChange={(on) => patch("your-move", { noCompletionPreference: on, ...(on ? { preferredCompletionDate: null } : {}) })}
             />

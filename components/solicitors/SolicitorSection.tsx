@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple, GlobeSimple, ArrowSquareOut } from "@phosphor-icons/react";
+import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple, GlobeSimple, ArrowSquareOut, Briefcase } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction, getSolicitorPortalLinkAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -52,6 +52,14 @@ type Props = {
   // When true, render without the outer GlassCard shell (PeoplePanel wraps it
   // with the card + Clients/Professionals toggle). 2026-08-10.
   embedded?: boolean;
+  // Scope to a single side (intro-call drawer shows only the launching side's
+  // solicitor). Hides the other side's tile.
+  onlySide?: "vendor" | "purchaser";
+  // Hide the internal "Solicitors" header (the intro drawer provides its own
+  // numbered section header).
+  hideHeader?: boolean;
+  // Use a briefcase glyph for the empty tile instead of the id-card avatar art.
+  briefcaseIcon?: boolean;
 };
 
 function toSelection(info: SolicitorInfo): SolicitorSelection | null {
@@ -159,6 +167,7 @@ function SolicitorTile({
   isInternalStaff,
   referralFee,
   showReferralFee,
+  briefcaseIcon = false,
   onChange,
   onRemove,
 }: {
@@ -173,6 +182,7 @@ function SolicitorTile({
   // Passed through unconditionally so the caller controls when it applies.
   referralFee?: number | null;
   showReferralFee?: boolean;
+  briefcaseIcon?: boolean;
   onChange: (v: SolicitorSelection | null, referral: ReferralData) => void;
   onRemove: () => void;
 }) {
@@ -268,7 +278,13 @@ function SolicitorTile({
     return (
       <div style={tileWrapperStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px" }}>
-          <ContactAvatar contact={{ name: roleLabel, roleType: "solicitor" }} size={40} sideTint={side} />
+          {briefcaseIcon ? (
+            <span aria-hidden style={{ width: 40, height: 40, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--agent-text-secondary)" }}>
+              <Briefcase size={24} weight="regular" />
+            </span>
+          ) : (
+            <ContactAvatar contact={{ name: roleLabel, roleType: "solicitor" }} size={40} sideTint={side} />
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
               <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
@@ -457,7 +473,7 @@ function SolicitorTile({
   );
 }
 
-export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts, isInternalStaff = false, embedded = false }: Props) {
+export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts, isInternalStaff = false, embedded = false, onlySide, hideHeader = false, briefcaseIcon = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
@@ -547,6 +563,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
       {/* Header - mirrors the Contacts card exactly: no icon, title + count
           pill on top, subtext beneath, so Clients and Professionals read
           identically. Saving pulse tucks in next to the title. */}
+      {!hideHeader && (
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -561,15 +578,18 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Solicitors acting on this transaction</span>
         </div>
       </div>
+      )}
 
       {/* Full-width stacked tiles — matches the ContactsSection layout so
-          Clients and Professionals read identically in the People card. */}
+          Clients and Professionals read identically in the People card. When
+          onlySide is set, only that side's tile renders. */}
       <div style={{
         display: "flex",
         flexDirection: "column",
         gap: 10,
-        padding: 12,
+        padding: hideHeader ? "0" : 12,
       }}>
+        {onlySide !== "purchaser" && (
         <SolicitorTile
           transactionId={transactionId}
           side="vendor"
@@ -580,9 +600,12 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           isInternalStaff={isInternalStaff}
           referralFee={referralFee ?? null}
           showReferralFee={vendorHasReferral}
+          briefcaseIcon={briefcaseIcon}
           onChange={handleVendorChange}
           onRemove={handleVendorRemove}
         />
+        )}
+        {onlySide !== "vendor" && (
         <SolicitorTile
           transactionId={transactionId}
           side="purchaser"
@@ -593,9 +616,11 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           isInternalStaff={isInternalStaff}
           referralFee={referralFee ?? null}
           showReferralFee={purchaserHasReferral}
+          briefcaseIcon={briefcaseIcon}
           onChange={handlePurchaserChange}
           onRemove={handlePurchaserRemove}
         />
+        )}
       </div>
     </>
   );

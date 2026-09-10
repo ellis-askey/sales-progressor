@@ -154,6 +154,13 @@ export function PartnersEmptyState({
   const title = mode === "broker" ? (broker ? "Edit mortgage broker" : "Add mortgage broker")
     : mode === "solicitor" ? (editingSolicitor ? "Edit solicitor firm" : "Add solicitor firm")
     : "Add a preferred partner";
+  // Directory context (the agency's own partners), so this is deliberately NOT
+  // the "…helping with this purchase" line the per-sale broker modal uses.
+  const subtitle = mode === "broker"
+    ? (broker ? "Update your agency's mortgage broker." : "The mortgage broker your agency works with.")
+    : mode === "solicitor"
+      ? (editingSolicitor ? "Update this recommended firm." : "A firm you recommend to clients.")
+      : "Save a professional your agency works with.";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -263,7 +270,7 @@ export function PartnersEmptyState({
       </GlassCard>
 
       {/* Add popup — chooser → the matching form */}
-      <PartnerPopup open={popupOpen} onClose={close} ariaLabel={title} title={title}>
+      <PartnerPopup open={popupOpen} onClose={close} ariaLabel={title} title={title} subtitle={subtitle}>
         {mode === "chooser" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <p style={{ margin: "0 0 2px", fontSize: 13, color: "var(--agent-text-secondary)" }}>Who would you like to add?</p>

@@ -39,6 +39,7 @@ import { ContactAvatar } from "@/components/ui/Avatar";
 import {
   loadEmailSettings,
   setContactEmailsPaused,
+  setContactStepConfirmPaused,
   setEmailAudiencePaused,
   type EmailAudience,
   type EmailSettingsState,
@@ -74,7 +75,10 @@ function Switch({
         height: 24,
         width: 42,
         borderRadius: 999,
-        border: "none",
+        boxSizing: "border-box",
+        // Off-state carries a hairline so the track stays visible on dark
+        // surfaces (the translucent fill alone all but vanishes there).
+        border: on ? "0.5px solid transparent" : "0.5px solid var(--agent-border-strong)",
         padding: 0,
         background: on ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
         cursor: disabled ? "default" : "pointer",
@@ -127,7 +131,7 @@ function SectionCard({
   expanded?: boolean;
   onToggleExpand?: () => void;
 }) {
-  const headerContent = (
+  const identity = (
     <>
       <span style={{ color: "var(--agent-coral, #FF6B4A)", flexShrink: 0, marginTop: 1, display: "inline-flex" }}>
         {icon}
@@ -138,19 +142,49 @@ function SectionCard({
           <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>{subtitle}</p>
         )}
       </div>
-      {collapsible ? (
-        <CaretDown
-          size={16}
-          weight="bold"
-          style={{ color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 3, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}
-        />
-      ) : control ? (
-        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", paddingTop: 1 }}>{control}</div>
-      ) : null}
     </>
   );
 
+  const caret = (
+    <CaretDown
+      size={16}
+      weight="bold"
+      style={{ color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 3, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}
+    />
+  );
+
   const headerStyle: React.CSSProperties = { display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", width: "100%" };
+  const expandBtnStyle: React.CSSProperties = { flex: 1, minWidth: 0, display: "flex", alignItems: "flex-start", gap: 12, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" };
+
+  let header: React.ReactNode;
+  if (collapsible && control) {
+    // A master control PLUS an expand caret. The identity + caret are the
+    // expand trigger (its own button); the control sits alongside — no nested
+    // buttons.
+    header = (
+      <div style={headerStyle}>
+        <button type="button" onClick={onToggleExpand} aria-expanded={expanded} style={expandBtnStyle}>
+          {identity}
+          {caret}
+        </button>
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", paddingTop: 1 }}>{control}</div>
+      </div>
+    );
+  } else if (collapsible) {
+    header = (
+      <button type="button" onClick={onToggleExpand} aria-expanded={expanded} style={{ ...headerStyle, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+        {identity}
+        {caret}
+      </button>
+    );
+  } else {
+    header = (
+      <div style={headerStyle}>
+        {identity}
+        {control ? <div style={{ flexShrink: 0, display: "flex", alignItems: "center", paddingTop: 1 }}>{control}</div> : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -161,18 +195,7 @@ function SectionCard({
         overflow: "hidden",
       }}
     >
-      {collapsible ? (
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          aria-expanded={expanded}
-          style={{ ...headerStyle, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
-        >
-          {headerContent}
-        </button>
-      ) : (
-        <div style={headerStyle}>{headerContent}</div>
-      )}
+      {header}
       {children}
     </div>
   );
@@ -239,6 +262,9 @@ function EmailSettingsDrawer({
   // Automatic-chasing list is collapsible; open by default so the agent
   // sees who's being chased without an extra tap.
   const [chasingOpen, setChasingOpen] = useState(true);
+  // Step-confirmation per-person list is collapsed by default — the master
+  // toggle in the header is the primary control; expand to fine-tune per client.
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   function toggleConfirmEmails() {
     if (!state || pendingKey) return;
@@ -274,6 +300,27 @@ function EmailSettingsDrawer({
           ),
         });
         toast.success(nextPaused ? "Chase emails paused" : "Chase emails resumed");
+      } else {
+        toast.error("Couldn't update. Try again");
+      }
+      setPendingKey(null);
+    });
+  }
+
+  function toggleContactStepConfirm(contactId: string, currentlyPaused: boolean) {
+    if (!state || pendingKey) return;
+    const nextPaused = !currentlyPaused;
+    setPendingKey(`stepconfirm:${contactId}`);
+    startTransition(async () => {
+      const res = await setContactStepConfirmPaused(transactionId, contactId, nextPaused);
+      if (res.ok) {
+        onStateChange({
+          ...state,
+          contacts: state.contacts.map((c) =>
+            c.id === contactId ? { ...c, stepConfirmPaused: nextPaused } : c,
+          ),
+        });
+        toast.success(nextPaused ? "Step confirmations paused" : "Step confirmations resumed");
       } else {
         toast.error("Couldn't update. Try again");
       }
@@ -341,6 +388,9 @@ function EmailSettingsDrawer({
               icon={<PaperPlaneTilt size={20} weight="regular" />}
               title="Step confirmation emails"
               subtitle="Send buyers and sellers an update when a step is confirmed."
+              collapsible
+              expanded={confirmOpen}
+              onToggleExpand={() => setConfirmOpen((o) => !o)}
               control={
                 <Switch
                   on={!state.suppressPortalConfirmEmails}
@@ -349,7 +399,50 @@ function EmailSettingsDrawer({
                   ariaLabel={`Step confirmation emails: ${state.suppressPortalConfirmEmails ? "paused" : "on"}`}
                 />
               }
-            />
+            >
+              <div className={`agent-acc${confirmOpen ? " open" : ""}`}>
+                <div className="agent-acc-in">
+                  <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingBottom: 6 }}>
+                    {!hasClients ? (
+                      <p style={{ margin: "10px 16px", fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
+                        No clients with an email address yet.
+                      </p>
+                    ) : (
+                      <>
+                        {state.suppressPortalConfirmEmails && (
+                          <p style={{ margin: "10px 16px 2px", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                            Off for everyone. Switch it on above to choose per person.
+                          </p>
+                        )}
+                        <GroupLabel>Clients</GroupLabel>
+                        {sellers.map((c) => (
+                          <PersonRow
+                            key={c.id}
+                            avatar={<ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={36} art />}
+                            name={c.name}
+                            side="Seller"
+                            on={!state.suppressPortalConfirmEmails && !c.stepConfirmPaused}
+                            onToggle={() => toggleContactStepConfirm(c.id, c.stepConfirmPaused)}
+                            disabled={pendingKey !== null || state.suppressPortalConfirmEmails}
+                          />
+                        ))}
+                        {buyers.map((c) => (
+                          <PersonRow
+                            key={c.id}
+                            avatar={<ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={36} art />}
+                            name={c.name}
+                            side="Buyer"
+                            on={!state.suppressPortalConfirmEmails && !c.stepConfirmPaused}
+                            onToggle={() => toggleContactStepConfirm(c.id, c.stepConfirmPaused)}
+                            disabled={pendingKey !== null || state.suppressPortalConfirmEmails}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
 
             <SectionCard
               icon={<UsersThree size={20} weight="regular" />}
@@ -458,17 +551,22 @@ function EmailSettingsDrawer({
 // anything is paused or the file is on hold. Clicking opens the drawer.
 export function EmailSettingsButton({
   transactionId,
+  seedState = null,
 }: {
   transactionId: string;
+  // Dev/preview only (/dev/sheets): inject a ready state so the drawer renders
+  // without a backend fetch. When set, the server load is skipped.
+  seedState?: EmailSettingsState | null;
 }) {
-  const [state, setState] = useState<EmailSettingsState | null>(null);
+  const [state, setState] = useState<EmailSettingsState | null>(seedState);
   const [open, setOpen] = useState(false);
 
   const reload = useCallback(() => {
+    if (seedState) return; // seeded preview — never hit the server
     loadEmailSettings(transactionId).then((res) => {
       if (res.ok) setState(res.data);
     });
-  }, [transactionId]);
+  }, [transactionId, seedState]);
 
   useEffect(() => {
     reload();

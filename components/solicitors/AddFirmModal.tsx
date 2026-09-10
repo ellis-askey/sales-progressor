@@ -167,7 +167,10 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
         <Modal.Header style={SHEET_BAND_STYLE}>
-          <SheetBandHeader kicker="Solicitor" title={lockFirm ? "Add case handler" : "Add solicitor firm"} />
+          <SheetBandHeader
+            title={lockFirm ? "Add case handler" : "Add solicitor firm"}
+            subtitle={lockFirm ? "Another contact at this firm." : "The firm and case handler acting on this sale."}
+          />
         </Modal.Header>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>

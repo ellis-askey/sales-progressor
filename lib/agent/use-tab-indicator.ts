@@ -14,14 +14,18 @@ import { useRef, useState, useEffect } from "react";
  *
  * Documented in docs/polish-pass/ANIMATION_STANDARDS.md § A5.
  */
-export function useTabIndicator(activeIdx: number) {
+export function useTabIndicator(activeIdx: number, ...deps: unknown[]) {
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [ind, setInd] = useState<{ left: number; width: number } | null>(null);
 
   useEffect(() => {
     const el = btnRefs.current[activeIdx];
     if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth });
-  }, [activeIdx]);
+    // Extra deps let a consumer force a re-measure once the tab buttons exist —
+    // e.g. a drawer whose tabs mount only after an async load, so the default
+    // tab's underline appears on open, not just after the first click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIdx, ...deps]);
 
   return { btnRefs, ind };
 }

@@ -26,7 +26,9 @@ export type IntroCallSolicitor = {
 
 export type IntroCallData = {
   transactionId: string;
-  introDone: boolean;
+  introDone: boolean;            // legacy aggregate — either side done
+  introDoneVendor: boolean;      // seller intro complete
+  introDonePurchaser: boolean;   // buyer intro complete
   hasVendor: boolean;
   hasPurchaser: boolean;
   vendor: IntroCallContact | null;
@@ -66,7 +68,7 @@ export type IntroCallData = {
 const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
 function rowToMoveInfo(row: {
-  preferredCompletionDate: Date | null; noCompletionPreference: boolean; flexibility: string | null;
+  preferredCompletionDate: Date | null; noCompletionPreference: boolean | null; flexibility: string | null;
   mortgageOfferExpiry: Date | null; fundsInPlace: string | null; fundsSource: string | null;
   needsNotice: boolean | null; noticePeriod: string | null; noticeGiven: boolean | null; noticeEndDate: Date | null;
   buyingOnward: boolean | null; onwardReadyToExchange: string | null; onwardMortgageOfferExpiry: Date | null;
@@ -76,7 +78,7 @@ function rowToMoveInfo(row: {
 } | null | undefined): MoveInfo {
   return {
     preferredCompletionDate: isoDate(row?.preferredCompletionDate ?? null),
-    noCompletionPreference: row?.noCompletionPreference ?? false,
+    noCompletionPreference: row?.noCompletionPreference ?? null,
     flexibility: row?.flexibility ?? null,
     mortgageOfferExpiry: isoDate(row?.mortgageOfferExpiry ?? null),
     fundsInPlace: row?.fundsInPlace ?? null,
@@ -112,6 +114,8 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
       tenure: true,
       isShareOfFreehold: true,
       introCallCompletedAt: true,
+      introCallVendorCompletedAt: true,
+      introCallPurchaserCompletedAt: true,
       clientDepositGBP: true,
       clientMortgageGBP: true,
       clientOtherFundsSentGBP: true,
@@ -160,6 +164,8 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
   return {
     transactionId: tx.id,
     introDone: tx.introCallCompletedAt != null,
+    introDoneVendor: tx.introCallVendorCompletedAt != null,
+    introDonePurchaser: tx.introCallPurchaserCompletedAt != null,
     hasVendor: !!vendor,
     hasPurchaser: !!purchaser,
     vendor: vendor ? { id: vendor.id, name: vendor.name, phone: vendor.phone, email: vendor.email } : null,
@@ -264,21 +270,29 @@ export async function saveMoveInfoAgentAction(
   revalidatePath(`/agent/transactions/${transactionId}`);
 }
 
-// Stamp the file's introduction as complete (once, either side) + timeline note.
-export async function completeIntroCallAction(transactionId: string): Promise<void> {
+// Stamp ONE side's introduction as complete + timeline note. Buyer and seller
+// intros are separate conversations, so completing one never marks the other.
+// The legacy introCallCompletedAt is kept as the "either side done" aggregate.
+export async function completeIntroCallAction(transactionId: string, side: Side): Promise<void> {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, introCallCompletedAt: true },
+    select: { id: true, introCallCompletedAt: true, introCallVendorCompletedAt: true, introCallPurchaserCompletedAt: true },
   });
   if (!tx) throw new Error("Transaction not found");
-  if (tx.introCallCompletedAt) return; // already done — one-time
+  const alreadyDone = side === "vendor" ? tx.introCallVendorCompletedAt : tx.introCallPurchaserCompletedAt;
+  if (alreadyDone) return; // this side already done
 
-  await prisma.propertyTransaction.update({
-    where: { id: transactionId },
-    data: { introCallCompletedAt: new Date(), introCallCompletedById: session.user.id },
-  });
-  await logActivity(transactionId, `${session.user.name} completed the intro call.`, session.user.id);
+  const now = new Date();
+  const data: Record<string, unknown> = side === "vendor"
+    ? { introCallVendorCompletedAt: now, introCallVendorCompletedById: session.user.id }
+    : { introCallPurchaserCompletedAt: now, introCallPurchaserCompletedById: session.user.id };
+  // First completion also stamps the legacy aggregate so anything reading it stays correct.
+  if (!tx.introCallCompletedAt) { data.introCallCompletedAt = now; data.introCallCompletedById = session.user.id; }
+
+  await prisma.propertyTransaction.update({ where: { id: transactionId }, data });
+  const sideLabel = side === "vendor" ? "seller" : "buyer";
+  await logActivity(transactionId, `${session.user.name} completed the ${sideLabel} intro call.`, session.user.id);
   revalidatePath(`/agent/transactions/${transactionId}`);
 }

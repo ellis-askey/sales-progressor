@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, CaretLeft } from "@phosphor-icons/react";
+import { X, CaretLeft, Eye, EyeSlash } from "@phosphor-icons/react";
 import type { SheetEntry, DesignSelection } from "../_registry/types";
 import type { DesignByMode } from "../_registry/design";
 import { SURFACE_OPTIONS, SURFACE_GROUP_ORDER, FOOTER_OPTIONS, DEFAULT_SELECTION, selectionFromPreset, DARK_HEADERS } from "../_registry/design";
@@ -401,6 +401,39 @@ function InspectorBar({
 }) {
   const multiState = entry.states.length > 1;
   const active = entry.states.find((s) => s.id === stateId);
+  // Hide the whole bar (it can sit over a drawer's footer). Collapses to a small
+  // restore pill in the bottom-left, clear of the right-anchored drawer.
+  const [collapsed, setCollapsed] = useState(false);
+
+  if (collapsed) {
+    return (
+      <div
+        className="agent-shell-root"
+        data-theme="custom"
+        style={{ position: "fixed", zIndex: 2_147_400, left: 20, bottom: 20, minHeight: 0 }}
+      >
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="agent-reveal-in"
+          title="Show inspector bar"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 7,
+            padding: "8px 13px", borderRadius: 999, cursor: "pointer",
+            background: "var(--agent-banner-bg)",
+            backdropFilter: "blur(24px) saturate(1.6)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.6)",
+            border: "1px solid var(--agent-border-default)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.22)",
+            color: "var(--agent-text-secondary)", fontSize: 12, fontWeight: 600,
+          }}
+        >
+          <Eye size={15} weight="bold" /> Inspector
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       className="agent-shell-root"
@@ -485,6 +518,17 @@ function InspectorBar({
           title={verified ? "Marked verified — click to unmark" : "Mark this component verified"}
         >
           {verified ? "✓ Verified" : "Mark verified"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="agent-icon-btn"
+          aria-label="Hide inspector bar"
+          style={{ flexShrink: 0 }}
+          title="Hide bar (keeps the drawer open)"
+        >
+          <EyeSlash size={16} weight="bold" />
         </button>
 
         <button
