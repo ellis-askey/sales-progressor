@@ -17,7 +17,7 @@ import { PencilSimple } from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
+import { EmailPreviewFrame } from "@/components/email/EmailPreviewFrame";
 import {
   editChaseThreadAction,
   previewChaseEmailAction,
@@ -167,12 +167,7 @@ export function NextChaseEmailDrawer({
             </div>
             <div style={{ height: 1, background: "#e5e7eb" }} aria-hidden />
             {mode === "view" ? (
-              <iframe
-                title="Next email preview"
-                srcDoc={previewSrcDoc(preview.html)}
-                sandbox=""
-                style={{ width: "100%", minHeight: 380, border: "none", background: "#fff", display: "block" }}
-              />
+              <EmailPreviewFrame html={preview.html} title="Next email preview" minHeight={280} />
             ) : (
               <textarea
                 value={body}

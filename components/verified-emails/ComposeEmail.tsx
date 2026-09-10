@@ -171,46 +171,43 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
         />
       </div>
 
-      {/* Body */}
+      {/* Body + signature in one white field, so composing reads like the real
+          email that goes out (Outlook-style: your sign-off sits right there
+          under the message). Rendered on white regardless of the glass card
+          theme, because an email is always light — agent tokens would vanish in
+          dark mode. The signature the recipient sees is appended on send. */}
       <div>
         <label className="agent-label">Message</label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={6}
-          placeholder="Write your email here…"
-          className="agent-input w-full resize-none"
-        />
-      </div>
-
-      {/* Rendered sign-off — shown once there's a message, so the composer reads
-          like the email that actually goes out. Same block the chase drawer
-          shows; nudges a bare BASIC signature towards Settings. Rendered on
-          white (an email is always light) regardless of the glass card theme. */}
-      {signature?.html && body.trim() && (
-        <div>
-          <label className="agent-label">Signs off as</label>
-          <div
-            style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, padding: "4px 16px 14px", overflowX: "auto" }}
-            dangerouslySetInnerHTML={{ __html: signature.html }}
+        <div style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, overflow: "hidden" }}>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={10}
+            placeholder="Write your email here…"
+            style={{ width: "100%", minHeight: 190, border: "none", outline: "none", background: "transparent", padding: "12px 14px 6px", fontSize: 14, lineHeight: 1.6, color: "#1f2937", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
           />
-          <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-            {signature.kind === "inhouse"
-              ? "A standard sign-off is added when you send."
-              : "Your signature is added when you send."}
-          </p>
-          {signature.kind === "personal" && signature.mode === "BASIC" && (() => {
-            const personal = signature.missing.filter((m) => m !== "agency logo");
-            if (personal.length === 0) return null;
-            return (
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-                Add your {formatList(personal)} to finish your signature.{" "}
-                <a href="/agent/account/profile" target="_blank" rel="noreferrer" style={{ color: "var(--agent-coral-deep)", fontWeight: 600 }}>Update profile</a>
-              </p>
-            );
-          })()}
+          {signature?.html && (
+            <div style={{ padding: "0 14px 14px", overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: signature.html }} />
+          )}
         </div>
-      )}
+        {signature?.html && (
+          <p style={{ margin: "8px 2px 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+            {signature.kind === "inhouse" ? (
+              "A standard sign-off is added when you send."
+            ) : signature.mode !== "BASIC" ? (
+              "Your signature is added when you send."
+            ) : (() => {
+              const personal = signature.missing.filter((m) => m !== "agency logo");
+              return (
+                <>
+                  You&rsquo;re using the basic signature.{personal.length ? ` Add your ${formatList(personal)} to make it look more professional.` : " Personalise it with a photo and your details."}{" "}
+                  <a href="/agent/account/profile" target="_blank" rel="noreferrer" style={{ color: "var(--agent-coral-deep)", fontWeight: 600 }}>Set up your signature</a>
+                </>
+              );
+            })()}
+          </p>
+        )}
+      </div>
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
