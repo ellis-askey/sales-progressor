@@ -203,9 +203,13 @@ export default async function ClaimPage({
       })
     : null;
 
+  // A share link is for an agent doing a chain check, so it shows the WHOLE chain
+  // (every sale + contact). The emailed invite keeps the teaser cap of 4 with an
+  // "and X more" row.
   const MAX_VISIBLE = 4;
-  const visibleLinks = chainLinks.length <= MAX_VISIBLE ? chainLinks : chainLinks.slice(0, MAX_VISIBLE);
-  const ghostCount = chainLinks.length > MAX_VISIBLE ? chainLinks.length - MAX_VISIBLE : 0;
+  const showAll = isShareToken || chainLinks.length <= MAX_VISIBLE;
+  const visibleLinks = showAll ? chainLinks : chainLinks.slice(0, MAX_VISIBLE);
+  const ghostCount = showAll ? 0 : chainLinks.length - MAX_VISIBLE;
 
   // The illustrated white claim card (avatar, photos and pills). This is now the
   // only claim landing — the coral hero A/B variant was retired 2026-09-09 (white
