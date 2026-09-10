@@ -19,7 +19,7 @@ const DEMO_PORTAL_URL = "https://portal.thesalesprogressor.co.uk/portal/demo-tok
 
 const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
   {
-    label: "Happy path (seller — sale)",
+    label: "Happy path (seller - sale)",
     vars: {
       clientFirstName: "Sarah",
       address: "42 Briarwood Avenue, Hampton, TW12 1AB",
@@ -31,7 +31,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
     },
   },
   {
-    label: "Buyer — purchase",
+    label: "Buyer - purchase",
     vars: {
       clientFirstName: "Sarah",
       address: "42 Briarwood Avenue, Hampton, TW12 1AB",
@@ -43,7 +43,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
     },
   },
   {
-    label: "Fallback — no client first name",
+    label: "Fallback - no client first name",
     vars: {
       clientFirstName: null,
       address: "42 Briarwood Avenue, Hampton, TW12 1AB",
@@ -55,7 +55,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
     },
   },
   {
-    label: "Fallback — no address",
+    label: "Fallback - no address",
     vars: {
       clientFirstName: "Sarah",
       address: null,
@@ -67,7 +67,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
     },
   },
   {
-    label: "Fallback — no portal link (WhatsApp only)",
+    label: "Fallback - no portal link (WhatsApp only)",
     vars: {
       clientFirstName: "Sarah",
       address: "42 Briarwood Avenue, Hampton, TW12 1AB",
