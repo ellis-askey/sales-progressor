@@ -8,6 +8,27 @@ import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { deriveChaseTargetSide } from "@/lib/services/comms";
 import { resolveEmailSignature } from "@/lib/email/signature";
+import { sanitizeSignatureHtml } from "@/lib/email/sanitize-signature";
+import type { EmailAttachment } from "@/lib/email";
+
+// SendGrid caps a message at ~30MB; keep the base64 total well under that.
+const MAX_ATTACHMENT_CHARS = 28 * 1024 * 1024;
+
+// Keep only well-formed attachments and enforce the total size ceiling.
+function sanitizeAttachments(input: unknown): EmailAttachment[] {
+  if (!Array.isArray(input)) return [];
+  const out: EmailAttachment[] = [];
+  let total = 0;
+  for (const a of input) {
+    if (!a || typeof a !== "object") continue;
+    const { content, filename, type } = a as Record<string, unknown>;
+    if (typeof content !== "string" || typeof filename !== "string" || typeof type !== "string") continue;
+    total += content.length;
+    if (total > MAX_ATTACHMENT_CHARS) break;
+    out.push({ content, filename, type, disposition: "attachment" });
+  }
+  return out;
+}
 
 function escapeHtmlBody(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -22,11 +43,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rateLimitJson(rateLimit), { status: 429 });
   }
 
-  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails } = await req.json();
+  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails, bodyHtml, attachments } = await req.json();
   if (!transactionId || !toEmail || !messageText) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
   const validCcEmails: string[] = Array.isArray(ccEmails) ? ccEmails.filter(Boolean) : [];
+  const validAttachments = sanitizeAttachments(attachments);
 
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
@@ -55,11 +77,15 @@ export async function POST(req: NextRequest) {
     agency: tx.agency,
     fallbackName: session.user.name,
   });
-  const bodyHtml = escapeHtmlBody(body).replace(/\r?\n/g, "<br>");
-  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${bodyHtml}${sig.html}</div>`;
+  // Rich-text body from the composer (sanitised) when provided; otherwise the
+  // legacy plain-text-to-HTML path. The plain-text part is always the plain body.
+  const renderedBody = typeof bodyHtml === "string" && bodyHtml.trim()
+    ? sanitizeSignatureHtml(bodyHtml)
+    : escapeHtmlBody(body).replace(/\r?\n/g, "<br>");
+  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${sig.html}</div>`;
 
   try {
-    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + sig.text, html, from, replyTo });
+    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + sig.text, html, from, replyTo, ...(validAttachments.length ? { attachments: validAttachments } : {}) });
 
     const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
     // Phase 1 commit 4d post-fix — buyerRoundId stamping at the send-

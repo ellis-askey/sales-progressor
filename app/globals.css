@@ -322,6 +322,17 @@ body {
     cursor: not-allowed;
   }
 
+  /* Chase composer (contentEditable). The app CSS reset zeroes list styling, so
+   * restore bullets/numbers inside the editor, and style links + paragraphs so
+   * what the agent types reads like the email that goes out. */
+  .chase-editor:focus { outline: none; }
+  .chase-editor p { margin: 0 0 8px; }
+  .chase-editor p:last-child { margin-bottom: 0; }
+  .chase-editor ul { list-style: disc; padding-left: 20px; margin: 4px 0 8px; }
+  .chase-editor ol { list-style: decimal; padding-left: 20px; margin: 4px 0 8px; }
+  .chase-editor li { margin: 2px 0; }
+  .chase-editor a { color: var(--agent-coral-deep); text-decoration: underline; }
+
   /*
    * Section label — Micro-scale uppercase heading for sections between glass cards.
    * Matches the type scale spec: 11px / 600 / uppercase / +0.07em tracking.

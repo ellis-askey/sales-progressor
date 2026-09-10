@@ -6,6 +6,8 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { ChaseComposer, type ChaseAttachment } from "@/components/chase/ChaseComposer";
+import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
 import { defaultRecipient, recipientRoleLabel, isSolicitorRecipient } from "@/lib/services/chase-recipients";
 import { createContactAction } from "@/app/actions/contacts";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
@@ -107,15 +109,25 @@ function stepChaseLabel(count: number): string {
   return `Chased ${count} times`;
 }
 
-// Default email subject, pre-set but editable: "Purchase of <address>" for the
-// buyer side, "Sale of <address>" for the seller side (a solicitor carries its
-// own side; broker sits buyer-side).
+// Default email subject, pre-set but editable:
+//   - Solicitor recipient → "Purchase/Sale of <address>" (their side).
+//   - Client recipient (seller / buyer / broker) → the client name(s) on that
+//     role, joined with " & " for joint owners.
 function recipientSubject(
-  r: { side?: "vendor" | "purchaser" | null; roleType: string } | null,
+  r: { side?: "vendor" | "purchaser" | null; roleType: string; name: string } | null,
   address: string,
+  contacts: { roleType: string; name: string }[],
 ): string {
-  const side = r?.side ?? (r?.roleType === "purchaser" || r?.roleType === "broker" ? "purchaser" : "vendor");
-  return `${side === "purchaser" ? "Purchase" : "Sale"} of ${address}`;
+  if (!r) return `Sale of ${address}`;
+  if (r.roleType === "solicitor") {
+    const side = r.side ?? "vendor";
+    return `${side === "purchaser" ? "Purchase" : "Sale"} of ${address}`;
+  }
+  const names = contacts
+    .filter((c) => c.roleType === r.roleType && c.name.trim())
+    .map((c) => c.name.trim());
+  const unique = Array.from(new Set(names.length ? names : [r.name].filter(Boolean)));
+  return unique.length ? unique.join(" & ") : `Sale of ${address}`;
 }
 
 // Recipient avatar: their photo when on file, otherwise the same branded avatar
@@ -131,10 +143,22 @@ function RecipientAvatar({ contact, size }: { contact: { name: string; roleType:
 
 // Recombine the editable subject + body into the "Subject: …\n\n body" wire
 // format the send path + parseEmailMessage expect. Blank subject => body only,
-// and the server falls back to a default subject.
+// and the server falls back to a default subject. `body` is plain text here.
 function composeMessage(subject: string, body: string): string {
   const s = subject.trim();
   return s ? `Subject: ${s}\n\n${body}` : body;
+}
+
+// Read a picked file into a base64 SendGrid attachment.
+async function fileToAttachment(file: File): Promise<{ content: string; filename: string; type: string }> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+  const base64 = dataUrl.split(",", 2)[1] ?? "";
+  return { content: base64, filename: file.name, type: file.type || "application/octet-stream" };
 }
 
 // "a" / "a and b" / "a, b and c" — for the signature-completion nudge.
@@ -270,18 +294,23 @@ export function ChaseDrawer({
   }
 
   const [ccOn, setCcOn] = useState(false);
-  // Email subject — pre-set to "Purchase/Sale of <address>", editable. Not
-  // driven by the AI draft; recomputed when the recipient changes until the
-  // agent edits it (subjectDirty).
-  const [subject, setSubject] = useState(() => recipientSubject(selectedRecipient, propertyAddress));
+  // Email subject — pre-set from the recipient (address for solicitors, client
+  // name(s) otherwise), editable. Not driven by the AI draft; recomputed when
+  // the recipient changes until the agent edits it (subjectDirty).
+  const defaultSubject = recipientSubject(selectedRecipient, propertyAddress, contacts);
+  const [subject, setSubject] = useState(defaultSubject);
   const [subjectDirty, setSubjectDirty] = useState(false);
+  // message holds the composer's HTML body; plain-text forms are derived on send.
   const [message, setMessage] = useState("");
+  const [attachments, setAttachments] = useState<ChaseAttachment[]>([]);
+  // Scroll anchor — after Generate we bring the subject to the top so the whole
+  // draft (subject, message, sign-off) is in view at once.
+  const composeTopRef = useRef<HTMLDivElement | null>(null);
 
   // Keep the subject on the recipient's default until the agent edits it.
   useEffect(() => {
-    if (!subjectDirty) setSubject(recipientSubject(selectedRecipient, propertyAddress));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRecipient?.id, subjectDirty, propertyAddress]);
+    if (!subjectDirty) setSubject(defaultSubject);
+  }, [defaultSubject, subjectDirty]);
   const [generatedText, setGeneratedText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -493,11 +522,12 @@ export function ChaseDrawer({
   // chase on faith (same trust model as the WhatsApp handoff). For agents who
   // don't want us sending on their behalf, or haven't set up a sending address.
   async function handleOpenInMyEmail(): Promise<void> {
-    if (!message.trim() || !selectedRecipient?.email) return;
+    const bodyText = htmlToText(message);
+    if (!bodyText.trim() || !selectedRecipient?.email) return;
     setIsSending(true);
     setError(null);
     const wasAiGenerated = generatedText.length > 0;
-    const effectiveContent = composeMessage(subject, message);
+    const effectiveContent = composeMessage(subject, bodyText);
     const wasEdited = wasAiGenerated && message !== generatedText;
     const contactIds = recipientIsSolicitor || !selectedRecipient ? [] : [selectedRecipient.id];
     const taskIdsToLog = isMulti ? milestones!.map((m) => m.chaseTaskId) : [chaseTaskId];
@@ -527,7 +557,7 @@ export function ChaseDrawer({
       const params = new URLSearchParams();
       if (effectiveCc.length) params.set("cc", effectiveCc.join(","));
       params.set("subject", subj);
-      params.set("body", message);
+      params.set("body", bodyText);
       const query = params.toString().replace(/\+/g, "%20");
       window.location.href = `mailto:${selectedRecipient.email}?${query}`;
       toast.success("Opened in your email");
@@ -578,12 +608,16 @@ export function ChaseDrawer({
       if (res.status === 429) { setError(data.message ?? "Too many requests. Wait a few minutes and try again."); return; }
       if (!res.ok) { setError(data.error ?? "Couldn't generate. Try again"); return; }
       // Subject comes from the recipient, not the draft. Strip any "Subject:"
-      // line the model produced so the textarea holds a clean body; compare the
-      // body against generatedText for the "Edited" signal.
+      // line the model produced, lift the plain-text body into the editor as
+      // HTML, and compare against generatedText for the "Edited" signal.
       const parsed = splitSubjectBody(data.generated);
-      setMessage(parsed.body);
-      setGeneratedText(parsed.body);
+      const html = textToHtml(parsed.body);
+      setMessage(html);
+      setGeneratedText(html);
       setGeneratedContext(data.context);
+      // Once the draft lands, bring the subject to the top so the full email
+      // (subject, body, sign-off) is visible at once.
+      setTimeout(() => composeTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch {
       if (generationIdRef.current !== genId) return;
       setError("Something went wrong. Try again.");
@@ -593,7 +627,8 @@ export function ChaseDrawer({
   }
 
   async function handleSend(): Promise<void> {
-    if (!message.trim()) return;
+    const bodyText = htmlToText(message);
+    if (!bodyText.trim()) return;
     if (channel === "email" && !selectedRecipient?.email) {
       setError("No email address on file. Add one to a contact first.");
       return;
@@ -606,8 +641,9 @@ export function ChaseDrawer({
     setError(null);
 
     const wasAiGenerated = generatedText.length > 0;
-    // Email carries the subject line on the wire; WhatsApp is body only.
-    const effectiveContent = channel === "email" ? composeMessage(subject, message) : message;
+    // Email carries the subject line on the wire; WhatsApp is body only. The
+    // logged/text form is plain; the HTML body rides on bodyHtml (email only).
+    const effectiveContent = channel === "email" ? composeMessage(subject, bodyText) : bodyText;
     const wasEdited = wasAiGenerated && message !== generatedText;
     // Log against the recipient's Contact row. Solicitor recipients live in a
     // separate table (SolicitorContact) whose ids must never be written into
@@ -644,6 +680,9 @@ export function ChaseDrawer({
       if (channel === "email") {
         const recipient = selectedRecipient;
         if (recipient?.email) {
+          const emailAttachments = attachments.length
+            ? await Promise.all(attachments.map((a) => fileToAttachment(a.file)))
+            : undefined;
           const emailRes = await fetch("/api/chase/send-email", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -653,7 +692,9 @@ export function ChaseDrawer({
               toEmail: recipient.email,
               toName: recipient.name,
               messageText: effectiveContent,
+              bodyHtml: message,
               ccEmails: effectiveCc,
+              ...(emailAttachments ? { attachments: emailAttachments } : {}),
             }),
           });
           const emailData: SendResult = await emailRes.json();
@@ -672,7 +713,7 @@ export function ChaseDrawer({
       if (channel === "whatsapp") {
         if (selectedRecipient?.phone) {
           const phone = selectedRecipient.phone.replace(/\D/g, "");
-          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(bodyText)}`, "_blank");
         }
       }
 
@@ -687,6 +728,11 @@ export function ChaseDrawer({
       setIsSending(false);
     }
   }
+
+  // Body is empty when the composer holds no visible text. Attachments only ride
+  // on the real Send (a mailto link can't carry files).
+  const bodyEmpty = isHtmlEmpty(message);
+  const hasAttachments = attachments.length > 0;
 
   return createPortal(
     <div className="fixed inset-0 flex justify-end" data-theme={theme} style={{ zIndex: 1000 }}>
@@ -794,12 +840,13 @@ export function ChaseDrawer({
                   transition: "border-color 140ms",
                 }}
               >
-                {/* Property photo when the file has one (fills the tile), else
-                    the branded house illustration shown whole on the pale tile. */}
+                {/* Property photo when the file has one (fills the tile with a
+                    border), else the branded house illustration on a bare
+                    transparent tile (no coloured container). */}
                 <div style={{
                   width: 42, height: 42, borderRadius: 10, flexShrink: 0, overflow: "hidden",
-                  background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.12), rgba(var(--agent-coral-rgb), 0.05))",
-                  border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
+                  background: "transparent",
+                  border: propertyPhotoUrl ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "none",
                 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={propertyPhotoUrl || "/property-fallback-house.png"} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: propertyPhotoUrl ? "cover" : "contain", display: "block" }} />
@@ -1139,7 +1186,7 @@ export function ChaseDrawer({
                 : <><Sparkle size={15} weight="fill" />Generate message</>}
             </button>
 
-            {!message && !isGenerating && (
+            {isHtmlEmpty(message) && !isGenerating && (
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", lineHeight: 1.45 }}>
                 We&apos;ll draft a chase based on this property, recipient and tone.
               </p>
@@ -1156,7 +1203,7 @@ export function ChaseDrawer({
                 Email only (WhatsApp has none). Blank falls back to the server
                 default "Chase: <address>". */}
             {channel === "email" && (
-              <div>
+              <div ref={composeTopRef} style={{ scrollMarginTop: 12 }}>
                 <p className="agent-section-label" style={{ margin: "0 0 6px" }}>Subject</p>
                 <input
                   className="agent-focus"
@@ -1193,30 +1240,20 @@ export function ChaseDrawer({
               </button>
             </div>
 
-            {/* agent-focus class handles themed focus ring — replaces inline onFocus/onBlur handlers */}
-            <textarea
-              className="agent-focus"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+            <ChaseComposer
+              valueHtml={message}
+              onChangeHtml={setMessage}
               placeholder={channel === "email" ? "Generate a message or type your own…" : "Generate a WhatsApp message or type your own…"}
-              rows={11}
-              style={{
-                width: "100%", boxSizing: "border-box", resize: "none",
-                padding: "12px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
-                border: "0.5px solid var(--agent-border-subtle)", outline: "none",
-                background: "var(--agent-surface-glass)",
-                color: "var(--agent-text-primary)",
-                fontFamily: "inherit",
-                transition: "border-color 140ms",
-              }}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              charCount={htmlToText(message).length}
             />
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
-                {generatedText && message !== generatedText && message.length > 0 ? "Edited" : ""}
-              </span>
-              <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)" }}>{message.length} characters</span>
-            </div>
+            {channel === "whatsapp" && attachments.length > 0 && (
+              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
+                Files send by email only. WhatsApp won&apos;t include them.
+              </p>
+            )}
 
             {error && (
               <div style={{ background: "#fef2f2", border: "0.5px solid #fca5a5", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#dc2626" }}>
@@ -1228,7 +1265,7 @@ export function ChaseDrawer({
                 compose reads like the email that actually goes out. The
                 signature HTML brings its own top divider + spacing. The
                 "Open in my email" path uses the agent's own client signature. */}
-            {channel === "email" && signature && message.trim().length > 0 && (
+            {channel === "email" && signature && !isHtmlEmpty(message) && (
               <div>
                 <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: signature.html }} />
                 <p style={{ margin: "12px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
@@ -1269,25 +1306,25 @@ export function ChaseDrawer({
         }}>
           <button
             onClick={handleSend}
-            disabled={!message.trim() || isSending}
+            disabled={bodyEmpty || isSending}
             style={{
               width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               padding: "13px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
-              border: "none", cursor: !message.trim() || isSending ? "not-allowed" : "pointer",
+              border: "none", cursor: bodyEmpty || isSending ? "not-allowed" : "pointer",
               transition: "all 160ms",
               ...(channel === "whatsapp"
                 ? {
                     // WhatsApp green — semantic channel colour, must not theme
-                    background: !message.trim() || isSending ? "rgba(34,197,94,0.35)" : "linear-gradient(135deg, #22c55e, #4ade80)",
+                    background: bodyEmpty || isSending ? "rgba(34,197,94,0.35)" : "linear-gradient(135deg, #22c55e, #4ade80)",
                     color: "white",
-                    boxShadow: !message.trim() || isSending ? "none" : "0 4px 20px rgba(34,197,94,0.28)",
+                    boxShadow: bodyEmpty || isSending ? "none" : "0 4px 20px rgba(34,197,94,0.28)",
                   }
                 : {
-                    background: !message.trim() || isSending
+                    background: bodyEmpty || isSending
                       ? "rgba(var(--agent-coral-rgb), 0.35)"
                       : "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
                     color: "white",
-                    boxShadow: !message.trim() || isSending ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.28)",
+                    boxShadow: bodyEmpty || isSending ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.28)",
                   }),
             }}
           >
@@ -1302,21 +1339,23 @@ export function ChaseDrawer({
             <>
               <button
                 onClick={handleOpenInMyEmail}
-                disabled={!message.trim() || !selectedRecipient?.email || isSending}
-                title="Opens your own email app with this ready to send"
+                disabled={bodyEmpty || !selectedRecipient?.email || isSending || hasAttachments}
+                title={hasAttachments ? "Remove attachments to use your own email app" : "Opens your own email app with this ready to send"}
                 style={{
                   marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                   border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)",
-                  color: (!message.trim() || !selectedRecipient?.email) ? "var(--agent-text-tertiary)" : "var(--agent-text-primary)",
-                  cursor: (!message.trim() || !selectedRecipient?.email || isSending) ? "not-allowed" : "pointer",
+                  color: (bodyEmpty || !selectedRecipient?.email || hasAttachments) ? "var(--agent-text-tertiary)" : "var(--agent-text-primary)",
+                  cursor: (bodyEmpty || !selectedRecipient?.email || isSending || hasAttachments) ? "not-allowed" : "pointer",
                   transition: "all 150ms",
                 }}
               >
                 <ArrowSquareOut size={15} weight="bold" /> Open in my email
               </button>
               <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "var(--agent-text-tertiary)", textAlign: "center", lineHeight: 1.45 }}>
-                Sends from your own inbox. We’ll log it as chased.
+                {hasAttachments
+                  ? "Files send with Send chase only. Open in my email can't carry attachments."
+                  : "Sends from your own inbox. We'll log it as chased."}
               </p>
             </>
           )}
