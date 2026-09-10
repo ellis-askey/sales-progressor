@@ -794,15 +794,15 @@ export function ChaseDrawer({
                   transition: "border-color 140ms",
                 }}
               >
-                {/* Property photo when the file has one, else the app's property
-                    placeholder image (never an empty tile). */}
+                {/* Property photo when the file has one (fills the tile), else
+                    the branded house illustration shown whole on the pale tile. */}
                 <div style={{
                   width: 42, height: 42, borderRadius: 10, flexShrink: 0, overflow: "hidden",
                   background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.12), rgba(var(--agent-coral-rgb), 0.05))",
                   border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
                 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={propertyPhotoUrl || "/property-photo-fallback.png"} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <img src={propertyPhotoUrl || "/property-fallback-house.png"} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: propertyPhotoUrl ? "cover" : "contain", display: "block" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
