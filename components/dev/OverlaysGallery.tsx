@@ -377,7 +377,7 @@ export function OverlaysGallery() {
       {open === "designLab" && <GlassPicksProvider initialPicks={{}}><DesignLabDrawer open onClose={close} /></GlassPicksProvider>}
       {open === "welcome" && <WelcomeModal />}
       {open === "undo" && <UndoMilestoneModal milestoneName="Searches requested" milestoneId="m-dev-001" undoData={MOCK_UNDO_CASCADE} isPending={false} onConfirm={close} onCancel={close} />}
-      {open === "mortgage" && <MortgageModal onConfirmMortgage={close} onConfirmReinstate={close} onCancel={close} />}
+      {open === "mortgage" && <MortgageModal buyerNames={["Jane Smith"]} onConfirm={close} onCancel={close} />}
       {open === "surveyNr" && <SurveyNrConfirmModal onConfirm={close} onCancel={close} />}
       {open === "addFirm" && <AddFirmModal prefillName="" onClose={close} onCreated={close} />}
       {open === "addBroker" && <AddBrokerModal prefillName="" onClose={close} onCreated={close} />}

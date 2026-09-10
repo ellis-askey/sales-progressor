@@ -56,6 +56,8 @@ type Props = {
   // PurchaseType for the transaction — drives conditional N/R eligibility
   // (cash buyers can mark PM8 search milestones as not required).
   purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
+  // Buyer name(s) for the "re-open mortgage steps" modal's subtitle.
+  buyerNames?: string[];
 };
 
 export function MilestonePanel({
@@ -69,6 +71,7 @@ export function MilestonePanel({
   graceDaysByCode,
   clientChaseByCode,
   purchaseType,
+  buyerNames,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
 
@@ -442,7 +445,7 @@ export function MilestonePanel({
               <div className={`agent-acc${!nrCollapsed ? " open" : ""}`}>
                 <div className="agent-acc-in">
                   {nrMilestones.map((def) => (
-                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
+                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} buyerNames={buyerNames} />
                   ))}
                 </div>
               </div>

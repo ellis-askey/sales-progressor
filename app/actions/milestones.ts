@@ -14,6 +14,7 @@ import {
   completeMilestone,
   markNotRequiredWithCascade,
   reverseMilestoneWithCascade,
+  bulkCompleteMilestones,
   getUndoImpact,
   executeUndoMilestone,
   unlockDirectDependents,
@@ -596,6 +597,76 @@ export async function reverseMilestoneAction(input: {
   // stored prediction so the hub date pushes back out. Best-effort.
   await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
     console.error("[reverseMilestoneAction] expectedExchangeDate refresh failed", err);
+  });
+
+  revalidateTx(input.transactionId);
+}
+
+// Reinstate a mortgage step on a buyer previously recorded as cash, switching
+// them to mortgage-funded. When the offer is already in place, back-fill the
+// three mortgage steps (applied → valuation → offer) in one go. That back-fill
+// is client-silent (no step emails) but flagged backfilledCompletion so the
+// timeframes analytics ignores its fake ~0-day gaps, and it leaves an internal
+// note on the activity log.
+export async function reinstateAsMortgageBuyerAction(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  offerAlreadyReceived: boolean;
+}) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true, isDemo: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  // 1. Reinstate the clicked step + switch the buyer to mortgage-funded.
+  await reverseMilestoneWithCascade({
+    transactionId: input.transactionId,
+    milestoneDefinitionId: input.milestoneDefinitionId,
+    completedById: session.user.id,
+    completedByName: session.user.name ?? "",
+    newPurchaseType: "mortgage",
+  });
+
+  // 2. Offer already in place → back-fill applied/valuation/offer at once.
+  if (input.offerAlreadyReceived) {
+    const mortgageDefs = await prisma.milestoneDefinition.findMany({
+      where: { side: "purchaser", code: { in: ["PM5", "PM6", "PM11"] } },
+      select: { id: true },
+    });
+    if (mortgageDefs.length > 0) {
+      await bulkCompleteMilestones(
+        mortgageDefs.map((d) => d.id),
+        input.transactionId,
+        session.user.id,
+        session.user.name ?? "",
+        true, // backfilled — excluded from the timeframes analytics
+      );
+    }
+    // Client-silent, but the file should record what happened.
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: input.transactionId,
+        type: "internal_note",
+        contactIds: [],
+        content: `${session.user.name ?? "An agent"} switched the buyer to mortgage-funded and marked the mortgage steps (applied, valuation and offer received) complete, as the offer was already in place.`,
+        createdById: session.user.id,
+        createdByRole: session.user.role,
+      },
+    });
+  }
+
+  if (!tx.isDemo) {
+    await evaluateTransactionReminders(input.transactionId).catch((err) => {
+      console.error(`[reinstateAsMortgageBuyerAction] evaluate failed:`, err);
+    });
+  }
+
+  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+    console.error("[reinstateAsMortgageBuyerAction] expectedExchangeDate refresh failed", err);
   });
 
   revalidateTx(input.transactionId);

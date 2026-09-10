@@ -584,6 +584,9 @@ export default async function AgentTransactionDetailPage({
             transactionId={transaction.id}
             agencyId={session.user.agencyId}
             purchaseType={transaction.purchaseType ?? null}
+            buyerNames={transaction.contacts
+              .filter((c) => c.roleType === "purchaser")
+              .map((c) => c.name)}
           />
         </Suspense>
 

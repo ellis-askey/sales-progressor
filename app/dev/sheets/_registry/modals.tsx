@@ -294,17 +294,17 @@ export const MODAL_ENTRIES: SheetEntry[] = [
   },
   {
     id: "modal-mortgage",
-    name: "Mortgage buyer confirm",
+    name: "Re-open mortgage steps",
     type: "modal",
     area: "Milestones",
-    usedIn: "Milestone engine · re-open mortgage steps",
+    usedIn: "Milestone engine · reinstate a cash buyer's mortgage step",
     file: "components/milestones/MortgageModal.tsx",
     componentName: "MortgageModal",
-    note: "Three stacked choices: confirm mortgage buyer, re-open without changing type, or cancel.",
+    note: "Two radio options (switch to mortgage, with a nested 'offer already received' back-fill / keep as cash) + Cancel + Continue. Names the buyer in the subtitle. The back-fill completes applied/valuation/offer silently and is excluded from timeframes.",
     preview: "overlay",
     states: [{ id: "default", label: "Default" }],
     render: ({ onClose }) => (
-      <MortgageModal onConfirmMortgage={onClose} onConfirmReinstate={onClose} onCancel={onClose} />
+      <MortgageModal buyerNames={["Jane Smith", "John Smith"]} onConfirm={onClose} onCancel={onClose} />
     ),
   },
   {

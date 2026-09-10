@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
-import { reverseMilestoneAction } from "@/app/actions/milestones";
-import { MortgageModal } from "@/components/milestones/MortgageModal";
+import { reverseMilestoneAction, reinstateAsMortgageBuyerAction } from "@/app/actions/milestones";
+import { MortgageModal, type MortgageChoice } from "@/components/milestones/MortgageModal";
+
+// The three purchase-type steps a cash buyer has auto-marked not-required.
+// Reinstating any of them asks whether the buyer's switched to a mortgage.
+const MORTGAGE_NR_CODES = new Set(["PM5", "PM6", "PM11"]);
 
 type EnrichedDef = Omit<MilestoneDefinition, "weight"> & {
   weight: number;
@@ -17,13 +21,16 @@ type EnrichedDef = Omit<MilestoneDefinition, "weight"> & {
 type Props = {
   def: EnrichedDef;
   transactionId: string;
+  // Buyer name(s) for the mortgage modal's subtitle. Only used by the mortgage
+  // steps; harmless elsewhere.
+  buyerNames?: string[];
 };
 
-export function NotRequiredRow({ def, transactionId }: Props) {
+export function NotRequiredRow({ def, transactionId, buyerNames = [] }: Props) {
   const [loading, setLoading] = useState(false);
   const [showMortgageModal, setShowMortgageModal] = useState(false);
 
-  const isPM9 = def.code === "PM9";
+  const isMortgageStep = MORTGAGE_NR_CODES.has(def.code);
 
   async function doReinstate(newPurchaseType?: PurchaseType) {
     setLoading(true);
@@ -42,11 +49,37 @@ export function NotRequiredRow({ def, transactionId }: Props) {
     }
   }
 
+  async function convertWithOffer() {
+    setLoading(true);
+    setShowMortgageModal(false);
+    try {
+      await reinstateAsMortgageBuyerAction({
+        transactionId,
+        milestoneDefinitionId: def.id,
+        offerAlreadyReceived: true,
+      });
+    } catch {
+      // silent — optimistic pattern; page re-renders on success
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleReinstate() {
-    if (isPM9) {
+    if (isMortgageStep) {
       setShowMortgageModal(true);
     } else {
       doReinstate();
+    }
+  }
+
+  function handleMortgageChoice(choice: MortgageChoice) {
+    if (!choice.convertToMortgage) {
+      doReinstate();            // keep as cash buyer, just re-open the step
+    } else if (choice.offerAlreadyReceived) {
+      convertWithOffer();       // convert + back-fill applied/valuation/offer
+    } else {
+      doReinstate("mortgage");  // convert, leave the steps outstanding
     }
   }
 
@@ -75,8 +108,8 @@ export function NotRequiredRow({ def, transactionId }: Props) {
 
       {showMortgageModal && (
         <MortgageModal
-          onConfirmMortgage={() => doReinstate("mortgage")}
-          onConfirmReinstate={() => doReinstate()}
+          buyerNames={buyerNames}
+          onConfirm={handleMortgageChoice}
           onCancel={() => setShowMortgageModal(false)}
         />
       )}

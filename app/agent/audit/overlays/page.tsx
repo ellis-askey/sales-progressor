@@ -996,7 +996,7 @@ function CategoryModals({ decision, onPick }: { decision: Decision; onPick: (d: 
           </div>
           {welcome && <WelcomeModal />}
           {undoOpen && <UndoMilestoneModal milestoneName="Searches requested" milestoneId="m-audit-001" undoData={undoCascade ? MOCK_UNDO_CASCADE : MOCK_UNDO_NO_CASCADE} isPending={false} onConfirm={() => setUndoOpen(false)} onCancel={() => setUndoOpen(false)} />}
-          {mortgage && <MortgageModal onConfirmMortgage={() => setMortgage(false)} onConfirmReinstate={() => setMortgage(false)} onCancel={() => setMortgage(false)} />}
+          {mortgage && <MortgageModal buyerNames={["Jane Smith"]} onConfirm={() => setMortgage(false)} onCancel={() => setMortgage(false)} />}
           {surveyNr && <SurveyNrConfirmModal onConfirm={() => setSurveyNr(false)} onCancel={() => setSurveyNr(false)} />}
           {addFirm && <AddFirmModal prefillName="" onClose={() => setAddFirm(false)} onCreated={() => setAddFirm(false)} />}
           {addBroker && <AddBrokerModal prefillName="" onClose={() => setAddBroker(false)} onCreated={() => setAddBroker(false)} />}

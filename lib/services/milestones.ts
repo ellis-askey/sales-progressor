@@ -1327,7 +1327,11 @@ export async function bulkCompleteMilestones(
   milestoneDefinitionIds: string[],
   transactionId: string,
   completedById: string,
-  completedByName: string
+  completedByName: string,
+  // When true, each row is stamped backfilledCompletion:true — a retrospective
+  // bulk completion with no real elapsed timeline (e.g. cash→mortgage "offer
+  // already received"). The timeframes analytics excludes these.
+  backfilled = false
 ) {
   if (milestoneDefinitionIds.length === 0) return [];
 
@@ -1410,6 +1414,7 @@ export async function bulkCompleteMilestones(
               // completing a previously-NR'd row too.
               notRequiredById: null,
               notRequiredAt: null,
+              backfilledCompletion: backfilled,
             },
           });
         }
@@ -1423,6 +1428,7 @@ export async function bulkCompleteMilestones(
             completedById,
             summaryText: summaryTexts[i],
             buyerRoundId: def?.side === "purchaser" ? activeBuyerRoundId : null,
+            backfilledCompletion: backfilled,
           },
         });
       })

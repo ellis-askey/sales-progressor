@@ -11,9 +11,11 @@ type Props = {
   transactionId: string;
   agencyId: string;
   purchaseType: PurchaseType | null;
+  // Buyer name(s) for the "re-open mortgage steps" modal's subtitle.
+  buyerNames?: string[];
 };
 
-export async function StepsPanel({ transactionId, agencyId, purchaseType }: Props) {
+export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerNames }: Props) {
   const [milestoneData, graceDaysMap, clientChaseByCode] = await Promise.all([
     getMilestonesCached(transactionId, agencyId).catch(() => null),
     getGraceDaysCached().catch(() => new Map<string, number>()),
@@ -47,6 +49,7 @@ export async function StepsPanel({ transactionId, agencyId, purchaseType }: Prop
         graceDaysByCode={graceDaysByCode}
         clientChaseByCode={clientChaseByCode}
         purchaseType={purchaseType}
+        buyerNames={buyerNames}
       />
     </>
   );

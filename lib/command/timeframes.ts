@@ -206,6 +206,7 @@ export async function getStageTimeframes(opts: {
           completedAt: true,
           eventDate: true,
           reconciledAtClaim: true,
+          backfilledCompletion: true,
           milestoneDefinition: { select: { code: true } },
         },
       },
@@ -234,7 +235,10 @@ export async function getStageTimeframes(opts: {
       if (!date) continue;
       // Unknowable: reconciled at claim with no real date → its completedAt is
       // the claim day, so any gap touching it is meaningless. Mark unusable.
-      const usable = !(c.reconciledAtClaim && !c.eventDate);
+      // Also drop retrospective bulk backfills (e.g. cash→mortgage "offer
+      // already received") — they land applied/valuation/offer on the same
+      // instant, so every gap touching them is a fake ~0-day span.
+      const usable = !(c.reconciledAtClaim && !c.eventDate) && !c.backfilledCompletion;
       byCode.set(code, { code, predecessorCode: predByCode.get(code) ?? null, date, usable, eventDate: c.eventDate });
     }
 

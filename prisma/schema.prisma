@@ -1360,6 +1360,12 @@ model MilestoneCompletion {
   reconciledAtExchange          Boolean        @default(false)
   reconciledAtClaim             Boolean        @default(false)
   outOfOrderCompletion          Boolean        @default(false)
+  // Completed retrospectively in bulk with no real elapsed timeline — e.g. a
+  // cash buyer switched to mortgage and confirmed the offer was already
+  // received, back-filling applied/valuation/offer in one go. Excluded from the
+  // timeframes analytics (lib/command/timeframes.ts) so the ~0-day gaps between
+  // these don't drag the stage/step averages down.
+  backfilledCompletion          Boolean        @default(false)
   createdAt                     DateTime       @default(now())
   updatedAt                     DateTime       @updatedAt
 
