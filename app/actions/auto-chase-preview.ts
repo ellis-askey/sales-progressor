@@ -32,7 +32,37 @@ function sideForCode(code: string): "vendor" | "purchaser" {
   return code.startsWith("PM") ? "purchaser" : "vendor";
 }
 
+// Public entry: never hang, never leak a raw error. The core build is fast
+// (pure composers behind a few DB reads), but a cold/slow serverless
+// invocation can stall on the nested reminderLog read. Bound it, log the real
+// reason server-side for diagnosis, and show the user a clean, retryable line.
+function withTimeout<T>(ms: number, p: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("TIMEOUT")), ms);
+  });
+  return Promise.race([p.finally(() => clearTimeout(timer)), timeout]);
+}
+
 export async function getAutoChasePreview(
+  logId: string,
+  pipeline: "client" | "solicitor",
+): Promise<AutoChasePreview> {
+  try {
+    return await withTimeout(8000, buildAutoChasePreview(logId, pipeline));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[auto-chase-preview] failed", { logId, pipeline, message });
+    return {
+      ok: false,
+      error: message === "TIMEOUT"
+        ? "The preview took too long to build. Try again."
+        : "Couldn't build this preview. Open the file to see the email.",
+    };
+  }
+}
+
+async function buildAutoChasePreview(
   logId: string,
   pipeline: "client" | "solicitor",
 ): Promise<AutoChasePreview> {
