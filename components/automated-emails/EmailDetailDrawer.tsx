@@ -33,6 +33,7 @@ import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { getEmailForPreview, updateEmailPayload } from "@/app/actions/automation";
 import { cancelPendingEmail, sendPendingEmailNow, getMessageForPreview } from "@/app/actions/automated-emails";
+import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
 import { deliveryStatusMeta } from "./deliveryStatus";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
 
@@ -506,14 +507,4 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
       <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{children}</span>
     </div>
   );
-}
-
-// Restyle the email HTML for on-screen preview only: white page + the fixed
-// 560px inbox card made fluid, so it fills the drawer instead of sitting thin.
-// The real send is untouched — this only affects what renders in the iframe.
-// Our templates wrap the body in <table width="560"> on a grey page, so
-// overriding those two things is all it takes. Injected into <head> to win.
-function previewSrcDoc(html: string): string {
-  const css = '<style>html,body{background:#ffffff!important;margin:0!important;}table[width="560"]{width:100%!important;}</style>';
-  return html.includes("</head>") ? html.replace("</head>", css + "</head>") : css + html;
 }

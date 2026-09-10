@@ -16,6 +16,7 @@ import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 import { buildSolicitorDigestEmail } from "@/lib/solicitor-confirm/digest-email";
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getMilestoneCopy } from "@/lib/portal-copy";
+import { wrapEditedBody } from "@/lib/email/wrap-edited-body";
 
 type TargetInput =
   | { kind: "client"; contactId: string }
@@ -88,14 +89,20 @@ export async function clearChaseThreadAction(input: {
   return { ok: true };
 }
 
-// Generate the copy the next chase WOULD send, so the editor can show + tweak
+// Generate the email the next chase WOULD send, so the editor can show + tweak
 // it. Returns the staged override if one exists, else the freshly-generated
-// default. Links in the preview are placeholders (the agent edits text).
+// default — subject/text for the edit fields, plus the fully rendered `html`
+// for the true-to-inbox preview. The html mirrors the send exactly: the branded
+// template normally, or the plain edited-body frame when a body override is
+// staged (wrapEditedBody, same as the cron build + autopilot preview).
 export async function previewChaseEmailAction(input: {
   transactionId: string;
   target: TargetInput;
   milestoneCode: string;
-}): Promise<{ ok: true; subject: string; text: string } | { ok: false; error: string }> {
+}): Promise<
+  | { ok: true; subject: string; text: string; html: string; recipientName: string; recipientRole: string }
+  | { ok: false; error: string }
+> {
   await assertOwns(input.transactionId);
   const target = input.target; // local const so the discriminated union narrows into closures
 
@@ -137,10 +144,14 @@ export async function previewChaseEmailAction(input: {
       recipientSide: c.roleType === "purchaser" ? "purchaser" : "vendor",
       agencyCopy,
     });
+    const bodyOverride = existing?.bodyOverride?.trim() || null;
     return {
       ok: true,
       subject: existing?.subjectOverride ?? payload.subject,
-      text: existing?.bodyOverride ?? payload.text,
+      text: bodyOverride ?? payload.text,
+      html: bodyOverride ? wrapEditedBody(bodyOverride) : payload.html,
+      recipientName: c.name,
+      recipientRole: c.roleType === "purchaser" ? "Buyer" : "Seller",
     };
   }
 
@@ -159,9 +170,14 @@ export async function previewChaseEmailAction(input: {
     confirmUrl: "#", stopUrl: "#", qrUrl: "#",
     personName: person?.name ?? brand, personPhone: person?.phone ?? null, avatarUrl: null,
   });
+  const bodyOverride = existing?.bodyOverride?.trim() || null;
+  const sideLabel = side === "vendor" ? "Seller" : "Buyer";
   return {
     ok: true,
     subject: existing?.subjectOverride ?? built.subject,
-    text: existing?.bodyOverride ?? built.text,
+    text: bodyOverride ?? built.text,
+    html: bodyOverride ? wrapEditedBody(bodyOverride) : built.html,
+    recipientName: firmName ?? `${sideLabel}'s solicitor`,
+    recipientRole: `${sideLabel}'s solicitor`,
   };
 }
