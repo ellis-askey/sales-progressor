@@ -6,8 +6,6 @@
 // structurally-compatible row shape — `CommBadgeInput` is the minimal
 // contract.
 
-import { extractFirstName } from "@/lib/contacts/displayName";
-
 export type CommBadgeInput = {
   type: string;
   method: string | null;
@@ -66,14 +64,15 @@ export function getCommBadge(entry: CommBadgeInput): BadgeInfo {
 }
 
 export function AuthorPill({ name, role }: { name: string | null; role?: string | null }) {
-  const first = name ? extractFirstName(name) : "System";
+  // Full name on activity records (Ellis, 2026-09-10) — not shortened to first.
+  const display = name ?? "System";
   const isSP = role === "sales_progressor" || role === "admin";
   return (
     <span style={{
       fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 10,
       background: "rgba(15,23,42,0.08)", color: "var(--agent-text-muted)",
     }}>
-      {isSP ? `${first} · SP` : first}
+      {isSP ? `${display} · SP` : display}
     </span>
   );
 }

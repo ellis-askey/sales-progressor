@@ -138,9 +138,12 @@ function dotColor(entry: ActivityEntry): string {
 // ─── Contact pill ─────────────────────────────────────────────────────────────
 
 function ContactPill({ name }: { name: string }) {
+  // Full name on activity records (Ellis, 2026-09-10) — a recipient pill reads
+  // "Hannah Whitfield", not "Hannah". The compact contact PICKER in edit mode
+  // still uses first names (extractFirstName) to stay tidy.
   return (
     <Pill glass tone="default" size="sm">
-      {extractFirstName(name)}
+      {name}
     </Pill>
   );
 }
@@ -610,6 +613,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                             {!isEditing && displayContactNames.map((name) => (
                               <ContactPill key={name} name={name} />
                             ))}
+                            {/* Recipient who isn't a file Contact (e.g. the agency
+                                agent on a booking system-email) — named by full name. */}
+                            {!isEditing && entry.recipientName && !displayContactNames.includes(entry.recipientName) && (
+                              <ContactPill name={entry.recipientName} />
+                            )}
                           </div>
 
                           {/* Action buttons — hidden during edit to keep the form clean */}

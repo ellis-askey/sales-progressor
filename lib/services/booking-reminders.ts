@@ -23,6 +23,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
+import { logAgentSystemEmailToActivity } from "@/lib/services/comms";
 import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -190,6 +191,16 @@ export async function maybeSendBookingDiaryEmail(input: {
       disposition: "attachment",
     }],
   });
+
+  // Mirror onto the file activity timeline (TSP / System email, agent named in
+  // the pill). Full name so the recipient pill reads e.g. "Taylor Kay".
+  await logAgentSystemEmailToActivity({
+    transactionId: input.transactionId,
+    recipientName: tx.agentUser.name ?? tx.agentUser.email,
+    recipientEmail: tx.agentUser.email,
+    subject,
+    bodyPlain: text,
+  });
   return true;
 }
 
@@ -300,6 +311,15 @@ export async function sendBookingMorningReminders(): Promise<number> {
           transactionId: tx.id,
           payload: { dateKey: ukDateStr, code, propertyAddress: tx.propertyAddress },
         },
+      });
+      // Mirror onto the file activity timeline (TSP / System email, agent
+      // named in the pill by full name).
+      await logAgentSystemEmailToActivity({
+        transactionId: tx.id,
+        recipientName: recipient.name ?? recipient.email,
+        recipientEmail: recipient.email,
+        subject,
+        bodyPlain: text,
       });
       sent++;
     } catch {

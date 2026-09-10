@@ -80,6 +80,7 @@ export function ActivityTab(props: Props) {
         createdByRole: props.currentUserRole,
         contactNames,
         contactIds,
+        recipientName: null,
         visibleToClient: false,
         wasEdited: false,
         wasAiGenerated: false,

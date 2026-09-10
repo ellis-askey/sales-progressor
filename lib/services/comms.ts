@@ -68,6 +68,11 @@ export type ActivityEntry =
       // contact picker; visibleToClient drives the toggle; wasEdited drives
       // the "(edited)" indicator next to the timestamp.
       contactIds: string[];
+      // Recipient shown as a pill when the message went to someone who ISN'T a
+      // Contact on the file — e.g. an agency agent (a User). Client emails leave
+      // this null and name the recipient via contactIds instead. See
+      // logAgentSystemEmailToActivity.
+      recipientName: string | null;
       visibleToClient: boolean;
       wasEdited: boolean;
       wasAiGenerated: boolean;
@@ -347,6 +352,7 @@ export async function getActivityTimeline(
       .map((id) => contactInfo.get(id)?.name)
       .filter(Boolean) as string[],
     contactIds: c.contactIds,
+    recipientName: c.recipientName ?? null,
     visibleToClient: c.visibleToClient,
     wasEdited: c.wasEdited,
     wasAiGenerated: c.wasAiGenerated,
@@ -953,6 +959,45 @@ export async function logPortalLinkCopied(input: {
     createdByRole: input.createdByRole,
     scope: input.scope,
   });
+}
+
+// Mirrors an automated email sent to an AGENCY AGENT (a User, not a Contact)
+// onto the file activity timeline, so operational sends like the survey /
+// lender-valuation booking reminders are visible on the file — not only in the
+// Command Centre agent-email log.
+//
+// Presents exactly like the client automated-email rows (logAutomatedEmail):
+// type "outbound" + isAutomated → the "TSP" author + "System email" badge. The
+// recipient agent's FULL name rides on recipientName so the timeline renders it
+// as a recipient pill (the agent has no Contact row to name them by).
+//
+// Best-effort: a logging failure is swallowed so it can never break the send
+// that already happened.
+export async function logAgentSystemEmailToActivity(input: {
+  transactionId: string;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  subject: string;
+  bodyPlain: string;
+}): Promise<void> {
+  try {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: input.transactionId,
+        type: "outbound",
+        method: "email",
+        isAutomated: true,
+        contactIds: [],
+        recipientName: input.recipientName,
+        recipientEmail: input.recipientEmail,
+        content: `Subject: ${input.subject}\n\n${input.bodyPlain}`,
+        createdById: null,
+      },
+    });
+    touchLastActivity(input.transactionId).catch(() => {});
+  } catch (err) {
+    console.error("[logAgentSystemEmailToActivity] failed:", err);
+  }
 }
 
 export type GlobalCommEntry = {
