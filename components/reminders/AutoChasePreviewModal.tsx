@@ -28,16 +28,25 @@ export function AutoChasePreviewModal({
   sendLabel: string; // e.g. "tomorrow at 10:30am"
 }) {
   const [state, setState] = useState<{ status: "loading" } | { status: "done"; data: AutoChasePreview }>({ status: "loading" });
+  // Bumped by "Try again" to re-run the load. The preview builds from pure,
+  // synchronous composers (no AI, no network) behind a couple of quick DB
+  // reads, so it should never actually hang — but a cold/slow server-action
+  // invocation can stall. We bound the wait so a stall surfaces as a clear,
+  // retryable failure instead of an infinite "Building preview…".
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     let live = true;
     setState({ status: "loading" });
+    const timeout = setTimeout(() => {
+      if (live) setState({ status: "done", data: { ok: false, error: "This is taking longer than expected. Try again." } });
+    }, 12_000);
     getAutoChasePreview(logId, pipeline)
-      .then((data) => { if (live) setState({ status: "done", data }); })
-      .catch(() => { if (live) setState({ status: "done", data: { ok: false, error: "Couldn't build the preview." } }); });
-    return () => { live = false; };
-  }, [open, logId, pipeline]);
+      .then((data) => { if (live) { clearTimeout(timeout); setState({ status: "done", data }); } })
+      .catch(() => { if (live) { clearTimeout(timeout); setState({ status: "done", data: { ok: false, error: "Couldn't build the preview." } }); } });
+    return () => { live = false; clearTimeout(timeout); };
+  }, [open, logId, pipeline, attempt]);
 
   const label = { fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.04em" };
 
@@ -64,8 +73,16 @@ export function AutoChasePreviewModal({
       )}
 
       {state.status === "done" && !state.data.ok && (
-        <div style={{ padding: "32px 22px", textAlign: "center", color: "var(--agent-text-muted)", fontSize: 13 }}>
-          {state.data.error}
+        <div style={{ padding: "32px 22px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <span style={{ color: "var(--agent-text-muted)", fontSize: 13 }}>{state.data.error}</span>
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="agent-btn agent-btn-secondary"
+            style={{ fontSize: 12.5, padding: "7px 14px" }}
+          >
+            Try again
+          </button>
         </div>
       )}
 
