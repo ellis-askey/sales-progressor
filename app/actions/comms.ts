@@ -11,6 +11,7 @@ import {
   createCommunicationRecord,
   deleteCommunicationRecord,
   updateCommunicationRecord,
+  logPortalLinkCopied,
   importWhatsAppChat,
   undoWhatsAppImport,
   type SenderMapping,
@@ -36,6 +37,21 @@ export async function addNoteAction(transactionId: string, content: string) {
   void trackServerEvent(session.user.id, ANALYTICS_EVENTS.NOTE_ADDED, {
     transactionId,
     agencyId: session.user.agencyId || undefined,
+  });
+  revalidateTx(transactionId);
+}
+
+// Fired (fire-and-forget) when an agent or SP copies a client's portal link
+// from the contact card, so the manual share leaves a trace on the file.
+// Internal-only note; see logPortalLinkCopied for the throttle + rationale.
+export async function logPortalLinkCopiedAction(transactionId: string, contactId: string) {
+  const session = await requireSession();
+  await logPortalLinkCopied({
+    transactionId,
+    contactId,
+    createdById: session.user.id,
+    createdByRole: session.user.role,
+    scope: getAccessScope(session),
   });
   revalidateTx(transactionId);
 }

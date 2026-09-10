@@ -12,6 +12,7 @@ import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
 import { confirmationSentence, resolveConfirmer } from "@/lib/updates-copy";
@@ -894,6 +895,64 @@ export async function createCommunicationRecord(input: CreateCommInput) {
   }
 
   return record;
+}
+
+// Records an internal-only note when someone (agent or SP) copies a client's
+// portal link off the contact card to share it manually (WhatsApp, text, their
+// own email). Closes the "how did they get their link?" blind spot: a manually
+// shared link otherwise leaves no trace on the file, so a contact can show
+// "Active · Last viewed" with nothing in the history.
+//
+// Internal only: type internal_note, visibleToClient stays false — never
+// surfaces in the client portal. Presents as the standard amber "Internal note"
+// row, authored by whoever clicked. Reuses createCommunicationRecord so it
+// inherits scope-ownership checks, buyer-round attribution, and last-activity
+// touch identically to every other comm.
+//
+// Throttled to one note per contact per 30 minutes so repeated clicks (or a
+// double-click) don't spam the timeline.
+export async function logPortalLinkCopied(input: {
+  transactionId: string;
+  contactId: string;
+  createdById: string;
+  createdByRole: string | null;
+  scope: AccessScope;
+}): Promise<void> {
+  const THROTTLE_MS = 30 * 60 * 1000;
+  const recent = await prisma.outboundMessage.findFirst({
+    where: {
+      transactionId: input.transactionId,
+      type: "internal_note",
+      contactIds: { has: input.contactId },
+      content: { contains: "portal link was copied" },
+      createdAt: { gte: new Date(Date.now() - THROTTLE_MS) },
+    },
+    select: { id: true },
+  });
+  if (recent) return;
+
+  // Confirm the contact belongs to this file (defence in depth — the action
+  // already scope-checks the transaction, and createCommunicationRecord
+  // re-checks ownership below).
+  const contact = await prisma.contact.findFirst({
+    where: { id: input.contactId, propertyTransactionId: input.transactionId },
+    select: { name: true },
+  });
+  if (!contact) return;
+
+  const first = extractFirstName(contact.name);
+  const content = `${first}'s portal link was copied to share directly.`;
+
+  await createCommunicationRecord({
+    transactionId: input.transactionId,
+    type: "internal_note",
+    contactIds: [input.contactId],
+    content,
+    visibleToClient: false,
+    createdById: input.createdById,
+    createdByRole: input.createdByRole,
+    scope: input.scope,
+  });
 }
 
 export type GlobalCommEntry = {

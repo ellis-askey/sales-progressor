@@ -45,6 +45,7 @@ import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsTh
 import { WhatsappGroupModal } from "./WhatsappGroupModal";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
+import { logPortalLinkCopiedAction } from "@/app/actions/comms";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -544,11 +545,15 @@ export function ContactsSection({
     setIntroSide(side);
   }
 
-  function copyPortalLink(token: string) {
+  function copyPortalLink(token: string, contactId: string) {
     const url = `${window.location.origin}/portal/${token}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(token);
       setTimeout(() => setCopied(null), 2000);
+      // Log an internal-only note so a manually shared link leaves a trace on
+      // the file. Fire-and-forget — a logging failure must never break the
+      // copy the agent just did.
+      logPortalLinkCopiedAction(transactionId, contactId).catch(() => {});
     });
   }
 
@@ -978,7 +983,8 @@ export function ContactsSection({
                           onEdit={() => startEdit(contact)}
                           onDelete={() => requestDelete(contact)}
                           onIntroCall={
-                            isInternalStaff && (role === "vendor" || role === "purchaser") && !introData?.introDone
+                            isInternalStaff && (role === "vendor" || role === "purchaser") &&
+                            !(role === "vendor" ? introData?.introDoneVendor : introData?.introDonePurchaser)
                               ? () => void openIntro(role as "vendor" | "purchaser")
                               : undefined
                           }
@@ -1031,7 +1037,7 @@ export function ContactsSection({
                             hasEmail={!!contact.email}
                             onSendInvite={() => contact.portalToken && sendInvite(contact.portalToken, contact.id)}
                             onSetupToken={() => setupPortalToken(contact.id)}
-                            onCopyLink={() => contact.portalToken && copyPortalLink(contact.portalToken)}
+                            onCopyLink={() => contact.portalToken && copyPortalLink(contact.portalToken, contact.id)}
                             inviting={inviting === contact.id}
                             inviteSent={inviteSent === contact.id}
                             generatingToken={generatingToken === contact.id}
@@ -1173,13 +1179,18 @@ export function ContactsSection({
         currentInviteUrl={whatsappGroupInviteUrl}
       />
 
-      {/* Intro call drawer (internal team), scoped to the launching side */}
-      {introSide && introData && !introData.introDone && (
+      {/* Intro call drawer (internal team). The launching side is a separate
+          intro; completing it marks only that side done. */}
+      {introSide && introData &&
+        !(introSide === "vendor" ? introData.introDoneVendor : introData.introDonePurchaser) && (
         <IntroCallDrawer
           data={introData}
           focusSide={introSide}
           onClose={() => setIntroSide(null)}
-          onCompleted={() => { setIntroSide(null); setIntroData((d) => (d ? { ...d, introDone: true } : d)); }}
+          onCompleted={() => {
+            setIntroData((d) => (d ? { ...d, ...(introSide === "vendor" ? { introDoneVendor: true } : { introDonePurchaser: true }) } : d));
+            setIntroSide(null);
+          }}
         />
       )}
 
