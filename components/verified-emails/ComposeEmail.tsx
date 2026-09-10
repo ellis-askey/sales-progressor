@@ -7,6 +7,18 @@ import { GlassCard } from "@/components/glass/GlassCard";
 
 type VerifiedEmail = { id: string; email: string; status: string };
 
+// The sign-off that will actually be appended on send — personal signature for
+// agents, standardised in-house block for internal staff. Resolved server-side
+// by /api/agent/compose-signature-preview (mirrors the send route's branch).
+type SigPreview = { kind: "personal" | "inhouse"; html: string; mode: string | null; missing: string[] };
+
+// "photo, job title and mobile" — Oxford-free list for the finish-signature nudge.
+function formatList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
 type Props = {
   transactionId: string;
   defaultTo?: string;
@@ -26,6 +38,19 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noEmailDismissed, setNoEmailDismissed] = useState(false);
+  const [signature, setSignature] = useState<SigPreview | null>(null);
+
+  // Resolve the real sign-off for this file so the composer shows exactly how
+  // the email closes — and nudges a bare BASIC signature towards Settings.
+  // Refetches nothing on edit: the signature is a function of the user + file.
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/agent/compose-signature-preview?transactionId=${encodeURIComponent(transactionId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: SigPreview | null) => { if (live && d?.html) setSignature(d); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [transactionId]);
 
   useEffect(() => {
     if (senderIdentity) return;
@@ -157,6 +182,35 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
           className="agent-input w-full resize-none"
         />
       </div>
+
+      {/* Rendered sign-off — shown once there's a message, so the composer reads
+          like the email that actually goes out. Same block the chase drawer
+          shows; nudges a bare BASIC signature towards Settings. Rendered on
+          white (an email is always light) regardless of the glass card theme. */}
+      {signature?.html && body.trim() && (
+        <div>
+          <label className="agent-label">Signs off as</label>
+          <div
+            style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, padding: "4px 16px 14px", overflowX: "auto" }}
+            dangerouslySetInnerHTML={{ __html: signature.html }}
+          />
+          <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+            {signature.kind === "inhouse"
+              ? "A standard sign-off is added when you send."
+              : "Your signature is added when you send."}
+          </p>
+          {signature.kind === "personal" && signature.mode === "BASIC" && (() => {
+            const personal = signature.missing.filter((m) => m !== "agency logo");
+            if (personal.length === 0) return null;
+            return (
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+                Add your {formatList(personal)} to finish your signature.{" "}
+                <a href="/agent/account/profile" target="_blank" rel="noreferrer" style={{ color: "var(--agent-coral-deep)", fontWeight: 600 }}>Update profile</a>
+              </p>
+            );
+          })()}
+        </div>
+      )}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
