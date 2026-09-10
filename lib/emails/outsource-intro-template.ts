@@ -17,6 +17,14 @@ export type OutsourceIntroVars = {
   agentFirstName: string;
   agentLastName: string;
   agencyName: string;
+  // The client's private portal link. When present it becomes the primary
+  // call to action (follow their sale / purchase). When null the email falls
+  // back to a layout without the portal button (e.g. a contact with no
+  // portal token yet).
+  portalUrl: string | null;
+  // Role-aware noun for the recipient: sellers follow their "sale", buyers
+  // follow their "purchase". Drives the portal paragraph wording.
+  saleNoun: "sale" | "purchase";
 };
 
 export type OutsourceIntroEmail = {
@@ -56,7 +64,7 @@ function escapeHtml(s: string): string {
 }
 
 export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceIntroEmail {
-  const { agentFirstName, agentLastName, agencyName } = vars;
+  const { agentFirstName, agentLastName, agencyName, portalUrl, saleNoun } = vars;
   const { greeting, opener } = buildOpener({
     clientFirstName: vars.clientFirstName,
     address: vars.address,
@@ -75,7 +83,11 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
     `${greeting}\n\n` +
     `${opener}\n\n` +
     `Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They'll be your point of contact throughout the sale, so you'll always know who to speak to and where things are up to.\n\n` +
-    `In the meantime, if you haven't already, please complete your onboarding, including the quick ID and document checks. Getting these out of the way early helps us keep everything moving and avoids unnecessary delays later on.\n\n` +
+    (portalUrl
+      ? `In the meantime, you can open your private portal at any time to follow your ${saleNoun} and see exactly where things are up to. We'll keep it updated as the ${saleNoun} progresses, so you always know what's happening.\n\n` +
+        `Open your portal: ${portalUrl}\n\n`
+      : "") +
+    `Your solicitor will handle your ID and document checks directly with you. Getting those back to them quickly is one of the best things you can do to keep everything moving.\n\n` +
     `If you need anything before that call, you can message us on WhatsApp at any time.\n\n` +
     `WhatsApp us: ${WHATSAPP_URL}\n\n` +
     `Talk soon,\n` +
@@ -98,8 +110,20 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
     Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They&apos;ll be your point of contact throughout the sale, so you&apos;ll always know who to speak to and where things are up to.
   </p>
 
+  ${portalUrl
+    ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1d29">
+    In the meantime, you can open your private portal at any time to follow your ${saleNoun} and see exactly where things are up to. We&apos;ll keep it updated as the ${saleNoun} progresses, so you always know what&apos;s happening.
+  </p>
+
+  <p style="margin:0 0 20px">
+    <a href="${portalUrl}" style="display:inline-block;background:#1a1d29;color:#fff;padding:13px 26px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">
+      Open your portal
+    </a>
+  </p>`
+    : ""}
+
   <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1d29">
-    In the meantime, if you haven&apos;t already, please complete your onboarding, including the quick ID and document checks. Getting these out of the way early helps us keep everything moving and avoids unnecessary delays later on.
+    Your solicitor will handle your ID and document checks directly with you. Getting those back to them quickly is one of the best things you can do to keep everything moving.
   </p>
 
   <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#1a1d29">

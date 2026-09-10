@@ -37,6 +37,12 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 
 const DEFAULT_FROM_ADDRESS = "updates@thesalesprogressor.co.uk";
 
+// Portal link base — same source as the client-chase digest so the link
+// matches every other portal URL we send.
+function portalBase(): string {
+  return process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
+}
+
 /**
  * Resolve the From address (the email envelope) for a given agent on a
  * given agency. Returns the verified address when both the agency domain
@@ -101,6 +107,7 @@ export async function sendOutsourceIntroForTransaction(
             name: true,
             email: true,
             roleType: true,
+            portalToken: true,
             outsourceIntroSentAt: true,
             unsubscribedAt: true,
           },
@@ -179,6 +186,11 @@ export async function sendOutsourceIntroForTransaction(
         agentFirstName,
         agentLastName,
         agencyName,
+        // The client's private portal link — the primary CTA. Falls back to
+        // the WhatsApp-only layout if the contact has no token yet.
+        portalUrl: contact.portalToken ? `${portalBase()}/portal/${contact.portalToken}` : null,
+        // Buyers follow their "purchase", sellers their "sale".
+        saleNoun: contact.roleType === "purchaser" ? "purchase" : "sale",
       });
 
       try {

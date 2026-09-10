@@ -15,15 +15,31 @@
 
 import { buildOutsourceIntroEmail, type OutsourceIntroVars } from "@/lib/emails/outsource-intro-template";
 
+const DEMO_PORTAL_URL = "https://portal.thesalesprogressor.co.uk/portal/demo-token";
+
 const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
   {
-    label: "Happy path",
+    label: "Happy path (seller — sale)",
     vars: {
       clientFirstName: "Sarah",
       address: "42 Briarwood Avenue, Hampton, TW12 1AB",
       agentFirstName: "Taylor",
       agentLastName: "Kay",
       agencyName: "Akeman Residential",
+      portalUrl: DEMO_PORTAL_URL,
+      saleNoun: "sale",
+    },
+  },
+  {
+    label: "Buyer — purchase",
+    vars: {
+      clientFirstName: "Sarah",
+      address: "42 Briarwood Avenue, Hampton, TW12 1AB",
+      agentFirstName: "Taylor",
+      agentLastName: "Kay",
+      agencyName: "Akeman Residential",
+      portalUrl: DEMO_PORTAL_URL,
+      saleNoun: "purchase",
     },
   },
   {
@@ -34,6 +50,8 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agentFirstName: "Taylor",
       agentLastName: "Kay",
       agencyName: "Akeman Residential",
+      portalUrl: DEMO_PORTAL_URL,
+      saleNoun: "sale",
     },
   },
   {
@@ -44,6 +62,20 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agentFirstName: "Taylor",
       agentLastName: "Kay",
       agencyName: "Akeman Residential",
+      portalUrl: DEMO_PORTAL_URL,
+      saleNoun: "sale",
+    },
+  },
+  {
+    label: "Fallback — no portal link (WhatsApp only)",
+    vars: {
+      clientFirstName: "Sarah",
+      address: "42 Briarwood Avenue, Hampton, TW12 1AB",
+      agentFirstName: "Taylor",
+      agentLastName: "Kay",
+      agencyName: "Akeman Residential",
+      portalUrl: null,
+      saleNoun: "sale",
     },
   },
 ];
