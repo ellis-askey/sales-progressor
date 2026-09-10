@@ -27,6 +27,9 @@ export interface ChaseContact {
   side?: ChaseSide | null;
   secondaryEmail?: string | null;
   firmName?: string | null;
+  // Contact headshot when one is on file. No initials fallback — absent means
+  // no avatar is shown.
+  avatarUrl?: string | null;
 }
 
 // The shape the four solicitor FK columns resolve to (SolicitorContact + firm).

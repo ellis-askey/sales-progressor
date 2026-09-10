@@ -32,5 +32,5 @@ export async function GET(req: NextRequest) {
     fallbackName: session.user.name,
   });
 
-  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode });
+  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode, name: session.user.name ?? null });
 }

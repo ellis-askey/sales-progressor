@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut } from "@phosphor-icons/react";
+import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { defaultRecipient, recipientRoleLabel, isSolicitorRecipient } from "@/lib/services/chase-recipients";
 import { createContactAction } from "@/app/actions/contacts";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Channel = "email" | "whatsapp";
 type Tone = "Friendly" | "Professional" | "Polite Yet Firm" | "Chase Up" | "Urgent" | "Final Reminder";
@@ -52,6 +54,9 @@ interface Contact {
   roleType: string;
   email?: string | null;
   phone?: string | null;
+  // Contact headshot, when one is on file. No initials-in-circle fallback — a
+  // contact with no photo simply shows no avatar.
+  avatarUrl?: string | null;
   // Set on injected solicitor recipients (see lib/services/chase-recipients.ts).
   // Client contacts arrive without these.
   side?: "vendor" | "purchaser" | null;
@@ -63,6 +68,9 @@ interface ChaseDrawerProps {
   chaseTaskId: string;
   transactionId: string;
   propertyAddress: string;
+  // The file's photo, when it has one. Falls back to the app's property
+  // placeholder image when absent (never an empty tile).
+  propertyPhotoUrl?: string | null;
   milestoneName: string;
   chaseCount: number;
   contacts: Contact[];
@@ -78,21 +86,55 @@ interface ChaseDrawerProps {
 type SendResult = { ok: boolean; emailSent?: boolean; error?: string };
 
 function TonePill({ tone }: { tone: Tone }) {
-  const { pill, dot } = TONE_META[tone];
+  // Coloured dot on the functional tone scale, no filled chip behind it.
+  const { dot } = TONE_META[tone];
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20,
-      background: pill, color: "#1a1a1a",
+      display: "inline-flex", alignItems: "center", gap: 7,
+      fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)",
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot, flexShrink: 0 }} />
       {TONE_DISPLAY[tone]}
     </span>
   );
 }
 
-function initials(name: string) {
-  return name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
+// Per-step chase history label for the Chase all step list. Each step has its
+// own count, so a bundle can mix "never chased" with "chased twice".
+function stepChaseLabel(count: number): string {
+  if (count <= 0) return "Not chased yet";
+  if (count === 1) return "Chased once";
+  return `Chased ${count} times`;
+}
+
+// Default email subject, pre-set but editable: "Purchase of <address>" for the
+// buyer side, "Sale of <address>" for the seller side (a solicitor carries its
+// own side; broker sits buyer-side).
+function recipientSubject(
+  r: { side?: "vendor" | "purchaser" | null; roleType: string } | null,
+  address: string,
+): string {
+  const side = r?.side ?? (r?.roleType === "purchaser" || r?.roleType === "broker" ? "purchaser" : "vendor");
+  return `${side === "purchaser" ? "Purchase" : "Sale"} of ${address}`;
+}
+
+// Recipient avatar: their photo when on file, otherwise the same branded avatar
+// the property-file contacts use — side-tinted person art for clients (seller
+// blue, buyer green), id-card art for solicitors.
+function RecipientAvatar({ contact, size }: { contact: { name: string; roleType: string; avatarUrl?: string | null }; size: number }) {
+  if (contact.avatarUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={contact.avatarUrl} alt="" aria-hidden style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
+  }
+  return <ContactAvatar contact={{ name: contact.name, roleType: contact.roleType }} size={size} />;
+}
+
+// Recombine the editable subject + body into the "Subject: …\n\n body" wire
+// format the send path + parseEmailMessage expect. Blank subject => body only,
+// and the server falls back to a default subject.
+function composeMessage(subject: string, body: string): string {
+  const s = subject.trim();
+  return s ? `Subject: ${s}\n\n${body}` : body;
 }
 
 // "a" / "a and b" / "a, b and c" — for the signature-completion nudge.
@@ -106,6 +148,7 @@ export function ChaseDrawer({
   chaseTaskId,
   transactionId,
   propertyAddress,
+  propertyPhotoUrl,
   milestoneName,
   chaseCount,
   contacts: contactsProp,
@@ -170,9 +213,6 @@ export function ChaseDrawer({
   const ccSolicitorContact =
     contacts.find((c) => c.roleType === "solicitor" && c.email && c.id !== selectedRecipient?.id) ?? null;
 
-  // Display contact in header property card — mirrors the selected recipient.
-  const displayContact = selectedRecipient ?? contacts[0] ?? null;
-
   const { theme } = usePortalTheme();
 
   const [channel, setChannel] = useState<Channel>("email");
@@ -230,7 +270,18 @@ export function ChaseDrawer({
   }
 
   const [ccOn, setCcOn] = useState(false);
+  // Email subject — pre-set to "Purchase/Sale of <address>", editable. Not
+  // driven by the AI draft; recomputed when the recipient changes until the
+  // agent edits it (subjectDirty).
+  const [subject, setSubject] = useState(() => recipientSubject(selectedRecipient, propertyAddress));
+  const [subjectDirty, setSubjectDirty] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Keep the subject on the recipient's default until the agent edits it.
+  useEffect(() => {
+    if (!subjectDirty) setSubject(recipientSubject(selectedRecipient, propertyAddress));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecipient?.id, subjectDirty, propertyAddress]);
   const [generatedText, setGeneratedText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -240,7 +291,9 @@ export function ChaseDrawer({
 
   // White-label sign-off we append when we send it. Fetched once so the agent
   // sees exactly how the email signs off, plus any pieces still to fill in.
-  const [signature, setSignature] = useState<{ html: string; missing: string[] } | null>(null);
+  const [signature, setSignature] = useState<{ html: string; missing: string[]; mode?: string; name?: string | null } | null>(null);
+  // Collapsible "which steps" list for a Chase all (animates open/closed).
+  const [stepsOpen, setStepsOpen] = useState(false);
   useEffect(() => {
     let active = true;
     const load = () => {
@@ -444,6 +497,7 @@ export function ChaseDrawer({
     setIsSending(true);
     setError(null);
     const wasAiGenerated = generatedText.length > 0;
+    const effectiveContent = composeMessage(subject, message);
     const wasEdited = wasAiGenerated && message !== generatedText;
     const contactIds = recipientIsSolicitor || !selectedRecipient ? [] : [selectedRecipient.id];
     const taskIdsToLog = isMulti ? milestones!.map((m) => m.chaseTaskId) : [chaseTaskId];
@@ -454,7 +508,7 @@ export function ChaseDrawer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             transactionId, chaseTaskId: taskId, type: "outbound", method: "email",
-            contactIds, content: message,
+            contactIds, content: effectiveContent,
             generatedText: wasAiGenerated ? generatedText : undefined,
             tone, wasAiGenerated, wasEdited,
           }),
@@ -466,14 +520,14 @@ export function ChaseDrawer({
           return;
         }
       }
-      const { subject, body } = splitSubjectBody(message);
-      const subj = subject
-        ? (subject.includes(propertyAddress) ? subject : `${subject} (${propertyAddress})`)
+      const subjTrim = subject.trim();
+      const subj = subjTrim
+        ? (subjTrim.includes(propertyAddress) ? subjTrim : `${subjTrim} (${propertyAddress})`)
         : `Chase: ${propertyAddress}`;
       const params = new URLSearchParams();
       if (effectiveCc.length) params.set("cc", effectiveCc.join(","));
       params.set("subject", subj);
-      params.set("body", body);
+      params.set("body", message);
       const query = params.toString().replace(/\+/g, "%20");
       window.location.href = `mailto:${selectedRecipient.email}?${query}`;
       toast.success("Opened in your email");
@@ -523,8 +577,12 @@ export function ChaseDrawer({
       if (generationIdRef.current !== genId) return;
       if (res.status === 429) { setError(data.message ?? "Too many requests. Wait a few minutes and try again."); return; }
       if (!res.ok) { setError(data.error ?? "Couldn't generate. Try again"); return; }
-      setGeneratedText(data.generated);
-      setMessage(data.generated);
+      // Subject comes from the recipient, not the draft. Strip any "Subject:"
+      // line the model produced so the textarea holds a clean body; compare the
+      // body against generatedText for the "Edited" signal.
+      const parsed = splitSubjectBody(data.generated);
+      setMessage(parsed.body);
+      setGeneratedText(parsed.body);
       setGeneratedContext(data.context);
     } catch {
       if (generationIdRef.current !== genId) return;
@@ -548,6 +606,8 @@ export function ChaseDrawer({
     setError(null);
 
     const wasAiGenerated = generatedText.length > 0;
+    // Email carries the subject line on the wire; WhatsApp is body only.
+    const effectiveContent = channel === "email" ? composeMessage(subject, message) : message;
     const wasEdited = wasAiGenerated && message !== generatedText;
     // Log against the recipient's Contact row. Solicitor recipients live in a
     // separate table (SolicitorContact) whose ids must never be written into
@@ -566,7 +626,7 @@ export function ChaseDrawer({
             type: "outbound",
             method: channel,
             contactIds,
-            content: message,
+            content: effectiveContent,
             generatedText: wasAiGenerated ? generatedText : undefined,
             tone,
             wasAiGenerated,
@@ -592,7 +652,7 @@ export function ChaseDrawer({
               transactionId,
               toEmail: recipient.email,
               toName: recipient.name,
-              messageText: message,
+              messageText: effectiveContent,
               ccEmails: effectiveCc,
             }),
           });
@@ -650,70 +710,153 @@ export function ChaseDrawer({
             : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
-        {/* ── Header ─────────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+        {/* ── Header — coral band ─────────────────────────────────── */}
+        <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {isMulti ? `Chase all · ${milestones!.length} steps` : milestoneName}
-            </p>
-            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", display: "flex", alignItems: "center", gap: 5 }}>
-              <span>Chase #{nextChaseNumber}</span>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <TonePill tone={tone} />
-            </p>
+            <SheetBandHeader title="Send chase" />
           </div>
-          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+          <button
+            onClick={doClose}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
             <X size={14} weight="bold" />
           </button>
-        </div>
-
-        {/* ── Property + contact card ─────────────────────────────── */}
-        <div style={{ padding: "12px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-          <div style={{
-            background: "var(--agent-surface-glass)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-            borderRadius: 14, padding: "10px 14px",
-            display: "flex", alignItems: "center", gap: 12,
-            boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.10), rgba(var(--agent-coral-rgb), 0.04))",
-              border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
-            }}>🏠</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
-                {propertyAddress}
-              </p>
-              {displayContact && (
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb), 0.10)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "var(--agent-coral-deep)", flexShrink: 0 }}>
-                    {initials(displayContact.name)}
-                  </span>
-                  {displayContact.name}
-                  <span style={{ color: "var(--agent-text-tertiary)", textTransform: "capitalize" }}>· {displayContact.roleType}</span>
-                </p>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* ── Scrollable config + message area ───────────────────── */}
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
-          {/* Recipient selector */}
-          <div style={{ padding: "14px 20px 12px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-            <p className="agent-section-label" style={{ margin: "0 0 8px" }}>To</p>
-            {recipientCandidates.length <= 1 ? (
-              selectedRecipient ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)", background: "var(--agent-surface-glass)" }}>
-                  <span style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, background: "rgba(var(--agent-coral-rgb), 0.10)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "var(--agent-coral-deep)" }}>{initials(selectedRecipient.name)}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedRecipient.name}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>{recipientRoleLabel(selectedRecipient)}</p>
+          {/* Milestone context — what's being chased. For a single step this is
+              the milestone + which chase round. For a Chase all it's an
+              expandable list of the bundled steps, each with its own chase
+              history (a bundle can mix "never chased" with "chased twice", so a
+              single round number would be misleading). */}
+          <div style={{ padding: "16px 20px 0" }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
+              {isMulti ? "Chase all" : milestoneName}
+            </p>
+            {isMulti ? (
+              <>
+                <button
+                  onClick={() => setStepsOpen((v) => !v)}
+                  aria-expanded={stepsOpen}
+                  style={{ margin: "3px 0 0", padding: 0, background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                >
+                  {milestones!.length} steps in this chase
+                  {stepsOpen ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
+                </button>
+                <div style={{ display: "grid", gridTemplateRows: stepsOpen ? "1fr" : "0fr", transition: "grid-template-rows 240ms cubic-bezier(0.25,0,0,1)", overflow: "hidden" }}>
+                  <div style={{ minHeight: 0 }}>
+                    <div style={{ marginTop: 8, borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)", background: "var(--agent-surface-glass)", overflow: "hidden" }}>
+                      {milestones!.map((m, i) => (
+                        <div key={m.chaseTaskId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 12px", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)" }}>
+                          <span style={{ fontSize: 12, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
+                          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>{stepChaseLabel(m.chaseCount)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ) : !showAddForm ? (
+              </>
+            ) : (
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
+                Chase #{nextChaseNumber}
+              </p>
+            )}
+          </div>
+
+          {/* Property + recipient card — the recipient lives here (no separate
+              "To" row). When there's more than one candidate the whole card is a
+              button that opens the recipient picker. */}
+          <div style={{ padding: "12px 20px 14px" }}>
+            <div ref={toMenuRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (recipientCandidates.length <= 1) return;
+                  if (!toMenuOpen && !toMenuClosing && toMenuRef.current) {
+                    const r = toMenuRef.current.getBoundingClientRect();
+                    setToMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
+                  }
+                  if (toMenuOpen) { closeToMenu(); } else { setToMenuClosing(false); setToMenuOpen(true); }
+                }}
+                style={{
+                  width: "100%", textAlign: "left",
+                  background: "var(--agent-surface-glass)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
+                  borderRadius: 14, padding: "10px 14px",
+                  display: "flex", alignItems: "center", gap: 12,
+                  boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
+                  cursor: recipientCandidates.length > 1 ? "pointer" : "default",
+                  transition: "border-color 140ms",
+                }}
+              >
+                {/* Property photo when the file has one, else the app's property
+                    placeholder image (never an empty tile). */}
+                <div style={{
+                  width: 42, height: 42, borderRadius: 10, flexShrink: 0, overflow: "hidden",
+                  background: "linear-gradient(135deg, rgba(var(--agent-coral-rgb), 0.12), rgba(var(--agent-coral-rgb), 0.05))",
+                  border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
+                }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={propertyPhotoUrl || "/property-photo-fallback.png"} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
+                    {propertyAddress}
+                  </p>
+                  {selectedRecipient && (
+                    <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <RecipientAvatar contact={selectedRecipient} size={18} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedRecipient.name}</span>
+                      <span style={{ color: "var(--agent-text-tertiary)", flexShrink: 0 }}>· {recipientRoleLabel(selectedRecipient)}</span>
+                    </p>
+                  )}
+                </div>
+                {recipientCandidates.length > 1 && (
+                  <span style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0 }}>
+                    {toMenuOpen ? <CaretUp size={14} /> : <CaretDown size={14} />}
+                  </span>
+                )}
+              </button>
+              {(toMenuOpen || toMenuClosing) && toMenuPos && typeof document !== "undefined" && createPortal(
+                <div
+                  data-theme={theme}
+                  className={toMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
+                  onAnimationEnd={() => { if (toMenuClosing) setToMenuClosing(false); }}
+                  style={{ position: "fixed", top: toMenuPos.top, left: toMenuPos.left, width: toMenuPos.width, zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)", borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden" }}
+                >
+                  {recipientCandidates.map((c) => {
+                    const sol = isSolicitorRecipient(c);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => selectRecipient(c.id)}
+                        style={{ width: "100%", textAlign: "left", padding: "9px 12px", display: "flex", alignItems: "center", gap: 10, background: selectedRecipientId === c.id ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent", border: "none", cursor: "pointer", transition: "background 100ms" }}
+                      >
+                        <RecipientAvatar contact={c} size={26} />
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>{recipientRoleLabel(c)}{sol ? " · email only" : ""}</span>
+                        </span>
+                        {selectedRecipientId === c.id && <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--agent-coral-deep)" }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>,
+                document.body
+              )}
+            </div>
+          </div>
+
+          {/* Recipient empty-state / add-form — only when there's no one to send
+              to yet. */}
+          {!selectedRecipient && (
+            <div style={{ padding: "0 20px 12px" }}>
+              {!showAddForm ? (
                 // Empty state — no one on file to send to. Inline add so the agent
                 // never has to leave the drawer to fix it.
                 <div className="agent-reveal-in">
@@ -832,75 +975,29 @@ export function ChaseDrawer({
                     </button>
                   </div>
                 </div>
-              )
-            ) : (
-              <div style={{ position: "relative" }} ref={toMenuRef}>
-                <button
-                  onClick={() => {
-                    if (!toMenuOpen && !toMenuClosing && toMenuRef.current) {
-                      const r = toMenuRef.current.getBoundingClientRect();
-                      setToMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
-                    }
-                    if (toMenuOpen) { closeToMenu(); } else { setToMenuClosing(false); setToMenuOpen(true); }
-                  }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)", background: "var(--agent-surface-glass)", cursor: "pointer", transition: "border-color 140ms" }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    <span style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, background: "rgba(var(--agent-coral-rgb), 0.10)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "var(--agent-coral-deep)" }}>{selectedRecipient ? initials(selectedRecipient.name) : "?"}</span>
-                    <span style={{ minWidth: 0, textAlign: "left" }}>
-                      <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedRecipient?.name ?? "Choose recipient"}</span>
-                      <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>{selectedRecipient ? recipientRoleLabel(selectedRecipient) : ""}</span>
-                    </span>
-                  </span>
-                  <span style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0 }}>
-                    {toMenuOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}
-                  </span>
-                </button>
-                {(toMenuOpen || toMenuClosing) && toMenuPos && typeof document !== "undefined" && createPortal(
-                  <div
-                    data-theme={theme}
-                    className={toMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
-                    onAnimationEnd={() => { if (toMenuClosing) setToMenuClosing(false); }}
-                    style={{ position: "fixed", top: toMenuPos.top, left: toMenuPos.left, width: toMenuPos.width, zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)", borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden" }}
-                  >
-                    {recipientCandidates.map((c) => {
-                      const sol = isSolicitorRecipient(c);
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => selectRecipient(c.id)}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", display: "flex", alignItems: "center", gap: 10, background: selectedRecipientId === c.id ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent", border: "none", cursor: "pointer", transition: "background 100ms" }}
-                        >
-                          <span style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, background: sol ? "rgba(37,99,235,0.10)" : "rgba(var(--agent-coral-rgb), 0.10)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: sol ? "#2563eb" : "var(--agent-coral-deep)" }}>{initials(c.name)}</span>
-                          <span style={{ minWidth: 0 }}>
-                            <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                            <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>{recipientRoleLabel(c)}{sol ? " · email only" : ""}</span>
-                          </span>
-                          {selectedRecipientId === c.id && <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--agent-coral-deep)" }}>✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>,
-                  document.body
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          {/* Channel selector */}
-          <div style={{ padding: "14px 20px 12px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-            <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Send via</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {/* Email tab */}
+          {/* Send via + Tone — side by side */}
+          <div style={{ padding: "4px 20px 12px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+            {/* Send via */}
+            <div style={{ flex: "1.35 1 0", minWidth: 0 }}>
+              <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Send via</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {/* Email tab — solid backgroundColor (not a gradient) so the fill
+                  morphs smoothly between the glass and coral states. Coral is the
+                  themed accent, so it tracks the agency's colour. */}
               <button
                 onClick={() => switchChannel("email")}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                   border: channel === "email" ? "1.5px solid var(--agent-coral-deep)" : "0.5px solid var(--agent-border-subtle)",
-                  background: channel === "email" ? "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))" : "var(--agent-surface-glass)",
+                  backgroundColor: channel === "email" ? "var(--agent-coral-deep)" : "var(--agent-surface-glass)",
                   color: channel === "email" ? "white" : "var(--agent-text-muted)",
-                  cursor: "pointer", transition: "all 150ms",
+                  cursor: "pointer",
+                  transition: "background-color 240ms ease, color 200ms ease, border-color 240ms ease, box-shadow 240ms ease",
                   boxShadow: channel === "email" ? "0 4px 16px rgba(var(--agent-coral-rgb), 0.28)" : "none",
                 }}
               >
@@ -916,64 +1013,22 @@ export function ChaseDrawer({
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                   border: channel === "whatsapp" ? "1.5px solid #22c55e" : "0.5px solid var(--agent-border-subtle)",
-                  background: channel === "whatsapp" ? "linear-gradient(135deg, #22c55e, #4ade80)" : "var(--agent-surface-glass)",
+                  backgroundColor: channel === "whatsapp" ? "#22c55e" : "var(--agent-surface-glass)",
                   color: channel === "whatsapp" ? "white" : "var(--agent-text-muted)",
                   cursor: waAvailable ? "pointer" : "not-allowed",
                   opacity: waAvailable ? 1 : 0.5,
-                  transition: "all 150ms",
+                  transition: "background-color 240ms ease, color 200ms ease, border-color 240ms ease, box-shadow 240ms ease, opacity 150ms ease",
                   boxShadow: channel === "whatsapp" ? "0 4px 16px rgba(34,197,94,0.25)" : "none",
                 }}
               >
                 <ChatText size={15} weight={channel === "whatsapp" ? "fill" : "regular"} /> WhatsApp
               </button>
+              </div>
             </div>
-
-            {/* Why WhatsApp is off — only when a solicitor is the recipient */}
-            {recipientIsSolicitor && (
-              <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                Solicitors are emailed, so WhatsApp is off for this recipient.
-              </p>
-            )}
-
-            {/* CC toggle — fades with channel swap; uses displayShowCcToggle so
-                old content is still visible during the 120ms fade-out */}
-            {displayShowCcToggle && (
-              <button
-                onClick={() => setCcOn((v) => !v)}
-                style={{
-                  ...swapFade,
-                  marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 12px", borderRadius: 10,
-                  border: ccOn ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "0.5px solid var(--agent-border-subtle)",
-                  background: ccOn ? "rgba(var(--agent-coral-rgb), 0.05)" : "var(--agent-surface-glass)",
-                  cursor: "pointer", transition: "all 140ms",
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 500, color: ccOn ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
-                  CC {ccLabel} <span style={{ fontWeight: 400, opacity: 0.7 }}>({ccRoleWord})</span>
-                </span>
-                <span style={{
-                  width: 34, height: 18, borderRadius: 9, display: "flex", alignItems: "center",
-                  background: ccOn ? "var(--agent-coral-deep)" : "var(--agent-border-subtle)", transition: "background 140ms", flexShrink: 0,
-                }}>
-                  <span style={{
-                    width: 14, height: 14, borderRadius: "50%", background: "white",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.20)",
-                    marginLeft: ccOn ? 16 : 2, transition: "margin-left 140ms",
-                  }} />
-                </span>
-              </button>
-            )}
-
-          </div>
-
-          {/* Tone selector */}
-          <div style={{ padding: "12px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <p className="agent-section-label" style={{ margin: 0 }}>Tone</p>
-              <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)" }}>Auto-selected — change if needed</span>
-            </div>
-            <div style={{ position: "relative" }} ref={toneMenuRef}>
+            {/* Tone */}
+            <div style={{ flex: "1 1 0", minWidth: 0 }}>
+              <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Tone</p>
+              <div style={{ position: "relative" }} ref={toneMenuRef}>
               <button
                 onClick={() => {
                   if (!toneMenuOpen && !toneMenuClosing && toneMenuRef.current) {
@@ -1011,23 +1066,55 @@ export function ChaseDrawer({
                       key={t}
                       onClick={() => { setTone(t); closeToneMenu(); }}
                       style={{
-                        width: "100%", textAlign: "left", padding: "9px 12px",
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        width: "100%", textAlign: "left", padding: "8px 12px",
+                        display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2,
                         background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
                         border: "none", cursor: "pointer", transition: "background 100ms",
                       }}
                     >
                       <TonePill tone={t} />
                       {t === autoTone(nextChaseNumber) && (
-                        <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)" }}>Recommended</span>
+                        <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)", paddingLeft: 14 }}>Recommended</span>
                       )}
                     </button>
                   ))}
                 </div>,
                 document.body
               )}
+              </div>
             </div>
           </div>
+
+          {/* WhatsApp-off note + CC toggle — full width beneath the row */}
+          {(recipientIsSolicitor || displayShowCcToggle) && (
+            <div style={{ padding: "0 20px 12px" }}>
+              {recipientIsSolicitor && (
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                  Solicitors are emailed, so WhatsApp is off for this recipient.
+                </p>
+              )}
+              {displayShowCcToggle && (
+                <button
+                  onClick={() => setCcOn((v) => !v)}
+                  style={{
+                    ...swapFade,
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "8px 12px", borderRadius: 10,
+                    border: ccOn ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "0.5px solid var(--agent-border-subtle)",
+                    background: ccOn ? "rgba(var(--agent-coral-rgb), 0.05)" : "var(--agent-surface-glass)",
+                    cursor: "pointer", transition: "all 140ms",
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 500, color: ccOn ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
+                    CC {ccLabel} <span style={{ fontWeight: 400, opacity: 0.7 }}>({ccRoleWord})</span>
+                  </span>
+                  <span style={{ width: 34, height: 18, borderRadius: 9, display: "flex", alignItems: "center", background: ccOn ? "var(--agent-coral-deep)" : "var(--agent-border-subtle)", transition: "background 140ms", flexShrink: 0 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.20)", marginLeft: ccOn ? 16 : 2, transition: "margin-left 140ms" }} />
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Message area */}
           <div style={{ flex: 1, padding: "14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1052,12 +1139,59 @@ export function ChaseDrawer({
                 : <><Sparkle size={15} weight="fill" />Generate message</>}
             </button>
 
+            {!message && !isGenerating && (
+              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", lineHeight: 1.45 }}>
+                We&apos;ll draft a chase based on this property, recipient and tone.
+              </p>
+            )}
+
             {generatedContext?.primaryContact && (
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>
                 For <span style={{ fontWeight: 600, color: "var(--agent-text-primary)" }}>{generatedContext.primaryContact.name}</span>
                 <span style={{ color: "var(--agent-text-tertiary)" }}> ({generatedContext.primaryContact.role})</span>
               </p>
             )}
+
+            {/* Subject — pre-set to "Purchase/Sale of <address>", editable.
+                Email only (WhatsApp has none). Blank falls back to the server
+                default "Chase: <address>". */}
+            {channel === "email" && (
+              <div>
+                <p className="agent-section-label" style={{ margin: "0 0 6px" }}>Subject</p>
+                <input
+                  className="agent-focus"
+                  value={subject}
+                  onChange={(e) => { setSubject(e.target.value); setSubjectDirty(true); }}
+                  placeholder={`Chase: ${propertyAddress}`}
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    padding: "10px 12px", borderRadius: 10, fontSize: 13,
+                    border: "0.5px solid var(--agent-border-subtle)", outline: "none",
+                    background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)",
+                    fontFamily: "inherit", transition: "border-color 140ms",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Message label + Regenerate — re-runs generation for the current
+                recipient / channel / tone. */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p className="agent-section-label" style={{ margin: 0 }}>Message</p>
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  background: "none", border: "none", padding: 0,
+                  cursor: isGenerating ? "not-allowed" : "pointer",
+                  fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)",
+                  opacity: isGenerating ? 0.5 : 1, transition: "opacity 140ms",
+                }}
+              >
+                <ArrowsClockwise size={13} weight="bold" className={isGenerating ? "animate-spin" : undefined} /> Regenerate
+              </button>
+            </div>
 
             {/* agent-focus class handles themed focus ring — replaces inline onFocus/onBlur handlers */}
             <textarea
@@ -1077,9 +1211,12 @@ export function ChaseDrawer({
               }}
             />
 
-            {generatedText && message !== generatedText && message.length > 0 && (
-              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>Edited</p>
-            )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
+                {generatedText && message !== generatedText && message.length > 0 ? "Edited" : ""}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)" }}>{message.length} characters</span>
+            </div>
 
             {error && (
               <div style={{ background: "#fef2f2", border: "0.5px solid #fca5a5", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#dc2626" }}>
@@ -1087,20 +1224,19 @@ export function ChaseDrawer({
               </div>
             )}
 
-            {/* White-label sign-off preview — how the email signs off when we
-                send it (the "Open in my email" path uses your own client's
-                signature instead). Renders only the fields on file. */}
-            {channel === "email" && signature && (
-              <div style={{ marginTop: 2 }}>
-                <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-text-tertiary)" }}>How it signs off</p>
-                <div
-                  style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, padding: "12px 14px", overflowX: "auto" }}
-                  dangerouslySetInnerHTML={{ __html: signature.html }}
-                />
-                <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-                  Added when you use <strong>Send chase</strong>. <strong>Open in my email</strong> uses your own email app&rsquo;s signature instead.
+            {/* Rendered sign-off, shown inline once there's a message so the
+                compose reads like the email that actually goes out. The
+                signature HTML brings its own top divider + spacing. The
+                "Open in my email" path uses the agent's own client signature. */}
+            {channel === "email" && signature && message.trim().length > 0 && (
+              <div>
+                <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: signature.html }} />
+                <p style={{ margin: "12px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+                  Your signature is added when you send. Open in my email uses your own email app&rsquo;s signature instead.
                 </p>
-                {(() => {
+                {/* Finish-your-signature nudge — only for the BASIC fallback
+                    signature (IMAGE / CUSTOM have nothing to complete). */}
+                {signature.mode === "BASIC" && (() => {
                   const personal = signature.missing.filter((m) => m !== "agency logo");
                   if (personal.length === 0) return null;
                   return (
@@ -1193,7 +1329,7 @@ export function ChaseDrawer({
                   : "No phone on file for this recipient")
               : (() => {
                   if (!selectedRecipient?.email) return "No email on file. This will be logged, not sent";
-                  const ccPart = effectiveCc.length ? ` · CC: ${effectiveCc[0]}` : "";
+                  const ccPart = effectiveCc.length ? ` · CC: ${effectiveCc.join(", ")}` : "";
                   return `To: ${selectedRecipient.email}${ccPart}`;
                 })()}
           </p>

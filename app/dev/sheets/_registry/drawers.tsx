@@ -270,7 +270,7 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
             isMulti
               ? [
                   { chaseTaskId: "demo-chase-0001", name: "Searches applied for", chaseCount: 2 },
-                  { chaseTaskId: "demo-chase-0002", name: "Enquiries raised", chaseCount: 3 },
+                  { chaseTaskId: "demo-chase-0002", name: "Enquiries raised", chaseCount: 0 },
                   { chaseTaskId: "demo-chase-0003", name: "Mortgage offer", chaseCount: 1 },
                 ]
               : undefined
