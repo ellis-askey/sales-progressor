@@ -7,6 +7,7 @@ import { portalCompleteMilestone, portalMarkNotRequired, portalUnmarkNotRequired
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
 import { recordPortalEvent } from "@/lib/services/portal-events";
+import type { EventType } from "@prisma/client";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { notifyPortalExpectedDateSet, notifyPortalChaseNote } from "@/lib/services/notifications";
 import { setUkChaseTime } from "@/lib/services/reminders";
@@ -68,6 +69,45 @@ export async function portalTrackRecapClickAction(token: string): Promise<void> 
       select: { id: true },
     });
     if (c) await recordPortalEvent("portal_recap_item_clicked", c.id);
+  } catch {
+    /* telemetry is best-effort */
+  }
+}
+
+// Portal Engagement v2 (Phase 2): install / notification prompt funnel, fired
+// from PortalOnboardingToasts. Maps a small client-side kind to its EventType so
+// the client never passes a raw enum. `variant` records which ask it was (A1/A2/
+// A3 for install, B1/B2 for notifications). Best-effort.
+type OnboardingTrackKind =
+  | "install_prompt_shown"
+  | "install_completed"
+  | "install_dismissed"
+  | "notif_prompt_shown"
+  | "notif_enabled"
+  | "notif_dismissed";
+
+const ONBOARDING_EVENT: Record<OnboardingTrackKind, EventType> = {
+  install_prompt_shown: "portal_install_prompt_shown",
+  install_completed:    "portal_install_completed",
+  install_dismissed:    "portal_install_dismissed",
+  notif_prompt_shown:   "portal_notif_prompt_shown",
+  notif_enabled:        "portal_notif_enabled",
+  notif_dismissed:      "portal_notif_dismissed",
+};
+
+export async function portalTrackOnboardingAction(
+  token: string,
+  kind: OnboardingTrackKind,
+  variant?: string,
+): Promise<void> {
+  try {
+    const type = ONBOARDING_EVENT[kind];
+    if (!type) return;
+    const c = await prisma.contact.findFirst({
+      where: { portalToken: token, portalEligible: true },
+      select: { id: true },
+    });
+    if (c) await recordPortalEvent(type, c.id, variant ? { variant } : {});
   } catch {
     /* telemetry is best-effort */
   }

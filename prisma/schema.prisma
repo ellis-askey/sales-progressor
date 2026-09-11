@@ -2749,6 +2749,14 @@ enum EventType {
   portal_action_confirmed
   portal_service_surfaced
   portal_service_clicked
+
+  // Portal Engagement v2, Phase 2 — install + notifications funnel.
+  portal_install_prompt_shown
+  portal_install_completed
+  portal_install_dismissed
+  portal_notif_prompt_shown
+  portal_notif_enabled
+  portal_notif_dismissed
 }
 
 model Event {
