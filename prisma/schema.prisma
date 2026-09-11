@@ -2737,6 +2737,18 @@ enum EventType {
   // Admin
   admin_logged_in
   admin_action_performed
+
+  // Portal engagement (client-side) — Portal Engagement v2, Phase 1.
+  // Written via lib/services/portal-events.ts with entityType="Contact",
+  // entityId=contactId, agencyId set, isInternalUser=false, and metadata
+  // carrying { transactionId, side } (+ event-specific fields). See
+  // docs/active/portal-engagement-v2/phase-1-spec.md.
+  portal_returned
+  portal_section_viewed
+  portal_recap_item_clicked
+  portal_action_confirmed
+  portal_service_surfaced
+  portal_service_clicked
 }
 
 model Event {
