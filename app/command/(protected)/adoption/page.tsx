@@ -350,7 +350,7 @@ function ComingBack({ recency, total }: { recency: AdoptionRecency; total: numbe
 // Phase-2 prompt funnel: how many were asked to install / turn on notifications,
 // and how many said yes.
 function PromptResults({ prompts }: { prompts: AdoptionPrompts }) {
-  const any = prompts.install.shown + prompts.notif.shown > 0;
+  const any = prompts.install.shown + prompts.notif.shown + prompts.task.shown > 0;
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
       <div className="flex items-center gap-1.5">
@@ -361,6 +361,7 @@ function PromptResults({ prompts }: { prompts: AdoptionPrompts }) {
         <div className="mt-3 space-y-2">
           <PromptLine label="Add to home screen" shown={prompts.install.shown} yes={prompts.install.completed} yesLabel="installed" />
           <PromptLine label="Turn on notifications" shown={prompts.notif.shown} yes={prompts.notif.enabled} yesLabel="turned on" />
+          <PromptLine label="Information prompt" shown={prompts.task.shown} yes={prompts.task.clicked} yesLabel="tapped" />
         </div>
       ) : (
         <p className="mt-3 text-[13px] text-neutral-600">No prompts shown yet. This fills in as clients reach the new install and notification prompts.</p>

@@ -113,6 +113,35 @@ export async function portalTrackOnboardingAction(
   }
 }
 
+// Portal Engagement v2 (item B): the "something you can do" task-prompt funnel,
+// fired from PortalTaskPrompt. `prompt` records which one it was (e.g.
+// "information"), so later prompts can be told apart. Best-effort.
+type TaskPromptTrackKind = "shown" | "clicked" | "dismissed";
+
+const TASK_PROMPT_EVENT: Record<TaskPromptTrackKind, EventType> = {
+  shown:     "portal_task_prompt_shown",
+  clicked:   "portal_task_prompt_clicked",
+  dismissed: "portal_task_prompt_dismissed",
+};
+
+export async function portalTrackTaskPromptAction(
+  token: string,
+  kind: TaskPromptTrackKind,
+  prompt: string,
+): Promise<void> {
+  try {
+    const type = TASK_PROMPT_EVENT[kind];
+    if (!type) return;
+    const c = await prisma.contact.findFirst({
+      where: { portalToken: token, portalEligible: true },
+      select: { id: true },
+    });
+    if (c) await recordPortalEvent(type, c.id, { prompt });
+  } catch {
+    /* telemetry is best-effort */
+  }
+}
+
 export async function portalMarkNotRequiredAction(input: {
   token: string;
   milestoneDefinitionId: string;

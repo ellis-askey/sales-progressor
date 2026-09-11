@@ -2757,6 +2757,11 @@ enum EventType {
   portal_notif_prompt_shown
   portal_notif_enabled
   portal_notif_dismissed
+
+  // Portal Engagement v2, item B — task-prompt funnel ("something you can do").
+  portal_task_prompt_shown
+  portal_task_prompt_clicked
+  portal_task_prompt_dismissed
 }
 
 model Event {

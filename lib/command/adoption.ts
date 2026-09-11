@@ -170,6 +170,8 @@ export type AdoptionRecency = {
 export type AdoptionPrompts = {
   install: { shown: number; completed: number; dismissed: number };
   notif: { shown: number; enabled: number; dismissed: number };
+  // Item B — the "something you can do" task prompts (e.g. the Information nudge).
+  task: { shown: number; clicked: number; dismissed: number };
 };
 
 export type PortalAdoption = {
@@ -384,6 +386,9 @@ async function getPromptFunnel(): Promise<AdoptionPrompts> {
           "portal_notif_prompt_shown",
           "portal_notif_enabled",
           "portal_notif_dismissed",
+          "portal_task_prompt_shown",
+          "portal_task_prompt_clicked",
+          "portal_task_prompt_dismissed",
         ],
       },
       ...(internalIds.length ? { agencyId: { notIn: internalIds } } : {}),
@@ -401,6 +406,11 @@ async function getPromptFunnel(): Promise<AdoptionPrompts> {
       shown: n("portal_notif_prompt_shown"),
       enabled: n("portal_notif_enabled"),
       dismissed: n("portal_notif_dismissed"),
+    },
+    task: {
+      shown: n("portal_task_prompt_shown"),
+      clicked: n("portal_task_prompt_clicked"),
+      dismissed: n("portal_task_prompt_dismissed"),
     },
   };
 }
