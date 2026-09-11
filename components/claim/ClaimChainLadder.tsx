@@ -35,20 +35,6 @@ function splitAddress(address: string): { line1: string; line2: string | null } 
   return { line1: address.slice(0, idx).trim(), line2: address.slice(idx + 1).trim() || null };
 }
 
-function HousePlaceholder() {
-  return (
-    <svg className="claim-b-thumb-house" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 11.5 12 5l8 6.5M6 10v9h12v-9M10 19v-5h4v5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function IconCheck() {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -131,7 +117,7 @@ export function ClaimChainLadder({
                 {row.photoUrl ? (
                   <img src={row.photoUrl} alt="" className="claim-b-thumb-img" />
                 ) : (
-                  <HousePlaceholder />
+                  <span className="property-photo-fallback" aria-hidden style={{ display: "block", width: "100%", height: "100%" }} />
                 )}
               </span>
               <span className="claim-b-rowmain">

@@ -734,8 +734,12 @@ export function LinkCard({
           the chain placeholder illustration. On unclaimed links the originator /
           internal staff can click to upload (hover reveals a camera). */}
       <div className={`chain-photo${canUploadPhoto ? " chain-photo-editable" : ""}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl ?? "/chain-empty-photo.png"} alt="" loading="lazy" />
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="" loading="lazy" />
+        ) : (
+          <div className="property-photo-fallback" style={{ width: "100%", height: "100%" }} aria-hidden />
+        )}
         {canUploadPhoto && (
           <>
             <button

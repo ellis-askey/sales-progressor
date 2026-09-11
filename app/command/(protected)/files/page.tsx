@@ -383,7 +383,11 @@ function FilePanel({ file }: { file: FileOperational }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={file.photoUrl} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />
         ) : (
-          <div className="w-16 h-16 rounded-lg shrink-0 bg-neutral-950 border border-dashed border-neutral-700" />
+          // Command Centre is always dark → point at the dark placeholder directly.
+          <div
+            className="w-16 h-16 rounded-lg shrink-0 border border-neutral-800 bg-cover bg-center"
+            style={{ backgroundImage: "url(/property-photo-fallback-dark.png)" }}
+          />
         )}
         <div className="flex-1 min-w-0">
           <div className="text-base font-semibold text-neutral-100">{file.address}</div>

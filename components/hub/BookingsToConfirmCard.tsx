@@ -14,7 +14,8 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { CalendarCheck, HouseSimple, CaretDown } from "@phosphor-icons/react";
+import { CalendarCheck, CaretDown } from "@phosphor-icons/react";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -37,20 +38,6 @@ const ACCENT = "var(--agent-coral)";
 const BG = "var(--agent-coral-bg-tint)";
 const ICON_BG = "rgba(var(--agent-coral-base-rgb),0.12)";
 const ICON_COLOR = "var(--agent-coral-deep)";
-
-function PropertyThumb({ photoUrl }: { photoUrl: string | null }) {
-  if (photoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={photoUrl} alt="" aria-hidden style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "0.5px solid rgba(15,23,42,0.08)" }} />
-    );
-  }
-  return (
-    <span aria-hidden style={{ width: 44, height: 44, borderRadius: 10, background: ICON_BG, color: ICON_COLOR, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `0.5px solid ${ACCENT}` }}>
-      <HouseSimple size={20} weight="regular" />
-    </span>
-  );
-}
 
 const INITIAL_VISIBLE = 6;
 

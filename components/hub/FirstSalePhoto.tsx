@@ -17,7 +17,6 @@ export function FirstSalePhoto({
   photoUrl: string | null;
 }) {
   const photo = usePropertyPhoto(transactionId, photoUrl);
-  const src = photo.displayUrl ?? "/property-photo-fallback.png";
 
   return (
     <button
@@ -29,8 +28,12 @@ export function FirstSalePhoto({
       aria-label={photo.hasPhoto ? "Change property photo" : "Add a property photo"}
       title={photo.hasPhoto ? "Change photo" : "Add a photo"}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      {photo.displayUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photo.displayUrl} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      ) : (
+        <span className="property-photo-fallback" aria-hidden style={{ display: "block", width: "100%", height: "100%" }} />
+      )}
       <span className="fsh-photo-cam" aria-hidden>
         <span className="fsh-photo-cam-badge">
           {photo.busy ? <CircleNotch size={18} weight="bold" className="agent-spin" /> : <Camera size={18} weight="fill" />}

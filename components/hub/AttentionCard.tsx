@@ -33,9 +33,9 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import {
   Warning,
-  HouseSimple,
   CaretDown,
   Check,
   CalendarPlus,
@@ -117,50 +117,6 @@ function dueBackLabel(d: Date): string {
 
 function fmtShortDate(d: Date | string): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-// Property thumbnail — photo when the file has one, tinted house glyph
-// otherwise. Tint keys to the row's tone so the fallback still carries
-// the severity colour-code.
-function PropertyThumb({ photoUrl, tone }: { photoUrl: string | null; tone: Tone }) {
-  const t = TONE[tone];
-  if (photoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={photoUrl}
-        alt=""
-        aria-hidden
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 10,
-          objectFit: "cover",
-          flexShrink: 0,
-          border: "0.5px solid rgba(15,23,42,0.08)",
-        }}
-      />
-    );
-  }
-  return (
-    <span
-      aria-hidden
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: 10,
-        background: t.iconBg,
-        color: t.color,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        border: `0.5px solid ${t.accent}`,
-      }}
-    >
-      <HouseSimple size={20} weight="regular" />
-    </span>
-  );
 }
 
 function TypePill({ label, tone, title }: { label: string; tone: Tone; title?: string }) {
@@ -762,7 +718,7 @@ function AttentionRow({
 
   const body = (
     <>
-      <PropertyThumb photoUrl={row.item.photoUrl} tone={tone} />
+      <PropertyThumb photoUrl={row.item.photoUrl} />
       <div style={{ minWidth: 0, flex: "1 1 220px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           {row.kind === "reminder" ? (

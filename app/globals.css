@@ -2516,3 +2516,25 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
     linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 50%, rgba(80,100,140,0.10) 100%) border-box;
   border: 1px solid transparent;
 }
+
+/* ── Universal property-photo placeholder ─────────────────────────────────
+   The coral line-art house, light + dark, shown wherever a property thumbnail
+   sits beside an address and the file has no photo yet (PropertyThumb + the
+   bespoke chain / enquiry / chase / claim thumbnails). Replaces the old
+   forked placeholders (house glyph, /chain-empty-photo.png,
+   /property-fallback-house.png). Applied to an element sized like the photo it
+   stands in for; behaviour around it (hover, click-to-upload) is unchanged.
+   Theme-aware via each surface's dark selector; the Command Centre is always
+   dark and points at the dark asset directly at its call site. */
+.property-photo-fallback {
+  background-image: url(/property-photo-fallback.png);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #ffffff;
+}
+:root[data-theme="dark"] .property-photo-fallback,
+[data-portal-theme="dark"] .property-photo-fallback {
+  background-image: url(/property-photo-fallback-dark.png);
+  background-color: #0f1419;
+}

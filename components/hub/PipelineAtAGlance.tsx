@@ -22,8 +22,6 @@ import {
 import type { HubPipelineStages, PipelineSample } from "@/lib/services/hub";
 import { GlassCard } from "@/components/glass/GlassCard";
 
-const FALLBACK = "/property-photo-fallback.png";
-
 type CardDef = {
   key: string;
   label: string;
@@ -64,7 +62,7 @@ export function PipelineAtAGlance({
   cards.forEach((c, i) => { if (c.count > 0) furthest = i; });
 
   const photoFor = (s: PipelineSample | null) =>
-    s?.photoStoragePath ? (signedPhotos[s.photoStoragePath] ?? FALLBACK) : FALLBACK;
+    s?.photoStoragePath ? signedPhotos[s.photoStoragePath] ?? null : null;
 
   return (
     <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
@@ -94,7 +92,7 @@ export function PipelineAtAGlance({
   );
 }
 
-function ReachedCard({ c, photo }: { c: CardDef; photo: string }) {
+function ReachedCard({ c, photo }: { c: CardDef; photo: string | null }) {
   const moreCount = c.count - 1;
   return (
     <div className="pipe-card pipe-card-reached" style={{ background: c.tint }}>
@@ -110,8 +108,12 @@ function ReachedCard({ c, photo }: { c: CardDef; photo: string }) {
       {c.sample ? (
         <>
           <Link href={`/agent/transactions/${c.sample.id}`} className="pipe-prop">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo} alt="" aria-hidden className="pipe-thumb" />
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photo} alt="" aria-hidden className="pipe-thumb" />
+            ) : (
+              <div className="pipe-thumb property-photo-fallback" aria-hidden />
+            )}
             <span className="pipe-prop-text">
               <span className="pipe-addr" data-sensitive="true">{c.sample.propertyAddress.split(",")[0].trim()}</span>
               <span className="pipe-status"><span className="pipe-dot" style={{ background: c.accent }} />{c.status}</span>

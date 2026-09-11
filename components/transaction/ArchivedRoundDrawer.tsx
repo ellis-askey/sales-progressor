@@ -909,8 +909,12 @@ function ChainAtWithdrawalSection({
                 {i > 0 && <div className="chain-connector" aria-hidden />}
                 <div className={`chain-card${isUs ? " chain-card-you" : ""}`} style={{ cursor: "default" }}>
                   <div className="chain-photo">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={n.photoUrl ?? "/chain-empty-photo.png"} alt="" loading="lazy" />
+                    {n.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={n.photoUrl} alt="" loading="lazy" />
+                    ) : (
+                      <div className="property-photo-fallback" style={{ width: "100%", height: "100%" }} aria-hidden />
+                    )}
                   </div>
                   <div className="chain-body">
                     <div className="chain-body-top">

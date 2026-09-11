@@ -20,7 +20,6 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import type { EnquiryCourt } from "@/lib/enquiries/tracker";
 
-const FALLBACK = "/property-photo-fallback.png";
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
 const courtShort = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's side" : "buyer's side");
 const otherCourt = (c: EnquiryCourt): EnquiryCourt => (c === "seller_solicitor" ? "buyer_solicitor" : "seller_solicitor");
@@ -193,7 +192,7 @@ export function EnquiriesTriageList({
       {/* Rows */}
       <div className="enq-list">
         {shown.map((r) => {
-          const photo = r.photoStoragePath ? (signedPhotos[r.photoStoragePath] ?? FALLBACK) : FALLBACK;
+          const signedPhoto = r.photoStoragePath ? signedPhotos[r.photoStoragePath] ?? null : null;
           const other = otherCourt(r.currentlyWith);
           const busy = busyId === r.transactionId;
           const pill = statusPill(r);
@@ -205,8 +204,12 @@ export function EnquiriesTriageList({
           return (
             <div key={r.transactionId} className="enq-card" data-busy={busy ? "" : undefined}>
               <div className="enq-row2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="enq-thumb" src={photo} alt="" aria-hidden />
+                {signedPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="enq-thumb" src={signedPhoto} alt="" aria-hidden />
+                ) : (
+                  <div className="enq-thumb property-photo-fallback" aria-hidden />
+                )}
                 <div className="enq-idcol">
                   <Link href={`/agent/transactions/${r.transactionId}`} className="enq-addr" data-sensitive="true">{line1.trim()}</Link>
                   {rest.length > 0 && <div className="enq-town" data-sensitive="true">{rest.join(",").trim()}</div>}

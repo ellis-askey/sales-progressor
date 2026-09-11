@@ -99,8 +99,14 @@ export function PropertyChainCard({
               <span className="cx-conn" aria-hidden data-hide={showRelated ? undefined : "true"} />
             </div>
             <button type="button" className="cx-here" onClick={() => setActiveTab("milestones")}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoUrl ?? "/chain-empty-photo.png"} alt="" className="cx-photo" />
+              {photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoUrl} alt="" className="cx-photo" />
+              ) : (
+                <span className="cx-photo" aria-hidden>
+                  <span className="property-photo-fallback" style={{ display: "block", width: "100%", height: "100%", borderRadius: "inherit" }} />
+                </span>
+              )}
               <div className="cx-here-main">
                 <Pill glass tone="brand" size="sm" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>Current sale</Pill>
                 <div className="cx-title cx-title-lg">{here.title}</div>

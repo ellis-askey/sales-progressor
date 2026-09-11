@@ -14,7 +14,8 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Clock, Bank, HouseSimple, CaretDown, X } from "@phosphor-icons/react";
+import { Clock, Bank, CaretDown, X } from "@phosphor-icons/react";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -44,21 +45,6 @@ const TONE: Record<HubRowTone, { accent: string; bg: string; iconBg: string; col
 };
 
 const ICONS = { clock: Clock, bank: Bank } as const;
-
-function PropertyThumb({ photoUrl, tone }: { photoUrl: string | null; tone: HubRowTone }) {
-  const t = TONE[tone];
-  if (photoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={photoUrl} alt="" aria-hidden style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "0.5px solid rgba(15,23,42,0.08)" }} />
-    );
-  }
-  return (
-    <span aria-hidden style={{ width: 44, height: 44, borderRadius: 10, background: t.iconBg, color: t.color, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `0.5px solid ${t.accent}` }}>
-      <HouseSimple size={20} weight="regular" />
-    </span>
-  );
-}
 
 const INITIAL_VISIBLE = 6;
 
@@ -144,7 +130,7 @@ export function HubListCard({
                   className="agent-hover-row"
                   style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, background: t.bg, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
-                  <PropertyThumb photoUrl={row.photoUrl} tone={row.pillTone} />
+                  <PropertyThumb photoUrl={row.photoUrl} />
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                       <Link href={row.href} className="hover:underline" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
