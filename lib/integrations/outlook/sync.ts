@@ -145,7 +145,11 @@ async function buildIndex(emails: string[], scope: AccessScope): Promise<Index> 
   const orConds: { email: { equals: string; mode: "insensitive" } }[] = emails.map((e) => ({
     email: { equals: e, mode: "insensitive" },
   }));
-  const txScope = scopeTransactionWhere(scope);
+  // Only ever match emails to LIVE files — never a draft. A stray draft with the
+  // same address as a real file would otherwise (a) show up as a second match and
+  // make a property folder look ambiguous, switching folder-matching off, and
+  // (b) risk pulling an email onto an empty stub. Drafts don't count. (Ellis, 2026-09-11)
+  const txScope = { AND: [scopeTransactionWhere(scope), { status: { not: "draft" as const } }] };
   const lowerSet = new Set(emails.map((e) => e.toLowerCase()));
 
   const contacts = await prisma.contact.findMany({
@@ -203,7 +207,11 @@ async function buildFolderHints(
   scope: AccessScope
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  const txScope = scopeTransactionWhere(scope);
+  // Only ever match emails to LIVE files — never a draft. A stray draft with the
+  // same address as a real file would otherwise (a) show up as a second match and
+  // make a property folder look ambiguous, switching folder-matching off, and
+  // (b) risk pulling an email onto an empty stub. Drafts don't count. (Ellis, 2026-09-11)
+  const txScope = { AND: [scopeTransactionWhere(scope), { status: { not: "draft" as const } }] };
   for (const name of folderNames) {
     const core = name.trim();
     if (core.length < 5) continue;
