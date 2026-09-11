@@ -15,6 +15,7 @@ import { SearchesUpload } from "./SearchesUpload";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { PortalButton } from "./PortalButton";
 import { PortalPill } from "./portal-ui";
+import { DateField } from "@/components/ui/DateField";
 
 
 type Milestone = {
@@ -647,8 +648,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
                     {getEventDateLabel(confirmingMilestone.code)} <span style={{ color: "#EF4444" }}>*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DateField
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"

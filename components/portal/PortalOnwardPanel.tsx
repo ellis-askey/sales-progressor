@@ -48,6 +48,7 @@ function openOnwardChangeDrawer() {
   }));
 }
 import type { OnwardTrackerView, OnwardStepView } from "@/lib/services/onward";
+import { DateField } from "@/components/ui/DateField";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
@@ -459,8 +460,7 @@ export function PortalOnwardPanel({
                 <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
                   When did this happen? <span style={{ color: "#EF4444" }}>*</span>
                 </label>
-                <input
-                  type="date"
+                <DateField
                   value={confirmDate}
                   onChange={(e) => setConfirmDate(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"

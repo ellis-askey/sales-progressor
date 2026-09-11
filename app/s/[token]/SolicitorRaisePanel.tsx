@@ -5,6 +5,7 @@ import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { solicitorRaisedConfirmAction, solicitorRaisedExpectedDateAction } from "./actions";
 import { S } from "./ui";
 import { DoneBox, formatUk, revealStyle, primaryBtn, secondaryBtn, inputStyle } from "./SolicitorEnquiries";
+import { DateField } from "@/components/ui/DateField";
 
 type Done = null | "raised" | "date";
 
@@ -56,7 +57,7 @@ export function SolicitorRaisePanel({ token }: { token: string }) {
 
           {mode === "date" && (
             <div style={revealStyle}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+              <DateField value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} wrapperStyle={{ display: "inline-block" }} />
               <button
                 type="button"
                 disabled={pending || !date}

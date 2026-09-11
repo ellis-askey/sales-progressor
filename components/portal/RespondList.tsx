@@ -25,6 +25,7 @@ import {
 } from "@/app/actions/portal";
 import { getPortalAgentOnlyCopy } from "@/lib/chase/portal-agent-only-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { DateField } from "@/components/ui/DateField";
 
 type Who = "you" | "solicitor" | "lender";
 
@@ -413,8 +414,7 @@ export function RespondList({
                           <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
                             {isDiy ? "When did this happen? (optional)" : "When did you hear back? (optional)"}
                           </p>
-                          <input
-                            type="date"
+                          <DateField
                             value={dateInput}
                             onChange={(e) => setDateInput(e.target.value)}
                             style={{
@@ -423,8 +423,8 @@ export function RespondList({
                               borderRadius: 8,
                               border: `0.5px solid ${P.border}`,
                               width: "100%",
-                              marginBottom: 12,
                             }}
+                            wrapperStyle={{ marginBottom: 12 }}
                           />
                           <div style={{ display: "flex", gap: 8 }}>
                             <button
@@ -471,8 +471,7 @@ export function RespondList({
                           <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
                             {isDiy ? "When do you think this'll happen?" : "When are you expecting this?"}
                           </p>
-                          <input
-                            type="date"
+                          <DateField
                             value={dateInput}
                             onChange={(e) => setDateInput(e.target.value)}
                             style={{
@@ -481,8 +480,8 @@ export function RespondList({
                               borderRadius: 8,
                               border: `0.5px solid ${P.border}`,
                               width: "100%",
-                              marginBottom: 12,
                             }}
+                            wrapperStyle={{ marginBottom: 12 }}
                           />
                           <div style={{ display: "flex", gap: 8 }}>
                             <button

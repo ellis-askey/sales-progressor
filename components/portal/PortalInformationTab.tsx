@@ -14,6 +14,7 @@ import { PortalSheet } from "./PortalSheet";
 import { getMyMoveInfoAction, portalSaveMoveInfoAction } from "@/app/actions/portal";
 import { portalOnwardMortgageStatusAction, portalConfirmOnwardMortgageOfferAction } from "@/app/actions/portal-onward";
 import type { MoveInfo, MoveInfoContext, UnavailableRange } from "@/lib/services/portal-info";
+import { DateField } from "@/components/ui/DateField";
 
 function fmtDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -423,7 +424,7 @@ function YesNo({ value, disabled, onChange }: { value: boolean | null; disabled?
 
 function DateInput({ value, disabled, onChange }: { value: string | null; disabled?: boolean; onChange: (v: string | null) => void }) {
   return (
-    <input type="date" value={value ?? ""} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className="rounded-lg px-2.5 py-1.5 text-[14px] font-semibold disabled:opacity-60" style={{ border: `1px solid ${P.border}`, background: P.pageBg, color: P.textPrimary }} />
+    <DateField value={value ?? ""} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className="rounded-lg px-2.5 py-1.5 text-[14px] font-semibold disabled:opacity-60" style={{ border: `1px solid ${P.border}`, background: P.pageBg, color: P.textPrimary }} wrapperStyle={{ display: "inline-block" }} />
   );
 }
 

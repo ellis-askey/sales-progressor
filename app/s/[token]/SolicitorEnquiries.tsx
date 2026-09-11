@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { DateField } from "@/components/ui/DateField";
 import {
   solicitorEnquiriesSatisfiedAction,
   solicitorEnquiriesUpdateAction,
@@ -80,7 +81,7 @@ export function SolicitorEnquiries({
 
           {mode === "date" && (
             <div style={revealStyle}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+              <DateField value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} wrapperStyle={{ display: "inline-block" }} />
               <button
                 type="button"
                 disabled={pending || !date}
