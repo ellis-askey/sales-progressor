@@ -266,17 +266,11 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
       {showAgentRow && (
         agentHas ? (
           <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: firstRow === "agent" ? undefined : divider }}>
-            <div
-              style={{
-                width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 13, color: "#fff",
-                background: "linear-gradient(135deg,#3f4a63,#243049)",
-                boxShadow: "0 2px 6px rgba(36,48,73,0.28)",
-              }}
-            >
-              {initials(chainAgent.agentName || chainAgent.agencyName || "?")}
-            </div>
+            {/* Selling / onward agent — branded person art in rose, distinct
+                from the client's own team tones. */}
+            <span style={{ borderRadius: "50%", boxShadow: "0 2px 6px rgba(224,81,141,0.30)", flexShrink: 0, display: "inline-flex" }}>
+              <ContactAvatar contact={{ name: chainAgent.agentName || chainAgent.agencyName || "?", roleType: "chain_agent" }} size={46} />
+            </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ minWidth: 0 }}>

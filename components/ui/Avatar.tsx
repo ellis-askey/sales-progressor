@@ -38,6 +38,14 @@ const SIDE_STYLES = {
     bg: "linear-gradient(135deg, #8493A8 0%, #3A4A63 100%)",
     color: "#FFFFFF",
   },
+  // Selling / onward agent — the agent on the other side of a chain link. Rose,
+  // distinct from the taken coral/blue/green/violet/navy/amber. One tone covers
+  // both directions: a client only ever sees one (a buyer's selling agent OR a
+  // seller's onward agent, never both).
+  chainAgent: {
+    bg: "linear-gradient(135deg, #F6A8CC 0%, #E0518D 100%)",
+    color: "#7A1E45",
+  },
   fallback: {
     bg: "linear-gradient(135deg, #F1EFE8 0%, #D3D1C7 100%)",
     color: "#444441",
@@ -56,6 +64,7 @@ const ART_TONES: Partial<Record<Side, { base: string; mid: string; deep: string 
   purchaser: { base: "#4FB98F", mid: "#1E9273", deep: "#085041" },
   broker:    { base: "#C7B2FF", mid: "#7C5CF6", deep: "#5B21B6" },
   solicitor: { base: "#8493A8", mid: "#3A4A63", deep: "#1E293B" },
+  chainAgent:{ base: "#F6A8CC", mid: "#E0518D", deep: "#A11552" },
   fallback:  { base: "#AEB7C4", mid: "#7F8A9B", deep: "#586477" },
 };
 
@@ -133,6 +142,7 @@ function contactRoleToSide(roleType: string): Side {
   if (roleType === "purchaser") return "purchaser";
   if (roleType === "broker") return "broker";
   if (roleType === "solicitor") return "solicitor"; // navy when no explicit sideTint
+  if (roleType === "chain_agent") return "chainAgent"; // selling / onward agent — rose
   return "fallback"; // other — can't determine side
 }
 
