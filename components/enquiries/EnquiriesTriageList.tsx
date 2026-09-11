@@ -81,6 +81,10 @@ export function EnquiriesTriageList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, EnquiryHistoryEntry[] | "loading">>({});
+  // Which row currently has an open menu (elevate its card so the dropdown sits
+  // above every sibling) or an open backdate strip (collapse its slider + status).
+  const [menuRowId, setMenuRowId] = useState<string | null>(null);
+  const [backdateRowId, setBackdateRowId] = useState<string | null>(null);
 
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
@@ -197,7 +201,11 @@ export function EnquiriesTriageList({
           const [line1, ...rest] = r.address.split(",");
           const expanded = expandedId === r.transactionId;
           return (
-            <div key={r.transactionId} className="enq-card" data-busy={busy ? "" : undefined}>
+            <div
+              key={r.transactionId}
+              className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""}${backdateRowId === r.transactionId ? " enq-card--backdate" : ""}`}
+              data-busy={busy ? "" : undefined}
+            >
               <div className="enq-row2">
                 {signedPhoto ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -244,6 +252,8 @@ export function EnquiriesTriageList({
                   isSeller={isSeller}
                   expanded={expanded}
                   onToggleExpand={() => toggleExpand(r.transactionId)}
+                  onMenuOpenChange={(open) => setMenuRowId(open ? r.transactionId : (id) => (id === r.transactionId ? null : id))}
+                  onBackdateChange={(open) => setBackdateRowId(open ? r.transactionId : (id) => (id === r.transactionId ? null : id))}
                   move={(opts, msg) => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, ...opts }), msg)}
                   onSatisfy={() => run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied")}
                 />
@@ -290,29 +300,58 @@ function fmtChipDate(iso: string): string {
 }
 
 function RowActions({
-  row, busy, isSeller, expanded, onToggleExpand, move, onSatisfy,
+  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, onBackdateChange, move, onSatisfy,
 }: {
   row: OpenEnquiryRow;
   busy: boolean;
   isSeller: boolean;
   expanded: boolean;
   onToggleExpand: () => void;
+  onMenuOpenChange: (open: boolean) => void;
+  onBackdateChange: (open: boolean) => void;
   move: (opts: MoveOpts, msg: string) => void;
   onSatisfy: () => void;
 }) {
   const other = otherCourt(row.currentlyWith);
   const [menuOpen, setMenuOpen] = useState(false);
   const [satisfyArmed, setSatisfyArmed] = useState(false);
-  const [backdate, setBackdate] = useState(false);
+  // Backdate strip enter/exit: bdMounted keeps it in the DOM; bdClosing swaps to
+  // the reverse (despawn) animation for ~260ms before it unmounts, so opening
+  // AND reverting both animate. The parent collapses / re-expands the slider +
+  // status via the card class, driven off onBackdateChange.
+  const [bdMounted, setBdMounted] = useState(false);
+  const [bdClosing, setBdClosing] = useState(false);
   const [bdISO, setBdISO] = useState(todayISO());
   const wrapRef = useRef<HTMLDivElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the parent (card elevation for the dropdown) in sync with the menu.
+  const changeMenu = (open: boolean) => { setMenuOpen(open); onMenuOpenChange(open); };
+
+  function openBackdate() {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    changeMenu(false);
+    setBdClosing(false);
+    setBdMounted(true);
+    onBackdateChange(true);
+  }
+  function closeBackdate() {
+    // Reverse: the left content re-expands now (card class off), the strip plays
+    // its despawn, then it unmounts once the animation is done.
+    onBackdateChange(false);
+    setBdClosing(true);
+    setBdISO(todayISO());
+    closeTimer.current = setTimeout(() => { setBdMounted(false); setBdClosing(false); }, 260);
+  }
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
-    const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) changeMenu(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuOpen]);
 
   // Concrete movements. Backdatable ones take an optional ISO date.
@@ -340,7 +379,7 @@ function RowActions({
   }
 
   // ── Backdate strip: pick a day, then choose the action ──
-  if (backdate) {
+  if (bdMounted) {
     const acts = isSeller
       ? [
           { k: "rs", label: "Replies sent", icon: <PaperPlaneTilt size={14} weight="fill" />, run: doRepliesSent, solid: true },
@@ -352,18 +391,18 @@ function RowActions({
           { k: "st", label: "Still with them", icon: <ArrowsClockwise size={14} />, run: doStill },
         ];
     return (
-      <div className="enq-actions2 enq-actions-backdate" ref={wrapRef}>
-        <span className="enq-backdate">
+      <div className={`enq-actions2 enq-actions-backdate${bdClosing ? " is-closing" : ""}`} ref={wrapRef}>
+        <span className="enq-backdate enq-bd-item">
           <CalendarBlank size={14} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
           <button type="button" className="enq-bd-date" onClick={openDatePicker}>{fmtChipDate(bdISO)} <CaretDown size={11} weight="bold" /></button>
           <input ref={dateRef} type="date" className="enq-bd-input" min={dateToISO(row.openedAt)} max={todayISO()} value={bdISO} onChange={(e) => { if (e.target.value) setBdISO(e.target.value); }} aria-label="When did this happen" />
         </span>
         <span className="enq-bd-acts">
           {acts.map((a) => (
-            <button key={a.k} type="button" disabled={busy} className={`enq-btn ${a.solid ? "enq-btn-primary2" : "enq-btn-flip"}`} onClick={() => { a.run(bdISO); setBackdate(false); }}>{a.icon} {a.label}</button>
+            <button key={a.k} type="button" disabled={busy} className={`enq-btn enq-bd-item ${a.solid ? "enq-btn-primary2" : "enq-btn-flip"}`} onClick={() => { a.run(bdISO); closeBackdate(); }}>{a.icon} {a.label}</button>
           ))}
         </span>
-        <button type="button" disabled={busy} className="enq-btn enq-btn-cancel" onClick={() => { setBackdate(false); setBdISO(todayISO()); }}>Cancel</button>
+        <button type="button" disabled={busy} className="enq-btn enq-btn-cancel enq-bd-item" onClick={closeBackdate}>Cancel</button>
       </div>
     );
   }
@@ -388,21 +427,21 @@ function RowActions({
         { icon: <ArrowsLeftRight size={16} />, label: "Wrong side?", desc: "Fix the court, keep the timer", onClick: () => doWrong() },
       ];
 
-  const pick = (fn: () => void) => { setMenuOpen(false); fn(); };
+  const pick = (fn: () => void) => { changeMenu(false); fn(); };
 
   return (
     <div className="enq-actions2" ref={wrapRef}>
       {/* Desktop: calendar + split button */}
-      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" onClick={() => { setMenuOpen(false); setBackdate(true); }}>
+      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" onClick={openBackdate}>
         <CalendarBlank size={15} />
       </button>
       <span className="enq-split enq-a-desktop">
         <button type="button" disabled={busy} className={`enq-btn enq-split-main ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={onPrimary}>{primaryIcon} {primaryLabel}</button>
-        <button type="button" disabled={busy} aria-label="More actions" aria-expanded={menuOpen} className={`enq-btn enq-split-caret ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={() => setMenuOpen((v) => !v)}><CaretDown size={13} weight="bold" /></button>
+        <button type="button" disabled={busy} aria-label="More actions" aria-expanded={menuOpen} className={`enq-btn enq-split-caret ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={() => changeMenu(!menuOpen)}><CaretDown size={13} weight="bold" /></button>
       </span>
 
       {/* Tablet/mobile: single Update menu trigger */}
-      <button type="button" disabled={busy} className="enq-btn enq-btn-flip enq-a-mobile" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>Update <CaretDown size={13} weight="bold" /></button>
+      <button type="button" disabled={busy} className="enq-btn enq-btn-flip enq-a-mobile" aria-expanded={menuOpen} onClick={() => changeMenu(!menuOpen)}>Update <CaretDown size={13} weight="bold" /></button>
 
       {menuOpen && (
         <div className="enq-menu" role="menu">
@@ -413,7 +452,7 @@ function RowActions({
             </button>
           ))}
           <div className="enq-mi-div" />
-          <button type="button" role="menuitem" className="enq-mi" onClick={() => { setMenuOpen(false); setBackdate(true); }}>
+          <button type="button" role="menuitem" className="enq-mi" onClick={openBackdate}>
             <span className="enq-mi-ico"><CalendarBlank size={16} /></span>
             <span className="enq-mi-txt">Happened earlier…<small>Backdate so the timer&apos;s right</small></span>
           </button>

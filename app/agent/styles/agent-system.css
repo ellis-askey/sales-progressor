@@ -1677,6 +1677,40 @@
     .enq-actions-backdate { flex-wrap: wrap; justify-content: flex-end; }
   }
 
+  /* Menu on top: while a row's dropdown is open, let it escape the card's
+     overflow clip and lift the card above its siblings so nothing covers it. */
+  .enq-card--menu { overflow: visible; position: relative; z-index: 30; }
+
+  /* Backdate open/close animation. The left content (slider + status pills/
+     subtext) collapses to make room; on close it re-expands — a reversible
+     transition. The backdate controls spawn in with a staggered scale/slide,
+     and play the reverse (despawn) while the strip is closing. */
+  .enq-slider, .enq-statuscol {
+    transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease, margin 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .enq-card--backdate .enq-slider {
+    flex: 0 0 0; min-width: 0; max-width: 0; margin-left: -16px; opacity: 0; overflow: hidden; pointer-events: none;
+  }
+  .enq-card--backdate .enq-statuscol {
+    width: 0; flex-basis: 0; min-width: 0; max-width: 0; margin-left: -16px; opacity: 0; overflow: hidden; pointer-events: none;
+  }
+
+  .enq-bd-item { animation: enqBdIn 240ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .enq-backdate.enq-bd-item { animation-delay: 0ms; }
+  .enq-bd-acts .enq-btn:nth-child(1) { animation-delay: 55ms; }
+  .enq-bd-acts .enq-btn:nth-child(2) { animation-delay: 105ms; }
+  .enq-bd-acts .enq-btn:nth-child(3) { animation-delay: 155ms; }
+  .enq-btn-cancel.enq-bd-item { animation-delay: 195ms; }
+  @keyframes enqBdIn { from { opacity: 0; transform: translateX(12px) scale(0.9); } to { opacity: 1; transform: none; } }
+
+  .enq-actions-backdate.is-closing .enq-bd-item { animation: enqBdOut 190ms ease forwards; animation-delay: 0ms !important; }
+  @keyframes enqBdOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(12px) scale(0.9); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .enq-slider, .enq-statuscol { transition: none; }
+    .enq-bd-item, .enq-actions-backdate.is-closing .enq-bd-item { animation: none; }
+  }
+
   /* ── Nav rail (Elevra interaction model, coral) ─────────────────────────── */
   /* Ported behaviour from Elevra's LeftRail (2026-08-09): soft coral
      spotlight active pill that slides between items, hover chevron slide-in,
