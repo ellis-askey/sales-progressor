@@ -7,8 +7,18 @@
 // verification exists nowhere else in the app).
 
 import { useCallback, useEffect, useState } from "react";
+import { VERIFIED_BASELINE } from "./verified-baseline";
 
 const STORAGE_KEY = "sp:dev-sheets:verified:v1";
+
+// The banked baseline as a flag map — used to seed a browser that has never
+// opened /dev/sheets (no localStorage key), so a fresh incognito session
+// restores review progress instead of starting blank.
+function baselineStore(): Record<string, boolean> {
+  const m: Record<string, boolean> = {};
+  for (const id of VERIFIED_BASELINE) m[id] = true;
+  return m;
+}
 
 function readStore(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
@@ -53,9 +63,18 @@ export function useVerification(): VerificationApi {
   const [verified, setVerified] = useState<Record<string, boolean>>({});
   const [ready, setReady] = useState(false);
 
-  // Hydrate from localStorage after mount to avoid SSR/client mismatch.
+  // Hydrate from localStorage after mount to avoid SSR/client mismatch. When
+  // this browser has never opened the page (no key — e.g. a fresh incognito
+  // window), seed from the banked baseline and persist it so nothing is lost.
   useEffect(() => {
-    setVerified(readStore());
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+    if (raw == null) {
+      const seeded = baselineStore();
+      setVerified(seeded);
+      writeStore(seeded);
+    } else {
+      setVerified(readStore());
+    }
     setReady(true);
   }, []);
 
