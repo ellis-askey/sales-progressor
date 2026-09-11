@@ -129,7 +129,7 @@ export function PortalTaskPrompt({ token, side, prompt }: { token: string; side:
         </div>
         <p style={{ margin: "0 0 14px", fontSize: 12.5, color: P.textSecondary, lineHeight: 1.4 }}>{c.body}</p>
         <div style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
-          <button type="button" onClick={dismiss} className="pbtn-press portal-cta-soft" style={{ flex: "0 0 auto", padding: "0 18px", borderRadius: 14, fontSize: 14, fontWeight: 600 }}>
+          <button type="button" onClick={dismiss} className="pbtn-press portal-cta-soft" style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 18px", borderRadius: 14, fontSize: 14, fontWeight: 600 }}>
             Not now
           </button>
           <div style={{ flex: 1 }}>
