@@ -377,7 +377,7 @@ function RowActions({
   const items = isSeller
     ? [
         { icon: <PaperPlaneTilt size={16} />, label: "Replies sent", desc: "Full replies across → buyer's side", onClick: () => doRepliesSent() },
-        { icon: <Checks size={16} />, label: "Some replies in", desc: "Partial — stays their court", onClick: () => doPartial() },
+        { icon: <Checks size={16} />, label: "Some replies in", desc: "Partial, stays their court", onClick: () => doPartial() },
         { icon: <ArrowsClockwise size={16} />, label: "Still with them", desc: "In touch, no move", onClick: () => doStill() },
         { icon: <ArrowsLeftRight size={16} />, label: "Wrong side?", desc: "Fix the court, keep the timer", onClick: () => doWrong() },
       ]
