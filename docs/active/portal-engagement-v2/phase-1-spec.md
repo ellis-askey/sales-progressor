@@ -62,17 +62,17 @@ portal_service_clicked   // a service card was tapped
 
 ## 5. The recap — "Since you were last here" (PR3, CLIENT-VISIBLE — review on staging)
 
-**Placement.** Immediately after the photo hero, before the Progress-overview stepper. These two are currently composed in one `overviewHero` block (`app/portal/[token]/page.tsx:597`). **Structural decision (recommended): split `overviewHero` into `heroPhotoCard` + `progressOverviewCard`** and render the recap between them. Do not restyle either sub-card. If splitting proves risky, fallback is to inject the recap as the block's first child between its two sub-cards — same visual result.
+**Placement (as built).** `PortalOverviewHero` already exposes a `beforeProgress` slot rendered exactly between the photo hero and the Progress-overview card (`PortalOverviewHero.tsx:73-75, 613`). The recap goes there, composed ahead of the existing exchange-day card. No component split was needed — the slot is the approved seam and neither sub-card changes, satisfying the "visually identical" condition. New component: `components/portal/PortalRecap.tsx`.
 
 **Data.** No new data or migration. Reuses:
 - `contact.lastVisitedPortalAt` (already selected)
 - the existing newness computation (`page.tsx:136-138`: `isNew = createdAt > lastVisit`, `newCount`)
 - the existing timeline (`getPortalTimeline`) and next-action (`nextAction`, `page.tsx:126-127`)
 
-**Behaviour (three states — all in the approved prototype):**
-1. **Something needs them** — a top "Needed from you" row (the next client-confirmable milestone, `who === "you"`), plus up to 2 recent changes. Confirm reuses `portalConfirmMilestoneAction` (same call as `PortalNextActionCard`).
-2. **Progress only** — up to 2 recent changes, no action row.
-3. **All caught up** — when `newCount === 0` and nothing is waiting, the block **renders nothing** (or a single quiet "you're up to date" line). The portal must stay calm; this is non-negotiable.
+**Behaviour (as built).**
+1. **What changed** — up to 2 timeline items created after the previous visit, each linking to the Updates tab; a "+N more" hint when `newCount > 2`. Header "Since you were last here" + a relative "since {weekday/date}" label.
+2. **All caught up** — when `newCount === 0`, the page passes no items and the block **renders nothing**. The portal stays calm; non-negotiable.
+3. **"Needed from you" is intentionally NOT in the recap.** The portal already has a dedicated "Your next step" card (`PortalNextActionCard`) with a Confirm just below, so surfacing the same action here would duplicate it on one screen (violates the no-same-screen-duplication rule). If we later decide to promote the action into the recap, we retire the separate card in the same change. `portal_action_confirmed` is emitted centrally from `portalConfirmMilestoneAction`, so every confirm path is measured regardless.
 
 **Rules:**
 - First-ever visit (`lastVisitedPortalAt` null): render nothing (matches current null-suppression).

@@ -32,6 +32,7 @@ import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
 import { PortalCustomizeOverview } from "@/components/portal/PortalCustomizeOverview";
 import { recordPortalEvent } from "@/lib/services/portal-events";
+import { PortalRecap } from "@/components/portal/PortalRecap";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -48,6 +49,16 @@ function ordinal(n: number): string {
 function fmtDayMonth(d: Date | string): string {
   const date = new Date(d);
   return `${ordinal(date.getDate())} ${date.toLocaleDateString("en-GB", { month: "long" })}`;
+}
+// Relative "since ..." label for the recap header, from the client's previous
+// visit timestamp. Weekday within a week, else a plain date.
+function recapWhenLabel(lastVisit: Date): string {
+  const d = new Date(lastVisit);
+  const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (diffDays <= 0) return "earlier today";
+  if (diffDays === 1) return "since yesterday";
+  if (diffDays < 7) return `since ${d.toLocaleDateString("en-GB", { weekday: "long" })}`;
+  return `since ${d.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
 }
 
 
@@ -140,6 +151,35 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const lastVisit = contact.lastVisitedPortalAt ?? null;
   const isNew = (e: TimelineEntry) => !!lastVisit && !!e.createdAt && new Date(e.createdAt) > new Date(lastVisit);
   const newCount = timeline.filter(isNew).length;
+
+  // Portal Engagement v2 (Phase 1): "Since you were last here" recap data.
+  // Up to two things that changed since the previous visit. Empty on a first
+  // visit (lastVisit null → isNew always false), so the recap renders nothing.
+  const recapItems = timeline.filter(isNew).slice(0, 2).map((entry) => {
+    let title: string;
+    if (entry.type === "milestone") {
+      title = portalConfirmationSentence({
+        code: entry.code,
+        side: entry.side,
+        viewerSide: side,
+        confirmer: entry.confirmedByClient
+          ? (entry.helperName ? { kind: "helper", name: entry.helperName } : { kind: "client" })
+          : entry.confirmedBySolicitorFirmName
+            ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
+            : { kind: "agent", name: entry.completedByName ?? "Your team" },
+        milestoneName: entry.label,
+        coreOverride: updateOverrides.get(entry.code)?.core ?? null,
+        isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
+      });
+    } else if (entry.type === "document") {
+      title = entry.filename ?? "New document available";
+    } else {
+      title = stripCommsLinksSilent(entry.content ?? "").trim();
+    }
+    return { id: entry.id, title };
+  });
+  const recapExtra = Math.max(0, newCount - recapItems.length);
+  const recapWhen  = lastVisit ? recapWhenLabel(lastVisit) : "";
 
   const stage = detectStage(milestones, side);
 
@@ -489,7 +529,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       plannedDate={plannedDate}
       daysUntilPredicted={daysUntilPredicted}
       progressHref={`/portal/${token}/progress`}
-      beforeProgress={!hasExchanged && !hasCompleted ? <PortalExchangeDaySection token={token} /> : null}
+      beforeProgress={
+        <>
+          {recapItems.length > 0 && (
+            <PortalRecap token={token} whenLabel={recapWhen} items={recapItems} extraCount={recapExtra} />
+          )}
+          {!hasExchanged && !hasCompleted ? <PortalExchangeDaySection token={token} /> : null}
+        </>
+      }
     />
   );
   // Per-tip refinement: pass the customer's actual completed-milestone

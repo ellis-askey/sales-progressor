@@ -6,6 +6,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { portalCompleteMilestone, portalMarkNotRequired, portalUnmarkNotRequired, PORTAL_AGENT_ONLY_ERROR } from "@/lib/services/portal";
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { notifyPortalExpectedDateSet, notifyPortalChaseNote } from "@/lib/services/notifications";
 import { setUkChaseTime } from "@/lib/services/reminders";
@@ -37,11 +38,39 @@ export async function portalConfirmMilestoneAction(input: {
     throw err;
   }
 
+  // Portal Engagement v2 (Phase 1): a client confirmed a step via their portal.
+  // Single emit point for every confirm path (recap, next-step card, progress
+  // list), so return->action can be measured. Best-effort.
+  try {
+    const c = await prisma.contact.findFirst({
+      where: { portalToken: input.token, portalEligible: true },
+      select: { id: true },
+    });
+    if (c) await recordPortalEvent("portal_action_confirmed", c.id, { milestoneDefinitionId: input.milestoneDefinitionId });
+  } catch {
+    /* telemetry is best-effort */
+  }
+
   revalidatePath(`/portal/${input.token}`, "page");
   revalidatePath(`/portal/${input.token}/progress`, "page");
   revalidatePath(`/portal/${input.token}/updates`, "page");
 
   return { ok: true };
+}
+
+// Portal Engagement v2 (Phase 1): the client tapped an item (or the footer) in
+// the "Since you were last here" recap. Fire-and-forget from the client; used
+// to measure whether the recap drives engagement. Best-effort, no revalidate.
+export async function portalTrackRecapClickAction(token: string): Promise<void> {
+  try {
+    const c = await prisma.contact.findFirst({
+      where: { portalToken: token, portalEligible: true },
+      select: { id: true },
+    });
+    if (c) await recordPortalEvent("portal_recap_item_clicked", c.id);
+  } catch {
+    /* telemetry is best-effort */
+  }
 }
 
 export async function portalMarkNotRequiredAction(input: {
