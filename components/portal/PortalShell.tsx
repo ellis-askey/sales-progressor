@@ -29,6 +29,10 @@ type Props = {
   // hero image below the header; when null the header sits on its own
   // (no dashed placeholder, no broken state).
   photoUrl?: string | null;
+  // Portal Engagement v2 (Phase 1, PR4): count of timeline items newer than the
+  // client's previous visit. Drives the unread badge on the Updates tab. Same
+  // "new since last visit" definition as the recap + Latest-updates pill.
+  unreadCount?: number;
   children: React.ReactNode;
 };
 
@@ -74,7 +78,7 @@ function GreetingText({ text }: { text: string }) {
 // NOTE: agencyName is still passed in (Props) but no longer rendered in the
 // header — it truncated the greeting. It needs a new home elsewhere in the
 // portal (founder, 2026-08-16). Re-add when that lands.
-export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, welcomeSeen, photoUrl, children }: Props) {
+export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, welcomeSeen, photoUrl, unreadCount = 0, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
 
@@ -290,7 +294,33 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           <ul className="grid grid-cols-3 px-2 py-1 m-0 list-none">
             <li className="relative"><TabItem href={base}               active={isHome}     icon="home"     label="Overview" /></li>
             <li className="relative"><TabItem href={`${base}/progress`} active={isProgress} icon="progress" label="Progress" /></li>
-            <li className="relative"><TabItem href={`${base}/updates`}  active={isUpdates}  icon="updates"  label="Updates" /></li>
+            <li className="relative">
+              <TabItem href={`${base}/updates`}  active={isUpdates}  icon="updates"  label="Updates" />
+              {unreadCount > 0 && !isUpdates && (
+                <span
+                  aria-label={`${unreadCount} new`}
+                  className="absolute"
+                  style={{
+                    top: 3,
+                    right: "calc(50% - 20px)",
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 9,
+                    background: P.primary,
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    display: "grid",
+                    placeItems: "center",
+                    padding: "0 4px",
+                    border: "2px solid var(--portal-cardBg, #fff)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </li>
           </ul>
           {/* iOS home-indicator inset */}
           <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />

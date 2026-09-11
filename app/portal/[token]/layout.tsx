@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata, Viewport } from "next";
 import { getServerSession } from "next-auth";
-import { getPortalData, logPortalView } from "@/lib/services/portal";
+import { getPortalData, getPortalTimeline, logPortalView } from "@/lib/services/portal";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
 import { DeadRoundNotice } from "@/components/portal/DeadRoundNotice";
@@ -140,6 +140,22 @@ export default async function PortalLayout({
 
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
+  // Portal Engagement v2 (Phase 1, PR4): unread count for the Updates-tab badge.
+  // Same "new since last visit" definition as the recap + Latest-updates pill
+  // (timeline entries created after the client's previous visit). Read before the
+  // fire-and-forget visit stamp above updates it, so it reflects the prior visit.
+  // Best-effort — the badge just doesn't show if this throws.
+  const viewerSide: "vendor" | "purchaser" = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const lastVisitAt = (contact as { lastVisitedPortalAt?: Date | null }).lastVisitedPortalAt ?? null;
+  let unreadCount = 0;
+  if (lastVisitAt) {
+    const tl = await getPortalTimeline(transaction.id, viewerSide, contact.id, {
+      buyerRoundId: (contact as { buyerRoundId?: string | null }).buyerRoundId ?? null,
+      activeBuyerRoundId: transaction.activeBuyerRoundId,
+    }).catch(() => []);
+    unreadCount = tl.filter((e) => e.createdAt && new Date(e.createdAt) > new Date(lastVisitAt)).length;
+  }
+
   // Founder-only Design Lab: read the global glass picks (applied for every
   // client) and decide if this viewer may edit them. Gate is the agent session
   // on the same domain — clients have no session, so they only ever see the
@@ -164,6 +180,7 @@ export default async function PortalLayout({
             vapidPublicKey={vapidPublicKey}
             welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt}
             photoUrl={transaction.photoUrl ?? null}
+            unreadCount={unreadCount}
           >
             <PortalAutoRefresh />
             {children}
