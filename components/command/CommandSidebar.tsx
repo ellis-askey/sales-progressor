@@ -85,6 +85,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/content/strategy", label: "Strategy", Icon: Compass },
       { href: "/command/content/create", label: "Create", Icon: Sparkle },
       { href: "/command/content/calendar", label: "Calendar", Icon: CalendarDays },
+      { href: "/command/content/performance", label: "Performance", Icon: BarChart3 },
       { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
       { href: "/command/content/brand", label: "Your brand", Icon: Fingerprint },
       { href: "/command/content/drafts", label: "Drafts & images", Icon: PenLine },
