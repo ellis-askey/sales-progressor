@@ -12,6 +12,7 @@ import { PortalTeamManageRow, PortalManagePencil } from "@/components/portal/Por
 import { PortalAddSlot } from "@/components/portal/PortalAddSlot";
 import { PortalEditPencilButton } from "@/components/portal/PortalEditPencilButton";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { PortalFollowupButton, PortalAddConveyancerEmail } from "@/components/portal/PortalFollowupButton";
 import type { FollowupNudge } from "@/lib/portal/followup-state";
 
@@ -120,24 +121,11 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
             borderTop: firstRow === "sol" ? undefined : divider,
           }}
         >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: "50%",
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#fff",
-              background: "linear-gradient(135deg,#3f4a63,#243049)",
-              boxShadow: "0 2px 6px rgba(36,48,73,0.28)",
-            }}
-          >
-            {initials(solicitorFirmName)}
-          </div>
+          <span style={{ borderRadius: "50%", boxShadow: "0 2px 6px rgba(36,48,73,0.28)", flexShrink: 0, display: "inline-flex" }}>
+            {/* Navy id-card art — the client only sees their own conveyancer, so
+                no side-tint is needed (matches the agent-side solicitor art). */}
+            <ContactAvatar contact={{ name: solicitorFirmName, roleType: "solicitor" }} size={46} />
+          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
               {solicitorFirmName}
@@ -365,23 +353,10 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
 
       {broker && (
         <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: divider }}>
-          <div
-            style={{
-              width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 700, fontSize: 15, color: "#fff",
-              background: broker.logoUrl ? "#0f1729" : P.heroGradient,
-              boxShadow: "0 2px 6px rgba(255,107,74,0.28)",
-              overflow: "hidden",
-            }}
-          >
-            {broker.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={broker.logoUrl} alt={broker.firmName} width={46} height={46} style={{ width: 46, height: 46, objectFit: "cover" }} />
-            ) : (
-              initials(broker.firmName)
-            )}
-          </div>
+          <span style={{ borderRadius: "50%", boxShadow: "0 2px 6px rgba(124,92,246,0.30)", flexShrink: 0, display: "inline-flex" }}>
+            {/* Firm logo if uploaded, else the violet £ broker art. */}
+            <ContactAvatar contact={{ name: broker.firmName, roleType: "broker" }} image={broker.logoUrl} size={46} />
+          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
               {broker.firmName}
@@ -407,16 +382,9 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
             initial: { firmName: ownBroker.name, contactName: ownBroker.contactName ?? "", brokerContact: ownBroker.contact ?? "" },
           }}
         >
-          <div
-            style={{
-              width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 700, fontSize: 15, color: "#fff",
-              background: P.heroGradient, boxShadow: "0 2px 6px rgba(255,107,74,0.28)",
-            }}
-          >
-            {initials(ownBroker.name)}
-          </div>
+          <span style={{ borderRadius: "50%", boxShadow: "0 2px 6px rgba(124,92,246,0.30)", flexShrink: 0, display: "inline-flex" }}>
+            <ContactAvatar contact={{ name: ownBroker.name, roleType: "broker" }} size={46} />
+          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
               {ownBroker.name}

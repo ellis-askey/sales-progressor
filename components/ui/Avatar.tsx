@@ -26,6 +26,18 @@ const SIDE_STYLES = {
     bg: "linear-gradient(135deg, #FFE3DB 0%, #FF9E86 100%)",
     color: "#7A2E15",
   },
+  // Mortgage broker — violet, distinct from the taken coral/blue/green.
+  broker: {
+    bg: "linear-gradient(135deg, #C7B2FF 0%, #7C5CF6 100%)",
+    color: "#39207F",
+  },
+  // Solicitor / conveyancer with no side context (e.g. the portal, where the
+  // client only ever sees their own). Navy/slate. Side-acting solicitors on the
+  // agent side pass an explicit sideTint (seller-blue / buyer-green) instead.
+  solicitor: {
+    bg: "linear-gradient(135deg, #8493A8 0%, #3A4A63 100%)",
+    color: "#FFFFFF",
+  },
   fallback: {
     bg: "linear-gradient(135deg, #F1EFE8 0%, #D3D1C7 100%)",
     color: "#444441",
@@ -42,6 +54,8 @@ type Side = keyof typeof SIDE_STYLES;
 const ART_TONES: Partial<Record<Side, { base: string; mid: string; deep: string }>> = {
   vendor:    { base: "#5B9BD5", mid: "#2E6DB4", deep: "#0C447C" },
   purchaser: { base: "#4FB98F", mid: "#1E9273", deep: "#085041" },
+  broker:    { base: "#C7B2FF", mid: "#7C5CF6", deep: "#5B21B6" },
+  solicitor: { base: "#8493A8", mid: "#3A4A63", deep: "#1E293B" },
   fallback:  { base: "#AEB7C4", mid: "#7F8A9B", deep: "#586477" },
 };
 
@@ -94,12 +108,32 @@ function DefaultIdCardAvatarArt({ size }: { size: number }) {
   );
 }
 
+// Pound art for mortgage brokers. Same 3-tone wave background as the person /
+// id-card art, with a £ mark; all coral hexes route through the same
+// --tsp-avatar-* vars, so it retints as a unit (violet for brokers). White £
+// stays white. Source: Downloads/tsp-pound-avatar.svg.
+function DefaultPoundAvatarArt({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 512 512" style={{ display: "block" }} aria-hidden>
+      <rect width="512" height="512" fill="var(--tsp-avatar-base, #FC9C50)" />
+      <path d="M0 374 C72 392 116 394 166 379 C233 359 278 303 326 248 C376 191 425 164 512 149 L512 512 L0 512 Z" fill="var(--tsp-avatar-mid, #FF5E1F)" />
+      <path d="M101 512 C156 468 209 414 280 367 C330 334 375 305 422 318 C460 328 489 358 512 391 L512 512 Z" fill="var(--tsp-avatar-deep, #FF2D0F)" />
+      <g fill="none" stroke="#FFFFFF" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M199 368 L199 217 C199 167 229 145 271 145 C307 145 329 161 337 185" strokeWidth={38} />
+        <path d="M174 273 L290 273" strokeWidth={34} />
+        <path d="M169 368 L344 368" strokeWidth={38} />
+      </g>
+    </svg>
+  );
+}
+
 // Maps ContactRole to avatar side
 function contactRoleToSide(roleType: string): Side {
   if (roleType === "vendor") return "vendor";
   if (roleType === "purchaser") return "purchaser";
-  if (roleType === "broker") return "purchaser"; // buyers have brokers
-  return "fallback"; // solicitor, other — can't determine side
+  if (roleType === "broker") return "broker";
+  if (roleType === "solicitor") return "solicitor"; // navy when no explicit sideTint
+  return "fallback"; // other — can't determine side
 }
 
 // ─── Base avatar ─────────────────────────────────────────────────────────────
@@ -118,9 +152,9 @@ type AvatarBaseProps = {
   focusY?: number;
   // When no image is set, render the branded default art instead of initials.
   defaultArt?: boolean;
-  // Which art to use for the default: "person" (clients/staff) or "idcard"
-  // (solicitors/professionals). Ignored unless defaultArt is set.
-  artKind?: "person" | "idcard";
+  // Which art to use for the default: "person" (clients/staff), "idcard"
+  // (solicitors/professionals) or "pound" (brokers). Ignored unless defaultArt.
+  artKind?: "person" | "idcard" | "pound";
 };
 
 function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, focusY = 50, defaultArt = false, artKind = "person" }: AvatarBaseProps) {
@@ -163,7 +197,9 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
           style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block" }}
         />
       ) : defaultArt ? (
-        artKind === "idcard" ? <DefaultIdCardAvatarArt size={size} /> : <DefaultAgentAvatarArt size={size} />
+        artKind === "idcard" ? <DefaultIdCardAvatarArt size={size} />
+        : artKind === "pound" ? <DefaultPoundAvatarArt size={size} />
+        : <DefaultAgentAvatarArt size={size} />
       ) : (
         initials
       )}
@@ -183,15 +219,19 @@ type ContactAvatarProps = {
   art?: boolean;
   // Override the tint side. Used for solicitors, which have no side of their
   // own — the solicitor card tints its id-card to the side it acts for
-  // (vendor blue / buyer green).
+  // (vendor blue / buyer green). Omit it (e.g. on the portal) to get the neutral
+  // navy solicitor tone instead.
   sideTint?: "vendor" | "purchaser";
+  // A photo / logo. When set it fills the circle and the art becomes the
+  // fallback (e.g. a broker firm logo, else the £ art).
+  image?: string | null;
 };
 
-export function ContactAvatar({ contact, size = 32, className, art = true, sideTint }: ContactAvatarProps) {
+export function ContactAvatar({ contact, size = 32, className, art = true, sideTint, image = null }: ContactAvatarProps) {
   const initials = getInitials(contact);
   const side = sideTint ?? (contact.roleType ? contactRoleToSide(contact.roleType) : "fallback");
-  const artKind = contact.roleType === "solicitor" ? "idcard" : "person";
-  return <AvatarBase initials={initials} side={side} size={size} className={className} defaultArt={art} artKind={artKind} />;
+  const artKind = contact.roleType === "solicitor" ? "idcard" : contact.roleType === "broker" ? "pound" : "person";
+  return <AvatarBase initials={initials} side={side} size={size} className={className} image={image} defaultArt={art} artKind={artKind} />;
 }
 
 // ─── UserAvatar ───────────────────────────────────────────────────────────────
