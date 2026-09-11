@@ -8,9 +8,12 @@
 // "Not now" hides it and doesn't return; it also disappears on its own once the
 // client fills their information in.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
+import { portalTrackTaskPromptAction } from "@/app/actions/portal";
+
+const PROMPT_KEY = "information";
 
 export function PortalTaskPrompt({ token, side }: { token: string; side: "vendor" | "purchaser" }) {
   const dismissKey = `portal-task-information-${token}-dismissed`;
@@ -18,17 +21,31 @@ export function PortalTaskPrompt({ token, side }: { token: string; side: "vendor
     if (typeof window === "undefined") return false;
     try { return localStorage.getItem(dismissKey) === "1"; } catch { return false; }
   });
+
+  // Log "shown" once per session per device (so navigation doesn't re-count it).
+  useEffect(() => {
+    if (dismissed) return;
+    const seenKey = `portal-task-shown-${PROMPT_KEY}-${token}`;
+    try {
+      if (sessionStorage.getItem(seenKey) === "1") return;
+      sessionStorage.setItem(seenKey, "1");
+    } catch { /* ignore */ }
+    void portalTrackTaskPromptAction(token, "shown", PROMPT_KEY);
+  }, [dismissed, token]);
+
   if (dismissed) return null;
 
   const body =
     side === "vendor"
-      ? "Tell us a little about your plans, including when you'd ideally like to complete, whether you're buying somewhere onward and what your moving arrangements look like. It gives us a better picture of your circumstances and helps us keep your plans in mind as your move progresses."
-      : "Tell us a little about your plans, including when you'd ideally like to complete, whether your funds are ready and if you have any notice to give on your current home. It gives us a better picture of your circumstances and helps us keep your plans in mind as your move progresses.";
+      ? "Tell us a little about your plans, including when you'd ideally like to complete, whether you're buying onward and your moving arrangements. It helps us understand your circumstances as your move progresses."
+      : "Tell us a little about your plans, including when you'd ideally like to complete, whether your funds are ready and any notice you need to give. It helps us understand your circumstances as your move progresses.";
 
   function openInfo() {
+    void portalTrackTaskPromptAction(token, "clicked", PROMPT_KEY);
     window.dispatchEvent(new CustomEvent("portal:open-menu", { detail: { section: "information" } }));
   }
   function dismiss() {
+    void portalTrackTaskPromptAction(token, "dismissed", PROMPT_KEY);
     try { localStorage.setItem(dismissKey, "1"); } catch { /* ignore */ }
     setDismissed(true);
   }
