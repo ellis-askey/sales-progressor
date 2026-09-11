@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PencilSimple } from "@phosphor-icons/react";
 import { saveCompletionDateAction } from "@/app/actions/transactions";
+import { DateField } from "@/components/ui/DateField";
 
 function fmt(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Not set";
@@ -56,8 +57,7 @@ export function CompletionDateInline({
   if (editing) {
     return (
       <Row>
-        <input
-          type="date"
+        <DateField
           value={draft}
           autoFocus
           disabled={saving}
@@ -69,6 +69,7 @@ export function CompletionDateInline({
           }}
           className="glass-input agent-focus text-xs px-2 py-1 rounded-lg"
           style={{ maxWidth: 150 }}
+          wrapperStyle={{ display: "inline-block" }}
         />
       </Row>
     );

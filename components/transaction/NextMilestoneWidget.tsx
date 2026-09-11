@@ -5,6 +5,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction } from "@/app/actions/milestones";
+import { DateField } from "@/components/ui/DateField";
 
 type NextMilestone = {
   id: string;
@@ -210,12 +211,12 @@ function MilestoneSideRow({
       )}
       {showDatePicker && (
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8, marginTop: 4, paddingLeft: 32 }}>
-          <input
-            type="date"
+          <DateField
             value={eventDate}
             disabled={isPM6 && desktopValuation}
             onChange={(e) => setEventDate(e.target.value)}
             className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
+            wrapperStyle={{ display: "inline-block" }}
           />
           {isPM6 && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--agent-text-primary)", cursor: "pointer" }}>

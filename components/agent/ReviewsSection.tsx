@@ -21,6 +21,7 @@ import { updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { toUKDateStr } from "@/lib/utils";
+import { DateField } from "@/components/ui/DateField";
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -434,7 +435,7 @@ function ReviewRow({
           {!dimmed && (
             extenderFor === item.transactionId ? (
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <input type="date" value={extenderDate} min={tomorrowStr()} autoFocus onChange={(e) => setExtenderDate(e.target.value)} className="agent-input" style={{ padding: "4px 8px", fontSize: 12 }} />
+                <DateField value={extenderDate} min={tomorrowStr()} autoFocus onChange={(e) => setExtenderDate(e.target.value)} className="agent-input" style={{ padding: "4px 8px", fontSize: 12 }} wrapperStyle={{ display: "inline-block" }} />
                 <button onClick={() => { if (extenderDate && extenderDate >= tomorrowStr()) onExtend(item.transactionId, new Date(extenderDate)); }} disabled={!extenderDate || extenderDate < tomorrowStr()} className="agent-btn agent-btn-xs agent-btn-primary">Set date</button>
                 <button onClick={onCloseExtender} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
               </div>
@@ -490,15 +491,15 @@ function ReviewRow({
       {dimmed || isDone ? (
         <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap", marginLeft: "auto", marginTop: 1 }}>{due.label}</span>
       ) : editingDate ? (
-        <input
-          type="date"
+        <DateField
           autoFocus
           defaultValue={item.reviewDate ? toUKDateStr(item.reviewDate) : ""}
           min={todayStr()}
           onChange={(e) => { if (e.target.value && e.target.value >= todayStr()) onSetManualDate(item.id, e.target.value); setEditingDate(false); }}
           onBlur={() => setEditingDate(false)}
           className="agent-input"
-          style={{ padding: "4px 8px", fontSize: 12, marginLeft: "auto", marginTop: 1 }}
+          style={{ padding: "4px 8px", fontSize: 12 }}
+          wrapperStyle={{ display: "inline-block", marginLeft: "auto", marginTop: 1 }}
         />
       ) : (
         <button

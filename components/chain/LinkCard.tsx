@@ -15,6 +15,7 @@ import { parseAddressForEdit } from "@/components/transactions-v2/form/AddressFi
 import { prepareImageForUpload } from "@/lib/images/prepare-upload";
 import type { ChainLinkV2, ChainNodeIntel } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
+import { DateField } from "@/components/ui/DateField";
 
 function relativeTime(date: Date | string | null): string {
   if (!date) return "";
@@ -427,8 +428,7 @@ function ChainIntelBody({
         <label style={intelLabelStyle}>
           Last chain check
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="date"
+            <DateField
               value={form.lastChainCheckAt ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, lastChainCheckAt: e.target.value || null }))}
               style={{ ...intelInputStyle, flex: 1 }}

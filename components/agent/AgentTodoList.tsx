@@ -9,6 +9,7 @@ import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
+import { DateField } from "@/components/ui/DateField";
 
 // Bespoke composer per Skeleton.tsx's contract — encodes the to-do
 // ghost layout. Inner pulses wrap the canonical Skeleton primitive.
@@ -559,13 +560,13 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
       {/* Due date — click to change (open tasks); created date otherwise */}
       <div style={{ flexShrink: 0, textAlign: "right", marginTop: 2 }}>
         {editingDate ? (
-          <input
-            type="date"
+          <DateField
             autoFocus
             defaultValue={task.dueDate ? toUKDateStr(task.dueDate) : ""}
             onChange={(e) => { onDueDate?.(task.id, e.target.value || null); setEditingDate(false); }}
             onBlur={() => setEditingDate(false)}
             style={{ fontSize: 11, padding: "2px 4px", border: "1px solid var(--agent-border-default)", borderRadius: 6, background: "var(--agent-surface)", color: "var(--agent-text-primary)" }}
+            wrapperStyle={{ display: "inline-block" }}
           />
         ) : (
           <>

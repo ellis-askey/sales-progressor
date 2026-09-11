@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { startExchangeDayAction, cancelExchangeDayAction } from "@/app/actions/exchange-day";
+import { DateField } from "@/components/ui/DateField";
 
 function toDateInput(iso: string | null): string {
   return iso ? new Date(iso).toISOString().slice(0, 10) : "";
@@ -192,8 +193,7 @@ export function ExchangeDayControl({
             </div>
             <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Agreed completion date</span>
-              <input
-                type="date"
+              <DateField
                 value={date}
                 min={todayStr}
                 onChange={(e) => setDate(e.target.value)}

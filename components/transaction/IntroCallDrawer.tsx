@@ -23,6 +23,7 @@ import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import type { MoveInfo } from "@/lib/services/portal-info";
 import type { PurchaseType, Tenure } from "@prisma/client";
+import { DateField } from "@/components/ui/DateField";
 
 type CostsPatch = {
   depositGBP?: number | null;
@@ -65,9 +66,15 @@ function TextField({ label, initial, onSave, placeholder, type = "text", format,
       {label}
       <div style={{ position: "relative" }}>
         {icon && <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", color: "var(--agent-text-muted)", pointerEvents: "none" }}>{icon}</span>}
-        <input type={type} value={v} placeholder={placeholder} className="agent-field" style={{ ...inputStyle, ...(icon ? { paddingLeft: 32 } : {}) }}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
+        {type === "date" ? (
+          <DateField value={v} placeholder={placeholder} className="agent-field" style={{ ...inputStyle, ...(icon ? { paddingLeft: 32 } : {}) }}
+            onChange={(e) => setV(e.target.value)}
+            onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
+        ) : (
+          <input type={type} value={v} placeholder={placeholder} className="agent-field" style={{ ...inputStyle, ...(icon ? { paddingLeft: 32 } : {}) }}
+            onChange={(e) => setV(e.target.value)}
+            onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
+        )}
       </div>
     </label>
   );
@@ -205,9 +212,9 @@ function AvailabilityField({ label, initial, onSave }: { label: string; initial:
       <div style={{ display: "grid", gap: 8 }}>
         {ranges.map((r, i) => (
           <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="date" value={r.start} className="agent-field" style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
+            <DateField value={r.start} className="agent-field" style={inputStyle} wrapperStyle={{ width: "100%" }} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
             <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>to</span>
-            <input type="date" value={r.end ?? ""} className="agent-field" style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, end: e.target.value || null } : x)))} />
+            <DateField value={r.end ?? ""} className="agent-field" style={inputStyle} wrapperStyle={{ width: "100%" }} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, end: e.target.value || null } : x)))} />
             <button type="button" aria-label="Remove" onClick={() => commit(ranges.filter((_, j) => j !== i))} className="chain-act-link chain-act-danger" style={{ fontSize: 18, lineHeight: 1 }}>×</button>
           </div>
         ))}

@@ -19,6 +19,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { DateField } from "@/components/ui/DateField";
 
 type ChainDrawerProps = {
   transactionId: string;
@@ -862,8 +863,7 @@ export function ChainDrawer({
                         <label style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)", display: "block", marginBottom: 4 }}>
                           Come back to this on
                         </label>
-                        <input
-                          type="date"
+                        <DateField
                           min={tomorrowDateStr()}
                           value={waitDateByNotif[n.id] ?? defaultWaitDateStr()}
                           onChange={(e) => setWaitDateByNotif((prev) => ({ ...prev, [n.id]: e.target.value }))}
@@ -875,6 +875,7 @@ export function ChainDrawer({
                             background: "var(--agent-surface)",
                             color: "var(--agent-text-primary)",
                           }}
+                          wrapperStyle={{ display: "inline-block" }}
                         />
                         <p style={{ fontSize: 11, color: "var(--agent-text-tertiary)", margin: "6px 0 0", lineHeight: 1.4 }}>
                           We&rsquo;ll pause this file and raise it on your hub on this date, so you can decide whether to keep waiting, go back to market, or withdraw.

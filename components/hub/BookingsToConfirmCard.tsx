@@ -20,6 +20,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction } from "@/app/actions/booking-confirmation";
+import { DateField } from "@/components/ui/DateField";
 
 export type BookingConfirmRow = {
   transactionId: string;
@@ -196,11 +197,11 @@ function ConfirmPanel({
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 4 }}>
             Appointment date
           </label>
-          <input
-            type="date"
+          <DateField
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="glass-input px-2 py-1.5 text-sm"
+            wrapperStyle={{ display: "inline-block" }}
           />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none", fontSize: 13, color: "var(--agent-text-secondary)", paddingBottom: 6 }}>

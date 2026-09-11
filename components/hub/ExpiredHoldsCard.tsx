@@ -36,6 +36,7 @@ import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actio
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { ExpiredHoldItem } from "@/lib/services/hub";
+import { DateField } from "@/components/ui/DateField";
 
 function formatDateInput(d: Date): string {
   const yyyy = d.getFullYear();
@@ -334,13 +335,13 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
                 {showExtenderFor === item.transactionId ? (
                   <div data-testid="hub-expired-holds-extender" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    <input
-                      type="date"
+                    <DateField
                       value={extenderDate}
                       onChange={(e) => setExtenderDate(e.target.value)}
                       min={formatDateInput(tomorrowAt9())}
                       className="glass-input"
                       style={{ padding: "6px 10px", fontSize: 12 }}
+                      wrapperStyle={{ display: "inline-block" }}
                       autoFocus
                     />
                     <button

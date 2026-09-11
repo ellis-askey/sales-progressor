@@ -16,6 +16,7 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { DateField } from "@/components/ui/DateField";
 
 type Choice = "pause" | "hold";
 
@@ -132,13 +133,13 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
                     Pick a return date
                   </label>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      type="date"
+                    <DateField
                       value={customDate}
                       onChange={(e) => setCustomDate(e.target.value)}
                       min={formatDateInput(addDays(1))}
                       className="glass-input"
-                      style={{ flex: 1, padding: "10px 12px", fontSize: 13 }}
+                      style={{ flex: 1, padding: "10px 12px", fontSize: 13, width: "100%" }}
+                      wrapperStyle={{ flex: 1 }}
                     />
                     <button
                       type="button"

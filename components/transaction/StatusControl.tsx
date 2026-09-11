@@ -10,6 +10,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import type { TransactionStatus, WithdrawalReason } from "@prisma/client";
+import { DateField } from "@/components/ui/DateField";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
   { value: "active",    label: "Active" },
@@ -487,13 +488,13 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
                 Return date
               </label>
-              <input
-                type="date"
+              <DateField
                 value={holdDate}
                 onChange={(e) => setHoldDate(e.target.value)}
                 min={tomorrow()}
                 autoFocus
                 className="agent-input"
+                wrapperStyle={{ display: "inline-block" }}
               />
               {holdDateInPast && (
                 <p style={{ fontSize: 11, color: "#b45309", margin: "6px 0 0", fontWeight: 500 }}>

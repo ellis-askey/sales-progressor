@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DIRECT_PREREQUISITES, RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { RoleIcon, type Role } from "@/components/ui/RoleIcon";
+import { DateField } from "@/components/ui/DateField";
 
 // Reusable milestone reconciliation picker.
 // Renders vendor + purchaser sections with checkbox + optional date input per row.
@@ -382,13 +383,13 @@ function Section({
                 </button>
                 <span className="claim-reconcile-row-controls">
                   {row.ticked && isUnlocked && (
-                    <input
-                      type="date"
+                    <DateField
                       className="claim-reconcile-date"
                       value={row.eventDate ?? ""}
                       max={today}
                       onChange={(e) => onRowChange(m.id, { eventDate: e.target.value || null })}
                       aria-label={`When did this happen? (${m.name})`}
+                      wrapperStyle={{ display: "inline-block" }}
                     />
                   )}
                   <button
@@ -430,13 +431,13 @@ function Section({
                 </span>
               </label>
               {row.ticked && isUnlocked && (
-                <input
-                  type="date"
+                <DateField
                   className="claim-reconcile-date"
                   value={row.eventDate ?? ""}
                   max={today}
                   onChange={(e) => onRowChange(m.id, { eventDate: e.target.value || null })}
                   aria-label={`When did this happen? (${m.name})`}
+                  wrapperStyle={{ display: "inline-block" }}
                 />
               )}
             </li>

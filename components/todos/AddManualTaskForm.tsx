@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
+import { DateField } from "@/components/ui/DateField";
 
 export function AddManualTaskForm({
   transactionId,
@@ -182,12 +183,12 @@ export function AddManualTaskForm({
       )}
       <div className="flex items-center gap-3 pt-1" style={{ borderTop: "0.5px solid var(--agent-border-subtle)" }}>
         <div>
-          <input
-            type="date"
+          <DateField
             value={dueDate}
             min={todayStr()}
             onChange={(e) => { setDueDate(e.target.value); setDateError(""); }}
             className="text-base text-slate-900/50 border-0 outline-none bg-transparent"
+            wrapperStyle={{ display: "inline-block" }}
           />
           {dateError && <p className="text-xs text-red-500 mt-0.5">{dateError}</p>}
         </div>

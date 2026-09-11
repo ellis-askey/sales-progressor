@@ -54,6 +54,7 @@ import type {
   HubRelistAck,
   HubChainSetupPending,
 } from "@/lib/services/hub";
+import { DateField } from "@/components/ui/DateField";
 
 // Page-level decoration: every item arrives with its photo path already
 // signed to a temporary URL (or null → icon fallback).
@@ -771,13 +772,13 @@ function AttentionRow({
         {row.kind === "hold" && (
           showExtenderFor === txId ? (
             <div data-testid="hub-expired-holds-extender" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                type="date"
+              <DateField
                 value={extenderDate}
                 onChange={(e) => setExtenderDate(e.target.value)}
                 min={formatDateInput(tomorrowAt9())}
                 className="glass-input"
                 style={{ padding: "6px 10px", fontSize: 12 }}
+                wrapperStyle={{ display: "inline-block" }}
                 autoFocus
               />
               <button

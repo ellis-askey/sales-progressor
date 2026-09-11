@@ -19,6 +19,7 @@ import {
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import type { EnquiryCourt } from "@/lib/enquiries/tracker";
+import { DateField } from "@/components/ui/DateField";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
 const courtShort = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's side" : "buyer's side");
@@ -335,7 +336,7 @@ function ExpandedDetail({
         {row.expectedDate ? (
           <div className="enq-detail-b">{fmtDay(row.expectedDate)} <button type="button" className="enq-linkbtn" disabled={busy} onClick={() => onExpected(null)}>Clear</button></div>
         ) : dateOpen ? (
-          <input type="date" className="enq-date" autoFocus disabled={busy} onChange={(e) => { if (e.target.value) onExpected(e.target.value); setDateOpen(false); }} onBlur={() => setDateOpen(false)} />
+          <DateField className="enq-date" wrapperStyle={{ display: "inline-block" }} autoFocus disabled={busy} onChange={(e) => { if (e.target.value) onExpected(e.target.value); setDateOpen(false); }} onBlur={() => setDateOpen(false)} />
         ) : (
           <button type="button" className="enq-linkbtn" onClick={() => setDateOpen(true)}>Add expected date</button>
         )}

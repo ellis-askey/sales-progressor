@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarBlank, PencilSimple } from "@phosphor-icons/react";
 import { saveOverrideDateAction } from "@/app/actions/transactions";
+import { DateField } from "@/components/ui/DateField";
 
 // No background — bare icon in an unchanged 32×32 footprint (matches
 // HeroSaleFields so the editable + static hero cells stay identical).
@@ -65,9 +66,8 @@ export function HeroExchangeCell({
         {editing ? (
           <>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
+              <DateField
                 ref={inputRef}
-                type="date"
                 value={draft}
                 disabled={saving}
                 onChange={(e) => setDraft(e.target.value)}
@@ -77,6 +77,7 @@ export function HeroExchangeCell({
                 }}
                 className="glass-input agent-focus text-sm px-2 py-1 rounded-lg"
                 style={{ maxWidth: 150 }}
+                wrapperStyle={{ display: "inline-block" }}
               />
               <button type="button" onClick={() => save(draft || null)} disabled={saving} className="text-xs agent-link-primary">Save</button>
               {overrideDate && (

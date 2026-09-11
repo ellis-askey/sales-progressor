@@ -21,7 +21,11 @@
 .datefield__ph {
   position: absolute !important;
   inset: 0 !important;
-  margin: 0 !important;
+  /* Zero only VERTICAL margins (a stray marginBottom/Top would shift the
+     absolutely-positioned overlay). Horizontal margins from the reused class
+     are kept so the placeholder tracks an input that has a left offset. */
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;

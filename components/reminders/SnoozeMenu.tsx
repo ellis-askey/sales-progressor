@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { Clock } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { DateField } from "@/components/ui/DateField";
 
 export interface SnoozeChoice {
   hours?: number;
@@ -159,13 +160,13 @@ export function SnoozeMenu({
             </div>
 
             {/* Or a specific date */}
-            <input
-              type="date"
+            <DateField
               value={dateVal}
               min={tomorrow}
               onChange={(e) => { setDateVal(e.target.value); setHours(null); }}
               className="agent-input agent-input-sm"
-              style={{ width: "100%", fontSize: 12, marginBottom: 8 }}
+              style={{ width: "100%", fontSize: 12 }}
+              wrapperStyle={{ marginBottom: 8 }}
             />
 
             {/* Optional reason */}

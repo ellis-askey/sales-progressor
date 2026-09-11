@@ -15,6 +15,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui/Moda
 import { Button } from "@/components/ui/Button";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { getEventDateLabel } from "@/lib/portal-copy";
+import { DateField } from "@/components/ui/DateField";
 
 // The four bilateral exchange/completion codes that carry a real-world date.
 const DATE_PROMPT_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
@@ -58,12 +59,12 @@ export function ConfirmMilestoneDateModal({
       </ModalHeader>
       <ModalBody>
         <label className="block text-xs text-slate-900/50 mb-1">{label}</label>
-        <input
-          type="date"
+        <DateField
           value={date}
           max={todayStr()}
           onChange={(e) => setDate(e.target.value)}
           className="glass-input px-2 py-1.5 text-sm"
+          wrapperStyle={{ display: "inline-block" }}
         />
         <p className="text-[10px] text-slate-900/50 mt-2">
           Defaults to today. Change it only if this happened earlier.

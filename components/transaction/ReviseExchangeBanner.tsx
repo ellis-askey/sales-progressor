@@ -20,6 +20,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { Button } from "@/components/ui/Button";
 import { reviseOverdueExchangeDateAction } from "@/app/actions/transactions";
+import { DateField } from "@/components/ui/DateField";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -117,18 +118,17 @@ export function ReviseExchangeBanner({
           >
             New expected exchange date
           </label>
-          <input
+          <DateField
             id="revise-exchange-date"
-            type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            wrapperStyle={{ marginBottom: 16 }}
             style={{
               width: "100%",
               padding: "10px 12px",
               fontSize: 14,
               borderRadius: 8,
               border: "1px solid var(--agent-border, rgba(15,23,42,0.14))",
-              marginBottom: 16,
               background: "white",
             }}
           />

@@ -34,6 +34,7 @@ import {
   undoRelatedSaleStepAction,
 } from "@/app/actions/onward";
 import type { OnwardTrackerView, OnwardStepView } from "@/lib/services/onward";
+import { DateField } from "@/components/ui/DateField";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
@@ -366,10 +367,10 @@ export function OnwardPurchaseCard({
               <label style={{ fontSize: 11, color: MUTED }}>
                 {step.eventDateRequired ? "Date it happened" : "Date (optional)"}
               </label>
-              <input
-                type="date"
+              <DateField
                 value={confirmDate}
                 onChange={(e) => setConfirmDate(e.target.value)}
+                wrapperStyle={{ display: "inline-block" }}
                 style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--agent-border, rgba(0,0,0,0.15))", borderRadius: 6 }}
               />
               <Button
