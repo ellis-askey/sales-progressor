@@ -5,12 +5,13 @@ import { useState, useOptimistic, useTransition, useEffect, useRef } from "react
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction, getExchangeReconciliationList, confirmExchangeReconciliationAction, getUndoImpactAction, executeUndoMilestoneAction } from "@/app/actions/milestones";
+import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction, getExchangeReconciliationList, confirmExchangeReconciliationAction, getUndoImpactAction, executeUndoMilestoneAction, changeBookingDateAction } from "@/app/actions/milestones";
 import type { UndoImpact } from "@/app/actions/milestones";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 import { SurveyNrConfirmModal } from "@/components/milestones/SurveyNrConfirmModal";
 import { SurveyBookingModal } from "@/components/milestones/SurveyBookingModal";
+import { ChangeBookingDateModal } from "@/components/milestones/ChangeBookingDateModal";
 import { getSurveyBookingOptions, recordSurveyBooking } from "@/app/actions/survey-booking";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
@@ -21,6 +22,7 @@ import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
+import { DateField } from "@/components/ui/DateField";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -141,6 +143,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // Undo modal state (two-step: read impact → show modal → confirm)
   const [showUndoModal, setShowUndoModal] = useState(false);
   const [undoData, setUndoData] = useState<UndoImpact | null>(null);
+  const [showChangeDate, setShowChangeDate] = useState(false);
+  const [changeDateSaving, setChangeDateSaving] = useState(false);
 
   // Exchange / completion reconciliation state
   const [reconciliationOutstanding, setReconciliationOutstanding] = useState<ReconciliationItem[]>([]);
@@ -373,6 +377,30 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     });
   }
 
+  // Move an already-confirmed survey / valuation to a new date. Fires the
+  // change action (updates the date, tells the agent, self-corrects the
+  // morning reminder); errors surface inline on the row.
+  function doChangeDate(newDate: string) {
+    if (!def.completion) return;
+    setError(null);
+    setChangeDateSaving(true);
+    startTransition(async () => {
+      try {
+        const res = await changeBookingDateAction({ transactionId, completionId: def.completion!.id, newDate });
+        if (res.ok) {
+          toast.success("Date changed");
+          setShowChangeDate(false);
+        } else {
+          setError(res.error);
+        }
+      } catch (err: unknown) {
+        setError(softenServerError(err, "Could not change the date."));
+      } finally {
+        setChangeDateSaving(false);
+      }
+    });
+  }
+
   // Survey booked confirm: complete PM9 with the survey date, then record which
   // surveyor was booked. Booking is best-effort — a failure there never blocks
   // the milestone (the surveyor is the backstop).
@@ -550,14 +578,26 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     ? (def.confirmedByClientName ?? "Client")
                     : def.confirmedBySolicitorFirmName ?? def.completedByName ?? "Unknown"}
                 </span>
-                <button
-                  onClick={handleUndoClick}
-                  disabled={loading || isPending}
-                  className="agent-link agent-link-muted"
-                  style={{ fontSize: 11, marginLeft: "auto", flexShrink: 0 }}
-                >
-                  {loading ? "…" : "Undo"}
-                </button>
+                <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                  {(isPM6 || isPM9) && def.completion?.eventDate && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setError(null); setShowChangeDate(true); }}
+                      disabled={loading || isPending}
+                      className="agent-link agent-link-muted"
+                      style={{ fontSize: 11 }}
+                    >
+                      Change date
+                    </button>
+                  )}
+                  <button
+                    onClick={handleUndoClick}
+                    disabled={loading || isPending}
+                    className="agent-link agent-link-muted"
+                    style={{ fontSize: 11 }}
+                  >
+                    {loading ? "…" : "Undo"}
+                  </button>
+                </span>
               </div>
               {/* Extra detail kept below the bar only when it adds something
                   (backdated event date, surveyor, out-of-order, or a portal /
@@ -627,13 +667,13 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     and stays clamped to today. The 2026-08-09 backdate
                     change (f9974bf) assumed past-only and accidentally
                     clamped the two bookings too. */}
-                <input
-                  type="date"
+                <DateField
                   value={eventDate}
                   max={def.code === "PM6" || def.code === "PM9" ? undefined : new Date().toISOString().split("T")[0]}
                   disabled={isPM6 && desktopValuation}
                   onChange={(e) => setEventDate(e.target.value)}
                   className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
+                  wrapperStyle={{ display: "inline-block" }}
                 />
               </div>
               {!def.eventDateRequired && (
@@ -775,6 +815,17 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           pendingEventDate={eventDate || undefined}
           onConfirm={(ed, ids, dates, cd) => doReconciliationConfirm(ed, ids, dates, cd)}
           onCancel={() => setShowReconciliationModal(false)}
+        />
+      )}
+
+      {/* Change the date of a confirmed survey / valuation booking */}
+      {showChangeDate && def.completion && (
+        <ChangeBookingDateModal
+          currentDate={def.completion.eventDate ? new Date(def.completion.eventDate).toISOString().slice(0, 10) : ""}
+          noun={isPM6 ? "lender valuation" : "survey"}
+          saving={changeDateSaving}
+          onConfirm={doChangeDate}
+          onCancel={() => setShowChangeDate(false)}
         />
       )}
 

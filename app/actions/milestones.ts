@@ -493,6 +493,89 @@ export async function confirmMilestoneAction(input: {
 }
 
 /**
+ * Move the date of an already-confirmed survey (PM9) or lender valuation (PM6)
+ * booking, without undoing and re-confirming. Updates the stored appointment
+ * date, tells the agency agent it moved (the "rescheduled" diary email + fresh
+ * calendar invite — guarded to outsourced files where keys come from us), and
+ * logs an internal note. The morning-of reminder is date-driven, so it
+ * self-corrects to the new day with no extra work.
+ */
+export async function changeBookingDateAction(input: {
+  transactionId: string;
+  completionId: string;
+  newDate: string; // yyyy-mm-dd
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  // Ownership: the transaction must be in the caller's scope.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!tx) return { ok: false, error: "Transaction not found." };
+
+  const completion = await prisma.milestoneCompletion.findFirst({
+    where: { id: input.completionId, transactionId: input.transactionId },
+    select: {
+      id: true,
+      state: true,
+      eventDate: true,
+      keyCollectionRequired: true,
+      milestoneDefinition: { select: { code: true } },
+    },
+  });
+  if (!completion) return { ok: false, error: "Booking not found." };
+
+  const code = completion.milestoneDefinition.code;
+  if (code !== "PM6" && code !== "PM9") {
+    return { ok: false, error: "Only a survey or valuation booking can be rescheduled." };
+  }
+  if (completion.state !== "complete") {
+    return { ok: false, error: "This booking isn't confirmed yet." };
+  }
+
+  const newEventDate = new Date(`${input.newDate}T00:00:00.000Z`);
+  if (Number.isNaN(newEventDate.getTime())) return { ok: false, error: "Pick a valid date." };
+
+  const oldDate = completion.eventDate;
+  if (oldDate && oldDate.toISOString().slice(0, 10) === input.newDate) {
+    return { ok: true }; // same day — nothing to change
+  }
+
+  await prisma.milestoneCompletion.update({
+    where: { id: completion.id },
+    data: { eventDate: newEventDate },
+  });
+
+  // Tell the agent it moved. The helper enforces every guard (outsourced only,
+  // keys from us, a real date, opt-out), so this is a safe fire-and-forget.
+  await maybeSendBookingDiaryEmail({
+    transactionId: input.transactionId,
+    code,
+    eventDate: newEventDate,
+    keyCollectionRequired: completion.keyCollectionRequired,
+    rescheduled: true,
+  }).catch(() => {});
+
+  const noun = code === "PM6" ? "lender valuation" : "survey";
+  const fmt = (d: Date | null) =>
+    d ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(d) : "an unset date";
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId: input.transactionId,
+      type: "internal_note",
+      contactIds: [],
+      content: `Changed the ${noun} date from ${fmt(oldDate)} to ${fmt(newEventDate)}.`,
+      createdById: session.user.id,
+    },
+  });
+
+  revalidateTx(input.transactionId);
+  return { ok: true };
+}
+
+/**
  * Confirm exchange or completion straight from the hub diary. Resolves the
  * vendor side of the bilateral pair (VM19 = exchange, VM20 = completion) and
  * delegates to confirmMilestoneAction, which owns ALL the downstream: ownership

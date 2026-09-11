@@ -62,6 +62,10 @@ function icsStamp(d: Date): string {
 // external ICS library).
 function buildBookingIcs(code: BookingCode, address: string, eventDate: Date, keysFromBranch: boolean): string {
   const dateStr = icsDate(eventDate);
+  // All-day events use an EXCLUSIVE end: DTEND is the day AFTER the appointment.
+  // (Setting it equal to DTSTART yields a zero-length/backwards event that Apple
+  // renders as "25 Sep to 24 Sep" and Gmail refuses to load.)
+  const endStr = icsDate(new Date(eventDate.getTime() + 86_400_000));
   const summary = `${code === "PM6" ? "Lender valuation" : "Survey"}: ${address}`;
   const keysLine = keysFromBranch
     ? `The ${actor(code)} is collecting keys from you. Have them ready.`
@@ -77,18 +81,37 @@ function buildBookingIcs(code: BookingCode, address: string, eventDate: Date, ke
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${icsStamp(eventDate)}`,
+    "ORGANIZER;CN=The Sales Progressor:mailto:updates@thesalesprogressor.co.uk",
     `DTSTART;VALUE=DATE:${dateStr}`,
-    `DTEND;VALUE=DATE:${dateStr}`,
+    `DTEND;VALUE=DATE:${endStr}`,
+    "SEQUENCE:0",
+    "STATUS:CONFIRMED",
+    "TRANSP:TRANSPARENT",
     `SUMMARY:${summary}`,
     `DESCRIPTION:${description}`,
     "BEGIN:VALARM",
     "ACTION:DISPLAY",
     `DESCRIPTION:${summary}`,
-    `TRIGGER;VALUE=DATE-TIME:${dateStr}T080000`,
+    // Fire at 08:00 on the day (8h after the all-day start at midnight).
+    "TRIGGER;RELATED=START:PT8H",
     "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
+}
+
+// One-tap "add to calendar" web links for the email body (Google + Outlook web),
+// the reliable path where inline .ics cards don't render (Gmail especially).
+// Apple / desktop clients use the attached .ics.
+function buildCalendarLinks(code: BookingCode, address: string, eventDate: Date, keysLine: string): { google: string; outlook: string } {
+  const summary = `${code === "PM6" ? "Lender valuation" : "Survey"}: ${shortAddress(address)}`;
+  const details = `${code === "PM6" ? "Lender valuation" : "Survey"} at ${address}. ${keysLine}`;
+  const start = icsDate(eventDate);
+  const end = icsDate(new Date(eventDate.getTime() + 86_400_000));
+  const iso = (s: string) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  const google = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(summary)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(address)}`;
+  const outlook = `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(summary)}&startdt=${iso(start)}&enddt=${iso(end)}&allday=true&body=${encodeURIComponent(details)}&location=${encodeURIComponent(address)}`;
+  return { google, outlook };
 }
 
 // Tiny stable hash for the ICS UID (avoids Math.random so the same booking
@@ -149,6 +172,8 @@ export async function maybeSendBookingDiaryEmail(input: {
     ? `${input.code === "PM6" ? "Lender valuation" : "Survey"} rescheduled at ${short}`
     : `${input.code === "PM6" ? "Lender valuation" : "Survey"} booked at ${short}`;
 
+  const links = buildCalendarLinks(input.code, tx.propertyAddress, input.eventDate, keysLine);
+
   const text = [
     `Hi ${first},`,
     "",
@@ -157,7 +182,10 @@ export async function maybeSendBookingDiaryEmail(input: {
     `Date: ${dateLong}`,
     keysLine,
     "",
-    "We've attached a calendar invite so you can drop it straight into your diary.",
+    "Add it to your calendar:",
+    `Google: ${links.google}`,
+    `Outlook: ${links.outlook}`,
+    "Apple or another app: open the attached invite.",
   ].join("\n");
 
   const html = `
@@ -168,7 +196,12 @@ export async function maybeSendBookingDiaryEmail(input: {
         <strong>Date:</strong> ${dateLong}<br/>
         ${keysLine}
       </p>
-      <p style="color:#6b7280">We've attached a calendar invite so you can drop it straight into your diary.</p>
+      <p style="margin:16px 0 6px;font-size:13px;color:#6b7280">Add it to your calendar:</p>
+      <p style="margin:0 0 4px">
+        <a href="${links.google}" style="display:inline-block;padding:9px 14px;margin:0 8px 8px 0;background:#1a73e8;color:#ffffff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Google Calendar</a>
+        <a href="${links.outlook}" style="display:inline-block;padding:9px 14px;margin:0 8px 8px 0;background:#0f6cbd;color:#ffffff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Outlook</a>
+      </p>
+      <p style="margin:2px 0 0;color:#9ca3af;font-size:12px">Apple Calendar or another app? Open the attached invite below.</p>
     </div>`;
 
   const ics = buildBookingIcs(input.code, short, input.eventDate, true);
