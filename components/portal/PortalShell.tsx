@@ -33,6 +33,11 @@ type Props = {
   // client's previous visit. Drives the unread badge on the Updates tab. Same
   // "new since last visit" definition as the recap + Latest-updates pill.
   unreadCount?: number;
+  // Portal Engagement v2 (Phase 2): signals that gate WHEN the install /
+  // notification prompts may appear (see PortalOnboardingToasts).
+  hasConfirmedStep?: boolean;
+  isReturningVisit?: boolean;
+  isNearExchange?: boolean;
   children: React.ReactNode;
 };
 
@@ -78,9 +83,10 @@ function GreetingText({ text }: { text: string }) {
 // NOTE: agencyName is still passed in (Props) but no longer rendered in the
 // header — it truncated the greeting. It needs a new home elsewhere in the
 // portal (founder, 2026-08-16). Re-add when that lands.
-export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, welcomeSeen, photoUrl, unreadCount = 0, children }: Props) {
+export function PortalShell({ token, contactName, roleType, propertyAddress, vapidPublicKey, welcomeSeen, photoUrl, unreadCount = 0, hasConfirmedStep = false, isReturningVisit = false, isNearExchange = false, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
+  const saleWord = roleType === "vendor" ? "sale" : "purchase";
 
   // Design Lab: the two nav bars are tagged surfaces too, so a founder pick
   // restyles them live. No pick → the current chrome.
@@ -275,7 +281,14 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
 
       {!isRespond && (
         <div className="lg:hidden">
-          <PortalOnboardingToasts token={token} vapidPublicKey={vapidPublicKey} />
+          <PortalOnboardingToasts
+            token={token}
+            vapidPublicKey={vapidPublicKey}
+            saleWord={saleWord}
+            hasConfirmedStep={hasConfirmedStep}
+            isReturningVisit={isReturningVisit}
+            isNearExchange={isNearExchange}
+          />
         </div>
       )}
 

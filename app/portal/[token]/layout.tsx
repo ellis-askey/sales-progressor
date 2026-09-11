@@ -156,6 +156,23 @@ export default async function PortalLayout({
     unreadCount = tl.filter((e) => e.createdAt && new Date(e.createdAt) > new Date(lastVisitAt)).length;
   }
 
+  // Portal Engagement v2 (Phase 2): signals that gate WHEN the install /
+  // notification prompts appear. hasConfirmedStep = they've confirmed a step via
+  // their portal (a value moment); isReturningVisit = 2nd+ visit day;
+  // isNearExchange = a predicted/expected exchange date within ~4 weeks.
+  const [confirmedCount, visitCount] = await Promise.all([
+    prisma.milestoneCompletion.count({ where: { confirmedByContactId: contact.id } }).catch(() => 0),
+    prisma.portalVisit.count({ where: { contactId: contact.id } }).catch(() => 0),
+  ]);
+  const hasConfirmedStep = confirmedCount > 0;
+  const isReturningVisit = visitCount >= 2;
+  const exDate =
+    (transaction as { overridePredictedDate?: Date | null }).overridePredictedDate ??
+    (transaction as { expectedExchangeDate?: Date | null }).expectedExchangeDate ??
+    null;
+  const msToExchange = exDate ? new Date(exDate).getTime() - Date.now() : null;
+  const isNearExchange = msToExchange != null && msToExchange > 0 && msToExchange <= 28 * 86400000;
+
   // Founder-only Design Lab: read the global glass picks (applied for every
   // client) and decide if this viewer may edit them. Gate is the agent session
   // on the same domain — clients have no session, so they only ever see the
@@ -181,6 +198,9 @@ export default async function PortalLayout({
             welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt}
             photoUrl={transaction.photoUrl ?? null}
             unreadCount={unreadCount}
+            hasConfirmedStep={hasConfirmedStep}
+            isReturningVisit={isReturningVisit}
+            isNearExchange={isNearExchange}
           >
             <PortalAutoRefresh />
             {children}
