@@ -386,7 +386,7 @@ function FilePanel({ file }: { file: FileOperational }) {
           // Command Centre is always dark → point at the dark placeholder directly.
           <div
             className="w-16 h-16 rounded-lg shrink-0 border border-neutral-800 bg-cover bg-center"
-            style={{ backgroundImage: "url(/property-photo-fallback-dark.png)" }}
+            style={{ backgroundImage: "url(/property-photo-fallback-dark.webp)" }}
           />
         )}
         <div className="flex-1 min-w-0">

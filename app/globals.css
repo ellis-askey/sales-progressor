@@ -2527,7 +2527,7 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
    Theme-aware via each surface's dark selector; the Command Centre is always
    dark and points at the dark asset directly at its call site. */
 .property-photo-fallback {
-  background-image: url(/property-photo-fallback.png);
+  background-image: url(/property-photo-fallback.webp);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -2535,6 +2535,6 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
 }
 :root[data-theme="dark"] .property-photo-fallback,
 [data-portal-theme="dark"] .property-photo-fallback {
-  background-image: url(/property-photo-fallback-dark.png);
+  background-image: url(/property-photo-fallback-dark.webp);
   background-color: #0f1419;
 }
