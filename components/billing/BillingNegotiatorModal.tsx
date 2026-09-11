@@ -19,6 +19,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "@phosphor-icons/react";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Props = {
@@ -28,6 +29,7 @@ type Props = {
 
 export function BillingNegotiatorModal({ open, onClose }: Props) {
   const router = useRouter();
+  const { isNight } = usePortalTheme();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,8 +68,10 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        data-night={isNight ? "" : undefined}
+        className="nv2-night"
         style={{
-          background: "white", borderRadius: 12, maxWidth: 480, width: "100%",
+          background: isNight ? "#161d2e" : "white", borderRadius: 12, maxWidth: 480, width: "100%",
           overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
         }}
       >
@@ -90,7 +94,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
           </button>
         </div>
         <div style={{ padding: 28 }}>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#4b5563" }}>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>
           Billing setup, invoices, and payment management are handled by your agency's
           director. If you're the right person to handle this, you can take the director
           role yourself, or invite someone else.
@@ -99,8 +103,8 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
         {error && (
           <div
             style={{
-              marginTop: 16, fontSize: 13, color: "#dc2626",
-              background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8,
+              marginTop: 16, fontSize: 13, color: "var(--agent-danger, #dc2626)",
+              background: "rgba(220,38,38,0.10)", border: "1px solid rgba(220,38,38,0.30)", borderRadius: 8,
               padding: "10px 14px",
             }}
           >
@@ -115,8 +119,8 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
             disabled={submitting}
             style={{
               padding: "12px 16px", textAlign: "left",
-              background: submitting ? "#f3f4f6" : "var(--agent-coral)",
-              color: submitting ? "#9ca3af" : "white",
+              background: submitting ? "var(--agent-surface-subtle)" : "var(--agent-coral)",
+              color: submitting ? "var(--agent-text-muted)" : "white",
               border: "none", borderRadius: 8,
               fontSize: 14, fontWeight: 600,
               cursor: submitting ? "not-allowed" : "pointer",
@@ -133,14 +137,14 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
             onClick={onClose}
             style={{
               padding: "12px 16px", textAlign: "left",
-              background: "white", color: "#111827",
-              border: "1px solid #e5e7eb", borderRadius: 8,
+              background: "var(--agent-surface-subtle)", color: "var(--agent-text-primary)",
+              border: "0.5px solid var(--agent-border-strong)", borderRadius: 8,
               fontSize: 14, fontWeight: 600, textDecoration: "none",
               display: "block",
             }}
           >
             Invite a director
-            <span style={{ display: "block", fontSize: 12, fontWeight: 400, color: "#6b7280", marginTop: 2 }}>
+            <span style={{ display: "block", fontSize: 12, fontWeight: 400, color: "var(--agent-text-muted)", marginTop: 2 }}>
               Send them an email to join your agency as the director.
             </span>
           </Link>
@@ -148,13 +152,8 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: "10px 16px",
-              background: "transparent", color: "#6b7280",
-              border: "none", borderRadius: 8,
-              fontSize: 13, fontWeight: 500, cursor: "pointer",
-              marginTop: 4,
-            }}
+            className="agent-btn agent-btn-neutral agent-btn-sm"
+            style={{ marginTop: 4 }}
           >
             Go back
           </button>

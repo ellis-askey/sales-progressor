@@ -237,8 +237,9 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl w-full flex flex-col"
+        className="relative rounded-2xl w-full flex flex-col"
         style={{
+          background: isNight ? "#161d2e" : "#ffffff",
           maxWidth: stage === "form" ? 520 : 560,
           // Cap modal height to the viewport (minus the outer p-4 padding on
           // each side) so the new onward-sale step doesn't push the header
@@ -329,8 +330,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                 disabled={isPending}
                 placeholder="e.g. Sarah Johnson"
                 maxLength={80}
-                className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                style={{ borderColor: "rgba(0,0,0,0.12)" }}
+                className="w-full glass-input text-sm rounded-lg px-3 py-2"
               />
             </div>
 
@@ -347,9 +347,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                   disabled={isPending}
                   placeholder="sarah@example.com"
                   maxLength={120}
-                  className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                  style={{ borderColor: "rgba(0,0,0,0.12)" }}
-                />
+                  className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                  />
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
@@ -366,9 +365,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                   disabled={isPending}
                   placeholder="07700 900000"
                   maxLength={20}
-                  className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                  style={{ borderColor: "rgba(0,0,0,0.12)" }}
-                />
+                  className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                  />
               </div>
             </div>
 
@@ -384,8 +382,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                 onChange={(e) => setPriceInput(e.target.value)}
                 disabled={isPending}
                 placeholder={previousPurchasePrice ? `Previous: £${formatPriceForInput(previousPurchasePrice)}` : "e.g. 500000"}
-                className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                style={{ borderColor: "rgba(0,0,0,0.12)" }}
+                className="w-full glass-input text-sm rounded-lg px-3 py-2"
               />
             </div>
 
@@ -411,11 +408,11 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                     className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
                       purchaseType === opt.value
                         ? "border-[var(--agent-coral-deep,#E5502E)] bg-[rgba(255,107,74,0.06)] font-medium"
-                        : "border-slate-200 text-slate-700 hover:border-slate-300 agent-hover-row"
+                        : "border-[var(--agent-border-default)] hover:border-[var(--agent-coral)] agent-hover-row"
                     }`}
                   >
                     <div className="text-sm font-medium" style={{ color: purchaseType === opt.value ? "var(--agent-coral-deep, #E5502E)" : "var(--agent-text-primary)" }}>{opt.label}</div>
-                    <div className="text-[11px] mt-0.5" style={{ color: purchaseType === opt.value ? "rgba(229,80,46,0.85)" : "rgba(15,23,42,0.5)" }}>
+                    <div className="text-[11px] mt-0.5" style={{ color: purchaseType === opt.value ? "rgba(229,80,46,0.85)" : "var(--agent-text-muted)" }}>
                       {opt.note}
                     </div>
                   </button>
@@ -462,11 +459,11 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                       className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
                         onwardKind === opt.value
                           ? "border-[var(--agent-coral-deep,#E5502E)] bg-[rgba(255,107,74,0.06)] font-medium"
-                          : "border-slate-200 text-slate-700 hover:border-slate-300 agent-hover-row"
+                          : "border-[var(--agent-border-default)] hover:border-[var(--agent-coral)] agent-hover-row"
                       }`}
                     >
                       <div className="text-sm font-medium" style={{ color: onwardKind === opt.value ? "var(--agent-coral-deep, #E5502E)" : "var(--agent-text-primary)" }}>{opt.label}</div>
-                      <div className="text-[11px] mt-0.5" style={{ color: onwardKind === opt.value ? "rgba(229,80,46,0.85)" : "rgba(15,23,42,0.5)" }}>
+                      <div className="text-[11px] mt-0.5" style={{ color: onwardKind === opt.value ? "rgba(229,80,46,0.85)" : "var(--agent-text-muted)" }}>
                         {opt.helper}
                       </div>
                     </button>
@@ -486,9 +483,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                       disabled={isPending}
                       placeholder="agent@theirsalesprogressor.account"
                       maxLength={120}
-                      className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                      style={{ borderColor: "rgba(0,0,0,0.12)" }}
-                    />
+                      className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                          />
                   </div>
                 )}
 
@@ -505,9 +501,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                         disabled={isPending}
                         placeholder="e.g. Hartwell Partners"
                         maxLength={80}
-                        className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                        style={{ borderColor: "rgba(0,0,0,0.12)" }}
-                      />
+                        className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                              />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
@@ -521,9 +516,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                         disabled={isPending}
                         placeholder="e.g. Sarah Johnson"
                         maxLength={80}
-                        className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                        style={{ borderColor: "rgba(0,0,0,0.12)" }}
-                      />
+                        className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                              />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
@@ -537,9 +531,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                         disabled={isPending}
                         placeholder="sarah@hartwellpartners.co.uk"
                         maxLength={120}
-                        className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
-                        style={{ borderColor: "rgba(0,0,0,0.12)" }}
-                      />
+                        className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                              />
                     </div>
                   </div>
                 )}

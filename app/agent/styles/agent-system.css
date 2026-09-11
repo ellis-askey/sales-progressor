@@ -837,6 +837,24 @@
   .agent-input-sm { height: 32px; font-size: var(--agent-text-body-sm); }
   .agent-input-lg { height: 48px; font-size: var(--agent-text-h4); }
 
+  /* ── Field — thin, token-based input (size left to the consumer) ──────────── */
+  /* The MemberManageDrawer `.mm-input` treatment as a reusable class: solid
+   * token surface, 0.5px token border, coral on hover, coral-deep on focus.
+   * Unlike `.agent-input` it fixes no height/padding, so bespoke inline fields
+   * can adopt the correct behaviour (and dark-correctness) without resizing.
+   * Usage: className="agent-field" style={{ padding, fontSize }} */
+  .agent-field {
+    background: var(--agent-surface-elevated);
+    border: 0.5px solid var(--agent-border-strong);
+    color: var(--agent-text-primary);
+    border-radius: var(--agent-radius-md);
+    transition: border-color var(--agent-transition-fast);
+  }
+  .agent-field::placeholder { color: var(--agent-text-muted); }
+  .agent-field:hover:not(:disabled) { border-color: var(--agent-coral); }
+  .agent-field:focus { outline: none; border-color: var(--agent-coral-deep); }
+  .agent-field:disabled { opacity: 0.6; cursor: not-allowed; }
+
   .agent-input-error {
     border-color: var(--agent-danger) !important;
   }

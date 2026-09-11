@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { getEventDateLabel } from "@/lib/portal-copy";
 
 // The four bilateral exchange/completion codes that carry a real-world date.
@@ -42,6 +43,7 @@ export function ConfirmMilestoneDateModal({
   onClose: () => void;
 }) {
   const [date, setDate] = useState(todayStr());
+  const { isNight } = usePortalTheme();
 
   const isExchange = milestoneCode === "VM19" || milestoneCode === "PM26";
   const heading = isExchange ? "Confirm exchange" : "Confirm completion";
@@ -49,6 +51,7 @@ export function ConfirmMilestoneDateModal({
 
   return (
     <Modal open={open} onClose={onClose} ariaLabel={heading} size="sm" dismissOnBackdrop={!loading}>
+      <div data-night={isNight ? "" : undefined} className="nv2-night" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <ModalHeader>
         <h2 className="text-base font-semibold text-slate-900">{heading}</h2>
         {milestoneName && <p className="text-xs text-slate-900/50 mt-0.5">{milestoneName}</p>}
@@ -76,6 +79,7 @@ export function ConfirmMilestoneDateModal({
           </Button>
         </div>
       </ModalFooter>
+      </div>
     </Modal>
   );
 }

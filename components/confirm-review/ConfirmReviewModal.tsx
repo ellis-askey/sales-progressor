@@ -169,7 +169,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
           zIndex: 1001,
           width: "min(720px, calc(100vw - 32px))",
           maxHeight: "calc(100vh - 64px)",
-          background: "#fff",
+          background: "var(--agent-surface-elevated)",
           borderRadius: 16,
           boxShadow: "0 24px 60px rgba(15, 23, 42, 0.20)",
           display: "flex",
@@ -219,10 +219,10 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
                   padding: "10px 14px",
                   background: "transparent",
                   border: "none",
-                  borderBottom: i === activeIdx ? "2px solid #5b8cff" : "2px solid transparent",
+                  borderBottom: i === activeIdx ? "2px solid var(--agent-coral-deep)" : "2px solid transparent",
                   fontSize: 13,
                   fontWeight: 600,
-                  color: i === activeIdx ? "#0f172a" : "#64748b",
+                  color: i === activeIdx ? "#0f172a" : "var(--agent-text-muted)",
                   cursor: "pointer",
                   transition: "color 120ms ease",
                   marginBottom: -1,
@@ -234,8 +234,8 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
                   fontSize: 10,
                   padding: "2px 6px",
                   borderRadius: 999,
-                  background: i === activeIdx ? "rgba(91,140,255,0.14)" : "rgba(15,23,42,0.06)",
-                  color: i === activeIdx ? "#5b8cff" : "#64748b",
+                  background: i === activeIdx ? "rgba(var(--agent-coral-rgb),0.14)" : "var(--agent-border-subtle)",
+                  color: i === activeIdx ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
                   fontWeight: 700,
                 }}>
                   {g.items.length}
@@ -248,9 +248,9 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
         {/* Body */}
         <div style={{ flex: 1, overflow: "auto", padding: "16px 20px" }}>
           {loading && items.length === 0 ? (
-            <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: "40px 0" }}>Loading…</p>
+            <p style={{ textAlign: "center", color: "var(--agent-text-muted)", fontSize: 13, padding: "40px 0" }}>Loading…</p>
           ) : items.length === 0 ? (
-            <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: "40px 0" }}>
+            <p style={{ textAlign: "center", color: "var(--agent-text-muted)", fontSize: 13, padding: "40px 0" }}>
               Nothing queued right now.
             </p>
           ) : activeGroup ? (
@@ -291,7 +291,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
               fontWeight: 500,
               borderRadius: 10,
               border: "0.5px solid rgba(15, 23, 42, 0.10)",
-              background: "#fff",
+              background: "var(--agent-surface-elevated)",
               color: "#991b1b",
               cursor: items.length === 0 ? "not-allowed" : "pointer",
               opacity: items.length === 0 ? 0.5 : 1,
@@ -312,8 +312,8 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
                 fontWeight: 500,
                 borderRadius: 10,
                 border: "0.5px solid rgba(15, 23, 42, 0.10)",
-                background: "#fff",
-                color: "#0f172a",
+                background: "var(--agent-surface-elevated)",
+                color: "var(--agent-text-primary)",
                 cursor: "pointer",
               }}
             >
@@ -329,7 +329,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
                 fontWeight: 600,
                 borderRadius: 10,
                 border: "none",
-                background: "#5b8cff",
+                background: "var(--agent-coral-deep)",
                 color: "#fff",
                 cursor: busy || items.length === 0 ? "wait" : "pointer",
                 display: "inline-flex", alignItems: "center", gap: 6,
@@ -406,7 +406,7 @@ function RecipientBody({
               background: "#f8fafc",
               border: "0.5px solid rgba(15, 23, 42, 0.06)",
               fontSize: 11,
-              color: "#64748b",
+              color: "var(--agent-text-muted)",
             }}>
               These will be combined into one email covering {group.items.length} updates.
             </div>
@@ -427,7 +427,7 @@ function RecipientBody({
           fontWeight: 500,
           borderRadius: 999,
           border: "0.5px solid rgba(15, 23, 42, 0.10)",
-          background: "#fff",
+          background: "var(--agent-surface-elevated)",
           color: "#991b1b",
           cursor: "pointer",
         }}
@@ -507,7 +507,7 @@ function DigestEmailCard({
     <article style={{
       border: "0.5px solid rgba(15, 23, 42, 0.10)",
       borderRadius: 12,
-      background: "#fff",
+      background: "var(--agent-surface-elevated)",
       overflow: "hidden",
     }}>
       <header style={{
@@ -520,11 +520,11 @@ function DigestEmailCard({
         gap: 8,
       }}>
         <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {recipientEmail}
-            {digest.overridden && <span style={{ marginLeft: 6, fontSize: 11, color: "#64748b", fontWeight: 500 }}>· edited</span>}
+            {digest.overridden && <span style={{ marginLeft: 6, fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500 }}>· edited</span>}
           </span>
-          <span style={{ fontSize: 10, color: "#64748b" }}>
+          <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
             Sends as one email covering {updateCount} updates
           </span>
         </span>
@@ -538,8 +538,8 @@ function DigestEmailCard({
               fontWeight: 600,
               borderRadius: 999,
               border: "0.5px solid rgba(15, 23, 42, 0.12)",
-              background: "#fff",
-              color: "#5b8cff",
+              background: "var(--agent-surface-elevated)",
+              color: "var(--agent-coral-deep)",
               cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 4,
               flexShrink: 0,
@@ -556,8 +556,8 @@ function DigestEmailCard({
               disabled={busy}
               style={{
                 padding: "4px 10px", fontSize: 11, fontWeight: 500,
-                borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.12)",
-                background: "#fff", color: "#64748b", cursor: "pointer",
+                borderRadius: 999, border: "0.5px solid var(--agent-border-default)",
+                background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer",
               }}
             >Cancel</button>
             <button
@@ -567,7 +567,7 @@ function DigestEmailCard({
               style={{
                 padding: "4px 10px", fontSize: 11, fontWeight: 600,
                 borderRadius: 999, border: "none",
-                background: "#5b8cff", color: "#fff", cursor: "pointer",
+                background: "var(--agent-coral-deep)", color: "#fff", cursor: "pointer",
                 opacity: busy ? 0.6 : 1,
               }}
             >{busy ? "Saving…" : "Save"}</button>
@@ -584,28 +584,28 @@ function DigestEmailCard({
         {editing ? (
           <>
             <label style={{ display: "block", marginBottom: 8 }}>
-              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#64748b", marginBottom: 3 }}>Subject</span>
+              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 3 }}>Subject</span>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 style={{
                   width: "100%", padding: "8px 10px", fontSize: 13,
-                  borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.15)",
-                  background: "#fff", outline: "none",
+                  borderRadius: 8, border: "0.5px solid var(--agent-border-default)",
+                  background: "var(--agent-surface-elevated)", outline: "none",
                 }}
               />
             </label>
             <label style={{ display: "block" }}>
-              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#64748b", marginBottom: 3 }}>Body</span>
+              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 3 }}>Body</span>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={10}
                 style={{
                   width: "100%", padding: "8px 10px", fontSize: 13,
-                  borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.15)",
-                  background: "#fff", outline: "none", resize: "vertical",
+                  borderRadius: 8, border: "0.5px solid var(--agent-border-default)",
+                  background: "var(--agent-surface-elevated)", outline: "none", resize: "vertical",
                   fontFamily: "inherit", lineHeight: 1.5,
                 }}
               />
@@ -614,19 +614,19 @@ function DigestEmailCard({
           </>
         ) : digest.overridden ? (
           <>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{digest.subject}</p>
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{digest.bodyText}</p>
-            <p style={{ margin: "10px 0 0", fontSize: 11, color: "#64748b" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{digest.subject}</p>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{digest.bodyText}</p>
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
               Edited version. Sends exactly as written.
             </p>
             {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
           </>
         ) : (
           <>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{digest.subject}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{digest.subject}</p>
             {digest.sections.map((section) => (
               <div key={section.heading} style={{ marginTop: 10 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#334155" }}>{section.heading}</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>{section.heading}</p>
                 <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
                   {section.bullets.map((bullet) => {
                     const key = bullet.emailIds.join(",");
@@ -638,10 +638,10 @@ function DigestEmailCard({
                           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
                           padding: "6px 10px", borderRadius: 8,
                           background: armed ? "#fef2f2" : "#f8fafc",
-                          border: `0.5px solid ${armed ? "rgba(153,27,27,0.25)" : "rgba(15,23,42,0.06)"}`,
+                          border: `0.5px solid ${armed ? "rgba(153,27,27,0.25)" : "var(--agent-border-subtle)"}`,
                         }}
                       >
-                        <span style={{ fontSize: 13, color: "#334155", lineHeight: 1.5 }}>{bullet.line}</span>
+                        <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{bullet.line}</span>
                         {armed ? (
                           <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
                             <button
@@ -650,8 +650,8 @@ function DigestEmailCard({
                               disabled={busy}
                               style={{
                                 padding: "3px 9px", fontSize: 11, fontWeight: 500,
-                                borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.12)",
-                                background: "#fff", color: "#64748b", cursor: "pointer",
+                                borderRadius: 999, border: "0.5px solid var(--agent-border-default)",
+                                background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer",
                               }}
                             >Keep</button>
                             <button
@@ -673,8 +673,8 @@ function DigestEmailCard({
                             aria-label={`Remove this update: ${bullet.line}`}
                             style={{
                               padding: "3px 9px", fontSize: 11, fontWeight: 500,
-                              borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.10)",
-                              background: "#fff", color: "#991b1b", cursor: "pointer",
+                              borderRadius: 999, border: "0.5px solid var(--agent-border-default)",
+                              background: "var(--agent-surface-elevated)", color: "#991b1b", cursor: "pointer",
                               flexShrink: 0,
                             }}
                           >Remove</button>
@@ -733,7 +733,7 @@ function EditableEmailCard({
     <article style={{
       border: "0.5px solid rgba(15, 23, 42, 0.10)",
       borderRadius: 12,
-      background: "#fff",
+      background: "var(--agent-surface-elevated)",
       overflow: "hidden",
     }}>
       <header style={{
@@ -744,9 +744,9 @@ function EditableEmailCard({
         borderBottom: "0.5px solid rgba(15, 23, 42, 0.06)",
         background: "#f8fafc",
       }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
           {item.recipientEmail}
-          {item.editedAt && <span style={{ marginLeft: 6, fontSize: 11, color: "#64748b", fontWeight: 500 }}>· edited</span>}
+          {item.editedAt && <span style={{ marginLeft: 6, fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500 }}>· edited</span>}
         </span>
         {!editing ? (
           <button
@@ -758,8 +758,8 @@ function EditableEmailCard({
               fontWeight: 600,
               borderRadius: 999,
               border: "0.5px solid rgba(15, 23, 42, 0.12)",
-              background: "#fff",
-              color: "#5b8cff",
+              background: "var(--agent-surface-elevated)",
+              color: "var(--agent-coral-deep)",
               cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 4,
             }}
@@ -775,8 +775,8 @@ function EditableEmailCard({
               disabled={busy}
               style={{
                 padding: "4px 10px", fontSize: 11, fontWeight: 500,
-                borderRadius: 999, border: "0.5px solid rgba(15,23,42,0.12)",
-                background: "#fff", color: "#64748b", cursor: "pointer",
+                borderRadius: 999, border: "0.5px solid var(--agent-border-default)",
+                background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer",
               }}
             >Cancel</button>
             <button
@@ -786,7 +786,7 @@ function EditableEmailCard({
               style={{
                 padding: "4px 10px", fontSize: 11, fontWeight: 600,
                 borderRadius: 999, border: "none",
-                background: "#5b8cff", color: "#fff", cursor: "pointer",
+                background: "var(--agent-coral-deep)", color: "#fff", cursor: "pointer",
                 opacity: busy ? 0.6 : 1,
               }}
             >{busy ? "Saving…" : "Save"}</button>
@@ -803,28 +803,28 @@ function EditableEmailCard({
         {editing ? (
           <>
             <label style={{ display: "block", marginBottom: 8 }}>
-              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#64748b", marginBottom: 3 }}>Subject</span>
+              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 3 }}>Subject</span>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 style={{
                   width: "100%", padding: "8px 10px", fontSize: 13,
-                  borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.15)",
-                  background: "#fff", outline: "none",
+                  borderRadius: 8, border: "0.5px solid var(--agent-border-default)",
+                  background: "var(--agent-surface-elevated)", outline: "none",
                 }}
               />
             </label>
             <label style={{ display: "block" }}>
-              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#64748b", marginBottom: 3 }}>Body</span>
+              <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 3 }}>Body</span>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={8}
                 style={{
                   width: "100%", padding: "8px 10px", fontSize: 13,
-                  borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.15)",
-                  background: "#fff", outline: "none", resize: "vertical",
+                  borderRadius: 8, border: "0.5px solid var(--agent-border-default)",
+                  background: "var(--agent-surface-elevated)", outline: "none", resize: "vertical",
                   fontFamily: "inherit", lineHeight: 1.5,
                 }}
               />
@@ -833,8 +833,8 @@ function EditableEmailCard({
           </>
         ) : (
           <>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{item.subject}</p>
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{item.bodyText}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{item.subject}</p>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{item.bodyText}</p>
           </>
         )}
       </div>
@@ -869,7 +869,7 @@ function ConfirmCancelDialog({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff", borderRadius: 14,
+          background: "var(--agent-surface-elevated)", borderRadius: 14,
           maxWidth: 400, width: "100%",
           overflow: "hidden",
           boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
@@ -883,7 +883,7 @@ function ConfirmCancelDialog({
           />
         </div>
         <div style={{ padding: "16px 20px" }}>
-        <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+        <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
           {scope === "all"
             ? `This stops all ${updateCount} queued update${updateCount === 1 ? "" : "s"} across every recipient.`
             : `This stops ${updateCount === 1 ? "the 1 update" : `all ${updateCount} updates`} queued for ${recipientName}.`}
@@ -896,8 +896,8 @@ function ConfirmCancelDialog({
             disabled={busy}
             style={{
               padding: "8px 14px", fontSize: 12, fontWeight: 500,
-              borderRadius: 10, border: "0.5px solid rgba(15,23,42,0.12)",
-              background: "#fff", color: "#0f172a", cursor: "pointer",
+              borderRadius: 10, border: "0.5px solid var(--agent-border-default)",
+              background: "var(--agent-surface-elevated)", color: "var(--agent-text-primary)", cursor: "pointer",
             }}
           >Keep queued</button>
           <button

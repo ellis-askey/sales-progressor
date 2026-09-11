@@ -44,10 +44,17 @@ const SCRIPT_POINTS: { title: string; body: string; note: string }[] = [
 
 // ── field primitives ─────────────────────────────────────────────────────────
 const labelStyle: CSSProperties = { display: "grid", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" };
+// Sizing only — colour, border, coral hover/focus come from the `.agent-field`
+// class the fields carry (so they behave like every other input, in dark too).
 const inputStyle: CSSProperties = {
   fontSize: 13, fontWeight: 400, padding: "8px 10px", borderRadius: 8,
-  border: "1px solid var(--agent-border-default)", background: "var(--agent-surface)",
-  color: "var(--agent-text-primary)", width: "100%", fontFamily: "inherit",
+  width: "100%", fontFamily: "inherit",
+};
+// Read-only display box styled like a field (no interaction → no coral states).
+const readonlyFieldStyle: CSSProperties = {
+  ...inputStyle, display: "flex", alignItems: "center",
+  color: "var(--agent-text-primary)", background: "var(--agent-surface-subtle)",
+  border: "0.5px solid var(--agent-border-strong)",
 };
 
 function TextField({ label, initial, onSave, placeholder, type = "text", format, icon }: { label: string; initial: string; onSave: (v: string) => void; placeholder?: string; type?: string; format?: (v: string) => string; icon?: ReactNode }) {
@@ -58,7 +65,7 @@ function TextField({ label, initial, onSave, placeholder, type = "text", format,
       {label}
       <div style={{ position: "relative" }}>
         {icon && <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", color: "var(--agent-text-muted)", pointerEvents: "none" }}>{icon}</span>}
-        <input type={type} value={v} placeholder={placeholder} style={{ ...inputStyle, ...(icon ? { paddingLeft: 32 } : {}) }}
+        <input type={type} value={v} placeholder={placeholder} className="agent-field" style={{ ...inputStyle, ...(icon ? { paddingLeft: 32 } : {}) }}
           onChange={(e) => setV(e.target.value)}
           onBlur={() => { const out = format && v.trim() ? format(v) : v; if (out !== v) setV(out); if (out !== last.current) { last.current = out; onSave(out); } }} />
       </div>
@@ -135,7 +142,7 @@ function MoneyField({ label, initial, onSave }: { label: string; initial: number
       {label}
       <div style={{ position: "relative" }}>
         <span style={{ position: "absolute", left: 10, top: 8, fontSize: 13, color: "var(--agent-text-muted)" }}>£</span>
-        <input inputMode="numeric" value={v} style={{ ...inputStyle, paddingLeft: 22 }}
+        <input inputMode="numeric" value={v} className="agent-field" style={{ ...inputStyle, paddingLeft: 22 }}
           onChange={(e) => setV(e.target.value.replace(/[^0-9]/g, ""))}
           onBlur={() => { if (v !== last.current) { last.current = v; onSave(v === "" ? null : Number(v)); } }} />
       </div>
@@ -148,7 +155,7 @@ function SelectField({ label, initial, options, onSave, placeholder }: { label: 
   return (
     <label style={labelStyle}>
       {label}
-      <select value={v} style={inputStyle} onChange={(e) => { setV(e.target.value); onSave(e.target.value || null); }}>
+      <select value={v} className="agent-field" style={inputStyle} onChange={(e) => { setV(e.target.value); onSave(e.target.value || null); }}>
         <option value="">{placeholder ?? "Not set"}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -181,7 +188,7 @@ function AreaField({ label, initial, onSave, placeholder }: { label: string; ini
   return (
     <label style={labelStyle}>
       {label}
-      <textarea value={v} rows={3} placeholder={placeholder} style={{ ...inputStyle, resize: "vertical" }}
+      <textarea value={v} rows={3} placeholder={placeholder} className="agent-field" style={{ ...inputStyle, resize: "vertical" }}
         onChange={(e) => setV(e.target.value)}
         onBlur={() => { if (v !== last.current) { last.current = v; onSave(v); } }} />
     </label>
@@ -198,9 +205,9 @@ function AvailabilityField({ label, initial, onSave }: { label: string; initial:
       <div style={{ display: "grid", gap: 8 }}>
         {ranges.map((r, i) => (
           <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="date" value={r.start} style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
+            <input type="date" value={r.start} className="agent-field" style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
             <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>to</span>
-            <input type="date" value={r.end ?? ""} style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, end: e.target.value || null } : x)))} />
+            <input type="date" value={r.end ?? ""} className="agent-field" style={inputStyle} onChange={(e) => commit(ranges.map((x, j) => (j === i ? { ...x, end: e.target.value || null } : x)))} />
             <button type="button" aria-label="Remove" onClick={() => commit(ranges.filter((_, j) => j !== i))} className="chain-act-link chain-act-danger" style={{ fontSize: 18, lineHeight: 1 }}>×</button>
           </div>
         ))}
@@ -465,7 +472,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                     <QSection first n={1} title="Contact" desc="Who we're speaking to">
                       <Cols n={3}>
                         <label style={labelStyle}>Name(s)
-                          <div style={{ ...inputStyle, display: "flex", alignItems: "center", color: "var(--agent-text-primary)", background: "var(--agent-surface-subtle)" }}>{data.purchaser?.name ?? "—"}</div>
+                          <div style={readonlyFieldStyle}>{data.purchaser?.name ?? "—"}</div>
                         </label>
                         <TextField label="Phone" icon={<Phone size={14} />} initial={data.purchaser?.phone ?? ""} type="tel" format={formatUKPhone}
                           onSave={(v) => { if (data.purchaser) run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email })); }} />
@@ -537,7 +544,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                     <QSection first n={1} title="Contact" desc="Who we're speaking to">
                       <Cols n={3}>
                         <label style={labelStyle}>Name
-                          <div style={{ ...inputStyle, display: "flex", alignItems: "center", color: "var(--agent-text-primary)", background: "var(--agent-surface-subtle)" }}>{data.vendor?.name ?? "—"}</div>
+                          <div style={readonlyFieldStyle}>{data.vendor?.name ?? "—"}</div>
                         </label>
                         <TextField label="Phone" icon={<Phone size={14} />} initial={data.vendor?.phone ?? ""} type="tel" format={formatUKPhone}
                           onSave={(v) => { if (data.vendor) run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email })); }} />

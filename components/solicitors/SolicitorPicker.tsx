@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { AddFirmModal } from "./AddFirmModal";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { titleCaseKeepAcronyms, normalizePhone, validateHandlerContact } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props) {
+  const { isNight } = usePortalTheme();
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -319,13 +321,13 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
           )}
 
           {showDropdown && query.trim() && dropPos && typeof document !== "undefined" && createPortal(
-            <div className="agent-dropdown-in" style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
+            <div data-night={isNight ? "" : undefined} className="agent-dropdown-in nv2-night" style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: isNight ? "rgba(22,30,46,0.96)" : "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: isNight ? "0.5px solid rgba(255,255,255,0.10)" : "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
               {searchError ? (
                 <div>
                   <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
-                  <div className="border-t border-white/20">
+                  <div className="border-t border-[var(--agent-border-default)]">
                     <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2">
                       <span>+</span> Add &ldquo;{query}&rdquo; as new firm
                     </button>
                   </div>
@@ -334,13 +336,13 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
                 <>
                   {firms.map((f) => (
                     <button key={f.id} type="button" onMouseDown={() => selectFirm(f)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-white/40 transition-colors">
+                      className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-[var(--agent-surface-glass)] transition-colors">
                       {f.name}
                     </button>
                   ))}
-                  <div className="border-t border-white/20">
+                  <div className="border-t border-[var(--agent-border-default)]">
                     <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2">
                       <span>+</span> Add &ldquo;{query}&rdquo; as new firm
                     </button>
                   </div>
@@ -348,9 +350,9 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
               ) : (
                 <div>
                   <p className="px-4 py-2.5 text-sm text-slate-900/40">No matching firms</p>
-                  <div className="border-t border-white/20">
+                  <div className="border-t border-[var(--agent-border-default)]">
                     <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2">
                       <span>+</span> Add &ldquo;{query}&rdquo; as new firm
                     </button>
                   </div>
@@ -384,7 +386,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
                 </button>
 
                 {handlerOpen && handlerDropPos && typeof document !== "undefined" && createPortal(
-                  <div className="agent-dropdown-in" style={{ position: "fixed", top: handlerDropPos.top, left: handlerDropPos.left, width: handlerDropPos.width, zIndex: 9999, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
+                  <div data-night={isNight ? "" : undefined} className="agent-dropdown-in nv2-night" style={{ position: "fixed", top: handlerDropPos.top, left: handlerDropPos.left, width: handlerDropPos.width, zIndex: 9999, background: isNight ? "rgba(22,30,46,0.96)" : "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: isNight ? "0.5px solid rgba(255,255,255,0.10)" : "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
                     {handlers.length === 0 ? (
                       <p className="px-4 py-2.5 text-sm text-slate-900/40">No case handlers yet</p>
                     ) : (
@@ -393,17 +395,17 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
                           key={h.id}
                           type="button"
                           onMouseDown={() => { selectHandler(h); setHandlerOpen(false); }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-white/40 transition-colors"
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-[var(--agent-surface-glass)] transition-colors"
                         >
                           {h.name}
                         </button>
                       ))
                     )}
-                    <div className="border-t border-white/20">
+                    <div className="border-t border-[var(--agent-border-default)]">
                       <button
                         type="button"
                         onMouseDown={() => { handleAddHandler(); setHandlerOpen(false); }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2"
+                        className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2"
                       >
                         <span>+</span> Add new case handler
                       </button>
@@ -453,9 +455,9 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <input readOnly value={value.phone ?? ""} placeholder="Phone"
-                    className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
+                    className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)]" />
                   <input readOnly value={value.email ?? ""} placeholder="Email"
-                    className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
+                    className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)]" />
                 </div>
                 {/* Assistant / secretary — cc'd on every email to this handler */}
                 <div className="space-y-1">

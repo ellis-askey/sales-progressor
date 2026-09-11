@@ -2538,3 +2538,38 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   background-image: url(/property-photo-fallback-dark.webp);
   background-color: #0f1419;
 }
+
+/* ── DateField (components/ui/DateField.tsx) ────────────────────────────────
+   Option 1 date placeholder: keep the native <input type="date"> exactly as-is
+   (same box, height, border, padding) but swap the browser's empty dd/mm/yyyy
+   mask for friendly "Choose a date" text. The mask is hidden when empty and an
+   overlay span — which REUSES the input's own className/style — is layered on
+   top so the text sits where the native value would. No shape change. */
+.datefield {
+  position: relative;
+  display: block;
+}
+/* Hide the browser's dd/mm/yyyy mask while the field is empty (WebKit/Blink). */
+.datefield[data-empty="true"] > input[type="date"]::-webkit-datetime-edit {
+  color: transparent;
+}
+/* The overlay carries the input's own class/style for padding + font (so the
+   text aligns), but every box-decoration is forced off and it never intercepts
+   clicks — the input underneath stays fully interactive. */
+.datefield__ph {
+  position: absolute !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  pointer-events: none !important;
+  color: var(--agent-text-muted, #6b7280) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  white-space: nowrap;
+  overflow: hidden;
+}
