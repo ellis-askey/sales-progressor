@@ -23,6 +23,7 @@ import {
 } from "@/lib/security/access-scope";
 import { touchLastActivity } from "@/lib/services/activity";
 import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
+import { extractInnerEmails, looksForwarded } from "./forwarded";
 import {
   refreshAccessToken,
   listMailFolders,
@@ -244,6 +245,16 @@ function matchMessage(
     const txs = index.emailToTx.get(p);
     if (txs) for (const id of txs) candidateSet.add(id);
   }
+  // Forward fallback: nothing on the outer envelope matched (e.g. a forward from
+  // the agent to you). Look at who's named INSIDE the forwarded/quoted text —
+  // the real sender/recipients — and try those instead.
+  if (candidateSet.size === 0) {
+    for (const p of extractInnerEmails(msg.body)) {
+      if (p === mailboxLc) continue;
+      const txs = index.emailToTx.get(p);
+      if (txs) for (const id of txs) candidateSet.add(id);
+    }
+  }
   const candidates = [...candidateSet];
   const folderTx = msg.folder ? folderHints.get(msg.folder.toLowerCase()) : undefined;
 
@@ -391,6 +402,13 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
     for (const e of [m.from, ...m.to, ...m.cc]) {
       const lc = e.toLowerCase();
       if (lc && lc !== mailboxLc) allEmails.add(lc);
+    }
+    // Index the parties named inside forwarded/quoted text too, so the forward
+    // fallback in matchMessage can resolve them to a file.
+    if (looksForwarded(m)) {
+      for (const e of extractInnerEmails(m.body)) {
+        if (e !== mailboxLc) allEmails.add(e);
+      }
     }
   }
   const index = await buildIndex([...allEmails], scope);
