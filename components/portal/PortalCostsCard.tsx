@@ -14,7 +14,7 @@
 //    flag closes the loop. Fees still come from the solicitor's completion
 //    statement, so it's an estimate, not a precise balance.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PortalSheet } from "./PortalSheet";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
@@ -58,6 +58,12 @@ export function PortalCostsCard({
   priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, savedOtherFunds, savedFtb, savedAdditional, savedFundsSent, token,
 }: Props) {
   const [open, setOpen] = useState(false);
+  // Item B: the "See your stamp duty" task prompt opens this card's sheet.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("portal:open-costs", onOpen);
+    return () => window.removeEventListener("portal:open-costs", onOpen);
+  }, []);
   const [ftb, setFtb] = useState(savedFtb);
   const [additional, setAdditional] = useState<boolean | null>(savedAdditional);
   const [showBreakdown, setShowBreakdown] = useState(false);

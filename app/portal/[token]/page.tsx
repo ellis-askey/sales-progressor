@@ -34,7 +34,7 @@ import { PortalCustomizeOverview } from "@/components/portal/PortalCustomizeOver
 import { recordPortalEvent } from "@/lib/services/portal-events";
 import { PortalRecap } from "@/components/portal/PortalRecap";
 import { timelineActor } from "@/lib/portal/timeline-actor";
-import { PortalTaskPrompt } from "@/components/portal/PortalTaskPrompt";
+import { PortalTaskPrompt, type TaskPromptKind } from "@/components/portal/PortalTaskPrompt";
 import { prisma } from "@/lib/prisma";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
@@ -152,7 +152,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const moveInfoRow = await prisma.clientMoveInfo
     .findUnique({ where: { transactionId_side: { transactionId: transaction.id, side } }, select: { id: true } })
     .catch(() => null);
-  const showInfoPrompt = !hasExchanged && !hasCompleted && moveInfoRow == null && !(nextAction && nextAction.who === "you");
+  // Pick the single highest-priority "something you can do" prompt. A step
+  // waiting for the client to confirm always wins (that card shows instead).
+  // Order: information (both, pre-exchange) → stamp duty (buyer, pre-exchange,
+  // situation unconfirmed) → costs (buyer, post-exchange, not filled).
+  const priceKnown    = transaction.purchasePrice != null;
+  const sdltConfirmed = transaction.clientAdditionalProperty != null || transaction.clientFirstTimeBuyer === true;
+  const costsFilled   = transaction.clientDepositGBP != null;
+  const taskPrompt: TaskPromptKind | null =
+      (nextAction && nextAction.who === "you") ? null
+    : (!hasExchanged && !hasCompleted && moveInfoRow == null) ? "information"
+    : (side === "purchaser" && !hasExchanged && !hasCompleted && priceKnown && !sdltConfirmed) ? "stamp_duty"
+    : (side === "purchaser" && hasExchanged && !hasCompleted && priceKnown && !costsFilled) ? "costs"
+    : null;
 
   const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
   const recentActivity = timeline.slice(0, 3);
@@ -682,7 +694,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       )}
 
       {/* ── Something you can do (item B — task-driven) ─────────────── */}
-      {showInfoPrompt && <PortalTaskPrompt token={token} side={side} />}
+      {taskPrompt && <PortalTaskPrompt token={token} side={side} prompt={taskPrompt} />}
 
       {/* ── Add the expected exchange date to your calendar (pre-exchange) ── */}
       {!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && (
@@ -813,7 +825,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
       {/* ── Your costs (buyers, pre-completion) ──────────────────── */}
       {showCosts && (
-        <div style={slot("costs")}>
+        <div id="portal-costs-card" style={slot("costs")}>
         <PortalCostsCard
           priceGBP={transaction.purchasePrice! / 100}
           hasExchanged={hasExchanged}
