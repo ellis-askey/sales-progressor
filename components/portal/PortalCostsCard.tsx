@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { PortalSheet } from "./PortalSheet";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
+import { PortalButton } from "./PortalButton";
 import { PortalMoney } from "./PortalMoney";
 import { calculateSdlt } from "@/lib/sdlt";
 import { portalSaveCostsAction } from "@/app/actions/portal";
@@ -240,8 +241,8 @@ export function PortalCostsCard({
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-              {showFundsParts && (
-                <div className="portal-reveal-fade mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${P.border}`, background: P.cardBg }}>
+              <PortalReveal show={showFundsParts}>
+                <div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${P.border}`, background: P.cardBg }}>
                   <BreakdownRow label="Balance of the purchase price" value={fmtGBP(balanceOfPrice)} />
                   <BreakdownRow label="Stamp duty" value={fmtGBP(sdlt)} />
                   {otherFundsNum > 0 && <BreakdownRow label="Less other funds already sent" value={"−" + fmtGBP(otherFundsNum)} />}
@@ -250,17 +251,11 @@ export function PortalCostsCard({
                     <span className="text-[13px] font-bold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(fundsToSend)}</PortalMoney></span>
                   </div>
                 </div>
-              )}
+              </PortalReveal>
 
-              <button
-                type="button"
-                onClick={() => markFundsSent(true)}
-                disabled={saving}
-                className="pbtn pbtn-press mt-3 w-full py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
-                style={{ background: P.primary }}
-              >
-                {saving ? "Saving…" : "I've sent these funds"}
-              </button>
+              <div className="mt-3">
+                <PortalButton onClick={() => markFundsSent(true)} disabled={saving} loading={saving}>I&apos;ve sent these funds</PortalButton>
+              </div>
             </div>
           ) : (
             <div className="px-5 py-4" style={{ background: P.pageBg }}>
@@ -301,15 +296,7 @@ export function PortalCostsCard({
                 Figures saved
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => persist()}
-                disabled={saving || !dirty}
-                className="pbtn pbtn-press px-4 py-2 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
-                style={{ background: P.primary }}
-              >
-                {saving ? "Saving…" : "Save my figures"}
-              </button>
+              <PortalButton onClick={() => persist()} disabled={saving || !dirty} loading={saving} full={false} size="sm">Save my figures</PortalButton>
             )}
           </div>
         </PortalGlassCard>
@@ -391,54 +378,58 @@ export function PortalCostsCard({
                 </div>
               )}
 
-              {(!hasExchanged || sdltConfirmed) && (
-                <>
-                  <div className="rounded-2xl px-5 py-4 mb-4" style={{ background: "rgba(59,130,246,0.06)", border: "0.5px solid rgba(59,130,246,0.14)" }}>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: INFO }}>Estimated stamp duty</p>
-                    <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(sdlt)}</PortalMoney></p>
-                    <p className="text-[12px] mt-1.5" style={{ color: P.textSecondary }}>Effective rate {fmtPct(result.effectiveRate)} of the purchase price</p>
-                  </div>
+              <PortalReveal show={!hasExchanged || sdltConfirmed}>
+                <div className="rounded-2xl px-5 py-4 mb-4" style={{ background: "rgba(59,130,246,0.06)", border: "0.5px solid rgba(59,130,246,0.14)" }}>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: INFO }}>Estimated stamp duty</p>
+                  <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(sdlt)}</PortalMoney></p>
+                  <p className="text-[12px] mt-1.5" style={{ color: P.textSecondary }}>Effective rate {fmtPct(result.effectiveRate)} of the purchase price</p>
+                </div>
 
-                  <button type="button" onClick={() => setShowBreakdown((v) => !v)} className="pbtn pbtn-press flex items-center gap-1.5 text-[13px] font-semibold mb-3" style={{ color: P.accent }}>
-                    {showBreakdown ? "Hide" : "See"} how this is worked out
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showBreakdown ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {showBreakdown && (
-                    <div className="portal-reveal-fade rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${P.border}` }}>
-                      {result.bands.length === 0 ? (
-                        <p className="px-4 py-3 text-[13px]" style={{ color: P.textMuted }}>No stamp duty on this price.</p>
-                      ) : (
-                        result.bands.map((b, i) => (
-                          <div key={i} className="flex items-center justify-between px-4 py-2.5 text-[13px]" style={{ borderBottom: i < result.bands.length - 1 ? `1px solid ${P.border}` : undefined, color: P.textSecondary }}>
-                            <span>{bandLabel(b.from, b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
-                            <span className="font-semibold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(b.tax)}</PortalMoney></span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+                <button type="button" onClick={() => setShowBreakdown((v) => !v)} className="pbtn pbtn-press flex items-center gap-1.5 text-[13px] font-semibold mb-3" style={{ color: P.accent }}>
+                  {showBreakdown ? "Hide" : "See"} how this is worked out
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showBreakdown ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <PortalReveal show={showBreakdown}>
+                  <div className="rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${P.border}` }}>
+                    {result.bands.length === 0 ? (
+                      <p className="px-4 py-3 text-[13px]" style={{ color: P.textMuted }}>No stamp duty on this price.</p>
+                    ) : (
+                      result.bands.map((b, i) => (
+                        <div key={i} className="flex items-center justify-between px-4 py-2.5 text-[13px]" style={{ borderBottom: i < result.bands.length - 1 ? `1px solid ${P.border}` : undefined, color: P.textSecondary }}>
+                          <span>{bandLabel(b.from, b.from + b.taxed)} at {(b.rate * 100).toFixed(0)}%</span>
+                          <span className="font-semibold tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(b.tax)}</PortalMoney></span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </PortalReveal>
+              </PortalReveal>
 
               <p className="text-[11.5px] leading-relaxed" style={{ color: P.textMuted }}>
                 This is an estimate using Stamp Duty Land Tax rates for England and Northern Ireland. Rates differ in Scotland (LBTT) and Wales (LTT). Your solicitor will confirm the exact figure for your purchase.
               </p>
 
               {hasExchanged && sdltConfirmed && (
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="pbtn pbtn-press mt-4 w-full py-3 rounded-2xl text-[14px] font-bold text-white"
-                  style={{ background: P.primary }}
-                >
-                  Done
-                </button>
+                <div className="portal-reveal-up mt-4">
+                  <PortalButton onClick={() => setOpen(false)}>Done</PortalButton>
+                </div>
               )}
             </div>
       </PortalSheet>
     </>
+  );
+}
+
+// Height + fade reveal for anything the sheet's buttons make appear — grows and
+// shrinks smoothly both ways (grid-rows collapse) instead of snapping. Children
+// stay mounted; `show` drives it.
+function PortalReveal({ show, children }: { show: boolean; children: React.ReactNode }) {
+  return (
+    <div className="portal-collapse" data-open={show}>
+      <div>{children}</div>
+    </div>
   );
 }
 
@@ -515,7 +506,8 @@ function OptionButton({ label, sub, selected, onClick }: { label: string; sub: s
     <button
       type="button"
       onClick={onClick}
-      className="pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
+      className="portal-optrow pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
+      data-sel={selected}
       style={{ border: `1px solid ${selected ? P.primary : P.border}`, borderWidth: selected ? 2 : 1, background: selected ? P.primaryBg : P.cardBg }}
       aria-pressed={selected}
     >
@@ -539,7 +531,8 @@ function ToggleRow({ label, sub, on, onClick }: { label: string; sub: string; on
     <button
       type="button"
       onClick={onClick}
-      className="pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
+      className="portal-optrow pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
+      data-sel={on}
       style={{ border: `1px solid ${on ? P.primary : P.border}`, borderWidth: on ? 2 : 1, background: on ? P.primaryBg : P.cardBg }}
       aria-pressed={on}
     >

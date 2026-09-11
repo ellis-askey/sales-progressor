@@ -552,43 +552,16 @@ body {
 @keyframes pbtn-spin { to { transform: rotate(360deg); } }
 .pbtn-spin { animation: pbtn-spin 0.7s linear infinite; }
 
-/* Glossy coral primary CTA for the portal — mirrors the chain-claim button
-   (.claim-btn) so the two read as the same key across the product. */
-.portal-cta {
-  position: relative;
-  overflow: hidden;
-  border: 0;
-  cursor: pointer;
-  color: #fff;
-  font-family: inherit;
-  text-align: center;
-  background: linear-gradient(180deg, #FF8365 0%, #FF6B4A 52%, #E85A35 100%);
-  box-shadow:
-    0 6px 18px rgba(255,107,74,.34),
-    0 1px 2px rgba(150,44,18,.20),
-    inset 0 1px 0 rgba(255,255,255,.45),
-    inset 0 -2px 6px rgba(150,44,18,.28);
-  transition: transform 120ms ease, box-shadow 160ms ease, filter 160ms ease;
+/* Selectable option / toggle rows in the stamp-duty sheet. On hover the whole
+   row takes a coral border + faint tint. Previously the .pbtn brightness wash
+   lightened the hairline border and the empty radio ring until they vanished;
+   filter:none stops that, and the radio ring stays visible. */
+.portal-optrow { transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease; }
+.portal-optrow:hover:not(:disabled) { filter: none; }
+.portal-optrow[data-sel="false"]:hover:not(:disabled) {
+  border-color: var(--portal-primary, #FF6B4A) !important;
+  background: var(--portal-primaryBg, rgba(255,107,74,0.10)) !important;
 }
-.portal-cta::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 52%;
-  background: linear-gradient(180deg, rgba(255,255,255,.36), rgba(255,255,255,0));
-  border-radius: inherit;
-  pointer-events: none;
-}
-.portal-cta:hover:not(:disabled) {
-  box-shadow:
-    0 9px 26px rgba(255,107,74,.46),
-    0 1px 2px rgba(150,44,18,.22),
-    inset 0 1px 0 rgba(255,255,255,.5),
-    inset 0 -2px 6px rgba(150,44,18,.3);
-  filter: saturate(1.06) brightness(1.02);
-}
-.portal-cta:active:not(:disabled) { transform: scale(0.985); }
-.portal-cta:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; transform: none; }
 
 /* Neutral secondary that matches the portal card surface, with a gentle hover. */
 .portal-cta-soft {
@@ -893,7 +866,7 @@ body {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease, margin 300ms ease;
 }
 .portal-collapse[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
 .portal-collapse > * { overflow: hidden; min-height: 0; }

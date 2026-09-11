@@ -6,9 +6,10 @@
 // and a per-device dismiss ("Not now" hides that prompt and doesn't return).
 // Each prompt also disappears on its own once the client does the thing.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
+import { PortalButton } from "./PortalButton";
 import { portalTrackTaskPromptAction } from "@/app/actions/portal";
 
 export type TaskPromptKind = "information" | "stamp_duty" | "costs";
@@ -73,23 +74,28 @@ function runPrimary(kind: TaskPromptKind) {
 
 export function PortalTaskPrompt({ token, side, prompt }: { token: string; side: "vendor" | "purchaser"; prompt: TaskPromptKind }) {
   const dismissKey = `portal-task-${prompt}-${token}-dismissed`;
-  const [dismissed, setDismissed] = useState<boolean>(() => {
+  // Already dismissed on this device — never render (no entrance/exit).
+  const [alreadyDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try { return localStorage.getItem(dismissKey) === "1"; } catch { return false; }
   });
+  // Two-step exit: on dismiss we collapse + fade the card, then unmount so the
+  // cards below rise to close the gap.
+  const [removed, setRemoved] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   // Log "shown" once per session per device (so navigation doesn't re-count it).
   useEffect(() => {
-    if (dismissed) return;
+    if (alreadyDismissed) return;
     const seenKey = `portal-task-shown-${prompt}-${token}`;
     try {
       if (sessionStorage.getItem(seenKey) === "1") return;
       sessionStorage.setItem(seenKey, "1");
     } catch { /* ignore */ }
     void portalTrackTaskPromptAction(token, "shown", prompt);
-  }, [dismissed, token, prompt]);
+  }, [alreadyDismissed, token, prompt]);
 
-  if (dismissed) return null;
+  if (alreadyDismissed || removed) return null;
 
   const c = content(prompt, side);
 
@@ -100,24 +106,37 @@ export function PortalTaskPrompt({ token, side, prompt }: { token: string; side:
   function dismiss() {
     void portalTrackTaskPromptAction(token, "dismissed", prompt);
     try { localStorage.setItem(dismissKey, "1"); } catch { /* ignore */ }
-    setDismissed(true);
+    const el = wrapRef.current;
+    if (!el) { setRemoved(true); return; }
+    // Collapse + fade imperatively so React never clobbers these inline styles,
+    // then unmount on transition end. overflow/transition are applied only for
+    // the exit, leaving the card's shadow and entrance untouched at rest.
+    el.style.overflow = "hidden";
+    el.style.transition = "height 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease, margin 300ms ease";
+    el.style.height = `${el.scrollHeight}px`;
+    void el.offsetHeight; // force reflow so the collapse animates from a real height
+    el.style.height = "0px";
+    el.style.opacity = "0";
+    el.style.marginTop = "0px";
   }
 
   return (
-    <PortalGlassCard glassId={`task-${prompt}`} label="Something you can do" className="portal-reveal-up" style={{ padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        {c.icon}
-        <p style={{ margin: 0, fontSize: 14.5, fontWeight: 650, color: P.textPrimary, lineHeight: 1.25 }}>{c.heading}</p>
-      </div>
-      <p style={{ margin: "0 0 14px", fontSize: 12.5, color: P.textSecondary, lineHeight: 1.4 }}>{c.body}</p>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="button" onClick={dismiss} className="pbtn-press portal-cta-soft" style={{ flex: "0 0 auto", padding: "10px 16px", borderRadius: 11, fontSize: 13, fontWeight: 600 }}>
-          Not now
-        </button>
-        <button type="button" onClick={primary} className="pbtn-press portal-cta" style={{ flex: 1, padding: "11px 16px", borderRadius: 12, fontSize: 13.5, fontWeight: 700 }}>
-          {c.button}
-        </button>
-      </div>
-    </PortalGlassCard>
+    <div ref={wrapRef} onTransitionEnd={(e) => { if (e.propertyName === "height") setRemoved(true); }}>
+      <PortalGlassCard glassId={`task-${prompt}`} label="Something you can do" className="portal-reveal-up" style={{ padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          {c.icon}
+          <p style={{ margin: 0, fontSize: 14.5, fontWeight: 650, color: P.textPrimary, lineHeight: 1.25 }}>{c.heading}</p>
+        </div>
+        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: P.textSecondary, lineHeight: 1.4 }}>{c.body}</p>
+        <div style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+          <button type="button" onClick={dismiss} className="pbtn-press portal-cta-soft" style={{ flex: "0 0 auto", padding: "0 18px", borderRadius: 14, fontSize: 14, fontWeight: 600 }}>
+            Not now
+          </button>
+          <div style={{ flex: 1 }}>
+            <PortalButton onClick={primary} ariaLabel={c.button}>{c.button}</PortalButton>
+          </div>
+        </div>
+      </PortalGlassCard>
+    </div>
   );
 }
