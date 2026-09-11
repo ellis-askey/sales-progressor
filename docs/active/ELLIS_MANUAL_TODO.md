@@ -8,6 +8,20 @@ Last updated: 2026-09-09
 
 ---
 
+## Content — connect a publishing platform + schedule the reminder cron (2026-09-11)
+
+The Content area (Command Centre → Content) is built through Phase 6. Two optional setup steps unlock the last bits:
+
+**Publishing (Phase 6).** Nothing publishes on its own yet. To publish and truly schedule to LinkedIn / Instagram / Facebook, connect one of:
+- A broker (simplest): set `AYRSHARE_API_KEY`. Covers all three networks.
+- Or per-network: `LINKEDIN_ACCESS_TOKEN`, and `META_ACCESS_TOKEN` (Meta Graph covers Instagram + Facebook).
+
+Each needs a developer app + OAuth; note the DPA implications. Until one is set, the Calendar shows "Publishing: not connected" and posting stays manual (mark as posted).
+
+**Schedule reminder (Phase 5).** `GET /api/cron/content-schedule-reminder` (guarded by `CRON_SECRET`) emails a digest of posts due today. Optional env `CONTENT_REMINDER_TO` sets the recipient (defaults to `inbox@thesalesprogressor.co.uk`). Register it in `vercel.json` crons (daily) when ready, mindful of the Vercel Hobby daily-cron limit, or run it on demand.
+
+No code changes needed for either; both are wiring/accounts on your side.
+
 ## Reviews-due surface — deploy + one small test follow-up (2026-09-09)
 
 The "Reviews due" section on `/agent/to-do` shipped (files on hold with a return

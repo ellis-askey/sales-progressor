@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getPipeline } from "@/lib/command/content/calendar";
 import { getContentSettings } from "@/lib/command/content/settings";
+import { getPublishingStatus } from "@/lib/command/content/publishing";
 import { CalendarBoard } from "@/components/command/content/CalendarBoard";
 import { WeeklyPlanPanel } from "@/components/command/content/WeeklyPlanPanel";
 import { AutopilotSettings } from "@/components/command/content/AutopilotSettings";
-import { Section } from "@/components/command/ui/primitives";
+import { Section, TrackingDisabled } from "@/components/command/ui/primitives";
 
 // Content calendar (docs/active/content-brand/SPEC.md, Phase 5.1). The pipeline
 // from ready to published, with easy scheduling. Superadmin gating handled by
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
   const [pipeline, settings] = await Promise.all([getPipeline(), getContentSettings()]);
+  const publishing = getPublishingStatus();
 
   return (
     <div className="space-y-8">
@@ -43,6 +45,26 @@ export default async function CalendarPage() {
 
       <Section title="Autopilot" subtitle="How much the system prepares for you. It never publishes on its own yet.">
         <AutopilotSettings level={settings.autopilotLevel} />
+      </Section>
+
+      <Section title="Publishing" subtitle="Where posts can go live from.">
+        {publishing.connected ? (
+          <div className="flex flex-wrap gap-2">
+            {publishing.providers.map((p) => (
+              <span
+                key={p.id}
+                className={`rounded-lg border px-3 py-1.5 text-[12px] ${p.connected ? "border-emerald-900/60 bg-emerald-950/20 text-emerald-300" : "border-neutral-800 text-neutral-500"}`}
+              >
+                {p.label}: {p.connected ? "connected" : "not connected"}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <TrackingDisabled
+            what="Publishing"
+            why="No platform is connected, so posts are prepared here and you publish them by hand. Connect LinkedIn or Meta (or a broker like Ayrshare) to publish and schedule for real. Setup steps are in ELLIS_MANUAL_TODO."
+          />
+        )}
       </Section>
     </div>
   );
