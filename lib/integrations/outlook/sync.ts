@@ -22,6 +22,7 @@ import {
   type AccessScope,
 } from "@/lib/security/access-scope";
 import { touchLastActivity } from "@/lib/services/activity";
+import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import {
   refreshAccessToken,
   listMailFolders,
@@ -278,13 +279,34 @@ async function logMessage(
   });
   const address = tx?.propertyAddress ?? "";
 
+  const received = new Date(msg.receivedDateTime);
+  // Dedup on the provider id AND on the real message (same file + sender +
+  // subject + received time to the minute). The same email filed in both the
+  // Inbox and a property folder has a different Graph id per folder, so the id
+  // check alone let it in twice; the second arm collapses those copies to one.
   const existing = await prisma.outboundMessage.findFirst({
-    where: { transactionId: txId, providerMessageId: msg.id },
+    where: {
+      transactionId: txId,
+      OR: [
+        { providerMessageId: msg.id },
+        {
+          method: "email",
+          recipientEmail: msg.from,
+          subject: msg.subject || "(no subject)",
+          sentAt: { gte: new Date(received.getTime() - 60_000), lte: new Date(received.getTime() + 60_000) },
+        },
+      ],
+    },
     select: { id: true },
   });
   if (existing) return { status: "already", address };
 
-  const received = new Date(msg.receivedDateTime);
+  // Store just the new message (signature + confidentiality footer + quoted
+  // chain trimmed); keep the untouched original in providerWebhookData.raw so a
+  // "show original" is always possible and the cleaning is reversible. Fall back
+  // to the raw if trimming leaves nothing (e.g. an email that is only a quote).
+  const rawBody = (msg.body || msg.bodyPreview || "").trim();
+  const cleaned = cleanIngestedEmail(rawBody) || rawBody;
   await prisma.outboundMessage.create({
     data: {
       transactionId: txId,
@@ -293,7 +315,7 @@ async function logMessage(
       method: "email",
       contactIds: [],
       subject: msg.subject || "(no subject)",
-      content: (msg.body || msg.bodyPreview || "").trim(),
+      content: cleaned,
       recipientName: msg.fromName,
       recipientEmail: msg.from,
       ccEmails: msg.cc.length ? msg.cc.join(", ") : null,
@@ -306,6 +328,7 @@ async function logMessage(
         cc: msg.cc,
         webLink: msg.webLink,
         receivedDateTime: msg.receivedDateTime,
+        raw: rawBody,
       },
       createdByRole: "system",
       createdAt: received,
