@@ -23,6 +23,7 @@ import type { ResearchMeta } from "@/lib/command/prospect-labels";
 import type { ProspectStatus } from "@prisma/client";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { formatUKPhone } from "@/lib/utils/address";
+import { DateField } from "@/components/ui/DateField";
 
 function fmtDateTime(d: Date | null): string {
   if (!d) return "—";
@@ -666,7 +667,7 @@ function CallPanel({ onSave, pending }: { onSave: (i: { outcome: string; notes?:
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes (optional)…" className={inputCls} />
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] text-neutral-500">Next follow-up</span>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} w-auto`} />
+        <DateField value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} w-auto`} wrapperStyle={{ display: "inline-block" }} />
         {QUICK_DAYS.map(([lbl, n]) => <button key={lbl} onClick={() => setDate(isoInDays(n))} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 hover:text-neutral-200">{lbl}</button>)}
       </div>
       <div className="flex items-center gap-2">
@@ -686,7 +687,7 @@ function FollowUpPanel({ onSave, pending }: { onSave: (iso: string) => void; pen
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} w-auto`} />
+        <DateField value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} w-auto`} wrapperStyle={{ display: "inline-block" }} />
         {QUICK_DAYS.map(([lbl, n]) => <button key={lbl} onClick={() => setDate(isoInDays(n))} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 hover:text-neutral-200">{lbl}</button>)}
       </div>
       <button onClick={() => onSave(date)} disabled={pending || !date} className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-300 border border-blue-900 hover:bg-blue-900 disabled:opacity-40">{pending ? "…" : "Schedule follow-up"}</button>

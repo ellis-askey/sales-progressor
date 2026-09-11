@@ -8,6 +8,7 @@ import { REFINE_ACTIONS, type PromoIntensity } from "@/lib/command/content/refin
 import { detectAiTells } from "@/lib/command/content/ai-tell";
 import { AdaptPanel } from "@/components/command/content/AdaptPanel";
 import { SuggestVisualPanel } from "@/components/command/content/SuggestVisualPanel";
+import { DateField } from "@/components/ui/DateField";
 
 // Premium composer (docs/active/content-brand/SPEC.md, Phase 3.1). The post
 // dominates. A calm toolbar of substance-steering AI actions, a low-to-high
@@ -253,12 +254,12 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
         </form>
 
         <span className="flex items-center gap-1.5">
-          <input
-            type="date"
+          <DateField
             value={scheduleDate}
             onChange={(e) => setScheduleDate(e.target.value)}
             title="Schedule for a date"
             className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-[12px] text-neutral-300 focus:border-neutral-500 focus:outline-none"
+            wrapperStyle={{ display: "inline-block" }}
           />
           <button
             onClick={schedule}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setScheduleStatusAction, scheduleDraftAction } from "@/app/actions/content-schedule";
+import { DateField } from "@/components/ui/DateField";
 
 // Content pipeline board (docs/active/content-brand/SPEC.md, Phase 5.1). Ready ->
 // Approved -> Scheduled -> Published, with easy (re)scheduling. Scheduled means
@@ -93,11 +94,11 @@ export function CalendarBoard({ pipeline }: { pipeline: Pipeline }) {
                       )}
                       {col.key === "scheduled" ? (
                         <>
-                          <input type="date" defaultValue={toInputDate(it.scheduledFor)} onChange={(e) => schedule(it.id, e.target.value)} disabled={pending} className="rounded border border-neutral-800 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-300 focus:border-blue-600/50 focus:outline-none" />
+                          <DateField defaultValue={toInputDate(it.scheduledFor)} onChange={(e) => schedule(it.id, e.target.value)} disabled={pending} className="rounded border border-neutral-800 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-300 focus:border-blue-600/50 focus:outline-none" wrapperStyle={{ display: "inline-block" }} />
                           <button onClick={() => move(it.id, "approved")} disabled={pending} className="rounded-md px-1.5 py-0.5 text-[11px] text-neutral-500 transition-colors hover:text-neutral-300 disabled:opacity-40">Unschedule</button>
                         </>
                       ) : (
-                        <input type="date" onChange={(e) => schedule(it.id, e.target.value)} disabled={pending} title="Schedule for a date" className="rounded border border-neutral-800 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-400 focus:border-blue-600/50 focus:outline-none" />
+                        <DateField onChange={(e) => schedule(it.id, e.target.value)} disabled={pending} title="Schedule for a date" className="rounded border border-neutral-800 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-400 focus:border-blue-600/50 focus:outline-none" wrapperStyle={{ display: "inline-block" }} />
                       )}
                     </div>
                   )}
