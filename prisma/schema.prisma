@@ -4355,3 +4355,16 @@ model PostAdaptation {
   @@unique([draftPostId, platform])
   @@index([draftPostId])
 }
+
+// Content & Personal Brand: settings singleton (docs/active/content-brand/
+// SPEC.md, Phase 5.2). Holds the autopilot level and the latest AI-proposed
+// week. Autopilot cannot publish until a platform integration exists (Phase 6),
+// so higher levels govern how much is prepared/scheduled, never auto-posting.
+model ContentSettings {
+  id        String   @id @default(cuid())
+  updatedAt DateTime @updatedAt
+
+  autopilotLevel String    @default("manual") // manual | assisted | trusted | autopilot
+  weeklyPlan     Json? // { day, pillar, idea, inboxItemId? }[]
+  weeklyPlanAt   DateTime?
+}
