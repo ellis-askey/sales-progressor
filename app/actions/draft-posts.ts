@@ -39,6 +39,7 @@ export async function markAsPostedAction(formData: FormData): Promise<void> {
       editedText: finalText,
       chosenVariant,
       postedUrl,
+      scheduleStatus: "published",
     },
   });
 

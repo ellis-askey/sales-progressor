@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { markAsPostedAction, discardDraftAction, approveForBatchAction, removeFromBatchAction } from "@/app/actions/draft-posts";
 import { captureVoiceEditAction } from "@/app/actions/voice-learning";
+import { scheduleDraftAction } from "@/app/actions/content-schedule";
 import { REFINE_ACTIONS, type PromoIntensity } from "@/lib/command/content/refine-actions";
 import { detectAiTells } from "@/lib/command/content/ai-tell";
 import { AdaptPanel } from "@/components/command/content/AdaptPanel";
@@ -35,6 +36,8 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
   const [copied, setCopied] = useState(false);
   const [inBatch, setInBatch] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduledNote, setScheduledNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const over = text.length > charLimit;
@@ -76,6 +79,21 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
       cap.set("final", text);
       await captureVoiceEditAction(cap);
       setPosted(true);
+    });
+  }
+
+  function schedule() {
+    if (!scheduleDate) return;
+    const fd = new FormData();
+    fd.set("draftId", draftId);
+    fd.set("scheduledFor", scheduleDate);
+    fd.set("editedText", text);
+    fd.set("chosenVariant", String(variantNum));
+    startTransition(async () => {
+      const res = await scheduleDraftAction(fd);
+      if (res.ok) {
+        setScheduledNote(`Scheduled for ${new Date(scheduleDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. We'll remind you when it's due.`);
+      }
     });
   }
 
@@ -198,6 +216,7 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
         </div>
       )}
       {error && <p className="text-[12px] text-red-400">{error}</p>}
+      {scheduledNote && <p className="text-[12px] text-emerald-400">{scheduledNote}</p>}
 
       {/* Footer */}
       <div className="flex flex-wrap items-center gap-2 border-t border-neutral-800 pt-3">
@@ -232,6 +251,23 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
             {pending ? "Saving…" : "Mark as posted"}
           </button>
         </form>
+
+        <span className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={scheduleDate}
+            onChange={(e) => setScheduleDate(e.target.value)}
+            title="Schedule for a date"
+            className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-[12px] text-neutral-300 focus:border-neutral-500 focus:outline-none"
+          />
+          <button
+            onClick={schedule}
+            disabled={pending || !scheduleDate || over}
+            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-[12px] text-neutral-300 transition-colors hover:text-neutral-100 disabled:opacity-40"
+          >
+            Schedule
+          </button>
+        </span>
 
         <button onClick={discard} disabled={pending} className="ml-auto text-[12px] text-neutral-600 transition-colors hover:text-red-400 disabled:opacity-40">
           Discard

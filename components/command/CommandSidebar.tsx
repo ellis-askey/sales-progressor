@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen, PenLine, Fingerprint, Sparkle, Megaphone, Compass, Timer,
+  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen, PenLine, Fingerprint, Sparkle, Megaphone, Compass, Timer, CalendarDays,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -84,6 +84,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/content/opportunities", label: "Brand opportunities", Icon: Megaphone },
       { href: "/command/content/strategy", label: "Strategy", Icon: Compass },
       { href: "/command/content/create", label: "Create", Icon: Sparkle },
+      { href: "/command/content/calendar", label: "Calendar", Icon: CalendarDays },
       { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
       { href: "/command/content/brand", label: "Your brand", Icon: Fingerprint },
       { href: "/command/content/drafts", label: "Drafts & images", Icon: PenLine },
