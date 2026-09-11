@@ -3478,6 +3478,7 @@ enum EnquiryMovementKind {
   chased           // we nudged them (email / phone / other)
   update           // a plain note / status update, no court change
   correction       // a pure fix of whose court it is
+  partial_replies  // some (not all) replies sent; ball stays their court
 }
 
 // ─── OnwardTracker ───────────────────────────────────────────────────────────
@@ -3582,6 +3583,11 @@ model EnquiryTracker {
   snoozedUntil    DateTime?
   // Set when enquiries are marked satisfied — the loop is closed.
   closedAt        DateTime?
+  // Set when the seller's solicitor sends SOME (not all) replies across: the
+  // ball stays their court (they still owe the rest) but the row signals that
+  // partial replies are in. Cleared on a full handover (replies sent / court
+  // flip) and on close. Durable, so a later chase doesn't erase the signal.
+  partialRepliesAt DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 

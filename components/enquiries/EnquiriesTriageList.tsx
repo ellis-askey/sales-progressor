@@ -5,11 +5,11 @@
 // Reuses the enquiry tracker actions; the chase-history timeline loads on expand.
 // Internal only for now. Spec: docs/active/enquiries-triage/00-spec.md.
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Check, ArrowsLeftRight, ArrowRight, ChatCircleDots, CaretDown, MagnifyingGlass,
+  Check, Checks, ArrowsLeftRight, ArrowsClockwise, ArrowRight, ChatCircleDots, CaretDown, MagnifyingGlass,
   Phone, EnvelopeSimple, CalendarBlank, ClockCountdown, WarningCircle, CheckCircle, PaperPlaneTilt,
 } from "@phosphor-icons/react";
 import {
@@ -18,7 +18,7 @@ import {
 } from "@/app/actions/enquiries";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
-import type { EnquiryCourt } from "@/lib/enquiries/tracker";
+import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 import { DateField } from "@/components/ui/DateField";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
@@ -79,10 +79,6 @@ export function EnquiriesTriageList({
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
-  // The row whose "Mark satisfied" is armed (awaiting the confirm tap). Marking
-  // satisfied closes the loop and opens the exchange gate, so it's a two-tap
-  // action here rather than a one-click blitz like the court flips.
-  const [armedId, setArmedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, EnquiryHistoryEntry[] | "loading">>({});
 
@@ -194,12 +190,10 @@ export function EnquiriesTriageList({
       <div className="enq-list">
         {shown.map((r) => {
           const signedPhoto = r.photoStoragePath ? signedPhotos[r.photoStoragePath] ?? null : null;
-          const other = otherCourt(r.currentlyWith);
           const busy = busyId === r.transactionId;
           const pill = statusPill(r);
           const isSeller = r.currentlyWith === "seller_solicitor";
           const withBuyer = !isSeller;
-          const armed = armedId === r.transactionId;
           const [line1, ...rest] = r.address.split(",");
           const expanded = expandedId === r.transactionId;
           return (
@@ -236,50 +230,23 @@ export function EnquiriesTriageList({
                 {/* Status */}
                 <div className="enq-statuscol">
                   <span className={`enq-pill2 enq-pill-${pill.tone}`}>{pill.tone === "green" ? <CheckCircle size={12} weight="fill" /> : pill.tone === "danger" ? <WarningCircle size={12} weight="fill" /> : pill.tone === "amber" ? <CalendarBlank size={12} /> : <ClockCountdown size={12} />}{pill.label}</span>
-                  <span className="enq-substatus">{r.outstandingNote || (withBuyer ? "With the buyer's solicitor to review" : "Replies outstanding")}</span>
+                  <span className="enq-substatus">{r.partial ? "Some replies in · more to come" : (r.outstandingNote || (withBuyer ? "With the buyer's solicitor to review" : "Replies outstanding"))}</span>
                 </div>
 
-                {/* Actions — court-aware. With the seller's solicitor: they owe
-                    replies (send them on). With the buyer's solicitor: they're
-                    reviewing, so the two real outcomes are satisfied or a fresh
-                    round. "Still with them" (reset the clock, no move) in both. */}
-                <div className="enq-actions2">
-                  {armed ? (
-                    <>
-                      <span className="enq-confirm-q">Mark satisfied? This opens exchange.</span>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-satisfied" onClick={() => { setArmedId(null); run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied"); }}>
-                        <Check size={14} weight="bold" /> Confirm
-                      </button>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => setArmedId(null)}>
-                        Cancel
-                      </button>
-                    </>
-                  ) : withBuyer ? (
-                    <>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-satisfied" onClick={() => setArmedId(r.transactionId)}>
-                        <CheckCircle size={14} weight="fill" /> Mark satisfied
-                      </button>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised" }), "Further enquiries raised, moved to the seller's side")}>
-                        <ArrowRight size={14} /> Raise further
-                      </button>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "touch", kind: "update" }), "Confirmed, still with them")}>
-                        <ArrowsLeftRight size={14} /> Still with them
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-primary2" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent" }), `Replies sent, moved to the ${courtShort(other)}`)}>
-                        <PaperPlaneTilt size={14} weight="fill" /> Replies sent
-                      </button>
-                      <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, mode: "touch", kind: "update" }), "Confirmed, still with them")}>
-                        <ArrowsLeftRight size={14} /> Still with them
-                      </button>
-                    </>
-                  )}
-                  <button type="button" className="enq-expand" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={() => toggleExpand(r.transactionId)}>
-                    <CaretDown size={15} weight="bold" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
-                  </button>
-                </div>
+                {/* Actions — court-aware, responsive: a split button on desktop
+                    (one-click primary + a ▾ for the rest) collapses to a single
+                    "Update" menu below the tablet breakpoint. A calendar icon
+                    arms an inline "happened earlier" strip that backdates the
+                    clock. See RowActions. */}
+                <RowActions
+                  row={r}
+                  busy={busy}
+                  isSeller={isSeller}
+                  expanded={expanded}
+                  onToggleExpand={() => toggleExpand(r.transactionId)}
+                  move={(opts, msg) => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, ...opts }), msg)}
+                  onSatisfy={() => run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied")}
+                />
               </div>
 
               {expanded && <ExpandedDetail row={r} history={history[r.transactionId]} onChase={(method) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />}
@@ -289,6 +256,173 @@ export function EnquiriesTriageList({
       </div>
 
       <p className="enq-foot">Showing {shown.length} of {rows.length} {rows.length === 1 ? "enquiry" : "enquiries"}</p>
+    </div>
+  );
+}
+
+// ─── Row action cluster ───────────────────────────────────────────────────────
+// Responsive: a split button on desktop (one-click primary + ▾ for the rest)
+// that collapses to a single "Update" menu on tablet/mobile. A calendar icon
+// arms an inline "happened earlier" strip that backdates the movement so the
+// chase cadence + "for N days" count from the real event day, not the click.
+// Backdating covers the clock-resetting actions (handovers + "still with them").
+
+type MoveOpts = {
+  mode?: EnquiryMovementMode;
+  flipsCourtTo?: EnquiryCourt | null;
+  kind?: EnquiryMovementKind;
+  note?: string;
+  occurredAt?: string;
+};
+
+function dateToISO(d: Date): string {
+  const x = new Date(d);
+  const m = String(x.getMonth() + 1).padStart(2, "0");
+  const day = String(x.getDate()).padStart(2, "0");
+  return `${x.getFullYear()}-${m}-${day}`;
+}
+function todayISO(): string {
+  return dateToISO(new Date());
+}
+function fmtChipDate(iso: string): string {
+  if (!iso || iso === todayISO()) return "Today";
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function RowActions({
+  row, busy, isSeller, expanded, onToggleExpand, move, onSatisfy,
+}: {
+  row: OpenEnquiryRow;
+  busy: boolean;
+  isSeller: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  move: (opts: MoveOpts, msg: string) => void;
+  onSatisfy: () => void;
+}) {
+  const other = otherCourt(row.currentlyWith);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [satisfyArmed, setSatisfyArmed] = useState(false);
+  const [backdate, setBackdate] = useState(false);
+  const [bdISO, setBdISO] = useState(todayISO());
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [menuOpen]);
+
+  // Concrete movements. Backdatable ones take an optional ISO date.
+  const doRepliesSent = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent", occurredAt }, `Replies sent, moved to the ${courtShort(other)}`);
+  const doPartial = (occurredAt?: string) => move({ mode: "touch", kind: "partial_replies", note: "Some replies sent across", occurredAt }, "Logged: some replies in");
+  const doStill = (occurredAt?: string) => move({ mode: "touch", kind: "update", occurredAt }, "Confirmed, still with them");
+  const doRaise = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised", occurredAt }, "Further enquiries raised, moved to the seller's side");
+  const doWrong = () => move({ mode: "relabel", flipsCourtTo: other, kind: "correction" }, `Corrected: now with the ${courtShort(other)}`);
+
+  function openDatePicker() {
+    const el = dateRef.current;
+    if (!el) return;
+    try { el.showPicker(); } catch { el.focus(); }
+  }
+
+  // ── Armed: Mark satisfied (two-tap — it opens exchange) ──
+  if (satisfyArmed) {
+    return (
+      <div className="enq-actions2" ref={wrapRef}>
+        <span className="enq-confirm-q">Mark satisfied? This opens exchange.</span>
+        <button type="button" disabled={busy} className="enq-btn enq-btn-satisfied" onClick={() => { setSatisfyArmed(false); onSatisfy(); }}><Check size={14} weight="bold" /> Confirm</button>
+        <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => setSatisfyArmed(false)}>Cancel</button>
+      </div>
+    );
+  }
+
+  // ── Backdate strip: pick a day, then choose the action ──
+  if (backdate) {
+    const acts = isSeller
+      ? [
+          { k: "rs", label: "Replies sent", icon: <PaperPlaneTilt size={14} weight="fill" />, run: doRepliesSent, solid: true },
+          { k: "sp", label: "Some replies", icon: <Checks size={14} />, run: doPartial },
+          { k: "st", label: "Still with them", icon: <ArrowsClockwise size={14} />, run: doStill },
+        ]
+      : [
+          { k: "rf", label: "Raise further", icon: <ArrowRight size={14} />, run: doRaise, solid: true },
+          { k: "st", label: "Still with them", icon: <ArrowsClockwise size={14} />, run: doStill },
+        ];
+    return (
+      <div className="enq-actions2 enq-actions-backdate" ref={wrapRef}>
+        <span className="enq-backdate">
+          <CalendarBlank size={14} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
+          <button type="button" className="enq-bd-date" onClick={openDatePicker}>{fmtChipDate(bdISO)} <CaretDown size={11} weight="bold" /></button>
+          <input ref={dateRef} type="date" className="enq-bd-input" min={dateToISO(row.openedAt)} max={todayISO()} value={bdISO} onChange={(e) => { if (e.target.value) setBdISO(e.target.value); }} aria-label="When did this happen" />
+        </span>
+        <span className="enq-bd-acts">
+          {acts.map((a) => (
+            <button key={a.k} type="button" disabled={busy} className={`enq-btn ${a.solid ? "enq-btn-primary2" : "enq-btn-flip"}`} onClick={() => { a.run(bdISO); setBackdate(false); }}>{a.icon} {a.label}</button>
+          ))}
+        </span>
+        <button type="button" disabled={busy} className="enq-btn enq-btn-cancel" onClick={() => { setBackdate(false); setBdISO(todayISO()); }}>Cancel</button>
+      </div>
+    );
+  }
+
+  // ── Normal: split (desktop) / menu (tablet+mobile) ──
+  const primaryGreen = !isSeller; // buyer-side primary is "Mark satisfied" (green)
+  const onPrimary = isSeller ? () => doRepliesSent() : () => setSatisfyArmed(true);
+  const primaryLabel = isSeller ? "Replies sent" : "Mark satisfied";
+  const primaryIcon = isSeller ? <PaperPlaneTilt size={14} weight="fill" /> : <CheckCircle size={14} weight="fill" />;
+
+  const items = isSeller
+    ? [
+        { icon: <PaperPlaneTilt size={16} />, label: "Replies sent", desc: "Full replies across → buyer's side", onClick: () => doRepliesSent() },
+        { icon: <Checks size={16} />, label: "Some replies in", desc: "Partial — stays their court", onClick: () => doPartial() },
+        { icon: <ArrowsClockwise size={16} />, label: "Still with them", desc: "In touch, no move", onClick: () => doStill() },
+        { icon: <ArrowsLeftRight size={16} />, label: "Wrong side?", desc: "Fix the court, keep the timer", onClick: () => doWrong() },
+      ]
+    : [
+        { icon: <CheckCircle size={16} />, label: "Mark satisfied", desc: "Closes the loop, opens exchange", onClick: () => setSatisfyArmed(true) },
+        { icon: <ArrowRight size={16} />, label: "Raise further", desc: "Fresh round → seller's side", onClick: () => doRaise() },
+        { icon: <ArrowsClockwise size={16} />, label: "Still with them", desc: "In touch, no move", onClick: () => doStill() },
+        { icon: <ArrowsLeftRight size={16} />, label: "Wrong side?", desc: "Fix the court, keep the timer", onClick: () => doWrong() },
+      ];
+
+  const pick = (fn: () => void) => { setMenuOpen(false); fn(); };
+
+  return (
+    <div className="enq-actions2" ref={wrapRef}>
+      {/* Desktop: calendar + split button */}
+      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" onClick={() => { setMenuOpen(false); setBackdate(true); }}>
+        <CalendarBlank size={15} />
+      </button>
+      <span className="enq-split enq-a-desktop">
+        <button type="button" disabled={busy} className={`enq-btn enq-split-main ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={onPrimary}>{primaryIcon} {primaryLabel}</button>
+        <button type="button" disabled={busy} aria-label="More actions" aria-expanded={menuOpen} className={`enq-btn enq-split-caret ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={() => setMenuOpen((v) => !v)}><CaretDown size={13} weight="bold" /></button>
+      </span>
+
+      {/* Tablet/mobile: single Update menu trigger */}
+      <button type="button" disabled={busy} className="enq-btn enq-btn-flip enq-a-mobile" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>Update <CaretDown size={13} weight="bold" /></button>
+
+      {menuOpen && (
+        <div className="enq-menu" role="menu">
+          {items.map((mi, i) => (
+            <button key={i} type="button" role="menuitem" className="enq-mi" onClick={() => pick(mi.onClick)}>
+              <span className="enq-mi-ico">{mi.icon}</span>
+              <span className="enq-mi-txt">{mi.label}<small>{mi.desc}</small></span>
+            </button>
+          ))}
+          <div className="enq-mi-div" />
+          <button type="button" role="menuitem" className="enq-mi" onClick={() => { setMenuOpen(false); setBackdate(true); }}>
+            <span className="enq-mi-ico"><CalendarBlank size={16} /></span>
+            <span className="enq-mi-txt">Happened earlier…<small>Backdate so the timer&apos;s right</small></span>
+          </button>
+        </div>
+      )}
+
+      <button type="button" className="enq-expand" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={onToggleExpand}>
+        <CaretDown size={15} weight="bold" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
+      </button>
     </div>
   );
 }

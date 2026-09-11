@@ -31,6 +31,7 @@ export type OpenEnquiryRow = {
   expectedDate: Date | null; // the "expect replies by" date (reuses snoozedUntil)
   nextChaseAt: Date | null; // when the auto-chase is next due
   openedAt: Date; // when the loop was raised
+  partial: boolean; // some (not all) replies are in; ball still with the seller's solicitor
   lastMovement: { note: string; kind: EnquiryMovementKind; occurredAt: Date; byName: string | null } | null;
   clientNames: string; // for search
   vendorSolicitor: string | null;
@@ -76,6 +77,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       snoozedUntil: true,
       escalatedAt: true,
       chaseCount: true,
+      partialRepliesAt: true,
       transaction: {
         select: {
           id: true,
@@ -133,6 +135,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       expectedDate: t.snoozedUntil ?? null,
       nextChaseAt,
       openedAt: t.openedAt,
+      partial: t.partialRepliesAt != null,
       lastMovement: mv
         ? { note: mv.note, kind: mv.kind as EnquiryMovementKind, occurredAt: mv.occurredAt, byName: mv.createdByUserId ? nameById.get(mv.createdByUserId) ?? null : null }
         : null,
@@ -195,9 +198,10 @@ export async function getEnquiryHistory(scope: AccessScope, transactionId: strin
     chased: "Chased",
     update: "Update",
     correction: "Whose-court corrected",
+    partial_replies: "Some replies sent",
   };
   const kindTone = (k: EnquiryMovementKind): EnquiryHistoryEntry["tone"] =>
-    k === "raised" ? "raised" : k === "chased" ? "chase" : k === "replies_sent" || k === "replies_received" ? "reply" : "update";
+    k === "raised" ? "raised" : k === "chased" ? "chase" : k === "replies_sent" || k === "replies_received" || k === "partial_replies" ? "reply" : "update";
 
   const entries: EnquiryHistoryEntry[] = [];
   for (const m of tracker.movements) {

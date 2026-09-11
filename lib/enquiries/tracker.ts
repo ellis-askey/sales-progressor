@@ -10,7 +10,10 @@ import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS } from "./cadence";
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryTrackerStatus = "closed" | "snoozed" | "stalled" | "chasing";
 export type EnquiryMovementKind =
-  | "raised" | "replies_sent" | "replies_received" | "chased" | "update" | "correction";
+  | "raised" | "replies_sent" | "replies_received" | "chased" | "update" | "correction"
+  // Seller's solicitor sent SOME replies across (not all): the ball stays their
+  // court, the clock resets, and the partialRepliesAt flag is raised.
+  | "partial_replies";
 
 export type EnquiryMovementView = {
   id: string;
@@ -32,6 +35,8 @@ export type EnquiryTrackerView = {
   chaseCount: number;
   status: EnquiryTrackerStatus;
   nextChaseAt: Date | null;
+  // Non-null when some (not all) replies are in and the ball is still their court.
+  partialRepliesAt: Date | null;
   movements: EnquiryMovementView[];
 };
 
@@ -71,6 +76,7 @@ export async function getEnquiryTrackerView(
     chaseCount: t.chaseCount,
     status,
     nextChaseAt,
+    partialRepliesAt: t.partialRepliesAt,
     movements: t.movements.map((m) => ({
       id: m.id,
       note: m.note,
@@ -181,20 +187,32 @@ export async function logEnquiryMovement(args: {
 }): Promise<boolean> {
   const tracker = await prisma.enquiryTracker.findUnique({
     where: { transactionId: args.transactionId },
-    select: { id: true, closedAt: true },
+    select: { id: true, closedAt: true, openedAt: true },
   });
   if (!tracker || tracker.closedAt) return false;
   const now = new Date();
   const relabel = args.mode === "relabel";
+
+  // Backdate support: when the caller says it happened earlier, anchor the
+  // whole cadence (lastMovementAt → next chase + "for N days") to that date,
+  // not to now. Clamp to [openedAt, now] so it can't predate the loop or sit
+  // in the future. Absent → today, exactly as before.
+  const anchorAt = args.occurredAt
+    ? new Date(Math.min(now.getTime(), Math.max(tracker.openedAt.getTime(), args.occurredAt.getTime())))
+    : now;
+
+  const isPartial = args.kind === "partial_replies";
+  const flips = args.flipsCourtTo ?? null;
+
   await prisma.$transaction([
     prisma.enquiryMovement.create({
       data: {
         trackerId: tracker.id,
         note: args.note.trim(),
-        occurredAt: args.occurredAt ?? now,
+        occurredAt: anchorAt,
         source: args.source ?? "progressor",
         kind: args.kind ?? "update",
-        flipsCourtTo: args.flipsCourtTo ?? null,
+        flipsCourtTo: flips,
         status: "accepted",
         createdByUserId: args.createdByUserId ?? null,
       },
@@ -203,12 +221,17 @@ export async function logEnquiryMovement(args: {
       where: { id: tracker.id },
       data: relabel
         ? // Correction only: move the court, leave the cadence + stall alone.
-          { ...(args.flipsCourtTo ? { currentlyWith: args.flipsCourtTo } : {}) }
+          { ...(flips ? { currentlyWith: flips } : {}) }
         : {
-            lastMovementAt: now,
+            lastMovementAt: anchorAt,
             lastChasedAt: null, // restart the 9-day cadence from this movement
             escalatedAt: null, // no longer stalled
-            ...(args.flipsCourtTo ? { currentlyWith: args.flipsCourtTo } : {}),
+            ...(flips ? { currentlyWith: flips } : {}),
+            // Partial-flag lifecycle: a partial movement raises it; a movement
+            // that FLIPS the court (full replies across / fresh round) clears
+            // it; a same-side touch ("still with them", a chase) leaves it as
+            // it was, so the "some replies in" signal survives a later chase.
+            ...(isPartial ? { partialRepliesAt: anchorAt } : flips ? { partialRepliesAt: null } : {}),
           },
     }),
   ]);

@@ -45,6 +45,11 @@ export async function logEnquiryMovementAction(input: {
   flipsCourtTo?: EnquiryCourt | null;
   // Event type for the triage page's pills + history. Defaults to "update".
   kind?: EnquiryMovementKind;
+  // Backdate: the day the event actually happened, when it wasn't today. ISO
+  // date string (yyyy-mm-dd). Anchors the whole chase cadence to that day so a
+  // "replies sent 3 days ago" makes the follow-up 3 days sooner. Clamped in the
+  // tracker to [openedAt, now]; an invalid/blank value falls back to today.
+  occurredAt?: string;
 }): Promise<{ ok: boolean }> {
   const userId = await assertInScope(input.transactionId);
   const mode = input.mode ?? "handover";
@@ -53,11 +58,18 @@ export async function logEnquiryMovementAction(input: {
   // history line when none is given, so the movement log always reads sensibly.
   const note =
     (input.note ?? "").trim() ||
-    (mode === "touch"
-      ? "They've been in touch, still with them"
-      : mode === "relabel"
-        ? `Corrected: now with ${flip ? courtLabel(flip) : "the other side"}`
-        : `Now with ${flip ? courtLabel(flip) : "the other side"}`);
+    (input.kind === "partial_replies"
+      ? "Some replies sent across"
+      : mode === "touch"
+        ? "They've been in touch, still with them"
+        : mode === "relabel"
+          ? `Corrected: now with ${flip ? courtLabel(flip) : "the other side"}`
+          : `Now with ${flip ? courtLabel(flip) : "the other side"}`);
+  let occurredAt: Date | undefined;
+  if (input.occurredAt) {
+    const d = new Date(input.occurredAt);
+    if (!Number.isNaN(d.getTime())) occurredAt = d;
+  }
   const ok = await logEnquiryMovement({
     transactionId: input.transactionId,
     note,
@@ -65,6 +77,7 @@ export async function logEnquiryMovementAction(input: {
     flipsCourtTo: mode === "touch" ? null : flip,
     mode,
     kind: input.kind,
+    occurredAt,
     createdByUserId: userId,
   });
   revalidatePath(`/transactions/${input.transactionId}`);
