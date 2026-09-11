@@ -113,7 +113,9 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   // The solicitor / agents sections live under the Settings tab, so a deep-link
   // must switch there first (it used to land on Documents and show nothing).
   useEffect(() => {
-    if (open && (scrollToSection === "solicitor" || scrollToSection === "agents")) setActiveTab("settings");
+    if (!open) return;
+    if (scrollToSection === "solicitor" || scrollToSection === "agents") setActiveTab("settings");
+    else if (scrollToSection === "information") setActiveTab("information");
   }, [open, scrollToSection]);
 
   // Switching tabs starts you back at the top of the new tab (not where the

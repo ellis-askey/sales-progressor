@@ -34,6 +34,8 @@ import { PortalCustomizeOverview } from "@/components/portal/PortalCustomizeOver
 import { recordPortalEvent } from "@/lib/services/portal-events";
 import { PortalRecap } from "@/components/portal/PortalRecap";
 import { timelineActor } from "@/lib/portal/timeline-actor";
+import { PortalTaskPrompt } from "@/components/portal/PortalTaskPrompt";
+import { prisma } from "@/lib/prisma";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -142,6 +144,15 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !isPortalAgentOnly(m.code) && m.isAvailable);
   const nextAction = available[0] ?? null;
   const comingUp   = available.slice(2, 5);
+
+  // Item B (task-driven): the Information prompt shows only when there's no step
+  // waiting for the client to confirm (that card wins), it's pre-exchange, and
+  // they haven't filled their move info in. A ClientMoveInfo row existing means
+  // they've engaged with it already.
+  const moveInfoRow = await prisma.clientMoveInfo
+    .findUnique({ where: { transactionId_side: { transactionId: transaction.id, side } }, select: { id: true } })
+    .catch(() => null);
+  const showInfoPrompt = !hasExchanged && !hasCompleted && moveInfoRow == null && !(nextAction && nextAction.who === "you");
 
   const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
   const recentActivity = timeline.slice(0, 3);
@@ -669,6 +680,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           whatHappensNext={getMilestoneCopy(nextAction.code).next ?? null}
         />
       )}
+
+      {/* ── Something you can do (item B — task-driven) ─────────────── */}
+      {showInfoPrompt && <PortalTaskPrompt token={token} side={side} />}
 
       {/* ── Add the expected exchange date to your calendar (pre-exchange) ── */}
       {!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && (
