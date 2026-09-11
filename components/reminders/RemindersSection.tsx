@@ -12,10 +12,8 @@ import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import type { Contact } from "@/components/reminders/ReminderCard";
 import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
-import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
 import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { LinkArrow } from "@/components/ui/LinkArrow";
-import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { Card } from "@/components/ui/Card";
@@ -64,16 +62,6 @@ type Props = {
   vendorSolicitor?: SolicitorRef | null;
   purchaserSolicitor?: SolicitorRef | null;
   propertyAddress?: string;
-  // Pending + sent-today + predicted-upcoming automated emails for this
-  // file. Surfaces as a compact card at the top of the tab; clicking
-  // opens a right-side drawer with the full grouped breakdown. Optional
-  // for callers that haven't yet wired it; defaults to empty (card
-  // shows the muted "no automated emails" line).
-  automatedEmails?: AutomatedEmailsPreview;
-  // Tx status — when "on_hold", the auto-emails card renders a paused
-  // state instead of pending/upcoming lists. When the file is reactivated
-  // automation resumes naturally.
-  transactionStatus?: "active" | "on_hold" | "completed" | "withdrawn" | "draft" | string;
 };
 
 // Urgency ranking drives the flat priority-stack order (worst first) and the
@@ -413,8 +401,6 @@ export function RemindersSection({
   vendorSolicitor = null,
   purchaserSolicitor = null,
   propertyAddress = "",
-  automatedEmails,
-  transactionStatus,
 }: Props) {
   const pathname = usePathname();
   const updateTabBadge = useTabBadge();
@@ -429,12 +415,6 @@ export function RemindersSection({
   // (attached to the list containers below) handles the fade-out + sibling
   // reflow. Reset whenever fresh server data arrives.
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
-  // Optimistic snooze → milestone code suppression. When a row is hidden
-  // by snooze, we also stash the row's target milestone code here so the
-  // AutomatedEmailsCard can locally filter its Upcoming list — the
-  // matching upcoming-chase entry vanishes the instant the snooze fires
-  // instead of sitting there during the server roundtrip.
-  const [optimisticallySnoozedCodes, setOptimisticallySnoozedCodes] = useState<Set<string>>(new Set());
   // Optimistic wakeup: log IDs the user has just woken up. Overrides the
   // snoozedUntil check in the active-logs filter so the row appears in
   // the appropriate active bucket immediately (instead of staying in the
@@ -448,7 +428,6 @@ export function RemindersSection({
   const [optimisticNextDueDate, setOptimisticNextDueDate] = useState<Map<string, Date>>(new Map());
   useEffect(() => {
     setHiddenIds(new Set());
-    setOptimisticallySnoozedCodes(new Set());
     setWokenUpIds(new Set());
     setOptimisticSnoozedUntil(new Map());
     setOptimisticNextDueDate(new Map());
@@ -588,11 +567,6 @@ export function RemindersSection({
     // via optimisticSnoozedUntil and the active filter will exclude it.
     const wakeUp = choiceWakeUp(choice);
     setOptimisticSnoozedUntil((prev) => new Map(prev).set(logId, wakeUp));
-    // Stash the milestone code so the auto-emails preview can suppress
-    // matching upcoming chases instantly.
-    const log = reminderLogs.find((l) => l.id === logId);
-    const code = log?.reminderRule.targetMilestoneCode;
-    if (code) setOptimisticallySnoozedCodes((prev) => new Set([...prev, code]));
     setLoading(taskId);
     toast.success(choiceToast(choice));
     startTransition(async () => {
@@ -609,12 +583,6 @@ export function RemindersSection({
       for (const id of logIds) next.set(id, wakeUp);
       return next;
     });
-    const codes = logIds
-      .map((id) => reminderLogs.find((l) => l.id === id)?.reminderRule.targetMilestoneCode)
-      .filter((c): c is string => !!c);
-    if (codes.length > 0) {
-      setOptimisticallySnoozedCodes((prev) => new Set([...prev, ...codes]));
-    }
     setLoading(taskIds[0] ?? "");
     toast.success(`${taskIds.length} ${taskIds.length === 1 ? "reminder" : "reminders"} snoozed`);
     startTransition(async () => {
@@ -685,19 +653,6 @@ export function RemindersSection({
           {loading === "engine" ? "Running…" : "↻ Run engine"}
         </button>
       </div>
-
-      {/* Automated-emails preview (Phase 4 of the email-preview arc) —
-        * compact one-line card at the top of the Reminders tab. Click opens
-        * a right-side drawer with pending + sent today + predicted upcoming.
-        * Only renders when the loader supplied data (optional prop). */}
-      {automatedEmails && (
-        <AutomatedEmailsCard
-          data={automatedEmails}
-          transactionId={transactionId}
-          optimisticallySnoozedCodes={optimisticallySnoozedCodes}
-          fileOnHold={transactionStatus === "on_hold"}
-        />
-      )}
 
       {/* Empty state */}
       {activeLogs.length === 0 && snoozedLogs.length === 0 && completedLogs.length === 0 && (

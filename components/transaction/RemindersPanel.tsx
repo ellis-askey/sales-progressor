@@ -2,11 +2,12 @@
 // Fetches the reminder logs + milestone codes (for the completedCodes
 // filter) and renders RemindersSection.
 //
-// The AutomatedEmailsCardAsync preview card was retired here on 2026-09-02
+// The automated-emails preview card was retired from this tab on 2026-09-02
 // (chase-consolidation D4): its next-chase view + edit/skip live in the Chase
 // timeline tab, its pause pill re-homed to that tab's header, and its
 // not-yet-started forecast stays in the full /agent/automated-emails log. The
-// card was duplicating the timeline. See docs/active/chase-consolidation/00-spec.md.
+// card was duplicating the timeline; its now-orphaned components were deleted
+// on 2026-09-10. See docs/active/chase-consolidation/00-spec.md.
 //
 // Reports the actionable-reminders count up to the tabs strip via
 // TabBadgeReporter.
@@ -74,7 +75,6 @@ export async function RemindersPanel({
         purchaserSolicitor={purchaserSolicitor}
         propertyAddress={propertyAddress}
         completedMilestoneCodes={completedMilestoneCodes}
-        transactionStatus={transactionStatus}
       />
     </div>
   );

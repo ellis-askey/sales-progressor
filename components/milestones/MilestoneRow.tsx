@@ -175,6 +175,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // Exchange celebration overlay
   const [celebrating, setCelebrating] = useState(false);
   const [celebrationAddress, setCelebrationAddress] = useState("");
+  const [celebrationExchangeDate, setCelebrationExchangeDate] = useState<string | undefined>(undefined);
+  const [celebrationCompletionDate, setCelebrationCompletionDate] = useState<string | undefined>(undefined);
 
   const isCompleted = optimisticState.isComplete;
   const isNotRequired = optimisticState.isNotRequired;
@@ -277,6 +279,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           }
         } else if (result.triggeredCelebration && result.propertyAddress) {
           setCelebrationAddress(result.propertyAddress);
+          setCelebrationExchangeDate(eventDate || undefined);
+          setCelebrationCompletionDate(undefined);
           setCelebrating(true);
         } else {
           const notified = result.notifications
@@ -319,6 +323,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           const addr = result.propertyAddress;
           setTimeout(() => {
             setCelebrationAddress(addr);
+            setCelebrationExchangeDate(ed);
+            setCelebrationCompletionDate(completionDate);
             setCelebrating(true);
           }, 200);
         } else {
@@ -786,6 +792,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       {celebrating && (
         <ExchangeCelebration
           address={celebrationAddress}
+          exchangeDate={celebrationExchangeDate}
+          completionDate={celebrationCompletionDate}
           onDismiss={() => setCelebrating(false)}
         />
       )}

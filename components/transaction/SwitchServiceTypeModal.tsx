@@ -17,36 +17,30 @@ type Props = {
   open: boolean;
   transactionId: string;
   current: ServiceType;
-  // True when a director is handing their own file over (not an internal admin
-  // switch). Tailors the copy: no internal-hub mention, second-person voice.
+  // Reserved: whether a director is handing their own file over vs an internal
+  // admin switch. The copy is unified across both now, so it's currently unused.
   agentHandover?: boolean;
   onClose: () => void;
 };
 
-export function SwitchServiceTypeModal({ open, transactionId, current, agentHandover = false, onClose }: Props) {
+export function SwitchServiceTypeModal({ open, transactionId, current, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const target: ServiceType = current === "self_managed" ? "outsourced" : "self_managed";
+  const toTSP = target === "outsourced";
 
-  // Direction-aware copy. Voice clean: no em-dashes, no "milestone" /
-  // "transaction" / "platform". Body explains what happens next so admin
-  // can confirm intent.
-  const title =
-    target === "outsourced"
-      ? agentHandover ? "Send this file to our team?" : "Switch to outsourced?"
-      : "Switch to self-progress?";
-  const body =
-    target === "outsourced"
-      ? agentHandover
-        ? "Our team will take this file over and progress it from here. You'll still see it and every update as it happens."
-        : "Our team will pick this file up and progress it from here. The agent will still see it and any updates as they happen. The file will land in 'Needs SP assigning' on the hub."
-      : "The agent will handle this file from here. Our team won't get any further updates about it.";
-  const confirmLabel =
-    target === "outsourced"
-      ? agentHandover ? "Send to our team" : "Switch to outsourced"
-      : "Switch to self-progress";
+  // Direction-aware copy. Header carries the title + a one-line lead; the body
+  // says what happens next. Voice clean: no em-dashes.
+  const title = toTSP ? "Switch to TSP progression?" : "Switch to self-progress?";
+  const subtitle = toTSP
+    ? "We'll take over the progression of this sale."
+    : "You'll take the progression back over.";
+  const body = toTSP
+    ? "Our team will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen."
+    : "Our team will stop progressing this sale, but everything already recorded will stay exactly where it is. You can continue from where we left off.";
+  const confirmLabel = toTSP ? "Switch to TSP progression" : "Switch to self-progress";
 
   // Reset error when the modal opens or the direction changes.
   useEffect(() => {
@@ -89,7 +83,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, agentHand
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
         <Modal.Header style={SHEET_BAND_STYLE}>
-          <SheetBandHeader kicker="Service type" title={title} />
+          <SheetBandHeader title={title} subtitle={subtitle} />
         </Modal.Header>
 
         <Modal.Body>
@@ -112,18 +106,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, agentHand
             type="button"
             onClick={safeClose}
             disabled={isPending}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--agent-text-secondary, #4b5563)",
-              background: "transparent",
-              border: "0.5px solid var(--agent-border-default, rgba(0,0,0,0.12))",
-              cursor: isPending ? "default" : "pointer",
-              opacity: isPending ? 0.5 : 1,
-            }}
-            className="hover:bg-black/[0.04]"
+            className="agent-btn agent-btn-ghost-bordered agent-btn-md"
           >
             Cancel
           </button>
@@ -131,36 +114,8 @@ export function SwitchServiceTypeModal({ open, transactionId, current, agentHand
             type="button"
             onClick={handleConfirm}
             disabled={isPending}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#fff",
-              background: "var(--agent-coral-deep, #E5502E)",
-              border: "none",
-              cursor: isPending ? "default" : "pointer",
-              opacity: isPending ? 0.7 : 1,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              minWidth: 140,
-              justifyContent: "center",
-            }}
+            className="agent-btn agent-btn-primary agent-btn-md"
           >
-            {isPending && (
-              <span
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  border: "2px solid rgba(255,255,255,0.35)",
-                  borderTopColor: "#fff",
-                  animation: "agent-spin 700ms linear infinite",
-                  display: "inline-block",
-                }}
-              />
-            )}
             {isPending ? "Switching…" : confirmLabel}
           </button>
         </Modal.Footer>

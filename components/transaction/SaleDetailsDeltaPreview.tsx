@@ -11,7 +11,7 @@ import { useState } from "react";
 import type { SaleDetailsDelta, SaleDetailsDeltaItem } from "@/app/actions/transactions";
 import { Pill } from "@/components/ui/Pill";
 
-function DeltaList({ label, items, color }: { label: string; items: SaleDetailsDeltaItem[]; color: "red" | "green" }) {
+function DeltaList({ label, items, color, showSide }: { label: string; items: SaleDetailsDeltaItem[]; color: "red" | "green"; showSide: boolean }) {
   const [expanded, setExpanded] = useState(items.length <= 5);
   if (items.length === 0) return null;
   const shown = expanded ? items : items.slice(0, 5);
@@ -26,11 +26,13 @@ function DeltaList({ label, items, color }: { label: string; items: SaleDetailsD
           <div key={item.id} className="px-3 py-2 flex items-center gap-2">
             <span className="flex-1 text-sm text-slate-700 leading-snug">{item.name}</span>
             {item.wasComplete && (
-              <Pill glass tone="warning" size="sm" className="flex-shrink-0">was complete</Pill>
+              <Pill glass tone="warning" size="sm" className="flex-shrink-0">Was complete</Pill>
             )}
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${c.side}`}>
-              {item.side === "vendor" ? "Seller" : "Buyer"}
-            </span>
+            {showSide && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${c.side}`}>
+                {item.side === "vendor" ? "Seller" : "Buyer"}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -44,27 +46,38 @@ function DeltaList({ label, items, color }: { label: string; items: SaleDetailsD
 }
 
 export function SaleDetailsDeltaPreview({ delta }: { delta: SaleDetailsDelta }) {
-  const hasStepChanges = delta.becomingNr.length > 0 || delta.becomingRequired.length > 0;
+  const allItems = [...delta.becomingNr, ...delta.becomingRequired];
+  const hasStepChanges = allItems.length > 0;
+  // The Seller/Buyer tag only earns its space when the change spans both
+  // sides (e.g. a tenure change). When every affected step is one side —
+  // like a purchase-type change, all buyer finances — it's just noise.
+  const showSide = new Set(allItems.map((i) => i.side)).size > 1;
+  const down = delta.projectedPercent < delta.currentPercent;
+  const up = delta.projectedPercent > delta.currentPercent;
   return (
     <>
-      <DeltaList label="These steps will be skipped" items={delta.becomingNr} color="red" />
-      <DeltaList label="These steps will be re-activated" items={delta.becomingRequired} color="green" />
+      <DeltaList label="These steps will be skipped" items={delta.becomingNr} color="red" showSide={showSide} />
+      <DeltaList label="These steps will be re-activated" items={delta.becomingRequired} color="green" showSide={showSide} />
       {hasStepChanges && (
-        <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 flex items-center gap-4">
-          <div className="text-center">
-            <p className="text-xs text-slate-400 mb-0.5">Current</p>
-            <p className="text-xl font-semibold text-slate-700">{delta.currentPercent}%</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{delta.currentRemaining} left</p>
-          </div>
-          <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-          </svg>
-          <div className="text-center">
-            <p className="text-xs text-slate-400 mb-0.5">After</p>
-            <p className={`text-xl font-semibold ${delta.projectedPercent > delta.currentPercent ? "text-emerald-600" : delta.projectedPercent < delta.currentPercent ? "text-orange-500" : "text-slate-700"}`}>
-              {delta.projectedPercent}%
-            </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{delta.projectedRemaining} left</p>
+        <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+          <p className="text-xs text-slate-500 mb-1.5">Sale progress</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <span className="block text-2xl font-bold text-slate-800 leading-none">{delta.currentPercent}%</span>
+              <span className="block text-[11px] text-slate-400 mt-1">{delta.currentRemaining} left</span>
+            </div>
+            <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+            <div>
+              <span
+                className="block text-2xl font-bold leading-none"
+                style={{ color: down ? "var(--agent-coral-deep)" : up ? "#059669" : "#334155" }}
+              >
+                {delta.projectedPercent}%
+              </span>
+              <span className="block text-[11px] text-slate-400 mt-1">{delta.projectedRemaining} left</span>
+            </div>
           </div>
         </div>
       )}

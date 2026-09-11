@@ -94,21 +94,22 @@ const SURVEY_OPTIONS: SurveyBookingOption[] = [
 
 const SURVEY_OPTIONS_SINGLE: SurveyBookingOption[] = [SURVEY_OPTIONS[0]];
 
-// Reopened-steps delta: 2 completed steps flip to not-required (loud warning).
+// Change to cash (cash buyer): the three mortgage steps drop to not-required.
+// Two were complete, so this fires the loud "confirmed work will be cleared"
+// warning. Nothing re-activates going TO cash — the deposit step only comes
+// back when a buyer LEAVES cash-from-proceeds. Real milestone names + codes.
 const DELTA_WITH_REOPEN: SaleDetailsDelta = {
   noChange: false,
   becomingNr: [
-    { id: "d-1", name: "Mortgage application submitted", code: "PM6", side: "purchaser", weight: 3, wasComplete: true },
-    { id: "d-2", name: "Mortgage valuation booked", code: "PM7", side: "purchaser", weight: 2, wasComplete: true },
-    { id: "d-3", name: "Mortgage offer received", code: "PM8", side: "purchaser", weight: 3, wasComplete: false },
+    { id: "d-1", name: "Submit mortgage application", code: "PM5", side: "purchaser", weight: 3, wasComplete: true },
+    { id: "d-2", name: "Lender valuation booked", code: "PM6", side: "purchaser", weight: 2, wasComplete: true },
+    { id: "d-3", name: "Mortgage offer received", code: "PM11", side: "purchaser", weight: 3, wasComplete: false },
   ],
-  becomingRequired: [
-    { id: "d-4", name: "Proof of funds received", code: "PM4", side: "purchaser", weight: 2, wasComplete: false },
-  ],
+  becomingRequired: [],
   currentPercent: 64,
-  projectedPercent: 52,
+  projectedPercent: 58,
   currentRemaining: 9,
-  projectedRemaining: 11,
+  projectedRemaining: 8,
 };
 
 const DELTA_NO_CHANGES: SaleDetailsDelta = {
@@ -351,14 +352,20 @@ export const MODAL_ENTRIES: SheetEntry[] = [
     usedIn: "Property file · confetti overlay on exchange",
     file: "components/milestones/ExchangeCelebration.tsx",
     componentName: "ExchangeCelebration",
-    note: "Confetti canvas fires for ~3s on mount (respects reduced-motion). Tap backdrop or Continue to dismiss.",
+    note: "Hero with theme background image (light/dark), 4-step progress with red tick discs + a key on Completion, exchange/completion date cards, and a Continue-to-completion button (arrow slides on hover). Warm confetti fires for ~3s on mount (respects reduced-motion). Tap backdrop or Continue to dismiss.",
     preview: "overlay",
     states: [
       { id: "short", label: "Short address" },
-      { id: "long", label: "Long address", hint: "wraps the address line" },
+      { id: "long", label: "Long address", hint: "address stays within the left half" },
+      { id: "no-completion", label: "No completion date", hint: "shows the fallback" },
     ],
     render: ({ stateId, onClose }) => (
-      <ExchangeCelebration address={stateId === "long" ? LONG_ADDRESS : ADDRESS} onDismiss={onClose} />
+      <ExchangeCelebration
+        address={stateId === "long" ? LONG_ADDRESS : ADDRESS}
+        exchangeDate="2026-09-11"
+        completionDate={stateId === "no-completion" ? undefined : "2026-09-18"}
+        onDismiss={onClose}
+      />
     ),
   },
 
@@ -389,10 +396,10 @@ export const MODAL_ENTRIES: SheetEntry[] = [
     usedIn: "Property hero · admin only",
     file: "components/transaction/SwitchServiceTypeModal.tsx",
     componentName: "SwitchServiceTypeModal",
-    note: "Direction-aware copy. Confirm calls switchServiceTypeAction with DEMO_TX_ID (no record, so it returns an error rather than switching).",
+    note: "Direction-aware copy (title + lead in the header, detail in the body). Confirm calls switchServiceTypeAction with DEMO_TX_ID (no record, so it returns an error rather than switching).",
     preview: "overlay",
     states: [
-      { id: "to-outsourced", label: "To outsourced", hint: "current = self-managed" },
+      { id: "to-outsourced", label: "To TSP progression", hint: "current = self-managed" },
       { id: "to-self", label: "To self-progress", hint: "current = outsourced" },
     ],
     render: ({ open, stateId, onClose }) => (

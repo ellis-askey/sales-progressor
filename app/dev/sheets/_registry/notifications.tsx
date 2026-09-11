@@ -56,7 +56,6 @@ import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentionPanel";
 import { FileAlertsStrip } from "@/components/reminders/FileAlertsStrip";
-import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
 
 // ── Full-page empty states ──────────────────────────────────────────────────
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
@@ -73,7 +72,6 @@ import type {
   NeedsAttention,
 } from "@/lib/services/automated-emails-overview";
 import type { WorkQueueItem } from "@/lib/services/work-queue";
-import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 import type { NoChainSale } from "@/lib/services/chains";
 
 // ── Local fixtures ──────────────────────────────────────────────────────────
@@ -302,105 +300,6 @@ const WORK_QUEUE_ITEMS: WorkQueueItem[] = [
     createdAt: D("2026-05-20"),
   },
 ];
-
-const PAUSE_HEALTHY = {
-  globalDisabled: false,
-  agencyDisabled: false,
-  fileDisabled: false,
-  activePauseReason: null,
-  agencyName: null,
-} as const;
-
-const AUTO_EMAILS_EMPTY: AutomatedEmailsPreview = {
-  pending: [],
-  sentToday: [],
-  upcoming: [],
-  pauseState: { ...PAUSE_HEALTHY },
-};
-
-const AUTO_EMAILS_POPULATED: AutomatedEmailsPreview = {
-  pending: [
-    {
-      id: "demo-p1",
-      emailType: "chase_searches",
-      category: "chase",
-      recipientName: "Margaret Osei-Bonsu",
-      recipientRole: "solicitor",
-      subject: "Searches on 14 Oakwood Avenue",
-      scheduledFor: D("2026-09-03T08:30:00Z"),
-    },
-  ],
-  sentToday: [
-    {
-      id: "demo-s1",
-      emailType: "milestone_update",
-      category: "notification",
-      recipientName: NAME,
-      recipientRole: "vendor",
-      subject: "An update on your sale",
-      sentAt: D("2026-09-03T07:10:00Z"),
-      deliveryStatus: "delivered",
-      deliveredAt: D("2026-09-03T07:11:00Z"),
-      deferredAt: null,
-      deferredCount: 0,
-      deferredReason: null,
-      bouncedAt: null,
-      bouncedReason: null,
-      blockedAt: null,
-      blockedReason: null,
-    },
-    {
-      id: "demo-s2",
-      emailType: "chase_mortgage",
-      category: "chase",
-      recipientName: "Tom & Rebecca Whitfield",
-      recipientRole: "purchaser",
-      subject: "Mortgage offer chase",
-      sentAt: D("2026-09-03T07:20:00Z"),
-      deliveryStatus: "bounced",
-      deliveredAt: null,
-      deferredAt: null,
-      deferredCount: 0,
-      deferredReason: null,
-      bouncedAt: D("2026-09-03T07:21:00Z"),
-      bouncedReason: "Mailbox full",
-      blockedAt: null,
-      blockedReason: null,
-    },
-  ],
-  upcoming: [
-    {
-      contactId: "demo-c1",
-      contactName: NAME,
-      contactRole: "vendor",
-      milestoneCode: "searches_ordered",
-      milestoneLabel: "Searches ordered",
-      predictedFireDate: D("2026-09-05T08:30:00Z"),
-      chaseNumber: 1,
-    },
-    {
-      contactId: "demo-c2",
-      contactName: "Margaret Osei-Bonsu",
-      contactRole: "solicitor",
-      milestoneCode: "enquiries_raised",
-      milestoneLabel: "Enquiries raised",
-      predictedFireDate: D("2026-09-09T08:30:00Z"),
-      chaseNumber: 2,
-    },
-  ],
-  pauseState: { ...PAUSE_HEALTHY },
-};
-
-const AUTO_EMAILS_PAUSED: AutomatedEmailsPreview = {
-  ...AUTO_EMAILS_POPULATED,
-  pauseState: {
-    globalDisabled: false,
-    agencyDisabled: true,
-    fileDisabled: false,
-    activePauseReason: "agency",
-    agencyName: AGENCY,
-  },
-};
 
 // ── NoChainSetupCard fixtures ────────────────────────────────────────────────
 
@@ -1033,33 +932,6 @@ export const NOTIFICATION_ENTRIES: SheetEntry[] = [
     render: ({ stateId }) => (
       <FileAlertsStrip items={stateId === "single" ? WORK_QUEUE_ITEMS.slice(0, 1) : WORK_QUEUE_ITEMS} />
     ),
-  },
-  {
-    id: "notice-automated-emails-card",
-    name: "Automated emails card",
-    type: "notification",
-    area: "Auto emails",
-    usedIn: "Reminders section · per-file automation accordion",
-    file: "components/reminders/AutomatedEmailsCard.tsx",
-    componentName: "AutomatedEmailsCard",
-    note: "Per-file accordion: pending now / sent today (with delivery chips) / upcoming predicted. Click the header to expand. States cover empty, populated, agency-paused, and file-on-hold.",
-    preview: "inline",
-    states: [
-      { id: "populated", label: "Populated" },
-      { id: "empty", label: "Empty" },
-      { id: "paused", label: "Agency paused" },
-      { id: "on-hold", label: "File on hold" },
-    ],
-    render: ({ stateId }) => {
-      if (stateId === "on-hold") {
-        return <AutomatedEmailsCard data={AUTO_EMAILS_EMPTY} transactionId={DEMO_TX_ID} fileOnHold />;
-      }
-      if (stateId === "empty") {
-        return <AutomatedEmailsCard data={AUTO_EMAILS_EMPTY} transactionId={DEMO_TX_ID} />;
-      }
-      const data = stateId === "paused" ? AUTO_EMAILS_PAUSED : AUTO_EMAILS_POPULATED;
-      return <AutomatedEmailsCard data={data} transactionId={DEMO_TX_ID} />;
-    },
   },
 
   // ══ Full-page empty states ════════════════════════════════════════════════

@@ -3,9 +3,9 @@
 // Confirm dialog for an inline purchase-type / tenure change made from the
 // hero. Reuses the canonical Modal primitive and the shared
 // SaleDetailsDeltaPreview so it renders the same impact preview the edit
-// drawer shows. Completed steps that will be reopened are called out loudly
-// at the top, because reversing confirmed work is the one consequence an
-// agent must not miss.
+// drawer shows. Completed steps that will be skipped (their completion
+// cleared) are called out loudly at the top, because reversing confirmed
+// work is the one consequence an agent must not miss.
 
 import { Warning } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/Modal";
@@ -39,7 +39,7 @@ export function SaleDetailChangeModal({
   return (
     <Modal open={open} onClose={onClose} ariaLabel={title} size="md" dismissOnBackdrop={!confirming} closeTone="onDark">
       <Modal.Header style={SHEET_BAND_STYLE}>
-        <SheetBandHeader kicker="Sale details" title={title} />
+        <SheetBandHeader title={title} subtitle="We'll skip the steps that no longer apply and bring back any that do." />
       </Modal.Header>
 
       <Modal.Body>
@@ -62,7 +62,7 @@ export function SaleDetailChangeModal({
               >
                 <Warning size={16} weight="fill" style={{ color: "#c2410c", flexShrink: 0, marginTop: 1 }} />
                 <p style={{ margin: 0, fontSize: 12.5, color: "#9a3412", lineHeight: 1.45 }}>
-                  {reopened} completed step{reopened === 1 ? "" : "s"} will be reopened. You can confirm {reopened === 1 ? "it" : "them"} again afterwards.
+                  {reopened} completed step{reopened === 1 ? "" : "s"} will be skipped. This removes the completed status from work you&apos;ve already confirmed.
                 </p>
               </div>
             )}
