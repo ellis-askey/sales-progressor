@@ -4329,3 +4329,22 @@ model VoiceProfile {
   generatedAt     DateTime?
   sampleCount     Int      @default(0) // how many edits the current profile was built from
 }
+
+// Content & Personal Brand: platform adaptations (docs/active/content-brand/
+// SPEC.md, Phase 4.1). One core post, adapted per platform rather than copied:
+// LinkedIn the fullest, Instagram a visual-first caption + a recommended
+// treatment, Facebook a more conversational take. One row per (draft, platform).
+model PostAdaptation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  draftPostId String
+  platform    String // linkedin | instagram | facebook
+  treatment   String? // text | static | carousel | screenshot | data_graphic | short_video
+  text        String
+  mediaHint   String? // what the visual should show (Instagram)
+
+  @@unique([draftPostId, platform])
+  @@index([draftPostId])
+}

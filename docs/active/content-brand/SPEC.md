@@ -1,6 +1,14 @@
 # Content & Personal Brand — Command Centre area
 
-**Status:** Phase 1 complete (Thoughts, Brand memory, Inbox, Creation flow, Overview). Phase 2 in progress. Spec created 2026-09-09.
+**Status:** Phases 1-3 complete (Thoughts, Brand memory, Inbox, Creation flow, Overview; Opportunities, Pillars+balance, Strategy+review; Composer, AI-tell detector, Voice learning). Phases 4-6 in progress. Spec created 2026-09-09.
+
+**Phase 4-6 slice plan** (built on the same seams; parts that need real publishing/analytics integrations ship as honest "not connected" states until Ellis wires them, surfaced in ELLIS_MANUAL_TODO):
+- **P4.1** Platform adaptation: one core post → LinkedIn (fullest) / Instagram (recommended visual treatment + caption) / Facebook (adapted, not cloned). `PostAdaptation` model, AI adapt endpoint, composer "Adapt for platforms".
+- **P4.2** Media treatment suggestions: for a post, recommend the visual treatment and hand off to the existing image generator (text card / chart / screenshot / AI image).
+- **P5.1** Calendar + pipeline: `DraftPost` gets a schedule status + scheduledFor; a calendar view with reschedule; "Scheduled" = prepared + a daily reminder digest (no auto-publish; Vercel Hobby-safe cron).
+- **P5.2** Proposed weekly schedule + autopilot levels: AI proposes a week from inbox/opportunities/balance for wholesale approval; autopilot settings (manual → assisted → trusted → autopilot) + per-category approval, with the hard guardrails. Autopilot cannot publish until an integration exists (honest gate).
+- **P6.1** Publishing seam + UTM: a publishing-provider abstraction with a "not connected" state (manual setup in ELLIS_MANUAL_TODO), and UTM tagging on any links so future attribution works.
+- **P6.2** Performance + attribution: per-post performance view reusing `ContentEngagement`, audience-quality read, and PostHog-based "which posts drive the right visitors" with honest empty states until data exists.
 **Surface:** Command Centre (`superadmin` only), routes under `app/command/(protected)/`.
 **Owner decision:** Extend & absorb the existing content system · Phase 1 = Inbox + Brand Memory + Thoughts + creation flow · scheduling is "prepared + copy + reminder" until publishing APIs are wired (all confirmed by Ellis 2026-09-09).
 

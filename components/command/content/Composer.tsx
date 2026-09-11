@@ -5,6 +5,7 @@ import { markAsPostedAction, discardDraftAction, approveForBatchAction, removeFr
 import { captureVoiceEditAction } from "@/app/actions/voice-learning";
 import { REFINE_ACTIONS, type PromoIntensity } from "@/lib/command/content/refine-actions";
 import { detectAiTells } from "@/lib/command/content/ai-tell";
+import { AdaptPanel } from "@/components/command/content/AdaptPanel";
 
 // Premium composer (docs/active/content-brand/SPEC.md, Phase 3.1). The post
 // dominates. A calm toolbar of substance-steering AI actions, a low-to-high
@@ -235,6 +236,9 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
           Discard
         </button>
       </div>
+
+      {/* Platform adaptation */}
+      <AdaptPanel draftId={draftId} text={text} />
     </div>
   );
 }
