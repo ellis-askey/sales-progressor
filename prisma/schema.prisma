@@ -650,6 +650,7 @@ model PropertyTransaction {
   whatsAppGroupMappings WhatsAppGroupMapping[]
   hubCardDismissals HubCardDismissal[]
   milestoneProposals MilestoneProposal[]
+  agentRuns AgentRun[]
 
   @@index([serviceType, createdAt])
 }
@@ -2356,15 +2357,90 @@ model MilestoneProposal {
   emailFrom             String?
   emailSubject          String?
   emailSnippet          String?
-  status                String    @default("pending") // pending | approved | dismissed
+  status                String    @default("pending") // pending | approved | dismissed | superseded
   decidedAt             DateTime?
   decidedById           String?
   createdAt             DateTime  @default(now())
+  // Progression-agent link: which AgentRun produced this proposal (null for
+  // legacy proposals made by the pre-agent interpreter).
+  agentRunId            String?
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
   @@index([transactionId])
+  @@index([agentRunId])
+}
+
+// ─── Progression Agent (shadow mode) ───────────────────────────────────────
+// One AI reasoning pass triggered by one inbound (Outlook) email that was
+// matched to a transaction. SHADOW-ONLY in v1: the agent records what it WOULD
+// do; it never mutates transaction state. AgentRun/AgentAction are the
+// AUTHORITATIVE AI audit records (Event/recordEvent is a fail-soft sidecar).
+// This is deliberately specific to the progression use case — not a generic
+// agent framework. See docs/active/progression-agent/.
+model AgentRun {
+  id               String    @id @default(cuid())
+  transactionId    String
+  agencyId         String?
+  triggerType      String    @default("inbound_email")
+  triggerMessageId String    @unique // the inbound OutboundMessage; unique = idempotency guard
+  provider         String              // e.g. "anthropic"
+  model            String
+  promptVersion    String
+  status           String    @default("running") // running | completed | failed
+  outcome          String?             // proposed | no_action | error
+  // The agent's concise, human-readable assessment (never raw chain-of-thought).
+  understood       String?             // what it understood from the email
+  changed          String?             // what it believes materially changed
+  waitingOn        String?             // who/what it believes the file now waits for
+  nextExpected     String?             // the next expected event/action
+  reasoningSummary String?             // one-paragraph summary of its reasoning
+  confidence       String?             // overall high | medium | low
+  humanAttention   Boolean   @default(false)
+  toolCallCount    Int       @default(0)
+  tokensIn         Int?
+  tokensOut        Int?
+  errorMessage     String?
+  startedAt        DateTime  @default(now())
+  finishedAt       DateTime?
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  actions     AgentAction[]
+
+  @@index([transactionId, startedAt])
+  @@index([status, startedAt])
+  @@index([outcome, startedAt])
+}
+
+// One proposed action within a run. SHADOW-ONLY: never executed. `outcome`
+// records what would have happened if the agent had had autonomy, including
+// deterministic business-rule validation (e.g. a milestone confirm whose
+// prerequisites are unmet is recorded "blocked").
+model AgentAction {
+  id                  String    @id @default(cuid())
+  agentRunId          String
+  actionType          String    // confirmMilestone | addInternalNote | setWaitingOn | createTask | resolveTask | escalateToHuman | doNothing
+  input               Json      // the validated proposed input
+  confidence          String?   // high | medium | low
+  outcome             String    // shadow_proposed | blocked | flagged | no_action
+  blockedReason       String?   // e.g. "PREREQUISITES_NOT_COMPLETE: PM8"
+  evidence            String?   // short justification/paraphrase from the email (not chain-of-thought)
+  evidenceMessageId   String?   // the triggering OutboundMessage
+  targetType          String?   // milestone | note | waiting_on | task
+  targetRef           String?   // e.g. the milestone code
+  milestoneProposalId String?   // the MilestoneProposal this produced, where applicable
+  // Review/correction linkage — set when the linked MilestoneProposal is decided.
+  reviewStatus        String?   // approved | dismissed | superseded
+  reviewedAt          DateTime?
+  reviewedById        String?
+  createdAt           DateTime  @default(now())
+
+  agentRun AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+
+  @@index([agentRunId])
+  @@index([actionType, outcome])
+  @@index([milestoneProposalId])
 }
 
 // â”€â”€â”€ NextAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

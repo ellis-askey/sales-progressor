@@ -51,6 +51,10 @@ export async function approveProposalAction(
         where: { id: p.id },
         data: { status: "superseded", decidedAt: new Date(), decidedById: session.user.id },
       });
+      // Mirror the decision onto the shadow-agent action (correction tracking).
+      await prisma.agentAction
+        .updateMany({ where: { milestoneProposalId: p.id }, data: { reviewStatus: "superseded", reviewedAt: new Date(), reviewedById: session.user.id } })
+        .catch(() => {});
       revalidatePath("/command/proposals");
       return { ok: false, cleared: true, error: "That step was already confirmed on the file, so nothing was sent. Cleared from your list." };
     }
@@ -84,6 +88,11 @@ export async function approveProposalAction(
     where: { id: p.id },
     data: { status: "approved", decidedAt: new Date(), decidedById: session.user.id },
   });
+  // Mirror the decision onto the shadow-agent action so we can later measure
+  // how often the agent's proposals were approved vs dismissed (calibration).
+  await prisma.agentAction
+    .updateMany({ where: { milestoneProposalId: p.id }, data: { reviewStatus: "approved", reviewedAt: new Date(), reviewedById: session.user.id } })
+    .catch(() => {});
   revalidatePath("/command/proposals");
   return { ok: true };
 }
@@ -110,6 +119,9 @@ export async function dismissProposalAction(
     where: { id: p.id },
     data: { status: "dismissed", decidedAt: new Date(), decidedById: session.user.id },
   });
+  await prisma.agentAction
+    .updateMany({ where: { milestoneProposalId: p.id }, data: { reviewStatus: "dismissed", reviewedAt: new Date(), reviewedById: session.user.id } })
+    .catch(() => {});
   revalidatePath("/command/proposals");
   return { ok: true };
 }
