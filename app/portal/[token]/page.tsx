@@ -31,6 +31,7 @@ import { PortalOverviewHero, type OverviewTile } from "@/components/portal/Porta
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
 import { PortalCustomizeOverview } from "@/components/portal/PortalCustomizeOverview";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -69,6 +70,9 @@ export default async function PortalHomePage({
 const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const otherSide = side === "vendor" ? "purchaser" : "vendor";
   const saleWord  = side === "vendor" ? "sale" : "purchase";
+
+  // Portal Engagement v2 (Phase 1): section view. Fire-and-forget, best-effort.
+  void recordPortalEvent("portal_section_viewed", contact.id, { section: "overview" });
 
   const ownScope   = portalOwnSideScope(contact, transaction);
   const otherScope = portalOtherSideScope(contact, transaction);
@@ -511,6 +515,10 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // done, or after exchange/completion. Reactive to milestone state.
   const pm5Done            = isMilestoneCompleteByCode("PM5");
   const showBrokerCard     = side === "purchaser" && brokerCard !== null && instructedDone && !pm5Done && !hasExchanged && !hasCompleted;
+  // Portal Engagement v2 (Phase 1): top of the service funnel — a service was
+  // actually shown to this client. "clicked"/"requested" are logged elsewhere.
+  if (showSurveyQuote) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "survey" });
+  if (showBrokerCard)  void recordPortalEvent("portal_service_surfaced", contact.id, { service: "broker" });
   const showSurveyStatus   = (side === "purchaser" || (side === "vendor" && buyingOnward)) && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
   const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;

@@ -9,6 +9,7 @@ import { getOnwardTrackerView, getRelatedSaleSignalForFile } from "@/lib/service
 import { prisma } from "@/lib/prisma";
 import { P } from "@/components/portal/portal-ui";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 
 const POST_EXCHANGE_PORTAL = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const EXCHANGE_GATES_PORTAL = new Set(["VM18", "PM25"]);
@@ -43,6 +44,8 @@ export default async function PortalProgressPage({
   const { token } = await params;
   const result = await getPortalData(token);
   if (!result || result.kind === "deadRound") notFound();
+  // Portal Engagement v2 (Phase 1): section view. Fire-and-forget, best-effort.
+  void recordPortalEvent("portal_section_viewed", result.data.contact.id, { section: "progress" });
   const data = result.data;
 
   const { contact, transaction } = data;

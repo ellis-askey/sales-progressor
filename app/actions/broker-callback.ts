@@ -33,6 +33,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 import { sendChainEmail } from "@/lib/email";
 import { outwardCode } from "@/lib/utils/address";
 import { resolveBroker, resolveBrokerServiceType } from "@/lib/services/broker-card";
@@ -202,6 +203,11 @@ export async function requestBrokerCallbackAction(
     where: { id: contact.id },
     data: { brokerCallbackRequestedAt: new Date() },
   });
+
+  // Portal Engagement v2 (Phase 1): the buyer acted on the broker card.
+  // Fire-and-forget, best-effort; fires on the genuine first request only
+  // (the co-buyer idempotent path above returns before this).
+  void recordPortalEvent("portal_service_clicked", contact.id, { service: "broker" });
 
   const settings = (contact.portalSettings ?? null) as { whatsappOptIn?: boolean } | null;
   const methodWord = settings?.whatsappOptIn ? "WhatsApp" : "phone or email";

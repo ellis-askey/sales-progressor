@@ -7,6 +7,7 @@ import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
 import { DeadRoundNotice } from "@/components/portal/DeadRoundNotice";
 import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { authOptions } from "@/lib/auth";
@@ -109,6 +110,11 @@ export default async function PortalLayout({
       // unique (contactId, day) index — the risk engine reads this history
       // to spot a client who was engaged and then went quiet.
       const day = toUKDateStr(now);
+      // Was today already logged? Drives the "returned on a new day" signal below.
+      const alreadyToday = await prisma.portalVisit.findUnique({
+        where:  { contactId_day: { contactId: contact.id, day } },
+        select: { contactId: true },
+      }).catch(() => null);
       await prisma.portalVisit.upsert({
         where:  { contactId_day: { contactId: contact.id, day } },
         create: { contactId: contact.id, day },
@@ -118,6 +124,17 @@ export default async function PortalLayout({
         contactId:     contact.id,
         transactionId: transaction.id,
       });
+      // Portal Engagement v2 (Phase 1): a genuine RETURN — the first open of a
+      // NEW UK day when they've already visited on at least one prior day. Fires
+      // at most once per new day, so it means "came back", not "opened again".
+      if (!alreadyToday) {
+        const priorDays = await prisma.portalVisit
+          .count({ where: { contactId: contact.id, day: { not: day } } })
+          .catch(() => 0);
+        if (priorDays >= 1) {
+          void recordPortalEvent("portal_returned", contact.id, { visitDay: day, priorDays });
+        }
+      }
     }
   })();
 

@@ -9,6 +9,7 @@ import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { UserCircle, FileText } from "@phosphor-icons/react/dist/ssr";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 
 // Method → the standard PortalPill tone + label (was a bespoke flat pill).
 const METHOD_META: Record<string, { label: string; tone: PortalPillTone }> = {
@@ -72,6 +73,8 @@ export default async function PortalUpdatesPage({
   const result = await getPortalData(token);
   if (!result || result.kind === "deadRound") notFound();
   const data = result.data;
+  // Portal Engagement v2 (Phase 1): section view. Fire-and-forget, best-effort.
+  void recordPortalEvent("portal_section_viewed", data.contact.id, { section: "updates" });
 
   const { contact, transaction } = data;
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";

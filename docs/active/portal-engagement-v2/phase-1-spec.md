@@ -95,7 +95,7 @@ Today `PortalShell.tsx:144-148` only ever *clears* the OS badge on open; the in-
 ## 7. Emit points for the passive events (PR2, backend only, NOT client-visible)
 
 - `portal_returned` — in the visit path (`app/portal/[token]/layout.tsx:93-122`), inside the existing 5-min debounce, only when this is a 2nd+ distinct `PortalVisit` day for the contact (so it means "returned", not "first visit").
-- `portal_section_viewed` — on Overview / Progress / Updates render (`page.tsx`, `progress/page.tsx`, `updates/page.tsx`), debounced per tab per session.
+- `portal_section_viewed` — on Overview / Progress / Updates render (`page.tsx`, `progress/page.tsx`, `updates/page.tsx`). **As built:** emitted per page load (per request), fire-and-forget. At pilot scale this is fine; if volume warrants, add a client-side per-session debounce later.
 - `portal_service_surfaced` — where the survey/broker cards decide to render (`page.tsx` `showSurveyQuote` / `showBrokerCard`).
 - `portal_service_clicked` — on the survey card `Link` and the broker card CTA.
 

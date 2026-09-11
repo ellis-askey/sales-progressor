@@ -15,6 +15,7 @@ import { outwardCode } from "@/lib/utils/address";
 import { getOnwardSignalForFile } from "@/lib/services/onward";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { recordPortalEvent } from "@/lib/services/portal-events";
 import { QuoteFlow } from "./QuoteFlow";
 import { A } from "./ui";
 import "@/app/styles/elevra.css";
@@ -64,6 +65,10 @@ export default async function QuotePage({
   });
 
   if (!contact) notFound();
+
+  // Portal Engagement v2 (Phase 1): reaching the quote flow means the client
+  // acted on the survey card. Fire-and-forget, best-effort.
+  void recordPortalEvent("portal_service_clicked", contact.id, { service: "survey", onward });
 
   // Onward mode: point the whole picker at the property they're buying (from
   // the chain link above their file), not the file's own address.
