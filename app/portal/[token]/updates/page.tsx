@@ -7,8 +7,9 @@ import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides"
 import { P, PortalPill, type PortalPillTone } from "@/components/portal/portal-ui";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
-import { UserAvatar } from "@/components/ui/Avatar";
-import { UserCircle, FileText } from "@phosphor-icons/react/dist/ssr";
+import { ActorAvatar } from "@/components/ui/Avatar";
+import { FileText } from "@phosphor-icons/react/dist/ssr";
+import { timelineActor } from "@/lib/portal/timeline-actor";
 import { recordPortalEvent } from "@/lib/services/portal-events";
 
 // Method → the standard PortalPill tone + label (was a bespoke flat pill).
@@ -148,24 +149,16 @@ export default async function PortalUpdatesPage({
                       defaultVariant="v26"
                       className="flex items-start gap-3.5 px-5 py-4"
                     >
-                      {/* Avatar. Own side: the client's own photo on steps they
-                          confirmed, the team member's photo on steps we
-                          confirmed, else our bright orange icon. Other side:
-                          always a green icon, never a photo (we don't share the
-                          other side's pictures across the deal). */}
+                      {/* Branded tsp-avatar, coloured by role (seller blue /
+                          buyer green / team orange / solicitor grey), photo
+                          overriding. Shared with the recap + Latest-updates via
+                          timelineActor. */}
                       {(() => {
-                        const isOtherSide = entry.side !== side;
-                        const photo = isOtherSide
-                          ? null
-                          : entry.confirmedByClient
-                            ? entry.confirmedByContactImage
-                            : entry.completedByImage;
-                        return photo ? (
+                        const a = timelineActor(entry, side);
+                        return (
                           <div className="flex-shrink-0 mt-0.5">
-                            <UserAvatar user={{ name: entry.confirmedByClient ? "You" : (entry.completedByName ?? "Your team"), image: photo }} size={32} />
+                            <ActorAvatar name={a.name} role={a.role} image={a.image} size={32} />
                           </div>
-                        ) : (
-                          <UserCircle size={32} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: isOtherSide ? P.success : P.primary }} />
                         );
                       })()}
                       <div className="flex-1 min-w-0">
@@ -278,7 +271,9 @@ export default async function PortalUpdatesPage({
                     defaultVariant="v26"
                     className="flex items-start gap-3.5 px-5 py-4"
                   >
-                    <UserCircle size={32} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: P.primary }} />
+                    <div className="flex-shrink-0 mt-0.5">
+                      <ActorAvatar name="Your team" role="progressor" size={32} />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>
                         {stripCommsLinksSilent(entry.content)}

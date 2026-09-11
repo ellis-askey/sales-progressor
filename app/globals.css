@@ -557,6 +557,11 @@ body {
 .portal-chev:hover .portal-chev-i,
 .portal-chev:focus-visible .portal-chev-i { transform: translateX(4px); }
 
+/* Recap footer "View all updates" — deepen the blue on hover/focus. */
+.portal-recap-viewall { transition: color 150ms ease; }
+.portal-recap-viewall:hover,
+.portal-recap-viewall:focus-visible { color: var(--portal-primaryDark, #2563EB); }
+
 /* Quiet loading placeholder — a soft sweep rather than the word "Loading". */
 .portal-shimmer {
   background: var(--nv2-skeleton, rgba(15,23,42,0.08));

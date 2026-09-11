@@ -18,9 +18,15 @@ import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 import { PortalGlassCard } from "./PortalGlassCard";
+import { ActorAvatar } from "@/components/ui/Avatar";
+import type { TimelineActor } from "@/lib/portal/timeline-actor";
 import { portalTrackRecapClickAction } from "@/app/actions/portal";
 
-export type RecapItem = { id: string; title: string };
+// Per-row leading avatar is the shared branded tsp-avatar (ActorAvatar):
+// seller blue / buyer green / progressor|agent orange / solicitor grey, with the
+// person's photo when we have it. Identical treatment to the Updates tab and the
+// Latest-updates card — see lib/portal/timeline-actor.ts.
+export type RecapItem = { id: string; title: string; actor: TimelineActor };
 
 export function PortalRecap({
   token,
@@ -54,29 +60,26 @@ export function PortalRecap({
           key={it.id}
           href={updatesHref}
           onClick={track}
-          className="px-5 py-4 flex items-start gap-3"
+          className="portal-chev px-5 py-4 flex items-center gap-3"
           style={{
             borderBottom: i < items.length - 1 ? `1px solid ${P.border}` : undefined,
             textDecoration: "none",
           }}
         >
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0 mt-2"
-            style={{ background: P.primary }}
-            aria-label="New"
-            title="New"
-          />
+          <ActorAvatar name={it.actor.name} role={it.actor.role} image={it.actor.image} size={28} className="flex-shrink-0" />
           <p className="flex-1 min-w-0 text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>
             {it.title}
           </p>
-          <CaretRight size={16} weight="bold" style={{ color: P.textMuted, flexShrink: 0, marginTop: 2 }} aria-hidden />
+          <span className="portal-chev-i" style={{ display: "inline-flex", flexShrink: 0 }}>
+            <CaretRight size={16} weight="bold" style={{ color: P.textMuted }} aria-hidden />
+          </span>
         </Link>
       ))}
 
       <Link
         href={updatesHref}
         onClick={track}
-        className="block text-center px-5 py-3 text-[13px] font-semibold"
+        className="portal-recap-viewall block text-center px-5 py-3 text-[13px] font-semibold"
         style={{ color: P.accent, textDecoration: "none", borderTop: `1px solid ${P.border}` }}
       >
         {extraCount > 0 ? `View all updates (${extraCount} more)` : "View all updates"}

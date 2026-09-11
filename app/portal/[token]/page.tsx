@@ -21,8 +21,8 @@ import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBa
 import { PortalExchangeDaySection } from "@/components/portal/PortalExchangeDaySection";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
-import { Lightbulb, UserCircle } from "@phosphor-icons/react/dist/ssr";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { ActorAvatar } from "@/components/ui/Avatar";
 import { portalConfirmationSentence } from "@/lib/updates-copy";
 import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
@@ -33,6 +33,7 @@ import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
 import { PortalCustomizeOverview } from "@/components/portal/PortalCustomizeOverview";
 import { recordPortalEvent } from "@/lib/services/portal-events";
 import { PortalRecap } from "@/components/portal/PortalRecap";
+import { timelineActor } from "@/lib/portal/timeline-actor";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -176,7 +177,9 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
     } else {
       title = stripCommsLinksSilent(entry.content ?? "").trim();
     }
-    return { id: entry.id, title };
+    // Leading avatar: the shared branded tsp-avatar (seller blue / buyer green /
+    // team orange / solicitor grey, photo overriding). See timelineActor.
+    return { id: entry.id, title, actor: timelineActor(entry, side) };
   });
   const recapExtra = Math.max(0, newCount - recapItems.length);
   const recapWhen  = lastVisit ? recapWhenLabel(lastVisit) : "";
@@ -946,9 +949,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           <div className="flex items-center gap-2">
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
             {newCount > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.primaryBg, color: P.primary }}>
-                {newCount} new
-              </span>
+              <PortalPill tone="coral">{newCount} new</PortalPill>
             )}
           </div>
           <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
@@ -967,23 +968,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               )}
               {entry.type === "milestone" ? (
                 <>
-                  {/* Avatar. Own side: the client's own photo on steps they
-                      confirmed, the team member's photo on steps we confirmed,
-                      else our bright orange icon. Other side: always a green
-                      icon, never a photo (we don't share the other side's
-                      pictures across the deal). */}
+                  {/* Branded tsp-avatar, coloured by role (seller blue / buyer
+                      green / team orange / solicitor grey), photo overriding.
+                      Shared with the recap + Updates tab via timelineActor. */}
                   {(() => {
-                    const isOtherSide = entry.side !== side;
-                    const photo = isOtherSide
-                      ? null
-                      : entry.confirmedByClient
-                        ? entry.confirmedByContactImage
-                        : entry.completedByImage;
-                    return photo ? (
-                      <UserAvatar user={{ name: entry.confirmedByClient ? "You" : (entry.completedByName ?? "Your team"), image: photo }} size={28} />
-                    ) : (
-                      <UserCircle size={28} weight="fill" className="flex-shrink-0" style={{ color: isOtherSide ? P.success : P.primary }} />
-                    );
+                    const a = timelineActor(entry, side);
+                    return <ActorAvatar name={a.name} role={a.role} image={a.image} size={28} className="flex-shrink-0" />;
                   })()}
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>
