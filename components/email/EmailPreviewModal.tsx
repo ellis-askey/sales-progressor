@@ -398,8 +398,7 @@ export function EmailPreviewModal({ emailId, onClose, onSaved }: Props) {
                   setMode("view");
                 }}
                 disabled={isSaving}
-                className="agent-link"
-                style={{ padding: "10px 12px", fontSize: 13 }}
+                className="agent-btn agent-btn-neutral agent-btn-sm"
               >
                 Cancel
               </button>

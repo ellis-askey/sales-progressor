@@ -156,7 +156,7 @@ export function SurveyBookingModal({
         </Modal.Body>
 
         <Modal.Footer style={{ padding: "16px 20px 20px", gap: 12, justifyContent: undefined }}>
-          <button type="button" onClick={onCancel} className="agent-btn agent-btn-ghost-bordered agent-btn-md">
+          <button type="button" onClick={onCancel} className="agent-btn agent-btn-neutral agent-btn-md">
             Cancel
           </button>
           <button

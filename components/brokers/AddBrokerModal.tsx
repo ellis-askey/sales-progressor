@@ -175,7 +175,7 @@ export function AddBrokerModal({ prefillName, subtitle = "Add the broker helping
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 rounded-xl transition-colors"
+              className="agent-btn agent-btn-neutral agent-btn-md"
             >
               Cancel
             </button>

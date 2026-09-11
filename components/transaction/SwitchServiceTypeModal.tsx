@@ -106,7 +106,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
             type="button"
             onClick={safeClose}
             disabled={isPending}
-            className="agent-btn agent-btn-ghost-bordered agent-btn-md"
+            className="agent-btn agent-btn-neutral agent-btn-md"
           >
             Cancel
           </button>

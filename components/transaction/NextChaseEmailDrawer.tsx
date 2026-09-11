@@ -204,8 +204,7 @@ export function NextChaseEmailDrawer({
           <>
             <button
               onClick={() => { setMode("view"); setSubject(preview?.subject ?? ""); setBody(preview?.text ?? ""); setSaveError(null); }}
-              className="agent-link"
-              style={{ fontSize: 12 }}
+              className="agent-btn agent-btn-neutral agent-btn-sm"
               disabled={saving}
             >
               Cancel

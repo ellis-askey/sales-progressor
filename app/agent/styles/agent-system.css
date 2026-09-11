@@ -759,6 +759,28 @@
     opacity: 0.45;
   }
 
+  /* ── Neutral (Cancel / secondary) button ─────────────────────────────────── */
+  /* Canonical neutral secondary: thin token border on a see-through fill; on
+   * hover the border darkens toward ink and a faint glass fill appears. This is
+   * the MemberManageDrawer `.mm-btn-cancel` treatment, promoted for reuse across
+   * every drawer/modal Cancel. Token-based, so it's correct in light and dark.
+   * Usage: className="agent-btn agent-btn-neutral agent-btn-sm" */
+  .agent-btn-neutral {
+    background: transparent;
+    color: var(--agent-text-secondary);
+    border: 0.5px solid var(--agent-border-strong);
+  }
+  .agent-btn-neutral:hover:not(:disabled) {
+    background: var(--agent-surface-glass);
+    border-color: var(--agent-text-muted);
+  }
+  .agent-btn-neutral:focus-visible {
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-btn-neutral:disabled {
+    opacity: 0.45;
+  }
+
   /* Icon button (square) */
   .agent-btn-icon-sm { width: 32px; height: 32px; padding: 0; border-radius: var(--agent-radius-md); }
   .agent-btn-icon-md { width: 40px; height: 40px; padding: 0; border-radius: var(--agent-radius-md); }
@@ -793,7 +815,7 @@
     color: var(--agent-text-muted);
   }
   .agent-input:hover:not(:disabled):not(:focus) {
-    border-color: var(--agent-border-focus);
+    border-color: var(--agent-coral);
   }
   .agent-input:focus {
     outline: none;

@@ -147,7 +147,7 @@ export function MortgageModal({ buyerNames = [], onConfirm, onCancel }: Mortgage
         </Modal.Body>
 
         <Modal.Footer style={{ padding: "14px 20px 20px", display: "flex", gap: 12, justifyContent: undefined }}>
-          <button type="button" onClick={onCancel} className="agent-btn agent-btn-secondary agent-btn-md">
+          <button type="button" onClick={onCancel} className="agent-btn agent-btn-neutral agent-btn-md">
             Cancel
           </button>
           <button type="button" onClick={handleContinue} className="agent-btn agent-btn-primary agent-btn-md" style={{ flex: 1 }}>

@@ -184,7 +184,7 @@ export function UndoMilestoneModal({
           <button
             onClick={onCancel}
             disabled={isPending}
-            className="agent-btn agent-btn-ghost-bordered flex-1"
+            className="agent-btn agent-btn-neutral flex-1"
           >
             Cancel
           </button>

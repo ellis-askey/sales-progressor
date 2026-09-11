@@ -111,8 +111,7 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
             <Modal.Footer style={{ padding: "14px 20px 20px", justifyContent: "flex-end" }}>
               <button
                 onClick={onClose}
-                className="agent-link"
-                style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
+                className="agent-btn agent-btn-neutral agent-btn-sm"
               >
                 Cancel
               </button>
@@ -183,17 +182,17 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
 
             <Modal.Footer style={{ padding: "14px 20px 20px", justifyContent: "space-between" }}>
               <button
+                type="button"
                 onClick={() => (holdOnly ? onClose() : setStep("choose"))}
-                className="agent-link"
-                style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
+                className="agent-btn agent-btn-neutral agent-btn-sm"
               >
                 {holdOnly ? "Cancel" : "← Back"}
               </button>
               {!holdOnly && (
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="agent-link"
-                  style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
+                  className="agent-btn agent-btn-neutral agent-btn-sm"
                 >
                   Cancel
                 </button>

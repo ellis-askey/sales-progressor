@@ -453,7 +453,7 @@ function SolicitorTile({
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={closeEdit} className="agent-btn agent-btn-xs agent-btn-ghost-bordered">Cancel</button>
+              <button type="button" onClick={closeEdit} className="agent-btn agent-btn-xs agent-btn-neutral">Cancel</button>
               <button type="button" onClick={handleSave} className="agent-btn agent-btn-xs agent-btn-primary">Save</button>
             </div>
             {info.firm && (

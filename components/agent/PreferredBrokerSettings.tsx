@@ -301,7 +301,8 @@ export function BrokerForm({
           <button
             type="button"
             onClick={onCancel}
-            style={{ padding: "10px 16px", fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)", background: "transparent", border: "none", borderRadius: 12, cursor: "pointer" }}
+            className="agent-btn agent-btn-neutral"
+            style={{ padding: "10px 16px", fontSize: 13, borderRadius: 12 }}
           >
             Cancel
           </button>

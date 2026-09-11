@@ -1012,8 +1012,9 @@ export function ChaseDrawer({
                   )}
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                     <button
+                      type="button"
                       onClick={() => { resetAddForm(); setAddError(null); }}
-                      style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, border: "0.5px solid var(--agent-border-subtle)", background: "var(--agent-surface-glass)", color: "var(--agent-text-muted)", cursor: "pointer" }}
+                      className="agent-btn agent-btn-neutral agent-btn-sm"
                     >
                       Cancel
                     </button>

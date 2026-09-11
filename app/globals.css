@@ -308,7 +308,7 @@ body {
     opacity: 1;
   }
   .glass-input:hover:not(:focus):not(:disabled) {
-    border-color: var(--agent-border-focus);
+    border-color: var(--agent-coral);
     background: rgba(255, 255, 255, 0.60);
   }
   .glass-input:focus {

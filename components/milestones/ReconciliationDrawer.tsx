@@ -315,15 +315,10 @@ export function ReconciliationDrawer({
         {/* Footer — paired drawer pattern */}
         <div style={{ padding: "12px 24px 20px", borderTop: "0.5px solid var(--agent-border-subtle)", display: "flex", gap: 12, flexShrink: 0 }}>
           <button
+            type="button"
             onClick={doClose}
-            style={{
-              width: 96, padding: "10px 0", borderRadius: 12,
-              background: "transparent", color: "var(--agent-text-secondary)",
-              fontWeight: 500, fontSize: 14, border: "1px solid var(--agent-border-default)",
-              cursor: "pointer", transition: "background 150ms",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = isNight ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.04)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            className="agent-btn agent-btn-neutral"
+            style={{ width: 96, borderRadius: 12, fontSize: 14 }}
           >
             Cancel
           </button>

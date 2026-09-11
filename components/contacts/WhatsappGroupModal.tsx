@@ -366,8 +366,8 @@ export function WhatsappGroupModal({
                 <button
                   type="button"
                   onClick={() => { setEditing(false); setLinkInput(""); setError(null); }}
-                  className="agent-link"
-                  style={{ marginTop: 8, fontSize: 12 }}
+                  className="agent-btn agent-btn-neutral agent-btn-sm"
+                  style={{ marginTop: 8 }}
                 >
                   Cancel
                 </button>

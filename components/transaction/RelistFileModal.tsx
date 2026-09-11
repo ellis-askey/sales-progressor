@@ -573,18 +573,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                 type="button"
                 onClick={onClose}
                 disabled={isPending}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "var(--agent-text-secondary, #4b5563)",
-                  background: "transparent",
-                  border: "0.5px solid var(--agent-border-default, rgba(0,0,0,0.12))",
-                  cursor: isPending ? "default" : "pointer",
-                  opacity: isPending ? 0.5 : 1,
-                }}
-                className="hover:bg-black/[0.04]"
+                className="agent-btn agent-btn-neutral agent-btn-sm"
               >
                 Cancel
               </button>

@@ -68,9 +68,9 @@ export function ConfirmMilestoneDateModal({
       </ModalBody>
       <ModalFooter>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
+          <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" onClick={onClose} disabled={loading}>
             Cancel
-          </Button>
+          </button>
           <Button variant="primary" size="sm" loading={loading} disabled={!date} onClick={() => onConfirm(date)}>
             Confirm
           </Button>

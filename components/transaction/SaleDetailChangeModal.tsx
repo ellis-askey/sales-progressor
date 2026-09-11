@@ -87,7 +87,7 @@ export function SaleDetailChangeModal({
           type="button"
           onClick={onClose}
           disabled={confirming}
-          className="agent-btn-ghost-bordered"
+          className="agent-btn agent-btn-neutral"
           style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600, opacity: confirming ? 0.5 : 1 }}
         >
           Cancel

@@ -658,7 +658,7 @@ export function AddNodeDrawer({
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="px-3 py-2.5 text-sm font-medium text-slate-900/55 hover:text-slate-900/85 transition-colors"
+              className="agent-btn agent-btn-neutral agent-btn-sm"
             >
               Cancel
             </button>

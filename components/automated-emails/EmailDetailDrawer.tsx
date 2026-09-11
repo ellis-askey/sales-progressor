@@ -405,7 +405,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
 
           {isQueue && mode === "edit" && (
             <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-              <button onClick={() => { setMode("view"); setSubject(preview?.subject ?? ""); setText(preview?.text ?? ""); setSaveError(null); }} className="agent-link" style={{ fontSize: 12 }} disabled={saving}>Cancel</button>
+              <button onClick={() => { setMode("view"); setSubject(preview?.subject ?? ""); setText(preview?.text ?? ""); setSaveError(null); }} className="agent-btn agent-btn-neutral agent-btn-sm" disabled={saving}>Cancel</button>
               <button onClick={handleSave} className="agent-btn-color-primary" style={primaryBtn} disabled={saving || !subject.trim() || !text.trim()}>{saving ? "Saving…" : "Save"}</button>
             </span>
           )}
