@@ -142,6 +142,36 @@ export type GrowthWeek = {
 
 const GROWTH_WEEKS = 12;
 
+// Item 1 additions — additive, so the existing blocks are untouched.
+
+// The same headline numbers split by side, so the buyer/seller gap is visible
+// and trackable. Same live-file population as the rest of the page.
+export type SideStats = {
+  total: number;
+  visited: number;
+  engaged: number;
+  installed: number;
+  notifications: number;
+  last30: number; // visited in the last 30 days
+  repeat: number; // 2+ tracked visits (a genuine return)
+};
+export type AdoptionBySide = { buyer: SideStats; seller: SideStats };
+
+// "Are they coming back" — recency + repeat, the thing the recap/badge target.
+export type AdoptionRecency = {
+  last7: number;
+  last14: number;
+  last30: number;
+  repeat: number;
+};
+
+// Prompt funnel from the Phase-2 events: how many were asked and how many said
+// yes. Fills in as the new prompts run; near-zero at first (honest, not broken).
+export type AdoptionPrompts = {
+  install: { shown: number; completed: number; dismissed: number };
+  notif: { shown: number; enabled: number; dismissed: number };
+};
+
 export type PortalAdoption = {
   totalClients: number;
   notificationsCount: number;
@@ -154,6 +184,9 @@ export type PortalAdoption = {
   byAgency: AgencyAdoptionRow[];
   growth: GrowthWeek[];
   clients: AdoptionClient[];
+  bySide: AdoptionBySide;
+  recency: AdoptionRecency;
+  prompts: AdoptionPrompts;
 };
 
 export async function getPortalAdoption(): Promise<PortalAdoption> {
@@ -280,6 +313,34 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     now,
   );
 
+  // ── Item 1: buyer/seller split + recency (from the same in-memory clients) ──
+  const DAY = 86_400_000;
+  const within = (d: Date | null, days: number) => d != null && now.getTime() - d.getTime() <= days * DAY;
+  const sideStats = (list: AdoptionClient[]): SideStats => ({
+    total: list.length,
+    visited: list.filter((c) => c.lastVisited != null).length,
+    engaged: list.filter(isDeeplyEngaged).length,
+    installed: list.filter((c) => c.installed).length,
+    notifications: list.filter((c) => c.notifications).length,
+    last30: list.filter((c) => within(c.lastVisited, 30)).length,
+    repeat: list.filter((c) => c.detail.visits >= 2).length,
+  });
+  const bySide: AdoptionBySide = {
+    buyer: sideStats(clients.filter((c) => c.role === "Buyer")),
+    seller: sideStats(clients.filter((c) => c.role === "Seller")),
+  };
+  const recency: AdoptionRecency = {
+    last7: clients.filter((c) => within(c.lastVisited, 7)).length,
+    last14: clients.filter((c) => within(c.lastVisited, 14)).length,
+    last30: clients.filter((c) => within(c.lastVisited, 30)).length,
+    repeat: clients.filter((c) => c.detail.visits >= 2).length,
+  };
+
+  // ── Item 1: install / notification prompt funnel (Phase-2 events) ──
+  // Excludes internal/test agencies to match the rest of the page. Near-zero at
+  // first because the reworked prompts only just went live.
+  const prompts = await getPromptFunnel();
+
   return {
     totalClients: clients.length,
     notificationsCount,
@@ -300,6 +361,47 @@ export async function getPortalAdoption(): Promise<PortalAdoption> {
     byAgency,
     growth,
     clients,
+    bySide,
+    recency,
+    prompts,
+  };
+}
+
+// Count the Phase-2 prompt events by type, excluding internal/test agencies so
+// the funnel matches the rest of the page. Returns zeros cleanly when nothing
+// has fired yet.
+async function getPromptFunnel(): Promise<AdoptionPrompts> {
+  const internal = await commandDb.agency.findMany({ where: { isInternal: true }, select: { id: true } });
+  const internalIds = internal.map((a) => a.id);
+  const rows = await commandDb.event.groupBy({
+    by: ["type"],
+    where: {
+      type: {
+        in: [
+          "portal_install_prompt_shown",
+          "portal_install_completed",
+          "portal_install_dismissed",
+          "portal_notif_prompt_shown",
+          "portal_notif_enabled",
+          "portal_notif_dismissed",
+        ],
+      },
+      ...(internalIds.length ? { agencyId: { notIn: internalIds } } : {}),
+    },
+    _count: { _all: true },
+  });
+  const n = (t: string) => rows.find((r) => r.type === t)?._count._all ?? 0;
+  return {
+    install: {
+      shown: n("portal_install_prompt_shown"),
+      completed: n("portal_install_completed"),
+      dismissed: n("portal_install_dismissed"),
+    },
+    notif: {
+      shown: n("portal_notif_prompt_shown"),
+      enabled: n("portal_notif_enabled"),
+      dismissed: n("portal_notif_dismissed"),
+    },
   };
 }
 

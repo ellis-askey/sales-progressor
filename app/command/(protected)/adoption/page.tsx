@@ -1,4 +1,4 @@
-import { getPortalAdoption, type AdoptionFunnel, type AdoptionCapabilities, type AdoptionPriority, type AgencyAdoptionRow, type GrowthWeek } from "@/lib/command/adoption";
+import { getPortalAdoption, type AdoptionFunnel, type AdoptionCapabilities, type AdoptionPriority, type AgencyAdoptionRow, type GrowthWeek, type AdoptionBySide, type AdoptionRecency, type AdoptionPrompts, type SideStats } from "@/lib/command/adoption";
 import { AdoptionTable } from "@/components/command/AdoptionTable";
 import InfoTip from "@/components/command/shared/InfoTip";
 
@@ -9,7 +9,7 @@ import InfoTip from "@/components/command/shared/InfoTip";
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
-  const { totalClients, funnel, capabilities, priority, byAgency, growth, clients } = await getPortalAdoption();
+  const { totalClients, funnel, capabilities, priority, byAgency, growth, clients, bySide, recency, prompts } = await getPortalAdoption();
 
   return (
     <div className="space-y-6">
@@ -50,6 +50,12 @@ export default async function AdoptionPage() {
         />
       </div>
 
+      {/* Buyer vs seller — the split the page couldn't show before. */}
+      <BySide bySide={bySide} />
+
+      {/* Coming back — recency + repeat (what the recap + badge target). */}
+      <ComingBack recency={recency} total={totalClients} />
+
       {/* Opportunity / what to do next */}
       <Opportunity priority={priority} />
 
@@ -57,6 +63,9 @@ export default async function AdoptionPage() {
       <ByAgencyTable rows={byAgency} />
 
       <GrowthChart growth={growth} />
+
+      {/* Did the prompts work — Phase-2 install/notification funnel. */}
+      <PromptResults prompts={prompts} />
 
       <AdoptionTable clients={clients} />
 
@@ -254,6 +263,120 @@ function Stat({ label, value, sub, warn }: { label: string; value: string; sub?:
       <p className="text-[11px] uppercase tracking-wider text-neutral-500">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${warn ? "text-[#f6b17a]" : "text-neutral-100"}`}>{value}</p>
       {sub && <p className="text-[11px] text-neutral-600 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+// The same headline numbers split by side. % is of that side's own clients, so
+// seller 98% vs buyer 72% reads straight off the table.
+function BySide({ bySide }: { bySide: AdoptionBySide }) {
+  const rows: { label: string; metric: keyof SideStats }[] = [
+    { label: "Visited", metric: "visited" },
+    { label: "Deeply engaged", metric: "engaged" },
+    { label: "Active last 30 days", metric: "last30" },
+    { label: "Repeat visitors", metric: "repeat" },
+    { label: "App installed", metric: "installed" },
+    { label: "Notifications on", metric: "notifications" },
+  ];
+  const pct = (n: number, d: number) => (d === 0 ? 0 : Math.round((n / d) * 100));
+  const rateColor = (r: number) => (r >= 60 ? "text-emerald-400" : r >= 30 ? "text-amber-400" : "text-red-400");
+  const cell = (s: SideStats, metric: keyof SideStats) => {
+    const val = s[metric];
+    const p = pct(val, s.total);
+    return (
+      <td className="px-3 py-2.5 text-right text-xs tabular-nums">
+        <span className={`font-semibold ${rateColor(p)}`}>{p}%</span>
+        <span className="text-neutral-600"> · {val}</span>
+      </td>
+    );
+  };
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-neutral-800 flex items-center gap-1.5">
+        <p className="text-[11px] uppercase tracking-wider text-neutral-500">Buyer vs seller</p>
+        <InfoTip label="Buyer vs seller">The same numbers split by side, so the buyer/seller gap is visible. Same live-file clients as the funnel above; the percentage is of that side&apos;s own clients.</InfoTip>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[420px]">
+          <thead>
+            <tr className="bg-neutral-950/40 border-b border-neutral-800">
+              <th className="text-left px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Metric</th>
+              <th className="text-right px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Seller · {bySide.seller.total}</th>
+              <th className="text-right px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Buyer · {bySide.buyer.total}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-800">
+            {rows.map((r) => (
+              <tr key={r.metric} className="hover:bg-neutral-800/40 transition-colors">
+                <td className="px-4 py-2.5 text-neutral-300 text-xs">{r.label}</td>
+                {cell(bySide.seller, r.metric)}
+                {cell(bySide.buyer, r.metric)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Recency + repeat — how recently clients came back, and how many genuinely do.
+function ComingBack({ recency, total }: { recency: AdoptionRecency; total: number }) {
+  const pct = (n: number) => (total === 0 ? 0 : Math.round((n / total) * 100));
+  const items = [
+    { label: "Active last 7 days", n: recency.last7 },
+    { label: "Active last 14 days", n: recency.last14 },
+    { label: "Active last 30 days", n: recency.last30 },
+    { label: "Repeat visitors", n: recency.repeat, tip: "Two or more tracked visits — a genuine return. Visit tracking started recently, so this understates older returners for now." },
+  ];
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-2">
+        <p className="text-[11px] uppercase tracking-wider text-neutral-500">Coming back</p>
+        <InfoTip label="Coming back">How recently clients last opened the portal, and how many genuinely return. This is what the &ldquo;Since you were last here&rdquo; recap and the unread badge are trying to lift.</InfoTip>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {items.map((i) => (
+          <div key={i.label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-neutral-500 flex items-center gap-1">{i.label}{i.tip && <InfoTip label={i.label}>{i.tip}</InfoTip>}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-100">{i.n}<span className="text-sm text-neutral-600 font-normal"> · {pct(i.n)}%</span></p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Phase-2 prompt funnel: how many were asked to install / turn on notifications,
+// and how many said yes.
+function PromptResults({ prompts }: { prompts: AdoptionPrompts }) {
+  const any = prompts.install.shown + prompts.notif.shown > 0;
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+      <div className="flex items-center gap-1.5">
+        <p className="text-[11px] uppercase tracking-wider text-neutral-500">Prompt results</p>
+        <InfoTip label="Prompt results">How the reworked install and notification prompts convert: how many clients were asked and how many said yes. Just went live, so it fills in over time. On iPhone we can&apos;t confirm the actual add, so &ldquo;installed&rdquo; here reflects Android; iPhone installs show in the &ldquo;App installed&rdquo; tile above.</InfoTip>
+      </div>
+      {any ? (
+        <div className="mt-3 space-y-2">
+          <PromptLine label="Add to home screen" shown={prompts.install.shown} yes={prompts.install.completed} yesLabel="installed" />
+          <PromptLine label="Turn on notifications" shown={prompts.notif.shown} yes={prompts.notif.enabled} yesLabel="turned on" />
+        </div>
+      ) : (
+        <p className="mt-3 text-[13px] text-neutral-600">No prompts shown yet. This fills in as clients reach the new install and notification prompts.</p>
+      )}
+    </div>
+  );
+}
+function PromptLine({ label, shown, yes, yesLabel }: { label: string; shown: number; yes: number; yesLabel: string }) {
+  const rate = shown === 0 ? 0 : Math.round((yes / shown) * 100);
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-40 shrink-0 text-[12px] text-neutral-300">{label}</span>
+      <div className="flex-1 h-5 rounded bg-neutral-800/60 overflow-hidden">
+        <div className="h-full bg-[#2563eb]/70 rounded" style={{ width: `${rate}%` }} aria-hidden />
+      </div>
+      <span className="w-44 shrink-0 text-right text-[12px] text-neutral-400 tabular-nums">{yes} {yesLabel} of {shown} shown ({rate}%)</span>
     </div>
   );
 }
