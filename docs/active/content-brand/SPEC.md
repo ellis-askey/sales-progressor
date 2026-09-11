@@ -1,6 +1,6 @@
 # Content & Personal Brand — Command Centre area
 
-**Status:** Phases 1-3 complete (Thoughts, Brand memory, Inbox, Creation flow, Overview; Opportunities, Pillars+balance, Strategy+review; Composer, AI-tell detector, Voice learning). Phases 4-6 in progress. Spec created 2026-09-09.
+**Status:** Phases 1-6 complete (2026-09-11). Thoughts, Brand memory, Inbox, Creation flow, Overview; Opportunities, Pillars+balance, Strategy+review; Composer, AI-tell detector, Voice learning; Platform adaptation, Media suggestions; Calendar+pipeline, Proposed week+autopilot; Publishing seam, Performance+attribution. Publishing/analytics integrations ship as honest "not connected" states until wired (ELLIS_MANUAL_TODO). Spec created 2026-09-09.
 
 **Phase 4-6 slice plan** (built on the same seams; parts that need real publishing/analytics integrations ship as honest "not connected" states until Ellis wires them, surfaced in ELLIS_MANUAL_TODO):
 - **P4.1** Platform adaptation: one core post → LinkedIn (fullest) / Instagram (recommended visual treatment + caption) / Facebook (adapted, not cloned). `PostAdaptation` model, AI adapt endpoint, composer "Adapt for platforms".
