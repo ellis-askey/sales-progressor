@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
-import { sendChainEmail, solicitorCc } from "@/lib/email";
+import { sendChainEmail, solicitorCc, buildOutboundMessageId } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
@@ -448,7 +448,13 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const finalSubject = editSubject ?? subject;
   const finalText = editBody ?? text;
   const finalHtml = editBody ? undefined : html;
-  await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo });
+  // Deterministic outbound Message-ID, stored on the OutboundMessage row below
+  // so an inbound reply can be matched to this chase. Set only when we also
+  // write the row (agentId present) so behaviour is otherwise unchanged.
+  const outboundMessageId = agentId
+    ? buildOutboundMessageId(`sol-${tx.id}-${side}-${now.getTime()}`)
+    : undefined;
+  await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
 
   // Effectiveness log for the Chasing hub — one ChaseSend per digest send,
   // stamped opened/responded when the solicitor uses their /s/ link (opens via
@@ -510,6 +516,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
         createdById: agentId,
         createdByRole: "director",
         sentAt: now,
+        // Same value set as the send's Message-ID header above. Capture-only.
+        internetMessageId: outboundMessageId,
       },
     });
   }

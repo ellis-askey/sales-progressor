@@ -84,6 +84,15 @@ export type EmailAttachment = {
   disposition?: string;
 };
 
+// Deterministic RFC5322 Message-ID for an outbound email, derived from a stable
+// row/queue id so the value we store on OutboundMessage.internetMessageId is the
+// exact one placed on the wire — the key an inbound reply's In-Reply-To echoes
+// back. Capture-only: no send behaviour depends on it. (Reply-matching relies on
+// SendGrid honouring the custom Message-ID header; validate with a real send.)
+export function buildOutboundMessageId(seed: string): string {
+  return `<sp-${seed}@thesalesprogressor.co.uk>`;
+}
+
 export async function sendEmail({
   to,
   cc,
@@ -96,6 +105,7 @@ export async function sendEmail({
   emailType,
   templateVersion,
   attachments,
+  messageId,
 }: {
   to: string;
   cc?: string[];
@@ -116,6 +126,10 @@ export async function sendEmail({
   // exactly as before.
   emailType?: string;
   templateVersion?: string;
+  // Deterministic RFC Message-ID (see buildOutboundMessageId). When provided we
+  // set it as the message's Message-ID header so an inbound reply can be matched
+  // to this send. Omit → no header set, behaviour identical to before.
+  messageId?: string;
 }) {
   if (isNonDeliverableRecipient(to)) {
     console.log(`[email] skipped reserved recipient to=${to} subject="${subject}"`);
@@ -134,6 +148,7 @@ export async function sendEmail({
     ...(attachments && attachments.length ? { attachments } : {}),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
+    ...(messageId ? { headers: { "Message-ID": messageId } } : {}),
   }));
 }
 
@@ -160,6 +175,7 @@ export async function sendChainEmail({
   emailType,
   templateVersion,
   trackOpens,
+  messageId,
 }: {
   to: string;
   // Optional CC — used to copy a solicitor handler's assistant/secretary on
@@ -182,6 +198,9 @@ export async function sendChainEmail({
   // keep the tracking footprint small. Open-tracking is a privacy choice + an
   // unreliable signal; see the Chasing hub notes.
   trackOpens?: boolean;
+  // Deterministic RFC Message-ID (see sendEmail.messageId). Omit → no header,
+  // behaviour identical to before.
+  messageId?: string;
 }): Promise<void> {
   if (isNonDeliverableRecipient(to)) {
     console.log(`[chain-email] skipped reserved recipient to=${to} subject="${subject}"`);
@@ -218,6 +237,7 @@ export async function sendChainEmail({
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
     ...(trackOpens ? { trackingSettings: { openTracking: { enable: true } } } : {}),
+    ...(messageId ? { headers: { "Message-ID": messageId } } : {}),
     mailSettings: { sandboxMode: { enable: isSandbox } },
   }));
 }

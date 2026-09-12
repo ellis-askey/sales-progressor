@@ -47,6 +47,9 @@ export async function logEnquiryChaseComm(
     recipientName?: string | null;
     createdById?: string | null;
     sentAt?: Date;
+    // Deterministic outbound Message-ID set as the send's Message-ID header, so an
+    // inbound reply can be matched to this chase. Capture-only; null when absent.
+    internetMessageId?: string | null;
   },
   db: Db = prisma,
 ): Promise<void> {
@@ -71,6 +74,7 @@ export async function logEnquiryChaseComm(
       createdByRole: "system",
       sentAt: at,
       createdAt: at,
+      internetMessageId: args.internetMessageId ?? null,
     },
   });
 }

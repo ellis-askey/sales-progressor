@@ -18,7 +18,7 @@
 // OFF by default. See docs/active/enquiries-stage-rework-SPEC.md.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, solicitorCc } from "@/lib/email";
+import { sendChainEmail, solicitorCc, buildOutboundMessageId } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { addWorkingDays } from "@/lib/emails/working-hours";
@@ -210,8 +210,13 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       agentSignatureText: agentSig?.text ?? null,
     });
 
+    // Deterministic outbound Message-ID, stored on the OutboundMessage record
+    // below so an inbound reply can be matched to this enquiry chase.
+    const outboundMessageId = buildOutboundMessageId(
+      `enq-${tx.id}-${seller ? "v" : "p"}-${now.getTime()}`,
+    );
     try {
-      await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+      await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo, messageId: outboundMessageId });
       await prisma.enquiryTracker.update({
         where: { id: t.id },
         data: { lastChasedAt: now, chaseCount: { increment: 1 } },
@@ -232,6 +237,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
         recipientName: (seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? handlerName ?? null,
         createdById: ownerId ?? null,
         sentAt: now,
+        internetMessageId: outboundMessageId,
       }).catch(() => {});
       sent++;
     } catch (err) {

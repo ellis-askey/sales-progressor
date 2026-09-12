@@ -4,7 +4,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed } from "@/lib/email";
+import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId } from "@/lib/email";
 import { recordEvent } from "@/lib/command/events/write";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
@@ -263,6 +263,16 @@ export async function drainOutboundQueue(): Promise<{
     }
 
     const payload = record.payload as Record<string, unknown>;
+    // Deterministic outbound Message-ID for the client-chase lane (the only
+    // outbound path with no /s/-link response record). Derived from the stable
+    // queue id and stored on the mirror OutboundMessage below, so a future
+    // inbound reply can be matched by In-Reply-To. Set only for the case that
+    // writes a mirror row — every other queued send is unchanged (no header).
+    const willMirrorClientChase =
+      record.emailType === "CLIENT_CHASE" && Boolean(record.recipientContactId);
+    const outboundMessageId = willMirrorClientChase
+      ? buildOutboundMessageId(record.id)
+      : undefined;
     try {
       await sendChainEmail({
         to: record.recipientEmail,
@@ -270,6 +280,7 @@ export async function drainOutboundQueue(): Promise<{
         text: payload.text as string,
         html: payload.html as string | undefined,
         queueId: record.id,
+        messageId: outboundMessageId,
         // Client chase is the only tab with no /s/ link, so open-tracking is
         // the only "did they read it" signal available for it. Scoped here
         // rather than enabled account-wide. The webhook stamps openedAt.
@@ -341,6 +352,9 @@ export async function drainOutboundQueue(): Promise<{
               visibleToClient: true,
               createdByRole: "system",
               buyerRoundId: stampRoundId,
+              // Same value set as the send's Message-ID header above; lets an
+              // inbound reply be matched to this chase. Capture-only.
+              internetMessageId: outboundMessageId,
             },
           }).catch((mirrorErr: unknown) => {
             console.error(
