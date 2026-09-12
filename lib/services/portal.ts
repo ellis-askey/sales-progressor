@@ -817,6 +817,16 @@ export async function logPortalView(token: string): Promise<void> {
 // bottom-sheet renders graceful explanatory copy instead of a generic 500.
 export const PORTAL_AGENT_ONLY_ERROR = "AGENT_ONLY_MILESTONE";
 
+// Terminal/dead transaction states. A client must not be able to drive live
+// milestone actions (confirm / mark-not-required / unmark) on a sale that has
+// been withdrawn or has already completed: doing so fires client emails and the
+// full milestone side-effect cascade on a dead file. READS stay unrestricted
+// (getPortalData is untouched) so the client keeps read-only/historical access
+// to their portal — only the write paths refuse. Thrown to the action wrappers,
+// which surface it to the UI's existing generic error path.
+export const PORTAL_WRITE_BLOCKED_STATUSES = new Set<string>(["withdrawn", "completed"]);
+export const PORTAL_TRANSACTION_INACTIVE_ERROR = "TRANSACTION_INACTIVE";
+
 // Client portal milestone confirmation — A1 of the client-chase arc.
 //
 // Delegates to completeMilestone() with a Contact confirmer so the full
@@ -861,9 +871,15 @@ export async function portalCompleteMilestone(input: {
   // production, but the round-mismatch check is a second line of defence.
   const txForGuard = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
-    select: { activeBuyerRoundId: true },
+    select: { activeBuyerRoundId: true, status: true },
   });
   if (!txForGuard) throw new Error("Invalid transaction");
+  // Transaction-status guard (audit P1-1). A withdrawn or completed sale is no
+  // longer live — block the confirm so it can't fire the milestone cascade and
+  // client emails on a dead file.
+  if (PORTAL_WRITE_BLOCKED_STATUSES.has(txForGuard.status)) {
+    throw new Error(PORTAL_TRANSACTION_INACTIVE_ERROR);
+  }
   if (
     contact.roleType === "purchaser" &&
     contact.buyerRoundId != null &&
@@ -2903,9 +2919,13 @@ export async function portalMarkNotRequired(input: {
   // Phase 1 commit 5 — dead-round guard. Mirrors portalCompleteMilestone.
   const txForGuard = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
-    select: { activeBuyerRoundId: true },
+    select: { activeBuyerRoundId: true, status: true },
   });
   if (!txForGuard) throw new Error("Invalid transaction");
+  // Transaction-status guard (audit P1-1). Mirrors portalCompleteMilestone.
+  if (PORTAL_WRITE_BLOCKED_STATUSES.has(txForGuard.status)) {
+    throw new Error(PORTAL_TRANSACTION_INACTIVE_ERROR);
+  }
   if (
     contact.roleType === "purchaser" &&
     contact.buyerRoundId != null &&
@@ -3024,9 +3044,13 @@ export async function portalUnmarkNotRequired(input: {
 
   const txForGuard = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
-    select: { activeBuyerRoundId: true },
+    select: { activeBuyerRoundId: true, status: true },
   });
   if (!txForGuard) throw new Error("Invalid transaction");
+  // Transaction-status guard (audit P1-1). Mirrors portalCompleteMilestone.
+  if (PORTAL_WRITE_BLOCKED_STATUSES.has(txForGuard.status)) {
+    throw new Error(PORTAL_TRANSACTION_INACTIVE_ERROR);
+  }
   if (
     contact.roleType === "purchaser" &&
     contact.buyerRoundId != null &&

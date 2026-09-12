@@ -132,6 +132,86 @@ export async function maybeAutoCompleteTransaction(
   }
 }
 
+/**
+ * Inverse of maybeAutoCompleteTransaction (audit P1-2).
+ *
+ * When a completion-defining milestone (VM20 / PM27) is reversed, the file must
+ * not be left status="completed" while its milestone (and billing) state says
+ * otherwise. If the transaction is currently "completed" but VM20+PM27 are no
+ * longer both complete, flip it back to "active" — the state it was in before
+ * auto-completion.
+ *
+ * Safe to call after ANY reversal: it no-ops unless the file is completed AND the
+ * completion milestones are now unsatisfied, so calling it on an ordinary
+ * mid-file undo does nothing. Never throws (mirrors maybeAutoCompleteTransaction).
+ *
+ * @returns true if it reopened the transaction this call, false otherwise.
+ */
+export async function maybeReopenCompletedTransaction(
+  transactionId: string,
+  opts?: { actorUserId?: string | null },
+): Promise<boolean> {
+  try {
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { id: true, status: true, activeBuyerRoundId: true, agencyId: true },
+    });
+    if (!tx || tx.status !== "completed") return false;
+
+    const scope = forRound(tx.activeBuyerRoundId ?? null, transactionId);
+    const completionDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true, code: true },
+    });
+    const completed = await prisma.milestoneCompletion.findMany({
+      where: {
+        transactionId,
+        milestoneDefinitionId: { in: completionDefs.map((d) => d.id) },
+        state: "complete",
+        ...milestoneScopeWhere(scope),
+      },
+      select: { milestoneDefinitionId: true },
+    });
+    const done = new Set(completed.map((c) => c.milestoneDefinitionId));
+    const vm20 = completionDefs.find((d) => d.code === "VM20");
+    const pm27 = completionDefs.find((d) => d.code === "PM27");
+    const stillBothComplete = !!(vm20 && pm27 && done.has(vm20.id) && done.has(pm27.id));
+    if (stillBothComplete) return false; // completion still satisfied — nothing to do
+
+    await prisma.propertyTransaction.update({
+      where: { id: transactionId },
+      data: { status: "active" },
+    });
+
+    // Activity-feed line, voice-passed. Only when a real user triggered it.
+    if (opts?.actorUserId) {
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: "Reopened: a completion step was undone, so the sale is active again.",
+          createdById: opts.actorUserId,
+        },
+      });
+    }
+
+    await recordEvent({
+      type: "transaction_status_changed",
+      agencyId: tx.agencyId || undefined,
+      userId: opts?.actorUserId || undefined,
+      entityType: "PropertyTransaction",
+      entityId: transactionId,
+      metadata: { from: "completed", to: "active", trigger: "milestone_reversal" },
+    });
+
+    return true;
+  } catch (err) {
+    console.error("[maybeReopenCompletedTransaction] reopen failed:", transactionId, err);
+    return false;
+  }
+}
+
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   weight: number;
   completion: MilestoneCompletion | null;
@@ -2247,6 +2327,11 @@ export async function executeUndoMilestone(input: {
 
   touchLastActivity(transactionId).catch(() => {});
 
+  // P1-2: if a completion step (VM20/PM27) was just undone, don't leave the file
+  // stranded at status="completed" with a billing reversal against it. Re-open to
+  // "active". No-ops for any non-completion undo.
+  await maybeReopenCompletedTransaction(transactionId, { actorUserId: completedById });
+
   // Command Centre event log — one event per user undo action. Bilateral partner
   // + cascade are downstream effects of the single user action; they don't emit.
   await recordEvent({
@@ -2362,6 +2447,10 @@ export async function reverseMilestoneWithCascade(input: {
       }
     }
   });
+
+  // P1-2: re-open the file if a completion step was undone (see
+  // maybeReopenCompletedTransaction). No-ops for any non-completion undo.
+  await maybeReopenCompletedTransaction(input.transactionId, { actorUserId: input.completedById });
 
   // Command Centre event log — one event per user undo action. The cascade and
   // bilateral helpers above are downstream effects of the single user action
