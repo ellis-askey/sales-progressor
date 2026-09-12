@@ -1446,6 +1446,32 @@ model ExchangePredictionHistory {
   @@index([transactionId, occurredAt])
 }
 
+// â”€â”€â”€ TransactionRiskHistory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Append-only, change-only history of a transaction's fall-through risk. Data
+// Optionality capture-now (PR5). Risk is computed live today (lib/services/risk.ts)
+// and never persisted, so its trajectory is currently lost. A nightly sweep
+// re-evaluates every live file and appends a row ONLY when the risk level or the
+// set of triggered factors changes — capturing both event-driven changes and
+// time-driven ones (a signal silently crossing a day threshold overnight)
+// without storing redundant identical daily rows. Captures the RiskInput +
+// triggered factors so the calculation can be reproduced/evaluated later.
+// Capture-only: NO product surface reads it, and no `risk` field is added to
+// PropertyTransaction. No FK (append-log precedent).
+model TransactionRiskHistory {
+  id            String   @id @default(cuid())
+  transactionId String
+  fromLevel     String?  // null on the first-ever row; else "no_data|low|medium|high"
+  toLevel       String   // "no_data|low|medium|high"
+  fromScore     Int?
+  toScore       Int      // 0-100
+  factors       Json     // triggered factors at eval time: [{ label, impact }]
+  inputs        Json     // RiskInput snapshot { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone }
+  source        String   @default("nightly")
+  occurredAt    DateTime @default(now())
+
+  @@index([transactionId, occurredAt])
+}
+
 // â”€â”€â”€ ReminderRule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ReminderRule {

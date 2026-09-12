@@ -57,6 +57,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/risk-history",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/retention-sweep",
       "schedule": "0 9 * * *"
     },
