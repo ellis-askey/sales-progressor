@@ -1422,6 +1422,30 @@ model MilestoneAvailabilityEvent {
   @@index([transactionId, milestoneCode])
 }
 
+// â”€â”€â”€ ExchangePredictionHistory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Append-only history of exchange-prediction changes. Data Optionality
+// capture-now (PR4). The live fields (PropertyTransaction.expectedExchangeDate,
+// overridePredictedDate) remain the operational source of truth; this records,
+// change-only, the trajectory they take so forecast drift/accuracy can be
+// evaluated later. Capture-only: NO product surface reads it. A row is written
+// only when the value moves to a different calendar day (the per-confirm system
+// recompute otherwise fires constantly). No FK (append-log precedent).
+model ExchangePredictionHistory {
+  id              String   @id @default(cuid())
+  transactionId   String
+  buyerRoundId    String?
+  field           String   // "expectedExchangeDate" | "overridePredictedDate"
+  previousDate    DateTime? // from-value (null when unknown / first set)
+  predictedDate   DateTime? // new effective value written
+  source          String   // "system_recompute" | "manual_override" | "override_cleared" | ...
+  isOverride      Boolean  @default(false)
+  changedByUserId String?  // null for system/cron-driven writes
+  inputsSnapshot  Json?    // deterministic inputs (completed codes, tenure, purchaseType, ...) where available
+  occurredAt      DateTime @default(now())
+
+  @@index([transactionId, occurredAt])
+}
+
 // â”€â”€â”€ ReminderRule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ReminderRule {

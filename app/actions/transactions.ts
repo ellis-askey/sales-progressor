@@ -17,6 +17,7 @@ import { evaluateTransactionReminders, createInitialRemindersInline } from "@/li
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { postExchangeDateUpdateToClients } from "@/lib/services/portal";
+import { recordPredictionChangeIfMoved } from "@/lib/services/exchange-prediction-history";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal, cascadeChainBuyerFound } from "@/lib/chain/withdrawal";
 import { splitChainAtBoundary } from "@/lib/chain/split";
@@ -928,9 +929,23 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
 
   const newDate = overridePredictedDate ? new Date(overridePredictedDate) : null;
 
-  await prisma.propertyTransaction.update({
-    where: { id: transactionId },
-    data: { overridePredictedDate: newDate },
+  // Update + capture-only prediction history (PR4), transactionally coupled so a
+  // failed history insert rolls back the override write (irrecoverable data).
+  // Change-only: the helper no-ops when the calendar day is unchanged.
+  await prisma.$transaction(async (txc) => {
+    await txc.propertyTransaction.update({
+      where: { id: transactionId },
+      data: { overridePredictedDate: newDate },
+    });
+    await recordPredictionChangeIfMoved(txc, {
+      transactionId,
+      field: "overridePredictedDate",
+      previousDate: tx.overridePredictedDate,
+      predictedDate: newDate,
+      source: newDate ? "manual_override" : "override_cleared",
+      isOverride: true,
+      changedByUserId: session.user.id,
+    });
   });
 
   // Client-visible portal entry — only when an existing expected date moves to a
@@ -983,9 +998,21 @@ export async function reviseOverdueExchangeDateAction(input: {
   });
   if (!tx) throw new Error("Transaction not found");
 
-  await prisma.propertyTransaction.update({
-    where: { id: input.transactionId },
-    data: { overridePredictedDate: parsed },
+  // Update + capture-only prediction history (PR4), transactionally coupled.
+  await prisma.$transaction(async (txc) => {
+    await txc.propertyTransaction.update({
+      where: { id: input.transactionId },
+      data: { overridePredictedDate: parsed },
+    });
+    await recordPredictionChangeIfMoved(txc, {
+      transactionId: input.transactionId,
+      field: "overridePredictedDate",
+      previousDate: tx.overridePredictedDate,
+      predictedDate: parsed,
+      source: "manual_override",
+      isOverride: true,
+      changedByUserId: session.user.id,
+    });
   });
 
   // Client-visible portal entry — only when an existing expected date moves to a

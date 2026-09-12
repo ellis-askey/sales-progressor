@@ -26,6 +26,7 @@ import {
   computeEffectiveStartDate,
   type PhaseAwareInput,
 } from "@/lib/services/fees";
+import { recordPredictionChangeIfMoved } from "@/lib/services/exchange-prediction-history";
 
 // Once either side's exchange is confirmed, expectedExchangeDate holds the REAL
 // exchange date (stamped by the VM19/PM26 sync in confirmMilestoneAction) and
@@ -51,6 +52,7 @@ export async function refreshExpectedExchangeDate(
     where: { id: transactionId },
     select: {
       createdAt: true,
+      expectedExchangeDate: true, // prior value, for change-only history (PR4)
       purchaseType: true,
       tenure: true,
       isShareOfFreehold: true,
@@ -93,6 +95,27 @@ export async function refreshExpectedExchangeDate(
   // overridePredictedDate remains the separate agent-set layer that wins on
   // every display surface.
   const predicted = calculatePhaseAwarePrediction(phaseAware, txn.createdAt, null);
+
+  // Capture-only prediction history (PR4), change-only by calendar day. Written
+  // BEFORE the stored-column update so a failed insert leaves the stored value
+  // unchanged and the change is re-detected on the next recompute (self-healing);
+  // no product behaviour depends on it. Same `client` handle as the update below.
+  await recordPredictionChangeIfMoved(client, {
+    transactionId,
+    field: "expectedExchangeDate",
+    previousDate: txn.expectedExchangeDate,
+    predictedDate: predicted,
+    source: "system_recompute",
+    isOverride: false,
+    changedByUserId: null,
+    inputsSnapshot: {
+      completedCodes,
+      tenure: txn.tenure,
+      purchaseType: txn.purchaseType,
+      isShareOfFreehold: txn.isShareOfFreehold,
+      effectiveStartDate: effectiveStartDate ? effectiveStartDate.toISOString() : null,
+    },
+  });
 
   await client.propertyTransaction.update({
     where: { id: transactionId },
