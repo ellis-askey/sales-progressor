@@ -3029,6 +3029,51 @@ export async function relistTransactionImpl(
     console.error("[relist] reminder re-evaluation failed", err);
   }
 
+  // One-off seller-facing update explaining the relist (Fix 4, 2026-09-12).
+  // When a sale is relisted the seller's progress is reset back to the draft
+  // contract pack stage (their own completed onboarding steps are preserved).
+  // Without a note, the seller would just see their progress ring drop with no
+  // explanation. Post a single visibleToClient update to the seller's portal
+  // feed, attributed to the agency (no email — portal only). Two variants: one
+  // when the draft contract pack had actually been issued before (progress
+  // genuinely moved back), and a gentler one when it hadn't (little visible
+  // change). Best-effort — a failure here must not fail the relist.
+  try {
+    const draftPackWasIssued =
+      vendorMilestoneSnapshot.find((r) => r.code === "VM7")?.state === "complete";
+    const addr = tx.propertyAddress;
+    const relistSellerUpdate = draftPackWasIssued
+      ? `A new buyer has been agreed for ${addr}. As the previous sale didn't go ahead, your progress has moved back to the draft contract pack stage while your solicitor prepares this for the new buyer.\n\n` +
+        `Everything you've already completed still stands, including instructing your solicitor, completing your ID checks and returning your property information forms, so you won't need to do any of those again.\n\n` +
+        `We'll keep you updated as the sale with your new buyer moves forward.`
+      : `A new buyer has been agreed for ${addr}. We've updated the sale with the new buyer's details, and everything you've completed so far still stands.\n\n` +
+        `There's nothing you need to redo. Your sale will continue from its current stage, and we'll keep you updated as things move forward with the new buyer.`;
+
+    const vendorContacts = await prisma.contact.findMany({
+      where: { propertyTransactionId: tx.id, roleType: "vendor", portalEligible: true },
+      select: { id: true },
+    });
+    if (vendorContacts.length > 0) {
+      await prisma.outboundMessage.create({
+        data: {
+          agencyId: tx.agencyId,
+          transactionId: tx.id,
+          channel: "in_app",
+          purpose: "notification",
+          status: "sent",
+          type: "outbound",
+          contactIds: vendorContacts.map((c) => c.id),
+          visibleToClient: true,
+          isAutomated: true,
+          createdById: session.userId,
+          content: relistSellerUpdate,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[relist] seller relist-update post failed", err);
+  }
+
   // STEP 12c — closed-loop chain arc (2026-06-05): BUYER_FOUND cascade
   // upward + chain-invite if the relist modal collected an onward agent.
   //
