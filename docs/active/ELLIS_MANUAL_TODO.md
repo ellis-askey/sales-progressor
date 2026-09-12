@@ -4,7 +4,15 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-09
+Last updated: 2026-09-12
+
+---
+
+## Automated Stripe billing is switched OFF (2026-09-12)
+
+Automated monthly invoice issuance (the `issue-invoices` cron, the only thing that charges a customer via Stripe) is now gated behind an env flag and defaults to OFF, because billing is being done manually for now. The issuance logic — including the crash-safe idempotency + per-invoice-isolation fix — is intact and ready; it just doesn't run.
+
+**To turn automated billing back on (when ready):** set `BILLING_AUTO_ISSUE_ENABLED=true` in the Vercel production environment. Until then no customer is charged automatically; draft ("building") invoices still accrue as a record but are never collected.
 
 ---
 

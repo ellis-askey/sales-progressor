@@ -16,6 +16,16 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Automated Stripe billing is OFF by default (2026-09-12). Billing is being
+  // done manually for now, so this cron must not charge anyone. The issuance
+  // logic — including the P0-2 idempotency + per-invoice-isolation fix — stays
+  // in place and ready; it only runs when BILLING_AUTO_ISSUE_ENABLED === "true"
+  // is set in the environment. This is the single charge trigger (accrual just
+  // builds draft invoice rows; it never charges), so gating it here is enough to
+  // stop all automated collection.
+  if (process.env.BILLING_AUTO_ISSUE_ENABLED !== "true") {
+    return NextResponse.json({ ok: true, skipped: "auto-issue disabled (manual billing)" });
+  }
   return runJob("issue-invoices", async () => {
     try {
       const result = await issuePriorMonthInvoices();
