@@ -40,7 +40,7 @@ export async function getPortalDocuments(token: string): Promise<PortalDocuments
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
-    select: { tenure: true },
+    select: { tenure: true, activeBuyerRoundId: true },
   });
   const tenure = tx?.tenure === "leasehold" ? "leasehold" : "freehold";
 
@@ -48,10 +48,19 @@ export async function getPortalDocuments(token: string): Promise<PortalDocuments
     side === "purchaser"
       ? { contact: { roleType: "purchaser" as const }, buyerRoundId: contact.buyerRoundId }
       : { contact: { roleType: "vendor" as const } };
+  // Audit P2 (relist doc-scope): a purchaser's shared docs carry their buyerRoundId.
+  // The vendor must only see the ACTIVE round's shared purchaser docs — without the
+  // round filter a fallen-through buyer's shared uploads lingered in the seller's
+  // Documents tab after a relist. (The purchaser's view of vendor-shared docs needs
+  // no round filter — vendor docs are file-level.)
   const otherShared =
     side === "purchaser"
       ? { contact: { roleType: "vendor" as const }, sharedWithOtherSide: true }
-      : { contact: { roleType: "purchaser" as const }, sharedWithOtherSide: true };
+      : {
+          contact: { roleType: "purchaser" as const },
+          sharedWithOtherSide: true,
+          buyerRoundId: tx?.activeBuyerRoundId ?? null,
+        };
 
   const rows = await prisma.transactionDocument.findMany({
     where: {

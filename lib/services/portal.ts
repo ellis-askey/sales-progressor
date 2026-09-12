@@ -2723,9 +2723,15 @@ export async function getPortalTimeline(
   opts: { buyerRoundId: string | null; activeBuyerRoundId: string | null } = { buyerRoundId: null, activeBuyerRoundId: null },
 ): Promise<TimelineEntry[]> {
   return withRetry(async () => {
+    // Audit P1-3: the vendor's feed must reflect the ACTIVE buyer round, not
+    // every round's purchaser milestones. Before this fix the vendor branch was
+    // `{}` (no round filter), so after a relist the seller saw the previous
+    // (fallen-through) buyer's PM progress interleaved with the new buyer's, and
+    // it contradicted the round-scoped Overview/Progress tiles. forRound(active)
+    // returns vendor file-level VM rows + the active round's PM rows only.
     const completionScope = side === "purchaser"
       ? milestoneScopeWhere(forRound(opts.buyerRoundId, transactionId))
-      : {};
+      : milestoneScopeWhere(forRound(opts.activeBuyerRoundId, transactionId));
     // A purchaser only sees messages addressed to them (already scoped). A
     // vendor's feed historically showed EVERY visibleToClient message on the
     // file — which would leak a buyer's own self-note ("You changed your
