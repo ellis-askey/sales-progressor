@@ -158,6 +158,7 @@ export default async function PortalProgressPage({
         side={side}
         onwardPanel={onwardPanel}
         onwardLabel={onwardLabel}
+        saleActive={transaction.status !== "withdrawn" && transaction.status !== "completed"}
       />
     </div>
   );

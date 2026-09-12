@@ -49,6 +49,10 @@ type Props = {
   // with onward to the LEFT so it swipes the opposite way from the other side.
   onwardPanel?: React.ReactNode;
   onwardLabel?: string;
+  // When the sale is no longer live (withdrawn / completed) the steps are still
+  // shown read-only, but the per-step Confirm / Skip actions are hidden — a dead
+  // sale can't be progressed. Defaults to live.
+  saleActive?: boolean;
 };
 
 function fmtDate(d: Date | null) {
@@ -74,7 +78,7 @@ async function fireConfetti() {
   }, 250);
 }
 
-export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side, onwardPanel, onwardLabel }: Props) {
+export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side, onwardPanel, onwardLabel, saleActive = true }: Props) {
   const [, startTransition] = useTransition();
   const [optimisticMilestones, addOptimistic] = useOptimistic(
     milestones,
@@ -383,7 +387,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                     // client sees what's coming, but strip the Confirm
                     // button and replace with explanatory copy.
                     const isAgentOnly   = isPortalAgentOnly(m.code);
-                    const canConfirm    = !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
+                    // saleActive gate: a withdrawn/completed sale shows steps read-only.
+                    const canConfirm    = saleActive && !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
                     const isLocked      = !m.isComplete && !m.isNotRequired && !m.isAvailable;
                     const isProcessing  = processingId === m.id;
 

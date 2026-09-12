@@ -690,6 +690,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             eventDateRequired: nextAction.eventDateRequired,
           }}
           whatHappensNext={getMilestoneCopy(nextAction.code).next ?? null}
+          saleActive={transaction.status !== "withdrawn" && transaction.status !== "completed"}
         />
       )}
 

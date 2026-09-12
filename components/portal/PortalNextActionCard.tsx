@@ -19,6 +19,9 @@ type Props = {
     eventDateRequired: boolean;
   };
   whatHappensNext: string | null;
+  // When the sale is no longer live (withdrawn / completed) there is no "next
+  // action" to confirm, so the whole prompt is hidden. Defaults to shown.
+  saleActive?: boolean;
 };
 
 async function fireConfetti() {
@@ -39,7 +42,7 @@ async function fireConfetti() {
   }, 260);
 }
 
-export function PortalNextActionCard({ token, milestone, whatHappensNext }: Props) {
+export function PortalNextActionCard({ token, milestone, whatHappensNext, saleActive = true }: Props) {
   const [, startTransition] = useTransition();
   const [optimisticConfirmed, addOptimistic] = useOptimistic(false, () => true);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -49,6 +52,10 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext }: Prop
 
   const isYours = milestone.who === "you";
   const confirmCopy = getMilestoneConfirmCopy(milestone.code);
+
+  // Dead sale (withdrawn / completed): no next action to confirm — hide the
+  // whole prompt. The overview hero still shows the sale's status.
+  if (!saleActive) return null;
 
   function openSheet() {
     setEventDate("");
