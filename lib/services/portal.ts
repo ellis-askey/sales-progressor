@@ -865,10 +865,12 @@ export async function portalCompleteMilestone(input: {
   });
   if (!contact) throw new Error("Invalid token");
 
-  // Phase 1 commit 5 — belt-and-braces dead-round guard. A purchaser whose
-  // round no longer matches the file's active round cannot confirm. The
-  // token rotation in commit 6's relist action makes this unreachable in
-  // production, but the round-mismatch check is a second line of defence.
+  // Dead-round guard. A purchaser whose round no longer matches the file's
+  // active round cannot confirm. NOTE: relist does NOT rotate the superseded
+  // buyer's token (their page shows a DeadRoundNotice instead of a 404), so this
+  // server-side check is the real protection — not a redundant second line. The
+  // same guard is applied to the other portal write actions via
+  // lib/portal/round-guard.ts (assertLivePortalRound).
   const txForGuard = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
     select: { activeBuyerRoundId: true, status: true },

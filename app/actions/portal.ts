@@ -14,6 +14,7 @@ import { setUkChaseTime } from "@/lib/services/reminders";
 import { toUKDateStr } from "@/lib/utils";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { getSurveyBookingOptionsForTx, applySurveyBooking, type SurveyBookingOption, type SurveyBookingChoice } from "@/lib/services/survey-booking";
+import { assertLivePortalRound } from "@/lib/portal/round-guard";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -182,6 +183,13 @@ export async function recordPortalSurveyBookingAction(input: {
   token: string;
   choice: SurveyBookingChoice;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Dead-round guard (P1-4): a superseded buyer can't book against the live round.
+  try {
+    await assertLivePortalRound(input.token);
+  } catch {
+    return { ok: false, error: "That link isn't valid." };
+  }
+
   const contact = await prisma.contact.findFirst({
     where: { portalToken: input.token },
     select: { propertyTransactionId: true },
@@ -293,6 +301,9 @@ export async function portalSetExpectedDateAction(input: {
   expectedDate: string;
 }) {
   if (!input.expectedDate) throw new Error("Date required");
+  // Dead-round guard (P1-4): a superseded buyer can't set dates / snooze chases
+  // on the live round.
+  await assertLivePortalRound(input.token);
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
@@ -446,6 +457,9 @@ export async function portalLeaveChaseNoteAction(input: {
 }) {
   const trimmed = input.note.trim();
   if (!trimmed) throw new Error("Note cannot be empty");
+  // Dead-round guard (P1-4): a superseded buyer can't leave chase notes on the
+  // live round.
+  await assertLivePortalRound(input.token);
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
@@ -520,6 +534,14 @@ export async function portalSaveCostsAction(input: {
   additionalProperty?: boolean | null;
   completionFundsSent?: boolean;
 }): Promise<{ ok: boolean }> {
+  // Dead-round guard (P1-4): a superseded buyer can't overwrite the live buyer's
+  // financial figures on the file.
+  try {
+    await assertLivePortalRound(input.token);
+  } catch {
+    return { ok: false };
+  }
+
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
     select: { propertyTransactionId: true, roleType: true },
@@ -557,6 +579,14 @@ export async function portalSaveMoveInfoAction(input: {
   token: string;
   patch: Partial<import("@/lib/services/portal-info").MoveInfo>;
 }): Promise<{ ok: boolean }> {
+  // Dead-round guard (P1-4): a superseded buyer can't overwrite the live buyer's
+  // move information.
+  try {
+    await assertLivePortalRound(input.token);
+  } catch {
+    return { ok: false };
+  }
+
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
     select: { propertyTransactionId: true, roleType: true },

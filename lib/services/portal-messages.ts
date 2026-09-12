@@ -9,6 +9,7 @@ import { buildPortalMessage } from "@/lib/emails/portal-message";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
+import { assertLivePortalRound } from "@/lib/portal/round-guard";
 
 export type PortalMessageShape = {
   id: string;
@@ -85,6 +86,11 @@ export async function getAllPortalThreads(transactionId: string): Promise<Contac
 }
 
 export async function sendClientPortalMessage(token: string, content: string): Promise<void> {
+  // Dead-round guard (P1-4). Without this, a superseded buyer's message would be
+  // stamped with the ACTIVE round (see the buyerRoundId stamp below) and surface
+  // in the live agent timeline + fire a "{old buyer} replied" push.
+  await assertLivePortalRound(token);
+
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
     select: {
