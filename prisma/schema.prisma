@@ -128,6 +128,7 @@ model Agency {
   manualTasks             ManualTask[]
   chains                  PropertyChain[]
   verifiedDomains         VerifiedDomain[]
+  solicitorCcOverrides    SolicitorContactAgencyOverride[]
   recommendedSolicitors   AgencyRecommendedSolicitor[]
   preferredBroker         AgencyPreferredBroker?
   feedbackSubmissions     FeedbackSubmission[]
@@ -1043,6 +1044,30 @@ model SolicitorContact {
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorContact")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorContact")
   milestoneConfirmations   MilestoneCompletion[] @relation("MilestoneConfirmedByContact")
+  agencyCcOverrides        SolicitorContactAgencyOverride[]
+}
+
+// Per-agency override of a shared solicitor handler's assistant/CC email.
+//
+// secondaryEmail on SolicitorContact is the SOLICITOR's own value (set in their
+// own portal) and is GOSPEL: when present it is used for every agency and cannot
+// be overridden. This table holds an AGENCY's own fallback CC, used ONLY when the
+// solicitor has not set one. Precedence + resolution live in
+// lib/services/solicitor-cc.ts. Keyed per (agency, handler) so one agency's value
+// never affects another's — closing the shared-directory cross-agency issue.
+model SolicitorContactAgencyOverride {
+  id                 String   @id @default(cuid())
+  agencyId           String
+  solicitorContactId String
+  secondaryEmail     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  agency           Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  solicitorContact SolicitorContact @relation(fields: [solicitorContactId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, solicitorContactId])
+  @@index([solicitorContactId])
 }
 
 model BrokerFirm {
