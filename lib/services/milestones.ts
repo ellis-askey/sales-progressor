@@ -11,6 +11,7 @@ import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { maybeStampExchange } from "@/lib/services/billing-trigger";
 import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import { recordEvent } from "@/lib/command/events/write";
+import { recordAvailabilityTransition, type AvailabilityCause } from "@/lib/services/milestone-availability-history";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import type { MilestoneScope } from "@/lib/services/milestone-scope";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType, PrismaClient } from "@prisma/client";
@@ -416,7 +417,10 @@ export async function initializeMilestoneCompletions(
 export async function unlockDirectDependents(
   transactionId: string,
   completedCode: string,
-  tx?: Prisma.TransactionClient
+  tx?: Prisma.TransactionClient,
+  // Availability-history cause. Defaults to a completed prerequisite; markNotRequired
+  // passes "not_required_satisfied" since an NR'd prereq also satisfies dependents.
+  cause: AvailabilityCause = "prereq_satisfied"
 ) {
   const db = tx ?? prisma;
   const dependentCodes = DIRECT_DEPENDENTS[completedCode] ?? [];
@@ -453,12 +457,22 @@ export async function unlockDirectDependents(
       if (currentState === "locked") {
         const row = await db.milestoneCompletion.findFirst({
           where: { transactionId, milestoneDefinitionId: dep.id, ...milestoneScopeWhere(scope) },
-          select: { id: true },
+          select: { id: true, buyerRoundId: true },
         });
         if (row) {
           await db.milestoneCompletion.update({
             where: { id: row.id },
             data: { state: "available" },
+          });
+          // Availability history (capture-only): this milestone just became
+          // actionable. Same db handle → atomic with the state change above.
+          await recordAvailabilityTransition(db, {
+            transactionId,
+            milestoneDefinitionId: dep.id,
+            milestoneCode: dep.code,
+            buyerRoundId: row.buyerRoundId,
+            transition: "became_available",
+            cause,
           });
         }
       }
@@ -520,12 +534,21 @@ export async function maybeUnlockExchangeGate(
 
   const gateRow = await db.milestoneCompletion.findFirst({
     where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
-    select: { id: true },
+    select: { id: true, buyerRoundId: true },
   });
   if (!gateRow) return;
   await db.milestoneCompletion.update({
     where: { id: gateRow.id },
     data: { state: "available" },
+  });
+  // Availability history (capture-only): the exchange gate just opened.
+  await recordAvailabilityTransition(db, {
+    transactionId,
+    milestoneDefinitionId: gateDef.id,
+    milestoneCode: gateCode,
+    buyerRoundId: gateRow.buyerRoundId,
+    transition: "became_available",
+    cause: "exchange_gate_unlocked",
   });
 
   const sideLabel = side === "vendor" ? "Vendor" : "Purchaser";
@@ -600,12 +623,22 @@ export async function maybeLockExchangeGate(
   if (!allClear) {
     const gateRow = await db.milestoneCompletion.findFirst({
       where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
-      select: { id: true },
+      select: { id: true, buyerRoundId: true },
     });
     if (gateRow) {
       await db.milestoneCompletion.update({
         where: { id: gateRow.id },
         data: { state: "locked" },
+      });
+      // Availability history (capture-only): the exchange gate was re-locked
+      // because a blocker is no longer satisfied.
+      await recordAvailabilityTransition(db, {
+        transactionId,
+        milestoneDefinitionId: gateDef.id,
+        milestoneCode: gateCode,
+        buyerRoundId: gateRow.buyerRoundId,
+        transition: "became_locked",
+        cause: "gate_relock",
       });
     }
   }
@@ -1673,7 +1706,7 @@ export async function markNotRequired(
 
   // NR also unlocks dependents (NR counts as satisfied for prereq purposes)
   if (def?.code) {
-    await unlockDirectDependents(transactionId, def.code);
+    await unlockDirectDependents(transactionId, def.code, undefined, "not_required_satisfied");
   }
   if (def?.side) {
     await maybeUnlockExchangeGate(transactionId, def.side, completedById);

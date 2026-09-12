@@ -1392,6 +1392,36 @@ model MilestoneCompletion {
   @@index([buyerRoundId])
 }
 
+// â”€â”€â”€ MilestoneAvailabilityEvent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Append-only history of when a milestone became actionable (or was re-locked).
+// Data Optionality capture-now (PR3). Capture-only: NO product surface reads it
+// yet. Availability is repeatable/reversible (a prerequisite reversal re-locks a
+// milestone; re-completing it makes it available again), so this is an event log
+// rather than a single timestamp. Written inside the same Prisma transaction as
+// the MilestoneCompletion state change, so a failed insert rolls the transition
+// back — the history observes the engine, it never drives it.
+//
+// Scope note: init and relist availability are NOT recorded here because they
+// coincide with the MilestoneCompletion row's createdAt (reconstructable). Only
+// the genuinely-irrecoverable mid-life transitions are captured: prereq unlock,
+// exchange-gate open/relock, and reversal cascades.
+model MilestoneAvailabilityEvent {
+  id                    String        @id @default(cuid())
+  transactionId         String
+  milestoneDefinitionId String
+  milestoneCode         String        // denormalised (e.g. "PM13") for query ease
+  buyerRoundId          String?       // round attribution; null for vendor/file-level rows
+  side                  MilestoneSide?
+  transition            String        // "became_available" | "became_locked"
+  cause                 String        // "prereq_satisfied" | "not_required_satisfied" | "exchange_gate_unlocked" | "gate_relock" | "reversal"
+  occurredAt            DateTime      @default(now())
+
+  // No FK relation (append-log precedent, cf. Event): keeps this off the large
+  // PropertyTransaction model and out of the delete path. Capture-only.
+  @@index([transactionId, occurredAt])
+  @@index([transactionId, milestoneCode])
+}
+
 // â”€â”€â”€ ReminderRule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ReminderRule {
