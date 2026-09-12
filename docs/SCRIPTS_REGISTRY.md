@@ -312,3 +312,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Staging-guarded (refuses production DB).
 - **Author/date:** Claude, 2026-09-07.
 - **Deletion criteria:** delete this script + this entry (and remove the seeded transaction) once the VM7 chase behaviour has been verified.
+
+### seed-portal-cards.ts
+- **Purpose:** review seed for Portal Engagement v2 (item B) — one clean, labelled portal file per "Something you can do" card (Information Walk / Stamp Duty Rise / Completion Court, all ", Cardview"), attached to Emily Chen's self-managed agency, so each prompt can be reviewed in isolation.
+- **Lifetime:** one-shot (throwaway). Idempotent (deletes its own ", Cardview" files then recreates); additive otherwise.
+- **Author/date:** Claude, 2026-09-12.
+- **Deletion criteria:** delete this script + this entry once the portal "cards" arc (item B) is signed off.
